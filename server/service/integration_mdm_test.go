@@ -6023,26 +6023,14 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 	require.Equal(t, "team2", getResp.Name)
 	require.JSONEq(t, tmProf, string(getResp.Profile))
 
-	// try to set the configuration_web_url key
-	tmProf = `{"configuration_web_url": "https://example.com"}`
-	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
-		TeamID:            &tm.ID,
-		Name:              "team3",
-		EnrollmentProfile: json.RawMessage(tmProf),
-	}, http.StatusUnprocessableEntity)
-	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The automatic enrollment profile can’t include configuration_web_url.`)
-	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
-
 	// try to set the url
 	tmProf = `{"url": "https://example.com"}`
-	res = s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+	res := s.Do("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
 		TeamID:            &tm.ID,
 		Name:              "team5",
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
+	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
@@ -6550,7 +6538,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 
 	// check that the last submitted DEP profile has been updated accordingly
-	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	// patch without specifying the mdm sso settings fields and an unrelated
@@ -6634,7 +6622,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 
 	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
 	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
@@ -6886,7 +6874,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}`), http.StatusOK, &acResp)
 
 	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/api/mdm/apple/enroll?token=")
+	require.Contains(t, lastSubmittedProfile.URL, "https://example.com/mdm/sso")
 	require.Equal(t, "https://example.com/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
 	// hitting the callback with an invalid session id redirects the user to the UI
@@ -10588,4 +10576,235 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	require.NoError(t, err)
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
+}
+
+func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+
+	var lastSubmittedProfile *godep.Profile
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		encoder := json.NewEncoder(w)
+
+		switch r.URL.Path {
+		case "/profile":
+			lastSubmittedProfile = &godep.Profile{}
+			rawProfile, err := io.ReadAll(r.Body)
+			require.NoError(t, err)
+			err = json.Unmarshal(rawProfile, lastSubmittedProfile)
+			require.NoError(t, err)
+
+			// check that the urls are not empty and equal
+			require.NotEmpty(t, lastSubmittedProfile.URL)
+			require.NotEmpty(t, lastSubmittedProfile.ConfigurationWebURL)
+			require.Equal(t, lastSubmittedProfile.URL, lastSubmittedProfile.ConfigurationWebURL)
+			err = encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+			require.NoError(t, err)
+		default:
+			_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+		}
+	}))
+
+	// disable first to make sure we start in the desired state
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
+		}
+	}`), http.StatusOK, &acResp)
+
+	// configure end-user authentication globally
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "https://localhost:8080",
+				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`), http.StatusOK, &acResp)
+
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/mdm/sso")
+
+	// trying to set a custom configuration_web_url fails because end user authentication is enabled
+	customSetupAsst := `{"configuration_web_url": "https://foo.example.com"}`
+	var globalAsstResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(customSetupAsst),
+	}, http.StatusUnprocessableEntity, &globalAsstResp)
+
+	// disable end user authentication
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			}
+		}
+	}`), http.StatusOK, &acResp)
+
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+
+	// setting a custom configuration_web_url succeeds because user authentication is disabled
+	globalAsstResp = createMDMAppleSetupAssistantResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            nil,
+		Name:              "no-team",
+		EnrollmentProfile: json.RawMessage(customSetupAsst),
+	}, http.StatusOK, &globalAsstResp)
+
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, "https://foo.example.com")
+
+	// try to enable end user auth again, it fails because configuration_web_url is set
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "https://localhost:8080",
+				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`), http.StatusUnprocessableEntity, &acResp)
+
+	// create a team via spec
+	teamSpecs := map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": t.Name(),
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_end_user_authentication": false,
+					},
+				},
+			},
+		},
+	}
+	var applyResp applyTeamSpecsResponse
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+	teamID := applyResp.TeamIDsByName[t.Name()]
+
+	// re-set the global state to configure MDM SSO
+	err := s.ds.DeleteMDMAppleSetupAssistant(context.Background(), nil)
+	require.NoError(t, err)
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": {
+			"end_user_authentication": {
+				"entity_id": "https://localhost:8080",
+				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+				"idp_name": "SimpleSAML",
+				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+			},
+			"macos_setup": {
+				"enable_end_user_authentication": true
+			}
+		}
+	}`), http.StatusOK, &acResp)
+
+	// enable end user auth
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": t.Name(),
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_end_user_authentication": true,
+					},
+				},
+			},
+		},
+	}
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/mdm/sso")
+
+	// trying to set a custom configuration_web_url fails because end user authentication is enabled
+	var tmAsstResp createMDMAppleSetupAssistantResponse
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamID,
+		Name:              t.Name(),
+		EnrollmentProfile: json.RawMessage(customSetupAsst),
+	}, http.StatusUnprocessableEntity, &tmAsstResp)
+
+	// disable end user auth
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": t.Name(),
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_end_user_authentication": false,
+					},
+				},
+			},
+		},
+	}
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, acResp.ServerSettings.ServerURL+"/api/mdm/apple/enroll?token=")
+
+	// setting configuration_web_url succeeds because end user authentication is disabled
+	tmAsstResp = createMDMAppleSetupAssistantResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/enrollment_profile", createMDMAppleSetupAssistantRequest{
+		TeamID:            &teamID,
+		Name:              t.Name(),
+		EnrollmentProfile: json.RawMessage(customSetupAsst),
+	}, http.StatusOK, &tmAsstResp)
+
+	// assign the DEP profile and assert that contains the right values for the URL
+	s.runWorker()
+	require.Contains(t, lastSubmittedProfile.ConfigurationWebURL, "https://foo.example.com")
+
+	// try to enable end user auth again, it fails because configuration_web_url is set
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": t.Name(),
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_end_user_authentication": true,
+					},
+				},
+			},
+		},
+	}
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
 }
