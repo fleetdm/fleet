@@ -4017,9 +4017,9 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ### Get or download custom OS setting (configuration profile)
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`GET /api/v1/fleet/mdm/profiles/{profile_uuid}`
+`GET /api/v1/fleet/mdm/profiles/:profile_uuid`
 
 #### Parameters
 
@@ -4093,9 +4093,9 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom OS setting (configuration profile)
 
-> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`DELETE /api/v1/fleet/mdm/profiles/{profile_uuid}`
+`DELETE /api/v1/fleet/mdm/profiles/:profile_uuid`
 
 #### Parameters
 
