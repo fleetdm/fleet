@@ -730,9 +730,9 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
-# ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦  ╔═╗  ╔╦╗╦ ╦╦╦═╗╔╦╗  ╔═╗╔═╗╦═╗╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╔═╗╦═╗╔═╗
-#  ║║║╣  ║ ║╣ ║   ║   ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║  ║╣    ║ ╠═╣║╠╦╝ ║║  ╠═╝╠═╣╠╦╝ ║ ╚╦╝  ╚═╗║ ║╠╣  ║ ║║║╠═╣╠╦╝║╣ 
-# ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩    ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩═╝╚═╝   ╩ ╩ ╩╩╩╚══╩╝  ╩  ╩ ╩╩╚═ ╩  ╩   ╚═╝╚═╝╚   ╩ ╚╩╝╩ ╩╩╚═╚═╝
+# /  ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+//  ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
+//  ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
   tier: Free
   usualDepartment: Security
@@ -748,7 +748,8 @@
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
-- industryName: Vulnerability dashboard
+- industryName: OT/ICS compliance and cyber risk visibility 
+  friendlyName: Vulnerability dashboard
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
@@ -767,6 +768,7 @@
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
+  buzzwords: [Risk scores,Cyber risk,Risk reduction,Security operations effectiveness,Peer benchmarking,Security program effectiveness,Risk-based exposure scoring,Threat context,Cyber exposure,Exposure quantification and benchmarking,Optimize security investments,Vulnerability assessment]
   demos:
     - description: Fleet enables a more modern, threat-first prioritization approach to vulnerability management.
       quote: In reality, across our inventory of devices, it's unlikely to ever be exploited. I'd rather do that legwork on my team and then go and ask and prioritize work on these infrastructure teams that are already busy with things that could or could not be vulnerable. Being able to be more exact allows us to go to these teams less, which saves everybody time.
