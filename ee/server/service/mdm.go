@@ -523,7 +523,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		teamName = &tm.Name
 		endUserAuthEnabled = tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication
 	} else {
-		appCfg, err := svc.AppConfigObfuscated(ctx)
+		appCfg, err := svc.ds.AppConfig(ctx)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "getting app config")
 		}
