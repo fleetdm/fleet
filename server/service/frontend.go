@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"net/http"
@@ -25,6 +26,21 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 		http.Error(w, err, http.StatusInternalServerError)
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == http.MethodPost {
+			// log the request details
+			details := []interface{}{"err", "invalid method", "uri", r.RequestURI, "method", r.Method, "proto", r.Proto, "remote", r.RemoteAddr, "host", r.Host, "user-agent", r.UserAgent(), "referer", r.Referer()}
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				logger.Log("err", "read request body: "+err.Error())
+			} else {
+				details = append(details, "body", string(body))
+				for k, v := range r.Header {
+					details = append(details, k, fmt.Sprintf("%v", v))
+				}
+				logger.Log(details...)
+			}
+		}
+
 		writeBrowserSecurityHeaders(w)
 
 		fs := newBinaryFileSystem("/frontend")
