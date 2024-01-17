@@ -34,7 +34,7 @@ const createCustomLabelOptions = (labels: ILabel[], query: string) => {
     customLabelGroupOptions = [NO_LABELS_OPTION];
   } else {
     const matchingLabels = customLabels.filter((label) =>
-      label.display_text.toLowerCase().includes(query)
+      label.display_text.includes(query)
     );
     customLabelGroupOptions =
       matchingLabels.length !== 0 ? matchingLabels : [EMPTY_OPTION];
