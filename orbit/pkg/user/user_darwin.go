@@ -14,7 +14,7 @@ func IsUserLoggedInViaGui() (bool, error) {
 	output, err := exec.Command("/usr/bin/stat", "-f", "%Su", "/dev/console").Output()
 	if err != nil {
 		var ee *exec.ExitError
-		if errors.As(err, &ee) {
+		if errors.As(err, &ee) && len(ee.Stderr) > 0 {
 			return false, errors.Join(err, errors.New(string(ee.Stderr)))
 		}
 
