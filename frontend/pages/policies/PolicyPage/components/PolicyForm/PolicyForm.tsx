@@ -396,10 +396,8 @@ const PolicyForm = ({
   const renderResolution = () => {
     if (isEditMode) {
       return (
-        <>
-          <p className="resolve-title">
-            <strong>Resolve:</strong>
-          </p>
+        <div className={`form-field ${baseClass}__policy-resolve`}>
+          <div className="form-field__label">Resolve:</div>
           <div className={policyResolutionClasses}>
             <AutoSizeInputField
               name="policy-resolution"
@@ -424,7 +422,7 @@ const PolicyForm = ({
               />
             </Button>
           </div>
-        </>
+        </div>
       );
     }
 
