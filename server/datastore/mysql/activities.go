@@ -185,5 +185,52 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 }
 
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	panic("unimplemented")
+	// TODO(mna): pending feedback on https://github.com/fleetdm/fleet/pull/15931/files#r1455916027
+	const listStmt = `
+		SELECT
+			hsr.execution_id as uuid,
+			u.name as name,
+			u.id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email as user_email,
+			? as activity_type,
+			hsr.created_at as created_at,
+			JSON_OBJECT(
+				'host_id', hsr.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'script_name', COALESCE(scr.name, ''),
+				'script_execution_id', hsr.execution_id,
+				'async', NOT hsr.sync_request
+			) as details
+		FROM
+			host_script_results hsr
+		LEFT OUTER JOIN
+			users u ON u.id = hsr.user_id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = hsr.host_id
+		LEFT OUTER JOIN
+			scripts scr ON scr.id = hsr.script_id
+		WHERE
+			hsr.host_id = ? AND
+			hsr.exit_code IS NULL
+`
+
+	args := []any{fleet.ActivityTypeRanScript{}.ActivityName(), hostID}
+	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+
+	var activities []*fleet.Activity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(activities) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
 }

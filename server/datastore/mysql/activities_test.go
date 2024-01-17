@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -25,6 +27,7 @@ func TestActivity(t *testing.T) {
 		{"ListActivitiesStreamed", testListActivitiesStreamed},
 		{"EmptyUser", testActivityEmptyUser},
 		{"PaginationMetadata", testActivityPaginationMetadata},
+		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -285,6 +288,167 @@ func testActivityPaginationMetadata(t *testing.T, ds *Datastore) {
 				require.NotNil(t, metadata)
 				assert.Equal(t, c.meta.HasNextResults, metadata.HasNextResults)
 				assert.Equal(t, c.meta.HasPreviousResults, metadata.HasPreviousResults)
+			}
+		})
+	}
+}
+
+func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	// create three hosts
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	h2 := test.NewHost(t, ds, "h2.local", "10.10.10.2", "2", "2", time.Now())
+	h3 := test.NewHost(t, ds, "h3.local", "10.10.10.3", "3", "3", time.Now())
+
+	// create a couple of named scripts
+	scr1, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "A",
+		ScriptContents: "A",
+	})
+	require.NoError(t, err)
+	scr2, err := ds.NewScript(ctx, &fleet.Script{
+		Name:           "B",
+		ScriptContents: "B",
+	})
+	require.NoError(t, err)
+
+	// create some script requests for h1
+	hsr, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	require.NoError(t, err)
+	h1A := hsr.ExecutionID
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptID: &scr2.ID, ScriptContents: scr2.ScriptContents, UserID: &u.ID})
+	require.NoError(t, err)
+	h1B := hsr.ExecutionID
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "C", UserID: &u.ID})
+	require.NoError(t, err)
+	h1C := hsr.ExecutionID
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "D"})
+	require.NoError(t, err)
+	h1D := hsr.ExecutionID
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h1.ID, ScriptContents: "E"})
+	require.NoError(t, err)
+	h1E := hsr.ExecutionID
+
+	// create a single pending request for h2, as well as a non-pending one
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptID: &scr1.ID, ScriptContents: scr1.ScriptContents, UserID: &u.ID})
+	require.NoError(t, err)
+	h2A := hsr.ExecutionID
+	hsr, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: h2.ID, ScriptContents: "F", UserID: &u.ID})
+	require.NoError(t, err)
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{HostID: h2.ID, ExecutionID: hsr.ExecutionID, Output: "ok", ExitCode: 0})
+	require.NoError(t, err)
+	h2F := hsr.ExecutionID
+
+	// no script request for h3
+
+	execIDsWithUser := map[string]bool{
+		h1A: true,
+		h1B: true,
+		h1C: true,
+		h1D: false,
+		h1E: false,
+		h2A: true,
+		h2F: true,
+	}
+	execIDsScriptName := map[string]string{
+		h1A: scr1.Name,
+		h1B: scr2.Name,
+		h2A: scr1.Name,
+	}
+
+	cases := []struct {
+		opts      fleet.ListOptions
+		hostID    uint
+		wantExecs []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			opts:      fleet.ListOptions{PerPage: 2},
+			hostID:    h1.ID,
+			wantExecs: []string{h1A, h1B},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
+			hostID:    h1.ID,
+			wantExecs: []string{h1C, h1D},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
+			hostID:    h1.ID,
+			wantExecs: []string{h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 3},
+			hostID:    h1.ID,
+			wantExecs: []string{h1A, h1B, h1C},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 1, PerPage: 3},
+			hostID:    h1.ID,
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{Page: 2, PerPage: 3},
+			hostID:    h1.ID,
+			wantExecs: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			opts:      fleet.ListOptions{PerPage: 3},
+			hostID:    h2.ID,
+			wantExecs: []string{h2A},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			opts:      fleet.ListOptions{},
+			hostID:    h3.ID,
+			wantExecs: []string{},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%v: %#v", c.hostID, c.opts), func(t *testing.T) {
+			// always include metadata
+			c.opts.IncludeMetadata = true
+			c.opts.OrderKey = "created_at"
+			c.opts.OrderDirection = fleet.OrderAscending
+
+			acts, meta, err := ds.ListHostUpcomingActivities(ctx, c.hostID, c.opts)
+			require.NoError(t, err)
+
+			require.Equal(t, len(c.wantExecs), len(acts))
+			require.Equal(t, c.wantMeta, meta)
+
+			for i, a := range acts {
+				wantExec := c.wantExecs[i]
+
+				var details map[string]any
+				require.NotNil(t, a.Details, "result %d", i)
+				require.NoError(t, json.Unmarshal([]byte(*a.Details), &details), "result %d", i)
+
+				require.Equal(t, wantExec, details["script_execution_id"], "result %d", i)
+				require.Equal(t, c.hostID, uint(details["host_id"].(float64)), "result %d", i)
+				require.Equal(t, execIDsScriptName[wantExec], details["script_name"], "result %d", i)
+				if execIDsWithUser[wantExec] {
+					require.NotNil(t, a.ActorID, "result %d", i)
+					require.Equal(t, u.ID, *a.ActorID, "result %d", i)
+					require.NotNil(t, a.ActorFullName, "result %d", i)
+					require.Equal(t, u.Name, *a.ActorFullName, "result %d", i)
+					require.NotNil(t, a.ActorEmail, "result %d", i)
+					require.Equal(t, u.Email, *a.ActorEmail, "result %d", i)
+				} else {
+					require.Nil(t, a.ActorID, "result %d", i)
+					require.Nil(t, a.ActorFullName, "result %d", i)
+					require.Nil(t, a.ActorEmail, "result %d", i)
+				}
 			}
 		})
 	}

@@ -582,6 +582,14 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				return ctxerr.Wrap(ctx, err, "get host script execution user")
 			}
 		}
+		var scriptName string
+		if hsr.ScriptID != nil {
+			scr, err := svc.ds.Script(ctx, *hsr.ScriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get saved script")
+			}
+			scriptName = scr.Name
+		}
 		if err := svc.ds.NewActivity(
 			ctx,
 			user,
@@ -589,6 +597,7 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 				HostID:            host.ID,
 				HostDisplayName:   host.DisplayName(),
 				ScriptExecutionID: hsr.ExecutionID,
+				ScriptName:        scriptName,
 				Async:             !hsr.SyncRequest,
 			},
 		); err != nil {
