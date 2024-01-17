@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -44,4 +45,57 @@ func (svc *Service) ListActivities(ctx context.Context, opt fleet.ListActivities
 
 func (svc *Service) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 	return svc.ds.NewActivity(ctx, user, activity)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// List host upcoming activities
+////////////////////////////////////////////////////////////////////////////////
+
+type listHostUpcomingActivitiesRequest struct {
+	HostID      uint              `url:"id"`
+	ListOptions fleet.ListOptions `url:"list_options"`
+}
+
+func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*listHostUpcomingActivitiesRequest)
+	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
+	if err != nil {
+		return listActivitiesResponse{Err: err}, nil
+	}
+
+	return listActivitiesResponse{Meta: meta, Activities: acts}, nil
+}
+
+// ListHostUpcomingActivities returns a slice of upcoming activities for the
+// specified host.
+func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// TODO(mna): should that require "read activity" or "read host" permission?
+	// Since this is specific activities for a host, I think it should be "read
+	// host" permission. To confirm with product.
+
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
+	}
+	// Authorize again with team loaded now that we have team_id
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// cursor-based pagination is not supported for upcoming activities
+	opt.After = ""
+	// custom ordering is not supported, always by date descending (oldest first)
+	opt.OrderKey = "created_at"
+	opt.OrderDirection = fleet.OrderDescending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata
+	opt.IncludeMetadata = true
+
+	return svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
 }
