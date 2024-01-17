@@ -24,7 +24,7 @@ class YamlAce extends Component {
       `${baseClass}__label`,
       "form-field__label",
       {
-        [`${baseClass}__label--error`]: error,
+        "form-field__label--error": error,
       }
     );
 

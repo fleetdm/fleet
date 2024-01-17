@@ -215,7 +215,7 @@ const Sso = ({
             type="submit"
             variant="brand"
             disabled={Object.keys(formErrors).length > 0}
-            className="save-loading"
+            className="button-wrap"
             isLoading={isUpdatingSettings}
           >
             Save
