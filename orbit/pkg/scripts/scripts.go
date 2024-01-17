@@ -9,7 +9,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -72,17 +71,7 @@ func (r *Runner) Run(execIDs []string) error {
 	}
 
 	if len(errs) > 0 {
-		// NOTE: when we upgrade to Go1.20, we can use errors.Join, but for now we
-		// just concatenate the error messages in a single error that will be logged
-		// by orbit.
-		var sb strings.Builder
-		for i, e := range errs {
-			if i > 0 {
-				sb.WriteString("\n")
-			}
-			sb.WriteString(e.Error())
-		}
-		return errors.New(sb.String())
+		return errors.Join(errs...)
 	}
 	return nil
 }
