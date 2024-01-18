@@ -22,12 +22,12 @@ func TestActivity(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		// {"UsernameChange", testActivityUsernameChange},
-		// {"New", testActivityNew},
-		// {"ListActivitiesStreamed", testListActivitiesStreamed},
-		// {"EmptyUser", testActivityEmptyUser},
-		// {"PaginationMetadata", testActivityPaginationMetadata},
-		// {"ListHostUpcomingActivities", testListHostUpcomingActivities},
+		{"UsernameChange", testActivityUsernameChange},
+		{"New", testActivityNew},
+		{"ListActivitiesStreamed", testListActivitiesStreamed},
+		{"EmptyUser", testActivityEmptyUser},
+		{"PaginationMetadata", testActivityPaginationMetadata},
+		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
 		{"ListHostPastActivities", testListHostPastActivities},
 	}
 	for _, c := range cases {
