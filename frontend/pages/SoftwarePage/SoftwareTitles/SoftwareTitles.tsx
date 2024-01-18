@@ -8,6 +8,7 @@ import softwareAPI, {
   ISoftwareApiParams,
   ISoftwareTitlesResponse,
 } from "services/entities/software";
+import { ISoftwareTitle } from "interfaces/software";
 import { AppContext } from "context/app";
 import {
   GITHUB_NEW_ISSUE_LINK,
@@ -27,8 +28,6 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTitlesTableHeaders from "./SoftwareTitlesTableConfig";
-import { title } from "process";
-import { ISoftwareTitle } from "interfaces/software";
 
 const baseClass = "software-titles";
 
@@ -100,9 +99,9 @@ const SoftwareTitles = ({
       staleTime: 30000,
       onSuccess: (data) => {
         setSoftwareTitlesForTable(
-          data.software_titles.map((title) => ({
-            ...title,
-            versions: title.versions ?? [],
+          data.software_titles.map((swTitle) => ({
+            ...swTitle,
+            versions: swTitle.versions ?? [],
           }))
         );
       },
