@@ -8,6 +8,7 @@ For more information about CIS Benchmarks check out [Center for Internet Securit
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
 - macOS 13.0 Ventura (96 checks)
+- Windows 10 Enterprise (496 checks)
 - Windows 11 Enterprise (521 checks)
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
@@ -69,12 +70,16 @@ How to import them to Fleet:
 # macOS 13
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/macos-13/cis-policy-queries.yml
 
+# Windows 10 (note the same file name. Rename as needed.)
+wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-10/cis-policy-queries.yml
+
 # Windows 11 (note the same file name. Rename as needed.)
 wget https://raw.githubusercontent.com/fleetdm/fleet/main/ee/cis/win-11/cis-policy-queries.yml
 
-# Apply the downloaded policies to Fleet for both files.
+# Apply the downloaded policies to Fleet for all files.
 fleetctl apply --context <context> -f <path-to-macOS-13-policies> --policies-team <team-name>
-fleetctl apply --context <context> -f <path-to-windows--policies> --policies-team <team-name>
+fleetctl apply --context <context> -f <path-to-windows-10-policies> --policies-team <team-name>
+fleetctl apply --context <context> -f <path-to-windows-11-policies> --policies-team <team-name>
 ```
 
 To apply the policies on a specific team use the `--policies-team` flag:
@@ -86,7 +91,8 @@ fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 Fleet's current set of benchmarks only implements benchmark *auditing* steps that can be *automated*.
 
 In practice, Fleet is able to cover a large majority of benchmarks:
-* macOS 13 Ventura - 96 of 4
+* macOS 13 Ventura - 96 of 104
+* Windows 10 Enterprise - All CIS items (496)
 * Windows 11 Enterprise - All CIS items (521) 
 
 For a list of specific checks which are not covered by Fleet, please visit the section devoted to each benchmark.
@@ -108,7 +114,8 @@ For both the audit and remediation elements of a CIS Benchmark, there are two ty
 
 Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
 
-* macOS 13 Ventura - 96 of 4 are automated
+* macOS 13 Ventura - 96 of 104 are automated
+* Windows 10 Enterprise - All CIS items (496) are automated
 * Windows 11 Enterprise - All CIS items (521) are automated 
 
 
@@ -166,7 +173,7 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 - 3.7 Audit Software Inventory
 - 6.2.1 Ensure Protect Mail Activity in Mail Is Enabled
 
-## Windows 11 Enterprise benchmark
+## Windows 10 & 11 Enterprise benchmarks
 
 Fleet's policies have been written against v2.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
