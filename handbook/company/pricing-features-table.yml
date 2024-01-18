@@ -791,7 +791,7 @@
       moreInfoUrl:
   waysToUse:
     - description: Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.
-    - description: Using CISA KEV for Vulnerability Management
+    - description: Use CISA KEVs for vulnerability management
     - moreInfoUrl: https://www.youtube.com/watch?v=Z3mw2oxssYk
 #  ╔═╗╔═╗╔╦╗╔═╗╦ ╦╔═╗╔╦╗  ╦  ╦╔═╗╦═╗╔═╗╦╔═╗╔╗╔
 #  ╠═╝╠═╣ ║ ║  ╠═╣║╣  ║║  ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║
