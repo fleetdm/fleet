@@ -99,10 +99,9 @@ const SoftwareOSDetailsPage = ({
     return (
       <>
         <SoftwareDetailsSummary
-          id={data.id}
           title={`${data.name} ${data.version}`}
           hosts={data.hosts_count}
-          queryParam="software_title_id"
+          queryParams={{ os_name: data.name_only, os_version: data.version }}
           name={data.name}
         />
         {/* TODO: can we use Card here for card styles */}

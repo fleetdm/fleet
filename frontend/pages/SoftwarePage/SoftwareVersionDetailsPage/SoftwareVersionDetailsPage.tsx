@@ -77,11 +77,10 @@ const SoftwareVersionDetailsPage = ({
     return (
       <>
         <SoftwareDetailsSummary
-          id={softwareVersion.id}
           title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={formatSoftwareType(softwareVersion)}
           hosts={hostsCount ?? 0}
-          queryParam="software_version_id"
+          queryParams={{ software_version_id: softwareVersion.id }}
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
