@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/docker/go-units"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -76,11 +77,8 @@ func (r runScriptSyncResponse) Status() int {
 // this is to be used only by tests, to be able to use a shorter timeout.
 var testRunScriptWaitForResult time.Duration
 
-// waitForResultTime is the default timeout for the synchronous script execution.
-const waitForResultTime = time.Minute
-
 func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	waitForResult := waitForResultTime
+	waitForResult := scripts.MaxServerWaitTime
 	if testRunScriptWaitForResult != 0 {
 		waitForResult = testRunScriptWaitForResult
 	}
@@ -149,8 +147,9 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// check if a minute has passed since the script was created at
-	hostTimeout := scriptResult.HostTimeout(waitForResultTime)
+	// TODO: move this logic out of the endpoint function and consolidate in either the service
+	// method or the fleet package
+	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
 
 	return &getScriptResultResponse{

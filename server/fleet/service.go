@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/kolide/kit/version"
 )
 
 // EnterpriseOverrides contains the methods that can be overriden by the
@@ -359,6 +359,11 @@ type Service interface {
 	// ListHostDeviceMapping returns the list of device-mapping of user's email address
 	// for the host.
 	ListHostDeviceMapping(ctx context.Context, id uint) ([]*HostDeviceMapping, error)
+	// SetCustomHostDeviceMapping sets the custom email address associated with
+	// the host, which is either set by the fleetd installer at startup (via a
+	// device-authenticated API), or manually by the user (via the
+	// user-authenticated API).
+	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -772,6 +777,11 @@ type Service interface {
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// HasCustomSetupAssistantConfigurationWebURL checks if the team/global
+	// config has a custom setup assistant defined, and if the JSON content
+	// defines a custom `configuration_web_url`.
+	HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error)
 
 	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
 	// specified team or for hosts with no team.

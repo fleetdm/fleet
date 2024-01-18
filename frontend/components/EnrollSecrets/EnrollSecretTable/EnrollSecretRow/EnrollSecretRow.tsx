@@ -64,33 +64,50 @@ const EnrollSecretRow = ({
     }
   };
 
-  const renderLabel = () => {
+  const renderCopyShowButtons = () => {
     return (
-      <span className={`${baseClass}__name`}>
-        <span className="buttons">
-          {copyMessage && (
-            <span
-              className={`${baseClass}__copy-message`}
-            >{`${copyMessage} `}</span>
-          )}
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__copy-secret-icon`}
-            onClick={onCopySecret}
-          >
-            <Icon name="copy" />
-          </Button>
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__show-secret-icon`}
-            onClick={onToggleSecret}
-          >
-            <Icon name="eye" />
-          </Button>
-        </span>
-      </span>
+      <div className="buttons">
+        {copyMessage && (
+          <span
+            className={`${baseClass}__copy-message`}
+          >{`${copyMessage} `}</span>
+        )}
+        <Button
+          variant="unstyled"
+          className={`${baseClass}__copy-secret-icon`}
+          onClick={onCopySecret}
+        >
+          <Icon name="copy" />
+        </Button>
+        <Button
+          variant="unstyled"
+          className={`${baseClass}__show-secret-icon`}
+          onClick={onToggleSecret}
+        >
+          <Icon name="eye" />
+        </Button>
+      </div>
     );
   };
+
+  const renderEditDeleteButtons = () => (
+    <>
+      <Button
+        onClick={onEditSecretClick}
+        className={`${baseClass}__edit-secret-icon`}
+        variant="text-icon"
+      >
+        <Icon name="pencil" />
+      </Button>
+      <Button
+        onClick={onDeleteSecretClick}
+        className={`${baseClass}__delete-secret-icon`}
+        variant="text-icon"
+      >
+        <Icon name="trash" />
+      </Button>
+    </>
+  );
 
   return (
     <div
@@ -103,28 +120,13 @@ const EnrollSecretRow = ({
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}
         name={`osqueryd-secret-${uniqueId()}`}
-        label={renderLabel()}
         type={showSecret ? "text" : "password"}
         value={secret.secret}
       />
-      {toggleSecretEditorModal && toggleDeleteSecretModal && (
-        <>
-          <Button
-            onClick={onEditSecretClick}
-            className={`${baseClass}__edit-secret-icon`}
-            variant="text-icon"
-          >
-            <Icon name="pencil" />
-          </Button>
-          <Button
-            onClick={onDeleteSecretClick}
-            className={`${baseClass}__delete-secret-icon`}
-            variant="text-icon"
-          >
-            <Icon name="trash" />
-          </Button>
-        </>
-      )}
+      {renderCopyShowButtons()}
+      {toggleSecretEditorModal &&
+        toggleDeleteSecretModal &&
+        renderEditDeleteButtons()}
     </div>
   );
 };

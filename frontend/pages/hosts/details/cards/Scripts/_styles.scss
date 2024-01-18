@@ -21,6 +21,10 @@
     }
   }
 
+    .data-table-block .data-table__wrapper {
+      box-sizing: border-box;
+    }
+
   .table-container__header-left {
     display: block;
   }

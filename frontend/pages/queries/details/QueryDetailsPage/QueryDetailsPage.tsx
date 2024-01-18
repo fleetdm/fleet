@@ -17,11 +17,11 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 import {
   isGlobalObserver,
   isTeamObserver,
 } from "utilities/permissions/permissions";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -109,9 +109,6 @@ const QueryDetailsPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | ${DOCUMENT_TITLE_SUFFIX}`;
-
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
   useEffect(() => {
@@ -177,6 +174,16 @@ const QueryDetailsPage = ({
     }
   }, [storedQuery]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedQuery?.name]);
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
@@ -225,7 +232,7 @@ const QueryDetailsPage = ({
                   isAnyTeamObserverPlus ||
                   canEditQuery) && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <div
                       data-tip
@@ -336,7 +343,7 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache) {
+    if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
           queryInterval={storedQuery?.interval}

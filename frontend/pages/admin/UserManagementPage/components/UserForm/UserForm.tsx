@@ -19,6 +19,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 import Radio from "components/forms/fields/Radio";
 import InfoBanner from "components/InfoBanner/InfoBanner";
 import CustomLink from "components/CustomLink";
+import Icon from "components/Icon";
 import SelectedTeamsForm from "../SelectedTeamsForm/SelectedTeamsForm";
 import SelectRoleForm from "../SelectRoleForm/SelectRoleForm";
 import { roleOptions } from "../../helpers/userManagementHelpers";
@@ -171,6 +172,13 @@ const UserForm = ({
     setFormData({
       ...formData,
       teams,
+    });
+  };
+
+  const onSsoDisable = (): void => {
+    setFormData({
+      ...formData,
+      sso_enabled: false,
     });
   };
 
@@ -421,60 +429,75 @@ const UserForm = ({
                 placeholder="••••••••"
                 value={formData.password || ""}
                 type="password"
-                hint={[
-                  "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-                ]}
+                helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
                 blockAutoComplete
               />
             </div>
           </div>
         )}
-      <div className={`${baseClass}__sso-input`}>
-        <Checkbox
-          name="sso_enabled"
-          onChange={onCheckboxChange("sso_enabled")}
-          value={canUseSso && formData.sso_enabled}
-          disabled={!canUseSso}
-          wrapperClassName={`${baseClass}__invite-admin`}
-          tooltipContent={
-            <>
-              Enabling single sign-on for a user requires that SSO is first
-              enabled for the organization.
-              <br />
-              <br />
-              Users with Admin role can configure SSO in{" "}
-              <strong>Settings &gt; Organization settings</strong>.
-            </>
-          }
-        >
-          Enable single sign-on
-        </Checkbox>
-        <p className={`${baseClass}__sso-input sublabel`}>
-          Password authentication will be disabled for this user.
-        </p>
-      </div>
+      {((!isNewUser && formData.sso_enabled) || canUseSso) && (
+        <div className={`${baseClass}__sso-input`}>
+          <Checkbox
+            name="sso_enabled"
+            onChange={onCheckboxChange("sso_enabled")}
+            value={formData.sso_enabled}
+            disabled={!canUseSso}
+            wrapperClassName={`${baseClass}__invite-admin`}
+            helpText={
+              canUseSso ? (
+                <p className={`${baseClass}__sso-input sublabel`}>
+                  Password authentication will be disabled for this user.
+                </p>
+              ) : (
+                <span className={`${baseClass}__sso-input sublabel-nosso`}>
+                  This user previously signed in via SSO, which has been
+                  globally disabled.{" "}
+                  <button
+                    className={"button--text-link"}
+                    onClick={onSsoDisable}
+                  >
+                    Add password instead
+                    <Icon
+                      name="chevron-right"
+                      color="core-fleet-blue"
+                      size="small"
+                    />
+                  </button>
+                </span>
+              )
+            }
+          >
+            <span
+              className={!canUseSso ? `${baseClass}__sso-input--disabled` : ""}
+            >
+              Enable single sign-on
+            </span>
+          </Checkbox>
+        </div>
+      )}
       {isNewUser && (
-        <div className={`${baseClass}__new-user-container`}>
-          <div className={`${baseClass}__new-user-radios`}>
+        <>
+          <div className="form-field">
             {isModifiedByGlobalAdmin ? (
               <>
+                <div className="form-field__label">Account</div>
                 <Radio
                   className={`${baseClass}__radio-input`}
-                  label={"Create user"}
-                  id={"create-user"}
+                  label="Create user"
+                  id="create-user"
                   checked={formData.newUserType !== NewUserType.AdminInvited}
                   value={NewUserType.AdminCreated}
-                  name={"newUserType"}
+                  name="newUserType"
                   onChange={onRadioChange("newUserType")}
                 />
                 <Radio
                   className={`${baseClass}__radio-input`}
-                  label={"Invite user"}
-                  id={"invite-user"}
+                  label="Invite user"
+                  id="invite-user"
                   disabled={!(smtpConfigured || sesConfigured)}
                   checked={formData.newUserType === NewUserType.AdminInvited}
                   value={NewUserType.AdminInvited}
-                  name={"newUserType"}
+                  name="newUserType"
                   onChange={onRadioChange("newUserType")}
                   tooltip={
                     smtpConfigured || sesConfigured ? (
@@ -495,9 +518,9 @@ const UserForm = ({
             ) : (
               <input
                 type="hidden"
-                id={"create-user"}
+                id="create-user"
                 value={NewUserType.AdminCreated}
-                name={"newUserType"}
+                name="newUserType"
               />
             )}
           </div>
@@ -513,9 +536,7 @@ const UserForm = ({
                     placeholder="Password"
                     value={formData.password || ""}
                     type="password"
-                    hint={[
-                      "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-                    ]}
+                    helpText="12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#)."
                     blockAutoComplete
                     tooltip={
                       <>
@@ -531,44 +552,40 @@ const UserForm = ({
                 </div>
               </>
             )}
-        </div>
+        </>
       )}
       {isPremiumTier && (
-        <div className={`${baseClass}__selected-teams-container`}>
-          <div className={`${baseClass}__team-radios`}>
-            <p className={`${baseClass}__label`}>Team</p>
+        <>
+          <div className="form-field">
+            <div className="form-field__label">Team</div>
             {isModifiedByGlobalAdmin ? (
               <>
                 <Radio
                   className={`${baseClass}__radio-input`}
-                  label={"Global user"}
-                  id={"global-user"}
+                  label="Global user"
+                  id="global-user"
                   checked={isGlobalUser}
                   value={UserTeamType.GlobalUser}
-                  name={"userTeamType"}
+                  name="userTeamType"
                   onChange={onIsGlobalUserChange}
                 />
                 <Radio
                   className={`${baseClass}__radio-input`}
-                  label={"Assign teams"}
-                  id={"assign-teams"}
+                  label="Assign teams"
+                  id="assign-teams"
                   checked={!isGlobalUser}
                   value={UserTeamType.AssignTeams}
-                  name={"userTeamType"}
+                  name="userTeamType"
                   onChange={onIsGlobalUserChange}
                   disabled={!availableTeams.length}
                 />
               </>
             ) : (
-              <p className="current-team">
-                {currentTeam ? currentTeam.name : ""}
-              </p>
+              <>{currentTeam ? currentTeam.name : ""}</>
             )}
           </div>
-          <div className={`${baseClass}__teams-form-container`}>
-            {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
-          </div>
-        </div>
+          {isGlobalUser ? renderGlobalRoleForm() : renderTeamsForm()}
+        </>
       )}
       {!isPremiumTier && renderGlobalRoleForm()}
 

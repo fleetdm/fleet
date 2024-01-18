@@ -66,21 +66,14 @@ const SelectRoleForm = ({
   };
 
   return (
-    <div className={baseClass}>
-      <div className={`${baseClass}__select-role`}>
-        <Dropdown
-          label={label}
-          value={selectedRole}
-          className={`${baseClass}__role-dropdown`}
-          options={roleOptions({ isPremiumTier, isApiOnly })}
-          searchable={false}
-          onChange={(newRoleValue: UserRole) =>
-            updateSelectedRole(newRoleValue)
-          }
-          testId={`${name}-checkbox`}
-        />
-      </div>
-    </div>
+    <Dropdown
+      label={label}
+      value={selectedRole}
+      options={roleOptions({ isPremiumTier, isApiOnly })}
+      searchable={false}
+      onChange={(newRoleValue: UserRole) => updateSelectedRole(newRoleValue)}
+      testId={`${name}-checkbox`}
+    />
   );
 };
 

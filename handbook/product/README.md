@@ -47,10 +47,11 @@ When starting a new draft:
 - Create a new file inside the [Fleet product](https://www.figma.com/files/project/17318630/%F0%9F%94%9C%F0%9F%93%A6-Fleet-EE%C2%AE-(product)?fuid=1234929285759903870) project by duplicating "\[TEMPLATE\] Starter file" (pinned to the top of the project).
 - Right-click on the duplicated file, select "Share", and ensure **anyone with the link** can view the file.
 - Rename each Figma file to include the number and name of the corresponding issue on the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). (e.g. # 11766 Instructions for Autopilot enrollment).
--  The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
+- The starter file includes 3 predefined pages: Cover, Ready, and Scratchpad.
     -  **Cover.** This page has a component with issue number, issue name, and status fields. There are 3 statuses: Work in progress, Approved, and Released (the main source of truth is still the drafting board).
     -  **Ready.** Use this page to communicate designs reviews and development.
     -  **Scratchpad.** Use this page for work in progress and design that might be useful in the future.
+- If the story requires API changes, open a draft PR with the proposed API design.
 
 ### Schedule a design review
 - Prepare your draft in the user story issue.
@@ -80,13 +81,12 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
+- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. 
 
 What happens during expedited drafting?
-1. Everyone on the product and engineering teams know that a drafted change was brought back
-   to drafting and prioritized.
-2. Drafts are updated to cover edge cases or reduce functionality.
-3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back to the engineering team to continue the development task.
-
+1. Everyone in the product group knows that a user story is going through expedited drafting.
+2. Drafts are updated or finished.
+3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the engineering sprint or are estimated.
 
 ### Correctly prioritize a bug
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:

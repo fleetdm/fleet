@@ -22,6 +22,11 @@ type runLiveQueryRequest struct {
 	HostIDs  []uint `json:"host_ids"`
 }
 
+type runOneLiveQueryRequest struct {
+	QueryID uint   `url:"id"`
+	HostIDs []uint `json:"host_ids"`
+}
+
 type summaryPayload struct {
 	TargetedHostCount  int `json:"targeted_host_count"`
 	RespondedHostCount int `json:"responded_host_count"`
@@ -36,9 +41,72 @@ type runLiveQueryResponse struct {
 
 func (r runLiveQueryResponse) error() error { return r.Err }
 
+type runOneLiveQueryResponse struct {
+	QueryID            uint                `json:"query_id"`
+	TargetedHostCount  int                 `json:"targeted_host_count"`
+	RespondedHostCount int                 `json:"responded_host_count"`
+	Results            []fleet.QueryResult `json:"results"`
+	Err                error               `json:"error,omitempty"`
+}
+
+func (r runOneLiveQueryResponse) error() error { return r.Err }
+
+func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runOneLiveQueryRequest)
+
+	// Only allow a host to be specified once in HostIDs
+	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
+
+	campaignResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{req.QueryID}, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+	//goland:noinspection GoPreferNilSlice -- use an empty slice here so that API returns an empty array if there are no results
+	queryResults := []fleet.QueryResult{}
+	if len(campaignResults) > 0 {
+		if campaignResults[0].Err != nil {
+			return nil, campaignResults[0].Err
+		}
+		if campaignResults[0].Results != nil {
+			queryResults = campaignResults[0].Results
+		}
+	}
+
+	res := runOneLiveQueryResponse{
+		QueryID:            req.QueryID,
+		TargetedHostCount:  len(hostIDs),
+		RespondedHostCount: respondedHostCount,
+		Results:            queryResults,
+	}
+	return res, nil
+}
+
 func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryRequest)
 
+	// Only allow a query to be specified once
+	queryIDs := server.RemoveDuplicatesFromSlice(req.QueryIDs)
+	// Only allow a host to be specified once in HostIDs
+	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
+
+	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, queryIDs, hostIDs)
+	if err != nil {
+		return nil, err
+	}
+
+	res := runLiveQueryResponse{
+		Summary: summaryPayload{
+			TargetedHostCount:  len(hostIDs),
+			RespondedHostCount: respondedHostCount,
+		},
+		Results: queryResults,
+	}
+	return res, nil
+}
+
+func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostIDs []uint) (
+	[]fleet.QueryCampaignResult, int, error,
+) {
 	// The period used here should always be less than the request timeout for any load
 	// balancer/proxy between Fleet and the API client.
 	period := os.Getenv("FLEET_LIVE_QUERY_REST_PERIOD")
@@ -51,20 +119,9 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
-	// Only allow a query to be specified once
-	req.QueryIDs = server.RemoveDuplicatesFromSlice(req.QueryIDs)
-	// Only allow a host to be specified once in HostIDs
-	req.HostIDs = server.RemoveDuplicatesFromSlice(req.HostIDs)
-	res := runLiveQueryResponse{
-		Summary: summaryPayload{
-			TargetedHostCount:  len(req.HostIDs),
-			RespondedHostCount: 0,
-		},
-	}
-
-	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, req.QueryIDs, req.HostIDs, duration)
+	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, queryIDs, hostIDs, duration)
 	if err != nil {
-		return nil, err
+		return nil, 0, err
 	}
 	// Check if all query results were forbidden due to lack of authorization.
 	allResultsForbidden := len(queryResults) > 0 && respondedHostCount == 0
@@ -77,12 +134,11 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 		}
 	}
 	if allResultsForbidden {
-		return nil, authz.ForbiddenWithInternal("All Live Query results were forbidden.", authz.UserFromContext(ctx), nil, nil)
+		return nil, 0, authz.ForbiddenWithInternal(
+			"All Live Query results were forbidden.", authz.UserFromContext(ctx), nil, nil,
+		)
 	}
-	res.Results = queryResults
-	res.Summary.RespondedHostCount = respondedHostCount
-
-	return res, nil
+	return queryResults, respondedHostCount, nil
 }
 
 func (svc *Service) RunLiveQueryDeadline(
@@ -106,13 +162,13 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer wg.Done()
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
-				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
+				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
-				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
+				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
 			defer cancelFunc()
@@ -120,7 +176,7 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer func() {
 				err := svc.CompleteCampaign(ctx, campaign)
 				if err != nil {
-					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error())}
+					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				}
 			}()
 
@@ -137,6 +193,16 @@ func (svc *Service) RunLiveQueryDeadline(
 				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 				perfStatsTracker.saveStats = false
 			}
+			// to make sure stats and activity DB operations don't get killed after we return results.
+			ctxWithoutCancel := context.WithoutCancel(ctx)
+			totalHosts := campaign.Metrics.TotalHosts
+			// We update aggregated stats and activity at the end asynchronously.
+			defer func() {
+				go func() {
+					svc.updateStats(ctxWithoutCancel, queryID, svc.logger, &perfStatsTracker, true)
+					svc.addLiveQueryActivity(ctxWithoutCancel, totalHosts, queryID, svc.logger)
+				}()
+			}()
 		loop:
 			for {
 				select {
@@ -158,18 +224,14 @@ func (svc *Service) RunLiveQueryDeadline(
 								svc.updateStats(ctx, campaign.QueryID, svc.logger, &perfStatsTracker, false)
 							}
 						}
+						if len(results) == len(hostIDs) {
+							break loop
+						}
 					case error:
-						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error())}
+						resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(res.Error()), Err: res}
 						return
 					}
 				case <-timeout:
-					// This is the normal path for returning results. We only update aggregated stats here, and without blocking.
-					if perfStatsTracker.saveStats {
-						ctxWithoutCancel := context.WithoutCancel(ctx) // to make sure stats DB operations don't get killed after we return results.
-						go func() {
-							svc.updateStats(ctxWithoutCancel, campaign.QueryID, svc.logger, &perfStatsTracker, true)
-						}()
-					}
 					break loop
 				case <-ctx.Done():
 					break loop

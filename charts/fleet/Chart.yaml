@@ -1,4 +1,4 @@
-apiVersion: v1
+apiVersion: v2
 description: A Helm chart for Fleet
 name: fleet
 keywords:
@@ -8,13 +8,13 @@ version: v6.0.1
 home: https://github.com/fleetdm/fleet
 sources:
   - https://github.com/fleetdm/fleet.git
-appVersion: v4.41.1
+appVersion: v4.43.1
 dependencies:
-- name: mysql
-  condition: mysql.enabled
-  version: 9.12.5
-  repository: https://charts.bitnami.com/bitnami
-- name: redis
-  condition: redis.enabled
-  version: 18.1.6
-  repository: https://charts.bitnami.com/bitnami
+  - name: mysql
+    condition: mysql.enabled
+    version: 9.12.5
+    repository: https://charts.bitnami.com/bitnami
+  - name: redis
+    condition: redis.enabled
+    version: 18.1.6
+    repository: https://charts.bitnami.com/bitnami

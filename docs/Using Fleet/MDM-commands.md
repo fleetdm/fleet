@@ -65,9 +65,9 @@ To run a command, we need to specify a target host by hostname.
 
 ### Step 3: Run the command
 
-1. Run the `fleetctl mdm run-command --payload=restart-device.xml --host=hostname ` command.
+1. Run the `fleetctl mdm run-command --payload=restart-device.xml --hosts=hostname ` command.
 
-> Replace the --payload and --host flags with your XML file and hostname respectively.
+> Replace the --payload and --hosts flags with your XML file and hostname respectively.
 
 2. Look at the on-screen information. In the output you'll see the command to see results.
 
