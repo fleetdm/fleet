@@ -175,7 +175,7 @@ The following CIS benchmark checks cannot be automated and must be addressed man
 
 ## Windows 10 & 11 Enterprise benchmarks
 
-Fleet's policies have been written against v2.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
+Fleet's policies have been written against v2.0.0 of the benchmarks. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
 ### Checks that require a Group Policy template
 
