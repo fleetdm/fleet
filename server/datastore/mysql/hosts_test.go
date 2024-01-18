@@ -3747,6 +3747,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
+	ac.HostExpirySettings.HostExpiryEnabled = false
 	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
 
 	err = ds.SaveAppConfig(context.Background(), ac)
@@ -3810,6 +3811,7 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	const team2HostExpiryWindow = 170
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = false
 	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
 	err = ds.SaveAppConfig(context.Background(), ac)
 	require.NoError(t, err)
