@@ -22,7 +22,7 @@ describe("ReportUpdatedCell component", () => {
     expect(screen.queryByText(/View report/)).toBeNull();
   });
 
-  it("Renders 'Never with tooltip and link to report when run on an interval with discard data off and no last_fetched time", () => {
+  it("Renders '---' with tooltip and link to report when run on an interval with discard data off and no last_fetched time", () => {
     render(
       <ReportUpdatedCell
         interval={1000}
@@ -32,9 +32,11 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(screen.getByText(/Never/)).toBeInTheDocument();
-    expect(screen.getByText(/This query has not run/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    expect(screen.getByText(/---/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet is collecting query results\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Check back later./)).toBeInTheDocument();
   });
 
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present", () => {

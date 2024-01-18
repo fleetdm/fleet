@@ -6,6 +6,7 @@ import ReactTooltip from "react-tooltip";
 import { COLORS } from "styles/var/colors";
 import Icon from "components/Icon";
 import TextCell from "components/TableContainer/DataTable/TextCell";
+import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 const baseClass = "report-updated-cell";
 
@@ -51,7 +52,7 @@ const ReportUpdatedCell = ({
         const tipId = uniqueId();
         return (
           <TextCell
-            value="Never"
+            value={DEFAULT_EMPTY_CELL_VALUE}
             formatter={(val) => (
               <>
                 <span data-tip data-for={tipId}>
@@ -63,7 +64,9 @@ const ReportUpdatedCell = ({
                   backgroundColor={COLORS["tooltip-bg"]}
                   place="top"
                 >
-                  This query has not run on this host.
+                  Fleet is collecting query results.
+                  <br />
+                  Check back later.
                 </ReactTooltip>
               </>
             )}
