@@ -1377,9 +1377,61 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 	return nil
 }
 
+func insertProfileLabelAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileUUID string,
+	labels []fleet.ConfigurationProfileLabel,
+	platform string,
+) error {
+	if len(labels) == 0 {
+		return nil
+	}
+
+	stmt := `
+INSERT INTO
+    mdm_configuration_profile_labels (%s, label_id, label_name) 
+VALUES %s
+`
+
+	var uuidColumnName string
+	switch platform {
+	case "darwin":
+		uuidColumnName = "apple_profile_uuid"
+	case "windows":
+		uuidColumnName = "windows_profile_uuid"
+	default:
+		return fmt.Errorf("unsupported platform %s", platform)
+	}
+
+	var queryBuilder strings.Builder
+	var params []any
+	var labelNames []string
+	for i, label := range labels {
+		if i > 0 {
+			queryBuilder.WriteString(",")
+		}
+		queryBuilder.WriteString("(?, ?, ?)")
+		params = append(params, profileUUID, label.LabelID, label.LabelName)
+		labelNames = append(labelNames, label.LabelName)
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(stmt, uuidColumnName, queryBuilder.String()), params...)
+	if err != nil {
+		if isChildForeignKeyError(err) {
+			// one of the provided labels doesn't exist
+			return foreignKey("profile", fmt.Sprintf("labels=%v", labelNames))
+		}
+
+		return ctxerr.Wrap(ctx, err, "setting label associations for profile")
+	}
+
+	return nil
+}
+
 func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
-	stmt := `
+	insertProfileStmt := `
 INSERT INTO
     mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
 (SELECT ?, ?, ?, ? FROM DUAL WHERE
@@ -1393,27 +1445,38 @@ INSERT INTO
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
-	if err != nil {
-		switch {
-		case isDuplicate(err):
-			return nil, &existsError{
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+		if err != nil {
+			switch {
+			case isDuplicate(err):
+				return &existsError{
+					ResourceType: "MDMWindowsConfigProfile.Name",
+					Identifier:   cp.Name,
+					TeamID:       cp.TeamID,
+				}
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return &existsError{
 				ResourceType: "MDMWindowsConfigProfile.Name",
 				Identifier:   cp.Name,
 				TeamID:       cp.TeamID,
 			}
-		default:
-			return nil, ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
 		}
-	}
 
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return nil, &existsError{
-			ResourceType: "MDMWindowsConfigProfile.Name",
-			Identifier:   cp.Name,
-			TeamID:       cp.TeamID,
+		if err := insertProfileLabelAssociationsDB(ctx, tx, profileUUID, cp.Labels, "windows"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &fleet.MDMWindowsConfigProfile{
