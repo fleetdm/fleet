@@ -116,6 +116,7 @@ const SiteTopNav = ({
         : currentTeam?.id;
   }
 
+  console.log("currentQueryParams.team_id", currentQueryParams.team_id);
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
@@ -149,12 +150,20 @@ const SiteTopNav = ({
         ? navItem.location.pathname
         : currentPath;
 
+      const includeTeamId = (activePath: string) => {
+        if (currentQueryParams.team_id) {
+          return `${path}?team_id=${currentQueryParams.team_id}`;
+        }
+        return activePath;
+      };
+
       // Clicking an active link returns user to default page
+      // Resetting all filters except team ID
       // TODO: Find best pattern(one that doesn't dispatch a
       // replace to the same url, which triggers a re-render)
       return (
         <li className={navItemClasses} key={`nav-item-${name}`}>
-          <a className={`${navItemBaseClass}__link`} href={path}>
+          <a className={`${navItemBaseClass}__link`} href={includeTeamId(path)}>
             <span
               className={`${navItemBaseClass}__name`}
               data-text={navItem.name}
