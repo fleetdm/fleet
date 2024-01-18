@@ -535,6 +535,7 @@ type Datastore interface {
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore

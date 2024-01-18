@@ -394,6 +394,8 @@ type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) 
 
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
+type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
@@ -1354,6 +1356,9 @@ type DataStore struct {
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
+
+	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
+	ListHostPastActivitiesFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -3266,6 +3271,13 @@ func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	s.ListHostUpcomingActivitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
+}
+
+func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostPastActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {

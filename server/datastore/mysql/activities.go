@@ -234,3 +234,42 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 
 	return activities, metaData, nil
 }
+
+func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	const listStmt = `
+	SELECT
+		ha.activity_id as id,
+		a.user_email as user_email,
+		a.user_name as name,
+		a.activity_type as activity_type,
+		a.details as details,	
+		u.gravatar_url as gravatar_url
+	FROM
+		host_activities ha
+		JOIN activities a
+			ON ha.activity_id = a.id
+		LEFT OUTER JOIN
+			users u ON u.id = a.user_id
+	WHERE
+		ha.host_id = ?
+	`
+
+	args := []any{hostID}
+	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+
+	var activities []*fleet.Activity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(activities) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
+}

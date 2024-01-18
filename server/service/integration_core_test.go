@@ -3833,7 +3833,6 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
-
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -9547,4 +9546,45 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 		DeviceAuthToken: "token",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
+}
+
+func (s *integrationTestSuite) TestHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+
+	savedScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "saved.sh",
+		ScriptContents: "echo 'hello world'",
+	})
+
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo 'hello world'", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+	require.NoError(t, listResp.Err)
+
+	require.Len(t, listResp.Activities, 1)
+	require.NotEmpty(t, listResp.Activities[0].ID)
+	require.NotEmpty(t, listResp.Activities[0].ActorEmail)
 }

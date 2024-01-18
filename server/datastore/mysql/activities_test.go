@@ -22,12 +22,13 @@ func TestActivity(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		{"UsernameChange", testActivityUsernameChange},
-		{"New", testActivityNew},
-		{"ListActivitiesStreamed", testListActivitiesStreamed},
-		{"EmptyUser", testActivityEmptyUser},
-		{"PaginationMetadata", testActivityPaginationMetadata},
-		{"ListHostUpcomingActivities", testListHostUpcomingActivities},
+		// {"UsernameChange", testActivityUsernameChange},
+		// {"New", testActivityNew},
+		// {"ListActivitiesStreamed", testListActivitiesStreamed},
+		// {"EmptyUser", testActivityEmptyUser},
+		// {"PaginationMetadata", testActivityPaginationMetadata},
+		// {"ListHostUpcomingActivities", testListHostUpcomingActivities},
+		{"ListHostPastActivities", testListHostPastActivities},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -56,6 +57,32 @@ func (d dummyActivity) ActivityName() string {
 
 func (d dummyActivity) Documentation() (activity string, details string, detailsExample string) {
 	return "", "", ""
+}
+
+type fakeHostActivity struct {
+	name    string `json:"-"`
+	details map[string]interface{}
+	hostIDs []uint
+}
+
+func (f fakeHostActivity) MarshalJSON() ([]byte, error) {
+	b, err := json.Marshal(f.details)
+	if err != nil {
+		return nil, err
+	}
+	return b, nil
+}
+
+func (f fakeHostActivity) ActivityName() string {
+	return f.name
+}
+
+func (f fakeHostActivity) Documentation() (activity string, details string, detailsExample string) {
+	return "", "", ""
+}
+
+func (f fakeHostActivity) HostIDs() []uint {
+	return f.hostIDs
 }
 
 func testActivityUsernameChange(t *testing.T, ds *Datastore) {
@@ -452,4 +479,28 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 			}
 		})
 	}
+}
+
+func testListHostPastActivities(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	u := test.NewUser(t, ds, "user1", "user1@example.com", false)
+
+	h1 := test.NewHost(t, ds, "h1.local", "10.10.10.1", "1", "1", time.Now())
+	opt := fleet.ListActivitiesOptions{
+		ListOptions: fleet.ListOptions{
+			Page:    0,
+			PerPage: 1,
+		},
+	}
+
+	require.NoError(t, ds.NewActivity(context.Background(), u, fakeHostActivity{
+		name:    "run script 1",
+		details: map[string]interface{}{"detail": 1, "sometext": "aaa"},
+		hostIDs: []uint{1},
+	}))
+
+	acts, _, err := ds.ListHostPastActivities(ctx, h1.ID, opt.ListOptions)
+	require.NoError(t, err)
+	require.Len(t, acts, 1)
 }

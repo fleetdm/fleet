@@ -539,6 +539,9 @@ type Service interface {
 	// but haven't run yet.
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
+	// ListHostPastActivities lists the activities that have already happened for the specified host.
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
 
