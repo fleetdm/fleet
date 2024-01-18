@@ -121,7 +121,6 @@ class RegistrationForm extends Component {
         <div className={formSectionClasses}>
           <div className={adminDetailsContainerClass}>
             <h2>Setup user</h2>
-            <p>Additional admins can be designated within the Fleet app.</p>
             <AdminDetails
               formData={formData}
               handleSubmit={onPageFormSubmit}

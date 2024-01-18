@@ -2392,16 +2392,6 @@ Returns the information of the specified host.
     "display_text": "23cfc9caacf0",
     "policies": [
       {
-        "id": 1,
-        "name": "SomeQuery",
-        "query": "SELECT * FROM foo;",
-        "description": "this is a query",
-        "resolution": "fix with these steps...",
-        "platform": "windows,linux",
-        "response": "pass",
-        "critical": false
-      },
-      {
         "id": 2,
         "name": "SomeQuery2",
         "query": "SELECT * FROM bar;",
@@ -2419,6 +2409,16 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
+        "critical": false
+      },
+      {
+        "id": 1,
+        "name": "SomeQuery",
+        "query": "SELECT * FROM foo;",
+        "description": "this is a query",
+        "resolution": "fix with these steps...",
+        "platform": "windows,linux",
+        "response": "pass",
         "critical": false
       }
     ],

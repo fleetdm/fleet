@@ -143,7 +143,7 @@ const WindowsTargetForm = ({
       <InputField
         label="Deadline"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."
-        hint="Number of days from 0 to 30."
+        helpText="Number of days from 0 to 30."
         placeholder="5"
         value={deadlineDays}
         error={deadlineDaysError}
@@ -152,7 +152,7 @@ const WindowsTargetForm = ({
       <InputField
         label="Grace period"
         tooltip="Number of days after the deadline the end user has before the host is forced to restart (only if end user was offline when deadline passed)."
-        hint="Number of days from 0 to 7."
+        helpText="Number of days from 0 to 7."
         placeholder="2"
         value={gracePeriodDays}
         error={gracePeriodDaysError}

@@ -101,21 +101,21 @@ const ManageQueryAutomationsModal = ({
 
   return (
     <Modal
-      title={"Manage automations"}
+      title="Manage automations"
       onExit={onCancel}
       className={baseClass}
       width="large"
     >
-      <div className={baseClass}>
+      <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
           Query automations let you send data to your log destination on a
           schedule. Data is sent according to a query’s frequency.
         </div>
         {availableQueries?.length ? (
-          <div className={`${baseClass}__select`}>
-            <p>
-              <strong>Choose which queries will send data:</strong>
-            </p>
+          <div className={`${baseClass}__select form-field`}>
+            <div className="form-field__label">
+              Choose which queries will send data:
+            </div>
             <div className={`${baseClass}__checkboxes`}>
               {queryItems &&
                 queryItems.map((queryItem) => {
@@ -148,14 +148,12 @@ const ManageQueryAutomationsModal = ({
             <p>Add a query to turn on automations.</p>
           </div>
         )}
-        <div className={`${baseClass}__log-destination`}>
-          <p>
-            <strong>Log destination:</strong>
-          </p>
+        <div className={`${baseClass}__log-destination form-field`}>
+          <div className="form-field__label">Log destination:</div>
           <div className={`${baseClass}__selection`}>
             <LogDestinationIndicator logDestination={logDestination} />
           </div>
-          <div className={`${baseClass}__configure`}>
+          <div className={`${baseClass}__configure form-field__help-text`}>
             Users with the admin role can&nbsp;
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/log-destinations"
@@ -175,30 +173,27 @@ const ManageQueryAutomationsModal = ({
             />
           </p>
         </InfoBanner>
-        <div className={`${baseClass}__btn-wrap`}>
-          <div className={`${baseClass}__preview-btn-wrap`}>
-            <Button
-              type="button"
-              variant="inverse"
-              onClick={togglePreviewDataModal}
-            >
-              Preview data
-            </Button>
-          </div>
-          <div className="modal-cta-wrap">
-            <Button
-              type="submit"
-              variant="brand"
-              onClick={onSubmit}
-              className="save-loading"
-              isLoading={isUpdatingAutomations}
-            >
-              Save
-            </Button>
-            <Button onClick={onCancel} variant="inverse">
-              Cancel
-            </Button>
-          </div>
+        <Button
+          type="button"
+          variant="inverse"
+          onClick={togglePreviewDataModal}
+          className={`${baseClass}__preview-data`}
+        >
+          Preview data
+        </Button>
+        <div className="modal-cta-wrap">
+          <Button
+            type="submit"
+            variant="brand"
+            onClick={onSubmit}
+            className="save-loading"
+            isLoading={isUpdatingAutomations}
+          >
+            Save
+          </Button>
+          <Button onClick={onCancel} variant="inverse">
+            Cancel
+          </Button>
         </div>
       </div>
     </Modal>

@@ -110,7 +110,11 @@ const IdpSection = () => {
           error={!isValidMetadataUrl && "Must be a valid URL."}
           tooltip="The metadata URL supplied by the identity provider."
         />
-        <Button disabled={!completedForm} onClick={onSubmit}>
+        <Button
+          disabled={!completedForm}
+          onClick={onSubmit}
+          className="button-wrap"
+        >
           <span data-tip data-for="save-button">
             Save
           </span>

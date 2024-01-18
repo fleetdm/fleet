@@ -92,12 +92,12 @@ const SecretEditorModal = ({
           <InputField
             inputWrapperClass={`${baseClass}__secret-input`}
             name="osqueryd-secret"
-            label={"Secret"}
-            type={"text"}
+            label="Secret"
+            type="text"
             value={enrollSecretString}
             onChange={onSecretChange}
             error={errors.secret}
-            hint={"Must contain at least 32 characters."}
+            helpText="Must contain at least 32 characters."
           />
         </div>
         <div className="modal-cta-wrap">

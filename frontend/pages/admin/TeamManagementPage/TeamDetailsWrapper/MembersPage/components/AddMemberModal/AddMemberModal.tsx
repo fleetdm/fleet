@@ -45,17 +45,21 @@ const AddMemberModal = ({
   return (
     <Modal onExit={onCancel} title={"Add members"} className={baseClass}>
       <form className={`${baseClass}__form`}>
-        <p className="title">Add team members</p>
-        <AutocompleteDropdown
-          team={team}
-          id={"member-autocomplete"}
-          resourceUrl={endpoints.USERS}
-          onChange={onChangeDropdown}
-          placeholder={"Search users by name"}
-          disabledOptions={disabledMembers}
-          value={selectedMembers}
-          autoFocus
-        />
+        <div className="form-field">
+          <label className="form-field__label" htmlFor="member-autocomplete">
+            Add team members
+          </label>
+          <AutocompleteDropdown
+            team={team}
+            id={"member-autocomplete"}
+            resourceUrl={endpoints.USERS}
+            onChange={onChangeDropdown}
+            placeholder={"Search users by name"}
+            disabledOptions={disabledMembers}
+            value={selectedMembers}
+            autoFocus
+          />
+        </div>
         <p>
           User not here?&nbsp;
           <Button

@@ -1019,55 +1019,62 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.Len(t, queries, 1)
 	assert.Equal(t, q.Query, queries[fmt.Sprint(q.ID)])
 
+	// Team policy ran with failing result.
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now(), false))
 
 	policies, err := ds.ListPoliciesForHost(context.Background(), host1)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
-	checkGlobaPolicy := func(policies []*fleet.HostPolicy) {
-		assert.Equal(t, "query1", policies[0].Name)
-		assert.Equal(t, "select 1;", policies[0].Query)
-		assert.Equal(t, "query1 desc", policies[0].Description)
-		require.NotNil(t, policies[0].AuthorID)
-		assert.Equal(t, user1.ID, *policies[0].AuthorID)
-		assert.Equal(t, "Alice", policies[0].AuthorName)
-		assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
-		assert.NotNil(t, policies[0].Resolution)
-		assert.Equal(t, "some gp resolution", *policies[0].Resolution)
+	checkGlobaPolicy := func(policy *fleet.HostPolicy) {
+		assert.Equal(t, "query1", policy.Name)
+		assert.Equal(t, "select 1;", policy.Query)
+		assert.Equal(t, "query1 desc", policy.Description)
+		require.NotNil(t, policy.AuthorID)
+		assert.Equal(t, user1.ID, *policy.AuthorID)
+		assert.Equal(t, "Alice", policy.AuthorName)
+		assert.Equal(t, "alice@example.com", policy.AuthorEmail)
+		assert.NotNil(t, policy.Resolution)
+		assert.Equal(t, "some gp resolution", *policy.Resolution)
 	}
-	checkGlobaPolicy(policies)
 
-	assert.Equal(t, "query2", policies[1].Name)
-	assert.Equal(t, "select 42;", policies[1].Query)
-	assert.Equal(t, "query2 desc", policies[1].Description)
-	require.NotNil(t, policies[1].AuthorID)
-	assert.Equal(t, user1.ID, *policies[1].AuthorID)
-	assert.Equal(t, "Alice", policies[1].AuthorName)
-	assert.Equal(t, "alice@example.com", policies[1].AuthorEmail)
-	assert.NotNil(t, policies[1].Resolution)
-	assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
+	// Failing policy is listed first.
+	assert.Equal(t, "fail", policies[0].Response)
+	assert.Equal(t, "query2", policies[0].Name)
+	assert.Equal(t, "select 42;", policies[0].Query)
+	assert.Equal(t, "query2 desc", policies[0].Description)
+	require.NotNil(t, policies[0].AuthorID)
+	assert.Equal(t, user1.ID, *policies[0].AuthorID)
+	assert.Equal(t, "Alice", policies[0].AuthorName)
+	assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
+	assert.NotNil(t, policies[0].Resolution)
+	assert.Equal(t, "some other gp resolution", *policies[0].Resolution)
+
+	checkGlobaPolicy(policies[1])
+	assert.Equal(t, "", policies[1].Response)
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
-	checkGlobaPolicy(policies)
-
+	checkGlobaPolicy(policies[0])
 	assert.Equal(t, "", policies[0].Response)
 
+	// Global policy ran with passing result.
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: ptr.Bool(true)}, time.Now(), false))
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
-	checkGlobaPolicy(policies)
+	checkGlobaPolicy(policies[0])
 
 	assert.Equal(t, "pass", policies[0].Response)
 
 	// Manually insert a global policy with null resolution.
-	res, err := ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
+	res, err := ds.writer(context.Background()).ExecContext(
+		context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description+"2",
+	)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1077,12 +1084,13 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
-	assert.Equal(t, "query1 desc", policies[0].Description)
+	// Global policy with null resolution is listed first, followed by passing policy.
+	assert.Equal(t, "query1 desc2", policies[0].Description)
 	assert.NotNil(t, policies[0].Resolution)
-	assert.Equal(t, "some gp resolution", *policies[0].Resolution)
+	assert.Empty(t, *policies[0].Resolution)
 
 	assert.NotNil(t, policies[1].Resolution)
-	assert.Empty(t, *policies[1].Resolution)
+	assert.Equal(t, "some gp resolution", *policies[1].Resolution)
 }
 
 func testPoliciesByID(t *testing.T, ds *Datastore) {
