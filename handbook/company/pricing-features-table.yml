@@ -736,10 +736,9 @@
 - industryName: Risk-based vulnerability management
   friendlyName: Detect vulnerable software
   productCategories: [Vulnerability management]
-  tier: Free
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
+  usualDepartment: Security
+  tier: Free
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
