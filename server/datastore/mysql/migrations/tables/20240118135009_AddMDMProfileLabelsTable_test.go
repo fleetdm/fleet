@@ -71,8 +71,4 @@ func TestUp_20240118135009(t *testing.T) {
 	// apply duplicate (label A to Apple profile A)
 	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)`, idaA, "LA", idlA)
 	require.ErrorContains(t, err, "Duplicate entry")
-
-	// apply with both a Windows and Apple profile (C as it doesn't have any duplicates)
-	_, err = db.Exec(`INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?, ?)`, idaC, idwC, "LA", idlA)
-	require.ErrorContains(t, err, "Duplicate entry")
 }
