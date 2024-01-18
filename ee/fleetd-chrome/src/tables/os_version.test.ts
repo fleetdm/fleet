@@ -124,6 +124,7 @@ describe("os_version", () => {
               { brand: "Not even chrome", version: "110.0.5481.177" },
             ],
           },
+          warnings: [],
         })
       ),
     };
