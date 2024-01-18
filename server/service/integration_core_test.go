@@ -9563,6 +9563,7 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 		Name:           "saved.sh",
 		ScriptContents: "echo 'hello world'",
 	})
+	require.NoError(t, err)
 
 	var runResp runScriptResponse
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
