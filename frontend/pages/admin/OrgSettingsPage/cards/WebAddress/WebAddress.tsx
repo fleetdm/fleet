@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -60,7 +61,7 @@ const WebAddress = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Fleet web address</h2>
+        <SectionHeader title="Fleet web address" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Fleet app URL"

@@ -8,6 +8,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import Modal from "components/Modal";
 import {
@@ -141,7 +142,7 @@ const HostStatusWebhook = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Host status webhook</h2>
+        <SectionHeader title="Host status webhook" />
         <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Send an alert if a portion of your hosts go offline.

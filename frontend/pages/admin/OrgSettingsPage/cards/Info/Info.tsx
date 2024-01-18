@@ -7,6 +7,7 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -92,7 +93,7 @@ const Info = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section ${cardClass}`}>
-        <h2>Organization info</h2>
+        <SectionHeader title="Organization info" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Organization name"

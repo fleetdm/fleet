@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -99,7 +100,7 @@ const Advanced = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Advanced options</h2>
+        <SectionHeader title="Advanced options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.

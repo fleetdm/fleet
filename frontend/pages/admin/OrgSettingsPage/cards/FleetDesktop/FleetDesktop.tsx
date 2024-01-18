@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import {
@@ -67,7 +68,7 @@ const FleetDesktop = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Fleet Desktop</h2>
+        <SectionHeader title="Fleet Desktop" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
