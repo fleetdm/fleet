@@ -2867,11 +2867,11 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 		return nil, nil
 	}
 
-	var teamsUsingHostExpiry []uint
+	var teamsUsingGlobalExpiry []uint
 	teamsUsingCustomExpiry := map[uint]int{}
 	for _, team := range teams {
 		if !team.Config.HostExpirySettings.HostExpiryEnabled {
-			teamsUsingHostExpiry = append(teamsUsingHostExpiry, team.ID)
+			teamsUsingGlobalExpiry = append(teamsUsingGlobalExpiry, team.ID)
 		} else {
 			teamsUsingCustomExpiry[team.ID] = team.Config.HostExpirySettings.HostExpiryWindow
 		}
@@ -2892,9 +2892,9 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	if ac.HostExpirySettings.HostExpiryEnabled {
 		sqlQuery := findHostsSql + " AND (team_id IS NULL"
 		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
-		if len(teamsUsingHostExpiry) > 0 {
+		if len(teamsUsingGlobalExpiry) > 0 {
 			sqlQuery += " OR team_id IN (?)"
-			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingHostExpiry)
+			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
 			}
@@ -2907,7 +2907,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 			args...,
 		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting expired host allIdsToDelete")
+			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
 		}
 	}
 
@@ -2923,7 +2923,7 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 			args...,
 		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "getting expired host allIdsToDelete")
+			return nil, ctxerr.Wrap(ctx, err, "getting team expired hosts")
 		}
 		allIdsToDelete = append(allIdsToDelete, ids...)
 	}
