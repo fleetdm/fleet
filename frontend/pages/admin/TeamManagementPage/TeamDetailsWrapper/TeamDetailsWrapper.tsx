@@ -51,6 +51,10 @@ const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
     name: "Agent options",
     getPathname: PATHS.TEAM_DETAILS_OPTIONS,
   },
+  {
+    name: "Settings",
+    getPathname: PATHS.TEAM_DETAILS_SETTINGS,
+  },
 ];
 
 interface ITeamDetailsPageProps {

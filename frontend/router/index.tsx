@@ -78,6 +78,7 @@ import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAd
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
+import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 
 interface IAppWrapperProps {
   children: JSX.Element;
@@ -157,6 +158,7 @@ const routes = (
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
+              <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
             <Redirect from="teams/:team_id/members" to="teams" />

@@ -139,6 +139,12 @@ export default {
     }
     return `${URL_PREFIX}/settings/teams`;
   },
+  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
+  },
   MANAGE_PACKS: `${URL_PREFIX}/packs/manage`,
   NEW_PACK: `${URL_PREFIX}/packs/new`,
   MANAGE_QUERIES: `${URL_PREFIX}/queries/manage`,
