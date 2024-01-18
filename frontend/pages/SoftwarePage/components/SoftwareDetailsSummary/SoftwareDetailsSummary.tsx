@@ -1,5 +1,9 @@
-import ViewAllHostsLink from "components/ViewAllHostsLink";
 import React from "react";
+
+import { QueryParams } from "utilities/url";
+
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+
 import SoftwareIcon from "../icons/SoftwareIcon";
 
 const baseClass = "software-details-summary";
@@ -20,23 +24,21 @@ const DataSet = ({ title, value }: IDescriptionSetProps) => {
 };
 
 interface ISoftwareDetailsSummaryProps {
-  id: number;
   title: string;
   type?: string;
   hosts: number;
-  /** The query param name that will be added when user clicks on "View all hosts" link */
-  queryParam: string;
+  /** The query param that will be added when user clicks on "View all hosts" link */
+  queryParams: QueryParams;
   name?: string;
   source?: string;
   versions?: number;
 }
 
 const SoftwareDetailsSummary = ({
-  id,
   title,
   type,
   hosts,
-  queryParam,
+  queryParams,
   name,
   source,
   versions,
@@ -55,7 +57,7 @@ const SoftwareDetailsSummary = ({
       </dl>
       <div>
         <ViewAllHostsLink
-          queryParams={{ [queryParam]: id }}
+          queryParams={queryParams}
           className={`${baseClass}__hosts-link`}
         />
       </div>
