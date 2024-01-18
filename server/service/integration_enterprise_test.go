@@ -337,6 +337,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
+	// dry-run with invalid host_expiry_settings.host_expiry_window
+	teamSpecs = map[string]any{
+		"specs": []map[string]any{
+			{
+				"name": teamName,
+				"host_expiry_settings": map[string]any{
+					"host_expiry_window":  0,
+					"host_expiry_enabled": true,
+				},
+			},
+		},
+	}
+	// Update team
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+	// Create team (coverage should show that this validation was covered for both update and create)
+	teamSpecs["specs"].([]map[string]any)[0]["name"] = teamName + "invalid host expiry window"
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
 	teamSpecs = map[string]any{
@@ -862,6 +884,18 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
 
+	// create a team with invalid host expiry window
+	team4 := &fleet.TeamPayload{
+		Name:        ptr.String(name + "invalid host_expiry_window"),
+		Description: ptr.String("Team4 description"),
+		Secrets:     []*fleet.EnrollSecret{{Secret: "TEAM4"}},
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  -1,
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams", team4, http.StatusUnprocessableEntity, &tmResp)
+
 	// list teams
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
@@ -925,6 +959,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	}
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusOK, &tmResp)
 	assert.Equal(t, *modifyExpiry.HostExpirySettings, tmResp.Team.Config.HostExpirySettings)
+
+	// invalid team host expiry (<= 0)
+	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
 
 	// list team users
 	var usersResp listUsersResponse

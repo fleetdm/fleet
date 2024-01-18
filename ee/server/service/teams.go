@@ -90,6 +90,10 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
 
+	if p.HostExpirySettings != nil && p.HostExpirySettings.HostExpiryEnabled && p.HostExpirySettings.HostExpiryWindow <= 0 {
+		return nil, fleet.NewInvalidArgumentError("host_expiry_window", "must be greater than 0")
+	}
+
 	team, err = svc.ds.NewTeam(ctx, team)
 	if err != nil {
 		return nil, err
@@ -221,6 +225,9 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.HostExpirySettings != nil {
+		if payload.HostExpirySettings.HostExpiryEnabled && payload.HostExpirySettings.HostExpiryWindow <= 0 {
+			return nil, fleet.NewInvalidArgumentError("host_expiry_window", "must be greater than 0")
+		}
 		team.Config.HostExpirySettings = *payload.HostExpirySettings
 	}
 
@@ -866,6 +873,19 @@ func (svc *Service) createTeamFromSpec(
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
 
+	var hostExpirySettings fleet.HostExpirySettings
+	if spec.HostExpirySettings != nil {
+		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
+			return nil, ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_expiry_settings.host_expiry_window",
+					`When enabling host expiry, host expiry window must be a positive number.`,
+				),
+			)
+		}
+		hostExpirySettings = *spec.HostExpirySettings
+	}
+
 	if dryRun {
 		return &fleet.Team{Name: spec.Name}, nil
 	}
@@ -882,6 +902,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 			},
+			HostExpirySettings: hostExpirySettings,
 		},
 		Secrets: secrets,
 	})
@@ -1020,6 +1041,14 @@ func (svc *Service) editTeamFromSpec(
 
 	// if host_expiry_settings are not provided, do not change them
 	if spec.HostExpirySettings != nil {
+		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
+			return ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_expiry_settings.host_expiry_window",
+					`When enabling host expiry, host expiry window must be a positive number.`,
+				),
+			)
+		}
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
