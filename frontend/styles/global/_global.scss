@@ -129,8 +129,13 @@ form,
     font-weight: $bold;
     color: $core-fleet-black;
 
+    // compensate for height added by tooltip wrapper underline
+    .component__tooltip-wrapper__underline {
+      margin-top: -2.5px;
+      padding-bottom: 0;
+    }
+
     &--error {
-      font-weight: $bold;
       color: $core-vibrant-red;
     }
   }
