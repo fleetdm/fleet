@@ -734,7 +734,7 @@
 #   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
 #   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
 - industryName: Risk-based vulnerability management
-- friendlyName: Detect vulnerable software
+  friendlyName: Detect vulnerable software
   productCategories: [Vulnerability management]
   tier: Free
   usualDepartment: Security
