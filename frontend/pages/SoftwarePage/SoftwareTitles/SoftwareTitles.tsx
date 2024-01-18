@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useMemo } from "react";
+import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 import { Row } from "react-table";
@@ -27,6 +27,8 @@ import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptySoftwareTable from "../components/EmptySoftwareTable";
 
 import generateSoftwareTitlesTableHeaders from "./SoftwareTitlesTableConfig";
+import { title } from "process";
+import { ISoftwareTitle } from "interfaces/software";
 
 const baseClass = "software-titles";
 
@@ -65,6 +67,9 @@ const SoftwareTitles = ({
 }: ISoftwareTitlesProps) => {
   const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
 
+  const [softwareTitlesForTable, setSoftwareTitlesForTable] = useState<
+    ISoftwareTitle[]
+  >([]);
   // request to get software data
   const {
     data: softwareData,
@@ -93,6 +98,14 @@ const SoftwareTitles = ({
       // stale time can be adjusted if fresher data is desired based on
       // software inventory interval
       staleTime: 30000,
+      onSuccess: (data) => {
+        setSoftwareTitlesForTable(
+          data.software_titles.map((title) => ({
+            ...title,
+            versions: title.versions ?? [],
+          }))
+        );
+      },
     }
   );
 
@@ -260,7 +273,7 @@ const SoftwareTitles = ({
     <div className={baseClass}>
       <TableContainer
         columnConfigs={softwareTableHeaders}
-        data={softwareData?.software_titles || []}
+        data={softwareTitlesForTable}
         isLoading={isSoftwareLoading}
         resultsTitle={"items"}
         emptyComponent={() => (
