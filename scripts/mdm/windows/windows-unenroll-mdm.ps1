@@ -1,20 +1,27 @@
-# DLL import to use the MDMRegistration.dll
-$signature = @"
-    [DllImport("mdmregistration.dll", CharSet = CharSet.Unicode)]
-    public static extern int UnregisterDeviceWithManagement(string enrollmentID);
-"@
+Add-Type -TypeDefinition @"
+using System;
+using System.Runtime.InteropServices;
 
-# Type definition
-$type = Add-Type -MemberDefinition $signature -Name "MDMRegistration" -Namespace "Win32" -PassThru
+public class MdmRegistration
+{
+    [DllImport("mdmregistration.dll", SetLastError = true)]
+    public static extern int UnregisterDeviceWithManagement(IntPtr pDeviceID);
 
-# Calling the function
-# should explicitly pass null or 0. See:
-# https://github.com/fleetdm/fleet/issues/12342#issuecomment-1608190367
-$enrollmentID = $null
-$result = $type::UnregisterDeviceWithManagement($enrollmentID)
-# Handle the result
-if ($result -eq 0) {
-    "Host successfully unenrolled from Fleet MDM."
-} else {
-    "Error during MDM unenrollment process: $result"
+    public static int UnregisterDevice()
+    {
+        return UnregisterDeviceWithManagement(IntPtr.Zero);
+    }
+}
+"@ -Language CSharp
+
+try {
+    $result = [MdmRegistration]::UnregisterDevice()
+
+    if ($result -ne 0) {
+        throw "UnregisterDeviceWithManagement failed with error code: $result"
+    }
+
+    Write-Host "Device unregistration called successfully."
+} catch {
+    Write-Error "Error calling UnregisterDeviceWithManagement: $_"
 }
