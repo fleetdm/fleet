@@ -55,7 +55,11 @@ describe("os_version", () => {
           codename: "ChromeOS 13.2.1",
         },
       ],
+<<<<<<< HEAD
       warnings: null,
+=======
+      warnings: [],
+>>>>>>> f08771903 (Fix tests)
     });
   });
 
@@ -99,7 +103,11 @@ describe("os_version", () => {
           codename: "ChromeOS 13.2.1",
         },
       ],
+<<<<<<< HEAD
       warnings: null,
+=======
+      warnings: [],
+>>>>>>> f08771903 (Fix tests)
     });
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("expected 4 segments")
