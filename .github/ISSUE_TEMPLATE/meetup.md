@@ -38,6 +38,10 @@ _Please provide as many of the following details as possible. Note this is a pub
 - [ ] Fleeties in the area:
 - [ ] Fleeties attending:
 
+## Sponsorship
+
+- [ ] Gift card ordered (<!-- Amount -->)
+
 ## Swag 
 
 - [ ] **Swag Needed**
@@ -45,13 +49,13 @@ _Please provide as many of the following details as possible. Note this is a pub
     - [ ] Other (please specify)   (  )
 
 
-- [ ] **Where to Send Swag:**
+- **Where to Send Swag:**
     - [ ] Event Location
     - [ ] Other Address (please specify)
 
 ## Promotion
 
-- [ ] **Social Media Promotion**
+- **Social Media Promotion**
     - [ ] Twitter ( <!-- event handle --> )
     - [ ] LinkedIn
     - [ ] Instagram
@@ -59,6 +63,6 @@ _Please provide as many of the following details as possible. Note this is a pub
 
 ## Additional Notes
 
-- [ ] **Other Relevant Information:**
+- **Other Relevant Information:**
     - Any other details that can help in promotion or swag preparation, or networking opportunities.
 
