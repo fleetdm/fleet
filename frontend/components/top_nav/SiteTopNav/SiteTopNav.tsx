@@ -116,7 +116,6 @@ const SiteTopNav = ({
         : currentTeam?.id;
   }
 
-  console.log("currentQueryParams.team_id", currentQueryParams.team_id);
   const renderNavItem = (navItem: INavItem) => {
     const { name, iconName, withParams } = navItem;
     const orgLogoURL = config.org_info.org_logo_url;
