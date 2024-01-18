@@ -777,6 +777,7 @@
     - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
     - description: An Introduction to EPSS, The Exploit Prediction Scoring System
     - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
+    - description: By extracting metadata from the National Vulnerability Database (NVD), we can determine which version of software is no longer vulnerable. 
 #  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
 #  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
 #  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
@@ -792,20 +793,6 @@
     - description: Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.
     - description: Use CISA KEVs for vulnerability management
     - moreInfoUrl: https://www.youtube.com/watch?v=Z3mw2oxssYk
-#  ╔═╗╔═╗╔╦╗╔═╗╦ ╦╔═╗╔╦╗  ╦  ╦╔═╗╦═╗╔═╗╦╔═╗╔╗╔
-#  ╠═╝╠═╣ ║ ║  ╠═╣║╣  ║║  ╚╗╔╝║╣ ╠╦╝╚═╗║║ ║║║║
-#  ╩  ╩ ╩ ╩ ╚═╝╩ ╩╚═╝═╩╝   ╚╝ ╚═╝╩╚═╚═╝╩╚═╝╝╚╝
-- industryName: Patched version 
-  tier: Premium
-  comingSoonOn: #exists in vulnerability dashboard, but tracked for product in https://github.com/fleetdm/fleet/issues/15919
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  demos:
-    - description: 
-      moreInfoUrl:
-  waysToUse:
-    - description: By extracting metadata from the National Vulnerability Database (NVD), we can determine which version of software is no longer vulnerable. 
 - industryName: Query performance monitoring
   tier: Free
   productCategories: [Endpoint operations]
