@@ -130,7 +130,7 @@ const Smtp = ({
     }
 
     return (
-      <div className={`${baseClass}__smtp-section`}>
+      <>
         <InputField
           label="SMTP username"
           onChange={handleInputChange}
@@ -161,7 +161,7 @@ const Smtp = ({
           value={smtpAuthenticationMethod}
           parseTarget
         />
-      </div>
+      </>
     );
   };
 
@@ -186,30 +186,26 @@ const Smtp = ({
 
   const renderSmtpForm = () => {
     return (
-      <>
-        <div className={`${baseClass}__inputs`}>
-          <Checkbox
-            onChange={handleInputChange}
-            name="enableSMTP"
-            value={enableSMTP}
-            parseTarget
-          >
-            Enable SMTP
-          </Checkbox>
-        </div>
-        <div className={`${baseClass}__inputs`}>
-          <InputField
-            label="Sender address"
-            onChange={handleInputChange}
-            name="smtpSenderAddress"
-            value={smtpSenderAddress}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.sender_address}
-            tooltip="The sender address for emails from Fleet."
-          />
-        </div>
-        <div className={`${baseClass}__inputs ${baseClass}__inputs--smtp`}>
+      <form onSubmit={onFormSubmit} autoComplete="off">
+        <Checkbox
+          onChange={handleInputChange}
+          name="enableSMTP"
+          value={enableSMTP}
+          parseTarget
+        >
+          Enable SMTP
+        </Checkbox>
+        <InputField
+          label="Sender address"
+          onChange={handleInputChange}
+          name="smtpSenderAddress"
+          value={smtpSenderAddress}
+          parseTarget
+          onBlur={validateForm}
+          error={formErrors.sender_address}
+          tooltip="The sender address for emails from Fleet."
+        />
+        <div className="smtp-server-inputs">
           <InputField
             label="SMTP server"
             onChange={handleInputChange}
@@ -230,50 +226,56 @@ const Smtp = ({
             onBlur={validateForm}
             error={formErrors.server_port}
           />
-          <Checkbox
-            onChange={handleInputChange}
-            name="smtpEnableSSLTLS"
-            value={smtpEnableSSLTLS}
-            parseTarget
-          >
-            Use SSL/TLS to connect (recommended)
-          </Checkbox>
         </div>
-        <div className={`${baseClass}__inputs`}>
-          <Dropdown
-            label="Authentication type"
-            options={authTypeOptions}
-            onChange={handleInputChange}
-            name="smtpAuthenticationType"
-            value={smtpAuthenticationType}
-            parseTarget
-            tooltip={
-              <>
-                <p>
-                  If your mail server requires authentication, you need to
-                  specify the authentication type here.
-                </p>
-                <p>
-                  <strong>No Authentication</strong> - Select this if your SMTP
-                  is open.
-                </p>
-                <p>
-                  <strong>Username & Password</strong> - Select this if your
-                  SMTP server requires authentication with a username and
-                  password.
-                </p>
-              </>
-            }
-          />
-          {renderSmtpSection()}
-        </div>
-      </>
+        <Checkbox
+          onChange={handleInputChange}
+          name="smtpEnableSSLTLS"
+          value={smtpEnableSSLTLS}
+          parseTarget
+        >
+          Use SSL/TLS to connect (recommended)
+        </Checkbox>
+        <Dropdown
+          label="Authentication type"
+          options={authTypeOptions}
+          onChange={handleInputChange}
+          name="smtpAuthenticationType"
+          value={smtpAuthenticationType}
+          parseTarget
+          tooltip={
+            <>
+              <p>
+                If your mail server requires authentication, you need to specify
+                the authentication type here.
+              </p>
+              <p>
+                <strong>No Authentication</strong> - Select this if your SMTP is
+                open.
+              </p>
+              <p>
+                <strong>Username & Password</strong> - Select this if your SMTP
+                server requires authentication with a username and password.
+              </p>
+            </>
+          }
+        />
+        {renderSmtpSection()}
+        <Button
+          type="submit"
+          variant="brand"
+          disabled={Object.keys(formErrors).length > 0}
+          className="button-wrap"
+          isLoading={isUpdatingSettings}
+        >
+          Save
+        </Button>
+      </form>
     );
   };
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2 className={"smtp-status"}>
+        <h2 className="smtp-header">
           SMTP options{" "}
           {!sesConfigured && (
             <small
@@ -293,18 +295,7 @@ const Smtp = ({
         </h2>
         {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
       </div>
-      {!sesConfigured && (
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={Object.keys(formErrors).length > 0}
-          className="save-loading"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      )}
-    </form>
+    </div>
   );
 };
 

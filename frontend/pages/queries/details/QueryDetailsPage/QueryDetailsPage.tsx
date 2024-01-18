@@ -232,7 +232,7 @@ const QueryDetailsPage = ({
                   isAnyTeamObserverPlus ||
                   canEditQuery) && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
                     <div
                       data-tip

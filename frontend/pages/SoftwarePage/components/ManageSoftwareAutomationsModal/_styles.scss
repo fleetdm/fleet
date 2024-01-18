@@ -1,15 +1,10 @@
-.enroll-secret-modal {
-  &__reveal-secret {
-    float: right;
-    text-decoration: none;
-  }
-
+.manage-software-automations-modal {
   pre,
   code {
     background-color: $ui-off-white;
     color: $core-fleet-blue;
     border: 1px solid $ui-fleet-black-10;
-    border-radius: 4px;
+    border-radius: $border-radius;
     padding: 7px $pad-medium;
     margin: $pad-large 0 0 44px;
   }
@@ -18,7 +13,11 @@
     color: $ui-error;
   }
 
-  .enroll-secrets__copy-secret-icon {
-    padding-right: 0;
+  &__software-automations__disabled {
+    @include disabled;
+  }
+
+  &__no-integrations a {
+    display: block;
   }
 }
