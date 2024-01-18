@@ -45,8 +45,6 @@ export default class TablePrivacyPreferences extends Table {
     fledge_enabled: chrome.privacy.websites.fledgeEnabled,
     hyperlink_auditing_enabled:
       chrome.privacy.websites.hyperlinkAuditingEnabled,
-    // @ts-ignore, DEPRECATED
-    privacy_sandbox_enabled: chrome.privacy.websites.privacySandboxEnabled,
     protected_content_enabled: chrome.privacy.websites.protectedContentEnabled,
     referrers_enabled: chrome.privacy.websites.referrersEnabled,
     third_party_cookies_allowed:
@@ -60,6 +58,7 @@ export default class TablePrivacyPreferences extends Table {
   async generate() {
     const results = []; // Promise<{string: number | string}>[]
     const errors = [];
+    let warningsArray = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
       results.push(
         new Promise((resolve) => {
@@ -78,6 +77,10 @@ export default class TablePrivacyPreferences extends Table {
             });
           } catch (error) {
             errors.push({ [property]: error });
+            warningsArray.push({
+              column: property,
+              error_message: error.stack.toString(),
+            });
             resolve({ [property]: "data unavailable" });
           }
         })
@@ -94,6 +97,7 @@ export default class TablePrivacyPreferences extends Table {
           return { ...resultRow, ...column };
         }, {}),
       ],
+      warnings: warningsArray,
     };
   }
 }
