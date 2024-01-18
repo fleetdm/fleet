@@ -910,10 +910,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+	assert.False(t, tmResp.Team.Config.HostExpirySettings.HostExpiryEnabled)
 
 	// modify non-existing team
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID+1), team, http.StatusNotFound, &tmResp)
+
+	// modify team host expiry
+	modifyExpiry := fleet.TeamPayload{
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  10,
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusOK, &tmResp)
+	assert.Equal(t, *modifyExpiry.HostExpirySettings, tmResp.Team.Config.HostExpirySettings)
 
 	// list team users
 	var usersResp listUsersResponse
