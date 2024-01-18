@@ -46,6 +46,11 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
 
 const getTabIndex = (path: string): number => {
   return softwareSubNav.findIndex((navItem) => {
+    // This check ensures that for software versions path we still
+    // highlight the software tab.
+    if (navItem.name === "Software" && PATHS.SOFTWARE_VERSIONS === path) {
+      return true;
+    }
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
