@@ -873,12 +873,12 @@ func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[st
 
 	sql, args, err := sqlx.In(sqlStatement, names)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
 	}
 
 	var labels []fleet.Label
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &names, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get label IDs")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
 	}
 
 	result := make(map[string]uint, len(labels))

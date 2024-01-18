@@ -746,7 +746,7 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
 	require.Nil(t, err)
-	assert.ElementsMatch(t, map[string]uint{"foo": 1, "bar": 2, "baz": 3}, labels)
+	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
