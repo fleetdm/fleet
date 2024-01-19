@@ -72,7 +72,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
           </div>
         )}
       </div>
-      {isPremiumTier && !appleAPNInfo && (
+      {isPremiumTier && appleAPNInfo && (
         <div className={`${baseClass}__section`}>
           <EndUserMigrationSection router={router} />
         </div>
