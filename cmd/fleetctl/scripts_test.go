@@ -102,7 +102,6 @@ func TestRunScriptCommand(t *testing.T) {
 			scriptPath:   func() string { return writeTmpScriptContents(t, "\xff\xfa", ".sh") },
 			expectErrMsg: `Wrong data format. Only plain text allowed.`,
 		},
-		// TODO(mna): adjust after the API changes to validations
 		{
 			name:          "script already running",
 			scriptPath:    generateValidPath,
