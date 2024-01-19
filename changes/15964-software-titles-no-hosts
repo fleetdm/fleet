@@ -1,2 +1,0 @@
-- Fix a bug where software titles could be included in the /titles response for a team even when no
-  hosts on that team had the software installed.
