@@ -8,9 +8,9 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   screenshotSrc:
   tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: Security
+  productCategories: [Device management,Endpoint operations]
+  pricingTableCategories: [Device management,Endpoint operations]
+  usualDepartment: IT
   dri: mikermcneil
   demos:
     - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
