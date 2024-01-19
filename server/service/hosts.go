@@ -1798,6 +1798,30 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, err
 	}
 
+	for i, os := range osVersions.OSVersions {
+		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, false)
+		if err != nil {
+			return nil, err
+		}
+
+		if os.Platform == "darwin" {
+			osVersions.OSVersions[i].GeneratedCPEs = []string{
+				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", os.Version),
+				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", os.Version),
+			}
+		}
+
+		for _, vuln := range vulns {
+			switch os.Platform {
+			case "darwin":
+				vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+			case "windows":
+				vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+			}
+			osVersions.OSVersions[i].Vulnerabilities = append(osVersions.OSVersions[i].Vulnerabilities, vuln)
+		}
+	}
+
 	return osVersions, nil
 }
 

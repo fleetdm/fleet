@@ -10,6 +10,13 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+var (
+	nilFloat64 **float64
+	nilBool    **bool
+	nilTime    **time.Time
+	nilString  **string
+)
+
 func TestOperatingSystemVulnerabilities(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -125,11 +132,6 @@ func testListVulnsByOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cves, 2)
 
-	var nilFloat64 **float64 = nil
-	var nilBool **bool = nil
-	var nilTime **time.Time = nil
-	var nilString **string = nil
-
 	require.Equal(t, cveMeta[0].CVE, cves[0].CVE)
 	require.Equal(t, nilFloat64, cves[0].CVSSScore)
 	require.Equal(t, nilFloat64, cves[0].EPSSProbability)
@@ -142,7 +144,6 @@ func testListVulnsByOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, nilBool, cves[1].CISAKnownExploit)
 	require.Equal(t, nilTime, cves[1].CVEPublished)
 	require.Equal(t, nilString, cves[1].Description)
-
 
 	cves, err = ds.ListVulnsByOS(ctx, os.ID, true)
 	require.NoError(t, err)
