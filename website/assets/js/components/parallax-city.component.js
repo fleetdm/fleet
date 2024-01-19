@@ -35,14 +35,14 @@ parasails.registerComponent('parallaxCity', {
   template: `
   <div>
     <div purpose="parallax-city-container">
-      <div purpose="background-cloud-3" scroll-amount=12></div>
-      <div purpose="background-cloud-2" scroll-amount=28></div>
-      <div purpose="small-island-2" scroll-amount=20></div>
-      <div purpose="small-island-1" scroll-amount=40></div>
-      <div purpose="background-cloud-1" scroll-amount=40></div>
-      <div purpose="large-island" scroll-amount=60></div>
-      <div purpose="foreground-cloud-2" scroll-amount=100></div>
-      <div purpose="foreground-cloud-1" scroll-amount=120></div>
+      <div class="parallax-layer" purpose="background-cloud-3" scroll-amount=12></div>
+      <div class="parallax-layer" purpose="background-cloud-2" scroll-amount=28></div>
+      <div class="parallax-layer" purpose="small-island-2" scroll-amount=20></div>
+      <div class="parallax-layer" purpose="small-island-1" scroll-amount=40></div>
+      <div class="parallax-layer" purpose="background-cloud-1" scroll-amount=40></div>
+      <div class="parallax-layer" purpose="large-island" scroll-amount=60></div>
+      <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount=100></div>
+      <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount=120></div>
     </div>
   </div>
   `,
@@ -65,7 +65,7 @@ parasails.registerComponent('parallaxCity', {
         this.handleParallaxScroll();
       }
 
-      this.parallaxCityElement.querySelectorAll('div').forEach((layer)=>{
+      this.parallaxCityElement.querySelectorAll('div.parallax-layer').forEach((layer)=>{
         let initialPosition = layer.getAttribute('scroll-amount');
         layer.style.bottom = `-${Number(initialPosition) + 4}px`;
       });
@@ -114,7 +114,7 @@ parasails.registerComponent('parallaxCity', {
       percentageScrolled = percentageScrolled.toFixed(4);
       if(percentageScrolled > .25){// When the element has been scrolled down 25%, start adjusting the position of layers.
         let adjustedPercentage = (percentageScrolled - .25) * 4/3;
-        this.parallaxCityElement.querySelectorAll('div').forEach((layer) => {
+        this.parallaxCityElement.querySelectorAll('div.parallax-layer').forEach((layer) => {
           let scrollAmount = layer.getAttribute('scroll-amount');
           let movement = adjustedPercentage * scrollAmount;
           layer.style.transform = 'translateY(-' + movement + 'px)';
