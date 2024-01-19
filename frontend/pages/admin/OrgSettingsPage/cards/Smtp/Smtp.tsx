@@ -19,6 +19,7 @@ import {
   authMethodOptions,
   authTypeOptions,
 } from "../constants";
+import SectionHeader from "components/SectionHeader";
 
 const baseClass = "app-config-form";
 
@@ -275,24 +276,28 @@ const Smtp = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2 className="smtp-header">
-          SMTP options{" "}
-          {!sesConfigured && (
-            <small
-              className={`smtp-options smtp-options--${
-                appConfig.smtp_settings.configured
-                  ? "configured"
-                  : "notconfigured"
-              }`}
-            >
-              <em>
-                {appConfig.smtp_settings.configured
-                  ? "CONFIGURED"
-                  : "NOT CONFIGURED"}
-              </em>
-            </small>
-          )}
-        </h2>
+        <SectionHeader
+          title="SMTP options"
+          details={
+            !sesConfigured ? (
+              <small
+                className={`smtp-options smtp-options--${
+                  appConfig.smtp_settings.configured
+                    ? "configured"
+                    : "notconfigured"
+                }`}
+              >
+                <em>
+                  {appConfig.smtp_settings.configured
+                    ? "CONFIGURED"
+                    : "NOT CONFIGURED"}
+                </em>
+              </small>
+            ) : (
+              <></>
+            )
+          }
+        />
         {sesConfigured ? renderSesEnabled() : renderSmtpForm()}
       </div>
     </div>
