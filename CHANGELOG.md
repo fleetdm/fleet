@@ -1,3 +1,27 @@
+- Cleaner settings styling
+
+- Fix center styling for empty states
+
+For `software/titles` and `software/versions` endpoints, the `browser` property is no longer included in the response when empty.
+
+* Fixed a bug that caused the software/titles page to error
+
+* improve the HTTP client used by `fleetctl` and `fleetd` to prevent errors for 204 responses.
+
+- Consistent loading states when using searchfilter
+
+* Fixed the Windows MDM polling interval so that enrolled devices check-in regularly with Fleet to look for pending MDM-related actions.
+
+- Fix missing empty members svg by fixing svg ids
+
+- Fixes 2 vulnerability false positives on Microsoft Teams on MacOS.
+
+- add free tier UI state to os updates and setup experience pages
+
+Added warning/info messages when downgrading/upgrading fleetd or osquery.
+
+* Updated links to an expired osquery Slack invitation to go to the support page on the Fleet website.
+
 ## Fleet 4.43.1 (Jan 15, 2024)
 
 ### Bug fixes
