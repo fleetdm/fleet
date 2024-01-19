@@ -103,12 +103,12 @@ func TestRunScriptCommand(t *testing.T) {
 			expectErrMsg: `Wrong data format. Only plain text allowed.`,
 		},
 		// TODO(mna): adjust after the API changes to validations
-		//{
-		//	name:          "script already running",
-		//	scriptPath:    generateValidPath,
-		//	expectErrMsg:  fleet.RunScriptAlreadyRunningErrMsg,
-		//	expectPending: true,
-		//},
+		{
+			name:          "script already running",
+			scriptPath:    generateValidPath,
+			expectErrMsg:  fleet.RunScriptAlreadyRunningErrMsg,
+			expectPending: true,
+		},
 		{
 			name:       "script successful",
 			scriptPath: generateValidPath,
