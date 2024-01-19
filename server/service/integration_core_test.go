@@ -2573,11 +2573,12 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	hd := r.Host.HostDetail
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
-	require.Equal(t, policies[0].Response, "pass")
+	// Policies that did not run are listed before passing policies
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
-	require.Equal(t, policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "pass")
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)

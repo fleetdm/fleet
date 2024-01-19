@@ -1,2 +1,0 @@
-- Fixed bug where script results would sometimes show the wrong error message when a user attempts
-  to run a script on a host that has scripts disabled.

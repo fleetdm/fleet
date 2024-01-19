@@ -30,15 +30,15 @@ describe 'fleetdm::profile' do
         uuid = os_facts[:system_profiler]['hardware_uuid']
         expect(fleet_client_mock)
           .to receive(:get_host_by_identifier)
-          .with(uuid)
+          .with(uuid, 'production')
           .and_return({ 'error' => '', 'body' => host_response })
         expect(fleet_client_mock)
           .to receive(:get_host_profiles)
-          .with(host_response['host']['id'])
+          .with(host_response['host']['id'], 'production')
           .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
         expect(fleet_client_mock)
           .to receive(:preassign_profile)
-          .with(run_identifier, uuid, template, group, 'present')
+          .with(run_identifier, uuid, template, group, 'present', 'production')
           .and_return({ 'error' => '' })
         is_expected.to compile
       end
@@ -84,15 +84,15 @@ describe 'fleetdm::profile' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
           expect(fleet_client_mock)
             .to receive(:get_host_by_identifier)
-            .with(uuid)
+            .with(uuid, 'production')
             .and_return({ 'error' => '', 'body' => host_response })
           expect(fleet_client_mock)
             .to receive(:get_host_profiles)
-            .with(host_response['host']['id'])
+            .with(host_response['host']['id'], 'production')
             .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
           expect(fleet_client_mock)
             .to receive(:preassign_profile)
-            .with(run_identifier, uuid, template, 'default', 'present')
+            .with(run_identifier, uuid, template, 'default', 'present', 'production')
             .and_return({ 'error' => '' })
           is_expected.to compile
         end
@@ -107,15 +107,15 @@ describe 'fleetdm::profile' do
           uuid = os_facts[:system_profiler]['hardware_uuid']
           expect(fleet_client_mock)
             .to receive(:get_host_by_identifier)
-            .with(uuid)
+            .with(uuid, 'production')
             .and_return({ 'error' => '', 'body' => host_response })
           expect(fleet_client_mock)
             .to receive(:get_host_profiles)
-            .with(host_response['host']['id'])
+            .with(host_response['host']['id'], 'production')
             .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
           expect(fleet_client_mock)
             .to receive(:preassign_profile)
-            .with(run_identifier, uuid, template, 'default', 'absent')
+            .with(run_identifier, uuid, template, 'default', 'absent', 'production')
             .and_return({ 'error' => '' })
           is_expected.to compile
         end

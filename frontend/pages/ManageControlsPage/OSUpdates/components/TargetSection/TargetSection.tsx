@@ -146,7 +146,7 @@ const TargetSection = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" />
+      <SectionHeader title="Target" className={`${baseClass}__header`} />
       {renderTargetForms()}
     </div>
   );

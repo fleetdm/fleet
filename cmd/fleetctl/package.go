@@ -235,6 +235,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_END_USER_EMAIL"},
 				Destination: &opt.EndUserEmail,
 			},
+			&cli.BoolFlag{
+				Name:        "disable-keystore",
+				Usage:       "Disables the use of the keychain on macOS and Credentials Manager on Windows",
+				EnvVars:     []string{"FLEETCTL_DISABLE_KEYSTORE"},
+				Destination: &opt.DisableKeystore,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {

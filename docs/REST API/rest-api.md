@@ -2384,16 +2384,6 @@ Returns the information of the specified host.
     "display_text": "23cfc9caacf0",
     "policies": [
       {
-        "id": 1,
-        "name": "SomeQuery",
-        "query": "SELECT * FROM foo;",
-        "description": "this is a query",
-        "resolution": "fix with these steps...",
-        "platform": "windows,linux",
-        "response": "pass",
-        "critical": false
-      },
-      {
         "id": 2,
         "name": "SomeQuery2",
         "query": "SELECT * FROM bar;",
@@ -2411,6 +2401,16 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
+        "critical": false
+      },
+      {
+        "id": 1,
+        "name": "SomeQuery",
+        "query": "SELECT * FROM foo;",
+        "description": "this is a query",
+        "resolution": "fix with these steps...",
+        "platform": "windows,linux",
+        "response": "pass",
         "critical": false
       }
     ],
@@ -6810,7 +6810,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 _Available in Fleet Premium_
 
-Execute a script and see script results (1 minute timeout).
+Execute a script and see script results (5 minute timeout).
 
 `POST /api/v1/fleet/scripts/run/sync`
 

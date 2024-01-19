@@ -22,6 +22,7 @@ class ChangeEmailForm extends Component {
 
     return (
       <form onSubmit={handleSubmit}>
+        To update your email you must confirm your password.
         <InputField
           {...fields.password}
           autofocus
