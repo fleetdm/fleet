@@ -56,7 +56,7 @@ const DeleteHostModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <form className={`${baseClass}__form`}>
+      <>
         <p>
           This action will delete <b>{hostText()}</b> from your Fleet instance.
           {largeVolumeText()}
@@ -86,7 +86,7 @@ const DeleteHostModal = ({
             Cancel
           </Button>
         </div>
-      </form>
+      </>
     </Modal>
   );
 };

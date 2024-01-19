@@ -151,7 +151,7 @@
 
 @media (min-width: 1150px) {
   .label-filter-select {
-    width: 220px;
+    min-width: 220px;
 
     &__single-value {
       max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue

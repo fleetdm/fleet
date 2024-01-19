@@ -181,6 +181,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 					`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 			}
+
+			if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+				return nil, err
+			}
+
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 	}
@@ -983,6 +988,11 @@ func (svc *Service) editTeamFromSpec(
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 		}
 	}
+	if didUpdateMacOSEndUserAuth {
+		if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+			return err
+		}
+	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
@@ -1179,5 +1189,18 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 	}
+	return nil
+}
+
+func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.Context, tmID *uint) error {
+	hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking setup assistant configuration web url")
+	}
+
+	if hasCustomConfigurationWebURL {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+	}
+
 	return nil
 }

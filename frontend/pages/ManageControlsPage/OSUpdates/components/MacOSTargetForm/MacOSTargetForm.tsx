@@ -127,7 +127,7 @@ const MacOSTargetForm = ({
       <InputField
         label="Minimum version"
         tooltip="The end user sees the window until their macOS is at or above this version."
-        hint="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
+        helpText="Version number only (e.g., “13.0.1” not “Ventura 13” or “13.0.1 (22A400)”)"
         placeholder="13.0.1"
         value={minOsVersion}
         error={minOsVersionError}
@@ -136,7 +136,7 @@ const MacOSTargetForm = ({
       <InputField
         label="Deadline"
         tooltip="The end user can’t dismiss the window once they reach this deadline. Deadline is at 12:00 (Noon) Pacific Standard Time (GMT-8)."
-        hint="YYYY-MM-DD format only (e.g., “2023-06-01”)."
+        helpText="YYYY-MM-DD format only (e.g., “2023-06-01”)."
         placeholder="2023-06-01"
         value={deadline}
         error={deadlineError}
