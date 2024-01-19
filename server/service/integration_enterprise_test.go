@@ -4671,6 +4671,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 		Name:           "script_1k_1000.sh",
 		ScriptContents: "echo 1000",
 	})
+	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
 }
@@ -4685,6 +4686,7 @@ func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
 		Name:           "script.sh",
 		ScriptContents: "echo 'hi from script'",
 	})
+	require.NoError(t, err)
 
 	// Make the host offline so that scripts enqueue
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
