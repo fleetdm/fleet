@@ -59,6 +59,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("echo"), nil
 	}
+	ds.GetPendingHostScriptsFunc = func(ctx context.Context, hostID, scriptID uint) ([]*uint, error) { return nil, nil }
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {
