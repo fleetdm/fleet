@@ -222,7 +222,7 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
-	team2Counts = listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts, false)
+	listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts, false)
 
 	// delete team
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
