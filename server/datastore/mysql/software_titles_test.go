@@ -215,10 +215,16 @@ func testSoftwareSyncHostsSoftwareTitles(t *testing.T, ds *Datastore) {
 
 	checkTableTotalCount(3)
 
-	// update host4 (team2), remove all software and delete team
+	// update host4 (team2), remove all software
 	software4 = []fleet.Software{}
 	_, err = ds.UpdateHostSoftware(ctx, host4.ID, software4)
 	require.NoError(t, err)
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+	team2Counts = listSoftwareTitlesCheckCount(t, ds, 0, 0, team2Opts, false)
+
+	// delete team
 	require.NoError(t, ds.DeleteTeam(ctx, team2.ID))
 
 	// this call will remove team2 from the software host counts table
