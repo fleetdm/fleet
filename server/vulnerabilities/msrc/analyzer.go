@@ -16,7 +16,6 @@ import (
 )
 
 const (
-	hostsBatchSize = 500
 	vulnBatchSize = 500
 )
 
