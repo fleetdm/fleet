@@ -396,6 +396,8 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
+type GetPendingHostScriptsFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
 type RecordStatisticsSentFunc func(ctx context.Context) error
@@ -1359,6 +1361,9 @@ type DataStore struct {
 
 	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
 	ListHostPastActivitiesFuncInvoked bool
+
+	GetPendingHostScriptsFunc        GetPendingHostScriptsFunc
+	GetPendingHostScriptsFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -3278,6 +3283,13 @@ func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt
 	s.ListHostPastActivitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
+}
+
+func (s *DataStore) GetPendingHostScripts(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+	s.mu.Lock()
+	s.GetPendingHostScriptsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetPendingHostScriptsFunc(ctx, hostID, scriptID)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {

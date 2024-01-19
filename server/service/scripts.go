@@ -177,6 +177,15 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
 		}
 
+		r, err := svc.ds.GetPendingHostScripts(ctx, request.HostID, *request.ScriptID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(r) > 0 {
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script is already queued on the given host.`).WithStatus(http.StatusConflict)
+		}
+
 		contents, err := svc.ds.GetScriptContents(ctx, *request.ScriptID)
 		if err != nil {
 			if fleet.IsNotFound(err) {
@@ -192,26 +201,25 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}
 
-	// host must be online
-	if host.Status(time.Now()) != fleet.StatusOnline {
+	asyncExecution := waitForResult <= 0
+
+	if !asyncExecution && host.Status(time.Now()) != fleet.StatusOnline {
 		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
 	}
 
-	// TODO: to be adjusted, we don't check the pending scripts anymore unless it is a synchronous request.
-	//// it is important that the "ignoreOlder" parameter in this call is the same
-	//// everywhere (which is here and in the "get orbit config" endpoint to send
-	//// the notification of scripts pending execution to the host).
-	//pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID, scripts.MaxServerWaitTime)
-	//if err != nil {
-	//	return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
-	//}
-	//if len(pending) > 0 {
-	//	return nil, fleet.NewInvalidArgumentError(
-	//		"script_contents", fleet.RunScriptAlreadyRunningErrMsg,
-	//	).WithStatus(http.StatusConflict)
-	//}
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
+	}
+	if len(pending) > 1000 {
+		return nil, fleet.NewInvalidArgumentError(
+			"script_id", "cannot queue more than 1000 scripts per host",
+		).WithStatus(http.StatusConflict)
+	}
 
-	asyncExecution := waitForResult <= 0
+	if !asyncExecution && len(pending) > 0 {
+		return nil, fleet.NewInvalidArgumentError("script_id", fleet.RunScriptAlreadyRunningErrMsg).WithStatus(http.StatusConflict)
+	}
 
 	// create the script execution request, the host will be notified of the
 	// script execution request via the orbit config's Notifications mechanism.

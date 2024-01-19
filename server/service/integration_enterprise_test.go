@@ -4406,12 +4406,11 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
 	require.NoError(t, err)
 
-	// TODO(mna): adjust after changes to API validations (i.e. /sync will fail if anything is in the queue, while async would enqueue without error)
-	//// attempt to create a valid sync script execution request, fails because the
-	//// host has a pending script execution
-	//res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
-	//errMsg = extractServerErrorText(res.Body)
-	//require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
+	// attempt to create a valid sync script execution request, fails because the
+	// host has a pending script execution
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusConflict)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
 
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
@@ -4512,11 +4511,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 
-	// attempt to create an async script execution request, fails because the host
-	// is offline.
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
-	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
+	// attempt to create an async script execution request, succeeds because script is added to queue.
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -4605,13 +4601,6 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
 	require.NoError(t, err)
 
-	// TODO(mna): adjust after changes to API validations (i.e. /sync will fail if anything is in the queue, while async would enqueue without error)
-	//// attempt to create a valid sync script execution request, fails because the
-	//// host has a pending script execution
-	//res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusConflict)
-	//errMsg = extractServerErrorText(res.Body)
-	//require.Contains(t, errMsg, fleet.RunScriptAlreadyRunningErrMsg)
-
 	// save a result via the orbit endpoint
 	var orbitPostScriptResp orbitPostScriptResultResponse
 	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
@@ -4659,6 +4648,57 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 	require.Nil(t, scriptResultResp.ScriptID)
+
+	// Verify that we can't enqueue more than 1k scripts
+
+	// Make the host offline so that scripts enqueue
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+	for i := 0; i < 1000; i++ {
+		script, err := s.ds.NewScript(ctx, &fleet.Script{
+			TeamID:         nil,
+			Name:           fmt.Sprintf("script_1k_%d.sh", i),
+			ScriptContents: fmt.Sprintf("echo %d", i),
+		})
+		require.NoError(t, err)
+
+		_, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID})
+		require.NoError(t, err)
+	}
+
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "script_1k_1000.sh",
+		ScriptContents: "echo 1000",
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+}
+
+func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
+	t := s.T()
+	ctx := context.Background()
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	script, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "script.sh",
+		ScriptContents: "echo 'hi from script'",
+	})
+
+	// Make the host offline so that scripts enqueue
+	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	require.NoError(t, err)
+
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	// Should fail because the same script is already enqueued for this host.
+	resp := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict)
+	errorMsg := extractServerErrorText(resp.Body)
+	require.Contains(t, errorMsg, "The script is already queued on the given host")
 }
 
 func (s *integrationEnterpriseTestSuite) TestOrbitConfigExtensions() {

@@ -107,6 +107,25 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 	return results, nil
 }
 
+func (ds *Datastore) GetPendingHostScripts(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+	const getStmt = `
+		SELECT 
+		  1 
+		FROM
+		  host_script_results
+		WHERE
+		  host_id = ? AND
+		  script_id = ? AND
+		  exit_code IS NULL
+	`
+
+	var results []*uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
+	}
+	return results, nil
+}
+
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
 	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID)
 }
