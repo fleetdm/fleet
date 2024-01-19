@@ -2009,7 +2009,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null
+        "server_url": null,
+        "locked": false,
+        "wiped": false
       },
       "software": [
         {
@@ -2437,6 +2439,8 @@ Returns the information of the specified host.
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "locked": false,
+      "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2645,6 +2649,8 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "locked": false,
+      "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -5015,9 +5021,6 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 
 `Status: 200`
 
-```json
-TODO
-```
 
 ### Unlock host
 
@@ -5039,9 +5042,6 @@ Sends a command to unlock the specified Windows or Linux host. The host is unloc
 
 `Status: 200`
 
-```json
-TODO
-```
 
 ### Wipe host
 
@@ -5063,9 +5063,6 @@ Sends a command to wipe the specified macOS, Windows, or Linux host. The host is
 
 `Status: 200`
 
-```json
-TODO
-```
 
 ---
 
