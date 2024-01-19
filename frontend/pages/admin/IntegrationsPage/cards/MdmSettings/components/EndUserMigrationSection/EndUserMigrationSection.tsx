@@ -156,9 +156,9 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
           inactiveText="Disabled"
           className={`${baseClass}__enabled-slider`}
         />
-        <div className={formClasses}>
-          <div className={`${baseClass}__mode-field`}>
-            <span>Mode</span>
+        <div className={`form ${formClasses}`}>
+          <div className={`form-field ${baseClass}__mode-field`}>
+            <div className="form-field__label">Mode</div>
             <Radio
               disabled={!formData.isEnabled}
               checked={formData.mode === "voluntary"}
@@ -177,18 +177,17 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
               onChange={onChangeMode}
               className={`${baseClass}__forced-radio`}
             />
-            <p>
-              {formData.mode === "voluntary"
-                ? VOLUNTARY_MODE_DESCRIPTION
-                : FORCED_MODE_DESCRIPTION}
-            </p>
-            <p>
-              To edit the organization name, avatar (logo), and contact link,
-              head to the <b>Organization settings</b> &gt;{" "}
-              <b>Organization info</b> page.
-            </p>
           </div>
-
+          <p>
+            {formData.mode === "voluntary"
+              ? VOLUNTARY_MODE_DESCRIPTION
+              : FORCED_MODE_DESCRIPTION}
+          </p>
+          <p>
+            To edit the organization name, avatar (logo), and contact link, head
+            to the <b>Organization settings</b> &gt; <b>Organization info</b>{" "}
+            page.
+          </p>
           <InputField
             disabled={!formData.isEnabled}
             name="webhook_url"
@@ -196,7 +195,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
             value={formData.webhookUrl}
             onChange={onChangeWebhookUrl}
             error={!isValidWebhookUrl && "Must be a valid URL."}
-            hint={
+            helpText={
               <>
                 When the end users clicks <b>Start</b>, a JSON payload is sent
                 to this URL if the end user is enrolled to your old MDM. Receive

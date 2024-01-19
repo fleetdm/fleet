@@ -17,6 +17,7 @@ import CustomLink from "components/CustomLink";
 import TooltipWrapper from "components/TooltipWrapper";
 import DataError from "components/DataError";
 import Spinner from "components/Spinner/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import EditTeamModal from "../EditTeamModal";
 import WindowsAutomaticEnrollmentCard from "./components/WindowsAutomaticEnrollmentCard/WindowsAutomaticEnrollmentCard";
@@ -232,7 +233,7 @@ const AppleBusinessManagerSection = ({
 
   return (
     <div className={baseClass}>
-      <h2>Apple Business Manager</h2>
+      <SectionHeader title="Apple Business Manager" />
       {isLoadingMdmAppleBm ? <Spinner /> : renderAppleBMInfo()}
       <WindowsAutomaticEnrollmentCard
         viewDetails={navigateToWindowsAutomaticEnrollment}

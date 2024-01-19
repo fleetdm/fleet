@@ -500,6 +500,7 @@ module.exports.routes = {
   'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
   'GET /mdm': '/device-management',// « alias for radio ad
+  'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
 
   // Fleet UI
   // =============================================================================================================

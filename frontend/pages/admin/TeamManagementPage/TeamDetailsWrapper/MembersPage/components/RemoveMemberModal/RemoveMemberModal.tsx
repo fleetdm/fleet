@@ -27,7 +27,7 @@ const RemoveMemberModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <form className={`${baseClass}__form`}>
+      <>
         <p>
           You are about to remove{" "}
           <span className={`${baseClass}__name`}>{memberName}</span> from{" "}
@@ -51,7 +51,7 @@ const RemoveMemberModal = ({
             Cancel
           </Button>
         </div>
-      </form>
+      </>
     </Modal>
   );
 };

@@ -46,7 +46,7 @@ interface ISoftwareAutomations {
   };
 }
 
-interface IManageAutomationsModalProps {
+interface IManageSoftwareAutomationsModalProps {
   onCancel: () => void;
   onCreateWebhookSubmit: (formData: ISoftwareAutomations) => void;
   togglePreviewPayloadModal: () => void;
@@ -73,7 +73,7 @@ const validateWebhookURL = (url: string) => {
   return { valid: isEmpty(errors), errors };
 };
 
-const baseClass = "manage-automations-modal";
+const baseClass = "manage-software-automations-modal";
 
 const ManageAutomationsModal = ({
   onCancel: onReturnToApp,
@@ -86,7 +86,7 @@ const ManageAutomationsModal = ({
   softwareVulnerabilityWebhookEnabled,
   currentDestinationUrl,
   recentVulnerabilityMaxAge,
-}: IManageAutomationsModalProps): JSX.Element => {
+}: IManageSoftwareAutomationsModalProps): JSX.Element => {
   const [destinationUrl, setDestinationUrl] = useState(
     currentDestinationUrl || ""
   );
@@ -337,15 +337,13 @@ const ManageAutomationsModal = ({
 
   const renderTicket = () => {
     return (
-      <div className={`${baseClass}__ticket`}>
+      <>
         <div className={`${baseClass}__software-automation-description`}>
-          <p>
-            A ticket will be created in your <b>Integration</b> if a detected
-            vulnerability (CVE) was published in the last{" "}
-            {recentVulnerabilityMaxAge ||
-              CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
-            days.
-          </p>
+          A ticket will be created in your <b>Integration</b> if a detected
+          vulnerability (CVE) was published in the last{" "}
+          {recentVulnerabilityMaxAge ||
+            CONFIG_DEFAULT_RECENT_VULNERABILITY_MAX_AGE_IN_DAYS}{" "}
+          days.
         </div>
         {(jiraIntegrationsIndexed && jiraIntegrationsIndexed.length > 0) ||
         (zendeskIntegrationsIndexed &&
@@ -358,23 +356,17 @@ const ManageAutomationsModal = ({
             value={selectedIntegration?.dropdownIndex}
             label={"Integration"}
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-            hint={
-              "For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
-            }
+            helpText="For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
           />
         ) : (
-          <div className={`${baseClass}__no-integrations`}>
-            <div>
-              <b>You have no integrations.</b>
-            </div>
-            <div className={`${baseClass}__no-integration--cta`}>
-              <Link
-                to={PATHS.ADMIN_INTEGRATIONS}
-                className={`${baseClass}__add-integration-link`}
-              >
-                Add integration
-              </Link>
-            </div>
+          <div className={`form-field ${baseClass}__no-integrations`}>
+            <div className="form-field__label">You have no integrations.</div>
+            <Link
+              to={PATHS.ADMIN_INTEGRATIONS}
+              className={`${baseClass}__add-integration-link`}
+            >
+              Add integration
+            </Link>
           </div>
         )}
         {!!selectedIntegration && (
@@ -386,13 +378,13 @@ const ManageAutomationsModal = ({
             Preview ticket
           </Button>
         )}
-      </div>
+      </>
     );
   };
 
   const renderWebhook = () => {
     return (
-      <div className={`${baseClass}__webhook`}>
+      <>
         <div className={`${baseClass}__software-automation-description`}>
           <p>
             A request will be sent to your configured <b>Destination URL</b> if
@@ -408,7 +400,7 @@ const ManageAutomationsModal = ({
           value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
-          hint={
+          helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
           }
           placeholder={"https://server.com/example"}
@@ -421,7 +413,7 @@ const ManageAutomationsModal = ({
         >
           Preview payload
         </Button>
-      </div>
+      </>
     );
   };
 
@@ -445,45 +437,42 @@ const ManageAutomationsModal = ({
       className={baseClass}
       width="large"
     >
-      <>
-        <div className={`${baseClass}__software-select-items`}>
-          <Slider
-            value={softwareAutomationsEnabled}
-            onChange={() =>
-              setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
-            }
-            inactiveText={"Vulnerability automations disabled"}
-            activeText={"Vulnerability automations enabled"}
-          />
-        </div>
-        <div className={`${baseClass}__overlay-container`}>
-          <div className={`${baseClass}__software-automation-enabled`}>
-            <div className={`${baseClass}__workflow`}>
-              Workflow
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label={"Ticket"}
-                id={"ticket-radio-btn"}
-                checked={integrationEnabled}
-                value={"ticket"}
-                name={"ticket"}
-                onChange={onRadioChange(true)}
-              />
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label={"Webhook"}
-                id={"webhook-radio-btn"}
-                checked={!integrationEnabled}
-                value={"webhook"}
-                name={"webhook"}
-                onChange={onRadioChange(false)}
-              />
-            </div>
-            {integrationEnabled ? renderTicket() : renderWebhook()}
+      <div className={`${baseClass} form`}>
+        <Slider
+          value={softwareAutomationsEnabled}
+          onChange={() =>
+            setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
+          }
+          inactiveText={"Vulnerability automations disabled"}
+          activeText={"Vulnerability automations enabled"}
+        />
+        <div
+          className={`form ${baseClass}__software-automations${
+            softwareAutomationsEnabled ? "" : "__disabled"
+          }`}
+        >
+          <div className="form-field">
+            <div className="form-field__label">Workflow</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label={"Ticket"}
+              id={"ticket-radio-btn"}
+              checked={integrationEnabled}
+              value={"ticket"}
+              name={"ticket"}
+              onChange={onRadioChange(true)}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label={"Webhook"}
+              id={"webhook-radio-btn"}
+              checked={!integrationEnabled}
+              value={"webhook"}
+              name={"webhook"}
+              onChange={onRadioChange(false)}
+            />
           </div>
-          {!softwareAutomationsEnabled && (
-            <div className={`${baseClass}__overlay`} />
-          )}
+          {integrationEnabled ? renderTicket() : renderWebhook()}
         </div>
         <div className="modal-cta-wrap">
           <div
@@ -533,7 +522,7 @@ const ManageAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </>
+      </div>
     </Modal>
   );
 };

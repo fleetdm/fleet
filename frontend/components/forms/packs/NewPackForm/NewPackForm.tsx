@@ -13,9 +13,9 @@ import BackLink from "components/BackLink";
 // @ts-ignore
 import SelectTargetsDropdown from "components/forms/fields/SelectTargetsDropdown";
 
-const baseClass = "pack-form";
+const baseClass = "new-pack-form";
 
-interface IPackForm {
+interface INewPackForm {
   className?: string;
   handleSubmit: (formData: IEditPackFormData) => void;
   onFetchTargets?: (
@@ -27,18 +27,20 @@ interface IPackForm {
   isUpdatingPack: boolean;
 }
 
-const EditPackForm = ({
+const NewPackForm = ({
   className,
   handleSubmit,
   onFetchTargets,
   selectedTargetsCount,
   isPremiumTier,
   isUpdatingPack,
-}: IPackForm): JSX.Element => {
+}: INewPackForm): JSX.Element => {
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
   const [packName, setPackName] = useState("");
   const [packDescription, setPackDescription] = useState("");
-  const [packFormTargets, setPackFormTargets] = useState<ITarget[] | []>([]);
+  const [newPackFormTargets, setNewPackFormTargets] = useState<ITarget[] | []>(
+    []
+  );
 
   const onChangePackName = (value: string) => {
     setPackName(value);
@@ -50,7 +52,7 @@ const EditPackForm = ({
   };
 
   const onChangePackTargets = (value: ITarget[]) => {
-    setPackFormTargets(value);
+    setNewPackFormTargets(value);
   };
 
   const onFormSubmit = (evt: React.FormEvent<HTMLFormElement>): void => {
@@ -66,19 +68,19 @@ const EditPackForm = ({
     return handleSubmit({
       name: packName,
       description: packDescription,
-      targets: [...packFormTargets],
+      targets: [...newPackFormTargets],
     });
   };
 
-  const packFormClass = classnames(baseClass, className);
+  const newPackFormClass = classnames(baseClass, className);
 
   return (
-    <div className={`${baseClass}__form`}>
+    <>
       <div className={`${baseClass}__header-links`}>
         <BackLink text="Back to packs" path={PATHS.MANAGE_PACKS} />
       </div>
       <form
-        className={packFormClass}
+        className={newPackFormClass}
         onSubmit={onFormSubmit}
         autoComplete="off"
       >
@@ -102,25 +104,23 @@ const EditPackForm = ({
           placeholder="Add a description of your pack"
           type="textarea"
         />
-        <div className={`${baseClass}__pack-targets`}>
-          <SelectTargetsDropdown
-            label="Select pack targets"
-            name="selected-pack-targets"
-            onFetchTargets={onFetchTargets}
-            onSelect={onChangePackTargets}
-            selectedTargets={packFormTargets}
-            targetsCount={selectedTargetsCount}
-            isPremiumTier={isPremiumTier}
-          />
-        </div>
+        <SelectTargetsDropdown
+          label="Select pack targets"
+          name="selected-pack-targets"
+          onFetchTargets={onFetchTargets}
+          onSelect={onChangePackTargets}
+          selectedTargets={newPackFormTargets}
+          targetsCount={selectedTargetsCount}
+          isPremiumTier={isPremiumTier}
+        />
         <div className={`${baseClass}__pack-buttons`}>
           <Button type="submit" variant="brand" isLoading={isUpdatingPack}>
             Save query pack
           </Button>
         </div>
       </form>
-    </div>
+    </>
   );
 };
 
-export default EditPackForm;
+export default NewPackForm;
