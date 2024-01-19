@@ -62,7 +62,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}
 
 		// populate OSVersion.Vulnerabilities
-		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, false)
+		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, true)
 		if err != nil {
 			return nil, err
 		}
