@@ -15,10 +15,7 @@ public class MdmRegistration
 "@ -Language CSharp
 
 try {
-    $thread = [Threading.Thread]::CurrentThread.GetApartmentState().ToString()
     $result = [MdmRegistration]::UnregisterDevice()
-
-    Write-Host "Running in thread mode: $thread"
 
     if ($result -ne 0) {
         throw "UnregisterDeviceWithManagement failed with error code: $result"
