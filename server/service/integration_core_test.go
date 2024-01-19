@@ -3834,7 +3834,6 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
-
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -7351,7 +7350,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
-	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+	testOS := fleet.OperatingSystem{Name: "Windows 11 Pro", Version: "10.0.22621.2861", Arch: "x86_64", KernelVersion: "10.0.22621.2861", Platform: "windows"}
 
 	hosts := s.createHosts(t)
 
@@ -7382,10 +7381,30 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 
+	// insert OS Vulns
+	_, err := s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
+	require.Equal(t, fleet.OSVersion{
+		ID:         osID,
+		HostsCount: 1,
+		Name:       fmt.Sprintf("%s %s", testOS.Name, testOS.Version),
+		NameOnly:   testOS.Name,
+		Version:    testOS.Version,
+		Platform:   testOS.Platform,
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:         "CVE-2021-1234",
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			},
+		},
+	}, osVersionsResp.OSVersions[0])
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {

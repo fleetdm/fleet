@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var (
-	nilFloat64 **float64
-	nilBool    **bool
-	nilTime    **time.Time
-	nilString  **string
-)
-
 func TestOperatingSystemVulnerabilities(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -132,18 +125,12 @@ func testListVulnsByOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, cves, 2)
 
-	require.Equal(t, cveMeta[0].CVE, cves[0].CVE)
-	require.Equal(t, nilFloat64, cves[0].CVSSScore)
-	require.Equal(t, nilFloat64, cves[0].EPSSProbability)
-	require.Equal(t, nilBool, cves[0].CISAKnownExploit)
-	require.Equal(t, nilTime, cves[0].CVEPublished)
-	require.Equal(t, nilString, cves[0].Description)
-	require.Equal(t, cveMeta[1].CVE, cves[1].CVE)
-	require.Equal(t, nilFloat64, cves[1].CVSSScore)
-	require.Equal(t, nilFloat64, cves[1].EPSSProbability)
-	require.Equal(t, nilBool, cves[1].CISAKnownExploit)
-	require.Equal(t, nilTime, cves[1].CVEPublished)
-	require.Equal(t, nilString, cves[1].Description)
+	expected := fleet.Vulnerabilities{
+		{CVE: "CVE-2021-1234"},
+		{CVE: "CVE-2021-1235"},
+	}
+
+	require.ElementsMatch(t, expected, cves)
 
 	cves, err = ds.ListVulnsByOS(ctx, os.ID, true)
 	require.NoError(t, err)
