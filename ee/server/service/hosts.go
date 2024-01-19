@@ -53,16 +53,18 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	}
 
 	for i, os := range osVersions.OSVersions {
-		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, true)
-		if err != nil {
-			return nil, err
-		}
-
+		// populate OSVersion.GeneratedCPEs
 		if os.Platform == "darwin" {
 			osVersions.OSVersions[i].GeneratedCPEs = []string{
 				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", os.Version),
 				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", os.Version),
 			}
+		}
+
+		// populate OSVersion.Vulnerabilities
+		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, false)
+		if err != nil {
+			return nil, err
 		}
 
 		for _, vuln := range vulns {
