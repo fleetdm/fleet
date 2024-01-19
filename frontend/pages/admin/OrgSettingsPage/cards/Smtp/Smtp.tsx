@@ -11,6 +11,7 @@ import InputField from "components/forms/fields/InputField";
 import validEmail from "components/forms/validators/valid_email";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -19,7 +20,6 @@ import {
   authMethodOptions,
   authTypeOptions,
 } from "../constants";
-import SectionHeader from "components/SectionHeader";
 
 const baseClass = "app-config-form";
 
