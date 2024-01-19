@@ -53,12 +53,12 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
 
   return (
     <div className={baseClass}>
-      <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
+      <div className={`${baseClass}__section`}>
         <SectionHeader title="Mobile device management (MDM)" />
         {isLoadingMdmApple ? (
           <Spinner />
         ) : (
-          <>
+          <div className={`${baseClass}__section ${baseClass}__mdm-section`}>
             <MacOSMdmCard
               appleAPNInfo={appleAPNInfo}
               errorData={errorMdmApple}
@@ -69,7 +69,7 @@ const MdmSettings = ({ router }: IMdmSettingsProps) => {
               turnOnWindowsMdm={navigateToWindowsMdm}
               editWindowsMdm={navigateToWindowsMdm}
             />
-          </>
+          </div>
         )}
       </div>
       {isPremiumTier && appleAPNInfo && (
