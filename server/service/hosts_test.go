@@ -989,6 +989,10 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
+	ds.ListVulnsByOSFunc = func(ctx context.Context, osID uint, includeCVSS bool) (fleet.Vulnerabilities, error) {
+		return fleet.Vulnerabilities{}, nil
+	}
+
 	// team exists with stats
 	vers, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil)
 	require.NoError(t, err)
