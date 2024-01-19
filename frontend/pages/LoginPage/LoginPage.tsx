@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { size } from "lodash";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
