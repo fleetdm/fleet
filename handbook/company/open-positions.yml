@@ -9,8 +9,6 @@
 #   experience: |
 #     Add markdown content to this field.
 ################################################
-# Note: commenting out this open position because the to make open-positions.yml the source of truth for positions Fleet is currently hiring for.
-# Note: commenting out this open position because the page link did not exist in the current version of the company handbook page. (2023-08-31)
  - jobTitle: []
 #   department: Customers
 #   hiringManagerName: 
