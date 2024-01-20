@@ -10,29 +10,8 @@
 #     Add markdown content to this field.
 ################################################
 # Note: commenting out this open position because the to make open-positions.yml the source of truth for positions Fleet is currently hiring for.
-#- jobTitle: 🐋 Sales Development Representative (SDR) 
- # department: Customers
-  #hiringManagerName: Alex Mitchell
-  #hiringManagerLinkedInUrl: https://www.linkedin.com/in/alexandercmitchell/
-  #hiringManagerGithubUsername: alexmitchelliii
-  #responsibilities: |
-  #  - 🎯 Direct and participate in prospecting target companies, identify key decision makers working closely with your AEs (Account Executives) to create opportunities
-  #  - 🧰 Update Salesforce, reply to emails, set and complete tasks
-  #  - 🙋 Happily jump in to help Marketing, BizOps, Product management and Engineering teams
-  #  - 📣 Actively promote FleetDM product and services on social media
-  #  - ✈️ Participating at events / conferences to generate leads and build customer relationships
- # experience: |
-  #  - 🦉 6+ months experience preferred
-  #  - 📣 Have excellent communication and interpersonal skills
-  #  - 🧑‍💻 Love technology, curious and a strong desire to learn
-  #  - 🧪 Experience with Slack, Salesforce, Google Suite, and GitHub are preferred
-  #  - ⏩ Thrive in a complex, fast-paced, results driven environment with the ability to adapt to new situations
-  #  - ⌚ Fleet is 100% remote. Efficiently manage your time between your day-to-day tasks including assigned projects
-  #  - 💝 Deliver outstanding customer experience, yes we want to build revenue, BUT at Fleet, we genuinely care (hence 100% customer retention)
-
-
 # Note: commenting out this open position because the page link did not exist in the current version of the company handbook page. (2023-08-31)
-# - jobTitle: 🐋 Solutions Consultant
+ - jobTitle: []
 #   department: Customers
 #   hiringManagerName: 
 #   hiringManagerLinkedInUrl: 
@@ -47,25 +26,21 @@
 
 #   experience: |
 #     ### You "get it":
-
 #     - 🎯 Strong attention to detail and can act as an encyclopedia of knowledge about how Fleet works - our potential customers represent a wide range of needs across many different use cases. Be adaptable to learning new things quickly and then share this knowledge with others.
 #     - 💡 Excellent communication and collaboration skills, with the ability to work closely with sales, engineering, and product teams
 #     - 🌐 Coordinate with our Customer Success team to assist with any technical questions during renewal discussions. You’ll be a resource for existing customers too.
 #     - 👥 A customer-centric mindset, focusing on delivering value and a positive user experience
 
 #     ### You can "walk the walk":
-
 #     - 🤝 Collaboration: You work best in a participatory, team-based environment.
 #     - 🦉 Experience: 3+ years of work experience managing Windows, Linux, and Apple devices in an Enterprise, Government, or Education environment.
 #     - 🛠️ Process: You understand technical sales processes.
 #     - 🟣 Openness: You are flexible and open to new ideas and ways of working.
 
 #     ### You can "talk the talk":
-
 #     - 💭 Cybersecurity or IT background, experience with device management solutions like Fleet, Intune, Jamf Pro, Workspace One, etc.
 #     - 💖 An excellent understanding of macOS, Windows, Linux and core services like Autopilot, ABM/ASM,
 #       MDM, ADE, APNs, syslog, etc.
 #     - ✍️ Familiarity with SQLite, shell scripting, Python, Powershell, and using Terminal to execute commands or run scripts.
-
 #     - 🧑‍🔬 Experience working with Enterprise customers to help resolve complex technical issues.
 #     - ➕ Bonus: Familiarity with GitOps workflows and steps to contribute code in open source projects.
