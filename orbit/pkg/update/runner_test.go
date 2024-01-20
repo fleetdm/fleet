@@ -114,11 +114,11 @@ func TestGetVersion(t *testing.T) {
 					if err != nil {
 						t.Log(err)
 						if strings.Contains(err.Error(), "text file busy") {
-							// adding some randomization so that parallel tests get out of sync if needed
-							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond)
 							if retries > 5 {
 								t.Fatal("too many retries due to 'text file busy' error: https://github.com/golang/go/issues/22315")
 							}
+							// adding some randomization so that parallel tests get out of sync if needed
+							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond)
 							retries++
 						} else {
 							break
@@ -202,11 +202,11 @@ func TestCompareVersion(t *testing.T) {
 					if err != nil {
 						t.Log(err)
 						if strings.Contains(err.Error(), "text file busy") {
-							// adding some randomization so that parallel tests get out of sync if needed
-							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond)
 							if retries > 5 {
 								t.Fatal("too many retries due to 'text file busy' error: https://github.com/golang/go/issues/22315")
 							}
+							// adding some randomization so that parallel tests get out of sync if needed
+							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond)
 							retries++
 						} else {
 							break
