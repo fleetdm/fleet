@@ -10,11 +10,11 @@
 #     Add markdown content to this field.
 ################################################
  - jobTitle: []
-#   department: Customers
-#   hiringManagerName: 
-#   hiringManagerLinkedInUrl: 
-#   hiringManagerGithubUsername:
-#   responsibilities: |
+   department: []
+   hiringManagerName: []
+   hiringManagerLinkedInUrl: []
+   hiringManagerGithubUsername: []
+   responsibilities: |
 #     As a Solutions Consultant at Fleet, you will get the chance to…
 
 #     In your first 90 days:
