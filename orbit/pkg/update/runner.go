@@ -358,14 +358,14 @@ var versionRegexp = regexp.MustCompile(`^\S+(\s+version)?\s+(\S*)$`)
 func GetVersion(path string) (string, error) {
 	var version string
 	versionCmd := exec.Command(path, "--version")
-	if out, err := versionCmd.CombinedOutput(); err != nil {
+	out, err := versionCmd.CombinedOutput()
+	if err != nil {
 		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
 		return "", err
-	} else {
-		matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
-		if matches != nil && len(matches) > 2 {
-			version = matches[2]
-		}
+	}
+	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
+	if matches != nil && len(matches) > 2 {
+		version = matches[2]
 	}
 	return version, nil
 }
