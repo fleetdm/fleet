@@ -489,8 +489,8 @@ func main() {
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")
 			} else {
-				version := update.GetVersion(osquerydPath)
-				if version != "" {
+				version, err := update.GetVersion(osquerydPath)
+				if err == nil && version != "" {
 					log.Info().Msgf("Found osquery version: %s", version)
 					updateRunner.OsqueryVersion = version
 				}
