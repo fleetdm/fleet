@@ -391,14 +391,12 @@ func (c *Client) ApplyGroup(
 		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
-		fmt.Println("============== len(allCustomSettings)", len(allCustomSettings), allCustomSettings)
 
 		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, allCustomSettings)
 			if err != nil {
 				return err
 			}
-			fmt.Println("=============== (lenfilecontents", len(fileContents), fileContents)
 			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
 				return fmt.Errorf("applying custom settings: %w", err)
 			}
@@ -617,7 +615,6 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 }
 
 func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
-	fmt.Println("=================", platformKey)
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
 		return nil
@@ -632,7 +629,6 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 	}
 
 	cs, ok := mos["custom_settings"]
-	fmt.Println("============= cs, ok", cs, ok)
 	if !ok {
 		// custom settings is not present
 		return nil
@@ -648,7 +644,6 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 	csStrings := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
-			fmt.Println("================= one")
 			var pProfileValue fleet.MDMProfileSpec
 
 			// extract the Path field
@@ -678,7 +673,6 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				csStrings = append(csStrings, pProfileValue)
 			}
 		} else if m, ok := v.(string); ok {
-			fmt.Println("================= two")
 			csStrings = append(csStrings, fleet.MDMProfileSpec{Path: m})
 		}
 	}

@@ -263,3 +263,70 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.Empty(t, p.Labels)
 	})
 }
+
+func TestMDMProfileSpecsMatch(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        []fleet.MDMProfileSpec
+		b        []fleet.MDMProfileSpec
+		expected bool
+	}{
+		{
+			name:     "Empty Slices",
+			a:        []fleet.MDMProfileSpec{},
+			b:        []fleet.MDMProfileSpec{},
+			expected: true,
+		},
+		{
+			name: "Single Element Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Single Element Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path2", Labels: []string{"label1"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Multiple Elements Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path2", Labels: []string{"label3"}},
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Multiple Elements Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label2"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
+			require.Equal(t, tc.expected, result)
+		})
+	}
+}

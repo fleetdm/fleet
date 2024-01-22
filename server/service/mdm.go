@@ -1432,7 +1432,6 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	fmt.Println("================ profiles", profiles)
 	if err := validateProfiles(profiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
@@ -1632,8 +1631,6 @@ func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig
 func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
-		fmt.Println("============ platform", platform)
-		fmt.Println("==================== raw", string(profile.Contents))
 		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
 			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
