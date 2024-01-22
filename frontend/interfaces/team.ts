@@ -63,9 +63,9 @@ export interface ITeam extends ITeamSummary {
       grace_period_days: number | null;
     };
   };
-  host_expiry_settings: {
+  host_expiry_settings?: {
     host_expiry_enabled: boolean;
-    host_expiry_window: number;
+    host_expiry_window: number; // days
   };
 }
 

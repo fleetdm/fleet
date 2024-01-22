@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter } from "react-router";
 import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
