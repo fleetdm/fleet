@@ -60,6 +60,7 @@ export default class TablePrivacyPreferences extends Table {
   async generate() {
     const results = []; // Promise<{string: number | string}>[]
     const errors = [];
+    let warningsArray = [];
     for (const [property, propertyAPI] of Object.entries(this.propertyAPIs)) {
       results.push(
         new Promise((resolve) => {
@@ -78,6 +79,10 @@ export default class TablePrivacyPreferences extends Table {
             });
           } catch (error) {
             errors.push({ [property]: error });
+            warningsArray.push({
+              column: property,
+              error_message: error.stack.toString(),
+            });
             resolve({ [property]: "data unavailable" });
           }
         })
@@ -94,6 +99,7 @@ export default class TablePrivacyPreferences extends Table {
           return { ...resultRow, ...column };
         }, {}),
       ],
+      warnings: warningsArray,
     };
   }
 }
