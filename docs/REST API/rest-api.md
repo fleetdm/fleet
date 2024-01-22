@@ -3645,6 +3645,8 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Lock host
 
+_Available in Fleet Premium_
+
 Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
 
 `GET /api/v1/fleet/hosts/:id/lock`
@@ -3672,6 +3674,8 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 
 
 ### Unlock host
+
+_Available in Fleet Premium_
 
 Sends a command to unlock the specified Windows or Linux host. The host is unlocked once it comes online.
 
