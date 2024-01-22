@@ -1378,12 +1378,12 @@ type batchSetMDMProfilesRequest struct {
 	Profiles pp      `json:"profiles"`
 }
 
-type pp []fleet.MDMConfigProfileBatchPayload
+type pp []fleet.MDMProfileBatchPayload
 
 func (p *pp) UnmarshalJSON(data []byte) error {
 	// TODO: check for nil data?
 	// TODO: add comments
-	var alias []fleet.MDMConfigProfileBatchPayload
+	var alias []fleet.MDMProfileBatchPayload
 	newFormatErr := json.Unmarshal(data, &alias)
 	if newFormatErr == nil {
 		*p = alias
@@ -1400,7 +1400,7 @@ func (p *pp) UnmarshalJSON(data []byte) error {
 
 	*p = make(pp, 0, len(backwardsCompat))
 	for name, contents := range backwardsCompat {
-		*p = append(*p, fleet.MDMConfigProfileBatchPayload{Name: name, Contents: contents})
+		*p = append(*p, fleet.MDMProfileBatchPayload{Name: name, Contents: contents})
 	}
 	return nil
 }
@@ -1421,7 +1421,7 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 	return batchSetMDMProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMConfigProfileBatchPayload, dryRun, skipBulkPending bool) error {
+func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
@@ -1531,12 +1531,12 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 	return tmID, tmName, nil
 }
 
-func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMConfigProfileBatchPayload) ([]*fleet.MDMAppleConfigProfile, error) {
+func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMProfileBatchPayload) ([]*fleet.MDMAppleConfigProfile, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for _, prof := range profiles {
-		if mdm.GetRawProfilePlatform([]byte(prof.Contents)) != "darwin" {
+		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
 			continue
 		}
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
@@ -1591,7 +1591,7 @@ func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, 
 	return profs, nil
 }
 
-func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMConfigProfileBatchPayload) ([]*fleet.MDMWindowsConfigProfile, error) {
+func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMProfileBatchPayload) ([]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make([]*fleet.MDMWindowsConfigProfile, 0, len(profiles))
 
 	for _, profile := range profiles {
@@ -1629,7 +1629,7 @@ func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig
 	return profs, nil
 }
 
-func validateProfiles(profiles []fleet.MDMConfigProfileBatchPayload) error {
+func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 	for _, profile := range profiles {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		fmt.Println("============ platform", platform)

@@ -148,7 +148,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -206,7 +206,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -227,7 +227,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -250,7 +250,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
 
@@ -1862,7 +1862,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 

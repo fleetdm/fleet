@@ -283,9 +283,9 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 // keyed by the name of the profile (the file name on Windows,
 // PayloadDisplayName on macOS)
 // TODO: update description
-func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMConfigProfileBatchPayload, error) {
+func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
 	fileNameMap := make(map[string]struct{}, len(profiles))
-	result := make([]fleet.MDMConfigProfileBatchPayload, 0, len(profiles))
+	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
 
 	for _, profile := range profiles {
 		filePath := resolveApplyRelativePath(baseDir, profile.Path)
@@ -307,7 +307,7 @@ func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fle
 			return nil, errors.New("Couldn't edit windows_settings.custom_settings. More than one configuration profile have the same name (Windows .xml file name or macOS PayloadDisplayName).")
 		}
 		fileNameMap[name] = struct{}{}
-		result = append(result, fleet.MDMConfigProfileBatchPayload{
+		result = append(result, fleet.MDMProfileBatchPayload{
 			Name:     name,
 			Contents: fileContents,
 			Labels:   profile.Labels,
@@ -471,7 +471,7 @@ func (c *Client) ApplyGroup(
 		// that any non-existing file error is found before applying the specs.
 		tmMDMSettings := extractTmSpecsMDMCustomSettings(specs.Teams)
 
-		tmFileContents := make(map[string][]fleet.MDMConfigProfileBatchPayload, len(tmMDMSettings))
+		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
 		for k, paths := range tmMDMSettings {
 			fileContents, err := getProfilesContents(baseDir, paths)
 			if err != nil {

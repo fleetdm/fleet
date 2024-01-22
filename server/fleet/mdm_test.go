@@ -179,3 +179,87 @@ func TestMDMAppleBootstrapPackage(t *testing.T) {
 	require.Empty(t, url)
 	require.Error(t, err)
 }
+
+func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        []byte
+		expectPath   string
+		expectLabels []string
+		expectError  bool
+	}{
+		{
+			name:         "empty input",
+			input:        []byte(""),
+			expectPath:   "",
+			expectLabels: nil,
+			expectError:  false,
+		},
+		{
+			name:         "new format",
+			input:        []byte(`{"path": "testpath", "labels": ["label1", "label2"]}`),
+			expectPath:   "testpath",
+			expectLabels: []string{"label1", "label2"},
+			expectError:  false,
+		},
+		{
+			name:         "old format",
+			input:        []byte(`"oldpath"`),
+			expectPath:   "oldpath",
+			expectLabels: []string{},
+			expectError:  false,
+		},
+		{
+			name:         "invalid JSON",
+			input:        []byte(`{invalid json}`),
+			expectPath:   "",
+			expectLabels: nil,
+			expectError:  true,
+		},
+		{
+			name:         "incompatible JSON",
+			input:        []byte(`{"invalid": "data"}`),
+			expectPath:   "",
+			expectLabels: nil,
+			expectError:  true,
+		},
+		{
+			name:         "valid JSON with extra fields",
+			input:        []byte(`{"path": "testpath", "labels": ["label1"], "extra": "field"}`),
+			expectPath:   "testpath",
+			expectLabels: []string{"label1"},
+			expectError:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var p fleet.MDMProfileSpec
+			err := p.UnmarshalJSON(tc.input)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectPath, p.Path)
+				require.Equal(t, tc.expectLabels, p.Labels)
+			}
+		})
+	}
+
+	t.Run("complex scenario", func(t *testing.T) {
+		var p fleet.MDMProfileSpec
+		// test new format
+		data := []byte(`{"path": "newpath", "labels": ["label1", "label2"]}`)
+		err := p.UnmarshalJSON(data)
+		require.NoError(t, err)
+		require.Equal(t, "newpath", p.Path)
+		require.Equal(t, []string{"label1", "label2"}, p.Labels)
+
+		// test old format
+		data = []byte(`"oldpath"`)
+		err = p.UnmarshalJSON(data)
+		require.NoError(t, err)
+		require.Equal(t, "oldpath", p.Path)
+		require.Empty(t, p.Labels)
+	})
+}

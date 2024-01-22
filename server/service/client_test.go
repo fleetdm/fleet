@@ -1,12 +1,12 @@
 package service
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/pkg/spec"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/require"
 )
 
@@ -338,11 +338,11 @@ func TestGetProfilesContents(t *testing.T) {
 	tempDir := t.TempDir()
 
 	tests := []struct {
-		name         string
-		baseDir      string
-		setupFiles   [][2]string
-		expectError  bool
-		expectedKeys []string
+		name        string
+		baseDir     string
+		setupFiles  [][2]string
+		expectError bool
+		want        []fleet.MDMProfileBatchPayload
 	}{
 		{
 			name:    "invalid darwin xml",
@@ -350,8 +350,8 @@ func TestGetProfilesContents(t *testing.T) {
 			setupFiles: [][2]string{
 				{"foo.mobileconfig", `<?xml version="1.0" encoding="UTF-8"?>`},
 			},
-			expectError:  true,
-			expectedKeys: []string{"foo"},
+			expectError: true,
+			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}},
 		},
 		{
 			name:    "windows and darwin files",
@@ -360,8 +360,8 @@ func TestGetProfilesContents(t *testing.T) {
 				{"foo.xml", string(syncMLForTest("./some/path"))},
 				{"bar.mobileconfig", string(mobileconfigForTest("bar", "I"))},
 			},
-			expectError:  false,
-			expectedKeys: []string{"foo", "bar"},
+			expectError: false,
+			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}, {Name: "bar"}},
 		},
 		{
 			name:    "darwin files with file name != PayloadDisplayName",
@@ -370,8 +370,8 @@ func TestGetProfilesContents(t *testing.T) {
 				{"foo.xml", string(syncMLForTest("./some/path"))},
 				{"bar.mobileconfig", string(mobileconfigForTest("fizz", "I"))},
 			},
-			expectError:  false,
-			expectedKeys: []string{"foo", "fizz"},
+			expectError: false,
+			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}, {Name: "fizz"}},
 		},
 		{
 			name:    "duplicate names across windows and darwin",
@@ -395,11 +395,11 @@ func TestGetProfilesContents(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			paths := []string{}
+			paths := []fleet.MDMProfileSpec{}
 			for _, fileSpec := range tt.setupFiles {
 				filePath := filepath.Join(tempDir, fileSpec[0])
 				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0644))
-				paths = append(paths, filePath)
+				paths = append(paths, fleet.MDMProfileSpec{Path: filePath})
 			}
 
 			profileContents, err := getProfilesContents(tt.baseDir, paths)
@@ -409,11 +409,8 @@ func TestGetProfilesContents(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 				require.NotNil(t, profileContents)
-				require.Len(t, profileContents, len(tt.expectedKeys))
-				for _, key := range tt.expectedKeys {
-					_, exists := profileContents[key]
-					require.True(t, exists, fmt.Sprintf("Expected key %s not found", key))
-				}
+				require.Len(t, profileContents, len(tt.want))
+				require.ElementsMatch(t, tt.want, profileContents)
 			}
 		})
 	}

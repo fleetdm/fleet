@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -361,8 +362,8 @@ type MDMConfigProfilePayload struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// MDMConfigProfileBatchPayload represents
-type MDMConfigProfileBatchPayload struct {
+// MDMProfileBatchPayload represents
+type MDMProfileBatchPayload struct {
 	Name     string   `json:"name,omitempty"`
 	Contents []byte   `json:"contents,omitempty"`
 	Labels   []string `json:"labels,omitempty"`
@@ -398,4 +399,87 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
 	}
+}
+
+// MDMProfileSpec represents the spec used to define configuration
+// profiles via yaml files.
+type MDMProfileSpec struct {
+	Path   string   `json:"path,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to add backwards
+// compatibility to previous ways to define profile specs.
+func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// use an alias type to avoid recursively calling this function
+	// forever.
+	type Alias MDMProfileSpec
+	aliasData := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	newFormatErr := json.Unmarshal(data, &aliasData)
+	if newFormatErr == nil {
+		return nil
+	}
+
+	var backwardsCompat string
+	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
+	if newFormatErr != nil && oldFormatErr != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
+	}
+	p.Path = backwardsCompat
+	p.Labels = []string{}
+	return nil
+}
+
+func labelCountMap(labels []string) map[string]int {
+	counts := make(map[string]int)
+	for _, label := range labels {
+		counts[label]++
+	}
+	return counts
+}
+
+// MDMProfileSpecsMatch match checks if two slices contain the same spec
+// elements, regardless of order.
+func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	pathLabelCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+	}
+
+	for _, v := range b {
+		labels, ok := pathLabelCounts[v.Path]
+		if !ok {
+			return false
+		}
+
+		bLabelCounts := labelCountMap(v.Labels)
+		for label, count := range bLabelCounts {
+			if labels[label] != count {
+				return false
+			}
+			labels[label] -= count
+		}
+
+		for _, count := range labels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelCounts, v.Path)
+	}
+
+	return len(pathLabelCounts) == 0
 }
