@@ -693,7 +693,6 @@ func batchSetProfileLabelAssociationsDB(
 	var deleteBuilder strings.Builder
 	var insertParams []any
 	var deleteParams []any
-	var labelNames []string
 	for i, pl := range profileLabels {
 		if i > 0 {
 			insertBuilder.WriteString(",")
@@ -703,14 +702,13 @@ func batchSetProfileLabelAssociationsDB(
 		deleteBuilder.WriteString("(?, ?)")
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
-		labelNames = append(labelNames, pl.LabelName)
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
 	if err != nil {
 		if isChildForeignKeyError(err) {
 			// one of the provided labels doesn't exist
-			return foreignKey("profile", fmt.Sprintf("labels=%v", labelNames))
+			return foreignKey("mdm_configuration_profile_labels", fmt.Sprintf("(profile, label)=(%v)", insertParams))
 		}
 
 		return ctxerr.Wrap(ctx, err, "setting label associations for profile")

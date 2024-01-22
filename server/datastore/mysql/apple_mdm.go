@@ -64,8 +64,8 @@ INSERT INTO
 		// filled in.
 		profileID, _ = res.LastInsertId()
 
-		for _, label := range cp.Labels {
-			label.ProfileUUID = profUUID
+		for i := range cp.Labels {
+			cp.Labels[i].ProfileUUID = profUUID
 		}
 		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")

@@ -1417,8 +1417,8 @@ INSERT INTO
 			}
 		}
 
-		for _, label := range cp.Labels {
-			label.ProfileUUID = profileUUID
+		for i := range cp.Labels {
+			cp.Labels[i].ProfileUUID = profileUUID
 		}
 		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
