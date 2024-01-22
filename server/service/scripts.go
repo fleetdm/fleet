@@ -111,6 +111,8 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}, nil
 }
 
+const maxPendingScripts = 1000
+
 func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
 	// First check if scripts are disabled globally. If so, no need for further processing.
 	cfg, err := svc.ds.AppConfig(ctx)
@@ -140,6 +142,8 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		svc.authz.SkipAuthorization(ctx)
 		return nil, ctxerr.Wrap(ctx, err, "get host lite")
 	}
+
+	maxPending := maxPendingScripts
 
 	// must check that only one of script id or contents is provided before
 	// authorization, as the permissions are not the same if a script id is
@@ -211,7 +215,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
 	}
-	if len(pending) > 1000 {
+	if len(pending) > maxPending {
 		return nil, fleet.NewInvalidArgumentError(
 			"script_id", "cannot queue more than 1000 scripts per host",
 		).WithStatus(http.StatusConflict)
