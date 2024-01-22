@@ -1823,6 +1823,9 @@ None.
 - [Get host OS versions](#get-host-os-versions)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Lock host](#lock-host)
+- [Unlock host](#unlock-host)
+- [Wipe host](#wipe-host)
 
 ### On the different timestamps in the host data structure
 
@@ -3637,6 +3640,68 @@ Retrieves a list of the configuration profiles assigned to a host.
 }
 ```
 
+### Lock host
+
+Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+
+`GET /api/v1/fleet/hosts/:id/lock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be locked. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/lock`
+
+##### Default response
+
+`Status: 200`
+
+
+### Unlock host
+
+Sends a command to unlock the specified Windows or Linux host. The host is unlocked once it comes online.
+
+`GET /api/v1/fleet/hosts/:id/unlock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be unlocked. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/:id/unlock`
+
+##### Default response
+
+`Status: 200`
+
+
+### Wipe host
+
+Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+
+`GET /api/v1/fleet/hosts/:id/wipe`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be wiped. |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/wipe`
+
+##### Default response
+
+`Status: 200`
+
 ---
 
 
@@ -4111,9 +4176,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Get metadata about an EULA file](#get-metadata-about-an-eula-file)
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
-- [Lock host](#lock-host)
-- [Unlock host](#unlock-host)
-- [Wipe host](#wipe-host)
+
 
 ### Add custom macOS setting (configuration profile)
 
@@ -5001,67 +5064,7 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-### Lock host
 
-Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
-
-`GET /api/v1/fleet/mdm/lock/:identifier`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/lock/392547dc-0000-0000-a87a-d701ff75bc65`
-
-##### Default response
-
-`Status: 200`
-
-
-### Unlock host
-
-Sends a command to unlock the specified Windows or Linux host. The host is unlocked once it comes online.
-
-`GET /api/v1/fleet/mdm/unlock/:identifier`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/unlock/392547dc-0000-0000-a87a-d701ff75bc65`
-
-##### Default response
-
-`Status: 200`
-
-
-### Wipe host
-
-Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
-
-`GET /api/v1/fleet/mdm/wipe/:identifier`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/wipe/392547dc-0000-0000-a87a-d701ff75bc65`
-
-##### Default response
-
-`Status: 200`
 
 
 ---
