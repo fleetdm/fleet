@@ -1540,7 +1540,10 @@ INSERT INTO
 			}
 		}
 
-		if err := insertProfileLabelAssociationsDB(ctx, tx, profileUUID, cp.Labels, "windows"); err != nil {
+		for _, label := range cp.Labels {
+			label.ProfileUUID = profileUUID
+		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 

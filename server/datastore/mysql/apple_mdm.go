@@ -64,15 +64,17 @@ INSERT INTO
 		// filled in.
 		profileID, _ = res.LastInsertId()
 
-		if err := insertProfileLabelAssociationsDB(ctx, tx, profUUID, cp.Labels, "darwin"); err != nil {
+		for _, label := range cp.Labels {
+			label.ProfileUUID = profUUID
+		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
 		}
 
 		return nil
 	})
 	if err != nil {
-		// TODO: wrap
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "inserting profile and label associations")
 	}
 
 	return &fleet.MDMAppleConfigProfile{

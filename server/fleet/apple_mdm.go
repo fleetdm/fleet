@@ -202,6 +202,11 @@ type MDMAppleConfigProfile struct {
 	UpdatedAt time.Time                   `db:"updated_at" json:"updated_at"`
 }
 
+// ConfigurationProfileLabel represents the many-to-many relationship between
+// profiles and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within profile responses.
 type ConfigurationProfileLabel struct {
 	ProfileUUID string `db:"profile_uuid" json:"-"`
 	LabelName   string `db:"label_name" json:"name"`
