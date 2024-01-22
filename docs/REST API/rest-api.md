@@ -3225,7 +3225,7 @@ If the host exists but is not enrolled to an MDM server, then this API returns `
 
 ### Get mobile device management (MDM) summary
 
-Currently supports Windows and MacOS. On MacOS this requires the [macadmins osquery
+Currently supports Windows and macOS. On macOS this requires the [macadmins osquery
 extension](https://github.com/macadmins/osquery-extension) which comes bundled
 in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 
@@ -3244,7 +3244,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 #### Example
 
-`GET /api/v1/fleet/hosts/summary/mdm?team_id=1&platform=windows`
+`GET /api/v1/fleet/hosts/summary/mdm?team_id=1`
 
 ##### Default response
 
@@ -3262,15 +3262,21 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
   "mobile_device_management_solution": [
     {
       "id": 2,
-      "name": "Solution1",
-      "server_url": "solution1.com",
-      "hosts_count": 1
+      "name": "Fleet",
+      "server_urls": {
+        "macos": "https://example.fleetdm.com/mdm/apple/mdm",
+        "windows": "https://example.fleetdm.com/api/mdm/microsoft/discovery"
+      }
+      "hosts_count": 27
     },
     {
       "id": 3,
       "name": "Solution2",
-      "server_url": "solution2.com",
-      "hosts_count": 1
+      "server_urls": {
+        "macos": "https://solution2.com/apple/mdm",
+        "windows": null
+      },
+      "hosts_count": 2
     }
   ]
 }
