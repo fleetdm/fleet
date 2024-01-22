@@ -156,6 +156,10 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
 							},
+							HostExpirySettings: fleet.HostExpirySettings{
+								HostExpiryEnabled: true,
+								HostExpiryWindow:  15,
+							},
 							MDM: fleet.TeamMDM{
 								MacOSUpdates: fleet.MacOSUpdates{
 									MinimumVersion: optjson.SetString("12.3.1"),
