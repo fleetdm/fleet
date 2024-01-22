@@ -138,7 +138,7 @@ func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt
 	opt.After = ""
 	// custom ordering is not supported, always by date (oldest first)
 	opt.OrderKey = "created_at"
-	opt.OrderDirection = fleet.OrderAscending
+	opt.OrderDirection = fleet.OrderDescending
 	// no matching query support
 	opt.MatchQuery = ""
 	// always include metadata

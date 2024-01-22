@@ -9605,6 +9605,9 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Equal(t, host.ID, d.HostID)
 	require.Equal(t, true, d.Async)
 
+	// sleep to have the created_at timestamps differ
+	time.Sleep(time.Second)
+
 	// Execute another script in order to test query params
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'foobar'"}, http.StatusAccepted, &runResp)
 	require.Equal(t, host.ID, runResp.HostID)
@@ -9627,13 +9630,13 @@ func (s *integrationTestSuite) TestHostPastActivities() {
 	require.Len(t, listResp.Activities, 1)
 	d = getDetails(listResp.Activities[0])
 
-	require.Equal(t, execID1, d.ScriptExecutionID)
+	require.Equal(t, execID2, d.ScriptExecutionID)
 
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp, "page", "1", "per_page", "1")
 
 	require.Len(t, listResp.Activities, 1)
 	d = getDetails(listResp.Activities[0])
-	require.Equal(t, execID2, d.ScriptExecutionID)
+	require.Equal(t, execID1, d.ScriptExecutionID)
 }
 
 func (s *integrationTestSuite) TestListHostUpcomingActivities() {
