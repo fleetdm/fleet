@@ -173,11 +173,12 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"os_version_windows": {
 		Query: `
-		SELECT os.name, r.data as display_version
+		SELECT os.name, r.data as display_version, k.version
 		FROM 
 			registry r,
-			os_version os
-		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+			os_version os,
+			kernel_info k
+		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 		`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -187,10 +188,11 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			s := fmt.Sprintf("%v %v", rows[0]["name"], rows[0]["display_version"])
+			s := fmt.Sprintf("%s %s", rows[0]["name"], rows[0]["display_version"])
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
 			s = strings.TrimSpace(s)
+			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
 			return nil
@@ -1006,17 +1008,14 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
-		Version:       rows[0]["version"],
+		Version:       rows[0]["kernel_version"],
 	}
 
 	displayVersion := rows[0]["display_version"]
-	if displayVersion == "" {
-		level.Debug(logger).Log(
-			"msg", "unable to identify windows version",
-			"host", host.Hostname,
-		)
+	if displayVersion != "" {
+		hostOS.Name += " " + displayVersion
+		hostOS.DisplayVersion = displayVersion
 	}
-	hostOS.DisplayVersion = displayVersion
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")

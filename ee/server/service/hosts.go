@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -21,7 +22,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, error) {
 	// resuse OSVersions, but include CVSS Scores in call to ListVulnsByOS
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
@@ -78,5 +79,35 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}
 	}
 
+	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
+		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+		})
+	} else {
+		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+		})
+	}
+
+	osVersions.OSVersions = paginateOSVersions(osVersions.OSVersions, opts)
+
 	return osVersions, nil
+}
+
+func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
+	if opts.PerPage == 0 || opts.Page == 0 {
+		return slice
+	}
+
+	start := (opts.Page - 1) * opts.PerPage
+	if start >= uint(len(slice)) {
+		return []fleet.OSVersion{}
+	}
+
+	end := start + opts.PerPage
+	if end > uint(len(slice)) {
+		end = uint(len(slice))
+	}
+
+	return slice[start:end]
 }
