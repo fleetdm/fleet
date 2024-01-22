@@ -4184,11 +4184,11 @@ of duplicate payload display name or duplicate payload identifier.
 
 Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
-`GET /api/v1/fleet/manual_enrollment_profile`
+`GET /api/v1/fleet/mdm/manual_enrollment_profile`
 
 ##### Example
 
-`GET /api/v1/fleet/manual_enrollment_profile`
+`GET /api/v1/fleet/mdm/manual_enrollment_profile`
 
 ##### Default response
 
