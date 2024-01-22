@@ -3628,6 +3628,7 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
       },
     },
     {
@@ -3643,6 +3644,7 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
       },
     },
   ],
@@ -3678,7 +3680,7 @@ Retrieves a list of the configuration profiles assigned to a host.
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
-      "id": 3,
+      "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
       "actor_full_name": "Marko",
       "actor_id": 1,
       "actor_gravatar": "",
@@ -3689,11 +3691,12 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
       },
     },
     {
       "created_at": "2021-07-27T13:25:21Z",
-      "id": 4,
+      "uuid": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
       "actor_full_name": "Rachael",
       "actor_id": 1,
       "actor_gravatar": "",
@@ -3704,6 +3707,7 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
       },
     },
   ],
