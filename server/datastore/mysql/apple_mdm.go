@@ -74,8 +74,7 @@ INSERT INTO
 		return nil
 	})
 	if err != nil {
-		// TODO: wrap
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "inserting profile and label associations")
 	}
 
 	return &fleet.MDMAppleConfigProfile{
