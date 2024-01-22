@@ -134,7 +134,7 @@ func (svc *Service) ListHostPastActivities(ctx context.Context, hostID uint, opt
 		return nil, nil, err
 	}
 
-	// cursor-based pagination is not supported for upcoming activities
+	// cursor-based pagination is not supported for past activities
 	opt.After = ""
 	// custom ordering is not supported, always by date (oldest first)
 	opt.OrderKey = "created_at"
