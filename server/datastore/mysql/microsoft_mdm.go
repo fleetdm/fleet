@@ -1076,6 +1076,8 @@ GROUP BY
 
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
+	// TODO(mna): why is this in a transaction/reading from the primary, but not
+	// Apple's implementation?
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
@@ -1091,9 +1093,10 @@ func listMDMWindowsProfilesToInstallDB(
 ) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
-	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// - Set A (ds), the "desired state", can be obtained from a JOIN between
 	//   mdm_windows_configuration_profiles and hosts.
-	// - Set B, the current state given by host_mdm_windows_profiles.
+	//
+	// - Set B, the "current state" given by host_mdm_windows_profiles.
 	//
 	// A - B gives us the profiles that need to be installed:
 	//
@@ -1105,26 +1108,43 @@ func listMDMWindowsProfilesToInstallDB(
 	//   to independent verification by Fleet (verifying), or has reached a terminal
 	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
 	//   be marked as status NULL so that it gets re-installed.
-	query := `
-        SELECT
-            ds.profile_uuid,
-            ds.host_uuid,
-	    ds.name as profile_name
-        FROM (
-            SELECT mwcp.profile_uuid, mwcp.name, h.uuid as host_uuid
-            FROM mdm_windows_configuration_profiles mwcp
-            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
-            JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-            WHERE h.platform = 'windows' AND (%s)
-        ) as ds
-        LEFT JOIN host_mdm_windows_profiles hmwp
-            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
-        WHERE
-        -- profiles in A but not in B
-        ( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
-        -- profiles in A and B with operation type "install" and NULL status
-        ( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
+
+	desiredStateQuery := `
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		h.uuid as host_uuid
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+	WHERE
+		h.platform = 'windows' AND
+		-- not a label-based profile
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE mcpl.windows_profile_uuid = mwcp.profile_uuid
+		) AND
+		( %s )
 `
+
+	query := fmt.Sprintf(`
+	SELECT
+		ds.profile_uuid,
+		ds.host_uuid,
+		ds.name as profile_name
+	FROM ( %s ) as ds
+		LEFT JOIN host_mdm_windows_profiles hmwp
+			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
+	WHERE
+		-- profiles in A but not in B
+		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
+		-- profiles in A and B with operation type "install" and NULL status
+		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
+`, desiredStateQuery)
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {

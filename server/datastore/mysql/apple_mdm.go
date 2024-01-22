@@ -1554,16 +1554,17 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	// The query below is a set difference between:
 	//
-	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// - Set A (ds), the "desired state", can be obtained from a JOIN between
 	//   mdm_apple_configuration_profiles and hosts.
-	// - Set B, the current state given by host_mdm_apple_profiles.
+	//
+	// - Set B, the "current state" given by host_mdm_apple_profiles.
 	//
 	// A - B gives us the profiles that need to be installed:
 	//
 	//   - profiles that are in A but not in B
 	//
 	//   - profiles which contents have changed, but their identifier are
-	//   the same (by matching checksums)
+	//   the same (by checking the checksums)
 	//
 	//   - profiles that are in A and in B, but with an operation type of
 	//   "remove", regardless of the status. (technically, if status is NULL then
@@ -1579,27 +1580,42 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   and a NULL status. Other statuses mean that the operation is already in
 	//   flight (pending), the operation has been completed but is still subject
 	//   to independent verification by Fleet (verifying), or has reached a terminal
-	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
-	//   be marked as status NULL so that it gets re-installed.
-	query := `
+	//   state (failed or verified). If the profile's content is edited, all
+	//   relevant hosts will be marked as status NULL so that it gets
+	//   re-installed.
+	desiredStateQuery := `
+	SELECT
+		macp.profile_uuid,
+		h.uuid as host_uuid,
+		macp.identifier as profile_identifier,
+		macp.name as profile_name,
+		macp.checksum as checksum
+	FROM
+		mdm_apple_configuration_profiles macp
+			JOIN hosts h
+				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+	WHERE
+		h.platform = 'darwin' AND
+		ne.enabled = 1 AND
+		ne.type = 'Device' AND
+		-- not a label-based profile
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE mcpl.apple_profile_uuid = macp.profile_uuid
+		)
+`
+
+	query := fmt.Sprintf(`
           SELECT
             ds.profile_uuid,
             ds.host_uuid,
             ds.profile_identifier,
             ds.profile_name,
             ds.checksum
-          FROM (
-            SELECT
-              macp.profile_uuid,
-              h.uuid as host_uuid,
-              macp.identifier as profile_identifier,
-              macp.name as profile_name,
-              macp.checksum as checksum
-            FROM mdm_apple_configuration_profiles macp
-            JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-            JOIN nano_enrollments ne ON ne.device_id = h.uuid
-            WHERE h.platform = 'darwin' AND ne.enabled = 1 AND ne.type = 'Device'
-          ) as ds
+          FROM ( %s ) as ds
           LEFT JOIN host_mdm_apple_profiles hmap
             ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
           WHERE
@@ -1611,7 +1627,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
           ( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
           -- profiles in A and B with operation type "install" and NULL status
           ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
-`
+`, desiredStateQuery)
 
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
