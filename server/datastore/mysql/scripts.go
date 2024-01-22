@@ -84,7 +84,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 	return hsr, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 	const listStmt = `
   SELECT
     id,
@@ -96,13 +96,32 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_script_results
   WHERE
     host_id = ? AND
-    exit_code IS NULL AND
-    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    exit_code IS NULL
+  ORDER BY
+    created_at ASC`
 
 	var results []*fleet.HostScriptResult
-	seconds := int(ignoreOlder.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
+	}
+	return results, nil
+}
+
+func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+	const getStmt = `
+		SELECT 
+		  1 
+		FROM
+		  host_script_results
+		WHERE
+		  host_id = ? AND
+		  script_id = ? AND
+		  exit_code IS NULL
+	`
+
+	var results []*uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "is execution pending for host")
 	}
 	return results, nil
 }

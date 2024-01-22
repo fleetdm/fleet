@@ -585,6 +585,9 @@ func TestHostAuth(t *testing.T) {
 	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
 		return nil, nil
 	}
+	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -684,6 +687,9 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
 			_, err = svc.GetHost(ctx, 2, opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
@@ -691,6 +697,9 @@ func TestHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
