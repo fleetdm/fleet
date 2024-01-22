@@ -438,6 +438,26 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (p *MDMProfileSpec) Clone() (Cloner, error) {
+	return p.Copy(), nil
+}
+
+func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
+	if p == nil {
+		return nil
+	}
+
+	var clone MDMProfileSpec
+	clone = *p
+
+	if len(p.Labels) > 0 {
+		clone.Labels = make([]string, len(p.Labels))
+		copy(clone.Labels, p.Labels)
+	}
+
+	return &clone
+}
+
 func labelCountMap(labels []string) map[string]int {
 	counts := make(map[string]int)
 	for _, label := range labels {
