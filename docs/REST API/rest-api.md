@@ -3668,7 +3668,7 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
   "unlock_pin": 123456
 }
 ```
-> Note that `unlock_pin` will be empty (`""`) for Windows and Linux devices.
+> Note that `unlock_pin` only applies to macOS and will be empty (`""`) for Windows and Linux devices.
 
 
 ### Unlock host
