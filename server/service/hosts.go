@@ -1750,9 +1750,11 @@ type osVersionsRequest struct {
 }
 
 type osVersionsResponse struct {
-	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
-	OSVersions      []fleet.OSVersion `json:"os_versions"`
-	Err             error             `json:"error,omitempty"`
+	Meta            *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Count           int                       `json:"count"`
+	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion         `json:"os_versions"`
+	Err             error                     `json:"error,omitempty"`
 }
 
 func (r osVersionsResponse) error() error { return r.Err }
@@ -1760,7 +1762,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions)
+	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1768,20 +1770,23 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return &osVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
 		OSVersions:      osVersions.OSVersions,
+		Meta:            metadata,
+		Count:           count,
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
 	if name != nil && version == nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
 	}
 
 	if name == nil && version != nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
@@ -1791,13 +1796,13 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 			// most of the time, team should exist so checking here saves unnecessary db calls
 			_, err := svc.ds.Team(ctx, *teamID)
 			if err != nil {
-				return nil, err
+				return nil, count, nil, err
 			}
 		}
 		// if team exists but stats have not yet been gathered, return empty JSON array
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
 	for i, os := range osVersions.OSVersions {
@@ -1813,7 +1818,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		// populate OSVersion.Vulnerabilities
 		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, false)
 		if err != nil {
-			return nil, err
+			return nil, count, nil, err
 		}
 
 		for _, vuln := range vulns {
@@ -1837,9 +1842,20 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		})
 	}
 
+	count = len(osVersions.OSVersions)
+
 	osVersions.OSVersions = paginateOSVersions(osVersions.OSVersions, opts)
 
-	return osVersions, nil
+	var metaData *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		if len(osVersions.OSVersions) > int(opts.PerPage) {
+			metaData.HasNextResults = true
+			osVersions.OSVersions = osVersions.OSVersions[:len(osVersions.OSVersions)-1]
+		}
+	}
+
+	return osVersions, count, metaData, nil
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
