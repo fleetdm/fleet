@@ -139,17 +139,12 @@ const UserSettingsPage = ({
 
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
-        <>
-          <div className={`${baseClass}__confirm-update`}>
-            To update your email you must confirm your password.
-          </div>
-          <ChangeEmailForm
-            formData={updatedUser}
-            handleSubmit={emailSubmit}
-            onCancel={onToggleEmailModal}
-            serverErrors={errors}
-          />
-        </>
+        <ChangeEmailForm
+          formData={updatedUser}
+          handleSubmit={emailSubmit}
+          onCancel={onToggleEmailModal}
+          serverErrors={errors}
+        />
       </Modal>
     );
   };

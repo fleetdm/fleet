@@ -21,7 +21,7 @@ Ultimately, the CEO is responsible for the success or failure of the company.
 - The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting), and various internal tools like Zapier.
 - The Apprentice to the CEO is the DRI for the framework behind Fleet's remote work culture, including the handbook, issue templates, key spreadsheets, project management processes, and other [decisions about how to work](https://fleetdm.com/handbook/company/why-this-way).
 
-> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:

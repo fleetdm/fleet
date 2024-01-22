@@ -1,22 +1,10 @@
 .platform-selector {
-  padding-bottom: $pad-large;
-
-  p {
-    padding-top: $pad-small;
-    margin: 0;
-  }
+  // override global form-field width: 100%
+  width: auto;
 
   span {
     display: flex;
-  }
-
-  form,
-  label {
-    display: inline-flex;
-  }
-
-  &__platform-checkbox-wrapper {
-    padding-left: 12px;
-    margin: 0;
+    align-items: center;
+    gap: 12px;
   }
 }
