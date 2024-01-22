@@ -1137,7 +1137,7 @@ type OSVersion struct {
 	// in NVD (macOS only)
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
-	Vulnerabilities Vulnerabilities `json:"vulnerabilities,omitempty"`
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
