@@ -1258,7 +1258,8 @@ func listMDMWindowsProfilesToRemoveDB(
 	WHERE
 		-- profiles that are in B but not in A
 		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
-		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple?
+		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple
+
 		-- except "would be removed" profiles if they are a broken label-based profile
 		NOT EXISTS (
 			SELECT 1
@@ -1272,7 +1273,6 @@ func listMDMWindowsProfilesToRemoveDB(
 
 	var err error
 	var args []any
-	query = fmt.Sprintf(query, hostFilter)
 	if len(hostUUIDs) > 0 {
 		query, args, err = sqlx.In(query, hostUUIDs)
 		if err != nil {
