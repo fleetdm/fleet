@@ -1,14 +1,4 @@
 .custom-settings {
-
-  h2 {
-    margin-top: 0;
-    padding-bottom: $pad-small;
-    font-size: $medium;
-    font-weight: $regular;
-    color: $core-fleet-black;
-    border-bottom: solid 1px $ui-fleet-black-10;
-  }
-
   &__description {
     font-size: $x-small;
     margin: $pad-xxlarge 0;
@@ -27,6 +17,12 @@
     list-style: none;
     padding: 0;
     margin: 0;
+  }
+
+  &__pagination-controls {
+    display: flex;
+    justify-content: flex-end;
+    margin: $pad-large 0;
   }
 
   &__file-uploader {

@@ -25,7 +25,9 @@ echo "--update-roots='$ROOT_KEYS' --update-url=http://localhost:8081"
 echo "You can also pass the above flags to 'fleetctl preview'."
 echo "#########"
 
-./tools/tuf/test/run_server.sh
+if [ -z "$SKIP_SERVER" ]; then
+    ./tools/tuf/test/run_server.sh
+fi
 
 if [ -n "$GENERATE_PKG" ] || [ -n "$GENERATE_DEB" ] || [ -n "$GENERATE_RPM" ] || [ -n "$GENERATE_MSI" ]; then
   ./tools/tuf/test/gen_pkgs.sh

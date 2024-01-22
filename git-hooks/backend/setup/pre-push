@@ -1,0 +1,32 @@
+#!/bin/bash
+
+# Move this file to the .git/hooks directory of the project
+
+# Define the directory containing the hooks
+HOOK_DIRECTORY="./git-hooks/backend/hooks"
+
+# Define the list of hooks you want to execute
+declare -a USED_HOOKS=(
+  "compile-go"
+  "db-schema"
+  "lint-go"
+  )
+
+# Iterate over all files in the directory
+for SCRIPT in "$HOOK_DIRECTORY"/*; do
+    # Extract just the filename from the path
+    FILENAME=$(basename "$SCRIPT")
+
+    # Check if the filename is in the list
+    for TARGET in "${USED_HOOKS[@]}"; do
+        if [[ "$FILENAME" == "$TARGET" ]]; then
+            # Execute the script, even if it doesn't have execute permissions
+            bash "$SCRIPT"
+            if [[ $? -ne 0 ]]; then
+                # Exit if script fails
+                exit 1
+            fi
+            break # Break inner loop since script was found and executed
+        fi
+    done
+done

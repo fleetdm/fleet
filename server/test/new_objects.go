@@ -25,6 +25,7 @@ func NewQueryWithSchedule(t *testing.T, ds fleet.Datastore, teamID *uint, name, 
 		TeamID:             teamID,
 		Interval:           interval,
 		AutomationsEnabled: automationsEnabled,
+		Logging:            fleet.LoggingSnapshot,
 	})
 	require.NoError(t, err)
 

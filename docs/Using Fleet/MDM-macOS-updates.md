@@ -25,10 +25,6 @@ To set the macOS updates settings in the UI, visit the **Controls** section and 
 
 To set the macOS updates settings via CLI, use the configurations listed [here](https://fleetdm.com/docs/using-fleet/configuration-files#mdm-macos-updates).
 
-### Requirements
-- Fleet Premium or Ultimate
-- [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd) with Fleet Desktop enabled
-
 ### End user experience
 
 After the user clicks "update" in the Nudge window, they will be taken to the standard Apple software update screen: 
@@ -158,7 +154,7 @@ Request payload:
 </plist>
 ```
 
-<meta name="pageOrderInSection" value="1502">
-<meta name="title" value="MDM macOS updates">
+<meta name="pageOrderInSection" value="1503">
+<meta name="title" value="macOS updates">
 <meta name="description" value="Learn how to manage macOS updates and set up end user reminders with Fleet MDM.">
 <meta name="navSection" value="Device management">

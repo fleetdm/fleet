@@ -131,7 +131,7 @@ resource "aws_lambda_function" "jitprovisioner" {
   role                           = aws_iam_role.jitprovisioner.arn
   reserved_concurrent_executions = -1
   kms_key_arn                    = var.kms_key.arn
-  timeout                        = 5
+  timeout                        = 10
   memory_size                    = 512
   vpc_config {
     security_group_ids = [aws_security_group.jitprovisioner.id]
@@ -156,8 +156,8 @@ module "jitprovisioner-lambda-warmer" {
   version       = "3.0.1"
   function_name = aws_lambda_function.jitprovisioner.function_name
   function_arn  = aws_lambda_function.jitprovisioner.arn
-# This just needs to have a request to parse.
-  input         = <<EOINPUT
+  # This just needs to have a request to parse.
+  input = <<EOINPUT
 {
     "requestContext": {
         "elb": {
@@ -206,7 +206,7 @@ resource "random_uuid" "jitprovisioner" {
 
 # Use the local to make the trigger work.
 locals {
-  fleet_tag = "v4.38.0"
+  fleet_tag = "v4.43.1"
 }
 
 resource "null_resource" "standard-query-library" {

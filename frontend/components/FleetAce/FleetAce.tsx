@@ -33,7 +33,7 @@ export interface IFleetAceProps {
   showGutter?: boolean;
   wrapEnabled?: boolean;
   wrapperClassName?: string;
-  hint?: string;
+  helpText?: string;
   labelActionComponent?: React.ReactNode;
   style?: React.CSSProperties;
   onBlur?: (editor?: IAceEditor) => void;
@@ -56,7 +56,7 @@ const FleetAce = ({
   showGutter = true,
   wrapEnabled = false,
   wrapperClassName,
-  hint,
+  helpText,
   style,
   onBlur,
   onLoad,
@@ -231,9 +231,9 @@ const FleetAce = ({
     );
   }, [error, label, labelActionComponent]);
 
-  const renderHint = () => {
-    if (hint) {
-      return <span className={`${baseClass}__hint`}>{hint}</span>;
+  const renderHelpText = () => {
+    if (helpText) {
+      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
     }
 
     return false;
@@ -283,7 +283,7 @@ const FleetAce = ({
           },
         ]}
       />
-      {renderHint()}
+      {renderHelpText()}
     </div>
   );
 };

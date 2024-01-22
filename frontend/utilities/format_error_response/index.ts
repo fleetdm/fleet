@@ -1,7 +1,7 @@
 import { get, join } from "lodash";
-import { IError, IOldApiError } from "interfaces/errors";
+import { IFleetApiError } from "interfaces/errors";
 
-const formatServerErrors = (errors: IError[]) => {
+const formatServerErrors = (errors: IFleetApiError[]) => {
   if (!errors || !errors.length) {
     return {};
   }

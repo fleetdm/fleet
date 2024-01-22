@@ -23,6 +23,8 @@ export default {
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
+  HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
+    `/${API_VERSION}/fleet/hosts/${hostId}/queries/${queryId}`,
   HOSTS: `/${API_VERSION}/fleet/hosts`,
   HOSTS_COUNT: `/${API_VERSION}/fleet/hosts/count`,
   HOSTS_DELETE: `/${API_VERSION}/fleet/hosts/delete`,
@@ -47,11 +49,14 @@ export default {
   MDM_APPLE_BM_KEYS: `/${API_VERSION}/fleet/mdm/apple/dep/key_pair`,
   MDM_SUMMARY: `/${API_VERSION}/fleet/hosts/summary/mdm`,
   MDM_REQUEST_CSR: `/${API_VERSION}/fleet/mdm/apple/request_csr`,
-  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/apple/profiles`,
-  MDM_PROFILE: (id: number) => `/${API_VERSION}/fleet/mdm/apple/profiles/${id}`,
+
+  // MDM profile endpoints
+  MDM_PROFILES: `/${API_VERSION}/fleet/mdm/profiles`,
+  MDM_PROFILE: (id: string) => `/${API_VERSION}/fleet/mdm/profiles/${id}`,
+
   MDM_UPDATE_APPLE_SETTINGS: `/${API_VERSION}/fleet/mdm/apple/settings`,
-  MDM_PROFILES_AGGREGATE_STATUSES: `/${API_VERSION}/fleet/mdm/apple/profiles/summary`,
-  MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: `/${API_VERSION}/fleet/mdm/apple/filevault/summary`,
+  MDM_PROFILES_STATUS_SUMMARY: `/${API_VERSION}/fleet/mdm/profiles/summary`,
+  MDM_DISK_ENCRYPTION_SUMMARY: `/${API_VERSION}/fleet/mdm/disk_encryption/summary`,
   MDM_APPLE_SSO: `/${API_VERSION}/fleet/mdm/sso`,
   MDM_APPLE_ENROLLMENT_PROFILE: (token: string, ref?: string) => {
     const query = new URLSearchParams({ token });
@@ -81,14 +86,23 @@ export default {
   PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
   QUERIES: `/${API_VERSION}/fleet/queries`,
+  QUERY_REPORT: (id: number) => `/${API_VERSION}/fleet/queries/${id}/report`,
   RESET_PASSWORD: `/${API_VERSION}/fleet/reset_password`,
-  RUN_QUERY: `/${API_VERSION}/fleet/queries/run`,
+  LIVE_QUERY: `/${API_VERSION}/fleet/queries/run`,
   SCHEDULE_QUERY: `/${API_VERSION}/fleet/packs/schedule`,
   SCHEDULED_QUERIES: (packId: number): string => {
     return `/${API_VERSION}/fleet/packs/${packId}/scheduled`;
   },
   SETUP: `/v1/setup`, // not a typo - hasn't been updated yet
+
+  // Software endpoints
   SOFTWARE: `/${API_VERSION}/fleet/software`,
+  SOFTWARE_TITLES: `/${API_VERSION}/fleet/software/titles`,
+  SOFTWARE_TITLE: (id: number) => `/${API_VERSION}/fleet/software/titles/${id}`,
+  SOFTWARE_VERSIONS: `/${API_VERSION}/fleet/software/versions`,
+  SOFTWARE_VERSION: (id: number) =>
+    `/${API_VERSION}/fleet/software/versions/${id}`,
+
   SSO: `/v1/fleet/sso`,
   STATUS_LABEL_COUNTS: `/${API_VERSION}/fleet/host_summary`,
   STATUS_LIVE_QUERY: `/${API_VERSION}/fleet/status/live_query`,
@@ -123,7 +137,11 @@ export default {
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
-  // SCRIPTS
+  // Script endpoints
+  HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,
+  SCRIPTS: `/${API_VERSION}/fleet/scripts`,
+  SCRIPT: (id: number) => `/${API_VERSION}/fleet/scripts/${id}`,
   SCRIPT_RESULT: (executionId: string) =>
     `/${API_VERSION}/fleet/scripts/results/${executionId}`,
+  SCRIPT_RUN: `/${API_VERSION}/fleet/scripts/run`,
 };

@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/spf13/cobra"
 )
 
@@ -11,7 +11,7 @@ func createVersionCmd(configManager config.Manager) *cobra.Command {
 	var (
 		fFull bool
 	)
-	var versionCmd = &cobra.Command{
+	versionCmd := &cobra.Command{
 		Use:   "version",
 		Short: "Print Fleet version",
 		Long: `

@@ -34,6 +34,9 @@ esac
 
 EXPECTED_VARIABLES=(
 	TF_VAR_slack_webhook
+	TF_VAR_apm_token
+	TF_VAR_apm_url
+	TF_VAR_license_key
 	CLOUDFLARE_API_TOKEN
 	FLEET_VERSION
 	ECR_IMAGE_VERSION

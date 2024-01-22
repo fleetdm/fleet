@@ -189,7 +189,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 
 ### Azure
 
-Coming soon. Get (commmunity support)[https://chat.osquery.io/c/fleet].
+Coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
 
 ### Render
 

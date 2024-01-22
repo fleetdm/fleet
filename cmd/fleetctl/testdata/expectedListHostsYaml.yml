@@ -21,6 +21,7 @@ spec:
   display_text: test_host
   distributed_interval: 0
   gigs_disk_space_available: 0
+  gigs_total_disk_space: 0
   hardware_model: ""
   hardware_serial: ""
   hardware_vendor: ""
@@ -32,6 +33,7 @@ spec:
     total_issues_count: 0
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
     encryption_key_available: false
@@ -88,6 +90,7 @@ spec:
     total_issues_count: 0
   label_updated_at: "0001-01-01T00:00:00Z"
   last_enrolled_at: "0001-01-01T00:00:00Z"
+  last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
     encryption_key_available: false

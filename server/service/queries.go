@@ -96,14 +96,10 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 		return nil, err
 	}
 
-	user := authz.UserFromContext(ctx)
-	onlyShowObserverCanRun := onlyShowObserverCanRunQueries(user, teamID)
-
 	queries, err := svc.ds.ListQueries(ctx, fleet.ListQueryOptions{
-		ListOptions:        opt,
-		OnlyObserverCanRun: onlyShowObserverCanRun,
-		TeamID:             teamID,
-		IsScheduled:        scheduled,
+		ListOptions: opt,
+		TeamID:      teamID,
+		IsScheduled: scheduled,
 	})
 	if err != nil {
 		return nil, err
@@ -112,14 +108,86 @@ func (svc *Service) ListQueries(ctx context.Context, opt fleet.ListOptions, team
 	return queries, nil
 }
 
-func onlyShowObserverCanRunQueries(user *fleet.User, teamID *uint) bool {
-	if user.GlobalRole != nil && *user.GlobalRole == fleet.RoleObserver {
-		return true
+////////////////////////////////////////////////////////////////////////////////
+// Query Reports
+////////////////////////////////////////////////////////////////////////////////
+
+type getQueryReportRequest struct {
+	ID uint `url:"id"`
+}
+
+type getQueryReportResponse struct {
+	QueryID uint                       `json:"query_id"`
+	Results []fleet.HostQueryResultRow `json:"results"`
+	Err     error                      `json:"error,omitempty"`
+}
+
+func (r getQueryReportResponse) error() error { return r.Err }
+
+func getQueryReportEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getQueryReportRequest)
+	queryReportResults, err := svc.GetQueryReportResults(ctx, req.ID)
+	if err != nil {
+		return listQueriesResponse{Err: err}, nil
+	}
+	// Return an empty array if there are no results stored.
+	results := []fleet.HostQueryResultRow{}
+	if len(queryReportResults) > 0 {
+		results = queryReportResults
+	}
+	return getQueryReportResponse{
+		QueryID: req.ID,
+		Results: results,
+	}, nil
+}
+
+func (svc *Service) GetQueryReportResults(ctx context.Context, id uint) ([]fleet.HostQueryResultRow, error) {
+	// Load query first to get its teamID.
+	query, err := svc.ds.Query(ctx, id)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return nil, err
 	}
 
-	return teamID != nil && user.TeamMembership(func(ut fleet.UserTeam) bool {
-		return ut.Role == fleet.RoleObserver
-	})[*teamID]
+	if query.DiscardData {
+		return nil, nil
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+	filter := fleet.TeamFilter{User: vc.User, IncludeObserver: true}
+
+	queryReportResultRows, err := svc.ds.QueryResultRows(ctx, id, filter)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get query report results")
+	}
+	queryReportResults, err := fleet.MapQueryReportResultsToRows(queryReportResultRows)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "map db rows to results")
+	}
+	return queryReportResults, nil
+}
+
+func (svc *Service) QueryReportIsClipped(ctx context.Context, queryID uint) (bool, error) {
+	query, err := svc.ds.Query(ctx, queryID)
+	if err != nil {
+		setAuthCheckedOnPreAuthErr(ctx)
+		return false, ctxerr.Wrap(ctx, err, "get query from datastore")
+	}
+	if err := svc.authz.Authorize(ctx, query, fleet.ActionRead); err != nil {
+		return false, err
+	}
+
+	count, err := svc.ds.ResultCountForQuery(ctx, queryID)
+	if err != nil {
+		return false, err
+	}
+	return count >= fleet.MaxQueryReportRows, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -152,6 +220,10 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 		TeamID: p.TeamID,
 	}, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if p.Logging == nil || (p.Logging != nil && *p.Logging == "") {
+		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
 	if err := p.Verify(); err != nil {
@@ -192,6 +264,9 @@ func (svc *Service) NewQuery(ctx context.Context, p fleet.QueryPayload) (*fleet.
 	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
+	}
+	if p.DiscardData != nil {
+		query.DiscardData = *p.DiscardData
 	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
@@ -250,12 +325,17 @@ func modifyQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPayload) (*fleet.Query, error) {
 	// Load query first to determine if the user can modify it.
 	query, err := svc.ds.Query(ctx, id)
+	shouldDiscardQueryResults, shouldDeleteStats := false, false
 	if err != nil {
 		setAuthCheckedOnPreAuthErr(ctx)
 		return nil, err
 	}
 	if err := svc.authz.Authorize(ctx, query, fleet.ActionWrite); err != nil {
 		return nil, err
+	}
+
+	if p.Logging != nil && *p.Logging == "" {
+		p.Logging = ptr.String(fleet.LoggingSnapshot)
 	}
 
 	if err := p.Verify(); err != nil {
@@ -271,6 +351,10 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.Description = *p.Description
 	}
 	if p.Query != nil {
+		if query.Query != *p.Query {
+			shouldDiscardQueryResults = true
+			shouldDeleteStats = true
+		}
 		query.Query = *p.Query
 	}
 	if p.Interval != nil {
@@ -286,15 +370,24 @@ func (svc *Service) ModifyQuery(ctx context.Context, id uint, p fleet.QueryPaylo
 		query.AutomationsEnabled = *p.AutomationsEnabled
 	}
 	if p.Logging != nil {
+		if query.Logging != *p.Logging && *p.Logging != fleet.LoggingSnapshot {
+			shouldDiscardQueryResults = true
+		}
 		query.Logging = *p.Logging
 	}
 	if p.ObserverCanRun != nil {
 		query.ObserverCanRun = *p.ObserverCanRun
 	}
+	if p.DiscardData != nil {
+		if *p.DiscardData && *p.DiscardData != query.DiscardData {
+			shouldDiscardQueryResults = true
+		}
+		query.DiscardData = *p.DiscardData
+	}
 
 	logging.WithExtras(ctx, "name", query.Name, "sql", query.Query)
 
-	if err := svc.ds.SaveQuery(ctx, query); err != nil {
+	if err := svc.ds.SaveQuery(ctx, query, shouldDiscardQueryResults, shouldDeleteStats); err != nil {
 		return nil, err
 	}
 
@@ -518,11 +611,32 @@ func (svc *Service) ApplyQuerySpecs(ctx context.Context, specs []*fleet.QuerySpe
 		}
 	}
 	// 3. Apply the queries.
+
+	// first, find out if we should delete query results
+	queriesToDiscardResults := make(map[uint]struct{})
+	for _, query := range queries {
+		dbQuery, err := svc.ds.QueryByName(ctx, query.TeamID, query.Name)
+		if err != nil && !fleet.IsNotFound(err) {
+			return ctxerr.Wrap(ctx, err, "fetching saved query")
+		}
+
+		if dbQuery == nil {
+			// then we're creating a new query, so move on.
+			continue
+		}
+
+		if (query.DiscardData && query.DiscardData != dbQuery.DiscardData) ||
+			(query.Logging != dbQuery.Logging && query.Logging != fleet.LoggingSnapshot) ||
+			query.Query != dbQuery.Query {
+			queriesToDiscardResults[dbQuery.ID] = struct{}{}
+		}
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return ctxerr.New(ctx, "user must be authenticated to apply queries")
 	}
-	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries)
+	err := svc.ds.ApplyQueries(ctx, vc.UserID(), queries, queriesToDiscardResults)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "applying queries")
 	}
@@ -548,6 +662,10 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		}
 		teamID = &team.ID
 	}
+	logging := spec.Logging
+	if logging == "" {
+		logging = fleet.LoggingSnapshot
+	}
 	return &fleet.Query{
 		Name:        spec.Name,
 		Description: spec.Description,
@@ -559,7 +677,8 @@ func (svc *Service) queryFromSpec(ctx context.Context, spec *fleet.QuerySpec) (*
 		Platform:           spec.Platform,
 		MinOsqueryVersion:  spec.MinOsqueryVersion,
 		AutomationsEnabled: spec.AutomationsEnabled,
-		Logging:            spec.Logging,
+		Logging:            logging,
+		DiscardData:        spec.DiscardData,
 	}, nil
 }
 
@@ -630,6 +749,7 @@ func (svc *Service) specFromQuery(ctx context.Context, query *fleet.Query) (*fle
 		MinOsqueryVersion:  query.MinOsqueryVersion,
 		AutomationsEnabled: query.AutomationsEnabled,
 		Logging:            query.Logging,
+		DiscardData:        query.DiscardData,
 	}, nil
 }
 

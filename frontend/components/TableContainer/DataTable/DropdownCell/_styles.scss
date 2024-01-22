@@ -21,6 +21,14 @@
       }
     }
 
+    &.is-disabled {
+      .Select-control {
+        .Select-placeholder {
+          @include disabled;
+        }
+      }
+    }
+
     .Select-control {
       display: flex;
       background-color: initial;

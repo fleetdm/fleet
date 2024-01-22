@@ -513,13 +513,13 @@ To enable the [DEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/g
 
 First ask @zwass to create an account for you in [ABM](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#abm-apple-business-manager). You'll need an account to generate an encrypted token.
 
-Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
+Once you have access to ABM, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm) in the user facing docs to generate the private key, certificate, and encrypted token.
 
 ### APNs and SCEP setup
 
 The server also needs a private key + certificate to identify with Apple's [APNs](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#apns-apple-push-notification-service) servers, and another for [SCEP](https://github.com/fleetdm/fleet/blob/main/tools/mdm/apple/glossary-and-protocols.md#scep-simple-certificate-enrollment-protocol).
 
-To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-setup#apple-push-notification-service-apns).
+To generate both, follow [these guided instructions](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-push-notification-service-apns).
 
 Note that:
 
@@ -670,7 +670,7 @@ open /opt/orbit/bin/nudge/macos/stable/Nudge.app --args -json-url file:///opt/or
 
 A bootstrap package is a `pkg` file that gets automatically installed on hosts when they enroll via DEP.
 
-The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
+The `pkg` file needs to be a signed "distribution package", you can find a dummy file that meets all the requirements [in Drive](https://drive.google.com/file/d/1adwAOTD5G6D4WzWvJeMId6mDhyeFy-lm/view). We have instructions in [the docs](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) to upload a new bootstrap package to your Fleet instance.
 
 The dummy package linked above adds a Fleet logo in `/Library/FleetDM/fleet-logo.png`. To verify if the package was installed, you can open that folder and verify that the logo is there.
 

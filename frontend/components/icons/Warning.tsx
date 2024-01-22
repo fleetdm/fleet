@@ -10,21 +10,21 @@ interface IWarningProps {
 
 const Warning = ({
   color = "status-warning",
-  size = "small",
+  size = "medium",
 }: IWarningProps) => {
   return (
     <svg
+      xmlns="http://www.w3.org/2000/svg"
       width={ICON_SIZES[size]}
       height={ICON_SIZES[size]}
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 12 13"
+      viewBox="0 0 16 16"
     >
       <path
-        fillRule="evenodd"
-        clipRule="evenodd"
-        d="m11.887 11.214.008-.008L6.645.92l-.007.009C6.51.67 6.277.5 6 .5c-.277 0-.503.171-.638.429L5.356.92.105 11.206l.008.008a.898.898 0 0 0-.113.429c0 .471.338.857.75.857h10.5c.412 0 .75-.386.75-.857 0-.163-.045-.3-.113-.429ZM6 4.25a.75.75 0 0 1 .75.75v3a.75.75 0 0 1-1.5 0V5A.75.75 0 0 1 6 4.25ZM6 11a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
         fill={COLORS[color]}
+        fillRule="evenodd"
+        d="M15.85 14.286l.01-.012L8.86.56l-.01.011C8.68.23 8.37 0 8 0s-.67.229-.85.571L7.14.56l-7 13.714.01.012c-.09.171-.15.354-.15.571C0 15.486.45 16 1 16h14c.55 0 1-.514 1-1.143 0-.217-.06-.4-.15-.571zM8 5.25a.75.75 0 01.75.75v4a.75.75 0 01-1.5 0V6A.75.75 0 018 5.25zM8 14a1 1 0 100-2 1 1 0 000 2z"
+        clipRule="evenodd"
       />
     </svg>
   );

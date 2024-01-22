@@ -156,7 +156,7 @@ const AgentOptionsPage = ({
         options, they will be applied the next time a host checks in to Fleet.
         <br />
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/fleet-ui#configuring-agent-options"
+          url="https://fleetdm.com/docs/configuration/configuration-files#team-agent-options"
           text="Learn more about agent options"
           newTab
           multiline
@@ -165,33 +165,29 @@ const AgentOptionsPage = ({
       {isFetchingTeamOptions ? (
         <Spinner />
       ) : (
-        <div className={`${baseClass}__form-wrapper`}>
-          <form
-            className={`${baseClass}__form`}
-            onSubmit={onFormSubmit}
-            autoComplete="off"
+        <form
+          className={`${baseClass}__form`}
+          onSubmit={onFormSubmit}
+          autoComplete="off"
+        >
+          <YamlAce
+            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            onChange={handleAgentOptionsChange}
+            name="agentOptions"
+            value={agentOptions}
+            parseTarget
+            error={formErrors.agent_options}
+            label="YAML"
+          />
+          <Button
+            type="submit"
+            variant="brand"
+            className="save-loading"
+            isLoading={isUpdatingAgentOptions}
           >
-            <div className={`${baseClass}__btn-wrap`}>
-              <p>YAML</p>
-              <Button
-                type="submit"
-                variant="brand"
-                className="save-loading"
-                isLoading={isUpdatingAgentOptions}
-              >
-                Save options
-              </Button>
-            </div>
-            <YamlAce
-              wrapperClassName={`${baseClass}__text-editor-wrapper`}
-              onChange={handleAgentOptionsChange}
-              name="agentOptions"
-              value={agentOptions}
-              parseTarget
-              error={formErrors.agent_options}
-            />
-          </form>
-        </div>
+            Save
+          </Button>
+        </form>
       )}
     </div>
   );

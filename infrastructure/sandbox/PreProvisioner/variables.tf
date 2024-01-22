@@ -8,7 +8,6 @@ variable "redis_cluster" {}
 variable "base_domain" {}
 variable "ecs_cluster" {}
 variable "kms_key" {}
-variable "installer_kms_key" {}
 variable "installer_bucket" {}
 variable "oidc_provider_arn" {}
 variable "oidc_provider" {}

@@ -4,6 +4,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the list of application scheme/protocol-based IPC handlers.
+  discard_data: false
   interval: 86400
   logging: ""
   min_osquery_version: 1.4.7
@@ -18,6 +19,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
+  discard_data: false
   interval: 86400
   logging: ""
   min_osquery_version: 1.4.5
@@ -32,6 +34,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the current disk encryption status for the target system.
+  discard_data: false
   interval: 300
   logging: ""
   min_osquery_version: 1.4.5
@@ -46,6 +49,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieve basic information about the physical disks of a system.
+  discard_data: false
   interval: 86400
   logging: ""
   min_osquery_version: 1.4.7
@@ -60,6 +64,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the current filters and chains per filter in the target system.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.5
@@ -76,6 +81,7 @@ spec:
   description:
     Retrieves all the daemons that will run in the start of the target
     OSX system.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.5
@@ -90,6 +96,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -104,6 +111,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Retrieves the list of listening ports.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -118,6 +126,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
+  discard_data: false
   interval: 86400
   logging: ""
   min_osquery_version: 1.4.7
@@ -132,6 +141,7 @@ kind: query
 spec:
   automations_enabled: false
   description: System resource usage limits.
+  discard_data: false
   interval: 300
   logging: ""
   min_osquery_version: 1.4.7
@@ -146,6 +156,7 @@ kind: query
 spec:
   automations_enabled: false
   description: System uptime.
+  discard_data: false
   interval: 600
   logging: ""
   min_osquery_version: 1.4.7
@@ -160,6 +171,7 @@ kind: query
 spec:
   automations_enabled: false
   description: System uptime.
+  discard_data: false
   interval: 600
   logging: ""
   min_osquery_version: 1.4.7
@@ -174,6 +186,7 @@ kind: query
 spec:
   automations_enabled: false
   description: System uptime.
+  discard_data: false
   interval: 600
   logging: ""
   min_osquery_version: 1.4.7
@@ -188,6 +201,7 @@ kind: query
 spec:
   automations_enabled: false
   description: System uptime.
+  discard_data: false
   interval: 600
   logging: ""
   min_osquery_version: 1.4.7
@@ -202,6 +216,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Lists the application bundle that owns a sandbox label.
+  discard_data: false
   interval: 86400
   logging: ""
   min_osquery_version: 1.4.7
@@ -216,6 +231,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -230,6 +246,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -244,6 +261,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -258,6 +276,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: ""
@@ -272,6 +291,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -286,6 +306,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -300,6 +321,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: ""
@@ -314,6 +336,7 @@ kind: query
 spec:
   automations_enabled: false
   description: List of all user groups.
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -328,6 +351,7 @@ kind: query
 spec:
   automations_enabled: false
   description: Extracted information from Windows crash logs (Minidumps).
+  discard_data: false
   interval: 3600
   logging: ""
   min_osquery_version: 1.4.7
@@ -344,6 +368,7 @@ spec:
   description:
     Triggers one-off YARA query for files at the specified path. Requires
     one of sig_group, sigfile, or sigrule.
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: 1.4.7

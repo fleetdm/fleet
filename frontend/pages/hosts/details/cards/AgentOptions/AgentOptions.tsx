@@ -48,7 +48,6 @@ const AgentOptions = ({
       {isChromeOS ? (
         <TooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
-          position="bottom"
           className="section__header"
         >
           Agent options

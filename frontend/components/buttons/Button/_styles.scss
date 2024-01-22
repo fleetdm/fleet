@@ -245,8 +245,9 @@ $base-class: "button";
         }
       }
 
-      // Copy button uses stroke color instead of fill color to darken
-      &.input-field__copy-value-button {
+      // These buttons use stroke color instead of fill color to darken
+      &.input-field__copy-value-button,
+      &.windows-details-button {
         svg {
           path {
             fill: none;
@@ -341,9 +342,7 @@ $base-class: "button";
   }
 
   &--disabled {
-    opacity: 0.5;
-    filter: grayscale(0.5);
-    cursor: default;
+    @include disabled;
 
     &:hover,
     &:focus {

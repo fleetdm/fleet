@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Apply configuration profiles and updates
-        uses: fleetdm/fleet-mdm-gitops@026ee84a69cb89c869fedbe27c969bf89def418b
+        uses: fleetdm/fleet-mdm-gitops@15072f2739ef92c6357414ddd86e89b6bf302a2b
         with:
           FLEET_API_TOKEN: $FLEET_API_TOKEN
           FLEET_URL: $FLEET_URL

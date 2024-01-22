@@ -1,7 +1,11 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
+import {
+  DiskEncryptionStatus,
+  BootstrapPackageStatus,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 import { HostStatus } from "interfaces/host";
 import {
   buildQueryStringFromParams,
@@ -36,6 +40,8 @@ export interface IHostCountLoadOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   lowDiskSpaceHosts?: number;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -43,7 +49,8 @@ export interface IHostCountLoadOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -57,6 +64,8 @@ export default {
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
+    const softwareTitleId = options?.softwareTitleId;
+    const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -67,12 +76,17 @@ export default {
     const osId = options?.osId;
     const osName = options?.osName;
     const osVersion = options?.osVersion;
+    const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
     const queryParams = {
       query: globalFilter,
-      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+        osSettings,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -81,10 +95,13 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osName,
         osId,
         osVersion,
+        osSettings,
         diskEncryptionStatus,
         bootstrapPackageStatus,
       }),

@@ -86,6 +86,13 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			cp, err := ds.NewMDMAppleConfigProfile(context.Background(), dummyCP)
 			require.NoError(t, err)
 
+			wcp, err := ds.NewMDMWindowsConfigProfile(context.Background(), fleet.MDMWindowsConfigProfile{
+				Name:   "abc",
+				TeamID: &team.ID,
+				SyncML: []byte(`<Replace></Replace>`),
+			})
+			require.NoError(t, err)
+
 			err = ds.DeleteTeam(context.Background(), team.ID)
 			require.NoError(t, err)
 
@@ -96,8 +103,11 @@ func testTeamsGetSetDelete(t *testing.T, ds *Datastore) {
 			_, err = ds.TeamByName(context.Background(), tt.name)
 			require.Error(t, err)
 
-			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileID)
+			_, err = ds.GetMDMAppleConfigProfile(context.Background(), cp.ProfileUUID)
 			var nfe fleet.NotFoundError
+			require.ErrorAs(t, err, &nfe)
+
+			_, err = ds.GetMDMWindowsConfigProfile(context.Background(), wcp.ProfileUUID)
 			require.ErrorAs(t, err, &nfe)
 
 			require.NoError(t, ds.DeletePack(context.Background(), newP.Name))
@@ -571,9 +581,16 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 						MinimumVersion: optjson.SetString("10.15.0"),
 						Deadline:       optjson.SetString("2025-10-01"),
 					},
+					WindowsUpdates: fleet.WindowsUpdates{
+						DeadlineDays:    optjson.SetInt(7),
+						GracePeriodDays: optjson.SetInt(3),
+					},
 					MacOSSetup: fleet.MacOSSetup{
 						BootstrapPackage:    optjson.SetString("bootstrap"),
 						MacOSSetupAssistant: optjson.SetString("assistant"),
+					},
+					WindowsSettings: fleet.WindowsSettings{
+						CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
 					},
 				},
 			},
@@ -587,9 +604,16 @@ func testTeamsMDMConfig(t *testing.T, ds *Datastore) {
 				MinimumVersion: optjson.SetString("10.15.0"),
 				Deadline:       optjson.SetString("2025-10-01"),
 			},
+			WindowsUpdates: fleet.WindowsUpdates{
+				DeadlineDays:    optjson.SetInt(7),
+				GracePeriodDays: optjson.SetInt(3),
+			},
 			MacOSSetup: fleet.MacOSSetup{
 				BootstrapPackage:    optjson.SetString("bootstrap"),
 				MacOSSetupAssistant: optjson.SetString("assistant"),
+			},
+			WindowsSettings: fleet.WindowsSettings{
+				CustomSettings: optjson.SetSlice([]string{"foo", "bar"}),
 			},
 		}, mdm)
 	})

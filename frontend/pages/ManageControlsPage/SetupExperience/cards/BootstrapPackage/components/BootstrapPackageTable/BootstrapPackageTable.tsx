@@ -9,7 +9,7 @@ import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 
 import {
-  TABLE_HEADERS,
+  COLUMN_CONFIGS,
   generateTableData,
 } from "./BootstrapPackageTableConfig";
 
@@ -45,7 +45,7 @@ const BootstrapPackageTable = ({
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={TABLE_HEADERS}
+        columnConfigs={COLUMN_CONFIGS}
         data={tableData}
         resultsTitle=""
         isLoading={isLoading}

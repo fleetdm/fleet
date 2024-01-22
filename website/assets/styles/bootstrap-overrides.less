@@ -56,6 +56,10 @@ b, strong, .font-weight-bold {
   color: @core-fleet-black;
 }
 
+a[href] {
+ color: @core-vibrant-blue;
+}
+
 footer {
   font-size: 14px;
   line-height: 24px;
@@ -315,3 +319,26 @@ textarea.form-control {
   color: @core-vibrant-red;
 }
 
+.tooltip {
+  font-weight: 400;
+  border-radius: 4px;
+  padding: 12px;
+  font-size: 12px;
+  background-color: @core-fleet-black-75;
+  opacity: 1.0;
+  .arrow {
+    display: none;
+  }
+}
+.tooltip-inner {
+  background: none;
+  padding: 0;
+  p {
+    margin-bottom: 0px;
+    text-align: left;
+    line-height: 16px;
+  }
+}
+.tooltip.show {
+  opacity: 1;
+}

@@ -3,136 +3,57 @@
     <div class="px-0 d-flex flex-column justify-content-center pt-5 mx-auto">
       <div purpose="hero-text">
         <h2 class="text-center mb-5">
-          Select the plan based on your needs
+          Compare plans and pricing
         </h2>
       </div>
-      <div purpose="pricing-switch" class="d-flex flex-row justify-content-center mx-auto mb-5" @click="displaySecurityPricingMode = !displaySecurityPricingMode">
-        <div purpose="pricing-switch-option" :class="[!displaySecurityPricingMode ? 'selected' : '']">IT</div>
-        <div purpose="pricing-switch-option" :class="[displaySecurityPricingMode ? 'selected' : '']">Security</div>
-        <div purpose="pricing-tier-switch" :class="[displaySecurityPricingMode ? 'security-selected' : '']"></div>
-      </div>
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
-
         <%// Fleet Free tier card %>
         <div purpose="free-tier-card" class="card d-flex flex-column">
           <div purpose="pricing-tier-title">
-            <div class="d-flex flex-row justify-content-between">
-              <div class="d-flex flex-column justify-content-start">
-                <h2>Free</h2>
+            <div class="d-flex flex-row justify-content-center">
+              <div class="d-flex flex-column justify-content-center">
+                <h2>Community</h2>
                 <h3>Unlimited hosts</h3>
-              </div>
-              <div class="d-flex flex-column align-items-center">
-                <h1>$0</h1>
+                <div class="d-flex flex-row align-items-center">
+                  <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                </div>
               </div>
             </div>
           </div>
-          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="/try-fleet">Get started free</a>
-          <p class="mb-4 mt-4 pt-1"><strong>Includes:</strong></p>
-
-          <%// IT features (free) %>
-          <div purpose="features-list" v-if="!displaySecurityPricingMode">
-            <p>Opt-in macOS MDM</p>
-            <p>REST API and webhooks</p>
-            <p>YAML configuration</p>
-            <p>Enforce device configurations</p>
-            <p>Run MDM commands via CLI</p>
-            <p>End user transparency</p>
-            <p>Community support (MacAdmins Slack)</p>
-            <p>Self-hosted</p>
-          </div>
-
-          <%// Security features (free) %>
-          <div purpose="features-list" v-else>
-            <p>Manage osquery at enterprise scale</p>
-            <p>Monitor query performance</p>
-            <p>REST API and webhooks</p>
-            <p>YAML configuration</p>
-            <p>Detect vulnerabilities</p>
-            <p>Software inventory</p>
-            <p>Device health report</p>
-            <p>Ship logs to Splunk, Snowflake, and more</p>
-            <p>Self-hosted</p>
-          </div>
+          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" target="_blank" href="https://github.com/fleetdm/fleet">View source code</a>
         </div>
-        <div purpose="premium-card" class="d-flex flex-column">
-
-          <%// Fleet Premium tier card %>
+        <%// Fleet Premium tier card %>
+        <div purpose="premium-card" class="d-flex flex-column justify-content-center">
           <div purpose="premium-tier-card" class="card d-flex h-100 flex-column">
             <div purpose="pricing-tier-title">
-              <div class="d-flex flex-sm-row flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-start">
+              <div class="d-flex flex-column justify-content-between">
+                <div class="d-flex flex-column justify-content-center">
                   <h2>Premium</h2>
-                  <h3>Unlimited hosts</h3>
-                </div>
-                <div class="d-flex flex-row align-items-center">
-                  <div class="d-flex flex-row align-items-center ">
-                    <h4>Starting at </h4><h1 class="mb-2">$7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                  <h3>Unlimited baselines</h3>
+                  <div class="d-flex flex-row align-items-center justify-content-center">
+                    <h4>From </h4><h1 class="mb-2"><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                   </div>
                 </div>
               </div>
             </div>
             <div>
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/customers/register">Get started</a>
-              <p purpose="contact-sales-link">For organizations with large deployments, <a  @click="clickOpenChatWidget()">contact sales</a>.</p>
-            </div>
-            <p class="mb-4"><strong>All of Free plus:</strong></p>
-
-            <%// IT features (Premium) %>
-            <div class="d-flex flex-sm-row flex-column align-items-around" v-if="!displaySecurityPricingMode">
-              <div class="w-sm-50 w-100 mr-3" purpose="features-list">
-                <p>Zero-touch MDM for macOS</p>
-                <p>Windows MDM with Autopilot*</p>
-                <p>Safely execute remote scripts*</p>
-                <p>Programmable remediations*</p>
-                <p>Disk encryption key escrow</p>
-                <p>macOS update via Nudge</p>
-                <p>Remote lock and wipe</p>
-              </div>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>24x7 support</p>
-                <p>Self-managed or private cloud hosted</p>
-                <p>Dedicated Slack channel</p>
-                <p>End user sign-in with Okta, AD, or any IDP</p>
-                <p>Integrate with Munki, Chef, and Puppet</p>
-                <p>Enterprise-ready MDM migration</p>
-              </div>
-            </div>
-
-            <%// Security features (Premium) %>
-            <div class="d-flex flex-sm-row flex-column align-items-around" v-else>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>GitOps-ready</p>
-                <p>CIS for macOS and Windows</p>
-                <p>Custom vulnerability reporting</p>
-                <p>Phased rollouts (canaries)</p>
-                <p>Single-Sign On (SSO)</p>
-                <p>Version history for queries and config</p>
-                <p>Granular role-based access</p>
-                <p>Target and configure specific device groups</p>
-                <p>Programable audit log</p>
-                <p>Vulnerability scores (EPSS and CVSS)</p>
-                <p>CISA known exploited vulnerabilities</p>
-              </div>
-              <div class="w-sm-50 w-100" purpose="features-list">
-                <p>24x7 support</p>
-                <p>Self-managed or private cloud hosted</p>
-                <p>Sync user roles from Okta, AD, or any IDP</p>
-                <p>Just-in-time (JIT) provisioning</p>
-                <p>Aggregate insights for groups of devices</p>
-                <p>Agent auto-updates</p>
-                <p>Manage osquery extensions remotely</p>
-              </div>
-
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" @click="clickOpenChatWidget()">Show me</a>
+              <p purpose="contact-sales-link">Have a large deployment? <a @click="clickOpenChatWidget()">Start here</a>.</p>
             </div>
           </div>
         </div>
       </div>
+      <div purpose="pricing-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
+        <div purpose="pricing-switch-option" class="all" :class="[pricingMode === 'all' ? 'selected' : '']" @click="pricingMode = 'all'">All features</div>
+        <div purpose="pricing-switch-option" class="security" :class="[pricingMode === 'Security' ? 'selected' : '']" @click="pricingMode = 'Security'">For security engineers</div>
+        <div purpose="pricing-switch-option" class="it" :class="[pricingMode === 'IT' ? 'selected' : '']" @click="pricingMode = 'IT'">For IT admins</div>
+        <div purpose="pricing-tier-switch" :class="pricingMode+'-selected'"></div>
+      </div>
     </div>
-    <%// IT-focused features table %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="!displaySecurityPricingMode">
-      <h2 class="text-center pb-3 mb-4">Compare plans</h2>
+    <%// All features %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-if="pricingMode === 'all'">
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop IT-focused features tables %>
+        <%// Desktop features tables %>
         <div class="d-none d-md-block">
           <% for(let category of pricingTable) {%>
             <table purpose="pricing-categories-table" class="table">
@@ -141,7 +62,7 @@
                   <td><h4><%- category.categoryName %></h4></td>
                   <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
-                    <strong>Free</strong>
+                    <strong>Community</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
@@ -172,7 +93,7 @@
           <% }%>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile IT-focused features tables %>
+        <%// Mobile features tables %>
         <% for(let category of pricingTable) {%>
           <div purpose="mobile-feature-table-section" class="d-block d-md-none">
             <h4><%- category.categoryName %></h4>
@@ -182,7 +103,7 @@
                   <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
-                  Free
+                  Community
                 <%if(feature.tier === 'Free') {%>
                   <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
                 <% } %>
@@ -198,77 +119,107 @@
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
-    <%// Security-focused features table %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else>
-      <h2 class="text-center pb-3 mb-4">Compare plans</h2>
+    <%// Filtered features %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'Security'">
       <div class="d-flex flex-column justify-content-center p-0">
-        <%// Desktop security-focused features tables %>
+        <%// Desktop filtered features tables %>
         <div class="d-none d-md-block">
-          <% for(let category of pricingTableForSecurity) {%>
-            <table purpose="pricing-categories-table" class="table">
-             <thead>
-                <tr>
-                  <td><h4><%- category.categoryName %></h4></td>
-                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Free</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                  <%if(pricingTableForSecurity.indexOf(category) === 0) {%>
-                  <td class="text-center">
-                    <strong>Premium</strong>
-                  </td>
-                  <%}else {%>
-                  <td ></td>
-                  <%}%>
-                </tr>
-              </thead>
-              <tbody>
-                <% for( let feature of category.features){ %>
-                  <tr>
-                    <td purpose="feature-name" class="w-50"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
-                    <%if(feature.tier === 'Free') {%>
-                      <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                    <%} else {%>
-                      <td purpose="table-checkmark"></td>
-                    <%}%>
-                    <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
-                  </tr>
-                <% }%>
-              </tbody>
-            </table>
-          <% }%>
+          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForSecurity">
+           <thead>
+              <tr>
+                <td><h4>{{category.categoryName}}</h4></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Community</strong>
+                </td>
+                <td v-else></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Premium</strong>
+                </td>
+                <td v-else></td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="feature in category.features">
+                <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
+                  <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  <td purpose="table-checkmark" v-else></td>
+                <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+              </tr>
+            </tbody>
+          </table>
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
-        <%// Mobile security-focused features tables %>
-        <% for(let category of pricingTableForSecurity) {%>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
-            <h4><%- category.categoryName %></h4>
-            <% for( let feature of category.features){ %>
-              <div purpose="mobile-features-table" class="d-flex flex-column">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
+        <%// Mobile filtered features tables %>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
+            <h4>{{category.categoryName}}</h4>
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
+                  <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
                   Free
-                <%if(feature.tier === 'Free') {%>
-                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-                <% } %>
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
                 </div>
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
                   Premium
                   <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
                 </div>
               </div>
-            <% }%>
           </div>
-        <% }%>
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
-    <%// FAQ %>
+    <%// IT features %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'IT'">
+      <div class="d-flex flex-column justify-content-center p-0">
+        <%// Desktop filtered features tables %>
+        <div class="d-none d-md-block">
+          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForIt">
+           <thead>
+              <tr>
+                <td><h4>{{category.categoryName}}</h4></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Community</strong>
+                </td>
+                <td v-else></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Premium</strong>
+                </td>
+                <td v-else></td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="feature in category.features">
+                <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
+                  <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  <td purpose="table-checkmark" v-else></td>
+                <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
+        </div>
+        <%// Mobile filtered features tables %>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
+            <h4>{{category.categoryName}}</h4>
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
+                  <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
+              </div>
+          </div>
+          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+      </div>
+    </div>
+    <!-- <%// FAQ %>
     <div style="color: #192147;" class="d-flex flex-column justify-content-center pt-5 px-0 mx-auto">
       <h2 class="text-center mb-4">FAQ</h2>
       <div style="max-width: 800px;" class="px-0 d-flex flex-column justify-content-center mb-5 mx-auto">
@@ -371,16 +322,17 @@
           </p>
         </div>
       </div>
-    </div>
+    </div> -->
     <%// Bottom call to action %>
     <div purpose="bottom-cta" class="d-block mx-auto">
-      <h2 class="text-center">Still have questions?</h2>
+      <h2 class="text-center">Questions?</h2>
+      <p class="text-center">We have answers to the most <a href="https://fleetdm.com/docs/get-started/faq">commonly asked questions</a>.</p>
       <div class="d-flex flex-column flex-sm-row flex-nowrap btn-toolbar justify-content-center" style="text-align: center" >
         <a purpose="chat-button" style="max-width: 250px" class="mx-auto justify-self-center btn btn-block btn-md btn-primary my-3 mx-sm-2" href="https://fleetdm.com/company/contact">
           Ask us anything
         </a>
         <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="cta-button" @click="clickOpenChatWidget()">
-          Talk to an expert
+          Call us
         </a>
       </div>
     </div>

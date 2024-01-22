@@ -9,11 +9,12 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftware } from "interfaces/software";
+import { ISoftwareTitle, ISoftware } from "interfaces/software";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
+  MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 
@@ -24,10 +25,19 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware;
+  software: ISoftware | undefined;
+  software_title: ISoftwareTitle | undefined;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
+
+// the source of truth for the filter option names.
+// there are used on many other pages but we define them here.
+// TODO: add other filter options here.
+export const HOSTS_QUERY_PARAMS = {
+  OS_SETTINGS: "os_settings",
+  DISK_ENCRYPTION: "os_settings_disk_encryption",
+} as const;
 
 export interface ILoadHostsQueryKey extends ILoadHostsOptions {
   scope: "hosts";
@@ -46,6 +56,8 @@ export interface ILoadHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
@@ -57,7 +69,8 @@ export interface ILoadHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -72,6 +85,8 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -83,7 +98,8 @@ export interface IExportHostsOptions {
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
 }
 
 export interface IActionByFilter {
@@ -166,6 +182,8 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const softwareTitleId = options?.softwareTitleId;
+    const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -174,6 +192,7 @@ export default {
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
+    const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
@@ -184,7 +203,11 @@ export default {
       order_key: sortBy[0].key,
       order_direction: sortBy[0].direction,
       query: globalFilter,
-      ...reconcileMutuallyInclusiveHostParams({ teamId, macSettingsStatus }),
+      ...reconcileMutuallyInclusiveHostParams({
+        teamId,
+        macSettingsStatus,
+        osSettings,
+      }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
         policyId,
@@ -193,7 +216,10 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
+        osSettings,
         diskEncryptionStatus,
       }),
       status,
@@ -217,6 +243,8 @@ export default {
     policyResponse = "passing",
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
@@ -228,6 +256,7 @@ export default {
     device_mapping,
     selectedLabels,
     sortBy,
+    osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
@@ -245,6 +274,7 @@ export default {
       ...reconcileMutuallyInclusiveHostParams({
         teamId,
         macSettingsStatus,
+        osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
         label,
@@ -254,11 +284,14 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osId,
         osName,
         osVersion,
         diskEncryptionStatus,
+        osSettings,
         bootstrapPackageStatus,
       }),
     };

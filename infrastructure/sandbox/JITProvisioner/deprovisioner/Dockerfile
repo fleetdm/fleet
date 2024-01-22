@@ -1,4 +1,4 @@
-FROM golang:1.19.12-alpine@sha256:085007a33ce53bd5130bb5f485cad6c6f0fbfa203907cb5b05e575bc37a409aa AS builder
+FROM golang:1.21.5-alpine@sha256:55f716237933c85cee01748700755b4ac8736fb1ca974c9aed051691b68d6dc2 AS builder
 RUN apk update && apk add --no-cache git curl openssl unzip
 WORKDIR /build
 COPY . .

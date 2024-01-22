@@ -1,57 +1,22 @@
 # Business Operations
-This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) the Business Operations (BizOps) department.
-
-## What we do
-The BizOps department is directly responsible for these traditional functions: People, Finance, Legal, IT, and Revenue Operations (RevOps).  
+This handbook page details processes specific to working [with](#what-we-do) and [within](#responsibilities) the Business Operations (BizOps) department.  
 
 ## Team
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
-| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_
-| Head of Revenue Operations    | [Taylor Hughes](https://www.linkedin.com/in/taylorhughes834/) _([@hughestaylor](https://github.com/hughestaylor))_
-
+| Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
-- To make a request of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day.
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH).
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-business-operations-63f3dc3cc931f6247fcf55a9/board?sprints=none) for this department, including pending tasks and the status of new requests.
-  - Submit legal questions and requests to Business Operations department. (Business Operations will escalate first-of-its-kind agreements to the CEO.  The CEO will review business terms and consult with lawyers as necessary.)
-- If urgent, or if you need help submiting your request, mention a [team member](#team) in the [#g-business-operations](https://fleetdm.slack.com/archives/C047N5L6EGH) Slack channel.
-  - If you need help during onboarding ask in [#help-onboarding](https://fleetdm.slack.com/archives/C02QG7P5571).
-  - For all questions related to your company credit card, ask in [#help-brex](https://fleetdm.slack.com/archives/C0396TYH4EP).
 
 
-## Tools we use
-There are a number of tools that are used throughout Fleet. Some of these tools are used company-wide, while others are department-specific. You can see a list of those tools in ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing).
+## Responsibilities
+The Business Operations department is directly responsible for the functions of all Finance, People, Legal, IT, and Revenue Operations (RevOps). 
 
-### Role-specific licenses
-Certain new team members, especially in go-to-market (GTM) roles, will need paid access to paid tools like Salesforce and LinkedIn Sales Navigator immediately on their first day with the company. Gong licenses that other departments need may [request them from BizOps](https://fleetdm.com/handbook/business-operations#contact-us) and we will make sure there is no license redundancy in that department. The table below can be used to determine which paid licenses they will need, based on their role:
-
-| Role                 | Salesforce CRM | Salesforce "Inbox" | LinkedIn _(paid)_ | Gong _(paid)_ | Zoom _(paid)_ |
-|:-----------------|:---|:---|:----|:---|:---|
-| 🐋 AE            | ✅ | ✅ | ✅ | ✅ | ✅
-| 🐋 CSM           | ✅ | ✅ | ❌ | ✅ | ✅
-| 🐋 SC            | ✅ | ✅ | ❌ | ❌ | ✅
-| 🫧 SDR           | ✅ | ✅ | ✅ | ❌ | ❌
-| ⚗️ PM            | ❌ | ❌ | ❌ | ✅ | ✅
-| 🔦 CEO           | ✅ | ✅ | ✅ | ✅ | ✅
-|   Other roles    | ❌ | ❌ | ❌ | ❌ | ❌
-
-> **Warning:** Do NOT buy LinkedIn Recruiter. AEs and SDRs should use their personal Brex card to purchase the monthly [Core Sales Navigator](https://business.linkedin.com/sales-solutions/compare-plans) plan. Fleet does not use a company wide Sales Navigator account. The goal of Sales Navigator is to access to profile views and data, not InMail.  Fleet does not send InMail. 
-
-### Namecheap
-Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet -->
-
-### Vetty
-Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical". <!-- TODO: Move into "tools we use" sheet -->
-
-## Recurring expenses
-Recurring monthly or annual expenses are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly.
-
-> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
-
-## Payroll
+### Run payroll
 Many of these processes are automated, but it's vital to check Gusto and Plane manually for accuracy.
  - Salaried fleeties are automated in Gusto and Plane.
  - Hourly fleeties and consultants are a manual process each month in Gusto and Plane.
@@ -64,18 +29,30 @@ Many of these processes are automated, but it's vital to check Gusto and Plane m
 | Accelerations (quarterly)    | "Off-cycle" payroll          | Head of Revenue Operations
 | [US contractor payroll](https://fleetdm.com/handbook/business-operations#run-us-contractor-payroll) | "Off-cycle" payroll | Head of Business Operations
 
+### Reconcile monthly recurring expenses
+Recurring monthly or annual expenses, such as the tools we use throughout Fleet, are tracked as recurring, non-personnel expenses in ["🧮 The Numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) _(¶confidential Google Sheet)_, along with their payment source. Reconciliation of recurring expenses happens monthly. <!-- TODO: Merge "🧮 The Numbers" and  ["Tools we use" (private Google doc)](https://docs.google.com/spreadsheets/d/170qjzvyGjmbFhwS4Mucotxnw_JvyAjYv4qpwBrS6Gl8/edit?usp=sharing) -->
 
-## Responsibilities
+> Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
-### Add a seat to Salesforce
-Here are the steps we take to grant appropriate Salesforce licenses to a new hire:
-1. Go to ["My Account"](https://fleetdm.lightning.force.com/lightning/n/standard-OnlineSalesHome).
-2. View contracts -> pick current contract.
-3. Add the desired number of licenses.
-4. Sign DocuSign sent to the email.
-5. The order will be processed in ~30m.
-6. Once the basic license has been added, you can create a new user using the new team member's `@fleetdm.com` email and assign a license to it.
-7. To also assign a user an "Inbox license", go to the ["Setup" page](https://fleetdm.lightning.force.com/lightning/setup/SetupOneHome/home) and select "User > Permission sets". Find the [inbox permission set](https://fleetdm.lightning.force.com/lightning/setup/PermSets/page?address=%2F005%3Fid%3D0PS4x000002uUn2%26isUserEntityOverride%3D1%26SetupNode%3DPermSets%26sfdcIFrameOrigin%3Dhttps%253A%252F%252Ffleetdm.lightning.force.com%26clc%3D1) and assign it to the new team member.
+### Register a domain for Fleet
+Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet --> 
+
+### Access a background check
+Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
+
+### Secure company-issued equipment for a team member
+As soon as an offer is accepted, Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. The BizOps engineer will work with the new team member to get their equipment requested and shipped to them on time.
+
+- [**Check the Fleet IT warehouse**](https://docs.google.com/spreadsheets/d/1hFlymLlRWIaWeVh14IRz03yE-ytBLfUaqVz0VVmmoGI/edit#gid=0) before purchasing any equipment including laptops, monitors, and Yubikeys to ensure we efficiently [utilize existing assets before spending money](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). If Fleet IT warehouse inventory can meet the needs of the request, file a [warehouse request](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=warehouse-request.md&title=%F0%9F%92%BB+Warehouse+request).
+
+- Apple computers shipping to the United States and Canada are ordered using the Apple [eCommerce Portal](https://ecommerce2.apple.com/asb2bstorefront/asb2b/en/USD/?accountselected=true), or by contacting the business team at an Apple Store or contacting the online sales team at [800-854-3680](tel:18008543680). The BizOps team can arrange for same-day pickup at a store local to the Fleetie if needed.
+  - **Note:** Most Fleeties use 16-inch MacBook Pros. Team members are free to choose any laptop or operating system that works for them, as long as the price [is within reason](https://www.fleetdm.com/handbook/communications#spending-company-money). 
+
+  - When ordering through the Apple eCommerce Portal, look for a banner with *Apple Store for FLEET DEVICE MANAGEMENT | Welcome [Your Name].* Hovering over *Welcome* should display *Your Profile.* If Fleet's account number is displayed, purchases will be automatically made available in Apple Business Manager (ABM).
+
+- Apple computers for Fleeties in other countries should be purchased through an authorized reseller to ensure the device is enrolled in ADE. In countries that Apple does not operate or that do not allow ADE, work with the authorized reseller to find the best solution, or consider shipping to a US based Fleetie and then shipping on to the teammate. 
+
+ > A 3-year AppleCare+ Protection Plan (APP) should be considered default for Apple computers >$1500. Base MacBook Airs, Mac minis, etc. do not need APP unless configured beyond the $1500 price point. APP provides 24/7 support, and global repair coverage in case of accidental screen damage or liquid spill, and battery service.
 
 ### Process an email from a state agency
 From time to time, you may get notices via email (or in the mail) from state agencies regarding Fleet's withholding and/or unemployment tax accounts. You can resolve some of these notices on your own by verifying and/or updating the settings in your Gusto account.
@@ -130,10 +107,10 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
-1. Add the amount to be paid to the "Gross" line.
-2. Review hours _("Time tools > Time tracking")_
-3. Adjust time frame to match current payroll period (the 27th through 26th of the month)
-4. Sync hours and run contractor payroll.
+- Add the amount to be paid to the "Gross" line.
+- Review hours _("Time tools > Time tracking")_
+- Adjust time frame to match current payroll period (the 27th through 26th of the month)
+- Sync hours and run contractor payroll.
 
 ### Run US commission payroll
 - Update [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) with new revenue from any deals that are closed/won (have a subscription agreement signed by both parties) and have an **effective start date** within the previous month.
@@ -141,12 +118,46 @@ For Fleet's US contractors, running payroll is a manual process:
 - Let the Head of Business Operations know they can run the commission payroll. Use the off-cycle payroll option in Gusto. Be sure to classify the payment as "Commission" in the "other earnings" field and not the generic "Bonus."
 - Once commission payroll has been run, update the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit) to mark the commission as paid. 
 
+
+### Convert a Fleetie to a consultant
+If a Fleetie decides they want to move to being a [consultant](https://fleetdm.com/handbook/company/leadership#consultants), either the Fleetie or their manager need to create a [custom issue for the BizOps team](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify them of the change.
+Once notified, BizOps takes the following steps:
+- Confirm the following details with the Fleetie:
+  - Date of change
+  - Term of consultancy (time period)
+  - Hours/capacity expected (hours per week or month)
+  - Confirm hourly rate
+- Once details are confirmed, use the information given to create the consulting agreement for the Fleetie (either in docusign (US-based) or via Plane (international)), and send to their personal email for signature. Once signed, save in Fleetie's [employee file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+- Schedule the Fleetie's final day in HRIS (Gusto or Plane).
+- Update final day in ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+- Create an [offboarding issue](https://github.com/fleetdm/classified/blob/main/.github/ISSUE_TEMPLATE/%F0%9F%9A%AA-offboarding-____________.md) for the Fleetie converting to a consultant, and confirm with their manager if there is a need to retain any tools or access while they are a consultant (default to removing all access from Fleet email, and migrating to personal email for Slack and other tools unless there is a business case to retain the Fleet email and associated tool access).
+- Follow the offboarding issue for next steps, including communicating to teammates and updating equity plan.
+
+
+### Updating personnel details
+When a Fleetie, consultant or advisor requests an update to their personnel details (name, location, phone, etc), follow these steps to ensure accurate representation across systems.
+- Team member submits a [custom issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to update their personnel details (or BizOps team creates if the request comes via email or is sensitive and needs a classified issue).
+  - If change is for a primary identification or contact method, ask for evidence of change and capture in [employee's personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
+- BizOps makes change to HRIS (Gusto or Plane) to reflect change. 
+  - Note: if making the change requires follow up steps, resolve those steps to action the change.
+- Once change is effected in HRIS, BizOps makes changes to ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet.
+- If required, BizOps makes any relevant changes to [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).
+- If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
+- The change is now actioned, notify the team member and close the issue.
+
+
 ### Process monthly accounting
 Create a [new montly accounting issue](https://github.com/fleetdm/confidential/issues/new/choose) for the current month and year named "Closing out YYYY-MM" in GitHub and complete all of the tasks in the issue. (This uses the [monthly accounting issue template](https://github.com/fleetdm/confidential/blob/main/.github/ISSUE_TEMPLATE/5-monthly-accounting.md).
 
 - **SLA:** The monthly accounting issue should be completed and closed before the 7th of the month.
 - The close date is tracked each month in [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit).
 - **When is the issue created?** We create and close the monthly accounting issue for the previous month within the first 7 days of the following month.  For example, the monthly accounting issue to close out the month of January is created promptly in February and closed before the end of the day, Feb 7th.  A convenient trick is to create the issue on the first Friday of the month and close it ASAP.
+
+### Check franchise tax status
+No later than the second month of every quarter, we check [Delaware divison of corporations](https://icis.corp.delaware.gov) to ensure that Fleet has paid the quarterly franchise tax amounts to remain in good standing with the state of Delaware.
+- Go to the [DCIS - eCorp website](https://icis.corp.delaware.gov/ecorp/logintax.aspx?FilingType=FranchiseTax) and use the details in 1Password to look up Fleet's status.
+- If no outstanding amounts: the tax has been paid.
+- If outstanding amounts shown: ensure payment before due date to avoid penalties, interest, and entering bad standing.
 
 ### Check finances for quirks
 Every quarter, we check Quickbooks Online (QBO) for discrepancies and follow up on quirks.
@@ -170,17 +181,17 @@ Follow these steps to perform quarterly reporting for Fleet's investors:
   - Net dollar retention rate
     - How to calculate: (starting ARR + new subscriptions and expansions - churn)/starting ARR. 
   - Cash burn
-    - How to calculate: (start of quarter runway - end of quarter runway)/3. 
+    - How to calculate: start of quarter runway - end of quarter runway. 
 
 
 ### Grant equity
 Equity grants for new hires are queued up as part of the [hiring process](https://fleetdm.com/handbook/business-operations#hiring), then grants and consents are [batched and processed quarterly](https://github.com/fleetdm/confidential/issues/new/choose).
 
 Doing an equity grant involves:
-1. executing a board consent
-2. the recipient and CEO signing paperwork about the stock options
-3. updating the number of shares for the recipient in the equity plan
-4. updating Carta to reflect the grant
+- Executing a board consent
+- The recipient and CEO signing paperwork about the stock options
+- Updating the number of shares for the recipient in the equity plan
+- Updating Carta to reflect the grant
 
 For the status of stock option grants, exercises, and all other _common stock_ including advisor, founder, and team member equity ownership, see [Fleet's equity plan](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit#gid=0).  For information about investor ownership, see [Carta](https://app.carta.com/corporations/1234715/summary/).
 
@@ -192,10 +203,53 @@ For the status of stock option grants, exercises, and all other _common stock_ i
 ### Deliver annual report for venture line
 Within 60 days of the end of the year, follow these steps:
   - Provide Silicon Valley Bank (SVB) with our balance sheet and profit and loss statement (P&L, sometimes called a cashflow statement) for the past twelve months.  
-  - Provide SVB with our annual operating budgets and projections (on a quarterly basis) for the coming year.
+  - Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
   - Deliver this as early as possible in case they have questions.
 
+### Update weekly KPIs
+- Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
+- Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
 
+### Enroll a macOS host in dogfood
+When a device is purchased using the Apple eCommerce store, the device is automatically enrolled in Apple Business Manager (ABM) and assigned to the correct server to ensure the device is in dogfood.
+You can confirm that the device has been ordered correctly by following these steps:
+- Log into ABM
+- Use the device serial number to find the device.
+  - Note: if the device cannot be found, you will need to manually enroll the device.
+- View device settings and ensure the "MDM Server" selected is "Fleet Dogfood".
+<img width="143" alt="Screenshot 2023-11-21 at 11 08 50 AM" src="https://github.com/fleetdm/confidential/assets/47070608/512dc629-76dd-4090-bf86-9c4582286d1d">
+
+On occasion there will be a need to manually enroll a macOS host in dogfood. This could be due to a BYOD arrangement, or because the Fleetie getting the device is in a country when DEP (automatic enrollment) isn't supported. To manually enroll a macOS host in dogfood, follow these steps:
+- If you have physical access to the macOS host, use Apple Configurator (docs are [here](https://support.apple.com/guide/apple-business-manager/add-devices-from-apple-configurator-axm200a54d59/web)).
+- If you do not have physical access to the device, the user will need to undertake the following steps:
+  - Install the fleetd package for your device from shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+  - Once fleetd is installed, click on Fleet desktop icon in top right menu bar, and select "My device".
+  - In Fleet desktop, follow the instructions to turn on MDM.
+  - Once complete, follow instructions to reset disk encryption key.
+- Disk encryption key will now be stored in Fleet dogfood, which signifies that the device is now enrolled in dogfood.
+
+### Enroll a Windows or Ubuntu Linux device in dogfood
+To enroll a windows or Ubuntu Linux device in dogfood, instruct the user to install fleetd for their platform from internal shared drive folder [here](https://drive.google.com/drive/folders/1-hMwk4P7NRzCU5kDxkEcOo8Sluuaux1h?usp=drive_link).
+Once the user has installed fleetd, verify the device is correctly enrolled by confirming the device encryption key is in dogfood.
+
+### Enroll a ChromeOS device in dogfood
+ChromeOS devices are automatically enrolled in dogfood after the IT admin sets up automatic enrollment. This is done in dogfood by following the steps found in the dialog popup when selecting "Add hosts > ChromeOS" from the dogfood Hosts page.
+
+### Lock a macOS host in dogfood using fleetctl CLI tool
+- Download the lock command XML file from Google Drive [here](https://drive.google.com/file/d/1o6vJ1fHilRtBmyKAj0I5URiKn77qe4gS/view?usp=drive_link).
+- Customize any messaging that will appear on the locked device, and modify the pin for unlocking the device by editing the file in text editor.
+  - Note you will need to safely store the recovery pin for the device, suggest using 1Password or other secure storage method
+- Run this command with fleetctl CLI tool: `fleetctl mdm run-command --hosts=hostname --payload=Downloads/command-lock-macos-host.xml`
+  - Note that `hostname` must be replaced with **Hostname** in Fleet (not the display name)
+  - Note that the payload path may change based on where the file is stored once downloaded
+  - Note that if you haven't logged into fleetctl recently, will need to follow authentication steps (see [Logging in with SAML (SSO) authentication](https://fleetdm.com/docs/using-fleet/fleetctl-cli#logging-in-with-saml-sso-authentication) ).
+- Device will be locked
+- When device needs to be unlocked, enter the security pin (from XML file) in the input field of the device
+- The device will then open to the regular login screen, asking for password
+  -  If you do not have the password available, you can choose the option to enter recovery key/disk encryption key (this option might be behind `?` icon).
+  - Get disk encryption key from Fleet dogfood (using the action menu from the individual host page).
+  - Enter disk encryption key on laptop. This should prompt you to create a new password.
+- You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
 
 ## Rituals
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
@@ -210,7 +264,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Head of Business Operations |
 | Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Taylor Hughes |
 | Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil. | Taylor Hughes |
-| Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
+| Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps.  (This process includes fulfill the monthly reporting requirement for SVB.)  | Nathanael Holliday |
 | Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
 | AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
 | Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
@@ -218,6 +272,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
 | KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
+| [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
 
 
 <!--
@@ -230,7 +285,7 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 | Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
 | Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
 | QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
-| Capital credit reporting | Annually | Within 60 days of the new year, provide financial statements to SVB. | Nathanael Holliday |
+
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
@@ -241,147 +296,21 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 
 -->
 
-
-
-
-
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
-##### Open positions
-Please see 📖[handbook/company#open-positions](https://fleetdm.com/handbook/company#open-positions) for a list of open job postings at Fleet.
+##### Vetty
+Please see [hanbook/business-operations#access-a-background-check](https://www.fleetdm.com/handbook/business-operations#access-a-background-check).
 
-##### Weekly updates
-Please see 📖[handbook/ceo#weekly-updates](https://fleetdm.com/handbook/ceo#send-the-weekly-update)
+##### Role-specific licenses  
+Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#grant-role-specific-license-to-a-team-member).
 
-##### Directly responsible individuals
-Please see 📖[handbook/company/why-this-way#why-direct-responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) to learn more about DRIs.
+##### Recurring expenses
+##### Tools we use
+Please see [hanbook/business-operations#grant-role-specific-license-to-a-team member](https://www.fleetdm.com/handbook/business-operations#reconcile-monthly-recurring-expenses).
 
-##### Security
-Please see [📖handbook/company/communications#security](https://fleetdm.com/handbook/company/communications#security).
-
-##### Vendor questionnaires
-Please see [📖handbook/company/communications#vendor-questionnaires](https://fleetdm.com/handbook/company/communications#vendor-questionnaires)
-
-##### Getting a contract signed
-Please see [📖handbook/company/communications#getting-a-contract-signed](https://fleetdm.com/handbook/company/communications#getting-a-contract-signed)
-
-##### Getting a contract reviewed
-Please see [📖handbook/company/communications#getting-a-contract-reviewed](https://fleetdm.com/handbook/company/communications#getting-a-contract-reviewed)
-
-#### Zapier and DocuSign
-Please see [📖handbook/ceo#zapier-and-docusign](https://fleetdm.com/handbook/ceo#zapier-and-docusign)
-
-#### Gong
-Please see [📖handbook/company/communications#gong](https://fleetdm.com/handbook/company/communications#gong).
-
-#### Troubleshooting Gong
-Please see [📖handbook/company/communications#troubleshooting-gong](https://fleetdm.com/handbook/company/communications#troubleshooting-gong).
-
-##### Excluding calls from being recorded
-Please see [📖handbook/company/communications#excluding-calls-from-being-recorted](https://fleetdm.com/handbook/company/communications#excluding-calls-from-being-recorted).
-
-##### Salesforce
-Please see [📖handbook/business-operations#add-a-seat-to-salesforce](https://fleetdm.com/handbook/business-operations#add-a-seat-to-salesforce).
-
-##### Intake
-##### Kanban
-##### Legal Operations
-##### IT Operations
-##### Finance Operations
-##### Taxes and compliance
-##### State quarterly payroll and tax filings
-##### CorpNet state registration process
-##### Annual reporting for capital credit line
-##### Equity grants
-##### Finance rituals
-##### Monthly rituals
-##### Quarterly rituals
-##### Informing managers about hours worked
-##### Monthly accounting
-Please see above on this page for the latest content for these topics within the new framework for departmental handbook pages.
-
-##### Zoom
-##### Slack
-##### Email relays
-##### Meetings
-##### Scheduling a meeting
-##### Internal meeting scheduling
-##### Modifying an event organized by someone else
-##### External meeting scheduling
-##### Performance feedback
-##### Levels of confidentiality
-##### Relocating
-##### Celebrations
-##### Workiversaries
-##### Spending company money
-##### Brex
-##### Travel
-##### Attending conferences or company travel
-##### Non-travel purchases that exceed a Brex cardholder's limit
-##### Reimbursements
-##### Individualized expenses
-##### Benefits
-##### Paid time off
-##### Taking time off 
-##### Holidays
-##### New parent leave
-##### Retirement contributions
-##### US based team members
-##### Non-US team members
-##### Coworking
-##### Team member onboarding
-##### Before the start date
-##### Recommendations for new teammates
-##### Training expectations
-##### Sightseeing tour
-##### Contributor experience training
-##### Onboarding retrospective
-##### Compensation
-##### Compensation changes
-##### Reprovisioning equipment
-##### Equipment retention and replacement
-##### Equipment
-##### Laptops
-##### Purchasing a company-issued device
-##### Selecting a laptop
-##### Buying other new equipment
-##### Tracking equipment
-##### Returning equipment
-##### Github
-##### GitHub labels
-Please see 📖[handbook/company/communications](https://fleetdm.com/handbook/company/communications) for all sections above.
-
-##### Hiring
-##### Consultants
-##### Hiring a consultant
-##### Who ISN'T a consultant?
-##### Sending a consulting agreement
-##### Updating a consultant's fee
-##### Advisor
-##### Adding an advisor
-##### Finalizing a new advisor
-##### Core team member
-##### Creating a new position
-##### Approving a new position
-##### Recruiting
-##### Receiving job applications
-##### Candidate correspondence email templates
-##### Hiring restrictions
-##### Incompatible former employers
-##### Incompatible locations
-##### Interviewing
-##### Hiring a new team member
-##### Making an offer
-##### Steps after an offer is accepted
-##### Key reviews
-##### Tracking hours
-##### Informing managers about hours worked
-##### Departures
-##### Communicating departures
-Please see 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership) for all sections above.
-
-
+##### Namecheap
+Please see [handbook/register-a-domain-for-fleet](https://www.fleetdm.com/handbook/business-operations#register-a-domain-for-fleet).
 
 <meta name="maintainedBy" value="jostableford">
 <meta name="title" value="🔦 Business Operations">

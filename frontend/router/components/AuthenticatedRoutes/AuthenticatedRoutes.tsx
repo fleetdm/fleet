@@ -5,7 +5,7 @@ import paths from "router/paths";
 import { AppContext } from "context/app";
 import { RoutingContext } from "context/routing";
 import useDeepEffect from "hooks/useDeepEffect";
-import local, { authToken } from "utilities/local";
+import { authToken, clearToken } from "utilities/local";
 import { useErrorHandler } from "react-error-boundary";
 import permissions from "utilities/permissions";
 
@@ -95,7 +95,7 @@ export const AuthenticatedRoutes = ({
     }
 
     if (currentUser && permissions.isNoAccess(currentUser)) {
-      local.removeItem("auth_token");
+      clearToken();
       return handlePageError({ status: 403 });
     }
   }, [currentUser]);

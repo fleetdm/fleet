@@ -1,10 +1,12 @@
 import React from "react";
-import { render, screen, getDefaultNormalizer } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 
 import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
+import { createCustomRenderer } from "test/test-utils";
+import createMockConfig from "__mocks__/configMock";
 
 import ActivityItem from ".";
 
@@ -92,10 +94,55 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("ran the query as a live query .")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+  it("renders a live_query type activity for a saved live query with targets and performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 50.4923,
+          total_executions: 345,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(
+      screen.getByText(/with excessive performance impact on 10 hosts\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+
+  it("renders a live_query type activity for a saved live query with targets and no performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 0,
+          total_executions: 0,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.queryByText(/Undetermined/)).toBeNull();
     expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
@@ -232,6 +279,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
   });
 
+  // // // // // // // // // // // //
+  // created_user tests
+  // // // // // //// // // // // //
+
   it("renders a created_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserCreated,
@@ -245,6 +296,24 @@ describe("Activity Feed", () => {
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
 
+  it("correctly renders a created_user type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_full_name: "Jit Sso",
+      actor_id: 3,
+      type: ActivityType.UserCreated,
+      details: {
+        user_id: 3,
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<name> activated their account."
+    expect(screen.getByText("Jit Sso")).toBeInTheDocument();
+    expect(screen.getByText(/activated their account\./)).toBeInTheDocument();
+  });
+  // // // // // //// // // // // //
+
   it("renders a deleted_user type activity globally", () => {
     const activity = createMockActivity({
       type: ActivityType.UserDeleted,
@@ -257,6 +326,10 @@ describe("Activity Feed", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("newuser@example.com")).toBeInTheDocument();
   });
+
+  // // // // // // // // // // // //
+  // changed_user_global_role  tests
+  // // // // // //// // // // // //
 
   it("renders a changed_user_global_role type activity globally for premium users", () => {
     const activity = createMockActivity({
@@ -287,7 +360,78 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
-  it("renders a changed_user_team_role type activity globally", () => {
+  it("correctly renders a changed_user_global_role type activity for a premium SSO user created by JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_id: 3,
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "jit@sso.com",
+        role: "observer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is the same as user_id:
+    // "<user_email> was assigned the <role> for all teams."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("observer")).toBeInTheDocument();
+    expect(screen.getByText(/role for all teams./)).toBeInTheDocument();
+  });
+
+  it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, premium", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is different from user_id on premium:
+    // "<actor_full_name> changed <user_email> to <role> for all teams."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText(/changed/)).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/to/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/for all teams/)).toBeInTheDocument();
+  });
+
+  it("correctly renders a changed_user_global_role type activity when changing an existing user's global role, free", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedGlobalRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier={false} />);
+
+    //  If actor_id is different from user_id on free:
+    // "<actor_full_name> changed <user_email> to <role>."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText("changed", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText("to", { exact: false })).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  // // // // // // // // // // // //
+  // changed_user_team_role  tests
+  // // // // // //// // // // // //
+
+  it("renders a changed_user_team_role type activity", () => {
     const activity = createMockActivity({
       type: ActivityType.UserChangedTeamRole,
       details: {
@@ -303,6 +447,63 @@ describe("Activity Feed", () => {
     expect(screen.getByText("maintainer")).toBeInTheDocument();
     expect(screen.getByText("Test Team")).toBeInTheDocument();
   });
+
+  it("correctly renders a changed_user_team_role type activity when a new SSO team user is created via JIT provisioning", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 1,
+        user_email: "jit@sso.com",
+        role: "maintainer",
+        team_name: "Test Team",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    // If actor_id is the same as user_id:
+    // "<user_email> was assigned the <role> role for the <team_name> team."
+    expect(screen.getByText("jit@sso.com")).toBeInTheDocument();
+    expect(screen.getByText(/was assigned the/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/role for the/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
+
+    expect(screen.queryByText("Ally Admin")).toBeNull();
+    const forAllTeams = screen.queryByText("for all teams.");
+    expect(forAllTeams).toBeNull();
+  });
+
+  it("correctly renders a changed_user_team_role type activity when changing an existing user's team role", () => {
+    const activity = createMockActivity({
+      actor_id: 1,
+      actor_full_name: "Ally Admin",
+      type: ActivityType.UserChangedTeamRole,
+      details: {
+        user_id: 3,
+        user_email: "user@example.com",
+        role: "maintainer",
+        team_name: "Test Team",
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    //  If actor_id is different from user_id:
+    // "<actor_full_name> changed <user_email> to <role> for the <team_name> team."
+    expect(screen.getByText("Ally Admin")).toBeInTheDocument();
+    expect(screen.getByText(/changed/)).toBeInTheDocument();
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+    expect(screen.getByText(/to/)).toBeInTheDocument();
+    expect(screen.getByText("maintainer")).toBeInTheDocument();
+    expect(screen.getByText(/for the/)).toBeInTheDocument();
+    expect(screen.getByText(/Test Team/)).toBeInTheDocument();
+    expect(screen.getByText(/team\./)).toBeInTheDocument();
+    expect(screen.queryByText("for all teams.")).toBeNull();
+  });
+
+  // // // // // // // // // // // //
 
   it("renders a deleted_user_team_role type activity globally", () => {
     const activity = createMockActivity({
@@ -767,6 +968,132 @@ describe("Activity Feed", () => {
           "<b>Test User </b>Mobile device management (MDM) was turned on for <b>ABCD (manual)</b>."
         );
       })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'added_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedScript,
+      details: { script_name: "foo.sh", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(" to the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'deleted_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedScript,
+      details: { script_name: "foo.sh", team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText(" from the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders an 'added_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.AddedScript,
+      details: { script_name: "foo.sh" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("added script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("to no team.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders a 'deleted_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedScript,
+      details: { script_name: "foo.sh" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted script ", { exact: false })
+    ).toBeInTheDocument();
+    expect(screen.getByText("foo.sh", { exact: false })).toBeInTheDocument();
+    expect(
+      screen.getByText("from no team.", { exact: false })
+    ).toBeInTheDocument();
+  });
+
+  it("renders an 'edited_script' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(" for the ", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(
+      screen.getByText(" team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("no team");
+    expect(withNoTeams).toBeNull();
+  });
+  it("renders an 'edited_script' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EditedScript,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("edited scripts", { exact: false })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("for no team via fleetctl.", { exact: false })
+    ).toBeInTheDocument();
+  });
+  it("renders a pluralized 'deleted_multiple_saved_query' type activity when deleting multiple queries.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DeletedMultipleSavedQuery,
+      details: {
+        query_ids: [1, 2, 3],
+      },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("deleted multiple queries", { exact: false })
     ).toBeInTheDocument();
   });
 });

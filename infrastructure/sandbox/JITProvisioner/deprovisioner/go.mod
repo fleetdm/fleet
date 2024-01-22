@@ -1,6 +1,6 @@
 module github.com/fleetdm/fleet/infrastructure/demo/PreProvisioner/lambda
 
-go 1.19
+go 1.21
 
 require (
 	github.com/aws/aws-lambda-go v1.29.0

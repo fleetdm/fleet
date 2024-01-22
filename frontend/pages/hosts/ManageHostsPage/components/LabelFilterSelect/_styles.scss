@@ -32,7 +32,6 @@
       box-shadow: none;
       border: 1px solid $core-vibrant-blue;
     }
-    &--is-focused,
     &--menu-is-open {
       .custom-dropdown-indicator {
         svg {
@@ -101,6 +100,10 @@
   .label-filter-select__option {
     padding: 10px 1rem;
 
+    &:hover {
+      cursor: pointer;
+    }
+
     &--is-selected,
     &:active {
       background-color: $ui-vibrant-blue-25;
@@ -148,7 +151,7 @@
 
 @media (min-width: 1150px) {
   .label-filter-select {
-    width: 220px;
+    min-width: 220px;
 
     &__single-value {
       max-width: 135px !important; // Must override default styling of .css-qc6sy-singleValue

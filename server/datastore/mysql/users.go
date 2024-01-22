@@ -109,7 +109,7 @@ func (ds *Datastore) ListUsers(ctx context.Context, opt fleet.UserListOptions) (
 	}
 
 	sqlStatement, params = searchLike(sqlStatement, params, opt.MatchQuery, userSearchColumns...)
-	sqlStatement = appendListOptionsToSQL(sqlStatement, &opt.ListOptions)
+	sqlStatement, params = appendListOptionsWithCursorToSQL(sqlStatement, params, &opt.ListOptions)
 	users := []*fleet.User{}
 
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &users, sqlStatement, params...); err != nil {

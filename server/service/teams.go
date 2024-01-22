@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"crypto/x509"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -181,7 +182,7 @@ type applyTeamSpecsRequest struct {
 	Specs  []*fleet.TeamSpec `json:"specs"`
 }
 
-func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *applyTeamSpecsRequest) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	if err := fleet.JSONStrictDecode(r, req); err != nil {
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		if !req.Force || !fleet.IsJSONUnknownFieldError(err) {
