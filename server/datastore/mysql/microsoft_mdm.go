@@ -1110,10 +1110,13 @@ func listMDMWindowsProfilesToInstallDB(
 	//   be marked as status NULL so that it gets re-installed.
 
 	desiredStateQuery := `
+	-- non label-based profiles
 	SELECT
 		mwcp.profile_uuid,
 		mwcp.name,
-		h.uuid as host_uuid
+		h.uuid as host_uuid,
+		0 as count_profile_labels,
+		0 as count_host_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp
 			JOIN hosts h
@@ -1122,13 +1125,39 @@ func listMDMWindowsProfilesToInstallDB(
 				ON mwe.host_uuid = h.uuid
 	WHERE
 		h.platform = 'windows' AND
-		-- not a label-based profile
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
 			WHERE mcpl.windows_profile_uuid = mwcp.profile_uuid
 		) AND
 		( %s )
+
+	UNION
+
+	-- label-based profiles
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		h.uuid as host_uuid,
+		COUNT(*) as count_profile_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+	WHERE
+		h.platform = 'windows' AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		count_profile_labels > 0 AND count_host_labels = count_profile_labels
 `
 
 	query := fmt.Sprintf(`
@@ -1153,9 +1182,9 @@ func listMDMWindowsProfilesToInstallDB(
 
 	var err error
 	args := []any{fleet.MDMOperationTypeInstall}
-	query = fmt.Sprintf(query, hostFilter)
+	query = fmt.Sprintf(query, hostFilter, hostFilter)
 	if len(hostUUIDs) > 0 {
-		query, args, err = sqlx.In(query, hostUUIDs, args)
+		query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
 		}

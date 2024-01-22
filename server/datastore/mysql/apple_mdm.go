@@ -1584,12 +1584,15 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   relevant hosts will be marked as status NULL so that it gets
 	//   re-installed.
 	desiredStateQuery := `
+	-- non label-based profiles
 	SELECT
 		macp.profile_uuid,
 		h.uuid as host_uuid,
 		macp.identifier as profile_identifier,
 		macp.name as profile_name,
-		macp.checksum as checksum
+		macp.checksum as checksum,
+		0 as count_profile_labels,
+		0 as count_host_labels
 	FROM
 		mdm_apple_configuration_profiles macp
 			JOIN hosts h
@@ -1600,33 +1603,62 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		h.platform = 'darwin' AND
 		ne.enabled = 1 AND
 		ne.type = 'Device' AND
-		-- not a label-based profile
 		NOT EXISTS (
 			SELECT 1
 			FROM mdm_configuration_profile_labels mcpl
 			WHERE mcpl.apple_profile_uuid = macp.profile_uuid
 		)
+
+	UNION
+
+	-- label-based profiles
+	SELECT
+		macp.profile_uuid,
+		h.uuid as host_uuid,
+		macp.identifier as profile_identifier,
+		macp.name as profile_name,
+		macp.checksum as checksum,
+		COUNT(*) as count_profile_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		mdm_apple_configuration_profiles macp
+			JOIN hosts h
+				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.apple_profile_uuid = macp.profile_uuid
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+	WHERE
+		h.platform = 'darwin' AND
+		ne.enabled = 1 AND
+		ne.type = 'Device'
+	GROUP BY
+		macp.profile_uuid, h.uuid, macp.identifier, macp.name, macp.checksum
+	HAVING
+		count_profile_labels > 0 AND count_host_labels = count_profile_labels
 `
 
 	query := fmt.Sprintf(`
-          SELECT
-            ds.profile_uuid,
-            ds.host_uuid,
-            ds.profile_identifier,
-            ds.profile_name,
-            ds.checksum
-          FROM ( %s ) as ds
-          LEFT JOIN host_mdm_apple_profiles hmap
-            ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
-          WHERE
-          -- profile has been updated
-          ( hmap.checksum != ds.checksum ) OR
-          -- profiles in A but not in B
-          ( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
-          -- profiles in A and B but with operation type "remove"
-          ( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
-          -- profiles in A and B with operation type "install" and NULL status
-          ( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
+	SELECT
+		ds.profile_uuid,
+		ds.host_uuid,
+		ds.profile_identifier,
+		ds.profile_name,
+		ds.checksum
+	FROM ( %s ) as ds
+		LEFT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		-- profile has been updated
+		( hmap.checksum != ds.checksum ) OR
+		-- profiles in A but not in B
+		( hmap.profile_uuid IS NULL AND hmap.host_uuid IS NULL ) OR
+		-- profiles in A and B but with operation type "remove"
+		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
+		-- profiles in A and B with operation type "install" and NULL status
+		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
 `, desiredStateQuery)
 
 	var profiles []*fleet.MDMAppleProfilePayload
