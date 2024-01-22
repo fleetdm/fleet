@@ -3261,22 +3261,32 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
   },
   "mobile_device_management_solution": [
     {
+      "id": 1,
+      "name": "Fleet",
+      "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+      "hosts_count": 128
+    },
+    {
       "id": 2,
       "name": "Fleet",
-      "server_urls": {
-        "macos": "https://example.fleetdm.com/mdm/apple/mdm",
-        "windows": "https://example.fleetdm.com/api/mdm/microsoft/discovery"
-      }
-      "hosts_count": 27
+      "server_url": "https://example.fleetdm.com/api/mdm/microsoft/discovery",
+      "hosts_count": 32
     },
     {
       "id": 3,
-      "name": "Solution2",
-      "server_urls": {
-        "macos": "https://solution2.com/apple/mdm",
-        "windows": null
-      },
-      "hosts_count": 2
+      "name": "Intune",
+      "server_url": "https://example.microsoft.com/microsoft/discovery",
+      "hosts_count": 12
+    }
+  ],
+  "mobile_device_management_solution_names": [
+    {
+      "name": "Fleet",
+      "hosts_count": 160
+    },
+    {
+      "name": "Intune",
+      "hosts_count": 12
     }
   ]
 }
