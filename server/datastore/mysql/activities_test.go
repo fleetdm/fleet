@@ -37,7 +37,6 @@ func TestActivity(t *testing.T) {
 type dummyActivity struct {
 	name    string `json:"-"`
 	details map[string]interface{}
-	hostIDs []uint
 }
 
 func (d dummyActivity) MarshalJSON() ([]byte, error) {
