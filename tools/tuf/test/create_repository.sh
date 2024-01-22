@@ -24,6 +24,7 @@ if [[ -d "$TUF_PATH" ]]; then
 fi
 
 SYSTEMS=${SYSTEMS:-macos linux windows}
+GOARCH=${GOARCH:-amd64}
 NUDGE_VERSION=stable
 SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
@@ -70,7 +71,7 @@ for system in $SYSTEMS; do
     fi
 
     # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+    GOOS=$goose_value GOARCH=$GOARCH go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
 
     # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
     if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
