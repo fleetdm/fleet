@@ -396,7 +396,7 @@ type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt f
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
-type GetPendingHostScriptsFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -1362,8 +1362,8 @@ type DataStore struct {
 	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
 	ListHostPastActivitiesFuncInvoked bool
 
-	GetPendingHostScriptsFunc        GetPendingHostScriptsFunc
-	GetPendingHostScriptsFuncInvoked bool
+	IsExecutionPendingForHostFunc        IsExecutionPendingForHostFunc
+	IsExecutionPendingForHostFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -3285,11 +3285,11 @@ func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt
 	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
 }
 
-func (s *DataStore) GetPendingHostScripts(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
 	s.mu.Lock()
-	s.GetPendingHostScriptsFuncInvoked = true
+	s.IsExecutionPendingForHostFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetPendingHostScriptsFunc(ctx, hostID, scriptID)
+	return s.IsExecutionPendingForHostFunc(ctx, hostID, scriptID)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {

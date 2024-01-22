@@ -541,7 +541,7 @@ VALUES
 
 	t.Run("can check if pending host script results exist", func(t *testing.T) {
 		insertResults(t, 42, scripts[2], now.Add(-2*time.Minute), "execution-3-4", nil)
-		r, err := ds.GetPendingHostScripts(ctx, 42, scripts[2].ID)
+		r, err := ds.IsExecutionPendingForHost(ctx, 42, scripts[2].ID)
 		require.NoError(t, err)
 		require.Len(t, r, 1)
 	})

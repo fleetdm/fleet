@@ -244,7 +244,8 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 		a.activity_type as activity_type,
 		a.details as details,	
 		u.gravatar_url as gravatar_url,
-		a.created_at as created_at
+		a.created_at as created_at,
+		u.id as user_id
 	FROM
 		host_activities ha
 		JOIN activities a
