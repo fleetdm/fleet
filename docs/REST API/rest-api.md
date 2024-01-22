@@ -3664,14 +3664,14 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 ##### Default response
 
 `Status: 200`
+
+Requests to lock macOS hosts will also include the following response data:
 ```json
 {
   "host_id": 8,
   "unlock_pin": 123456
 }
 ```
-> Note that `unlock_pin` only applies to macOS and will be empty (`""`) for Windows and Linux devices.
-
 
 ### Unlock host
 
