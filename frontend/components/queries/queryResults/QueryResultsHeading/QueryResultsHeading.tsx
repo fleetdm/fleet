@@ -90,7 +90,7 @@ const QuertResultsHeading = ({
       <div className={`${baseClass}__query-information`}>
         <div className={`${baseClass}__targeted-wrapper`}>
           <span className={`${baseClass}__targeted-count`}>
-            {targetsTotalCount}
+            {targetsTotalCount.toLocaleString()}
           </span>
           <span>&nbsp;{pluralizeHost(targetsTotalCount)} targeted</span>
         </div>
@@ -101,8 +101,13 @@ const QuertResultsHeading = ({
           <span>
             ({`${percentResponded}% `}
             <TooltipWrapper
-              tipContent={`
-                Hosts that respond may<br /> return results, errors, or <br />no results`}
+              tipContent={
+                <>
+                  Hosts that respond may
+                  <br /> return results, errors, or <br />
+                  no results
+                </>
+              }
             >
               responded
             </TooltipWrapper>
@@ -120,7 +125,12 @@ const QuertResultsHeading = ({
         {!isQueryFinished && (
           <div className={`${baseClass}__tooltip`}>
             <TooltipWrapper
-              tipContent={`The hosts’ distributed interval can <br/>impact live query response times.`}
+              tipContent={
+                <>
+                  The hosts’ distributed interval can <br />
+                  impact live query response times.
+                </>
+              }
             >
               Taking longer than 15 seconds?
             </TooltipWrapper>

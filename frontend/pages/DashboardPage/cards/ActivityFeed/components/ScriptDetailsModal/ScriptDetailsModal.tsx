@@ -31,7 +31,7 @@ const ScriptContent = ({ content }: IScriptContentProps) => {
 const StatusMessageRunning = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="pending-partial" />
+      <Icon name="pending-outline" />
       Script is running. To see if the script finished, close this modal and
       open it again.
     </p>
@@ -41,7 +41,7 @@ const StatusMessageRunning = () => (
 const StatusMessageSuccess = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
-      <Icon name="success-partial" />
+      <Icon name="success-outline" />
       Exit code: 0 (Script ran successfully.)
     </p>
   </div>
@@ -89,7 +89,7 @@ const StatusMessage = ({
       // Expected API message: "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1:
-      // Expected API message: "Timeout. Fleet stopped the script after 30 seconds to protect host performance."
+      // Expected API message: "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
       return <StatusMessageError message={message} />;
     case 0:
       // Expected API message: ""
@@ -167,7 +167,7 @@ const ScriptDetailsModal = ({
   onCancel,
 }: IScriptDetailsModalProps) => {
   const { data, isLoading, isError } = useQuery<IScriptResultResponse>(
-    ["scriptDetailsModal"],
+    ["scriptDetailsModal", scriptExecutionId],
     () => {
       return scriptsAPI.getScriptResult(scriptExecutionId);
     },
@@ -210,7 +210,7 @@ const ScriptDetailsModal = ({
 
   return (
     <Modal
-      title={"Script Details"}
+      title={"Script details"}
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

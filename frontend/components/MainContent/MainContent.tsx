@@ -42,11 +42,12 @@ const MainContent = ({
       ? "..."
       : formatDistanceToNow(new Date(sandboxExpiry));
 
+  const showAppleABMBanner =
+    isAppleBmTermsExpired && isPremiumTier && !isSandboxMode;
+
   return (
     <div className={classes}>
-      {isAppleBmTermsExpired && isPremiumTier && !isSandboxMode && (
-        <AppleBMTermsMessage />
-      )}
+      {showAppleABMBanner && <AppleBMTermsMessage />}
       <SandboxGate
         fallbackComponent={() => (
           <SandboxExpiryMessage

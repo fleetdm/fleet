@@ -57,7 +57,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
         mysql: ['mysql:5.7']
     runs-on: ubuntu-latest
     needs: gen
@@ -75,6 +75,7 @@ jobs:
       env:
         CERT_PEM: ${{ secrets.CLOUDFLARE_TUNNEL_FLEETUEM_CERT_B64 }}
       run: |
+        #!/bin/bash
         # Increase maximum receive buffer size to roughly 2.5 MB.
         # Cloudflared uses quic-go. This buffer holds packets that have been received by the kernel,
         # but not yet read by the application (quic-go in this case). Once this buffer fills up, the
@@ -161,7 +162,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: gen
     steps:
@@ -201,8 +202,14 @@ jobs:
   build-macos-targets:
     strategy:
       matrix:
-        go-version: ['^1.21.1']
-    runs-on: macos-latest
+        go-version: ['${{ vars.GO_VERSION }}']
+    # Set macOS version to '12' (current equivalent to macos-latest) for
+    # building the binary. This ensures compatibility with macOS version 13 and
+    # later, avoiding runtime errors on systems using macOS 13 or newer.
+    #
+    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
+    # or if we revise our minimum supported macOS version.
+    runs-on: macos-12
     steps:
 
     - name: Install Go
@@ -243,7 +250,7 @@ jobs:
     timeout-minutes: 60
     strategy:
       matrix:
-        go-version: ['^1.21.1']
+        go-version: ['${{ vars.GO_VERSION }}']
     runs-on: ubuntu-latest
     needs: [gen, build-macos-targets]
     steps:

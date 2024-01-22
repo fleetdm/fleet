@@ -7,15 +7,19 @@ import {
   IOperatingSystemVersion,
 } from "interfaces/operating_system";
 import {
-  FileVaultProfileStatus,
+  DiskEncryptionStatus,
   BootstrapPackageStatus,
   IMdmSolution,
   MDM_ENROLLMENT_STATUS,
+  MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+import {
+  HOSTS_QUERY_PARAMS,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 import {
   PLATFORM_LABEL_DISPLAY_NAMES,
@@ -29,7 +33,7 @@ import Icon from "components/Icon/Icon";
 
 import FilterPill from "../FilterPill";
 import PoliciesFilter from "../PoliciesFilter";
-import { MAC_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
+import { OS_SETTINGS_FILTER_OPTIONS } from "../../HostsPageConfig";
 import DiskEncryptionStatusFilter from "../DiskEncryptionStatusFilter";
 import BootstrapPackageStatusFilter from "../BootstrapPackageStatusFilter/BootstrapPackageStatusFilter";
 
@@ -49,7 +53,9 @@ interface IHostsFilterBlockProps {
     policyId?: any;
     policy?: IPolicy;
     macSettingsStatus?: any;
-    softwareId?: any;
+    softwareId?: number;
+    softwareTitleId?: number;
+    softwareVersionId?: number;
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
@@ -58,9 +64,10 @@ interface IHostsFilterBlockProps {
     osVersion?: any;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
-    softwareDetails: ISoftware | null;
+    softwareDetails: { name: string; version?: string } | null;
     mdmSolutionDetails: IMdmSolution | null;
-    diskEncryptionStatus?: FileVaultProfileStatus;
+    osSettingsStatus?: MdmProfileStatus;
+    diskEncryptionStatus?: DiskEncryptionStatus;
     bootstrapPackageStatus?: BootstrapPackageStatus;
   };
   selectedLabel?: ILabel;
@@ -68,9 +75,8 @@ interface IHostsFilterBlockProps {
   handleClearRouteParam: () => void;
   handleClearFilter: (omitParams: string[]) => void;
   onChangePoliciesFilter: (response: PolicyResponse) => void;
-  onChangeDiskEncryptionStatusFilter: (
-    response: FileVaultProfileStatus
-  ) => void;
+  onChangeOsSettingsFilter: (newStatus: MdmProfileStatus) => void;
+  onChangeDiskEncryptionStatusFilter: (response: DiskEncryptionStatus) => void;
   onChangeBootstrapPackageStatusFilter: (
     response: BootstrapPackageStatus
   ) => void;
@@ -91,6 +97,8 @@ const HostsFilterBlock = ({
     policyId,
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     mdmId,
     mdmEnrollmentStatus,
     lowDiskSpaceHosts,
@@ -104,6 +112,7 @@ const HostsFilterBlock = ({
     softwareDetails,
     policy,
     mdmSolutionDetails,
+    osSettingsStatus,
     diskEncryptionStatus,
     bootstrapPackageStatus,
   },
@@ -112,6 +121,7 @@ const HostsFilterBlock = ({
   handleClearRouteParam,
   handleClearFilter,
   onChangePoliciesFilter,
+  onChangeOsSettingsFilter,
   onChangeDiskEncryptionStatusFilter,
   onChangeBootstrapPackageStatusFilter,
   onChangeMacSettingsFilter,
@@ -214,7 +224,7 @@ const HostsFilterBlock = ({
         <Dropdown
           value={macSettingsStatus}
           className={`${baseClass}__macsettings-dropdown`}
-          options={MAC_SETTINGS_FILTER_OPTIONS}
+          options={OS_SETTINGS_FILTER_OPTIONS}
           onChange={onChangeMacSettingsFilter}
         />
         <FilterPill
@@ -229,21 +239,31 @@ const HostsFilterBlock = ({
     if (!softwareDetails) return null;
 
     const { name, version } = softwareDetails;
-    const label = `${name || "Unknown software"} ${version || ""}`;
+    let label = name;
+    if (version) {
+      label += ` ${version}`;
+    }
+    label = label.trim() || "Unknown software";
 
-    const TooltipDescription = (
-      <span>
-        Hosts with {name || "Unknown software"},
-        <br />
-        {version || "version unknown"} installed
-      </span>
-    );
+    // const TooltipDescription = (
+    //   <span>
+    //     Hosts with {name || "Unknown software"},
+    //     <br />
+    //     {version || "version unknown"} installed
+    //   </span>
+    // );
 
     return (
       <FilterPill
         label={label}
-        onClear={() => handleClearFilter(["software_id"])}
-        tooltipDescription={TooltipDescription}
+        onClear={() =>
+          handleClearFilter([
+            "software_id",
+            "software_version_id",
+            "software_title_id",
+          ])
+        }
+        // tooltipDescription={TooltipDescription}
       />
     );
   };
@@ -366,6 +386,24 @@ const HostsFilterBlock = ({
     );
   };
 
+  const renderOsSettingsBlock = () => {
+    const label = "OS settings";
+    return (
+      <>
+        <Dropdown
+          value={osSettingsStatus}
+          className={`${baseClass}__os_settings-dropdown`}
+          options={OS_SETTINGS_FILTER_OPTIONS}
+          onChange={onChangeOsSettingsFilter}
+        />
+        <FilterPill
+          label={label}
+          onClear={() => handleClearFilter([HOSTS_QUERY_PARAMS.OS_SETTINGS])}
+        />
+      </>
+    );
+  };
+
   const renderDiskEncryptionStatusBlock = () => {
     if (!diskEncryptionStatus) return null;
 
@@ -376,8 +414,10 @@ const HostsFilterBlock = ({
           onChange={onChangeDiskEncryptionStatusFilter}
         />
         <FilterPill
-          label="macOS settings: Disk encryption"
-          onClear={() => handleClearFilter(["macos_settings_disk_encryption"])}
+          label="OS settings: Disk encryption"
+          onClear={() =>
+            handleClearFilter([HOSTS_QUERY_PARAMS.DISK_ENCRYPTION])
+          }
         />
       </>
     );
@@ -407,12 +447,15 @@ const HostsFilterBlock = ({
     policyId ||
     macSettingsStatus ||
     softwareId ||
+    softwareTitleId ||
+    softwareVersionId ||
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
     osId ||
     (osName && osVersion) ||
     munkiIssueId ||
+    osSettingsStatus ||
     diskEncryptionStatus ||
     bootstrapPackageStatus
   ) {
@@ -445,7 +488,7 @@ const HostsFilterBlock = ({
           return renderPoliciesFilterBlock();
         case !!macSettingsStatus:
           return renderMacSettingsStatusFilterBlock();
-        case !!softwareId:
+        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
           return renderSoftwareFilterBlock();
         case !!mdmId:
           return renderMDMSolutionFilterBlock();
@@ -457,6 +500,9 @@ const HostsFilterBlock = ({
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
+        case !!osSettingsStatus:
+          console.log("renderOsSettingsBlock");
+          return renderOsSettingsBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();
         case !!bootstrapPackageStatus:

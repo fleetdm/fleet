@@ -12,18 +12,27 @@ parasails.registerComponent('scrollableTweets', {
   //  ╔═╗╦═╗╔═╗╔═╗╔═╗
   //  ╠═╝╠╦╝║ ║╠═╝╚═╗
   //  ╩  ╩╚═╚═╝╩  ╚═╝
-  props: [],
+  props: [
+    'testimonials'
+  ],
 
   //  ╦╔╗╔╦╔╦╗╦╔═╗╦    ╔═╗╔╦╗╔═╗╔╦╗╔═╗
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: function () {
     return {
+      quotesToDisplay: [],
+      quotesWithVideoLinks: [],
       currentTweetPage: 0,
-      numberOfTweetCards: 6,
+      numberOfTweetCards: 0,
       numberOfTweetPages: 0,
       numberOfTweetsPerPage: 0,
       tweetCardWidth: 0,
+      tweetPageWidth: 0,
+      screenSize: 0,
+      scrolledAmount: 0,
+      scrollableAmount: 0,
+      modal: ''
     };
   },
 
@@ -33,90 +42,31 @@ parasails.registerComponent('scrollableTweets', {
   template: `
   <div class="d-flex flex-column">
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Uber"><img width="87" height="38" alt="Uber logo" src="/images/social-proof-logo-uber-87x38@2x.png"/></a>
+      <a purpose="tweet-card" class="card" v-for="testimonial in quotesToDisplay" target="_blank" :href="testimonial.quoteLinkUrl">
+        <div purpose="logo" class="mb-4">
+          <img :height="testimonial.imageHeight" v-if="testimonial.quoteImageFilename" :src="'/images/'+testimonial.quoteImageFilename"/>
         </div>
-        <p class="pb-2 mb-1">Exciting. This is a team that listens to feedback.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Erik Gomez</p>
-            <p class="m-0">Staff Software Engineer <a href="https://twitter.com/Uber">@Uber</a></p>
+        <p purpose="quote">
+          {{testimonial.quote}}
+          <a purpose="video-link" v-if="testimonial.youtubeVideoUrl" @click.prevent.self="clickOpenVideoModal(testimonial.quoteAuthorName)">See the video.</a>
+        </p>
+        <div purpose="quote-author-info" class="d-flex flex-row align-items-center">
+          <div purpose="profile-picture">
+            <img :src="'/images/'+testimonial.quoteAuthorProfileImageFilename">
+          </div>
+          <div class="d-flex flex-column align-self-top">
+            <p purpose="name" class="font-weight-bold m-0">{{testimonial.quoteAuthorName}}</p>
+            <p purpose="job-title" class="m-0">{{testimonial.quoteAuthorJobTitle}}</p>
           </div>
         </div>
-      </div>
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Square"><img width="131" height="38" alt="Square logo" src="/images/social-proof-logo-square-131x38@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">Mad props to how easy making a deploy pkg of Orbit was. I wish everyone made stuff that easy.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Wesley Whetstone</p>
-            <p class="m-0">CPE <a href="https://twitter.com/Square">@Square</a></p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/atlassian"><img width="162" height="20" alt="Atlassian logo" src="/images/social-proof-logo-atlassian-162x20@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/fleet">#Fleet</a>’s come a long way - to now being the top open-source <a href="https://twitter.com/hashtag/fleet">#osquery</a> manager. Just in the past 6 months.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Brendan Shaklovitz</p>
-            <p class="m-0">Senior SRE <a href="https://twitter.com/atlassian">@Atlassian</a></p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/osquery"><img width="140" height="36" alt="osquery logo" src="/images/social-proof-logo-osquery-140x36@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">It’s great to see the new release of Fleet containing some really cool new features that make <a href="https://twitter.com/osquery">@osquery</a> much more usable in practical environments. I’m really impressed with the work that <a href="https://twitter.com/thezachw">@thezachw</a> and crew are doing at <a href="https://twitter.com/fleetctl">@fleetctl</a>.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Mike Arpaia</p>
-            <p class="m-0">Creator of <a href="https://twitter.com/osquery">@osquery</a></p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/Wayfair"><img width="136" height="32" alt="Wayfair logo" src="/images/social-proof-logo-wayfair-136x32@2x.png"/></a>
-        </div>
-        <p class="pb-2 mb-1"><a href="https://twitter.com/hashtag/osquery">#osquery</a> is one of the best tools out there and <a href="https://twitter.com/hashtag/fleetdm">#fleetdm</a> makes it even better. Highly recommend it if you want to monitor, detect and investigate threats on a scale and also for infra/sys admin.</p>
-        <p>I have used it on 15k servers and it’s really scalable.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Ahmed Elshaer</p>
-            <p class="m-0">DFIR, Blue Teaming, SecOps <a href="https://twitter.com/Wayfair">@wayfair</a></p>
-          </div>
-        </div>
-      </div>
-
-      <div purpose="tweet-card" class="card">
-        <div class="mb-4">
-          <a href="https://twitter.com/comcast"><img width="107" height="38" alt="Comcast logo" src="/images/social-proof-logo-comcast-107x38.png"/></a>
-        </div>
-        <p class="pb-2 mb-1">With the power of osquery, you need a scalable & resilient platform to manage your workloads. Fleet is the "just right" open-source, enterprise grade solution.</p>
-        <div class="row px-3 pt-2">
-          <div>
-            <p class="font-weight-bold m-0">Abubakar Yousafzai</p>
-            <p class="m-0">Security Software Development & Engineering <a href="https://twitter.com/comcast">@Comcast</a></p>
-          </div>
-        </div>
-      </div>
+      </a>
     </div>
-    <div purpose="" class="mx-auto d-flex flex-row justify-content-center">
-      <nav aria-label="..." >
-        <ul purpose="tweets-page-indicator" class="pagination pagination-sm" v-if="numberOfTweetPages > 1">
-          <li class="page-item" :class="[currentTweetPage === index ? 'selected' : '']" v-for="(pageNumber, index) in numberOfTweetPages" @click="scrollTweetsDivToPage(index)"></li>
-        </ul>
-      </nav>
+    <div purpose="page-indictator-container" class="mx-auto d-flex flex-row justify-content-center">
+    </div>
+    <div v-for="video in quotesWithVideoLinks">
+    <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
+      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+    </modal>
     </div>
   </div>
   `,
@@ -125,15 +75,28 @@ parasails.registerComponent('scrollableTweets', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(!this.testimonials){
+      throw new Error('Incomplete usage of <scrollable-tweets>:  Please pass in a `testimonials` prop (an array of testimonials from sails.config.builtStaticContent.testimonials).  For example: `<scrollable-tweets :testimonials="testimonials">`');
+    }
+    if(!_.isArray(this.testimonials)){
+      throw new Error('Incomplete usage of <scrollable-tweets>:  The `testimonials` prop provided is an invalid type. Please provide an array of testimonial values.');
+    }
+    this.quotesToDisplay = _.clone(this.testimonials);
+    for(let quote of this.testimonials){
+      if(quote.youtubeVideoUrl){
+        this.quotesWithVideoLinks.push({
+          modalId: _.kebabCase(quote.quoteAuthorName),
+          embedId: quote.videoIdForEmbed,
+        });
+      }
+    }
+
   },
   mounted: async function(){
-    await this.updateNumberOfTweetPages(); // Update the number of pages for the tweet page indicator.
-    const tweetsDiv = document.querySelector('div[purpose="tweets"]');
-    tweetsDiv.addEventListener('scroll', this.updatePageIndicator, {passive: true}); // Add a scroll event listener to update the tweet page indicator when a user scrolls the div.
-    window.addEventListener('resize', this.updateNumberOfTweetPages); // Add an event listener to update the number of tweet pages based on how many tweet cards can fit on the screen.
+
   },
   beforeDestroy: function() {
+
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -141,50 +104,13 @@ parasails.registerComponent('scrollableTweets', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    updateNumberOfTweetPages: async function() {
-      // Get the width of the first tweet card.
-      let firstTweetCardDiv = document.querySelector('div[purpose="tweet-card"]');
-      this.tweetCardWidth = firstTweetCardDiv.clientWidth + 16;
-      // Find out how may entire cards can fit on the screen.
-      this.numberOfTweetsPerPage = Math.floor(window.innerWidth / this.tweetCardWidth);
-      // Find out how many pages of tweet cards there will be.
-      this.numberOfTweetPages = Math.ceil(this.numberOfTweetCards / this.numberOfTweetsPerPage);
-      // Update the current page indicator.
-      this.updatePageIndicator();
-      await this.forceRender();
+    clickOpenVideoModal: function(modalName) {
+      this.modal = _.kebabCase(modalName);
     },
 
-    updatePageIndicator: function() {
-      // Get the tweets div.
-      let tweetsDiv = document.querySelector('div[purpose="tweets"]');
-      // Find out the width of a page of tweet cards
-      let tweetPageWidth;
-      if(this.numberOfTweetPages === 2 && this.numberOfTweetsPerPage > 3){
-        tweetPageWidth = this.tweetCardWidth;
-      } else {
-        tweetPageWidth = this.tweetCardWidth * this.numberOfTweetsPerPage;
-      }
-      // Set the maximum number of pages as the maximum value
-      let currentPage = Math.min(Math.round(tweetsDiv.scrollLeft / tweetPageWidth), (this.numberOfTweetPages - 1));
-      // Update the page indicator
-      this.currentTweetPage = currentPage;
+    closeModal: function() {
+      this.modal = undefined;
     },
-
-    scrollTweetsDivToPage: function(page) {
-      // Get the tweets div.
-      let tweetsDiv = document.querySelector('div[purpose="tweets"]');
-      // Find out the width of a page of tweet cards
-      let pageWidth = this.tweetCardWidth * this.numberOfTweetsPerPage;
-      // Figure out how much distance we're expecting to scroll.
-      let baseAmountToScroll = (page - this.currentTweetPage) * pageWidth;
-      // Find out the actual distance the div has been scrolled
-      let amountCurrentPageHasBeenScrolled = tweetsDiv.scrollLeft - (this.currentTweetPage * pageWidth);
-      // subtract the amount the current page has been scrolled from the baseAmountToScroll
-      let amountToScroll = baseAmountToScroll - amountCurrentPageHasBeenScrolled;
-      // Scroll the div to the specified 'page'
-      tweetsDiv.scrollBy(amountToScroll, 0);
-    },
-
 
   }
 });

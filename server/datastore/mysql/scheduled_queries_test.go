@@ -41,10 +41,10 @@ func TestScheduledQueries(t *testing.T) {
 func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingDifferential},
 	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -107,7 +107,8 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 
 	_, err = ds.writer(context.Background()).Exec(
 		`INSERT INTO aggregated_stats(id,global_stats,type,json_value) VALUES (?,?,?,?)`,
-		idWithAgg, false, aggregatedStatsTypeScheduledQuery, `{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
+		idWithAgg, false, fleet.AggregatedStatsTypeScheduledQuery,
+		`{"user_time_p50": 10.5777, "user_time_p95": 111.7308, "system_time_p50": 0.6936, "system_time_p95": 95.8654, "total_executions": 5038}`,
 	)
 	require.NoError(t, err)
 
@@ -131,10 +132,10 @@ func testScheduledQueriesListInPackWithStats(t *testing.T, ds *Datastore) {
 func testScheduledQueriesListInPack(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -324,10 +325,10 @@ func testScheduledQueriesDelete(t *testing.T, ds *Datastore) {
 func testScheduledQueriesCascadingDelete(t *testing.T, ds *Datastore) {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
 	require.Nil(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -374,12 +375,12 @@ func testScheduledQueriesIDsByName(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "User", "user@example.com", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select * from bar"},
-		{Name: "foo2", Description: "get the foos", Query: "select * from foo2"},
-		{Name: "bar2", Description: "do some bars", Query: "select * from bar2"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select * from bar", Logging: fleet.LoggingSnapshot},
+		{Name: "foo2", Description: "get the foos", Query: "select * from foo2", Logging: fleet.LoggingSnapshot},
+		{Name: "bar2", Description: "do some bars", Query: "select * from bar2", Logging: fleet.LoggingSnapshot},
 	}
-	err := ds.ApplyQueries(ctx, user.ID, queries)
+	err := ds.ApplyQueries(ctx, user.ID, queries, nil)
 	require.NoError(t, err)
 
 	specs := []*fleet.PackSpec{
@@ -508,7 +509,7 @@ func testScheduledQueriesAsyncBatchSaveStats(t *testing.T, ds *Datastore) {
 		for hid, stats := range m {
 			for _, st := range stats {
 				ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-					var got int
+					var got uint64
 					err := sqlx.GetContext(ctx, tx, &got, `SELECT executions FROM scheduled_query_stats WHERE host_id = ? AND scheduled_query_id = ?`, hid, st.ScheduledQueryID)
 					if err != nil {
 						return err

@@ -23,6 +23,12 @@
       max-width: 180px;
       overflow-wrap: anywhere;
     }
+
+    .component__tooltip-wrapper__underline {
+      border-bottom: none;
+      text-decoration: underline dashed $ui-fleet-black-50;
+      text-underline-offset: 5px;
+    }
   }
 
   // this is to override the tooltip text style from TooltipWrapper. When we
@@ -52,7 +58,7 @@
     margin: $pad-small 0;
     display: block;
 
-    &:last-child {
+    &:last-of-type {
       margin-bottom: 0;
     }
   }

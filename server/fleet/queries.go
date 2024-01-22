@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -36,6 +38,11 @@ type QueryPayload struct {
 	AutomationsEnabled *bool `json:"automations_enabled"`
 	// Logging is set to "snapshot" if not set when creating a query.
 	Logging *string `json:"logging"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	//
+	// If not set during creation of a query, then the default value is false.
+	DiscardData *bool `json:"discard_data"`
 }
 
 // Query represents a osquery query to run on devices.
@@ -91,6 +98,72 @@ type Query struct {
 	//
 	// This field has null values if the query did not run as a schedule on any host.
 	AggregatedStats `json:"stats"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	DiscardData bool `json:"discard_data" db:"discard_data"`
+
+	/////////////////////////////////////////////////////////////////
+	// WARNING: If you add to this struct make sure it's taken into
+	// account in the Query Clone implementation!
+	/////////////////////////////////////////////////////////////////
+}
+
+// Clone implements cloner for Query.
+func (q *Query) Clone() (Cloner, error) {
+	return q.Copy(), nil
+}
+
+// Copy returns a deep copy of the Query.
+func (q *Query) Copy() *Query {
+	if q == nil {
+		return nil
+	}
+
+	var clone Query
+	clone = *q
+
+	if q.TeamID != nil {
+		clone.TeamID = ptr.Uint(*q.TeamID)
+	}
+	if q.AuthorID != nil {
+		clone.AuthorID = ptr.Uint(*q.AuthorID)
+	}
+
+	if q.Packs != nil {
+		clone.Packs = make([]Pack, len(q.Packs))
+		for i, p := range q.Packs {
+			newP := p.Copy()
+			clone.Packs[i] = *newP
+		}
+	}
+
+	if q.AggregatedStats.SystemTimeP50 != nil {
+		clone.AggregatedStats.SystemTimeP50 = ptr.Float64(*q.AggregatedStats.SystemTimeP50)
+	}
+	if q.AggregatedStats.SystemTimeP95 != nil {
+		clone.AggregatedStats.SystemTimeP95 = ptr.Float64(*q.AggregatedStats.SystemTimeP95)
+	}
+	if q.AggregatedStats.UserTimeP50 != nil {
+		clone.AggregatedStats.UserTimeP50 = ptr.Float64(*q.AggregatedStats.UserTimeP50)
+	}
+	if q.AggregatedStats.UserTimeP95 != nil {
+		clone.AggregatedStats.UserTimeP95 = ptr.Float64(*q.AggregatedStats.UserTimeP95)
+	}
+	if q.AggregatedStats.TotalExecutions != nil {
+		clone.AggregatedStats.TotalExecutions = ptr.Float64(*q.AggregatedStats.TotalExecutions)
+	}
+	return &clone
+}
+
+type LiveQueryStats struct {
+	// host_id, average_memory, execution, system_time, user_time
+	HostID        uint   `db:"host_id"`
+	Executions    uint64 `db:"executions"`
+	AverageMemory uint64 `db:"average_memory"`
+	SystemTime    uint64 `db:"system_time"`
+	UserTime      uint64 `db:"user_time"`
+	WallTime      uint64 `db:"wall_time"`
+	OutputSize    uint64 `db:"output_size"`
 }
 
 var (
@@ -227,8 +300,7 @@ func verifyQuerySQL(query string) error {
 }
 
 func verifyLogging(logging string) error {
-	// Empty string means snapshot.
-	if logging != "" && logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
+	if logging != LoggingSnapshot && logging != LoggingDifferential && logging != LoggingDifferentialIgnoreRemovals {
 		return errInvalidLogging
 	}
 	return nil
@@ -286,6 +358,11 @@ type QuerySpec struct {
 	AutomationsEnabled bool `json:"automations_enabled"`
 	// Logging is set to "snapshot" if not set.
 	Logging string `json:"logging"`
+	// DiscardData indicates if the scheduled query results should be discarded (true)
+	// or kept (false) in a query report.
+	//
+	// If not set, then the default value is false.
+	DiscardData bool `json:"discard_data"`
 }
 
 func LoadQueriesFromYaml(yml string) ([]*Query, error) {
@@ -344,14 +421,101 @@ type QueryStats struct {
 	TeamID      *uint  `json:"team_id" db:"team_id"`
 
 	// From osquery directly
-	AverageMemory int  `json:"average_memory" db:"average_memory"`
-	Denylisted    bool `json:"denylisted" db:"denylisted"`
-	Executions    int  `json:"executions" db:"executions"`
+	AverageMemory uint64 `json:"average_memory" db:"average_memory"`
+	Denylisted    bool   `json:"denylisted" db:"denylisted"`
+	Executions    uint64 `json:"executions" db:"executions"`
 	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
-	Interval     int       `json:"interval" db:"schedule_interval"`
-	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
-	OutputSize   int       `json:"output_size" db:"output_size"`
-	SystemTime   int       `json:"system_time" db:"system_time"`
-	UserTime     int       `json:"user_time" db:"user_time"`
-	WallTime     int       `json:"wall_time" db:"wall_time"`
+	Interval           int        `json:"interval" db:"schedule_interval"`
+	DiscardData        bool       `json:"discard_data" db:"discard_data"`
+	LastFetched        *time.Time `json:"last_fetched" db:"last_fetched"`
+	AutomationsEnabled bool       `json:"automations_enabled" db:"automations_enabled"`
+	LastExecuted       time.Time  `json:"last_executed" db:"last_executed"`
+	OutputSize         uint64     `json:"output_size" db:"output_size"`
+	SystemTime         uint64     `json:"system_time" db:"system_time"`
+	UserTime           uint64     `json:"user_time" db:"user_time"`
+	WallTime           uint64     `json:"wall_time" db:"wall_time"`
+}
+
+// MapQueryReportsResultsToRows converts the scheduled query results as stored in Fleet's database
+// to HostQueryResultRows to be exposed to the API.
+func MapQueryReportResultsToRows(rows []*ScheduledQueryResultRow) ([]HostQueryResultRow, error) {
+	var results []HostQueryResultRow
+	for _, row := range rows {
+		var columns map[string]string
+		if row.Data == nil {
+			continue
+		}
+		if err := json.Unmarshal(*row.Data, &columns); err != nil {
+			return nil, err
+		}
+		results = append(results, HostQueryResultRow{
+			HostID:      row.HostID,
+			Hostname:    row.HostDisplayName(),
+			LastFetched: row.LastFetched,
+			Columns:     columns,
+		})
+	}
+	return results, nil
+}
+
+// HostQueryResultRow contains a single scheduled query result row from a host.
+// This type is used to expose the results on the API.
+type HostQueryResultRow struct {
+	// HostID is the unique ID of the host.
+	HostID uint `json:"host_id"`
+	// Hostname is the host's hostname.
+	Hostname string `json:"host_name"`
+	// LastFetched is the time this result row was received.
+	LastFetched time.Time `json:"last_fetched"`
+	// Columns contains the key-value pairs of a result row.
+	// The map key is the name of the column, and the map value is the value.
+	Columns map[string]string `json:"columns"`
+}
+
+type HostQueryReportResult struct {
+	// Columns contains the key-value pairs of a result row.
+	// The map key is the name of the column, and the map value is the value.
+	Columns map[string]string `json:"columns"`
+}
+
+// ScheduledQueryResult holds results of a scheduled query received from a osquery agent.
+type ScheduledQueryResult struct {
+	// QueryName is the name of the query.
+	QueryName string `json:"name,omitempty"`
+	// OsqueryHostID is the identifier of the host.
+	OsqueryHostID string `json:"hostIdentifier"`
+	// Snapshot holds the result rows. It's an array of maps, where the map keys
+	// are column names and map values are the values.
+	Snapshot []*json.RawMessage `json:"snapshot"`
+	// LastFetched is the time this result was received.
+	UnixTime uint `json:"unixTime"`
+}
+
+// ScheduledQueryResultRow is a scheduled query result row.
+type ScheduledQueryResultRow struct {
+	// QueryID is the unique identifier of the query.
+	QueryID uint `db:"query_id"`
+	// HostID is the unique identifier of the host.
+	HostID uint `db:"host_id"`
+	// Hostname is the host's hostname. NullString is used in case host does not exist.
+	Hostname sql.NullString `db:"hostname"`
+	// ComputerName is the host's computer_name.
+	ComputerName sql.NullString `db:"computer_name"`
+	// HardwareModel is the host's hardware_model.
+	HardwareModel sql.NullString `db:"hardware_model"`
+	// HardwareSerial is the host's hardware_serial.
+	HardwareSerial sql.NullString `db:"hardware_serial"`
+	// Data holds a single result row. It holds a map where the map keys
+	// are column names and map values are the values.
+	Data *json.RawMessage `db:"data"`
+	// LastFetched is the time this result was received.
+	LastFetched time.Time `db:"last_fetched"`
+}
+
+func (s *ScheduledQueryResultRow) HostDisplayName() string {
+	// If host does not exist, all values below default to empty string
+	return HostDisplayName(
+		s.ComputerName.String, s.Hostname.String,
+		s.HardwareModel.String, s.HardwareSerial.String,
+	)
 }

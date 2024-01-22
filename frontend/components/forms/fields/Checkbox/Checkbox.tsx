@@ -19,8 +19,9 @@ export interface ICheckboxProps {
   wrapperClassName?: string;
   indeterminate?: boolean;
   parseTarget?: boolean;
-  tooltip?: string;
+  tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
+  helpText?: React.ReactNode;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -35,8 +36,9 @@ const Checkbox = (props: ICheckboxProps) => {
     wrapperClassName,
     indeterminate,
     parseTarget,
-    tooltip,
+    tooltipContent,
     isLeftLabel,
+    helpText,
   } = props;
 
   const handleChange = () => {
@@ -54,7 +56,7 @@ const Checkbox = (props: ICheckboxProps) => {
     baseClass
   );
   const formFieldProps = {
-    ...pick(props, ["hint", "label", "error", "name"]),
+    ...pick(props, ["helpText", "label", "error", "name"]),
     className: wrapperClassName,
     type: "checkbox",
   } as IFormFieldProps;
@@ -66,28 +68,30 @@ const Checkbox = (props: ICheckboxProps) => {
 
   return (
     <FormField {...formFieldProps}>
-      <label htmlFor={name} className={checkBoxClass}>
-        <input
-          checked={value}
-          className={`${baseClass}__input`}
-          disabled={disabled}
-          id={name}
-          name={name}
-          onChange={handleChange}
-          onBlur={onBlur}
-          type="checkbox"
-        />
-        <span className={checkBoxTickClass} />
-        {tooltip ? (
-          <span className={`${baseClass}__label-tooltip tooltip`}>
-            <TooltipWrapper tipContent={tooltip}>
-              {children as string}
-            </TooltipWrapper>
-          </span>
-        ) : (
-          <span className={`${baseClass}__label`}>{children} </span>
-        )}
-      </label>
+      <>
+        <label htmlFor={name} className={checkBoxClass}>
+          <input
+            checked={value}
+            className={`${baseClass}__input`}
+            disabled={disabled}
+            id={name}
+            name={name}
+            onChange={handleChange}
+            onBlur={onBlur}
+            type="checkbox"
+          />
+          <span className={checkBoxTickClass} />
+          {tooltipContent ? (
+            <span className={`${baseClass}__label-tooltip tooltip`}>
+              <TooltipWrapper tipContent={tooltipContent}>
+                {children}
+              </TooltipWrapper>
+            </span>
+          ) : (
+            <span className={`${baseClass}__label`}>{children} </span>
+          )}
+        </label>
+      </>
     </FormField>
   );
 };

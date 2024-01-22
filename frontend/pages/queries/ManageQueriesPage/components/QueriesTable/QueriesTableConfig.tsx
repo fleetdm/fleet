@@ -21,7 +21,7 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import PlatformCell from "components/TableContainer/DataTable/PlatformCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import PillCell from "components/TableContainer/DataTable/PillCell";
+import PerformanceImpactCell from "components/TableContainer/DataTable/PerformanceImpactCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { COLORS } from "styles/var/colors";
 import QueryAutomationsStatusIndicator from "../QueryAutomationsStatusIndicator";
@@ -102,6 +102,7 @@ interface IDataColumn {
 interface IGenerateTableHeaders {
   currentUser: IUser;
   isInherited?: boolean;
+  currentTeamId?: number;
 }
 
 // NOTE: cellProps come from react-table
@@ -109,6 +110,7 @@ interface IGenerateTableHeaders {
 const generateTableHeaders = ({
   currentUser,
   isInherited = false,
+  currentTeamId,
 }: IGenerateTableHeaders): IDataColumn[] => {
   const isOnlyObserver = permissionsUtils.isOnlyObserver(currentUser);
 
@@ -152,9 +154,9 @@ const generateTableHeaders = ({
                 )}
               </>
             }
-            path={PATHS.EDIT_QUERY(
+            path={PATHS.QUERY_DETAILS(
               cellProps.row.original.id,
-              cellProps.row.original.team_id ?? undefined
+              cellProps.row.original.team_id ?? currentTeamId
             )}
           />
         );
@@ -183,10 +185,7 @@ const generateTableHeaders = ({
           <TextCell
             value={val}
             emptyCellTooltipText={
-              <>
-                Assign a frequency and turn <strong>automations</strong> on to
-                collect data at an interval.
-              </>
+              <>Assign a frequency to collect data at an interval.</>
             }
           />
         );
@@ -197,13 +196,7 @@ const generateTableHeaders = ({
       Header: () => {
         return (
           <div>
-            <TooltipWrapper
-              tipContent={`
-                This is the average <br />
-                performance impact <br />
-                across all hosts where this <br />
-                query was scheduled.`}
-            >
+            <TooltipWrapper tipContent="The average performance impact across all hosts.">
               Performance impact
             </TooltipWrapper>
           </div>
@@ -212,7 +205,7 @@ const generateTableHeaders = ({
       disableSortBy: true,
       accessor: "performance",
       Cell: (cellProps: IStringCellProps) => (
-        <PillCell
+        <PerformanceImpactCell
           value={{
             indicator: cellProps.cell.value,
             id: cellProps.row.original.id,

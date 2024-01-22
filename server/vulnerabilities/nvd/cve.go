@@ -2,6 +2,7 @@ package nvd
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io/fs"
 	"net/url"
@@ -21,6 +22,9 @@ import (
 	"github.com/facebookincubator/nvdtools/wfn"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
+	nvdsync "github.com/fleetdm/fleet/v4/server/vulnerabilities/nvd/sync"
+	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 )
@@ -31,21 +35,45 @@ var semverPattern = regexp.MustCompile(`^v?(\d+\.\d+\.\d+)`)
 // Define a regex pattern for splitting version strings into subparts
 var nonNumericPartRegex = regexp.MustCompile(`(\d+)(\D.*)`)
 
-// DownloadNVDCVEFeed downloads the NVD CVE feed. Skips downloading if the cve feed has not changed since the last time.
-func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
-	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
-
-	source := nvd.NewSourceConfig()
+// DownloadNVDCVEFeed downloads CVEs information from a CVE source.
+// If cveFeedPrefixURL is not set, the NVD API 2.0 is used to download CVE information to vulnPath.
+// If cveFeedPrefixURL is set, the CVE information will be downloaded assuming NVD's legacy feed format.
+func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string, debug bool, logger log.Logger) error {
 	if cveFeedPrefixURL != "" {
-		parsed, err := url.Parse(cveFeedPrefixURL)
-		if err != nil {
-			return fmt.Errorf("parsing cve feed url prefix override: %w", err)
-		}
-		source.Host = parsed.Host
-		source.CVEFeedPath = parsed.Path
-		source.Scheme = parsed.Scheme
+		return downloadNVDCVELegacy(vulnPath, cveFeedPrefixURL)
 	}
 
+	cveSyncer, err := nvdsync.NewCVE(
+		vulnPath,
+		nvdsync.WithLogger(logger),
+		nvdsync.WithDebug(debug),
+	)
+	if err != nil {
+		return err
+	}
+
+	if err := cveSyncer.Do(context.Background()); err != nil {
+		return fmt.Errorf("download nvd cve feed: %w", err)
+	}
+
+	return nil
+}
+
+func downloadNVDCVELegacy(vulnPath string, cveFeedPrefixURL string) error {
+	if cveFeedPrefixURL == "" {
+		return errors.New("missing cve_feed_prefix_url")
+	}
+
+	source := nvd.NewSourceConfig()
+	parsed, err := url.Parse(cveFeedPrefixURL)
+	if err != nil {
+		return fmt.Errorf("parsing cve feed url prefix override: %w", err)
+	}
+	source.Host = parsed.Host
+	source.CVEFeedPath = parsed.Path
+	source.Scheme = parsed.Scheme
+
+	cve := nvd.SupportedCVE["cve-1.1.json.gz"]
 	dfs := nvd.Sync{
 		Feeds:    []nvd.Syncer{cve},
 		Source:   source,
@@ -63,13 +91,12 @@ func DownloadNVDCVEFeed(vulnPath string, cveFeedPrefixURL string) error {
 	if err := dfs.Do(ctx); err != nil {
 		return fmt.Errorf("download nvd cve feed: %w", err)
 	}
-
 	return nil
 }
 
 const publishedDateFmt = "2006-01-02T15:04Z" // not quite RFC3339
 
-var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.gz$`)
+var rxNVDCVEArchive = regexp.MustCompile(`nvdcve.*\.json.*$`)
 
 func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	var files []string
@@ -201,16 +228,29 @@ func TranslateCPEToCVE(
 	return newVulns, nil
 }
 
+func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
+	for _, targetSW := range targetSWs {
+		if softwareCPETargetSW == targetSW {
+			for _, attr := range configs {
+				if attr.TargetSW == targetSW {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 	softwareCPEs []softwareCPEWithNVDMeta,
-	file string,
+	jsonFile string,
 	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, error) {
-	dict, err := cvefeed.LoadJSONDictionary(file)
+	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
 		return nil, err
 	}
@@ -225,20 +265,22 @@ func checkCVEs(
 	var wg sync.WaitGroup
 	var mu sync.Mutex
 
+	logger = log.With(logger, "json_file", jsonFile)
+
 	for i := 0; i < runtime.NumCPU(); i++ {
 		wg.Add(1)
 		goRoutineKey := i
 		go func() {
 			defer wg.Done()
 
-			logKey := fmt.Sprintf("cpe-processing-%d", goRoutineKey)
-			level.Debug(logger).Log(logKey, "start")
+			logger := log.With(logger, "routine", goRoutineKey)
+			level.Debug(logger).Log("msg", "start")
 
 			for {
 				select {
 				case softwareCPE, more := <-softwareCPECh:
 					if !more {
-						level.Debug(logger).Log(logKey, "done")
+						level.Debug(logger).Log("msg", "done")
 						return
 					}
 
@@ -256,15 +298,32 @@ func checkCVEs(
 							}
 						}
 
+						// For chrome/firefox extensions we only want to match vulnerabilities
+						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
+						//
+						// Why? In many ocassions the NVD dataset reports vulnerabilities in client applications
+						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+						// Such rules we want to ignore here to prevent many false positives that do not apply to the
+						// Chrome or Firefox environment.
+						if softwareCPE.meta.TargetSW == "chrome" || softwareCPE.meta.TargetSW == "firefox" {
+							if !matchesExactTargetSW(
+								softwareCPE.meta.TargetSW,
+								[]string{"chrome", "firefox"},
+								matches.CVE.Config(),
+							) {
+								continue
+							}
+						}
+
 						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
 						if err != nil {
-							level.Debug(logger).Log(logKey, "error", "err", err)
+							level.Debug(logger).Log("err", err)
 						}
 
 						vuln := fleet.SoftwareVulnerability{
 							SoftwareID:        softwareCPE.SoftwareID,
 							CVE:               matches.CVE.ID(),
-							ResolvedInVersion: resolvedVersion,
+							ResolvedInVersion: ptr.String(resolvedVersion),
 						}
 
 						mu.Lock()
@@ -273,20 +332,20 @@ func checkCVEs(
 
 					}
 				case <-ctx.Done():
-					level.Debug(logger).Log(logKey, "quitting")
+					level.Debug(logger).Log("msg", "quitting")
 					return
 				}
 			}
 		}()
 	}
 
-	level.Debug(logger).Log("pushing cpes", "start")
+	level.Debug(logger).Log("msg", "pushing cpes")
 
 	for _, cpe := range softwareCPEs {
 		softwareCPECh <- cpe
 	}
 	close(softwareCPECh)
-	level.Debug(logger).Log("pushing cpes", "done")
+	level.Debug(logger).Log("msg", "cpes pushed")
 	wg.Wait()
 
 	return foundVulns, nil
@@ -384,26 +443,18 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 
 // checkVersion checks if the host software version matches the CPEMatch rule
 func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version, cve string) (string, error) {
-	for _, condition := range []struct {
-		startIncluding string
-		startExcluding string
-	}{
-		{rule.VersionStartIncluding, ""},
-		{"", rule.VersionStartExcluding},
-	} {
-		constraintStr := buildConstraintString(condition.startIncluding, condition.startExcluding, rule.VersionEndExcluding)
-		if constraintStr == "" {
-			return rule.VersionEndExcluding, nil
-		}
+	constraintStr := buildConstraintString(rule.VersionStartIncluding, rule.VersionStartExcluding, rule.VersionEndExcluding)
+	if constraintStr == "" {
+		return rule.VersionEndExcluding, nil
+	}
 
-		constraint, err := semver.NewConstraint(constraintStr)
-		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
-		}
+	constraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
+	}
 
-		if constraint.Check(softwareVersion) {
-			return rule.VersionEndExcluding, nil
-		}
+	if constraint.Check(softwareVersion) {
+		return rule.VersionEndExcluding, nil
 	}
 
 	return "", nil
@@ -412,12 +463,13 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 // buildConstraintString builds a semver constraint string from the startIncluding,
 // startExcluding, and endExcluding strings
 func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
-	if startIncluding == "" && startExcluding == "" {
-		return ""
-	}
 	startIncluding = preprocessVersion(startIncluding)
 	startExcluding = preprocessVersion(startExcluding)
 	endExcluding = preprocessVersion(endExcluding)
+
+	if startIncluding == "" && startExcluding == "" {
+		return fmt.Sprintf("< %s", endExcluding)
+	}
 
 	if startIncluding != "" {
 		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)

@@ -29,19 +29,19 @@ import LabelPage from "pages/LabelPage";
 import LoginPage, { LoginPreviewPage } from "pages/LoginPage";
 import LogoutPage from "pages/LogoutPage";
 import ManageHostsPage from "pages/hosts/ManageHostsPage";
-import ManageSoftwarePage from "pages/software/ManageSoftwarePage";
 import ManageQueriesPage from "pages/queries/ManageQueriesPage";
 import ManagePacksPage from "pages/packs/ManagePacksPage";
 import ManagePoliciesPage from "pages/policies/ManagePoliciesPage";
 import NoAccessPage from "pages/NoAccessPage";
 import PackComposerPage from "pages/packs/PackComposerPage";
 import PolicyPage from "pages/policies/PolicyPage";
-import QueryPage from "pages/queries/QueryPage";
+import QueryDetailsPage from "pages/queries/details/QueryDetailsPage";
+import LiveQueryPage from "pages/queries/live/LiveQueryPage";
+import EditQueryPage from "pages/queries/edit/EditQueryPage";
 import RegistrationPage from "pages/RegistrationPage";
 import ResetPasswordPage from "pages/ResetPasswordPage";
 import MDMAppleSSOPage from "pages/MDMAppleSSOPage";
 import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
-import SoftwareDetailsPage from "pages/software/SoftwareDetailsPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
@@ -55,7 +55,14 @@ import OSSettings from "pages/ManageControlsPage/OSSettings";
 import SetupExperience from "pages/ManageControlsPage/SetupExperience/SetupExperience";
 import WindowsMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/WindowsMdmPage";
 import MacOSMdmPage from "pages/admin/IntegrationsPage/cards/MdmSettings/MacOSMdmPage";
+import Scripts from "pages/ManageControlsPage/Scripts/Scripts";
 import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/AutomaticEnrollment/WindowsAutomaticEnrollmentPage";
+import HostQueryReport from "pages/hosts/details/HostQueryReport";
+import SoftwarePage from "pages/SoftwarePage";
+import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
+import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
+import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -173,15 +180,20 @@ const routes = (
               path="manage/:active_label/labels/:label_id"
               component={ManageHostsPage}
             />
-
-            <IndexRedirect to=":host_id" />
-            <Route component={HostDetailsPage}>
-              <Route path=":host_id" component={HostDetailsPage}>
-                <Route path="software" component={HostDetailsPage} />
-                <Route path="policies" component={HostDetailsPage} />
-                <Route path="schedule" component={HostDetailsPage} />
-              </Route>
+            <Route path=":host_id" component={HostDetailsPage}>
+              <Redirect from="schedule" to="queries" />
+              <Route path="scripts" component={HostDetailsPage} />
+              <Route path="software" component={HostDetailsPage} />
+              <Route path="queries" component={HostDetailsPage} />
+              <Route path=":query_id" component={HostQueryReport} />
+              <Route path="policies" component={HostDetailsPage} />
             </Route>
+
+            <Route
+              // outside of '/hosts' nested routes to avoid react-tabs-specific routing issues
+              path=":host_id/queries/:query_id"
+              component={HostQueryReport}
+            />
           </Route>
 
           <Route component={ExcludeInSandboxRoutes}>
@@ -192,6 +204,7 @@ const routes = (
                 <Route path="os-settings" component={OSSettings} />
                 <Route path="os-settings/:section" component={OSSettings} />
                 <Route path="setup-experience" component={SetupExperience} />
+                <Route path="scripts" component={Scripts} />
                 <Route
                   path="setup-experience/:section"
                   component={SetupExperience}
@@ -201,9 +214,15 @@ const routes = (
           </Route>
 
           <Route path="software">
-            <IndexRedirect to="manage" />
-            <Route path="manage" component={ManageSoftwarePage} />
-            <Route path=":software_id" component={SoftwareDetailsPage} />
+            <IndexRedirect to="titles" />
+            <Route component={SoftwarePage}>
+              <Route path="titles" component={SoftwareTitles} />
+              <Route path="versions" component={SoftwareVersions} />
+              {/* This redirect keeps the old software/:id working */}
+              <Redirect from=":id" to="versions/:id" />
+            </Route>
+            <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
+            <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
@@ -220,9 +239,16 @@ const routes = (
             <IndexRedirect to="manage" />
             <Route path="manage" component={ManageQueriesPage} />
             <Route component={AuthAnyMaintainerAdminObserverPlusRoutes}>
-              <Route path="new" component={QueryPage} />
+              <Route path="new">
+                <IndexRoute component={EditQueryPage} />
+                <Route path="live" component={LiveQueryPage} />
+              </Route>
             </Route>
-            <Route path=":id" component={QueryPage} />
+            <Route path=":id">
+              <IndexRoute component={QueryDetailsPage} />
+              <Route path="edit" component={EditQueryPage} />
+              <Route path="live" component={LiveQueryPage} />
+            </Route>
           </Route>
           <Route path="policies">
             <IndexRedirect to="manage" />

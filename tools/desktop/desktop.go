@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,7 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
 	"github.com/fleetdm/fleet/v4/pkg/buildpkg"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/mitchellh/gon/package/zip"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -143,7 +142,7 @@ func createMacOSApp(version, authority string, notarize bool) error {
 
 	infoFile := filepath.Join(contentsDir, "Info.plist")
 	infoPListContents := fmt.Sprintf(infoPList, bundleIdentifier, version, version)
-	if err := ioutil.WriteFile(infoFile, []byte(infoPListContents), 0o644); err != nil {
+	if err := os.WriteFile(infoFile, []byte(infoPListContents), 0o644); err != nil {
 		return fmt.Errorf("create Info.plist file %q: %w", infoFile, err)
 	}
 

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -69,7 +68,7 @@ func loadSoftware(
 	require.NoError(t, err)
 
 	var fixtures []softwareFixture
-	contents, err := ioutil.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
+	contents, err := os.ReadFile(filepath.Join(vulnPath, fmt.Sprintf("%s-software.json", p)))
 	require.NoError(t, err)
 
 	err = json.Unmarshal(contents, &fixtures)

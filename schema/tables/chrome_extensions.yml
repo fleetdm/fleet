@@ -58,7 +58,7 @@ columns:
       - linux
   - name: path
     type: string
-    description: Defaults to '' on ChromeOS
+    description: Path to extension folder. Defaults to '' on ChromeOS
   - name: optional_permissions
     platforms: 
       - darwin

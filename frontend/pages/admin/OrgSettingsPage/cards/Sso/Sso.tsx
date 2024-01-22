@@ -6,6 +6,7 @@ import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -119,10 +120,10 @@ const Sso = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Single sign-on options</h2>
-        <div className={`${baseClass}__inputs`}>
+        <SectionHeader title="Single sign-on options" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
             onChange={handleInputChange}
             name="enableSso"
@@ -131,8 +132,6 @@ const Sso = ({
           >
             Enable single sign-on
           </Checkbox>
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Identity provider name"
             onChange={handleInputChange}
@@ -143,16 +142,9 @@ const Sso = ({
             error={formErrors.idp_name}
             tooltip="A required human friendly name for the identity provider that will provide single sign-on authentication."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Entity ID"
-            hint={
-              <span>
-                The URI you provide here must exactly match the Entity ID field
-                used in identity provider configuration.
-              </span>
-            }
+            helpText="The URI you provide here must exactly match the Entity ID field used in identity provider configuration."
             onChange={handleInputChange}
             name="entityId"
             value={entityId}
@@ -161,8 +153,6 @@ const Sso = ({
             error={formErrors.entity_id}
             tooltip="The required entity ID is a URI that you use to identify Fleet when configuring the identity provider."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="IDP image URL"
             onChange={handleInputChange}
@@ -171,10 +161,9 @@ const Sso = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.idp_image_url}
-            tooltip="An optional link to an image such <br/>as a logo for the identity provider."
+            tooltip={`An optional link to an image such
+            as a logo for the identity provider.`}
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata"
             type="textarea"
@@ -184,18 +173,12 @@ const Sso = ({
             parseTarget
             onBlur={validateForm}
             error={formErrors.metadata}
-            tooltip="Metadata provided by the identity provider. Either<br/> metadata or a metadata url must be provided."
+            tooltip={`Metadata provided by the identity provider. Either
+            metadata or a metadata url must be provided.`}
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <InputField
             label="Metadata URL"
-            hint={
-              <span>
-                If available from the identity provider, this is the preferred
-                means of providing metadata.
-              </span>
-            }
+            helpText="If available from the identity provider, this is the preferred means of providing metadata."
             onChange={handleInputChange}
             name="metadataUrl"
             value={metadataUrl}
@@ -204,8 +187,6 @@ const Sso = ({
             error={formErrors.metadata_url}
             tooltip="A URL that references the identity provider metadata."
           />
-        </div>
-        <div className={`${baseClass}__inputs`}>
           <Checkbox
             onChange={handleInputChange}
             name="enableSsoIdpLogin"
@@ -214,9 +195,7 @@ const Sso = ({
           >
             Allow SSO login initiated by identity provider
           </Checkbox>
-        </div>
-        {isPremiumTier && (
-          <div className={`${baseClass}__inputs`}>
+          {isPremiumTier && (
             <Checkbox
               onChange={handleInputChange}
               name="enableJitProvisioning"
@@ -226,25 +205,25 @@ const Sso = ({
               <>
                 Create user and sync permissions on login{" "}
                 <CustomLink
-                  url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_source=sso-settings#just-in-time-jit-user-provisioning"
+                  url="https://fleetdm.com/learn-more-about/just-in-time-provisioning"
                   text="Learn more"
                   newTab
                 />
               </>
             </Checkbox>
-          </div>
-        )}
+          )}
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

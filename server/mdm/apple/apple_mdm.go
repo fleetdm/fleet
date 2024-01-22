@@ -183,23 +183,29 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
 
-	jsonProf.URL = enrollURL
+	// if configuration_web_url is set, this setting is completely managed by the
+	// IT admin.
+	if jsonProf.ConfigurationWebURL == "" {
+		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+		// flow, otherwise use Fleet's enroll URL.
+		//
+		// Even though the DEP profile supports an `url` attribute, we should
+		// always still set configuration_web_url, otherwise the request method
+		// coming from Apple changes from GET to POST, and we want to preserve
+		// backwards compatibility.
+		jsonProf.ConfigurationWebURL = enrollURL
+		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		if team != nil {
+			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+		}
+		if endUserAuthEnabled {
+			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+		}
+	}
 
-	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-	// flow, otherwise use Fleet's enroll URL.
-	//
-	// Even though the DEP profile supports an `url` attribute, we should
-	// always still set configuration_web_url, otherwise the request method
-	// coming from Apple changes from GET to POST, and we want to preserve
-	// backwards compatibility.
-	jsonProf.ConfigurationWebURL = enrollURL
-	endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-	if team != nil {
-		endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
-	}
-	if endUserAuthEnabled {
-		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
-	}
+	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+	// to get a token without SSO enabled
+	jsonProf.URL = jsonProf.ConfigurationWebURL
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
@@ -598,7 +604,7 @@ func NewDEPClient(storage godep.ClientStorage, appCfgUpdater fleet.AppConfigUpda
 				if err := appCfgUpdater.SaveAppConfig(ctx, appCfg); err != nil {
 					level.Error(logger).Log("msg", "Apple DEP client: failed to save app config", "err", err)
 				}
-				level.Debug(logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",
+				level.Info(logger).Log("msg", "Apple DEP client: updated app config Terms Expired flag",
 					"apple_bm_terms_expired", appCfg.MDM.AppleBMTermsExpired)
 			}
 		}

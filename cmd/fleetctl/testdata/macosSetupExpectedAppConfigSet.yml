@@ -19,13 +19,15 @@ spec:
     apple_bm_terms_expired: false
     enabled_and_configured: true
     windows_enabled_and_configured: false
+    enable_disk_encryption: false
     macos_migration:
       enable: false
       mode: ""
       webhook_url: ""
     macos_settings:
       custom_settings: null
-      enable_disk_encryption: false
+    windows_settings:
+      custom_settings: null
     macos_setup:
       bootstrap_package: %s
       enable_end_user_authentication: false
@@ -33,12 +35,16 @@ spec:
     macos_updates:
       deadline: null
       minimum_version: null
+    windows_updates:
+      deadline_days: null
+      grace_period_days: null
     end_user_authentication:
       idp_name: ""
       issuer_uri: ""
       metadata: ""
       metadata_url: ""
       entity_id: ""
+  scripts: null
   org_info:
     org_logo_url: ""
     org_logo_url_light_background: ""
@@ -46,9 +52,11 @@ spec:
     contact_url: https://fleetdm.com/company/contact
   server_settings:
     deferred_save_host: false
-    enable_analytics: false
+    enable_analytics: true
     live_query_disabled: false
+    query_reports_disabled: false
     server_url: https://example.org
+    scripts_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

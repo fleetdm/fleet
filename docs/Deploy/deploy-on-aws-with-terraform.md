@@ -84,7 +84,7 @@ module "fleet_ecs" {
   ecs_cluster = "my_ecs_cluster"
   vpc_id      = "vpc123"
   fleet_config = {
-    image = "fleetdm/fleet:latest"
+    image = "fleetdm/fleet:v4.36.0"
     database = {
       address             = "rds_cluster_endpoint"
       rr_address          = "rds_cluster_readonly_endpoint"
@@ -158,7 +158,7 @@ module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 ```
@@ -202,7 +202,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 ```
@@ -235,7 +235,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
 
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 
@@ -307,7 +307,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1"
+    image = "fleetdm/fleet:v4.36.0"
     cpu = 500 # note that by default fleet runs as ECS fargate so you need to abide by limit thresholds https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html#:~:text=Amazon%20ECS.-,Task%20CPU%20and%20memory,-Amazon%20ECS%20task
     mem = 1024
     

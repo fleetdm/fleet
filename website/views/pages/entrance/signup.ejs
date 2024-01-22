@@ -48,7 +48,7 @@
         <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
         <ajax-button purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="!cloudError">Agree and continue</ajax-button>
-        <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickClearFormFields()">Reset form and try again</ajax-button>
+        <ajax-button purpose="submit-button" type="button" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4" v-if="cloudError" @click="clickResetForm()">Try again</ajax-button>
       </ajax-form>
     </div>
 

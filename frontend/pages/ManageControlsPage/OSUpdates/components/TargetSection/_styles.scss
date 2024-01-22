@@ -1,0 +1,17 @@
+.os-updates-target-section {
+  &__title {
+    display: flex;
+    align-items: center;
+    gap: $pad-small;
+    padding-bottom: $pad-medium;
+    border-bottom: 1px solid $ui-fleet-black-10;
+    margin-bottom: $pad-xxlarge;
+  }
+
+  &__header {
+    h2 {
+      font-weight: normal;
+      font-size: 18px;
+    }
+  }
+}

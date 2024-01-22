@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import { IAppConfigFormProps, IFormField } from "../constants";
@@ -11,6 +12,7 @@ const baseClass = "app-config-form";
 const Statistics = ({
   appConfig,
   handleSubmit,
+  isPremiumTier,
   isUpdatingSettings,
 }: IAppConfigFormProps): JSX.Element => {
   const [formData, setFormData] = useState<any>({
@@ -40,17 +42,18 @@ const Statistics = ({
   };
 
   return (
-    <>
-      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`${baseClass}__section`}>
-          <h2>Usage statistics</h2>
+    <div className={baseClass}>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Usage statistics" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
-            Help improve Fleet by sending usage statistics.
+            Help us improve Fleet by sending us anonymous usage statistics.
             <br />
             <br />
             This information helps our team better understand feature adoption
             and usage, and allows us to see how Fleet is adding value, so that
-            we can make better product decisions.
+            we can make better product decisions. Fleet Premium customers always
+            submit usage statistics data.
             <br />
             <br />
             <CustomLink
@@ -59,27 +62,30 @@ const Statistics = ({
               newTab
             />
           </p>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-            <Checkbox
-              onChange={handleInputChange}
-              name="enableUsageStatistics"
-              value={enableUsageStatistics}
-              parseTarget
-            >
-              Enable usage statistics
-            </Checkbox>
-          </div>
-        </div>
-        <Button
-          type="submit"
-          variant="brand"
-          className="save-loading"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      </form>
-    </>
+          <Checkbox
+            onChange={handleInputChange}
+            name="enableUsageStatistics"
+            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            parseTarget
+            wrapperClassName={
+              isPremiumTier
+                ? `${baseClass}__disabled-usage-statistics-checkbox`
+                : ""
+            }
+          >
+            Enable usage statistics
+          </Checkbox>
+          <Button
+            type="submit"
+            variant="brand"
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
+      </div>
+    </div>
   );
 };
 

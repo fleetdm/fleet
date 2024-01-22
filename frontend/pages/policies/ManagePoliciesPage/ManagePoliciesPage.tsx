@@ -41,7 +41,7 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import PoliciesTable from "./components/PoliciesTable";
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManageAutomationsModal from "./components/ManagePolicyAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 
@@ -767,8 +767,12 @@ const ManagePolicyPage = ({
               globalPoliciesCount
             )}
             caretPosition={"before"}
-            tooltipHtml={
-              '"All teams" policies are checked <br/> for this team’s hosts.'
+            tooltipContent={
+              <>
+                &quot;All teams&quot; policies are checked
+                <br />
+                for this team&apos;s hosts.
+              </>
             }
             onClick={toggleShowInheritedPolicies}
           />

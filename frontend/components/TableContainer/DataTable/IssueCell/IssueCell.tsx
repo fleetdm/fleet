@@ -3,6 +3,9 @@ import ReactTooltip from "react-tooltip";
 import { isEmpty } from "lodash";
 
 import Icon from "components/Icon";
+import { COLORS } from "styles/var/colors";
+
+const baseClass = "issue-cell";
 
 interface IIssueCellProps<T> {
   issues: {
@@ -20,17 +23,17 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
   return (
     <>
       <span
-        className={`host-issue tooltip tooltip__tooltip-icon`}
+        className={`${baseClass}__icon tooltip tooltip__tooltip-icon`}
         data-tip
         data-for={`host-issue__${rowId.toString()}`}
         data-tip-disable={false}
       >
-        <Icon name="issue" />
+        <Icon name="error-outline" color="ui-fleet-black-50" size="small" />
       </span>
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={`host-issue__${rowId.toString()}`}
         data-html
       >
@@ -38,7 +41,7 @@ const IssueCell = ({ issues, rowId }: IIssueCellProps<any>): JSX.Element => {
           Failing policies ({issues.failing_policies_count})
         </span>
       </ReactTooltip>
-      <span className={`total-issues-count`}>{issues.total_issues_count}</span>
+      {issues.total_issues_count}
     </>
   );
 };

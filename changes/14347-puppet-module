@@ -1,0 +1,1 @@
+- Improved MDM migration puppet module to reduce runs failing because of unexpected API responses.

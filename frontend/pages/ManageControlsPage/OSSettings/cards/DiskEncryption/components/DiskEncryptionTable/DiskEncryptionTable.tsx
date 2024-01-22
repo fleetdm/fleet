@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useContext } from "react";
 import { useQuery } from "react-query";
 
-import mdmAPI, { IFileVaultSummaryResponse } from "services/entities/mdm";
+import { AppContext } from "context/app";
+import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
@@ -18,16 +19,13 @@ interface IDiskEncryptionTableProps {
   currentTeamId?: number;
 }
 
-const DEFAULT_SORT_HEADER = "hosts";
-const DEFAULT_SORT_DIRECTION = "asc";
-
 const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   const {
     data: diskEncryptionStatusData,
     error: diskEncryptionStatusError,
-  } = useQuery<IFileVaultSummaryResponse, Error, IFileVaultSummaryResponse>(
+  } = useQuery<IDiskEncryptionSummaryResponse, Error>(
     ["disk-encryption-summary", currentTeamId],
-    () => mdmAPI.getDiskEncryptionAggregate(currentTeamId),
+    () => mdmAPI.getDiskEncryptionSummary(currentTeamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
@@ -35,7 +33,6 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   );
 
   const tableHeaders = generateTableHeaders();
-
   const tableData = generateTableData(diskEncryptionStatusData, currentTeamId);
 
   if (diskEncryptionStatusError) {
@@ -47,14 +44,13 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
         resultsTitle="" // TODO: make optional
         isLoading={false}
         showMarkAllPages={false}
         isAllPagesSelected={false}
-        defaultSortHeader={DEFAULT_SORT_HEADER}
-        defaultSortDirection={DEFAULT_SORT_DIRECTION}
+        manualSortBy
         disableTableHeader
         disablePagination
         disableCount

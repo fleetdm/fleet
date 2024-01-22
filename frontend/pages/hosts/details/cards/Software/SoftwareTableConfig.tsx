@@ -14,7 +14,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
-import { getSoftwareBundleTooltipMarkup } from "utilities/helpers";
+import { getSoftwareBundleTooltipJSX } from "utilities/helpers";
 
 interface IHeaderProps {
   column: {
@@ -75,7 +75,7 @@ const TYPE_CONVERSION: Record<string, string> = {
   rpm_packages: "Package (RPM)",
   yum_sources: "Package (YUM)",
   npm_packages: "Package (NPM)",
-  atom_packages: "Package (Atom)",
+  atom_packages: "Package (Atom)", // Atom packages were removed from software inventory. Mapping is maintained for backwards compatibility. (2023-12-04)
   python_packages: "Package (Python)",
   apps: "Application (macOS)",
   chrome_extensions: "Browser plugin (Chrome)",
@@ -106,14 +106,13 @@ const condenseVulnerabilities = (vulns: string[]): string[] => {
 const renderBundleTooltip = (name: string, bundle: string) => (
   <span className="name-container">
     <TooltipWrapper
-      position="top"
-      tipContent={`
+      position="top-start"
+      tipContent={
         <span>
           <b>Bundle identifier: </b>
-          <br />
-          ${bundle}
+          <br />${bundle}
         </span>
-      `}
+      }
     >
       {name}
     </TooltipWrapper>
@@ -212,16 +211,16 @@ export const generateSoftwareTableHeaders = ({
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
           setFilteredSoftwarePath(pathname);
-          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
-              bundle ? getSoftwareBundleTooltipMarkup(bundle) : undefined
+              bundle ? getSoftwareBundleTooltipJSX(bundle) : undefined
             }
           />
         );
@@ -294,7 +293,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
@@ -334,7 +333,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}
@@ -356,7 +355,14 @@ export const generateSoftwareTableHeaders = ({
       title: "File path",
       Header: () => {
         return (
-          <TooltipWrapper tipContent="This is where the software is <br />located on this host.">
+          <TooltipWrapper
+            tipContent={
+              <>
+                This is where the software is <br />
+                located on this host.
+              </>
+            }
+          >
             File path
           </TooltipWrapper>
         );

@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CommandUUID</key>
+	<string>76eda240-5488-4989-8339-f2ae160113c4</string>
+	<key>QueryResponses</key>
+	<dict>
+		<key>HostName</key>
+		<string>fruit.example.com</string>
+		<key>UDID</key>
+		<string>66ADE930-5FDF-5EC4-8429-15640684C489</string>
+	</dict>
+	<key>RequestType</key>
+	<string>DeviceInformation</string>
+	<key>Status</key>
+	<string>Acknowledged</string>
+	<key>UDID</key>
+	<string>66ADE930-5FDF-5EC4-8429-15640684C489</string>
+</dict>
+</plist>
+

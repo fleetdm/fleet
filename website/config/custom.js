@@ -113,12 +113,11 @@ module.exports.custom = {
     'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
-    // 'docs': '',                                      // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
-    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
+    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
     'articles': 'spokanemac',
@@ -154,7 +153,7 @@ module.exports.custom = {
     //'handbook/company': 'mikermcneil',
     //'handbook/business-operations': 'mikermcneil',
     //'handbook/engineering': 'lukeheath',
-    //'handbook/product': 'zhumo',
+    //'handbook/product': 'noahtalerman',
     //'handbook/customers': 'alexmitchelliii',
     //'handbook/marketing': 'mikermcneil',
 
@@ -190,10 +189,10 @@ module.exports.custom = {
     'docs': ['rachaelshaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
     'schema': ['rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
-    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
     'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
@@ -233,15 +232,15 @@ module.exports.custom = {
     //'handbook/company/ceo.md': ['sampfluger88'],
     //'handbook/business-operations': ['jostableford'],
     //'handbook/engineering': ['lukeheath'],
-    //'handbook/product': ['zhumo'],
+    //'handbook/product': ['noahtalerman'],
     //'handbook/customers': ['alexmitchelliii'],
     //'handbook/marketing': ['mike-j-thomas'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -272,7 +271,30 @@ module.exports.custom = {
 
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.9.1',
+
+
+  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
+  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
+  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
+  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
+  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
+  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+  //
+  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
+
+  // For sending requests to a Fleet instance:
+  // fleetBaseUrlForQueryReports: '…',
+  // fleetTokenForQueryReports: '…',
+
+  // The API ID of the team of hosts created for query reports.
+  // teamApidForQueryReports:
+
+  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
+  // queryIdsByTableName: {…}
+
+  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
+  // hostIdsByHostPlatform: {…}
 
   /***************************************************************************
   *                                                                          *

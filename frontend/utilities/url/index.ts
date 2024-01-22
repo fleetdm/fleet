@@ -1,6 +1,14 @@
-import { FileVaultProfileStatus, BootstrapPackageStatus } from "interfaces/mdm";
 import { isEmpty, reduce, omitBy, Dictionary } from "lodash";
-import { MacSettingsStatusQueryParam } from "services/entities/hosts";
+
+import {
+  DiskEncryptionStatus,
+  BootstrapPackageStatus,
+  MdmProfileStatus,
+} from "interfaces/mdm";
+import {
+  HOSTS_QUERY_PARAMS,
+  MacSettingsStatusQueryParam,
+} from "services/entities/hosts";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
@@ -10,6 +18,7 @@ type FilteredQueryParams = Record<string, FilteredQueryValues>;
 interface IMutuallyInclusiveHostParams {
   teamId?: number;
   macSettingsStatus?: MacSettingsStatusQueryParam;
+  osSettings?: MdmProfileStatus;
 }
 
 interface IMutuallyExclusiveHostParams {
@@ -21,10 +30,13 @@ interface IMutuallyExclusiveHostParams {
   munkiIssueId?: number;
   lowDiskSpaceHosts?: number;
   softwareId?: number;
+  softwareVersionId?: number;
+  softwareTitleId?: number;
   osId?: number;
   osName?: string;
   osVersion?: string;
-  diskEncryptionStatus?: FileVaultProfileStatus;
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
@@ -66,11 +78,17 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
 export const reconcileMutuallyInclusiveHostParams = ({
   teamId,
   macSettingsStatus,
-}: IMutuallyInclusiveHostParams): Record<string, unknown> => {
+  osSettings,
+}: IMutuallyInclusiveHostParams) => {
   // ensure macos_settings filter is always applied in
   // conjuction with a team_id, 0 (no teams) by default
-  const reconciled = { macos_settings: macSettingsStatus, team_id: teamId };
+  const reconciled: Record<string, unknown> = { team_id: teamId };
   if (macSettingsStatus) {
+    reconciled.macos_settings = macSettingsStatus;
+    reconciled.team_id = teamId ?? 0;
+  }
+  if (osSettings) {
+    reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }
   return reconciled;
@@ -84,9 +102,12 @@ export const reconcileMutuallyExclusiveHostParams = ({
   munkiIssueId,
   lowDiskSpaceHosts,
   softwareId,
+  softwareVersionId,
+  softwareTitleId,
   osId,
   osName,
   osVersion,
+  osSettings,
   diskEncryptionStatus,
   bootstrapPackageStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
@@ -114,6 +135,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
+    case !!softwareTitleId:
+      return { software_title_id: softwareTitleId };
+    case !!softwareVersionId:
+      return { software_version_id: softwareVersionId };
     case !!softwareId:
       return { software_id: softwareId };
     case !!osId:
@@ -122,8 +147,10 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
+    case !!osSettings:
+      return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
     case !!diskEncryptionStatus:
-      return { macos_settings_disk_encryption: diskEncryptionStatus };
+      return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:
       return { bootstrap_package: bootstrapPackageStatus };
     default:

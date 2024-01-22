@@ -1,5 +1,94 @@
+# Basic set up for Actions and Docker. Security updates enabled via GitHub settings for other ecosystems.
+
 version: 2
-# updates intentionally left empty, as we were seeing too much volume of PRs, and breakages
-# introduced by dependency version updates. Dependabot will continue to open security-related PRs,
-# but non-security dependency updates must be done manually.
-updates: []
+updates:
+
+# Maintain dependencies for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates for github-actions dependencies
+    open-pull-requests-limit: 0
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - "lukeheath"
+
+# Maintain dependencies for Dockerfiles
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates for docker dependencies
+    open-pull-requests-limit: 0
+    reviewers:
+      - "fleetdm/go"
+      - "fleetdm/infra"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - "fleetdm/go"
+      - "fleetdm/infra"
+
+# Maintain dependencies for website NPM
+  - package-ecosystem: "npm"
+    directory: "/website"
+    labels:
+      - "website"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    allow:
+      - dependency-type: "production"
+    reviewers:
+      - "eashaw"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    assignees:
+      - "eashaw"
+
+# Maintain dependencies for Go
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    reviewers:
+      - lucasmrod
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lucasmrod
+
+# Maintain dependencies for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    # Disable version updates
+    open-pull-requests-limit: 0
+    reviewers:
+      - lukeheath
+    allow:
+      - dependency-type: "production"
+    pull-request-branch-name:
+      # Default is "/" which makes "docker tag" fail with
+      # "not a valid repository/tag: invalid reference format".
+      separator: "-"
+    # Add assignees
+    assignees:
+      - lukeheath

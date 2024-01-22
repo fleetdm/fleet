@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -72,6 +71,8 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 			Query:    queryString,
 			Saved:    false,
 			AuthorID: ptr.Uint(vc.UserID()),
+			// We must set a valid value for this field, even if unused by live queries.
+			Logging: fleet.LoggingSnapshot,
 		}
 		if err := query.Verify(); err != nil {
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
@@ -160,25 +161,12 @@ func (svc *Service) NewDistributedQueryCampaign(ctx context.Context, queryString
 		return nil, ctxerr.Wrap(ctx, err, "run query")
 	}
 
+	// Metrics are used for total hosts targeted for the activity feed.
 	campaign.Metrics, err = svc.ds.CountHostsInTargets(ctx, filter, targets, time.Now())
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "counting hosts")
 	}
 
-	activityData := fleet.ActivityTypeLiveQuery{
-		TargetsCount: campaign.Metrics.TotalHosts,
-		QuerySQL:     query.Query,
-	}
-	if queryID != nil {
-		activityData.QueryName = &query.Name
-	}
-	if err := svc.ds.NewActivity(
-		ctx,
-		authz.UserFromContext(ctx),
-		activityData,
-	); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "create activity for campaign creation")
-	}
 	return campaign, nil
 }
 

@@ -21,6 +21,7 @@ export interface ISchedulableQuery {
   author_name: string;
   author_email: string;
   observer_can_run: boolean;
+  discard_data: boolean;
   packs: IPack[];
   stats: ISchedulableQueryStats;
 }
@@ -62,6 +63,7 @@ export interface ICreateQueryRequestBody {
   query: string;
   description?: string;
   observer_can_run?: boolean;
+  discard_data?: boolean;
   team_id?: number; // global query if ommitted
   interval?: number; // default 0 means never run
   platform?: SelectedPlatformString; // Might more accurately be called `platforms_to_query` – comma-sepparated string of platforms to query, default all platforms if ommitted
@@ -81,6 +83,7 @@ export interface IModifyQueryRequestBody
   query?: string;
   description?: string;
   observer_can_run?: boolean;
+  discard_data?: boolean;
   frequency?: number;
   platform?: SelectedPlatformString;
   min_osquery_version?: string;
@@ -108,11 +111,12 @@ export interface IDeleteQueriesResponse {
   deleted: number; // number of queries deleted
 }
 
-export interface IQueryFormFields {
+export interface IEditQueryFormFields {
   name: IFormField<string>;
   description: IFormField<string>;
   query: IFormField<string>;
   observer_can_run: IFormField<boolean>;
+  discard_data: IFormField<boolean>;
   frequency: IFormField<number>;
   platforms: IFormField<SelectedPlatformString>;
   min_osquery_version: IFormField<string>;

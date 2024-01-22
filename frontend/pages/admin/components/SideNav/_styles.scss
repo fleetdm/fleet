@@ -1,5 +1,4 @@
 .side-nav {
-
   &__container {
     display: flex;
   }
@@ -19,6 +18,12 @@
   }
 
   &__card-container {
-    width: 100%
+    width: 100%;
+
+    // Global style max width of all content to 754px
+    > * {
+      width: 100%;
+      max-width: 754px;
+    }
   }
 }

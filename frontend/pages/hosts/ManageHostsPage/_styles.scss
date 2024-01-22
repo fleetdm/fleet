@@ -197,31 +197,20 @@
       .data-table-block {
         .data-table {
           &__wrapper {
-            overflow-x: scroll;
+            overflow-x: auto;
           }
           &__table {
-            thead {
-              tr {
-                th {
-                  .last-col-header-with-tip {
-                    min-width: 90px;
-                    .component__tooltip-wrapper__tip-text {
-                      left: -126px;
-                    }
-                  }
-                  .status-header {
-                    .component__tooltip-wrapper__tip-text {
-                      left: -220px;
-                    }
+            tbody {
+              .issues {
+                &__cell {
+                  display: flex;
+                  align-items: center;
+                  gap: $pad-small;
+                  .issue-cell__icon {
+                    display: flex;
+                    align-items: center;
                   }
                 }
-              }
-            }
-
-            tbody {
-              .issues__cell {
-                display: flex;
-                align-items: center;
               }
 
               .device_mapping__cell,
@@ -283,10 +272,6 @@
   &__info-banners {
     padding-top: $pad-xxlarge;
     padding-bottom: $pad-large;
-  }
-
-  .total-issues-count {
-    margin-left: $pad-small;
   }
 
   &__export-btn {

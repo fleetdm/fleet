@@ -23,6 +23,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
@@ -365,7 +366,7 @@ const Integrations = (): JSX.Element => {
 
   const emptyState = () => {
     const emptyIntegrations: IEmptyTableProps = {
-      iconName: "empty-integrations",
+      graphicName: "empty-integrations",
       header: "Set up integrations",
       info:
         "Create tickets automatically when Fleet detects new software vulnerabilities or hosts failing policies.",
@@ -398,7 +399,7 @@ const Integrations = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <h2 className={`${baseClass}__title`}>Ticket destinations</h2>
+      <SectionHeader title="Ticket destinations" />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
@@ -407,7 +408,7 @@ const Integrations = (): JSX.Element => {
         <TableDataError />
       ) : (
         <TableContainer
-          columns={tableHeaders}
+          columnConfigs={tableHeaders}
           data={tableData}
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}
@@ -422,7 +423,7 @@ const Integrations = (): JSX.Element => {
           resultsTitle={"integrations"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: emptyState().iconName,
+              graphicName: emptyState().graphicName,
               header: emptyState().header,
               info: emptyState().info,
               additionalInfo: emptyState().additionalInfo,

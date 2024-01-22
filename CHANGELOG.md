@@ -1,3 +1,313 @@
+## Fleet 4.43.1 (Jan 15, 2024)
+
+### Bug fixes
+
+* Fixed bug where script results would sometimes show the wrong error message when a user attempts
+  to run a script on a host that has scripts disabled.
+* Fixed an issue with SCEP endpoints sending back 500 status codes. Should return 400 now if bad
+  data is sent to SCEP API.
+* Fixed text and icon alignment UI bug.
+* Fixed message for script execution timeout.
+* Fixed failed scripts showing the wrong error.
+
+## Fleet 4.43.0 (Jan 9, 2024)
+
+### Changes
+
+* **Endpoint operations**:
+  - Added new `POST /api/v1/fleet/queries/:id/run` endpoint for synchronous live queries.
+  - Added `PUT /api/fleet/orbit/device_mapping` and `PUT /api/v1/fleet/hosts/{id}/device_mapping` endpoints for setting or replacing custom email addresses.
+  - Added experimental `--end-user-email` flag to `fleetctl package` for `.msi` installer bundling.
+  - Added `host_count_updated_at` to policy API responses.
+  - Added ability to query by host display name via list hosts endpoint.
+  - Added `gigs_total_disk_space` to host endpoint responses.
+  - Added ability to remotely configure `fleetd` update channels in agent options (Fleet Premium only, requires `fleetd` >= 1.20.0).
+  - Improved error message for osquery log write failures.
+  - Protect live query performance by limiting results per live query.
+  - Improved error handling and validation for `/api/fleet/orbit/device_token` and other endpoints.
+
+* **Device management (MDM)**:
+  - Added check for custom end user email fields in enrollment profiles.
+  - Modified hosts and labels endpoints to include only user-defined Windows MDM profiles.
+  - Improved profile verification logic for 'pending' profiles.
+  - Updated enrollment process so that `fleetd` auto-installs on Apple hosts enabling MDM features manually.
+  - Extended script execution timeout to 5 minutes.
+  - Extended Script disabling functionality to various script endpoints and `fleetctl`.
+
+### Bug fixes and improvements
+  - Fix profiles incorrectly being marked as "Failed". 
+    - **NOTE**: If you are using MDM features and have already upgraded to v4.42.0, you will need to take manual steps to resolve this issue. Please [follow these instructions](https://github.com/fleetdm/fleet/issues/15725) to reset your profiles. 
+  - Added tooltip to policies page stating when policy counts were last updated.
+  - Added bold styling to profile name in custom profile activity logs.
+  - Implemented style tweaks to the nudge preview on OS updates page.
+  - Updated sort query results and reports case sensitivity and default to sorting.
+  - Added disk size indication when disk is full. 
+  - Replaced 500 error with 409 for token conflicts with another host.
+  - Fixed script output text formatting.
+  - Fixed styling issues in policy automations modal and nudge preview on OS updates page.
+  - Fixed loading spinner not appearing when running a script on a host.
+  - Fixed duplicate view all hosts link in disk encryption table.
+  - Fixed tooltip text alignment UI bug.
+  - Fixed missing 'Last restarted' values when filtering hosts by label.
+  - Fixed broken link on callout box on host details page. 
+  - Fixed bugs in searching hosts by email addresses and filtering by labels.
+  - Fixed a bug where the host details > software > munki issues section was sometimes displayed erroneously.
+  - Fixed a bug where OS compatibility was not correctly calculated for certain queries.
+  - Fixed issue where software title aggregation was not running during vulnerability scans.
+  - Fixed an error message bug for password length on new user creation.
+  - Fixed a bug causing misreporting of vulnerability scanning status in analytics.
+  - Fixed issue with query results reporting after discard data is enabled.
+  - Fixed a bug preventing label selection while the label search field was active.
+  - Fixed bug where `fleetctl` did not allow placement of `--context` and `--debug` flags following certain commands.
+  - Fixed a validation bug allowing `overrides.platform` to be set to `null`.
+  - Fixed `fleetctl` issue with creating a new query when running a query by name.
+  - Fixed a bug that caused vulnerability scanning status to be misreported in analytics.
+  - Fixed CVE tooltip bullets on the software page.
+  - Fixed a bug that didn't allow enabling team disk encryption if macOS MDM was not configured.
+
+## Fleet 4.42.0 (Dec 21, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - Added `fleet/device/{token}/ping` endpoint for agent token checks.
+  - Added `GET /hosts/{id}/health` endpoint for host health data.
+  - Added `--host-identifier` option to fleetd for enrolling with a random identifier.
+  - Added capability to look up hosts based on IdP email.
+  - Updated manage hosts UI to filter hosts by `software_version_id` and `software_title_id`.
+  - Added ability to filter hosts by `software_version_id` and `software_title_id` in various endpoints.
+  - **NOTE:**: Database migrations may take up to five minutes to complete based on number of software items. 
+  - Live queries now collect and display updated stats.
+  - Live query stats are cleared when query SQL is modified.
+  - Added UI features to incorporate new live query stats.
+  - Improved host query reports and host detail query tab UI.
+  - Added firehose delivery addon update for improved data handling.
+
+* **Vulnerability management**:
+  - Added `GET software/versions` and `GET software/versions/{id}` endpoints for software version management.
+  - Deprecated `GET software` and `GET software/{id}` endpoints.
+  - Added new software pages in Fleet UI, including software titles and versions.
+  - Resolved scan error during OVAL vulnerability processing.
+
+* **Device management (MDM)**:
+  - Removed the `FLEET_DEV_MDM_ENABLED` feature flag for Windows MDM.
+  - Enabled `fleetctl` to configure Windows MDM profiles for teams and "no team".
+  - Added database tables to support the Windows profiles feature.
+  - Added support to configure Windows OS updates requirements.
+  - Introduced new MDM profile endpoints: `POST /mdm/profiles`, `DELETE /mdm/profiles/{id}`, `GET /mdm/profiles/{id}`, `GET /mdm/profiles`, `GET /mdm/profiles/summary`.
+  - Added validation to disallow custom MDM profiles with certain names.
+  - Added deployment of Windows OS updates settings to targeted hosts.
+  - Changed the Apple profiles ID to a prefixed UUID format.
+  - Enabled targeting hosts by serial number in `fleetctl run-script` and `fleetctl mdm run-command`.
+  - Added UI for uploading, deleting, downloading, and viewing Windows custom MDM profiles.
+
+### Bug fixes and improvements
+
+  - Updated Go version to 1.21.5.
+  - Query reports now only show results for hosts with user permissions.
+  - Global observers can now see all queries regardless of the observerCanRun value.
+  - Added whitespace rendering in policy descriptions and resolutions.
+  - Added truncation to dropdown options in query tables documentation.
+  - `POST /api/v1/fleet/scripts/run/sync` timeout now returns error code 408 instead of 504.
+  - Fixed possible deadlocks in `software` data ingestion and `host_batteries` upsert.
+  - Fixed button text wrapping in UI for Settings > Integrations > MDM.
+  - Fixed a bug where opening a modal on the Users page reset the table to the first page.
+  - Fixed a bug preventing label selection while the label search field was active.
+  - Fixed issues with UI loading indicators and placeholder texts.
+  - Fixed a fleetctl issue where running a query by name created a new query instead of using the existing one.
+  - Fixed `installed_from_dep` in `mdm_enrolled` activity for DEP device re-enrollment.
+  - Fixed a bug in line breaks affecting UI functionality.
+  - Fixed Syncml cmd data support for raw data.
+  - Added "copied!" message to the copy button on inputs.
+  - Fixed an edge case where caching could lead to lost organization settings in multiple instance scenarios.
+  - Fixed `GET /hosts/{id}/health` endpoint reporting.
+  - Fixed validation bugs allowing `overrides.platform` field to be set to `null`.
+  - Fixed an issue with policy counts showing 0 post-upgrade.
+
+## Fleet 4.41.1 (Dec 7, 2023)
+
+### Bug fix
+
+* Fixed logging of results for scheduled queries configured outside of Fleet when `server_settings.query_reports_disabled` is set to `true`.
+
+## Fleet 4.41.0 (Nov 28, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - Enhanced `fleetctl` and API to support PowerShell (.ps1) scripts.
+  - Updated several API endpoints to support `os_settings` filter, including Windows profiles status.
+  - Enabled `after` parameter for improved pagination in various endpoints.
+  - Improved the `fleet/queries/run` endpoint with better error handling.
+  - Increased frequency of metrics reporting from Fleet servers to daily.
+  - Added caching for policy results in MySQL for faster operations.
+
+* **Device management (MDM)**:
+  - Added database tables for Windows profiles support.
+  - Added validation for WSTEP certificate and key pair before enabling Windows MDM.
+
+* **Vulnerability management**:
+  - Fleet now uses NVD API 2.0 for CVE information download.
+  - Added support for JetBrains application vulnerability data.
+  - Tightened software matching to reduce false positives.
+  - Stopped reporting Atom editor packages in software inventory.
+  - Introduced support for Windows PowerShell scripts in the UI.
+  
+* **UI improvements**:
+  - Updated activity feed for better communication around JIT-provisioned user logins.
+  - Query report now displays the host's display name instead of the hostname.
+  - Improved UI components like the manage page's label filter and edit columns modal.
+  - Enabled all sort headers in the UI to be fully clickable.
+  - Removed the creation of OS policies from a host's operating system in the UI.
+  - Ensured correct settings visibility in the Settings > Advanced section.
+
+### Bug fixes
+
+  - Fixed long result cell truncation in live query results and query reports.
+  - Fixed a Redis cluster mode detection issue for RedisLabs hosted instances.
+  - Fixed a false positive vulnerability report for Citrix Workspace.
+  - Fixed an edge case sorting bug related to the `last_restarted` value for hosts.
+  - Fixed an issue with creating .deb installers with different enrollment keys.
+  - Fixed SMTP configuration validation issues for TLS-only servers.
+  - Fixed caching of team MDM configurations to improve performance at scale.
+  - Fixed delete pending issue during orbit.exe installation.
+  - Fixed a bug causing the disk encryption key banner to not display correctly.
+  - Fixed various error code inconsistencies across endpoints.
+  - Fixed filtering hosts with invalid team_id now returns a 400 error.
+  - Fixed false positives in software matching for similar names.
+
+## Fleet 4.40.0 (Nov 3, 2023)
+
+### Changes
+
+* **Endpoint operations**:
+  - New tables added to the fleetd extension: app_icons, falconctl_options, falcon_kernel_check, cryptoinfo, cryptsetup_status, filevault_status, firefox_preferences, firmwarepasswd, ioreg, and windows_updates.
+  - CIS support for Windows 10 is updated to the lates CIS document CIS_Microsoft_Windows_10_Enterprise_Benchmark_v2.0.0.
+
+* **Device management (MDM)**:
+  - Introduced support for MS-MDM management protocol.
+  - Added a host detail query for Windows hosts to ingest MDM device id and updated the Windows MDM device enrollment flow.
+  - Implemented `--context` and `--debug` flags for `fleetctl mdm run-command`.
+  - Support added for `fleetctl mdm run-command` on Windows hosts.
+  - macOS hosts with MDM features via SSO can now run `sudo profiles renew --type enrollment`.
+  - Introduced `GET mdm/commandresults` endpoint to retrieve MDM command results for Windows and macOS.
+  - `fleetctl get mdm-command-results` now uses the new above endpoint.
+  - Added `POST /fleet/mdm/commands/run` platform-agnostic endpoint for MDM commands.
+  - Introduced API for recent Windows MDM commands via `fleetctl` and the API.
+
+* **Vulnerability management**:
+  - Added vulnerability data support for JetBrains apps with similar names (e.g., IntelliJ IDEA.app vs. IntelliJ IDEA Ultimate.app).
+  - Apple Rapid Security Response version added to macOS host details (requires osquery v5.9.1 on macOS devices).
+  - For ChromeOS hosts, software now includes chrome extensions.
+  - Updated vulnerability processing to omit software without versions.
+  - Resolved false positives in vulnerabilities for Chrome and Firefox extensions.
+
+* **UI improvements**:
+  - Fleet tables in UI reset rows upon filter/search/page changes.
+  - Improved handling when deleting a large number of hosts; operations now continue in the background after 30 seconds.
+  - Added the ability for Observers and Observer+ to view policy resolutions.
+  - Improved app settings clarity for premium users regarding usage statistics.
+  - UI buttons for live queries or policies are now disabled with a tooltip if live queries are globally turned off.
+  - Observers and observer+ can now run existing policies in the UI.
+
+### Bug fixes and improvements
+
+* **REST API**:
+  - Overhauled REST API input validation for several endpoints (hosts, carves, users).
+  - Validation error status codes switched from 500 to 400 for clarity.
+  - Numerous new validations added for policy details, os_name/version, etc.
+  - Addressed issues in /fleet/sso and /mdm/apple/enqueue endpoints.
+  - Updated response codes for several other endpoints for clearer error handling.
+
+* **Logging and debugging**:
+  - Updated Apple Business Manager terms logging behavior.
+  - Refined the copy of the ABM terms banner for better clarity.
+  - Addressed a false positive CVE detection on the `certifi` python package.
+  - Fixed a logging issue with Fleet's Cloudflare WARP software version ingestion for Windows.
+
+* **UI fixes**:
+  - Addressed UI bugs for the "Turn off MDM" action display and issues with the host details page's banners.
+  - Fixed narrow viewport EULA display issue on the Windows TOS page.
+  - Rectified team dropdown value issues and ensured consistent help text across query and policy creation forms.
+  - Fixed issues when applying config changes without MDM features enabled.
+
+* **Others**:
+  - Removed the capability for Premium customers to disable usage statistics. Further information provided in the Fleet documentation.
+  - Retired creating OS policies from host OSes in the UI.
+  - Addressed issues in Live Queries with the POST /fleet/queries/run endpoint.
+  - Introduced database migrations for Windows MDM command tables.
+
+## Fleet 4.39.0 (Oct 19, 2023)
+
+### Changes
+
+* Added ability to store results of scheduled queries:
+  - Will store up to 1000 results for each scheduled query. 
+  - If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
+  - Introduced `server_settings.query_reports_disabled` field in global configuration to disable this feature.
+  - New API endpoint: `GET /api/_version_/fleet/queries/{id}/report`.
+  - New field `discard_data` added to API queries endpoints for toggling report storage for a query. For yaml configurations, use `discard_data: true` to disable result storage.
+  - Enhanced osquery result log validation.
+  - **NOTE:** This feature enables storing more query data in Fleet. This may impact database performance, depending on the number of queries, their frequency, and the number of hosts in your Fleet instance. For large deployments, we recommend monitoring your database load while gradually adding new query reports to ensure your database is sized appropriately.
+
+* Added scripts tab and table for host details page.
+
+* Added support to return the decrypted disk encryption key of a Windows host.
+
+* Added `GET /hosts/{id}/scripts` endpoint to retrieve status details of saved scripts for a host.
+
+* Added `mdm.os_settings` to `GET /api/v1/hosts/{id}` response.
+
+* Added `POST /api/fleet/orbit/disk_encryption_key` endpoint for Windows hosts to report bitlocker encryption key.
+
+* Added activity logging for script operations (add, delete, edit).
+
+* Added UI for scripts on the controls page.
+
+* Added API endpoints for script management and updated existing ones to accommodate saved script ID.
+
+* Added `GET /mdm/disk_encryption/summary` endpoint for disk encryption summaries for macOS and Windows.
+
+* Added `os_settings` and `os_settings_disk_encryption` filters to various `GET` endpoints for host filtering based on OS settings.
+
+* Enhanced `GET hosts/:id` API response to include more detailed disk encryption data for device client errors.
+
+* Updated controls > disk encryption and host details page to include Windows bitlocker information.
+
+* Improved styling for host details/device user failing policies display.
+
+* Disabled multicursor editing for SQL editors.
+
+* Deprecated `mdm.macos_settings.enable_disk_encryption` in favor of `mdm.enable_disk_encryption`.
+
+* Updated Go version to 1.21.3.
+
+### Bug fixes
+
+* Fixed script content and output formatting issues on the scripts detail modal.
+
+* Fixed a high database load issue in the Puppet match endpoint.
+
+* Fixed setup flows background not covering the entire viewport when resized to some sizes.
+
+* Fixed a bug affecting OS settings information retrieval regarding disk encryption status for Windows hosts.
+
+* Fixed SQL parameters used in the `/api/latest/fleet/labels/{labelID}/hosts` endpoint for certain query parameters, addressing issue 13809.
+
+* Fixed Python's CVE-2021-42919 false positive on macOS which should only affect Linux.
+
+* Fixed a bug causing DEP profiles to sometimes not get assigned correctly to hosts.
+
+* Fixed an issue in the bulk-set of MDM Apple profiles leading to excessive placeholders in SQL.
+
+* Fixed max-height display issue for script content and output in the script details modal.
+
+## Fleet 4.38.1 (Oct 5, 2023)
+
+### Bug Fixes
+
+* Fixed a bug that would cause live queries to stall if a detail query override was set for a team.
+
 ## Fleet 4.38.0 (Sep 25, 2023)
 
 ### Changes
@@ -1315,7 +1625,7 @@ settings.
 
 * Added support for kubequery.
 
-* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-installers).
+* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-fleetd-installers).
 
 * Made cards on the **Home** page clickable.
 
@@ -2097,7 +2407,7 @@ Fleet server in non-debug mode.
 
 * Fleet Premium: Added `fleetctl updates rotate` command for rotation of keys in the updates system. The `fleetctl updates` command provides the ability to [self-manage an agent update server](https://fleetdm.com/docs/deploying/fleetctl-agent-updates).
 
-* Enabled the software inventory by default for new Fleet instances. The software inventory feature can be turned on or off using the [`enable_software_inventory` configuration option](https://fleetdm.com/docs/using-fleet/vulnerability-processing#setup).
+* Enabled the software inventory by default for new Fleet instances. The software inventory feature can be turned on or off using the [`enable_software_inventory` configuration option](https://fleetdm.com/docs/using-fleet/vulnerability-processing#configuration).
 
 * Updated the JSON payload for the host status webhook by renaming the `"message"` property to `"text"` so that the payload can be received and displayed in Slack.
 
@@ -2435,7 +2745,7 @@ Fleet server in non-debug mode.
 
 * Added the ability to create a Team schedule in Fleet. The Schedule feature was released in Fleet 4.1.0. For more information on the new Schedule feature, check out the [Fleet 4.1.0 release blog post](https://blog.fleetdm.com/fleet-4-1-0-57dfa25e89c1). *Available for Fleet Basic customers*.
 
-* Added Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing#vulnerability-processing).
+* Added Beta Vulnerable software feature which surfaces vulnerable software on the **Host details** page and the `GET /api/v1/fleet/hosts/{id}` API route. For information on how to configure the Vulnerable software feature and how exactly Fleet processes vulnerabilities, check out the [Vulnerability processing documentation](https://fleetdm.com/docs/using-fleet/vulnerability-processing).
 
 * Added the ability to see which logging destination is configured for Fleet in the Fleet UI. To see this information, head to the **Schedule** page and then select "Schedule a query." Configured logging destination information is also available in the `GET api/v1/fleet/config` API route.
 

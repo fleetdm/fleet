@@ -23,7 +23,9 @@ const TurnOnMacOSMdm = ({ onClickTurnOn }: ITurnOnMacOSMdmProps) => {
           install software on your macOS hosts.
         </p>
       </div>
-      <Button onClick={onClickTurnOn}>Connect APNS</Button>
+      <Button variant="brand" onClick={onClickTurnOn}>
+        Connect APNS
+      </Button>
     </div>
   );
 };
@@ -41,7 +43,7 @@ const SeeDetailsMacOSMdm = ({ onClickDetails }: ITurnOffMacOSMdmProps) => {
       </div>
       <Button onClick={onClickDetails} variant="text-icon">
         Details
-        <Icon name="chevron" direction="right" color="core-fleet-blue" />
+        <Icon name="chevron-right" color="core-fleet-blue" />
       </Button>
     </div>
   );

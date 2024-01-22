@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -54,23 +55,17 @@ func newVulnerabilitiesSchedule(
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
-	s := schedule.New(
-		ctx, name, instanceID, interval, ds, ds,
-		schedule.WithLogger(vulnerabilitiesLogger),
-		schedule.WithJob(
-			"cron_vulnerabilities",
-			func(ctx context.Context) error {
-				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-			},
-		),
-		schedule.WithJob(
-			"cron_sync_host_software",
-			func(ctx context.Context) error {
-				return ds.SyncHostsSoftware(ctx, time.Now())
-			},
-		),
-	)
+
+	var options []schedule.Option
+
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+
+	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	for _, fn := range vulnFuncs {
+		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
+	}
+
+	s := schedule.New(ctx, name, instanceID, interval, ds, ds, options...)
 
 	return s, nil
 }
@@ -780,6 +775,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"policy_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateHostPolicyCounts(ctx)
+			},
+		),
+		schedule.WithJob(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
@@ -803,6 +804,24 @@ func newCleanupsAndAggregationSchedule(
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
 			},
 		),
+		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
+			config, err := ds.AppConfig(ctx)
+			if err != nil {
+				return err
+			}
+
+			if config.ServerSettings.QueryReportsDisabled {
+				if err = ds.CleanupGlobalDiscardQueryResults(ctx); err != nil {
+					return err
+				}
+			}
+
+			if err = ds.CleanupDiscardedQueryResults(ctx); err != nil {
+				return err
+			}
+
+			return nil
+		}),
 	)
 
 	return s, nil
@@ -815,7 +834,7 @@ func verifyDiskEncryptionKeys(
 	config *config.FleetConfig,
 ) error {
 	if !config.MDM.IsAppleSCEPSet() {
-		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 
@@ -838,7 +857,7 @@ func verifyDiskEncryptionKeys(
 		if key.UpdatedAt.After(latest) {
 			latest = key.UpdatedAt
 		}
-		if _, err := apple_mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
+		if _, err := mdm.DecryptBase64CMS(key.Base64Encrypted, cert.Leaf, cert.PrivateKey); err != nil {
 			undecryptable = append(undecryptable, key.HostID)
 			continue
 		}
@@ -883,7 +902,9 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	if err != nil {
 		return err
 	}
-	if !ac.ServerSettings.EnableAnalytics {
+
+	// If the license is Premium, we should always send usage statisics.
+	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
 		return nil
 	}
 
@@ -931,7 +952,7 @@ func newAppleMDMDEPProfileAssigner(
 	return s, nil
 }
 
-func newMDMAppleProfileManager(
+func newMDMProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -950,8 +971,11 @@ func newMDMAppleProfileManager(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
-			return service.ReconcileProfiles(ctx, ds, commander, logger)
+		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
 	)
 

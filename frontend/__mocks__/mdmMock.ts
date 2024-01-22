@@ -15,12 +15,14 @@ export const createMockMdmSolution = (
 };
 
 const DEFAULT_MDM_PROFILE_DATA: IMdmProfile = {
-  profile_id: 1,
+  profile_uuid: "123-abc",
   team_id: 0,
   name: "Test Profile",
+  platform: "darwin",
   identifier: "com.test.profile",
   created_at: "2021-01-01T00:00:00Z",
   updated_at: "2021-01-01T00:00:00Z",
+  checksum: "123abc",
 };
 
 export const createMockMdmProfile = (
@@ -36,6 +38,12 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
   name: "MDM Solution",
   id: 1,
   profiles: [],
+  os_settings: {
+    disk_encryption: {
+      status: "verified",
+      detail: "",
+    },
+  },
   macos_settings: {
     disk_encryption: null,
     action_required: null,

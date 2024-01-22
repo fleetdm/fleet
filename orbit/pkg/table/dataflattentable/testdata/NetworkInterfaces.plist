@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Interfaces</key>
+	<array>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en0</string>
+			<key>IOBuiltin</key>
+			<true/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>0</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Wi-Fi</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>IEEE80211</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en1</string>
+			<key>IOBuiltin</key>
+			<true/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>1</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Thunderbolt 1</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en2</string>
+			<key>IOBuiltin</key>
+			<true/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>2</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Thunderbolt 2</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en3</string>
+			<key>IOBuiltin</key>
+			<true/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>3</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Thunderbolt 3</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en4</string>
+			<key>IOBuiltin</key>
+			<true/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>4</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Thunderbolt 4</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en5</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>5</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>USB Product Name</key>
+				<string>iBridge</string>
+				<key>UserDefinedName</key>
+				<string>iBridge</string>
+				<key>idProduct</key>
+				<integer>34304</integer>
+				<key>idVendor</key>
+				<integer>1452</integer>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>BSD Name</key>
+			<string>en6</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>6</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Bluetooth PAN</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>BSD Name</key>
+			<string>en7</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>7</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>USB Product Name</key>
+				<string>Belkin USB_C LAN</string>
+				<key>UserDefinedName</key>
+				<string>Belkin USB-C LAN</string>
+				<key>idProduct</key>
+				<integer>33107</integer>
+				<key>idVendor</key>
+				<integer>3034</integer>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>Active</key>
+			<true/>
+			<key>BSD Name</key>
+			<string>en8</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>8</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>USB Product Name</key>
+				<string>USB 10_100_1000 LAN</string>
+				<key>UserDefinedName</key>
+				<string>USB 10/100/1000 LAN</string>
+				<key>idProduct</key>
+				<integer>33107</integer>
+				<key>idVendor</key>
+				<integer>3034</integer>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>BSD Name</key>
+			<string>en9</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>9</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>USB Product Name</key>
+				<string>iPhone</string>
+				<key>UserDefinedName</key>
+				<string>iPhone</string>
+				<key>idProduct</key>
+				<integer>4776</integer>
+				<key>idVendor</key>
+				<integer>1452</integer>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>BSD Name</key>
+			<string>en10</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>en</string>
+			<key>IOInterfaceType</key>
+			<integer>6</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>10</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Display Ethernet</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>Ethernet</string>
+		</dict>
+		<dict>
+			<key>BSD Name</key>
+			<string>fw0</string>
+			<key>IOBuiltin</key>
+			<false/>
+			<key>IOInterfaceNamePrefix</key>
+			<string>fw</string>
+			<key>IOInterfaceType</key>
+			<integer>144</integer>
+			<key>IOInterfaceUnit</key>
+			<integer>0</integer>
+			<key>SCNetworkInterfaceInfo</key>
+			<dict>
+				<key>UserDefinedName</key>
+				<string>Display FireWire</string>
+			</dict>
+			<key>SCNetworkInterfaceType</key>
+			<string>FireWire</string>
+		</dict>
+	</array>
+	<key>Model</key>
+	<string>MacBookPro14,3</string>
+</dict>
+</plist>

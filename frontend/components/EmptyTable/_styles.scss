@@ -21,13 +21,6 @@
       margin: 0;
     }
 
-    p {
-      text-align: center;
-      color: $core-fleet-blue;
-      font-size: $x-small;
-      margin: 0;
-    }
-
     ul {
       margin: 0;
       padding: 0;
@@ -44,6 +37,15 @@
     }
   }
 
+  &__info,
+  &__additional-info {
+    line-height: 1.5;
+    text-align: center;
+    color: $core-fleet-blue;
+    font-size: $x-small;
+    margin: 0;
+  }
+
   &__cta-buttons {
     display: flex;
     justify-content: center;
@@ -57,7 +59,6 @@
     &__container {
       align-self: center;
       justify-content: center;
-      margin: 0;
       margin-bottom: 20px;
       min-height: 155px;
       max-width: none;

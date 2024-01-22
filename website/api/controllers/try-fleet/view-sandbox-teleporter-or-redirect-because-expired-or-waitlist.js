@@ -28,33 +28,22 @@ module.exports = {
 
 
   fn: async function () {
+    // FUTURE: Remove the route for this controller when all active sandbox instances have expired.
 
     if(!this.req.me) {
       throw {redirect: '/try-fleet/login' };
     }
 
-    if(this.req.me.inSandboxWaitlist){
-      throw {redirect: '/try-fleet/waitlist' };
+    // If the user does not have a Fleet sandbox instance, redirect them to the /fleetctl-preview page.
+    if(!this.req.me.fleetSandboxURL || !this.req.me.fleetSandboxExpiresAt || !this.req.me.fleetSandboxDemoKey) {
+      throw {redirect: '/try-fleet/fleetctl-preview' };
     }
 
-    if(!this.req.me.fleetSandboxURL) {
-      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxURL has somehow gone missing!`);
-    }
-
-    if(!this.req.me.fleetSandboxExpiresAt) {
-      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxExpiresAt has somehow gone missing!`);
-    }
-
-    if(!this.req.me.fleetSandboxDemoKey) {
-      throw new Error(`Consistency violation: The logged-in user's (${this.req.me.emailAddress}) fleetSandboxDemoKey has somehow gone missing!`);
-    }
-
-    // If this user's Fleet Sandbox instance is expired, we'll redirect them to the sandbox-expired page
+    // Redirect users with expired sandbox instances to the /fleetctl-preview page.
     if(this.req.me.fleetSandboxExpiresAt < Date.now()){
-      throw {redirect: '/try-fleet/sandbox-expired' };
+      throw {redirect: '/try-fleet/fleetctl-preview' };
     }
-
-    // Respond with view.
+    // IWMIH, the user has an unexpired Fleet sandbox instance, and will be taken to to the sandbox teleporter page.
     return {
       hideHeaderOnThisPage: true,
     };

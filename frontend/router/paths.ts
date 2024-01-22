@@ -14,7 +14,7 @@ export default {
   CONTROLS_SETUP_EXPERIENCE: `${URL_PREFIX}/controls/setup-experience`,
   CONTROLS_END_USER_AUTHENTICATION: `${URL_PREFIX}/controls/setup-experience/end-user-auth`,
   CONTROLS_BOOTSTRAP_PACKAGE: `${URL_PREFIX}/controls/setup-experience/bootstrap-package`,
-  CONTROLS_MAC_SCRIPTS: `${URL_PREFIX}/controls/mac-scripts`,
+  CONTROLS_SCRIPTS: `${URL_PREFIX}/controls/scripts`,
 
   DASHBOARD: `${URL_PREFIX}/dashboard`,
   DASHBOARD_LINUX: `${URL_PREFIX}/dashboard/linux`,
@@ -23,6 +23,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
 
   // Admin pages
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -43,6 +44,17 @@ export default {
   ADMIN_ORGANIZATION_ADVANCED: `${URL_PREFIX}/settings/organization/advanced`,
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
 
+  // Software pages
+  SOFTWARE: `${URL_PREFIX}/software`,
+  SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
+  SOFTWARE_TITLE_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/titles/${id}`;
+  },
+  SOFTWARE_VERSION_DETAILS: (id: string): string => {
+    return `${URL_PREFIX}/software/versions/${id}`;
+  },
+
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
   },
@@ -53,6 +65,16 @@ export default {
     return `${URL_PREFIX}/labels/${labelId}`;
   },
   EDIT_QUERY: (queryId: number, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId}/edit${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  LIVE_QUERY: (queryId: number | null, teamId?: number): string => {
+    return `${URL_PREFIX}/queries/${queryId || "new"}/live${
+      teamId ? `?team_id=${teamId}` : ""
+    }`;
+  },
+  QUERY_DETAILS: (queryId: number, teamId?: number): string => {
     return `${URL_PREFIX}/queries/${queryId}${
       teamId ? `?team_id=${teamId}` : ""
     }`;
@@ -65,7 +87,12 @@ export default {
   FORGOT_PASSWORD: `${URL_PREFIX}/login/forgot`,
   NO_ACCESS: `${URL_PREFIX}/login/denied`,
   API_ONLY_USER: `${URL_PREFIX}/apionlyuser`,
+
+  // error pages
   FLEET_403: `${URL_PREFIX}/403`,
+  FLEET_404: `${URL_PREFIX}/404`,
+  FLEET_500: `${URL_PREFIX}/500`,
+
   LOGIN: `${URL_PREFIX}/login`,
   LOGOUT: `${URL_PREFIX}/logout`,
   MANAGE_HOSTS: `${URL_PREFIX}/hosts/manage`,
@@ -76,15 +103,20 @@ export default {
   HOST_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}`;
   },
+  HOST_SCRIPTS: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/scripts`;
+  },
   HOST_SOFTWARE: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/software`;
   },
-  HOST_SCHEDULE: (id: number): string => {
-    return `${URL_PREFIX}/hosts/${id}/schedule`;
+  HOST_QUERIES: (id: number): string => {
+    return `${URL_PREFIX}/hosts/${id}/queries`;
   },
   HOST_POLICIES: (id: number): string => {
     return `${URL_PREFIX}/hosts/${id}/policies`;
   },
+  HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
+    `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
   DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
@@ -94,10 +126,7 @@ export default {
   DEVICE_USER_DETAILS_POLICIES: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
-  MANAGE_SOFTWARE: `${URL_PREFIX}/software/manage`,
-  SOFTWARE_DETAILS: (id: string): string => {
-    return `${URL_PREFIX}/software/${id}`;
-  },
+
   TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;

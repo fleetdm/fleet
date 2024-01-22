@@ -1,7 +1,7 @@
 # Tooltips Notes
 
 This tooltip component was created to allow any content to be shown as a tooltip. You can place any
-HTML inside of the `tipContent` prop. Also, very important, the `TooltipWrapper` is designed **ONLY**
+JSX inside of the `tipContent` prop. Also, very important, the `TooltipWrapper` is designed **ONLY**
 to wrap text so make sure to use static text or text returned from a function.
 
 ## Use cases
@@ -24,11 +24,13 @@ You can even make the tooltip more dynamic HTML:
 
 ```jsx
 <TooltipWrapper
-  tipContent={`
-    The &quot;snapshot&quot; key includes the query&apos;s results. 
+  tipContent={
+    <>
+    The "snapshot" key includes the query's results. 
     <br />
     These will be unique to your query.
-  `}
+    </>
+  }
 >
   The data sent to your configured log destination will look similar
   to the following JSON:
@@ -38,7 +40,7 @@ You can even make the tooltip more dynamic HTML:
 **Within a form input element**
 
 Inside a form input element, you only need to specify a `tooltip` prop for the input. This can be
-text or HTML as mentioned before.
+any JSX as mentioned before.
 
 ```jsx
 <InputField
@@ -49,13 +51,13 @@ text or HTML as mentioned before.
   placeholder="Password"
   value={password || ""}
   type="password"
-  hint={[
-    "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-  ]}
+  helpText= "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
   blockAutoComplete
-  tooltip={`\
-    This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.<br /><br />
-    This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.
-  `}
+  tooltip={
+    <>
+      This password is temporary. This user will be asked to set a new password after logging in to the Fleet UI.<br /><br />
+      This user will not be asked to set a new password after logging in to fleetctl or the Fleet API.
+    </>
+  }
 />
 ```

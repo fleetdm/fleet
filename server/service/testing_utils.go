@@ -17,11 +17,16 @@ import (
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
+	"github.com/fleetdm/fleet/v4/server/datastore/cached_mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -31,10 +36,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -288,9 +289,14 @@ type TestServerOpts struct {
 	UseMailService      bool
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
+	EnableCachedDS      bool
+	NoCacheDatastore    bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
+	if len(opts) > 0 && opts[0].EnableCachedDS {
+		ds = cached_mysql.New(ds)
+	}
 	var rs fleet.QueryResultStore
 	if len(opts) > 0 && opts[0].Rs != nil {
 		rs = opts[0].Rs
@@ -581,7 +587,7 @@ func mockSuccessfulPush(pushes []*mdm.Push) (map[string]*push.Response, error) {
 	return res, nil
 }
 
-func mdmAppleConfigurationRequiredEndpoints() []struct {
+func mdmConfigurationRequiredEndpoints() []struct {
 	method, path        string
 	deviceAuthenticated bool
 	premiumOnly         bool
@@ -625,6 +631,19 @@ func mdmAppleConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
+		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/commands", false, false},
+		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
+		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
+		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
+		// TODO: this endpoint accepts multipart/form data that gets
+		// parsed before the MDM check, we need to refactor this
+		// function to return more information to the caller, or find a
+		// better way to test these endpoints.
+		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 	}
 }
 

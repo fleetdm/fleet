@@ -1,0 +1,11 @@
+.script-list-item {
+  &__action-button {
+    width: 40px;
+    height: 40px;
+  }
+  &__details {
+    display: flex;
+    gap: $pad-xxsmall;
+    color: $ui-fleet-black-75;
+  }
+}

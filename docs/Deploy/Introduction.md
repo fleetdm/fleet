@@ -16,11 +16,6 @@ The `fleetctl` binary is the CLI interface which allows management of your deplo
 
 Both binaries are available for download from our [repo](https://github.com/fleetdm/fleet/releases).
 
-## Fleet vs Fleet Sandbox
-
-If you'd like to try Fleet on your laptop, we recommend [Fleet Sandbox](https://fleetdm.com/try-fleet/register).
-
-If you want to enroll real hosts or deploy to a more scalable environment, we recommend [deploying Fleet to a server](https://fleetdm.com/docs/deploy/deploy-fleet-on-centos).
 
 ## Infrastructure dependencies
 
@@ -30,9 +25,12 @@ Fleet currently has three infrastructure dependencies: MySQL, Redis, and a TLS c
 
 ### MySQL
 
-Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
+Fleet uses MySQL extensively as its main database. Many cloud providers (such as [AWS](https://aws.amazon.com/rds/mysql/) and [GCP](https://cloud.google.com/sql/)) host reliable MySQL services which you may consider for this purpose. A well-supported MySQL [Docker image](https://hub.docker.com/_/mysql/) also exists if you would rather run MySQL in a container. 
+For more information on how to configure the `fleet` binary to use the correct MySQL instance, see the [Configuration](https://fleetdm.com/docs/deploying/configuration) document.
 
-Fleet requires at least MySQL version 5.7.
+Fleet requires at least MySQL version 5.7, and is tested using the InnoDB storage engine. 
+
+There are many "drop-in replacements" for MySQL available. If you'd like to experiment with some bleeding-edge technology and use Fleet with one of these alternative database servers, we think that's awesome! Please be aware they are not officially supported and that it is very important to set up a dev environment to thoroughly test new releases. 
 
 ### Redis
 

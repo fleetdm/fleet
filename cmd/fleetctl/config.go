@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -71,7 +70,7 @@ func makeConfigIfNotExists(fp string) error {
 
 func readConfig(fp string) (configFile, error) {
 	var c configFile
-	b, err := ioutil.ReadFile(fp)
+	b, err := os.ReadFile(fp)
 	if err != nil {
 		return c, err
 	}
@@ -94,7 +93,7 @@ func writeConfig(fp string, c configFile) error {
 		return err
 	}
 
-	return ioutil.WriteFile(fp, b, configFilePerms)
+	return os.WriteFile(fp, b, configFilePerms)
 }
 
 func getConfigValue(configPath, context, key string) (interface{}, error) {

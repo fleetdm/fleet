@@ -10,7 +10,7 @@ data "aws_iam_policy_document" "assume_role" {
 
     principals {
       type        = "Service"
-      identifiers = ["events.amazonaws.com"]
+      identifiers = ["events.amazonaws.com", "ecs-tasks.amazonaws.com"]
     }
 
     actions = ["sts:AssumeRole"]
@@ -32,6 +32,11 @@ data "aws_iam_policy_document" "ecs_events_run_task_with_any_role" {
     effect    = "Allow"
     actions   = ["ecs:RunTask"]
     resources = [replace(var.task_definition.arn, "/:\\d+$/", ":*")]
+    condition {
+      test     = "ArnEquals"
+      values   = [var.ecs_cluster.cluster_arn]
+      variable = "ecs:cluster"
+    }
   }
 }
 resource "aws_iam_role_policy" "ecs_events_run_task_with_any_role" {

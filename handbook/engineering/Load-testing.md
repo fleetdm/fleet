@@ -58,7 +58,7 @@ After the hosts have been enrolled, you can add `-only_already_enrolled` to make
 
 ## Infrastructure setup
 
-The deployment of Fleet was done through the loadtesting [terraform maintained in the repo](https://github.com/fleetdm/fleet/tree/main/tools/loadtesting/terraform) with the following command:
+The deployment of Fleet was done through the loadtesting [terraform maintained in the repo](https://github.com/fleetdm/fleet/tree/main/infrastructure/loadtesting/terraform) with the following command:
 
 ```bash
 terraform apply -var tag=<your tag here>
