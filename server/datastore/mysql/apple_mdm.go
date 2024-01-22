@@ -1551,6 +1551,63 @@ func (ds *Datastore) bulkSetPendingMDMAppleHostProfilesDB(
 	return nil
 }
 
+const appleMDMProfilesDesiredStateQuery = `
+	-- non label-based profiles
+	SELECT
+		macp.profile_uuid,
+		h.uuid as host_uuid,
+		macp.identifier as profile_identifier,
+		macp.name as profile_name,
+		macp.checksum as checksum,
+		0 as count_profile_labels,
+		0 as count_host_labels
+	FROM
+		mdm_apple_configuration_profiles macp
+			JOIN hosts h
+				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+	WHERE
+		h.platform = 'darwin' AND
+		ne.enabled = 1 AND
+		ne.type = 'Device' AND
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE mcpl.apple_profile_uuid = macp.profile_uuid
+		)
+
+	UNION
+
+	-- label-based profiles where the host is a member of all the labels
+	SELECT
+		macp.profile_uuid,
+		h.uuid as host_uuid,
+		macp.identifier as profile_identifier,
+		macp.name as profile_name,
+		macp.checksum as checksum,
+		COUNT(*) as count_profile_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		mdm_apple_configuration_profiles macp
+			JOIN hosts h
+				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
+			JOIN nano_enrollments ne
+				ON ne.device_id = h.uuid
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.apple_profile_uuid = macp.profile_uuid
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+	WHERE
+		h.platform = 'darwin' AND
+		ne.enabled = 1 AND
+		ne.type = 'Device'
+	GROUP BY
+		macp.profile_uuid, h.uuid, macp.identifier, macp.name, macp.checksum
+	HAVING
+		count_profile_labels > 0 AND count_host_labels = count_profile_labels
+`
+
 func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	// The query below is a set difference between:
 	//
@@ -1583,62 +1640,13 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	//   state (failed or verified). If the profile's content is edited, all
 	//   relevant hosts will be marked as status NULL so that it gets
 	//   re-installed.
-	desiredStateQuery := `
-	-- non label-based profiles
-	SELECT
-		macp.profile_uuid,
-		h.uuid as host_uuid,
-		macp.identifier as profile_identifier,
-		macp.name as profile_name,
-		macp.checksum as checksum,
-		0 as count_profile_labels,
-		0 as count_host_labels
-	FROM
-		mdm_apple_configuration_profiles macp
-			JOIN hosts h
-				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-			JOIN nano_enrollments ne
-				ON ne.device_id = h.uuid
-	WHERE
-		h.platform = 'darwin' AND
-		ne.enabled = 1 AND
-		ne.type = 'Device' AND
-		NOT EXISTS (
-			SELECT 1
-			FROM mdm_configuration_profile_labels mcpl
-			WHERE mcpl.apple_profile_uuid = macp.profile_uuid
-		)
+	//
+	// Note that for label-based profiles, only fully-satisfied profiles are
+	// considered for installation. This means that a broken label-based profile,
+	// where one of the labels does not exist anymore, will not be considered for
+	// installation.
 
-	UNION
-
-	-- label-based profiles
-	SELECT
-		macp.profile_uuid,
-		h.uuid as host_uuid,
-		macp.identifier as profile_identifier,
-		macp.name as profile_name,
-		macp.checksum as checksum,
-		COUNT(*) as count_profile_labels,
-		COUNT(lm.label_id) as count_host_labels
-	FROM
-		mdm_apple_configuration_profiles macp
-			JOIN hosts h
-				ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-			JOIN nano_enrollments ne
-				ON ne.device_id = h.uuid
-			JOIN mdm_configuration_profile_labels mcpl
-				ON mcpl.apple_profile_uuid = macp.profile_uuid
-			LEFT OUTER JOIN label_membership lm
-				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
-	WHERE
-		h.platform = 'darwin' AND
-		ne.enabled = 1 AND
-		ne.type = 'Device'
-	GROUP BY
-		macp.profile_uuid, h.uuid, macp.identifier, macp.name, macp.checksum
-	HAVING
-		count_profile_labels > 0 AND count_host_labels = count_profile_labels
-`
+	// TODO(mna): test all that label-based logic documented above ^
 
 	query := fmt.Sprintf(`
 	SELECT
@@ -1659,7 +1667,7 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 		( hmap.host_uuid IS NOT NULL AND ( hmap.operation_type = ? OR hmap.operation_type IS NULL ) ) OR
 		-- profiles in A and B with operation type "install" and NULL status
 		( hmap.host_uuid IS NOT NULL AND hmap.operation_type = ? AND hmap.status IS NULL )
-`, desiredStateQuery)
+`, appleMDMProfilesDesiredStateQuery)
 
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall)
@@ -1669,9 +1677,10 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet.MDMAppleProfilePayload, error) {
 	// The query below is a set difference between:
 	//
-	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// - Set A (ds), the "desired state", can be obtained from a JOIN between
 	// mdm_apple_configuration_profiles and hosts.
-	// - Set B, the current state given by host_mdm_apple_profiles.
+	//
+	// - Set B, the "current state" given by host_mdm_apple_profiles.
 	//
 	// B - A gives us the profiles that need to be removed:
 	//
@@ -1684,31 +1693,45 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	// Any other case are profiles that are in both B and A, and as such are
 	// processed by the ListMDMAppleProfilesToInstall method (since they are in
 	// both, their desired state is necessarily to be installed).
-	query := `
-          SELECT
-            hmap.profile_uuid,
-            hmap.profile_identifier,
-            hmap.profile_name,
-            hmap.host_uuid,
-            hmap.checksum,
-            hmap.operation_type,
-            COALESCE(hmap.detail, '') as detail,
-            hmap.status,
-            hmap.command_uuid
-          FROM (
-            SELECT h.uuid, macp.profile_uuid
-            FROM mdm_apple_configuration_profiles macp
-            JOIN hosts h ON h.team_id = macp.team_id OR (h.team_id IS NULL AND macp.team_id = 0)
-            JOIN nano_enrollments ne ON ne.device_id = h.uuid
-            WHERE h.platform = 'darwin' AND ne.enabled = 1 AND ne.type = 'Device'
-          ) as ds
-          RIGHT JOIN host_mdm_apple_profiles hmap
-            ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.uuid
-          -- profiles that are in B but not in A
-          WHERE ds.profile_uuid IS NULL AND ds.uuid IS NULL
-          -- except "remove" operations in a terminal state or already pending
-          AND ( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL )
-`
+	//
+	// Note that for label-based profiles, only those that are fully-sastisfied
+	// by the host are considered for install (are part of the desired state used
+	// to compute the ones to remove). However, as a special case, a broken
+	// label-based profile will NOT be removed from a host where it was
+	// previously installed. However, if a host used to satisfy a label-based
+	// profile but no longer does (and that label-based profile is not "broken"),
+	// the profile will be removed from the host.
+
+	// TODO(mna): test all that label-based logic documented above ^
+
+	query := fmt.Sprintf(`
+	SELECT
+		hmap.profile_uuid,
+		hmap.profile_identifier,
+		hmap.profile_name,
+		hmap.host_uuid,
+		hmap.checksum,
+		hmap.operation_type,
+		COALESCE(hmap.detail, '') as detail,
+		hmap.status,
+		hmap.command_uuid
+	FROM ( %s ) as ds
+		RIGHT JOIN host_mdm_apple_profiles hmap
+			ON hmap.profile_uuid = ds.profile_uuid AND hmap.host_uuid = ds.host_uuid
+	WHERE
+		-- profiles that are in B but not in A
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- except "remove" operations in a terminal state or already pending
+		( hmap.operation_type IS NULL OR hmap.operation_type != ? OR hmap.status IS NULL ) AND
+		-- except "would be removed" profiles if they are a broken label-based profile
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.apple_profile_uuid = hmap.profile_uuid AND
+				mcpl.label_id IS NULL
+		)
+`, appleMDMProfilesDesiredStateQuery)
 
 	var profiles []*fleet.MDMAppleProfilePayload
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, query, fleet.MDMOperationTypeRemove)

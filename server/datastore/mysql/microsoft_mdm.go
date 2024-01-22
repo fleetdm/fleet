@@ -1074,42 +1074,7 @@ GROUP BY
 	return counts, nil
 }
 
-func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
-	var result []*fleet.MDMWindowsProfilePayload
-	// TODO(mna): why is this in a transaction/reading from the primary, but not
-	// Apple's implementation?
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
-		return err
-	})
-	return result, err
-}
-
-func listMDMWindowsProfilesToInstallDB(
-	ctx context.Context,
-	tx sqlx.ExtContext,
-	hostUUIDs []string,
-) ([]*fleet.MDMWindowsProfilePayload, error) {
-	// The query below is a set difference between:
-	//
-	// - Set A (ds), the "desired state", can be obtained from a JOIN between
-	//   mdm_windows_configuration_profiles and hosts.
-	//
-	// - Set B, the "current state" given by host_mdm_windows_profiles.
-	//
-	// A - B gives us the profiles that need to be installed:
-	//
-	//   - profiles that are in A but not in B
-	//
-	//   - profiles that are in A and in B, with an operation type of "install"
-	//   and a NULL status. Other statuses mean that the operation is already in
-	//   flight (pending), the operation has been completed but is still subject
-	//   to independent verification by Fleet (verifying), or has reached a terminal
-	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
-	//   be marked as status NULL so that it gets re-installed.
-
-	desiredStateQuery := `
+const windowsMDMProfilesDesiredStateQuery = `
 	-- non label-based profiles
 	SELECT
 		mwcp.profile_uuid,
@@ -1160,6 +1125,48 @@ func listMDMWindowsProfilesToInstallDB(
 		count_profile_labels > 0 AND count_host_labels = count_profile_labels
 `
 
+func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
+	var result []*fleet.MDMWindowsProfilePayload
+	// TODO(mna): why is this in a transaction/reading from the primary, but not
+	// Apple's implementation? I see that the called private method is sometimes
+	// called inside a transaction, but when called from here it could (should?)
+	// be without and use the reader replica?
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
+		return err
+	})
+	return result, err
+}
+
+func listMDMWindowsProfilesToInstallDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	hostUUIDs []string,
+) ([]*fleet.MDMWindowsProfilePayload, error) {
+	// The query below is a set difference between:
+	//
+	// - Set A (ds), the "desired state", can be obtained from a JOIN between
+	//   mdm_windows_configuration_profiles and hosts.
+	//
+	// - Set B, the "current state" given by host_mdm_windows_profiles.
+	//
+	// A - B gives us the profiles that need to be installed:
+	//
+	//   - profiles that are in A but not in B
+	//
+	//   - profiles that are in A and in B, with an operation type of "install"
+	//   and a NULL status. Other statuses mean that the operation is already in
+	//   flight (pending), the operation has been completed but is still subject
+	//   to independent verification by Fleet (verifying), or has reached a terminal
+	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
+	//   be marked as status NULL so that it gets re-installed.
+	//
+	// Note that for label-based profiles, only fully-satisfied profiles are
+	// considered for installation. This means that a broken label-based profile,
+	// where one of the labels does not exist anymore, will not be considered for
+	// installation.
+
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -1173,7 +1180,7 @@ func listMDMWindowsProfilesToInstallDB(
 		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
 		-- profiles in A and B with operation type "install" and NULL status
 		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
-`, desiredStateQuery)
+`, windowsMDMProfilesDesiredStateQuery)
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
@@ -1197,6 +1204,7 @@ func listMDMWindowsProfilesToInstallDB(
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
+	// TODO(mna): same question here
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
@@ -1220,35 +1228,47 @@ func listMDMWindowsProfilesToRemoveDB(
 	// B - A gives us the profiles that need to be removed
 	//
 	// Any other case are profiles that are in both B and A, and as such are
-	// processed by the ListMDMWindowsProfilesToInstall method (since they are in
-	// both, their desired state is necessarily to be installed).
-	query := `
-        SELECT
-	    hmwp.profile_uuid,
-	    hmwp.host_uuid,
-	    hmwp.operation_type,
-	    COALESCE(hmwp.detail, '') as detail,
-	    hmwp.status,
-	    hmwp.command_uuid
-          FROM (
-            SELECT h.uuid, mwcp.profile_uuid
-            FROM mdm_windows_configuration_profiles mwcp
-            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
-	    JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-            WHERE h.platform = 'windows'
-          ) as ds
-          RIGHT JOIN host_mdm_windows_profiles hmwp
-            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.uuid
-          -- profiles that are in B but not in A
-          WHERE ds.profile_uuid IS NULL
-	    AND ds.uuid IS NULL
-	    AND (%s)
-`
+	// processed by the ListMDMWindowsProfilesToInstall method (since they are
+	// in both, their desired state is necessarily to be installed).
+	//
+	// Note that for label-based profiles, only those that are fully-sastisfied
+	// by the host are considered for install (are part of the desired state used
+	// to compute the ones to remove). However, as a special case, a broken
+	// label-based profile will NOT be removed from a host where it was
+	// previously installed. However, if a host used to satisfy a label-based
+	// profile but no longer does (and that label-based profile is not "broken"),
+	// the profile will be removed from the host.
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
 		hostFilter = "hmwp.host_uuid IN (?)"
 	}
+
+	query := fmt.Sprintf(`
+	SELECT
+		hmwp.profile_uuid,
+		hmwp.host_uuid,
+		hmwp.operation_type,
+		COALESCE(hmwp.detail, '') as detail,
+		hmwp.status,
+		hmwp.command_uuid
+	FROM ( %s ) as ds
+		RIGHT JOIN host_mdm_windows_profiles hmwp
+			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
+	WHERE
+		-- profiles that are in B but not in A
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple?
+		-- except "would be removed" profiles if they are a broken label-based profile
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.windows_profile_uuid = hmwp.profile_uuid AND
+				mcpl.label_id IS NULL
+		) AND
+		(%s)
+`, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE"), hostFilter)
 
 	var err error
 	var args []any
