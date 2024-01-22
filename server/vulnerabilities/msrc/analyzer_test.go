@@ -16,11 +16,12 @@ import (
 
 func TestAnalyzer(t *testing.T) {
 	op := fleet.OperatingSystem{
-		Name:          "Microsoft Windows 11 Enterprise Evaluation",
-		Version:       "21H2",
-		Arch:          "64-bit",
-		KernelVersion: "10.0.22000.795",
-		Platform:      "windows",
+		Name:           "Microsoft Windows 11 Enterprise Evaluation",
+		DisplayVersion: "21H2",
+		Version:        "10.0.22000.795",
+		Arch:           "64-bit",
+		KernelVersion:  "10.0.22000.795",
+		Platform:       "windows",
 	}
 	prod := parsed.NewProductFromOS(op)
 
@@ -32,25 +33,7 @@ func TestAnalyzer(t *testing.T) {
 			b.Products["123"] = prod
 			b.Vulnerabities["cve-123"] = parsed.NewVulnerability(nil)
 			pIDs := map[string]bool{"123": true}
-			require.False(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, nil))
-		})
-
-		t.Run("directly remediated", func(t *testing.T) {
-			b := parsed.NewSecurityBulletin(prod.Name())
-			b.Products["123"] = prod
-
-			vuln := parsed.NewVulnerability(nil)
-			vuln.RemediatedBy[123] = true
-			b.Vulnerabities["cve-123"] = vuln
-
-			pIDs := map[string]bool{"123": true}
-
-			updates := []fleet.WindowsUpdate{
-				{KBID: 123},
-				{KBID: 456},
-			}
-
-			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
+			require.False(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs))
 		})
 
 		t.Run("remediated by build", func(t *testing.T) {
@@ -67,37 +50,7 @@ func TestAnalyzer(t *testing.T) {
 			vfA.ProductIDs["123"] = true
 			b.VendorFixes[456] = vfA
 
-			updates := []fleet.WindowsUpdate{
-				{KBID: 789},
-			}
-
-			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
-		})
-
-		t.Run("remediated by a cumulative update", func(t *testing.T) {
-			b := parsed.NewSecurityBulletin(prod.Name())
-			b.Products["123"] = prod
-			pIDs := map[string]bool{"123": true}
-
-			vuln := parsed.NewVulnerability(nil)
-			vuln.RemediatedBy[456] = true
-			b.Vulnerabities["cve-123"] = vuln
-
-			vfA := parsed.NewVendorFix("10.0.22000.796")
-			vfA.Supersedes = ptr.Uint(123)
-			vfA.ProductIDs["123"] = true
-			b.VendorFixes[456] = vfA
-
-			vfB := parsed.NewVendorFix("10.0.22000.796")
-			vfB.Supersedes = ptr.Uint(456)
-			vfB.ProductIDs["123"] = true
-			b.VendorFixes[789] = vfA
-
-			updates := []fleet.WindowsUpdate{
-				{KBID: 789},
-			}
-
-			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs, updates))
+			require.True(t, patched(op, b, b.Vulnerabities["cve-123"], pIDs))
 		})
 	})
 
