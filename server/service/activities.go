@@ -69,10 +69,6 @@ func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
 // specified host.
 func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// TODO(mna): should that require "read activity" or "read host" permission?
-	// Since this is specific activities for a host, I think it should be "read
-	// host" permission. To confirm with product.
-
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {

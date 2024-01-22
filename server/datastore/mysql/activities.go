@@ -185,7 +185,6 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 }
 
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
-	// TODO(mna): pending feedback on https://github.com/fleetdm/fleet/pull/15931/files#r1455916027
 	const listStmt = `
 		SELECT
 			hsr.execution_id as uuid,
