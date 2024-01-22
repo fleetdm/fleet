@@ -22,19 +22,18 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, error) {
-	// resuse OSVersions, but include CVSS Scores in call to ListVulnsByOS
-
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
 	if name != nil && version == nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
 	}
 
 	if name == nil && version != nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
@@ -44,16 +43,17 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 			// most of the time, team should exist so checking here saves unnecessary db calls
 			_, err := svc.ds.Team(ctx, *teamID)
 			if err != nil {
-				return nil, err
+				return nil, count, nil, err
 			}
 		}
 		// if team exists but stats have not yet been gathered, return empty JSON array
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
 	for i, os := range osVersions.OSVersions {
+
 		// populate OSVersion.GeneratedCPEs
 		if os.Platform == "darwin" {
 			osVersions.OSVersions[i].GeneratedCPEs = []string{
@@ -65,7 +65,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		// populate OSVersion.Vulnerabilities
 		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, true)
 		if err != nil {
-			return nil, err
+			return nil, count, nil, err
 		}
 
 		for _, vuln := range vulns {
@@ -89,9 +89,20 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		})
 	}
 
+	count = len(osVersions.OSVersions)
+
 	osVersions.OSVersions = paginateOSVersions(osVersions.OSVersions, opts)
 
-	return osVersions, nil
+	var metaData *fleet.PaginationMetadata
+	if opts.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+		if len(osVersions.OSVersions) > int(opts.PerPage) {
+			metaData.HasNextResults = true
+			osVersions.OSVersions = osVersions.OSVersions[:len(osVersions.OSVersions)-1]
+		}
+	}
+
+	return osVersions, count, metaData, nil
 }
 
 func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
