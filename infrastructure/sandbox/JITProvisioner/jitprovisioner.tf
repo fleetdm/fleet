@@ -206,7 +206,7 @@ resource "random_uuid" "jitprovisioner" {
 
 # Use the local to make the trigger work.
 locals {
-  fleet_tag = "v4.43.1"
+  fleet_tag = "v4.43.2"
 }
 
 resource "null_resource" "standard-query-library" {
