@@ -1821,7 +1821,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 			return nil, count, nil, err
 		}
 
-		osVersions.OSVersions[i].Vulnerabilities = make(fleet.Vulnerabilities, len(vulns)) // avoid null in JSON
+		osVersions.OSVersions[i].Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
 		for _, vuln := range vulns {
 			switch os.Platform {
 			case "darwin":
