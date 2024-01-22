@@ -361,7 +361,8 @@ type MDMConfigProfilePayload struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-type ProfileValue struct {
+// MDMConfigProfileBatchPayload represents
+type MDMConfigProfileBatchPayload struct {
 	Name     string   `json:"name,omitempty"`
 	Contents []byte   `json:"contents,omitempty"`
 	Labels   []string `json:"labels,omitempty"`

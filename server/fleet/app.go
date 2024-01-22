@@ -292,18 +292,23 @@ func (w WindowsUpdates) Validate() error {
 	return nil
 }
 
-type PProfileValue struct {
+// MDMProfileSpec represents the spec used to define configuration
+// profiles via yaml files.
+type MDMProfileSpec struct {
 	Path   string   `json:"path,omitempty"`
 	Labels []string `json:"labels,omitempty"`
 }
 
-func (p *PProfileValue) UnmarshalJSON(data []byte) error {
+// UnmarshalJSON implements the json.Unmarshaler interface to add backwards
+// compatibility to previous ways to define profile specs.
+func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 	if len(data) == 0 {
 		return nil
 	}
 
-	// TODO: add comments
-	type Alias PProfileValue
+	// use an alias type to avoid recursively calling this function
+	// forever.
+	type Alias MDMProfileSpec
 	aliasData := struct {
 		*Alias
 	}{
@@ -317,9 +322,7 @@ func (p *PProfileValue) UnmarshalJSON(data []byte) error {
 	var backwardsCompat string
 	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
 	if newFormatErr != nil && oldFormatErr != nil {
-		// TODO: bad request err?
-		// TODO: better error, return both errors
-		return errors.New("invalid format")
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
 	}
 	p.Path = backwardsCompat
 	p.Labels = []string{}
@@ -334,9 +337,9 @@ func labelCountMap(labels []string) map[string]int {
 	return counts
 }
 
-// PProfileValues match checks if two slices contain the same string elements,
-// regardless of order.
-func PProfileValuesMatch(a, b []PProfileValue) bool {
+// MDMProfileSpecsMatch match checks if two slices contain the same spec
+// elements, regardless of order.
+func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 	if len(a) != len(b) {
 		return false
 	}
@@ -378,8 +381,8 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings                 []PProfileValue `json:"custom_settings"`
-	DeprecatedEnableDiskEncryption *bool           `json:"enable_disk_encryption,omitempty"`
+	CustomSettings                 []MDMProfileSpec `json:"custom_settings"`
+	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -404,9 +407,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
-			strs := make([]PProfileValue, 0, len(vals))
+			strs := make([]MDMProfileSpec, 0, len(vals))
 			for _, v := range vals {
-				str, ok := v.(PProfileValue)
+				str, ok := v.(MDMProfileSpec)
 				if !ok {
 					// error, must be a []string
 					return nil, &json.UnmarshalTypeError{
@@ -633,7 +636,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]PProfileValue, len(c.MDM.MacOSSettings.CustomSettings))
+		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
 		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
 	}
 
@@ -644,7 +647,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]PProfileValue, len(c.MDM.WindowsSettings.CustomSettings.Value))
+		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
 		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
@@ -1285,5 +1288,5 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[PProfileValue] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }

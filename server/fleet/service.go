@@ -652,6 +652,10 @@ type Service interface {
 	// profile for the currently authenticated device.
 	GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
 
+	// GetMDMAppleEnrollmentProfile loads the raw (PList-format) enrollment
+	// profile which is currently the same for all teams and all devices.
+	GetMDMAppleEnrollmentProfile(ctx context.Context) ([]byte, error)
+
 	// GetMDMAppleCommandResults returns the execution results of a command identified by a CommandUUID.
 	GetMDMAppleCommandResults(ctx context.Context, commandUUID string) ([]*MDMCommandResult, error)
 
@@ -867,7 +871,7 @@ type Service interface {
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []ProfileValue, dryRun bool, skipBulkPending bool) error
+	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []MDMConfigProfileBatchPayload, dryRun bool, skipBulkPending bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
