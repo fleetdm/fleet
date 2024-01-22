@@ -2014,6 +2014,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "name": "",
         "server_url": null,
         "locked": false,
+        "unlock_pin": "",
         "wiped": false
       },
       "software": [
@@ -2443,6 +2444,7 @@ Returns the information of the specified host.
       "name": "",
       "server_url": null,
       "locked": false,
+      "unlock_pin": "",
       "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
@@ -2653,6 +2655,7 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "name": "",
       "server_url": null,
       "locked": false,
+      "unlock_pin": "",
       "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
@@ -3659,6 +3662,13 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 ##### Default response
 
 `Status: 200`
+```json
+{
+  "host_id": 8,
+  "unlock_pin": 123456
+}
+```
+> Note that `unlock_pin` will be empty (`""`) for Windows and Linux devices.
 
 
 ### Unlock host
