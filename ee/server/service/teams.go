@@ -998,7 +998,7 @@ func (svc *Service) editTeamFromSpec(
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
 		if !appCfg.MDM.WindowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
-			!server.SliceStringsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
+			!fleet.PProfileValuesMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
 				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 		}
@@ -1088,7 +1088,7 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 
 	customSettingsChanged := setFields["custom_settings"] &&
 		len(applyUpon.CustomSettings) > 0 &&
-		!server.SliceStringsMatch(applyUpon.CustomSettings, oldCustomSettings)
+		!fleet.PProfileValuesMatch(applyUpon.CustomSettings, oldCustomSettings)
 
 	if customSettingsChanged || (setFields["enable_disk_encryption"] && *applyUpon.DeprecatedEnableDiskEncryption) {
 		field := "custom_settings"

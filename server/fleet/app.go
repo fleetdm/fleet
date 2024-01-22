@@ -292,14 +292,94 @@ func (w WindowsUpdates) Validate() error {
 	return nil
 }
 
+type PProfileValue struct {
+	Path   string   `json:"path,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+}
+
+func (p *PProfileValue) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// TODO: add comments
+	type Alias PProfileValue
+	aliasData := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	newFormatErr := json.Unmarshal(data, &aliasData)
+	if newFormatErr == nil {
+		return nil
+	}
+
+	var backwardsCompat string
+	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
+	if newFormatErr != nil && oldFormatErr != nil {
+		// TODO: bad request err?
+		// TODO: better error, return both errors
+		return errors.New("invalid format")
+	}
+	p.Path = backwardsCompat
+	p.Labels = []string{}
+	return nil
+}
+
+func labelCountMap(labels []string) map[string]int {
+	counts := make(map[string]int)
+	for _, label := range labels {
+		counts[label]++
+	}
+	return counts
+}
+
+// PProfileValues match checks if two slices contain the same string elements,
+// regardless of order.
+func PProfileValuesMatch(a, b []PProfileValue) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	pathLabelCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+	}
+
+	for _, v := range b {
+		labels, ok := pathLabelCounts[v.Path]
+		if !ok {
+			return false
+		}
+
+		bLabelCounts := labelCountMap(v.Labels)
+		for label, count := range bLabelCounts {
+			if labels[label] != count {
+				return false
+			}
+			labels[label] -= count
+		}
+
+		for _, count := range labels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelCounts, v.Path)
+	}
+
+	return len(pathLabelCounts) == 0
+}
+
 // MacOSSettings contains settings specific to macOS.
 type MacOSSettings struct {
 	// CustomSettings is a slice of configuration profile file paths.
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings                 []string `json:"custom_settings"`
-	DeprecatedEnableDiskEncryption *bool    `json:"enable_disk_encryption,omitempty"`
+	CustomSettings                 []PProfileValue `json:"custom_settings"`
+	DeprecatedEnableDiskEncryption *bool           `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -324,9 +404,9 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
-			strs := make([]string, 0, len(vals))
+			strs := make([]PProfileValue, 0, len(vals))
 			for _, v := range vals {
-				str, ok := v.(string)
+				str, ok := v.(PProfileValue)
 				if !ok {
 					// error, must be a []string
 					return nil, &json.UnmarshalTypeError{
@@ -553,7 +633,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
+		clone.MDM.MacOSSettings.CustomSettings = make([]PProfileValue, len(c.MDM.MacOSSettings.CustomSettings))
 		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
 	}
 
@@ -564,7 +644,7 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
+		windowsSettings := make([]PProfileValue, len(c.MDM.WindowsSettings.CustomSettings.Value))
 		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
@@ -1205,5 +1285,5 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[string] `json:"custom_settings"`
+	CustomSettings optjson.Slice[PProfileValue] `json:"custom_settings"`
 }

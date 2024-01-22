@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -1371,10 +1372,37 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID   *uint             `json:"-" query:"team_id,optional"`
-	TeamName *string           `json:"-" query:"team_name,optional"`
-	DryRun   bool              `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Profiles map[string][]byte `json:"profiles"`
+	TeamID   *uint   `json:"-" query:"team_id,optional"`
+	TeamName *string `json:"-" query:"team_name,optional"`
+	DryRun   bool    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Profiles pp      `json:"profiles"`
+}
+
+type pp []fleet.ProfileValue
+
+func (p *pp) UnmarshalJSON(data []byte) error {
+	// TODO: check for nil data?
+	// TODO: add comments
+	var alias []fleet.ProfileValue
+	newFormatErr := json.Unmarshal(data, &alias)
+	if newFormatErr == nil {
+		*p = alias
+		return nil
+	}
+
+	var backwardsCompat map[string][]byte
+	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
+	if newFormatErr != nil && oldFormatErr != nil {
+		// TODO: bad request err?
+		// TODO: better error, return both errors
+		return errors.New("invalid format")
+	}
+
+	*p = make(pp, 0, len(backwardsCompat))
+	for name, contents := range backwardsCompat {
+		*p = append(*p, fleet.ProfileValue{Name: name, Contents: contents})
+	}
+	return nil
 }
 
 type batchSetMDMProfilesResponse struct {
@@ -1393,7 +1421,7 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 	return batchSetMDMProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles map[string][]byte, dryRun, skipBulkPending bool) error {
+func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles []fleet.ProfileValue, dryRun, skipBulkPending bool) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
@@ -1404,6 +1432,7 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
+	fmt.Println("================ profiles", profiles)
 	if err := validateProfiles(profiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
@@ -1502,42 +1531,43 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 	return tmID, tmName, nil
 }
 
-func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles map[string][]byte) ([]*fleet.MDMAppleConfigProfile, error) {
+func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.ProfileValue) ([]*fleet.MDMAppleConfigProfile, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
-	for i, prof := range profiles {
-		if mdm.GetRawProfilePlatform(prof) != "darwin" {
+	for _, prof := range profiles {
+		if mdm.GetRawProfilePlatform([]byte(prof.Contents)) != "darwin" {
 			continue
 		}
-		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof, tmID)
+		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), err.Error()),
+				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), err.Error()))
+				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
 		}
 
-		if mdmProf.Name != i {
+		fmt.Println("mdmProf.Name, prof.Name", mdmProf.Name, prof.Name)
+		if mdmProf.Name != prof.Name {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 
 		if byName[mdmProf.Name] {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = true
 
 		if byIdent[mdmProf.Identifier] {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", i), fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
+				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
 		byIdent[mdmProf.Identifier] = true
@@ -1561,23 +1591,23 @@ func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, 
 	return profs, nil
 }
 
-func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles map[string][]byte) ([]*fleet.MDMWindowsConfigProfile, error) {
+func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.ProfileValue) ([]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make([]*fleet.MDMWindowsConfigProfile, 0, len(profiles))
 
-	for name, syncML := range profiles {
-		if mdm.GetRawProfilePlatform(syncML) != "windows" {
+	for _, profile := range profiles {
+		if mdm.GetRawProfilePlatform(profile.Contents) != "windows" {
 			continue
 		}
 
 		mdmProf := &fleet.MDMWindowsConfigProfile{
 			TeamID: tmID,
-			Name:   name,
-			SyncML: syncML,
+			Name:   profile.Name,
+			SyncML: profile.Contents,
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
 			return nil, ctxerr.Wrap(ctx,
-				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", name), err.Error()))
+				fleet.NewInvalidArgumentError(fmt.Sprintf("profiles[%s]", profile.Name), err.Error()))
 		}
 
 		profs = append(profs, mdmProf)
@@ -1599,9 +1629,11 @@ func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig
 	return profs, nil
 }
 
-func validateProfiles(profiles map[string][]byte) error {
-	for _, rawBytes := range profiles {
-		platform := mdm.GetRawProfilePlatform(rawBytes)
+func validateProfiles(profiles []fleet.ProfileValue) error {
+	for _, profile := range profiles {
+		platform := mdm.GetRawProfilePlatform(profile.Contents)
+		fmt.Println("============ platform", platform)
+		fmt.Println("==================== raw", string(profile.Contents))
 		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
 			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
