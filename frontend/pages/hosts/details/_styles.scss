@@ -222,16 +222,20 @@
       }
     }
   }
-  .component__tabs-wrapper {
+  &__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
 
-    .react-tabs__tab {
-      padding: 6px 0px 16px 0px;
-      margin-right: $pad-xxlarge;
-    }
-    .react-tabs__tab--selected {
-      background-color: $ui-off-white;
+    // direct descendant of selector allows us to only change the first level of
+    // tab styling and not change the tabs inside the cards.
+    > .react-tabs > .react-tabs__tab-list {
+      .react-tabs__tab {
+        padding: 6px 0px 16px 0px;
+        margin-right: $pad-xxlarge;
+      }
+      .react-tabs__tab--selected {
+        background-color: $ui-off-white;
+      }
     }
 
     .focus-visible {
@@ -242,6 +246,7 @@
       margin-top: $pad-medium;
     }
   }
+
   .col-50 {
     flex: 2;
   }

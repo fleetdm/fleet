@@ -36,4 +36,42 @@ export default {
 
     return sendRequest("GET", path);
   },
+
+  getHostPastAcitivities: (
+    id: number,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IActivitiesResponse> => {
+    const { HOST_PAST_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+
+    const path = `${HOST_PAST_ACTIVITIES(id)}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
+
+  getHostUpcomingActivities: (
+    id: number,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IActivitiesResponse> => {
+    const { HOST_UPCOMING_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+
+    const path = `${HOST_UPCOMING_ACTIVITIES(id)}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
 };

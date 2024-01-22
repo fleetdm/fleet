@@ -56,6 +56,7 @@ import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
@@ -691,7 +692,7 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
         />
-        <TabsWrapper>
+        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -709,6 +710,11 @@ const HostDetailsPage = ({
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
+              />
+              <ActivityCard
+                activities={[]}
+                isLoading={false}
+                onChangeTab={(selectedTab) => undefined}
               />
               <div className="col-2">
                 <AgentOptionsCard

@@ -405,7 +405,7 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper>
+            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}

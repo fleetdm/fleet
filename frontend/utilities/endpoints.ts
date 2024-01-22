@@ -1,7 +1,15 @@
 const API_VERSION = "latest";
 
 export default {
+  // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
+  HOST_PAST_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities/past`;
+  },
+  HOST_UPCOMING_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
+  },
+
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
