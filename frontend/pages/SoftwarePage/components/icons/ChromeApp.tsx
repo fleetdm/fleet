@@ -2,7 +2,7 @@ import React from "react";
 
 import type { SVGProps } from "react";
 
-const Chrome = (props: SVGProps<SVGSVGElement>) => (
+const ChromeApp = (props: SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" fill="none" {...props}>
     <path fill="#fff" d="M0 0h32v32H0z" />
     <g clipPath="url(#chrome_svg__clippath)">
@@ -64,4 +64,4 @@ const Chrome = (props: SVGProps<SVGSVGElement>) => (
     </defs>
   </svg>
 );
-export default Chrome;
+export default ChromeApp;
