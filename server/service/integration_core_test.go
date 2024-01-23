@@ -7428,9 +7428,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
 
-	// TODO(tim)remove ID from response
-	osVersionsResp.OSVersions[0].ID = 0
-
 	// Default sort is by hosts count, descending
 	require.Equal(t, fleet.OSVersion{
 		HostsCount: 4,
