@@ -1,65 +1,58 @@
-.past-activity {
-  display: grid; // Grid system is used to create variable dashed line lengths
-  grid-template-columns: 16px 16px 1fr;
-  grid-template-rows: 32px max-content;
+.past-activity-feed {
+  margin-top: $pad-large;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  min-height: 500px;
 
-  .avatar-wrapper {
-    grid-column-start: 1;
-    width: 32px;
-    height: 32px;
+  &__empty-feed {
+    min-height: 484px;
   }
 
-  &__dash {
-    border-right: 1px dashed $ui-fleet-black-10;
-    grid-column-start: 1;
-    grid-row-start: 2;
-    grid-row-end: 3;
-  }
+  &__pagination {
+    position: absolute;
+    bottom: 0px;
+    right: 0px;
 
-  &__details-wrapper {
-    grid-column-start: 3;
-    grid-row-start: 1;
-    grid-row-end: 3;
-    padding-left: $pad-large;
-    padding-bottom: $pad-large;
-
-    .premium-icon-tip {
-      position: relative;
-      top: 4px;
-      padding-right: $pad-xsmall;
-    }
-
-    .activity-details {
-      margin: 0;
-      line-height: 16px;
+    .button {
+      font-weight: $bold;
     }
   }
 
-  &__details-topline {
-    font-size: $x-small;
-    overflow-wrap: anywhere;
-  }
+  &__load-activities-button {
+    color: $core-vibrant-blue;
+    vertical-align: bottom;
+    padding: 6px;
 
-  &__details-content {
-    margin-right: $pad-xsmall;
-  }
-
-  &__details-bottomline {
-    font-size: $xx-small;
-    color: $ui-fleet-black-25;
-  }
-
-  &__show-query-icon {
-    margin-left: $pad-xsmall;
-  }
-
-  &:last-child {
-    .past-activity__dash {
-      border-right: none;
+    .fleeticon-chevronleft,
+    .fleeticon-chevronright {
+      &:before {
+        font-size: 0.5rem;
+        font-weight: $bold;
+        position: relative;
+        top: -2px;
+      }
     }
 
-    .past-activity__details {
-      padding-bottom: $pad-xxlarge;
+    .fleeticon-chevronleft {
+      margin-right: $pad-small;
     }
+
+    .fleeticon-chevronright {
+      margin-left: $pad-small;
+    }
+
+    &:first-of-type {
+      margin-right: $pad-large;
+    }
+
+    &:hover:not(.button--disabled),
+    &:focus {
+      background-color: $ui-vibrant-blue-10;
+    }
+  }
+
+  &__error {
+    margin: $pad-xlarge 0;
   }
 }

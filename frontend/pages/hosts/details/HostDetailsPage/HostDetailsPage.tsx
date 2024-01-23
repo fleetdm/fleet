@@ -389,7 +389,7 @@ const HostDetailsPage = ({
   >(
     [
       {
-        scope: "past-activities",
+        scope: "upcoming-activities",
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
       },

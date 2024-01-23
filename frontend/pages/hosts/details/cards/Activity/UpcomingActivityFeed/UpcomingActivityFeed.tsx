@@ -21,22 +21,6 @@ interface IUpcomingActivityFeedProps {
   onPreviousPage: () => void;
 }
 
-const testActivity = {
-  created_at: "2021-07-27T13:25:21Z",
-  id: 4,
-  actor_full_name: "Rachael",
-  actor_id: 1,
-  actor_gravatar: "",
-  actor_email: "rachael@example.com",
-  type: "ran_script",
-  details: {
-    host_id: 1,
-    host_display_name: "Steve's MacBook Pro",
-    script_name: "",
-    script_execution_id: "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-  },
-};
-
 const UpcomingActivityFeed = ({
   activities,
   isError = false,
@@ -54,20 +38,26 @@ const UpcomingActivityFeed = ({
 
   const { activities: activitiesList, meta } = activities;
 
-  if (activitiesList.length === 0) {
+  if (activitiesList === null || activitiesList.length === 0) {
     return (
       <EmptyFeed
         title="No pending activity "
         message="When you run a script on an offline host, it will appear here."
+        className={`${baseClass}__empty-feed`}
       />
     );
   }
 
   return (
     <div className={baseClass}>
-      {activitiesList.map((activity: IActivity) => (
-        <UpcomingActivity activity={activity} onDetailsClick={onDetailsClick} />
-      ))}
+      <div>
+        {activitiesList.map((activity: IActivity) => (
+          <UpcomingActivity
+            activity={activity}
+            onDetailsClick={onDetailsClick}
+          />
+        ))}
+      </div>
       <div className={`${baseClass}__pagination`}>
         <Button
           disabled={!meta.has_previous_results}

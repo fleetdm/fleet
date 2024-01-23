@@ -4,7 +4,7 @@ export default {
   // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
   HOST_PAST_ACTIVITIES: (id: number): string => {
-    return `/${API_VERSION}/fleet/hosts/${id}/activities/past`;
+    return `/${API_VERSION}/fleet/hosts/${id}/activities`;
   },
   HOST_UPCOMING_ACTIVITIES: (id: number): string => {
     return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;

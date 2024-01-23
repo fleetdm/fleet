@@ -29,7 +29,7 @@ const PastActivityFeed = ({
   onPreviousPage,
 }: IPastActivityFeedProps) => {
   if (isError) {
-    return <DataError />;
+    return <DataError className={`${baseClass}__error`} />;
   }
 
   if (!activities) {
@@ -38,20 +38,23 @@ const PastActivityFeed = ({
 
   const { activities: activitiesList, meta } = activities;
 
-  if (activitiesList.length === 0) {
+  if (activitiesList === null || activitiesList.length === 0) {
     return (
       <EmptyFeed
         title="No Activity"
         message="When a script runs on a host, it shows up here."
+        className={`${baseClass}__empty-feed`}
       />
     );
   }
 
   return (
     <div className={baseClass}>
-      {activitiesList.map((activity: IActivity) => (
-        <PastActivity activity={activity} onDetailsClick={onDetailsClick} />
-      ))}
+      <div>
+        {activitiesList.map((activity: IActivity) => (
+          <PastActivity activity={activity} onDetailsClick={onDetailsClick} />
+        ))}
+      </div>
       <div className={`${baseClass}__pagination`}>
         <Button
           disabled={!meta.has_previous_results}
