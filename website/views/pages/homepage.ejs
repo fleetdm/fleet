@@ -92,7 +92,7 @@
       </div>
 
       <%/* Endpoint ops block */%>
-      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'endpoint-ops' ? ' show' : 'hidden']">
+      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" v-if="selectedCategory === 'endpoint-ops'">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h3>Focus on data, not vendors</h3>
           <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
@@ -106,7 +106,7 @@
       </div>
 
       <%/* Device management block */%>
-      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-center mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'device-management' ? 'show' : 'hidden']">
+      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-center mx-auto align-items-lg-center align-items-start" v-if="selectedCategory === 'device-management'">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h3>Manage everything in one place</h3>
           <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux. De-risk config changes, automate security audits, and clear the way for “zero trust access” in your org.</p>
@@ -115,17 +115,17 @@
           </div>
         </div>
         <div purpose="device-management-image">
-          <img alt="A blank image" src="/images/device-management-hero-380x293@2x.png">
+          <img alt="A blank image" src="/images/homepage-device-management-platform-image-376x293@2x.png">
         </div>
       </div>
 
       <%/* Vulnerability management block */%>
-      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start" :class="[selectedCategory === 'vulnerability-management' ? 'show' : 'hidden']">
+      <div purpose="platform-block" class="d-flex flex-lg-row flex-column justify-content-between mx-auto align-items-lg-center align-items-start"  v-if="selectedCategory === 'vulnerability-management'">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h3>Build the vulnerability program you actually want</h3>
           <p>Show how quickly CVEs are resolved and which teams need extra help. Manage and report on vulnerabilities in operating systems, software packages, browser plugins, anywhere.</p>
           <div purpose="category-button">
-            <a class="btn btn-primary text-nowrap"  href="/vulnerability-management">Start with vulnerability management</a>
+            <a class="btn btn-primary text-nowrap"  href="/vulnerability-management">Start with vuln<span purpose="truncated-vulnerability-management-text">erability</span>&nbsp;management</a>
           </div>
         </div>
         <div purpose="category-image">
@@ -137,38 +137,44 @@
         </div>
       </div>
       <%/* Integration cards */%>
-      <div purpose="page-section">
         <h2 class="text-center">Connect your favorite tools</h2>
-        <div purpose="integration-cards" class="d-flex flex-sm-row flex-column justify-content-space-between">
+        <div purpose="integration-cards" class="d-flex flex-sm-row flex-column justify-content-center">
           <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
-            <div purpose="integration-card" class="ml-0">
-              <img src="/images/integration-icon-custom-workflows-32x36@2x.png">
-              <strong>Custom IT workflows</strong>
-              <p>Use git, yaml, webhooks, and more for IT workflows.</p>
-            </div>
-            <div purpose="integration-card">
-              <img src="/images/integration-logo-jira-32x36@2x.png">
-              <strong>IT ticketing</strong>
-              <p>Automate ticketing with Jira. Integrate your own system with webhooks.</p>
-            </div>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img src="/images/integration-icon-custom-workflows-32x36@2x.png">
+                <strong>Custom IT workflows</strong>
+                <p>Use git, yaml, webhooks, and more for IT workflows.</p>
+              </div>
+            </a>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img src="/images/integration-logo-jira-32x36@2x.png">
+                <strong>IT ticketing</strong>
+                <p>Automate ticketing with Jira. Integrate your own system with webhooks.</p>
+              </div>
+            </a>
           </div>
           <div purpose="integration-card-column" class="d-flex flex-lg-row flex-column">
-            <div purpose="integration-card">
-              <img src="/images/integration-logo-snowflake-32x36@2x.png">
-              <strong>Data lake</strong>
-              <p>Send logs and events to any data platform like Snowflake or Splunk.</p>
-            </div>
-            <div purpose="integration-card" class="mr-0">
-              <img src="/images/integration-logo-munki-36x36@2x.png">
-              <strong>Scripting</strong>
-              <p>Easily connect Munki, Chef, and Puppet or deploy your own scripts.</p>
-            </div>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img src="/images/integration-logo-snowflake-32x36@2x.png">
+                <strong>Data lake</strong>
+                <p>Send logs and events to any data platform like Snowflake or Splunk.</p>
+              </div>
+            </a>
+            <a href="/integrations">
+              <div purpose="integration-card">
+                <img src="/images/integration-logo-munki-36x36@2x.png">
+                <strong>Scripting</strong>
+                <p>Easily connect Munki, Chef, and Puppet or deploy your own scripts.</p>
+              </div>
+            </a>
           </div>
         </div>
         <div class="d-flex flex-column align-items-center">
           <a purpose="animated-arrow-button-red" href="/integrations">View all integrations</a>
         </div>
-      </div>
     </div>
     <div purpose="page-section">
       <div purpose="endpoints-banner">
@@ -180,6 +186,15 @@
           </div>
         </div>
         <div purpose="endpoints-images">
+
+
+
+
+
+
+
+
+
           <div purpose="endpoint-images-row" class="d-md-flex d-none">
             <div purpose="endpoint-image-box"></div>
             <div purpose="endpoint-image-box"></div>
@@ -190,15 +205,15 @@
             <div purpose="endpoint-image-box" class="d-md-none d-flex"></div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex"></div>
             <div purpose="endpoint-image-box">
-              <img alt="AWS" src="/images/homepage-platform-greyscale-aws-54x48@2x.png">
+              <img alt="AWS" src="/images/logo-aws-36x36@2x.png">
               <p>AWS</p>
             </div>
             <div purpose="endpoint-image-box">
-              <img alt="Google Cloud" src="/images/homepage-platform-greyscale-google-cloud-48x48@2x.png">
+              <img alt="Google Cloud" src="/images/icon-gcp-36x36@2x.png">
               <p>GCP</p>
             </div>
             <div purpose="endpoint-image-box">
-              <img alt="Azure" src="/images/homepage-platform-greyscale-azure-24x24@2x.png">
+              <img alt="Azure" src="/images/logo-azure-37x36@2x.png">
               <p>Azure</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
@@ -206,7 +221,7 @@
               <p>Data centers</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
-              <img alt="IOT" src="/images/homepage-platform-greyscale-iot-38x48@2x.png">
+              <img alt="IOT" src="/images/icon-iot-36x36@2x.png">
               <p>IoT (Linux)</p>
             </div>
             <div purpose="endpoint-image-box"></div>
@@ -216,15 +231,15 @@
             <div purpose="endpoint-image-box" class="d-md-none d-flex"></div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex"></div>
             <div purpose="endpoint-image-box">
-              <img alt="macOS" src="/images/homepage-platform-greyscale-macos-42x48@2x.png">
+              <img alt="macOS" src="/images/logo-apple-36x36@2x.png">
               <p>macOS</p>
             </div>
             <div purpose="endpoint-image-box">
-              <img alt="Windows" src="/images/homepage-platform-greyscale-windows-40x48@2x.png">
+              <img alt="Windows" src="/images/logo-windows-36x36@2x.png">
               <p>Windows</p>
             </div>
             <div purpose="endpoint-image-box">
-              <img alt="Linux" src="/images/homepage-platform-greyscale-linux-41x48@2x.png">
+              <img alt="Linux" src="/images/logo-linux-36x36@2x.png">
               <p>Linux</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
@@ -232,11 +247,11 @@
               <p>Data centers</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
-              <img alt="ChromeOS" src="/images/homepage-platform-greyscale-chromeos-48x48@2x.png">
+              <img alt="ChromeOS" src="/images/logo-chrome-36x37@2x.png">
               <p>Chromebook</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-none d-flex">
-              <img alt="Containers" src="/images/homepage-platform-greyscale-docker-48x48@2x.png">
+              <img alt="Containers" src="/images/logo-docker-40x40@2x.png">
               <p>Containers</p>
             </div>
             <div purpose="endpoint-image-box"></div>
@@ -245,15 +260,15 @@
           <div purpose="endpoint-images-row">
             <div purpose="endpoint-image-box" class="d-md-flex d-none"></div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
-              <img alt="ChromeOS" src="/images/homepage-platform-greyscale-chromeos-48x48@2x.png">
+              <img alt="ChromeOS" src="/images/logo-chrome-36x37@2x.png">
               <p>Chromebook</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
-              <img alt="Containers" src="/images/homepage-platform-greyscale-docker-48x48@2x.png">
+              <img alt="Containers" src="/images/logo-docker-40x40@2x.png">
               <p>Containers</p>
             </div>
             <div purpose="endpoint-image-box" class="d-md-flex d-none">
-              <img alt="IOT" src="/images/homepage-platform-greyscale-iot-38x48@2x.png">
+              <img alt="IOT" src="/images/icon-iot-36x36@2x.png">
               <p>IoT (Linux)</p>
             </div>
             <div purpose="endpoint-image-box"></div>
@@ -281,10 +296,10 @@
     </div>
 
     <div purpose="three-column-features" class="mx-auto">
-      <div purpose="feature-row" class="d-flex flex-sm-row flex-column align-items-start justify-content-center">
+      <div purpose="feature-row" class="d-flex flex-md-row flex-column align-items-start justify-content-center">
 
         <div purpose="feature" class="ml-sm-0">
-          <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-sm-0">
+          <img alt="transparency" src="/images/homepage-icon-transparency-54x64@2x.png" class="mx-auto mx-md-0">
           <h5>Scope transparency</h5>
           <p>Let end users see the source code for exactly <a href="/docs/using-fleet/fleet-desktop">how they are being monitored</a>, and set clear expectations about what is and isn’t acceptable use of work computers.</p>
         </div>
