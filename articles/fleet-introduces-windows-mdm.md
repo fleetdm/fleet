@@ -102,7 +102,7 @@ In our commitment to a transparent, user-first model, Fleet upholds the principl
 
 Fleet's expansion to include Windows support in its device management capabilities marks a significant milestone in our mission to simplify and secure MDM across diverse platforms. This integration caters to modern organizations operating in a Windows-dominant environment, filling a crucial gap in the market for a versatile, cross-platform MDM solution. By combining the strengths of MDM with its analytical capabilities, Fleet offers a comprehensive approach to device security and management. The unified GitOps workflow and enhanced programmability and automation features further streamline the management of both macOS and Windows devices, offering a cohesive experience that aligns with modern IT needs. Above all, Fleet maintains its commitment to transparency and a user-first model, ensuring users across all platforms, including Windows, know and trust how their devices are managed within our ecosystem. This update reinforces Fleet's position as a versatile, efficient, and trustworthy device management solution that organizations can rely on in today's varied and dynamic IT landscapes.
 
-<meta name="category" value="releases">
+<meta name="category" value="announcements">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2024-01-24">
