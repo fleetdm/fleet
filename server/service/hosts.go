@@ -1852,13 +1852,6 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	var metaData *fleet.PaginationMetadata
 	osVersions.OSVersions, metaData = paginateOSVersions(osVersions.OSVersions, opts)
 
-	// var metaData *fleet.PaginationMetadata
-	// metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
-	// if len(osVersions.OSVersions) > int(opts.PerPage) {
-	// 	metaData.HasNextResults = true
-	// 	osVersions.OSVersions = osVersions.OSVersions[:len(osVersions.OSVersions)-1]
-	// }
-
 	return osVersions, count, metaData, nil
 }
 
