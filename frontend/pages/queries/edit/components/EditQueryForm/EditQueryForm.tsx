@@ -826,9 +826,7 @@ const EditQueryForm = ({
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={() => {
-                  if (changedSQL) {
-                    setEditingExistingQuery(true);
-                  }
+                  setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId)
