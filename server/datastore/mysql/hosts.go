@@ -4439,7 +4439,7 @@ WHERE
 		val, ok := byNameVers[key]
 		if !ok {
 			// omit os id
-			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
+			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount, ID: os.ID}
 		} else {
 			newVal := val
 			newVal.HostsCount += os.HostsCount
