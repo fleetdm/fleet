@@ -59,7 +59,6 @@ import AboutCard from "../cards/About";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
-import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -74,6 +73,7 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import RunScriptModal from "./modals/RunScriptModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
@@ -139,6 +139,7 @@ const HostDetailsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -146,7 +147,7 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -159,10 +160,6 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
-
-  // used to track the current script execution id we want to show in the show
-  // details modal.
-  const scriptExecutionId = useRef<string | null>(null);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -492,15 +489,9 @@ const HostDetailsPage = ({
     );
   };
 
-  const onCancelScriptDetailsModal = () => {
-    setShowScriptDetailsModal(false);
-    scriptExecutionId.current = null;
-  };
-
-  const onShowScriptDetails = (executionId: string) => {
-    scriptExecutionId.current = executionId;
-    setShowScriptDetailsModal(true);
-  };
+  const onCancelScriptDetailsModal = useCallback(() => {
+    setScriptDetailsId("");
+  }, [setScriptDetailsId]);
 
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
@@ -551,7 +542,10 @@ const HostDetailsPage = ({
       case "delete":
         setShowDeleteHostModal(true);
         break;
-      default:
+      case "runScript":
+        setShowRunScriptModal(true);
+        break;
+      default: // do nothing
     }
   };
 
@@ -585,11 +579,6 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
     },
     {
-      name: "Scripts",
-      title: "scripts",
-      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
-    },
-    {
       name: "Software",
       title: "software",
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
@@ -613,26 +602,15 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
-  // We filter it out for other platforms and non premium.
-  // TODO: improve this code. We can pull the tab list component out
-  // into its own component later.
-
-  const showScripts =
-    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
-  const filteredSubNavTabs = showScripts
-    ? hostDetailsSubNav
-    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
-
   const getTabIndex = (path: string): number => {
-    return filteredSubNavTabs.findIndex((navItem) => {
+    return hostDetailsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = filteredSubNavTabs[i].pathname;
+    const navPath = hostDetailsSubNav[i].pathname;
     router.push(navPath);
   };
 
@@ -658,8 +636,6 @@ const HostDetailsPage = ({
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
-
-  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
 
   return (
     <MainContent className={baseClass}>
@@ -697,7 +673,7 @@ const HostDetailsPage = ({
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {filteredSubNavTabs.map((navItem) => {
+              {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
@@ -729,14 +705,6 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {showScripts && (
-              <TabPanel>
-                <ScriptsCard
-                  {...{ currentUser, host, page, router }}
-                  onShowDetails={onShowScriptDetails}
-                />
-              </TabPanel>
-            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
@@ -799,6 +767,15 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
+        {showRunScriptModal && (
+          <RunScriptModal
+            host={host}
+            currentUser={currentUser}
+            scriptDetailsId={scriptDetailsId}
+            setScriptDetailsId={setScriptDetailsId}
+            setShowModal={setShowRunScriptModal}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -842,9 +819,9 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {showScriptDetailsModal && scriptExecutionId.current && (
+        {!!scriptDetailsId && (
           <ScriptDetailsModal
-            scriptExecutionId={scriptExecutionId.current}
+            scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
           />
         )}
