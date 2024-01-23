@@ -7382,7 +7382,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// get OS versions
 	osv, err := s.ds.ListOperatingSystems(context.Background())
 	require.NoError(t, err)
-	require.Len(t, osv, 5)
+	require.Len(t, osv, 6) // includes fooOS from another test
 
 	osvMap := make(map[string]fleet.OperatingSystem)
 	for _, os := range osv {
