@@ -554,7 +554,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	}
 
 	// create some darwin hosts, all enrolled
-	darwinHosts := make([]*fleet.Host, 3)
+	var darwinHosts []*fleet.Host // not pre-allocating, causes gosec false positive
 	for i := 0; i < 3; i++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i),
@@ -565,7 +565,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		nanoEnroll(t, ds, h, false)
-		darwinHosts[i] = h
+		darwinHosts = append(darwinHosts, h)
 		t.Logf("enrolled darwin host [%d]: %s", i, h.UUID)
 	}
 
@@ -593,7 +593,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// create some windows hosts, all enrolled
 	i = 5
-	windowsHosts := make([]*fleet.Host, 3)
+	var windowsHosts []*fleet.Host // not preallocating, causes gosec false positive
 	for j := 0; j < 3; j++ {
 		h, err := ds.NewHost(ctx, &fleet.Host{
 			Hostname:      fmt.Sprintf("test-host%d-name", i+j),
@@ -604,7 +604,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 		})
 		require.NoError(t, err)
 		windowsEnroll(t, ds, h)
-		windowsHosts[j] = h
+		windowsHosts = append(windowsHosts, h)
 		t.Logf("enrolled windows host [%d]: %s", j, h.UUID)
 	}
 
