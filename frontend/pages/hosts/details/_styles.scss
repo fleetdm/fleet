@@ -311,3 +311,9 @@
     }
   }
 }
+
+// we dont need the margin on the host details page as we are not using grid css
+// for the spacing.
+.host-details__tabs-wrapper .section {
+  margin-top: 0;
+}

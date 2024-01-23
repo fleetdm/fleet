@@ -793,7 +793,7 @@ const HostDetailsPage = ({
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__details-panel`}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
@@ -821,17 +821,15 @@ const HostDetailsPage = ({
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
               />
-              <div className="col-2">
-                <AgentOptionsCard
-                  osqueryData={osqueryData}
-                  wrapFleetHelper={wrapFleetHelper}
-                  isChromeOS={host?.platform === "chrome"}
-                />
-                <LabelsCard
-                  labels={host?.labels || []}
-                  onLabelClick={onLabelClick}
-                />
-              </div>
+              <AgentOptionsCard
+                osqueryData={osqueryData}
+                wrapFleetHelper={wrapFleetHelper}
+                isChromeOS={host?.platform === "chrome"}
+              />
+              <LabelsCard
+                labels={host?.labels || []}
+                onLabelClick={onLabelClick}
+              />
               <UsersCard
                 users={host?.users || []}
                 usersState={usersState}
