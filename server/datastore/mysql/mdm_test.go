@@ -1423,7 +1423,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			// both are stored in the DB
 			expectLabels(t, profileLabels)
 
-			// batch apply again without the label
+			// batch apply again without the newLabel
 			profileLabels = []fleet.ConfigurationProfileLabel{
 				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
 			}

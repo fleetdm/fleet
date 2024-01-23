@@ -1798,7 +1798,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 		Description: "a label",
 		Query:       "select 1 from processes;",
 	}
-	label, err = ds.NewLabel(context.Background(), label)
+	label, err = ds.NewLabel(ctx, label)
 	require.NoError(t, err)
 
 	// create a profile with a label that exists

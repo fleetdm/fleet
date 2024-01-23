@@ -161,7 +161,7 @@ func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
 		Query:       "select 1 from processes;",
 		Platform:    "darwin",
 	}
-	label, err = ds.NewLabel(context.Background(), label)
+	label, err = ds.NewLabel(ctx, label)
 	require.NoError(t, err)
 	cp.Labels = []fleet.ConfigurationProfileLabel{
 		{LabelName: label.Name, LabelID: label.ID},
