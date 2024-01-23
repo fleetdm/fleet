@@ -4,7 +4,7 @@ import InputField from "components/forms/fields/InputField";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { ITeamConfig } from "interfaces/team";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import configAPI from "services/entities/config";
@@ -17,13 +17,13 @@ import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
 const baseClass = "team-settings";
 
+const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
+
 const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
-  // encompasses both when global setting is not enabled and
-  // when it is and the user has opted to override it with a local setting
   const [UITeamHostExpiryEnabled, setUITeamHostExpiryEnabled] = useState(false); // default false until API response
   const [UITeamHostExpiryWindow, setUITeamHostExpiryWindow] = useState<
-    number | null
-  >(null);
+    number | string
+  >("");
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
@@ -78,25 +78,37 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false
         );
         setUITeamHostExpiryWindow(
-          teamConfig?.host_expiry_settings?.host_expiry_window ?? null
+          teamConfig.host_expiry_settings?.host_expiry_window ?? ""
         );
       },
       refetchOnWindowFocus: false,
     }
   );
 
-  const onExpiryWindowChange = (value: string) => {
-    // input from text field will be a string
-    const castVal = Number(value);
-    // TODO - validate either  here or as effect
-    // validate(value, expiryWindowErrorCondition, expiryWindowErrorMessage);
-    setUITeamHostExpiryWindow(isNaN(castVal) ? null : castVal);
-  };
+  const validate = useCallback(() => {
+    const errors: Record<string, string> = {};
+    if (
+      (!globalHostExpiryEnabled &&
+        UITeamHostExpiryEnabled &&
+        !UITeamHostExpiryWindow) ||
+      Number(UITeamHostExpiryWindow) < 0
+    ) {
+      errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
+    }
 
+    setFormErrors(errors);
+  }, [
+    UITeamHostExpiryEnabled,
+    UITeamHostExpiryWindow,
+    globalHostExpiryEnabled,
+  ]);
+
+  useEffect(() => {
+    validate();
+  }, [UITeamHostExpiryEnabled, UITeamHostExpiryWindow, validate]);
   const updateTeamHostExpiry = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
-      // TODO validate, here or as effect
 
       setUpdatingTeamSettings(true);
       teamsAPI
@@ -104,7 +116,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           {
             host_expiry_settings: {
               host_expiry_enabled: UITeamHostExpiryEnabled,
-              host_expiry_window: UITeamHostExpiryWindow ?? 0,
+              host_expiry_window: Number(UITeamHostExpiryWindow),
             },
           },
           teamIdForApi
@@ -155,9 +167,11 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         {(UITeamHostExpiryEnabled || addingCustomWindow) && (
           <InputField
             label="Host expiry window"
-            onChange={onExpiryWindowChange}
+            type="number"
+            onChange={setUITeamHostExpiryWindow}
             name="host-expiry-window"
             value={UITeamHostExpiryWindow}
+            error={formErrors.host_expiry_window}
           />
         )}
         <Button
@@ -165,6 +179,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           variant="brand"
           className="button-wrap"
           isLoading={updatingTeamSettings}
+          disabled={Object.keys(formErrors).length > 0}
         >
           Save
         </Button>
@@ -174,7 +189,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   return (
     <section className={`${baseClass}`}>
-      <div className="section-header">Settings</div>
+      <div className="section-header">Host expiry settings</div>
       {renderForm()}
     </section>
   );
