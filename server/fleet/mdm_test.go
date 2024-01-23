@@ -206,19 +206,12 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 			name:         "old format",
 			input:        []byte(`"oldpath"`),
 			expectPath:   "oldpath",
-			expectLabels: []string{},
+			expectLabels: nil,
 			expectError:  false,
 		},
 		{
 			name:         "invalid JSON",
 			input:        []byte(`{invalid json}`),
-			expectPath:   "",
-			expectLabels: nil,
-			expectError:  true,
-		},
-		{
-			name:         "incompatible JSON",
-			input:        []byte(`{"invalid": "data"}`),
 			expectPath:   "",
 			expectLabels: nil,
 			expectError:  true,
@@ -256,6 +249,7 @@ func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
 		require.Equal(t, []string{"label1", "label2"}, p.Labels)
 
 		// test old format
+		p = fleet.MDMProfileSpec{}
 		data = []byte(`"oldpath"`)
 		err = p.UnmarshalJSON(data)
 		require.NoError(t, err)

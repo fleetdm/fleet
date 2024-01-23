@@ -668,7 +668,9 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				csSpecs = append(csSpecs, profSpec)
 			}
 		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
-			csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
+			if m != "" {
+				csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
+			}
 		}
 	}
 	return csSpecs

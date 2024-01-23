@@ -14,7 +14,7 @@ func TestExtractAppConfigMacOSCustomSettings(t *testing.T) {
 	cases := []struct {
 		desc string
 		yaml string
-		want []string
+		want []fleet.MDMProfileSpec
 	}{
 		{
 			"no settings",
@@ -50,7 +50,7 @@ spec:
     macos_settings:
       custom_settings:
 `,
-			[]string{},
+			[]fleet.MDMProfileSpec{},
 		},
 		{
 			"custom settings specified",
@@ -63,13 +63,58 @@ spec:
   mdm:
     macos_settings:
       custom_settings:
-        - "a"
-        - "b"
+        - path: "a"
+          labels:
+            - "foo"
+            - bar
+        - path: "b"
 `,
-			[]string{"a", "b"},
+			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
 			"empty and invalid custom settings",
+			`
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: "Fleet"
+  mdm:
+    macos_settings:
+      custom_settings:
+        - path: "a"
+          labels:
+        - path: ""
+          labels:
+            - "foo"
+        - path: 4
+          labels:
+            - "foo"
+            - "bar"
+        - path: "c"
+          labels:
+            - baz
+`,
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c", Labels: []string{"baz"}}},
+		},
+		{
+			"old custom settings specified",
+			`
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: "Fleet"
+  mdm:
+    macos_settings:
+      custom_settings:
+        - "a"
+        - "b"
+`,
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+		},
+		{
+			"old empty and invalid custom settings",
 			`
 apiVersion: v1
 kind: config
@@ -84,7 +129,7 @@ spec:
         - 4
         - "c"
 `,
-			[]string{"a", "c"},
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
 		},
 	}
 	for _, c := range cases {
@@ -103,7 +148,7 @@ func TestExtractAppConfigWindowsCustomSettings(t *testing.T) {
 	cases := []struct {
 		desc string
 		yaml string
-		want []string
+		want []fleet.MDMProfileSpec
 	}{
 		{
 			"no settings",
@@ -139,7 +184,7 @@ spec:
     windows_settings:
       custom_settings:
 `,
-			[]string{},
+			[]fleet.MDMProfileSpec{},
 		},
 		{
 			"custom settings specified",
@@ -152,13 +197,58 @@ spec:
   mdm:
     windows_settings:
       custom_settings:
-        - "a"
-        - "b"
+        - path: "a"
+          labels:
+            - "foo"
+            - bar
+        - path: "b"
 `,
-			[]string{"a", "b"},
+			[]fleet.MDMProfileSpec{{Path: "a", Labels: []string{"foo", "bar"}}, {Path: "b"}},
 		},
 		{
 			"empty and invalid custom settings",
+			`
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: "Fleet"
+  mdm:
+    windows_settings:
+      custom_settings:
+        - path: "a"
+          labels:
+        - path: ""
+          labels:
+            - "foo"
+        - path: 4
+          labels:
+            - "foo"
+            - "bar"
+        - path: "c"
+          labels:
+            - baz
+`,
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c", Labels: []string{"baz"}}},
+		},
+		{
+			"old custom settings specified",
+			`
+apiVersion: v1
+kind: config
+spec:
+  org_info:
+    org_name: "Fleet"
+  mdm:
+    windows_settings:
+      custom_settings:
+        - "a"
+        - "b"
+`,
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
+		},
+		{
+			"old empty and invalid custom settings",
 			`
 apiVersion: v1
 kind: config
@@ -173,7 +263,7 @@ spec:
         - 4
         - "c"
 `,
-			[]string{"a", "c"},
+			[]fleet.MDMProfileSpec{{Path: "a"}, {Path: "c"}},
 		},
 	}
 	for _, c := range cases {
