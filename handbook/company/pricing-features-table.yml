@@ -564,7 +564,7 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
-  documentationUrl: https://fleetdm.com//learn-more-about/os-updateslearn-more-about/os-updates
+  documentationUrl: https://fleetdm.com/learn-more-about/os-updates
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management,Vulnerability management]
