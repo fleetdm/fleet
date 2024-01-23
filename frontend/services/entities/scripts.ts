@@ -40,6 +40,7 @@ export interface IScriptResultResponse {
   host_id: number;
   execution_id: string;
   script_contents: string;
+  script_id: number;
   exit_code: number | null;
   output: string;
   message: string;
@@ -59,6 +60,19 @@ export interface IHostScript {
   script_id: number;
   name: string;
   last_execution: ILastExecution | null;
+}
+
+/**
+ * Request params for for GET /hosts/:id/scripts
+ */
+export interface IHostScriptsRequestParams {
+  host_id: number;
+  page?: number;
+  per_page?: number;
+}
+
+export interface IHostScriptsQueryKey extends IHostScriptsRequestParams {
+  scope: "host_scripts";
 }
 
 /**
@@ -94,13 +108,13 @@ export interface IScriptRunResponse {
 }
 
 export default {
-  getHostScripts(id: number, page?: number) {
+  getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
+    const path = `${HOST_SCRIPTS(host_id)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+    })}`;
 
-    let path = HOST_SCRIPTS(id);
-    if (page) {
-      path = `${path}?${buildQueryStringFromParams({ page })}`;
-    }
     return sendRequest("GET", path);
   },
 
