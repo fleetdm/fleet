@@ -44,6 +44,7 @@ interface IActivityProps {
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
+  onShowDetails: (details: IActivityDetails) => void;
 }
 
 const Activity = ({
@@ -54,15 +55,8 @@ const Activity = ({
   onChangeTab,
   onNextPage,
   onPreviousPage,
+  onShowDetails,
 }: IActivityProps) => {
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  const scriptExecutionId = useRef("");
-
-  const handleDetailsClick = (details: IActivityDetails) => {
-    scriptExecutionId.current = details.script_execution_id ?? "";
-    setShowScriptDetailsModal(true);
-  };
-
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
       {isLoading && (
@@ -86,7 +80,7 @@ const Activity = ({
           <TabPanel>
             <PastActivityFeed
               activities={activities}
-              onDetailsClick={handleDetailsClick}
+              onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
@@ -96,7 +90,7 @@ const Activity = ({
             <UpcomingTooltip />
             <UpcomingActivityFeed
               activities={activities}
-              onDetailsClick={handleDetailsClick}
+              onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
               onPreviousPage={onPreviousPage}
@@ -104,12 +98,6 @@ const Activity = ({
           </TabPanel>
         </Tabs>
       </TabsWrapper>
-      {showScriptDetailsModal && (
-        <ScriptDetailsModal
-          scriptExecutionId={scriptExecutionId.current}
-          onCancel={() => setShowScriptDetailsModal(false)}
-        />
-      )}
     </Card>
   );
 };

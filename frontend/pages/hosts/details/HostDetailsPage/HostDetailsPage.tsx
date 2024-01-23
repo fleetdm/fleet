@@ -820,6 +820,8 @@ const HostDetailsPage = ({
                 onChangeTab={onChangeActivityTab}
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
+                // TODO: show modal
+                onShowDetails={() => {}}
               />
               <AgentOptionsCard
                 osqueryData={osqueryData}
