@@ -204,9 +204,9 @@ const EditQueryPage = ({
   useEffect(() => {
     // e.g., Editing Discover TLS certificates | Queries | Fleet
     const storedQueryTitleCopy = storedQuery?.name
-      ? `${storedQuery.name} | `
+      ? `Editing ${storedQuery.name} | `
       : "";
-    document.title = `Editing ${storedQueryTitleCopy} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
     // }
   }, [location.pathname, storedQuery?.name]);
 
