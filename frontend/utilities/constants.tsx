@@ -131,6 +131,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   team_id: 0,
   author_email: "",
   stats: {},
+  editedQuerySql: false,
 };
 
 export const DEFAULT_CAMPAIGN = {
