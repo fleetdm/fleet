@@ -1660,8 +1660,6 @@ func (ds *Datastore) ListMDMAppleProfilesToInstall(ctx context.Context) ([]*flee
 	// where one of the labels does not exist anymore, will not be considered for
 	// installation.
 
-	// TODO(mna): test all that label-based logic documented above ^
-
 	query := fmt.Sprintf(`
 	SELECT
 		ds.profile_uuid,
@@ -1715,8 +1713,6 @@ func (ds *Datastore) ListMDMAppleProfilesToRemove(ctx context.Context) ([]*fleet
 	// previously installed. However, if a host used to satisfy a label-based
 	// profile but no longer does (and that label-based profile is not "broken"),
 	// the profile will be removed from the host.
-
-	// TODO(mna): test all that label-based logic documented above ^
 
 	query := fmt.Sprintf(`
 	SELECT
