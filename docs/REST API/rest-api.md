@@ -3657,7 +3657,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Get host's upcoming activity
 
-`GET /api/v1/fleet/hosts/:id/activites/upcoming`
+`GET /api/v1/fleet/hosts/:id/activities/upcoming`
 
 #### Parameters
 
