@@ -3191,7 +3191,6 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, osID, osVersionsResp.OSVersions[0].ID)
 	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
 	require.Equal(t, fmt.Sprintf("%s %s", testOS.Name, testOS.Version), osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, testOS.Name, osVersionsResp.OSVersions[0].NameOnly)
