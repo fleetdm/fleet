@@ -1350,10 +1350,17 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames [
 		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
 	}
 
-	if len(labels) != len(labelNames) {
+	uniqueNames := make(map[string]bool)
+	for _, entry := range labelNames {
+		if _, value := uniqueNames[entry]; !value {
+			uniqueNames[entry] = true
+		}
+	}
+
+	if len(labels) != len(uniqueNames) {
 		return nil, &fleet.BadRequestError{
 			Message:     "some or all the labels provided don't exist",
-			InternalErr: fmt.Errorf("len(labels) != len(labelNames), names provided: %v", labelNames),
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
 		}
 	}
 

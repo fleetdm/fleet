@@ -641,14 +641,14 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 		return []fleet.MDMProfileSpec{}
 	}
 
-	csStrings := make([]fleet.MDMProfileSpec, 0, len(csAny))
+	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
 		if m, ok := v.(map[string]interface{}); ok {
-			var pProfileValue fleet.MDMProfileSpec
+			var profSpec fleet.MDMProfileSpec
 
 			// extract the Path field
 			if path, ok := m["path"].(string); ok {
-				pProfileValue.Path = path
+				profSpec.Path = path
 			}
 
 			// extract the Labels field
@@ -656,27 +656,22 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 			// TODO: what's the behavior for labels? not provided
 			// means that the labels are not modified or that
 			// should be cleaned?
-			//
-			// Follow up in another PR to either remove this
-			// comment or adjust this behavior
 			if labels, ok := m["labels"].([]interface{}); ok {
 				for _, label := range labels {
 					if strLabel, ok := label.(string); ok {
-						pProfileValue.Labels = append(pProfileValue.Labels, strLabel)
+						profSpec.Labels = append(profSpec.Labels, strLabel)
 					}
 				}
 			}
 
-			// append to the result if Path is not empty (keeps previous behavior)
-			// TODO: should we just populate it as empty and let it fail?
-			if pProfileValue.Path != "" {
-				csStrings = append(csStrings, pProfileValue)
+			if profSpec.Path != "" {
+				csSpecs = append(csSpecs, profSpec)
 			}
-		} else if m, ok := v.(string); ok {
-			csStrings = append(csStrings, fleet.MDMProfileSpec{Path: m})
+		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+			csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
 		}
 	}
-	return csStrings
+	return csSpecs
 }
 
 func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {

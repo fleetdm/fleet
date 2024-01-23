@@ -1492,6 +1492,7 @@ func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	const loadExistingProfiles = `
 SELECT
   name,
+  profile_uuid,
   syncml
 FROM
   mdm_windows_configuration_profiles
@@ -1540,12 +1541,9 @@ ON DUPLICATE KEY UPDATE
 	// at the same time, index the incoming profiles keyed by name for ease
 	// or processing
 	incomingProfs := make(map[string]*fleet.MDMWindowsConfigProfile, len(profiles))
-	// build a list of labels so the associations can be batch-set all at once
-	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	for i, p := range profiles {
 		incomingNames[i] = p.Name
 		incomingProfs[p.Name] = p
-		incomingLabels = append(incomingLabels, p.Labels...)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1597,7 +1595,36 @@ ON DUPLICATE KEY UPDATE
 			}
 		}
 
-		// insert the label associations
+		// build a list of labels so the associations can be batch-set all at once
+		// TODO: with minor changes this chunk of code could be shared
+		// between macOS and Windows, but at the time of this
+		// implementation we're under tight time constraints.
+		incomingLabels := []fleet.ConfigurationProfileLabel{}
+		if len(incomingNames) > 0 {
+			var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
+			// load current profiles (again) that match the incoming profiles by name to grab their uuids
+			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
+			}
+
+			for _, newlyInsertedProf := range newlyInsertedProfs {
+				incomingProf, ok := incomingProfs[newlyInsertedProf.Name]
+				if !ok {
+					return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
+				}
+
+				for _, label := range incomingProf.Labels {
+					label.ProfileUUID = newlyInsertedProf.ProfileUUID
+					incomingLabels = append(incomingLabels, label)
+				}
+			}
+		}
+
+		// insert/delete the label associations
 		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "windows"); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}

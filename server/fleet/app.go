@@ -324,20 +324,40 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
-			strs := make([]MDMProfileSpec, 0, len(vals))
+			csSpecs := make([]MDMProfileSpec, 0, len(vals))
 			for _, v := range vals {
-				str, ok := v.(MDMProfileSpec)
-				if !ok {
-					// error, must be a []string
+				if m, ok := v.(map[string]interface{}); ok {
+					var spec MDMProfileSpec
+					// extract the Path field
+					if path, ok := m["path"].(string); ok {
+						spec.Path = path
+					}
+
+					// extract the Labels field
+					//
+					// TODO: what's the behavior for labels? not provided
+					// means that the labels are not modified or that
+					// should be cleaned?
+					if labels, ok := m["labels"].([]interface{}); ok {
+						for _, label := range labels {
+							if strLabel, ok := label.(string); ok {
+								spec.Labels = append(spec.Labels, strLabel)
+							}
+						}
+					}
+
+					csSpecs = append(csSpecs, spec)
+				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+					csSpecs = append(csSpecs, MDMProfileSpec{Path: m})
+				} else {
 					return nil, &json.UnmarshalTypeError{
 						Value: fmt.Sprintf("%T", v),
 						Type:  reflect.TypeOf(s.CustomSettings),
 						Field: "macos_settings.custom_settings",
 					}
 				}
-				strs = append(strs, str)
 			}
-			s.CustomSettings = strs
+			s.CustomSettings = csSpecs
 		}
 	}
 
