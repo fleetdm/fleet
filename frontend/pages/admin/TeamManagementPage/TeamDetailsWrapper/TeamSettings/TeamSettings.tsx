@@ -70,21 +70,27 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     () => teamsAPI.load(teamIdForApi),
     {
       enabled: isRouteOk && !!teamIdForApi,
+      select: (data) => data.team,
       onSuccess: (teamConfig) => {
         // default this setting to current team setting
         // can be updated by user actions
         setUITeamHostExpiryEnabled(
           teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false
         );
+        setUITeamHostExpiryWindow(
+          teamConfig?.host_expiry_settings?.host_expiry_window ?? null
+        );
       },
       refetchOnWindowFocus: false,
     }
   );
 
-  const onExpiryWindowChange = (value: number) => {
-    setUITeamHostExpiryWindow(value);
+  const onExpiryWindowChange = (value: string) => {
+    // input from text field will be a string
+    const castVal = Number(value);
     // TODO - validate either  here or as effect
     // validate(value, expiryWindowErrorCondition, expiryWindowErrorMessage);
+    setUITeamHostExpiryWindow(isNaN(castVal) ? null : castVal);
   };
 
   const updateTeamHostExpiry = useCallback(
