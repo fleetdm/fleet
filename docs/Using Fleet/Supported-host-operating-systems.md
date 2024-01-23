@@ -29,6 +29,7 @@ If you aren't sure what version of `glibc` your distribution is using, [DistroWa
 
 > Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome set to the default browser for Fleet Desktop.
 
+> fleetctl package command is not supported on DISA-STIG distribution.
 
 <meta name="pageOrderInSection" value="1200">
 <meta name="description" value="This page contains information about operating systems that are compatible with the osquery agent.">
