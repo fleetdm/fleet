@@ -3,6 +3,7 @@ import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { IActivityDetails } from "interfaces/activity";
+import { IActivitiesResponse } from "services/entities/activities";
 
 import Card from "components/Card";
 import TabsWrapper from "components/TabsWrapper";
@@ -11,7 +12,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 
 import PastActivityFeed from "./PastActivityFeed";
 import UpcomingActivityFeed from "./UpcomingActivityFeed";
-import { IActivitiesResponse } from "services/entities/activities";
 
 const baseClass = "activity-card";
 
