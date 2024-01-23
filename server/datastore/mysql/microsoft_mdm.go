@@ -1540,9 +1540,12 @@ ON DUPLICATE KEY UPDATE
 	// at the same time, index the incoming profiles keyed by name for ease
 	// or processing
 	incomingProfs := make(map[string]*fleet.MDMWindowsConfigProfile, len(profiles))
+	// build a list of labels so the associations can be batch-set all at once
+	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	for i, p := range profiles {
 		incomingNames[i] = p.Name
 		incomingProfs[p.Name] = p
+		incomingLabels = append(incomingLabels, p.Labels...)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1593,6 +1596,12 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 			}
 		}
+
+		// insert the label associations
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "windows"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+		}
+
 		return nil
 	})
 }

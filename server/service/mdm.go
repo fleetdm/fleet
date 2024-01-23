@@ -1340,7 +1340,7 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	return newCP, nil
 }
 
-func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
+func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames []string) (map[string]fleet.ConfigurationProfileLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -1357,12 +1357,25 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 		}
 	}
 
-	var profLabels []fleet.ConfigurationProfileLabel
+	profLabels := make(map[string]fleet.ConfigurationProfileLabel)
 	for labelName, labelID := range labels {
-		profLabels = append(profLabels, fleet.ConfigurationProfileLabel{
+		profLabels[labelName] = fleet.ConfigurationProfileLabel{
 			LabelName: labelName,
 			LabelID:   labelID,
-		})
+		}
+	}
+	return profLabels, nil
+}
+
+func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
+	labelMap, err := svc.batchValidateProfileLabels(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating single profile")
+	}
+
+	var profLabels []fleet.ConfigurationProfileLabel
+	for _, label := range labelMap {
+		profLabels = append(profLabels, label)
 	}
 	return profLabels, nil
 }
@@ -1372,35 +1385,37 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID   *uint   `json:"-" query:"team_id,optional"`
-	TeamName *string `json:"-" query:"team_name,optional"`
-	DryRun   bool    `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Profiles pp      `json:"profiles"`
+	TeamID   *uint                        `json:"-" query:"team_id,optional"`
+	TeamName *string                      `json:"-" query:"team_name,optional"`
+	DryRun   bool                         `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
+	Profiles backwardsCompatProfilesParam `json:"profiles"`
 }
 
-type pp []fleet.MDMProfileBatchPayload
+type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
 
-func (p *pp) UnmarshalJSON(data []byte) error {
-	// TODO: check for nil data?
-	// TODO: add comments
-	var alias []fleet.MDMProfileBatchPayload
-	newFormatErr := json.Unmarshal(data, &alias)
+func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// use []fleet.MDMProfileBatchPayload to prevent infinite recursion if
+	// we use `backwardsCompatProfileSlice`
+	var profs []fleet.MDMProfileBatchPayload
+	newFormatErr := json.Unmarshal(data, &profs)
 	if newFormatErr == nil {
-		*p = alias
+		*bcp = profs
 		return nil
 	}
 
 	var backwardsCompat map[string][]byte
 	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
 	if newFormatErr != nil && oldFormatErr != nil {
-		// TODO: bad request err?
-		// TODO: better error, return both errors
-		return errors.New("invalid format")
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
 	}
 
-	*p = make(pp, 0, len(backwardsCompat))
+	*bcp = make(backwardsCompatProfilesParam, 0, len(backwardsCompat))
 	for name, contents := range backwardsCompat {
-		*p = append(*p, fleet.MDMProfileBatchPayload{Name: name, Contents: contents})
+		*bcp = append(*bcp, fleet.MDMProfileBatchPayload{Name: name, Contents: contents})
 	}
 	return nil
 }
@@ -1436,12 +1451,21 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 		return ctxerr.Wrap(ctx, err, "validating profiles")
 	}
 
-	appleProfiles, err := getAppleProfiles(ctx, tmID, appCfg, profiles)
+	labels := []string{}
+	for _, prof := range profiles {
+		labels = append(labels, prof.Labels...)
+	}
+	labelMap, err := svc.batchValidateProfileLabels(ctx, labels)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "validating labels")
+	}
+
+	appleProfiles, err := getAppleProfiles(ctx, tmID, appCfg, profiles, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
 
-	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profiles)
+	windowsProfiles, err := getWindowsProfiles(ctx, tmID, appCfg, profiles, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
@@ -1530,7 +1554,13 @@ func (svc *Service) authorizeBatchProfiles(ctx context.Context, tmID *uint, tmNa
 	return tmID, tmName, nil
 }
 
-func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMProfileBatchPayload) ([]*fleet.MDMAppleConfigProfile, error) {
+func getAppleProfiles(
+	ctx context.Context,
+	tmID *uint,
+	appCfg *fleet.AppConfig,
+	profiles []fleet.MDMProfileBatchPayload,
+	labelMap map[string]fleet.ConfigurationProfileLabel,
+) ([]*fleet.MDMAppleConfigProfile, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
@@ -1543,6 +1573,12 @@ func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, 
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
+		}
+
+		for _, labelName := range prof.Labels {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.Labels = append(mdmProf.Labels, lbl)
+			}
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
@@ -1590,7 +1626,13 @@ func getAppleProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, 
 	return profs, nil
 }
 
-func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig, profiles []fleet.MDMProfileBatchPayload) ([]*fleet.MDMWindowsConfigProfile, error) {
+func getWindowsProfiles(
+	ctx context.Context,
+	tmID *uint,
+	appCfg *fleet.AppConfig,
+	profiles []fleet.MDMProfileBatchPayload,
+	labelMap map[string]fleet.ConfigurationProfileLabel,
+) ([]*fleet.MDMWindowsConfigProfile, error) {
 	profs := make([]*fleet.MDMWindowsConfigProfile, 0, len(profiles))
 
 	for _, profile := range profiles {
@@ -1602,6 +1644,11 @@ func getWindowsProfiles(ctx context.Context, tmID *uint, appCfg *fleet.AppConfig
 			TeamID: tmID,
 			Name:   profile.Name,
 			SyncML: profile.Contents,
+		}
+		for _, labelName := range profile.Labels {
+			if lbl, ok := labelMap[labelName]; ok {
+				mdmProf.Labels = append(mdmProf.Labels, lbl)
+			}
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {

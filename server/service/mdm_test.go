@@ -1457,3 +1457,65 @@ func TestValidateProfiles(t *testing.T) {
 		})
 	}
 }
+
+func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       []byte
+		expect      backwardsCompatProfilesParam
+		expectError bool
+	}{
+		{
+			name:        "empty input",
+			input:       []byte(""),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:  "new format",
+			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n")},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:  "new format with labels",
+			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg==", "labels": ["foo", "bar"]}, {"name": "profile2", "contents": "YmFyCg=="}]`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n"), Labels: []string{"foo", "bar"}},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:  "old format",
+			input: []byte(`{"profile1": "Zm9vCg==", "profile2": "YmFyCg=="}`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n")},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:        "invalid json",
+			input:       []byte(`{invalid json}`),
+			expect:      nil,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var bcp backwardsCompatProfilesParam
+			err := bcp.UnmarshalJSON(tc.input)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.ElementsMatch(t, tc.expect, bcp)
+			}
+		})
+	}
+}

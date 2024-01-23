@@ -1209,9 +1209,12 @@ ON DUPLICATE KEY UPDATE
 	// at the same time, index the incoming profiles keyed by identifier for ease
 	// or processing
 	incomingProfs := make(map[string]*fleet.MDMAppleConfigProfile, len(profiles))
+	// build a list of labels so the associations can be batch-set all at once
+	incomingLabels := []fleet.ConfigurationProfileLabel{}
 	for i, p := range profiles {
 		incomingIdents[i] = p.Identifier
 		incomingProfs[p.Identifier] = p
+		incomingLabels = append(incomingLabels, p.Labels...)
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -1261,6 +1264,11 @@ ON DUPLICATE KEY UPDATE
 			if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 			}
+		}
+
+		// insert label associations
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 		}
 		return nil
 	})
