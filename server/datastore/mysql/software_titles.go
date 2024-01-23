@@ -184,6 +184,7 @@ JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 %s
 -- placeholder for optional extra WHERE filter
 WHERE sthc.team_id = ? %s
+AND sthc.hosts_count > 0
 GROUP BY st.id`
 
 	cveJoinType := "LEFT"

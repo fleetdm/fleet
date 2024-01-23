@@ -500,7 +500,17 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 
 type Activity struct {
 	CreateTimestamp
-	ID            uint             `json:"id" db:"id"`
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
@@ -1081,6 +1091,7 @@ type ActivityTypeRanScript struct {
 	HostID            uint   `json:"host_id"`
 	HostDisplayName   string `json:"host_display_name"`
 	ScriptExecutionID string `json:"script_execution_id"`
+	ScriptName        string `json:"script_name"`
 	Async             bool   `json:"async"`
 }
 
@@ -1098,9 +1109,11 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
 }`

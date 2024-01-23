@@ -6604,13 +6604,31 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	s.runWorker()
 	require.Equal(t, lastSubmittedProfile.ConfigurationWebURL, lastSubmittedProfile.URL)
 
-	// set-up valid settings
-	acResp = appConfigResponse{}
-	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
+		acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
+		require.NoError(t, err)
+		require.Equal(t, username, acc.Username)
+		require.Equal(t, fullname, acc.Fullname)
+		require.Equal(t, email, acc.Email)
+	}
+
+	// test basic authentication for each supported config flow.
+	//
+	// IT admins can set up SSO as part of the same entity or as a completely
+	// separate entity.
+	//
+	// Configs supporting each flow are defined in `tools/saml/config.php`
+	configFlows := []string{
+		"mdm.test.com",           // independent, mdm-sso only app
+		"https://localhost:8080", // app that supports both MDM and Fleet UI SSO
+	}
+	for _, entityID := range configFlows {
+		acResp = appConfigResponse{}
+		s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
 		"server_settings": {"server_url": "https://localhost:8080"},
 		"mdm": {
 			"end_user_authentication": {
-				"entity_id": "https://localhost:8080",
+				"entity_id": "%s",
 				"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
 				"idp_name": "SimpleSAML",
 				"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
@@ -6619,18 +6637,36 @@ func (s *integrationMDMTestSuite) TestSSO() {
 				"enable_end_user_authentication": true
 			}
 		}
-	}`), http.StatusOK, &acResp)
+	}`, entityID)), http.StatusOK, &acResp)
 
-	s.runWorker()
-	require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
-	require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
+		s.runWorker()
+		require.Contains(t, lastSubmittedProfile.URL, acResp.ServerSettings.ServerURL+"/mdm/sso")
+		require.Equal(t, acResp.ServerSettings.ServerURL+"/mdm/sso", lastSubmittedProfile.ConfigurationWebURL)
 
-	checkStoredIdPInfo := func(uuid, username, fullname, email string) {
-		acc, err := s.ds.GetMDMIdPAccountByUUID(context.Background(), uuid)
+		res := s.LoginMDMSSOUser("sso_user", "user123#")
+		require.NotEmpty(t, res.Header.Get("Location"))
+		require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+
+		u, err := url.Parse(res.Header.Get("Location"))
 		require.NoError(t, err)
-		require.Equal(t, username, acc.Username)
-		require.Equal(t, fullname, acc.Fullname)
-		require.Equal(t, email, acc.Email)
+		q := u.Query()
+		user1EnrollRef := q.Get("enrollment_reference")
+		// without an EULA uploaded
+		require.False(t, q.Has("eula_token"))
+		require.True(t, q.Has("profile_token"))
+		require.True(t, q.Has("enrollment_reference"))
+		require.False(t, q.Has("error"))
+		// the url retrieves a valid profile
+		s.downloadAndVerifyEnrollmentProfile(
+			fmt.Sprintf(
+				"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
+				q.Get("profile_token"),
+				user1EnrollRef,
+			),
+		)
+
+		// IdP info stored is accurate for the account
+		checkStoredIdPInfo(user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 	}
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
@@ -6641,22 +6677,6 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	require.NoError(t, err)
 	q := u.Query()
 	user1EnrollRef := q.Get("enrollment_reference")
-	// without an EULA uploaded
-	require.False(t, q.Has("eula_token"))
-	require.True(t, q.Has("profile_token"))
-	require.True(t, q.Has("enrollment_reference"))
-	require.False(t, q.Has("error"))
-	// the url retrieves a valid profile
-	s.downloadAndVerifyEnrollmentProfile(
-		fmt.Sprintf(
-			"/api/mdm/apple/enroll?token=%s&enrollment_reference=%s",
-			q.Get("profile_token"),
-			user1EnrollRef,
-		),
-	)
-
-	// IdP info stored is accurate for the account
-	checkStoredIdPInfo(user1EnrollRef, "sso_user", "SSO User 1", "sso_user@example.com")
 
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
