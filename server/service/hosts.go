@@ -1746,7 +1746,7 @@ type osVersionsRequest struct {
 	TeamID   *uint   `query:"team_id,optional"`
 	Platform *string `query:"platform,optional"`
 	Name     *string `query:"os_name,optional"`
-	Version  *string `query:"os_name,optional"`
+	Version  *string `query:"os_version,optional"`
 }
 
 type osVersionsResponse struct {
@@ -1833,6 +1833,10 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}
 	}
 
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
+	}
+
 	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
 		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
 			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
@@ -1845,36 +1849,41 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 
 	count = len(osVersions.OSVersions)
 
-	osVersions.OSVersions = paginateOSVersions(osVersions.OSVersions, opts)
-
 	var metaData *fleet.PaginationMetadata
-	if opts.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
-		if len(osVersions.OSVersions) > int(opts.PerPage) {
-			metaData.HasNextResults = true
-			osVersions.OSVersions = osVersions.OSVersions[:len(osVersions.OSVersions)-1]
-		}
-	}
+	osVersions.OSVersions, metaData = paginateOSVersions(osVersions.OSVersions, opts)
+
+	// var metaData *fleet.PaginationMetadata
+	// metaData = &fleet.PaginationMetadata{HasPreviousResults: opts.Page > 0}
+	// if len(osVersions.OSVersions) > int(opts.PerPage) {
+	// 	metaData.HasNextResults = true
+	// 	osVersions.OSVersions = osVersions.OSVersions[:len(osVersions.OSVersions)-1]
+	// }
 
 	return osVersions, count, metaData, nil
 }
 
-func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) []fleet.OSVersion {
-	if opts.PerPage == 0 || opts.Page == 0 {
-		return slice
+func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
+	metaData := &fleet.PaginationMetadata{
+		HasPreviousResults: opts.Page > 0,
 	}
 
-	start := (opts.Page - 1) * opts.PerPage
+	if opts.PerPage == 0 {
+		return slice, metaData
+	}
+
+	start := opts.Page * opts.PerPage
 	if start >= uint(len(slice)) {
-		return []fleet.OSVersion{}
+		return []fleet.OSVersion{}, metaData
 	}
 
 	end := start + opts.PerPage
-	if end > uint(len(slice)) {
+	if end >= uint(len(slice)) {
 		end = uint(len(slice))
+	} else {
+		metaData.HasNextResults = true
 	}
 
-	return slice[start:end]
+	return slice[start:end], metaData
 }
 
 ////////////////////////////////////////////////////////////////////////////////
