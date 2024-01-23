@@ -3290,6 +3290,7 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
+  "count": 1
   "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
