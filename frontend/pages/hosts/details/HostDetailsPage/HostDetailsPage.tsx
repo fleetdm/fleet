@@ -115,7 +115,7 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
-const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+const DEFAULT_ACTIVITY_PAGE_SIZE = 2;
 
 const HostDetailsPage = ({
   route,
@@ -821,7 +821,7 @@ const HostDetailsPage = ({
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
                 // TODO: show modal
-                onShowDetails={() => {}}
+                onShowDetails={() => null}
               />
               <AgentOptionsCard
                 osqueryData={osqueryData}
