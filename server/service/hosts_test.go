@@ -994,22 +994,22 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 	}
 
 	// team exists with stats
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{})
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{})
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{})
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{})
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
 }
@@ -1037,7 +1037,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// test default descending count sort
 	opts := fleet.ListOptions{}
-	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
@@ -1049,7 +1049,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// test ascending count sort
 	opts = fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
@@ -1061,14 +1061,14 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// pagination
 	opts = fleet.ListOptions{Page: 1, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
 
 	opts = fleet.ListOptions{Page: 2, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[0].NameOnly)
@@ -1076,7 +1076,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// pagination + ascending hosts_count sort
 	opts = fleet.ListOptions{Page: 1, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
@@ -1084,13 +1084,13 @@ func TestOSVersionsListOptions(t *testing.T) {
 
 	// per page too high
 	opts = fleet.ListOptions{Page: 1, PerPage: 1000}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
 
 	// Page number too high
 	opts = fleet.ListOptions{Page: 1000, PerPage: 2}
-	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 0)
 }

@@ -1762,7 +1762,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions)
+	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1775,7 +1775,7 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
 	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, count, nil, err
@@ -1816,7 +1816,7 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		}
 
 		// populate OSVersion.Vulnerabilities
-		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, false)
+		vulns, err := svc.ds.ListVulnsByOS(ctx, os.ID, includeCVSS)
 		if err != nil {
 			return nil, count, nil, err
 		}
