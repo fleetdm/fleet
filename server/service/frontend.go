@@ -27,7 +27,7 @@ func ServeFrontend(urlPrefix string, sandbox bool, logger log.Logger) http.Handl
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method == http.MethodPost {
-			// log the request details
+			// log the request details if a post is made to the root route
 			details := []interface{}{"err", "invalid method", "uri", r.RequestURI, "method", r.Method, "proto", r.Proto, "remote", r.RemoteAddr, "host", r.Host, "user-agent", r.UserAgent(), "referer", r.Referer()}
 			body, err := io.ReadAll(r.Body)
 			if err != nil {
