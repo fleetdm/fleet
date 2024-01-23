@@ -1789,6 +1789,10 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
 	}
 
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
+	}
+
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
 	if err != nil && fleet.IsNotFound(err) {
 		// differentiate case where team was added after UpdateOSVersions last ran
@@ -1831,10 +1835,6 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 			}
 			osVersions.OSVersions[i].Vulnerabilities = append(osVersions.OSVersions[i].Vulnerabilities, vuln)
 		}
-	}
-
-	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
-		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
 	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
