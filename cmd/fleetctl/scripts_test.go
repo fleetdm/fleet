@@ -179,7 +179,7 @@ Oh no!
 				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
-Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.
+Error: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.
 
 `,
 		},
