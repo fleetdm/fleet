@@ -298,7 +298,8 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+	// providing an empty set of labels since this endpoint is only maintained for backwards compat
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -307,7 +308,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -346,6 +347,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	cp.Labels = labelMap
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {

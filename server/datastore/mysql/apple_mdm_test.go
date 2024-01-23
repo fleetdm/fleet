@@ -39,6 +39,7 @@ func TestMDMApple(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -136,6 +137,38 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "a", TeamID: ptr.Uint(1), SyncML: []byte("<Replace></Replace>")})
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
+}
+
+func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+	cp := fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: dummyMC,
+		TeamID:       nil,
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: "foo", LabelID: 1},
+		},
+	}
+	_, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NotNil(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+	cp.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: label.Name, LabelID: label.ID},
+	}
+	prof, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NoError(t, err)
+	require.NotEmpty(t, prof.ProfileUUID)
 }
 
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {

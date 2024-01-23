@@ -1781,6 +1781,38 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
+	// create a profile with labels that don't exist
+	_, err = ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "fake-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+			Labels: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
+		})
+	require.NotNil(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+
+	// create a profile with a label that exists
+	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "with-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+			Labels: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+		})
+	require.NoError(t, err)
+	require.NotEmpty(t, profWithLabel.ProfileUUID)
+
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))

@@ -593,11 +593,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes))
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes))
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -659,7 +659,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	require.Equal(t, "Bar", cp.Identifier)

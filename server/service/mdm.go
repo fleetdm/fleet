@@ -1152,10 +1152,7 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 // returns the numeric Apple profile ID and true if it is an Apple identifier,
 // or 0 and false otherwise.
 func isAppleProfileUUID(profileUUID string) bool {
-	if strings.HasPrefix(profileUUID, "a") {
-		return true
-	}
-	return false
+	return strings.HasPrefix(profileUUID, "a")
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1165,6 +1162,7 @@ func isAppleProfileUUID(profileUUID string) bool {
 type newMDMConfigProfileRequest struct {
 	TeamID  uint
 	Profile *multipart.FileHeader
+	Labels  []string
 }
 
 func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
@@ -1178,6 +1176,7 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		}
 	}
 
+	// add team_id
 	val, ok := r.MultipartForm.Value["team_id"]
 	if !ok || len(val) < 1 {
 		// default is no team
@@ -1190,11 +1189,15 @@ func (newMDMConfigProfileRequest) DecodeRequest(ctx context.Context, r *http.Req
 		decoded.TeamID = uint(teamID)
 	}
 
+	// add profile
 	fhs, ok := r.MultipartForm.File["profile"]
 	if !ok || len(fhs) < 1 {
 		return nil, &fleet.BadRequestError{Message: "no file headers for profile"}
 	}
 	decoded.Profile = fhs[0]
+
+	// add labels
+	decoded.Labels = r.MultipartForm.Value["labels"]
 
 	return &decoded, nil
 }
@@ -1217,7 +1220,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	fileExt := filepath.Ext(req.Profile.Filename)
 	if isApple := strings.EqualFold(fileExt, ".mobileconfig"); isApple {
-		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+		cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, req.Labels)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1228,7 +1231,7 @@ func newMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 
 	if isWindows := strings.EqualFold(fileExt, ".xml"); isWindows {
 		profileName := strings.TrimSuffix(filepath.Base(req.Profile.Filename), fileExt)
-		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff)
+		cp, err := svc.NewMDMWindowsConfigProfile(ctx, req.TeamID, profileName, ff, req.Labels)
 		if err != nil {
 			return &newMDMConfigProfileResponse{Err: err}, nil
 		}
@@ -1252,7 +1255,7 @@ func (svc *Service) NewMDMUnsupportedConfigProfile(ctx context.Context, teamID u
 	return &fleet.BadRequestError{Message: "Couldn't upload. The file should be a .mobileconfig or .xml file."}
 }
 
-func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*fleet.MDMWindowsConfigProfile, error) {
+func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*fleet.MDMWindowsConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -1297,6 +1300,12 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 		return nil, ctxerr.Wrap(ctx, err, "validate profile")
 	}
 
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	cp.Labels = labelMap
+
 	newCP, err := svc.ds.NewMDMWindowsConfigProfile(ctx, cp)
 	if err != nil {
 		var existsErr existsErrorInterface
@@ -1328,6 +1337,33 @@ func (svc *Service) NewMDMWindowsConfigProfile(ctx context.Context, teamID uint,
 	}
 
 	return newCP, nil
+}
+
+func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	if len(labels) != len(labelNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("len(labels) != len(labelNames), names provided: %v", labelNames),
+		}
+	}
+
+	var profLabels []fleet.ConfigurationProfileLabel
+	for labelName, labelID := range labels {
+		profLabels = append(profLabels, fleet.ConfigurationProfileLabel{
+			LabelName: labelName,
+			LabelID:   labelID,
+		})
+	}
+	return profLabels, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

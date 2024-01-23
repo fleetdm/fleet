@@ -38,31 +38,48 @@ INSERT INTO
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt,
-		profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
+	var profileID int64
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt,
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
+		if err != nil {
+			switch {
+			case isDuplicate(err):
+				return ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new apple mdm config profile")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return &existsError{
+				ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+				Identifier:   cp.Name,
+				TeamID:       cp.TeamID,
+			}
+		}
+
+		// record the ID as we want to return a fleet.Profile instance with it
+		// filled in.
+		profileID, _ = res.LastInsertId()
+
+		for i := range cp.Labels {
+			cp.Labels[i].ProfileUUID = profUUID
+		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting darwin profile label associations")
+		}
+
+		return nil
+	})
 	if err != nil {
-		switch {
-		case isDuplicate(err):
-			return nil, ctxerr.Wrap(ctx, formatErrorDuplicateConfigProfile(err, &cp))
-		default:
-			return nil, ctxerr.Wrap(ctx, err, "creating new apple mdm config profile")
-		}
+		return nil, ctxerr.Wrap(ctx, err, "inserting profile and label associations")
 	}
-
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return nil, &existsError{
-			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
-			Identifier:   cp.Name,
-			TeamID:       cp.TeamID,
-		}
-	}
-
-	id, _ := res.LastInsertId()
 
 	return &fleet.MDMAppleConfigProfile{
 		ProfileUUID:  profUUID,
-		ProfileID:    uint(id),
+		ProfileID:    uint(profileID),
 		Identifier:   cp.Identifier,
 		Name:         cp.Name,
 		Mobileconfig: cp.Mobileconfig,
