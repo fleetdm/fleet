@@ -6056,6 +6056,11 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	osVersions, err := ds.OSVersions(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
 
+	// ignore the ids
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].ID = 0
+	}
+
 	require.True(t, time.Now().After(osVersions.CountsUpdatedAt))
 	expected := []fleet.OSVersion{
 		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
@@ -6070,6 +6075,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	platform := "darwin"
 	osVersions, err = ds.OSVersions(ctx, nil, &platform, nil, nil)
 	require.NoError(t, err)
+	// ignore the ids
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].ID = 0
+	}
 
 	expected = []fleet.OSVersion{
 		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
@@ -6081,6 +6090,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	// filter by operating system name and version
 	osVersions, err = ds.OSVersions(ctx, nil, nil, ptr.String("Ubuntu"), ptr.String("20.4.0"))
 	require.NoError(t, err)
+	// ignore the ids
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].ID = 0
+	}
 
 	expected = []fleet.OSVersion{
 		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
@@ -6090,6 +6103,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	// team 1
 	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
 	require.NoError(t, err)
+	// ignore the ids
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].ID = 0
+	}
 
 	expected = []fleet.OSVersion{
 		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
@@ -6100,6 +6117,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	// team 2
 	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
 	require.NoError(t, err)
+	// ignore the ids
+	for i := range osVersions.OSVersions {
+		osVersions.OSVersions[i].ID = 0
+	}
 
 	expected = []fleet.OSVersion{
 		{HostsCount: 1, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
