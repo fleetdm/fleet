@@ -4,15 +4,13 @@ _Available in Fleet Premium_
 
 In Fleet you can enforce OS updates on your macOS and Windows hosts remotely.
 
-On macOS, OS updates are enforced via Nudge. Windows
-
 ## Enforce OS updates
 
 You can enforce OS updates in the Fleet UI, with the Fleet API, or with the command-line interface (CLI).
 
 Fleet UI:
 
-1. In Fleet, head to the **Controls** > **OS updates** tab.
+1. Head to the **Controls** > **OS updates** tab.
 
 2. To enforce OS updates for macOS, select **macOS** and set a **Minimum version** and **Deadline**.
 
@@ -26,19 +24,27 @@ fleetctl CLI: Run the `fleetctl apply` command using the `mdm.macos_updates` and
 
 ### macOS
 
-End users are be reminded and encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
+End users are encouraged to update macOS (via [Nudge](https://github.com/macadmins/nudge)).
 
 ![Nudge window](https://raw.githubusercontent.com/fleetdm/fleet/main/docs/images/nudge-window.png)
 
-When the user selects **Update**, their Mac opens **System Settings > General > Software Update**.
-
-When the end user machine is below the minimum version, Nudge applies the following behavior:
-
-|                                      | > 1 day before deadline | < 1 day before deadline | past deadline         |
+|                                      | > 1 day before deadline | < 1 day before deadline | Past deadline         |
 | ------------------------------------ | ----------------------- | ----------------------- | --------------------- |
 | Nudge window frequency               | Once a day at 8pm GMT   | Once every 2 hours      | Immediately on login  |
 | End user can defer                   | ✅                      | ✅                      | ❌                    |
-| Nudge window is dismissable          | ✅                      | ✅                      | ❌                    |
+| Nudge window is dismissible          | ✅                      | ✅                      | ❌                    |
+
+### Windows
+
+End users are encouraged to update Windows via the native Windows dialog.
+
+|                                           | Before deadline | Past deadline |
+| ----------------------------------------- | ----------------| ------------- |
+| End user can defer automatic restart      | ✅              | ❌            |
+
+If an end user was on vacation when the deadline passed, the end user is given a grace period (configured) before the host automatically restarts.
+
+Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
 <meta name="pageOrderInSection" value="1503">
 <meta name="title" value="macOS updates">

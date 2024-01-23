@@ -31,15 +31,14 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
     <>
       <h2>End user experience on Windows</h2>
       <p>
-        When a new Windows update is published, the update will be downloaded
-        and installed automatically before 8am and after 5pm (end user’s local
-        time). Before the deadline passes, users will be able to defer restarts.
-        After the deadline passes restart will be forced regardless of active
-        hours.
+        When a Windows host becomes aware of a new update, end users are able to
+        defer restarts. Automatic restarts happen before 8am and after 5pm (end
+        user’s local time). After the deadline, restarts are forced regardless
+        of active hours.
       </p>
       <CustomLink
         text="Learn more about Windows updates in Fleet"
-        url="Links to: https://fleetdm.com/docs/using-fleet/mdm-windows-updates"
+        url="https://fleetdm.com/learn-more-about/os-updates"
         newTab
       />
     </>
