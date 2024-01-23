@@ -3503,14 +3503,21 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
 	// set the macos custom settings fields
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "macos_settings": { "custom_settings": ["foo", "bar"] } }
+		"mdm": {
+		  "macos_settings": {
+		    "custom_settings": [
+		        {"path": "foo", "labels": ["baz"]},
+			{"path": "bar"}
+		    ]
+		  }
+		}
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch without specifying the macos custom settings fields and an unrelated
 	// field, should not remove them
@@ -3518,7 +3525,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, would remove
 	// them but this is a dry-run
@@ -3526,7 +3533,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleProfiles() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "macos_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// patch with explicitly empty macos custom settings fields, removes them
 	acResp = appConfigResponse{}
@@ -3560,10 +3567,10 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	// should not alter it
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-			"mdm": { "macos_settings": {"custom_settings": ["a"]} }
+                     "mdm": { "macos_settings": {"custom_settings": [{"path": "a"}]} }
 		}`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []string{"a"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
 	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		``, enabledDiskActID)
 
@@ -3573,17 +3580,17 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 				"mdm": { "enable_disk_encryption": false }
 		  }`), http.StatusOK, &acResp, "dry_run", "true")
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []string{"a"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, acResp.MDM.MacOSSettings.CustomSettings)
 	s.lastActivityMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		``, enabledDiskActID)
 
 	// patch with false, resets it
 	acResp = appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": false, "macos_settings": { "custom_settings": ["b"] } }
+	    "mdm": { "enable_disk_encryption": false, "macos_settings": { "custom_settings": [{"path":"b"}] } }
 		  }`), http.StatusOK, &acResp)
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 	s.lastActivityMatches(fleet.ActivityTypeDisabledMacosDiskEncryption{}.ActivityName(),
 		`{"team_id": null, "team_name": null}`, 0)
 
@@ -3602,7 +3609,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// call update endpoint with no changes
 	s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings",
@@ -3616,7 +3623,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMAppleDiskEncryption() {
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
-	assert.Equal(t, []string{"b"}, acResp.MDM.MacOSSettings.CustomSettings)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "b"}}, acResp.MDM.MacOSSettings.CustomSettings)
 
 	// mdm/apple/settings works for windows as well as it's being used by
 	// clients (UI) this way
@@ -3828,7 +3835,9 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []string{"foo", "bar"}},
+			MacOSSettings: map[string]interface{}{
+				"custom_settings": []map[string]interface{}{{"path": "foo"}, {"path": "bar"}},
+			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
@@ -3836,7 +3845,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	// retrieving the team returns the custom macos settings
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with invalid macos settings subfield should fail
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
@@ -3858,7 +3867,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	}}}
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
-	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings': expected array of strings but got bool`)
+	assert.Contains(t, errMsg, `invalid value type at 'macos_settings.custom_settings': expected array of MDMProfileSpecs but got bool`)
 
 	// apply without custom macos settings specified and unrelated field, should
 	// not replace existing settings
@@ -3871,32 +3880,32 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMAppleProfiles() {
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings would clear the existing
 	// settings, but dry-run
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, "dry_run", "true")
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{{Path: "foo"}, {Path: "bar"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 
 	// apply with explicitly empty custom macos settings clears the existing settings
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []string{}},
+			MacOSSettings: map[string]interface{}{"custom_settings": []map[string]interface{}{}},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.Equal(t, []string{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 }
 
 func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
@@ -3958,14 +3967,18 @@ func (s *integrationMDMTestSuite) TestTeamsMDMAppleDiskEncryption() {
 	teamSpecs = applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
 		Name: teamName,
 		MDM: fleet.TeamSpecMDM{
-			MacOSSettings: map[string]interface{}{"custom_settings": []string{"a"}},
+			MacOSSettings: map[string]interface{}{
+				"custom_settings": []map[string]interface{}{
+					{"path": "a"},
+				},
+			},
 		},
 	}}}
 	s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
 	require.True(t, teamResp.Team.Config.MDM.EnableDiskEncryption)
-	require.Equal(t, []string{"a"}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
+	require.Equal(t, []fleet.MDMProfileSpec{{Path: "a"}}, teamResp.Team.Config.MDM.MacOSSettings.CustomSettings)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeEnabledMacosDiskEncryption{}.ActivityName(),
 		``, lastDiskActID)
 
@@ -10346,14 +10359,21 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
 	// set the windows custom settings fields
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "windows_settings": { "custom_settings": ["foo", "bar"] } }
+		"mdm": {
+		  "windows_settings": {
+		    "custom_settings": [
+		        {"path": "foo", "labels": ["baz"]},
+			{"path": "bar"}
+		    ]
+		  }
+		}
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 	// check that they are returned by a GET /config
 	acResp = appConfigResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
@@ -10361,7 +10381,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "enable_disk_encryption": true }
   }`), http.StatusOK, &acResp)
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -10369,7 +10389,7 @@ func (s *integrationMDMTestSuite) TestAppConfigMDMWindowsProfiles() {
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": { "windows_settings": { "custom_settings": null } }
   }`), http.StatusOK, &acResp, "dry_run", "true")
-	assert.Equal(t, []string{"foo", "bar"}, acResp.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Equal(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, acResp.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	acResp = appConfigResponse{}
@@ -10400,14 +10420,21 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// set the windows custom settings fields
 	var applyResp applyTeamSpecsResponse
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
-		{ "windows_settings": { "custom_settings": ["foo", "bar"] }  }
+		{
+		  "windows_settings": {
+		    "custom_settings": [
+		       {"path": "foo", "labels": ["baz"]},
+		       {"path": "bar"}
+		    ]
+		  }
+		}
 	`), http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
 	// check that they are returned by a GET /config
 	var teamResp getTeamResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch without specifying the windows custom settings fields and an unrelated
 	// field, should not remove them
@@ -10418,7 +10445,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	// check that they are returned by a GET /config
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, would remove
 	// them but this is a dry-run
@@ -10430,7 +10457,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
-	require.ElementsMatch(t, []string{"foo", "bar"}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
+	require.ElementsMatch(t, []fleet.MDMProfileSpec{{Path: "foo", Labels: []string{"baz"}}, {Path: "bar"}}, teamResp.Team.Config.MDM.WindowsSettings.CustomSettings.Value)
 
 	// patch with explicitly empty windows custom settings fields, removes them
 	applyResp = applyTeamSpecsResponse{}
