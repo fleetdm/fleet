@@ -149,7 +149,21 @@ func BuildMSI(opt Options) (string, error) {
 		}
 	}
 
-	if err := wix.Heat(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	absWixDir := opt.LocalWixDir
+	if absWixDir != "" {
+		absWixDir, err = filepath.Abs(absWixDir)
+		if err != nil {
+			return "", fmt.Errorf("could not get filepath from local-wix-dir %s: %w", opt.LocalWixDir, err)
+		}
+		if runtime.GOOS == "darwin" {
+			// Ensure wine is installed
+			cmd := exec.Command("wine", "--version")
+			if err = cmd.Run(); err != nil {
+				return "", fmt.Errorf("wine failed. Is it installed? %w", err)
+			}
+		}
+	}
+	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
 		return "", fmt.Errorf("package root files: %w", err)
 	}
 
@@ -157,11 +171,11 @@ func BuildMSI(opt Options) (string, error) {
 		return "", fmt.Errorf("transform heat: %w", err)
 	}
 
-	if err := wix.Candle(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	if err := wix.Candle(tmpDir, opt.NativeTooling, absWixDir); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 
-	if err := wix.Light(tmpDir, opt.NativeTooling, opt.LocalWixDir); err != nil {
+	if err := wix.Light(tmpDir, opt.NativeTooling, absWixDir); err != nil {
 		return "", fmt.Errorf("build package: %w", err)
 	}
 

@@ -289,8 +289,9 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
-				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+				return errors.New(
+					`Could not use local WiX to generate an osquery installer. This option is only available on Windows and macOS.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
@@ -380,7 +381,7 @@ To add other devices to Fleet, distribute this installer using Chef, Ansible, Ja
 }
 
 func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
-	if pkgType != "msi" || runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+	if pkgType != "msi" || runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" || opt.LocalWixDir != "" {
 		return false
 	}
 

@@ -69,6 +69,15 @@ jobs:
       # Run in background while other steps complete to speed up the workflow
       run: docker pull fleetdm/wix:latest &
 
+    - name: Install wine and wix
+      if: matrix.os == 'macos-latest'
+      run: |
+        brew install --cask --no-quarantine wine-stable@9.0
+        wget https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip -nv -O wix.zip
+        mkdir wix
+        unzip wix.zip -d wix
+        rm -f wix.zip
+
     - name: Install Go
       uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
       with:
@@ -107,3 +116,7 @@ jobs:
 
     - name: Build PKG with Fleet Desktop
       run: ./build/fleetctl package --type pkg --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop
+
+    - name: Build MSI (using local Wix)
+      if: matrix.os == 'macos-latest'
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix

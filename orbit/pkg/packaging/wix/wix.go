@@ -7,10 +7,14 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 )
 
 const (
 	directoryReference = "ORBITROOT"
+	imageName          = "fleetdm/wix:latest"
+	platform           = "linux/amd64"
 )
 
 // Heat runs the WiX Heat command on the provided directory.
@@ -24,15 +28,18 @@ func Heat(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"docker", "run", "--rm", "--platform", platform,
 			"--volume", path+":/wix", // mount volume
-			"fleetdm/wix:latest", // image name
+			imageName, // image name
 		)
 	}
 
 	heatPath := `heat`
 	if localWixDir != "" {
-		heatPath = localWixDir + `\heat.exe`
+		heatPath = filepath.Join(localWixDir, `heat.exe`)
+		if runtime.GOOS == "darwin" {
+			args = append(args, "wine")
+		}
 	}
 
 	args = append(args,
@@ -69,15 +76,18 @@ func Candle(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"docker", "run", "--rm", "--platform", platform,
 			"--volume", path+":/wix", // mount volume
-			"fleetdm/wix:latest", // image name
+			imageName, // image name
 		)
 	}
 
 	candlePath := `candle`
 	if localWixDir != "" {
-		candlePath = localWixDir + `\candle.exe`
+		candlePath = filepath.Join(localWixDir, `candle.exe`)
+		if runtime.GOOS == "darwin" {
+			args = append(args, "wine")
+		}
 	}
 	args = append(args,
 		candlePath, "heat.wxs", "main.wxs", // command
@@ -109,15 +119,18 @@ func Light(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", "linux/amd64",
+			"docker", "run", "--rm", "--platform", platform,
 			"--volume", path+":/wix", // mount volume
-			"fleetdm/wix:latest", // image name
+			imageName, // image name
 		)
 	}
 
 	lightPath := `light`
 	if localWixDir != "" {
-		lightPath = localWixDir + `\light.exe`
+		lightPath = filepath.Join(localWixDir, `light.exe`)
+		if runtime.GOOS == "darwin" {
+			args = append(args, "wine")
+		}
 	}
 	args = append(args,
 		lightPath, "heat.wixobj", "main.wixobj", // command
