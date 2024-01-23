@@ -3325,7 +3325,6 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
-  "id": 321,
   "hosts_count": 1,
   "name": "CentOS Linux 7.9.2009",
   "name_only": "CentOS",
