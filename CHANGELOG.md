@@ -1858,7 +1858,7 @@ policies that belong to a specific team. Documentation on what data is included 
 request and when the webhook request is sent can be found here on [fleedm.com/docs](https://fleetdm.com/docs/using-fleet/automations#vulnerability-automations)
 
 * Added the ability to see the total number of hosts with a specific macOS version (ex. 12.3.1) on the
-**Home > macOS** page. This information is also available via the [`GET /os_versions` API route](https://fleetdm.com/docs/using-fleet/rest-api#list-host-os-versions).
+**Home > macOS** page. This information is also available via the [`GET /os_versions` API route](https://fleetdm.com/docs/using-fleet/rest-api#get-host-os-versions).
 
 * Added the ability to sort live query results in the Fleet UI.
 
