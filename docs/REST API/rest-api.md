@@ -3606,7 +3606,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activites/past`
+`GET /api/v1/fleet/hosts/12/activities/past`
 
 ##### Default response
 
