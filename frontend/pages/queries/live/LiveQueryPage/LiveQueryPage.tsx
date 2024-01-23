@@ -44,7 +44,7 @@ const RunQueryPage = ({
   const handlePageError = useErrorHandler();
   const { config } = useContext(AppContext);
   const {
-    editedQuerySql,
+    editingExistingQuery,
     selectedQueryTargets,
     setSelectedQueryTargets,
     selectedQueryTargetsByType,
@@ -89,7 +89,7 @@ const RunQueryPage = ({
     Error,
     ISchedulableQuery
   >(["query", queryId], () => queryAPI.load(queryId as number), {
-    enabled: !!queryId && !editedQuerySql,
+    enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
     select: (data) => data.query,
     onSuccess: (returnedQuery) => {

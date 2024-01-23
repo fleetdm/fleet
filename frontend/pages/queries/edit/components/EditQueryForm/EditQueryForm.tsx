@@ -150,7 +150,7 @@ const EditQueryForm = ({
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
     setLastEditedQueryDiscardData,
-    setEditedQuerySql,
+    setEditingExistingQuery,
   } = useContext(QueryContext);
 
   const {
@@ -827,7 +827,7 @@ const EditQueryForm = ({
                 variant="blue-green"
                 onClick={() => {
                   if (changedSQL) {
-                    setEditedQuerySql(true);
+                    setEditingExistingQuery(true);
                   }
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
