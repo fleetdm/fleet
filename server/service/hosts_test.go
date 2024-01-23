@@ -1060,14 +1060,14 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
 
 	// pagination
-	opts = fleet.ListOptions{Page: 1, PerPage: 2}
+	opts = fleet.ListOptions{Page: 0, PerPage: 2}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
 	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
 	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
 
-	opts = fleet.ListOptions{Page: 2, PerPage: 2}
+	opts = fleet.ListOptions{Page: 1, PerPage: 2}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
@@ -1075,7 +1075,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[1].NameOnly)
 
 	// pagination + ascending hosts_count sort
-	opts = fleet.ListOptions{Page: 1, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
+	opts = fleet.ListOptions{Page: 0, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 2)
@@ -1083,7 +1083,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
 
 	// per page too high
-	opts = fleet.ListOptions{Page: 1, PerPage: 1000}
+	opts = fleet.ListOptions{Page: 0, PerPage: 1000}
 	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 6)
