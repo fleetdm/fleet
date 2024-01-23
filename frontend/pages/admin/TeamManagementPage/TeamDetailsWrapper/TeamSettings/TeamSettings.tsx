@@ -28,6 +28,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
+  const [addingCustomWindow, setAddingCustomWindow] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -61,20 +62,19 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   } = appConfig ?? { host_expiry_settings: {} };
 
   const {
-    isLoading: isLoadingTeamData,
+    isLoading: isLoadingTeamConfig,
     refetch: refetchTeamConfig,
     error: errorLoadTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
-    ["team_details", teamIdForApi],
+    ["teamConfig", teamIdForApi],
     () => teamsAPI.load(teamIdForApi),
     {
       enabled: isRouteOk && !!teamIdForApi,
-      select: (data) => data.team,
-      onSuccess: (teamData) => {
+      onSuccess: (teamConfig) => {
         // default this setting to current team setting
         // can be updated by user actions
         setUITeamHostExpiryEnabled(
-          teamData?.host_expiry_settings?.host_expiry_enabled ?? false
+          teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false
         );
       },
       refetchOnWindowFocus: false,
@@ -122,6 +122,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       UITeamHostExpiryWindow,
       refetchTeamConfig,
       renderFlash,
+      teamIdForApi,
     ]
   );
 
@@ -129,7 +130,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     if (errorLoadGlobalConfig || errorLoadTeamConfig) {
       return <DataError />;
     }
-    if (isLoadingTeamData || isLoadingAppConfig) {
+    if (isLoadingTeamConfig || isLoadingAppConfig) {
       return <Spinner />;
     }
     return (
@@ -141,9 +142,11 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               globalHostExpiryWindow={globalHostExpiryWindow}
               teamExpiryEnabled={UITeamHostExpiryEnabled}
               setTeamExpiryEnabled={setUITeamHostExpiryEnabled}
+              addingCustomWindow={addingCustomWindow}
+              setAddingCustomWindow={setAddingCustomWindow}
             />
           )}
-        {UITeamHostExpiryEnabled && (
+        {(UITeamHostExpiryEnabled || addingCustomWindow) && (
           <InputField
             label="Host expiry window"
             onChange={onExpiryWindowChange}
