@@ -13,6 +13,7 @@ import { NotificationContext } from "context/notification";
 import { IApiError } from "interfaces/errors";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
+import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
 const baseClass = "team-settings";
 
@@ -50,7 +51,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   } = useQuery<IConfig, Error, IConfig>(
     ["globalConfig"],
     () => configAPI.loadAll(),
-    {}
+    { refetchOnWindowFocus: false }
   );
   const {
     host_expiry_settings: {
@@ -73,9 +74,10 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         // default this setting to current team setting
         // can be updated by user actions
         setUITeamHostExpiryEnabled(
-          teamData.host_expiry_settings.host_expiry_enabled
+          teamData?.host_expiry_settings?.host_expiry_enabled ?? false
         );
       },
+      refetchOnWindowFocus: false,
     }
   );
 
@@ -92,12 +94,15 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
       setUpdatingTeamSettings(true);
       teamsAPI
-        .update({
-          host_expiry_settings: {
-            host_expiry_enabled: UITeamHostExpiryEnabled,
-            host_expiry_window: UITeamHostExpiryWindow ?? 0,
+        .update(
+          {
+            host_expiry_settings: {
+              host_expiry_enabled: UITeamHostExpiryEnabled,
+              host_expiry_window: UITeamHostExpiryWindow ?? 0,
+            },
           },
-        })
+          teamIdForApi
+        )
         .then(() => {
           renderFlash("success", "Successfully updated settings.");
           refetchTeamConfig();
@@ -129,13 +134,15 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamHostExpiry}>
-        <div>Team host expiry option</div>
-        <TeamHostExpiryOption
-          globalHostExpiryEnabled={globalHostExpiryEnabled}
-          globalHostExpiryWindow={globalHostExpiryWindow}
-          teamExpiryEnabled={UITeamHostExpiryEnabled}
-          setTeamExpiryEnabled={setUITeamHostExpiryEnabled}
-        />
+        {globalHostExpiryEnabled !== undefined &&
+          globalHostExpiryWindow !== undefined && (
+            <TeamHostExpiryToggle
+              globalHostExpiryEnabled={globalHostExpiryEnabled}
+              globalHostExpiryWindow={globalHostExpiryWindow}
+              teamExpiryEnabled={UITeamHostExpiryEnabled}
+              setTeamExpiryEnabled={setUITeamHostExpiryEnabled}
+            />
+          )}
         {UITeamHostExpiryEnabled && (
           <InputField
             label="Host expiry window"
