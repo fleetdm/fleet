@@ -1,1 +1,0 @@
-* Fix the maximum age of a pending script when notifying fleetd of a script to run so that it matches the duration used elsewhere in Fleet.
