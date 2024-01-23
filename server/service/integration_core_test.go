@@ -7458,6 +7458,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 2)
 	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
 	require.True(t, osVersionsResp.Meta.HasNextResults)
 	require.False(t, osVersionsResp.Meta.HasPreviousResults)
 
@@ -7465,6 +7466,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 2)
 	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
 	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
 	require.False(t, osVersionsResp.Meta.HasNextResults)
 	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 }
