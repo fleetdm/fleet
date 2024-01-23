@@ -26,7 +26,7 @@ import MainContent from "components/MainContent";
 import TeamsDropdown from "components/TeamsDropdown";
 import TabsWrapper from "components/TabsWrapper";
 
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
 
 interface ISoftwareSubNavItem {
   name: string;

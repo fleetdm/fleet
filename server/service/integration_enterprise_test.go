@@ -337,6 +337,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
+	// dry-run with invalid host_expiry_settings.host_expiry_window
+	teamSpecs = map[string]any{
+		"specs": []map[string]any{
+			{
+				"name": teamName,
+				"host_expiry_settings": map[string]any{
+					"host_expiry_window":  0,
+					"host_expiry_enabled": true,
+				},
+			},
+		},
+	}
+	// Update team
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+	// Create team (coverage should show that this validation was covered for both update and create)
+	teamSpecs["specs"].([]map[string]any)[0]["name"] = teamName + "invalid host expiry window"
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
 	teamSpecs = map[string]any{
@@ -862,6 +884,18 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
 
+	// create a team with invalid host expiry window
+	team4 := &fleet.TeamPayload{
+		Name:        ptr.String(name + "invalid host_expiry_window"),
+		Description: ptr.String("Team4 description"),
+		Secrets:     []*fleet.EnrollSecret{{Secret: "TEAM4"}},
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  -1,
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams", team4, http.StatusUnprocessableEntity, &tmResp)
+
 	// list teams
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
@@ -910,10 +944,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+	assert.False(t, tmResp.Team.Config.HostExpirySettings.HostExpiryEnabled)
 
 	// modify non-existing team
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID+1), team, http.StatusNotFound, &tmResp)
+
+	// modify team host expiry
+	modifyExpiry := fleet.TeamPayload{
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  10,
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusOK, &tmResp)
+	assert.Equal(t, *modifyExpiry.HostExpirySettings, tmResp.Team.Config.HostExpirySettings)
+
+	// invalid team host expiry (<= 0)
+	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
 
 	// list team users
 	var usersResp listUsersResponse
@@ -2975,8 +3024,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0, 1000.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -4343,8 +4392,37 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 
-	// verify that orbit would get the notification that it has a script to run
+	// Disable scripts and verify that there are no Orbit notifs
+	acr := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": true
+		}
+	}`), http.StatusOK, &acr)
+	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
 	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// Verify that endpoints related to scripts are disabled
+	srResp := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	srResp = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	acr = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	require.False(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
+	// verify that orbit would get the notification that it has a script to run
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -5414,6 +5492,84 @@ VALUES
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
+	})
+
+	t.Run("get script results user message", func(t *testing.T) {
+		// add a script with an older created_at timestamp
+		var oldScriptID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_contents, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			oldScriptID = uint(id)
+			return nil
+		})
+
+		for _, c := range []struct {
+			name       string
+			exitCode   *int64
+			executedAt time.Time
+			expected   string
+		}{
+			{
+				name:       "host-timeout",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptHostTimeoutErrMsg,
+			},
+			{
+				name:       "script-timeout",
+				exitCode:   ptr.Int64(-1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+			},
+			{
+				name:       "pending",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Minute),
+				expected:   fleet.RunScriptAlreadyRunningErrMsg,
+			},
+			{
+				name:       "success",
+				exitCode:   ptr.Int64(0),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "error",
+				exitCode:   ptr.Int64(1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "disabled",
+				exitCode:   ptr.Int64(-2),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptDisabledErrMsg,
+			},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+
+				var resp getScriptResultResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
+				require.Equal(t, c.expected, resp.Message)
+			})
+		}
 	})
 }
 

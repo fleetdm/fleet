@@ -116,6 +116,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
+		{"TeamHostsExpiration", testTeamHostsExpiration},
 		{"HostsIncludesScheduledQueriesInPackStats", testHostsIncludesScheduledQueriesInPackStats},
 		{"HostsAllPackStats", testHostsAllPackStats},
 		{"HostsPackStatsMultipleHosts", testHostsPackStatsMultipleHosts},
@@ -950,9 +951,9 @@ func testHostsListQuery(t *testing.T, ds *Datastore) {
 	}, "src1"))
 
 	// add some disks space info for some hosts
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0))
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 1.0, 2.0, 30.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 3.0, 4.0, 50.0))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[2].ID, 5.0, 6.0, 70.0))
 
 	filter := fleet.TeamFilter{User: test.UserAdmin}
 
@@ -1763,6 +1764,15 @@ func testHostsSearch(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	assert.Len(t, hits, 3)
 	assert.Equal(t, []uint{h3.ID, h2.ID, h1.ID}, []uint{hits[0].ID, hits[1].ID, hits[2].ID})
+
+	// Add email to mapping table
+	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+		hosts[0].ID, "a@b.c", "src1")
+	require.NoError(t, err)
+	// Verify search works
+	hits, err = ds.SearchHosts(context.Background(), filter, "a@b.c")
+	require.NoError(t, err)
+	assert.Len(t, hits, 1)
 }
 
 func testSearchHostsWildCards(t *testing.T, ds *Datastore) {
@@ -1954,7 +1964,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 30
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 5, 5, 100.0))
 
 	// Online
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -1972,7 +1982,7 @@ func testHostsGenerateStatusStatistics(t *testing.T, ds *Datastore) {
 	h.ConfigTLSRefresh = 3600
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50))
+	require.NoError(t, ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 50, 50, 100.0))
 
 	// Offline
 	h, err = ds.NewHost(context.Background(), &fleet.Host{
@@ -2295,7 +2305,7 @@ func testLoadHostByNodeKeyLoadsDisk(t *testing.T, ds *Datastore) {
 
 	err = ds.UpdateHost(context.Background(), h)
 	require.NoError(t, err)
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), h.ID, 1.24, 42.0, 3.0)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByNodeKey(context.Background(), "nodekey")
@@ -3737,6 +3747,7 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 	ac, err := ds.AppConfig(context.Background())
 	require.NoError(t, err)
 
+	ac.HostExpirySettings.HostExpiryEnabled = false
 	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
 
 	err = ds.SaveAppConfig(context.Background(), ac)
@@ -3791,6 +3802,122 @@ func testHostsExpiration(t *testing.T, ds *Datastore) {
 
 	hosts = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
 	require.Len(t, hosts, 5)
+}
+
+func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
+	// Set global host expiry windows
+	const hostExpiryWindow = 70
+	const team1HostExpiryWindow = 30
+	const team2HostExpiryWindow = 170
+	ac, err := ds.AppConfig(context.Background())
+	require.NoError(t, err)
+	ac.HostExpirySettings.HostExpiryEnabled = false
+	ac.HostExpirySettings.HostExpiryWindow = hostExpiryWindow
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	createHost := func(id int, seenTime time.Time) {
+		_, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				DetailUpdatedAt: time.Now(),
+				LabelUpdatedAt:  time.Now(),
+				PolicyUpdatedAt: time.Now(),
+				SeenTime:        seenTime,
+				OsqueryHostID:   ptr.String(strconv.Itoa(id)),
+				NodeKey:         ptr.String(fmt.Sprintf("%d", id)),
+				UUID:            fmt.Sprintf("%d", id),
+				Hostname:        fmt.Sprintf("foo.local%d", id),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	// Team 1 hosts (1, 2, 3)
+	seenTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour - time.Hour)         // 1 hour over expiry window
+	seenRecentlyTime := time.Now().Add(time.Duration(-1*(team1HostExpiryWindow)*24)*time.Hour + time.Hour) // 1 hour under expiry window
+	createHost(1, seenTime)
+	createHost(2, seenTime)
+	createHost(3, seenRecentlyTime)
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{1, 2, 3}))
+
+	// Team 2 hosts (4, 5, 6)
+	seenTime = time.Now().Add(time.Duration(-1*(team2HostExpiryWindow+1)*24) * time.Hour)
+	seenRecentlyTime = time.Now().Add(time.Duration(-1*(team2HostExpiryWindow-1)*24) * time.Hour)
+	createHost(4, seenRecentlyTime)
+	createHost(5, time.Now())
+	createHost(6, seenTime)
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{4, 5, 6}))
+
+	// Team 3 hosts (7, 8, 9)
+	seenTime = time.Now().Add(time.Duration(-1*(hostExpiryWindow+1)*24) * time.Hour)
+	seenRecentlyTime = time.Now().Add(time.Duration(-1*(hostExpiryWindow-1)*24) * time.Hour)
+	createHost(7, time.Now())
+	createHost(8, seenTime)
+	createHost(9, seenTime)
+	team3, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team3"})
+	require.NoError(t, err)
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team3.ID, []uint{7, 8, 9}))
+
+	// Global hosts (10, 11)
+	createHost(10, seenRecentlyTime)
+	createHost(11, seenTime)
+
+	filter := fleet.TeamFilter{User: test.UserAdmin}
+	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 11)
+	_, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	// host expiration is still disabled
+	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 11)
+	var count []int
+	err = ds.writer(context.Background()).Select(&count, "SELECT COUNT(*) FROM host_seen_times")
+	require.NoError(t, err)
+	require.Len(t, count, 1)
+	assert.Equal(t, 11, count[0])
+
+	// once enabled, it works
+	ac.HostExpirySettings.HostExpiryEnabled = true
+	err = ds.SaveAppConfig(context.Background(), ac)
+	require.NoError(t, err)
+
+	team1.Config.HostExpirySettings.HostExpiryEnabled = true
+	team1.Config.HostExpirySettings.HostExpiryWindow = team1HostExpiryWindow
+	team1, err = ds.SaveTeam(context.Background(), team1)
+	assert.Equal(t, team1HostExpiryWindow, team1.Config.HostExpirySettings.HostExpiryWindow)
+	require.NoError(t, err)
+
+	team2.Config.HostExpirySettings.HostExpiryEnabled = true
+	team2.Config.HostExpirySettings.HostExpiryWindow = team2HostExpiryWindow
+	team2, err = ds.SaveTeam(context.Background(), team2)
+	assert.Equal(t, team2HostExpiryWindow, team2.Config.HostExpirySettings.HostExpiryWindow)
+	require.NoError(t, err)
+
+	deleted, err := ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	assert.Len(t, deleted, 6)
+	assert.ElementsMatch(t, []uint{1, 2, 6, 8, 9, 11}, deleted)
+	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+	count = nil
+	err = ds.writer(context.Background()).Select(&count, "SELECT COUNT(*) FROM host_seen_times WHERE host_id IN (1, 2, 6, 8, 9, 11)")
+	require.NoError(t, err)
+	require.Len(t, count, 1)
+	assert.Zero(t, count[0])
+	count = nil
+	err = ds.writer(context.Background()).Select(&count, "SELECT COUNT(*) FROM host_seen_times")
+	require.NoError(t, err)
+	require.Len(t, count, 1)
+	assert.Equal(t, 5, count[0])
+
+	// And it doesn't remove more than it should
+	deleted, err = ds.CleanupExpiredHosts(context.Background())
+	require.NoError(t, err)
+	assert.Len(t, deleted, 0)
+
+	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
+
 }
 
 func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
@@ -6167,7 +6294,7 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(stmt, host.ID, 1, 123)
 	require.NoError(t, err)
 	// set host' disk space
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 12, 25, 40.0)
 	require.NoError(t, err)
 	// set host orbit info
 	err = ds.SetOrUpdateHostOrbitInfo(context.Background(), host.ID, "1.1.0")
@@ -6754,10 +6881,10 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	err = ds.SetOrUpdateDeviceAuthToken(context.Background(), host.ID, token1)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 1, 2, 50.0)
 	require.NoError(t, err)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 3, 4, 90.0)
 	require.NoError(t, err)
 
 	h, err := ds.Host(context.Background(), host.ID)
@@ -6770,7 +6897,7 @@ func testHostsSetOrUpdateHostDisksSpace(t *testing.T, ds *Datastore) {
 	require.Equal(t, 3.0, h.GigsDiskSpaceAvailable)
 	require.Equal(t, 4.0, h.PercentDiskSpaceAvailable)
 
-	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6)
+	err = ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 5, 6, 80.0)
 	require.NoError(t, err)
 
 	h, err = ds.LoadHostByDeviceAuthToken(context.Background(), token1, time.Hour)
@@ -6988,18 +7115,30 @@ func testHostsGetHostMDMCheckinInfo(t *testing.T, ds *Datastore) {
 	require.Equal(t, true, info.InstalledFromDEP)
 	require.EqualValues(t, tm.ID, info.TeamID)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.UpsertMDMAppleHostDEPAssignments(ctx, []fleet.Host{*host})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.True(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
 
 	err = ds.DeleteHostDEPAssignments(ctx, []string{host.HardwareSerial})
 	require.NoError(t, err)
 	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
 	require.NoError(t, err)
 	require.False(t, info.DEPAssignedToFleet)
+	require.True(t, info.OsqueryEnrolled)
+
+	// host with an empty node key
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `UPDATE hosts SET node_key = NULL WHERE uuid = ?`, host.UUID)
+		return err
+	})
+	info, err = ds.GetHostMDMCheckinInfo(ctx, host.UUID)
+	require.NoError(t, err)
+	require.False(t, info.OsqueryEnrolled)
 }
 
 func testHostsLoadHostByOrbitNodeKey(t *testing.T, ds *Datastore) {

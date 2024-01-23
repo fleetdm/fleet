@@ -333,7 +333,8 @@ var hostDetailQueries = map[string]DetailQuery{
 	"disk_space_unix": {
 		Query: `
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
+       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
 FROM mounts WHERE path = '/' LIMIT 1;`,
 		Platforms:        append(fleet.HostLinuxOSs, "darwin"),
 		DirectIngestFunc: directIngestDiskSpace,
@@ -342,7 +343,8 @@ FROM mounts WHERE path = '/' LIMIT 1;`,
 	"disk_space_windows": {
 		Query: `
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
-       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+       ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestDiskSpace,
@@ -407,8 +409,12 @@ func directIngestDiskSpace(ctx context.Context, logger log.Logger, host *fleet.H
 	if err != nil {
 		return err
 	}
+	gigsTotal, err := strconv.ParseFloat(EmptyToZero(rows[0]["gigs_total_disk_space"]), 64)
+	if err != nil {
+		return err
+	}
 
-	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable)
+	return ds.SetOrUpdateHostDisksSpace(ctx, host.ID, gigsAvailable, percentAvailable, gigsTotal)
 }
 
 func ingestKubequeryInfo(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -1122,7 +1128,9 @@ func directIngestWindowsUpdateHistory(
 	for _, row := range rows {
 		u, err := fleet.NewWindowsUpdate(row["title"], row["date"])
 		if err != nil {
-			level.Warn(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
+			// If the update failed to parse then we log a debug error and ignore it.
+			// E.g. we've seen KB updates with titles like "Logitech - Image - 1.4.40.0".
+			level.Debug(logger).Log("op", "directIngestWindowsUpdateHistory", "skipped", err)
 			continue
 		}
 
@@ -1299,10 +1307,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {

@@ -176,6 +176,9 @@ We use these prefixes to organize the Fleet Slack:
 - We configure our [working hours in Slack](https://slack.com/help/articles/360025054173-Set-up-Slack-for-work-hours-) to make sure everyone knows when they can get in touch with others.
 - In consideration of our team, Fleet avoids using global tags in channels (i.e. @here, @channel, etc.) (What about polls? Good question, Fleeties are asked to post their poll in the channel and @mention the teammates they would like to hear from.)
 
+### Create a GitHub issue from a Slack thread
+If you need to track content from a Slack channel (ie. #g-sales), you can automatically generate a github issue by selecting the `create-github-issue` emoji on the thread. This will automatically create an issue tagged with the #g-business-operations label. If you need the issue logged against a specific board, ensure that you have updated the label during issue creation.
+
 ### Customer support service level agreements (SLAs)
 
 **Fleet Free:**
@@ -210,31 +213,21 @@ Fleet prefixes all GitHub labels with special characters or words to organize an
 
 | Prefix            | Label type  | Examples                            |
 |:------------------|:------------|:------------------------------------|
-| `#`               | Noun        | `#g-marketing`, `#g-ceo`, `#agent`
 | `:`               | Verb        | `:dev`, `:research`, `:design`
 | `~`               | Adjective   | `~blocked`, `~frontend`, `~backend`
 | `customer-`       | [Customer request](TODO link to handbook section) | `customer-leo`, `customer-sagittarius`
 | `#g-`             | Group isssue | _An issue requesting something from a group at Fleet, such that it will be seen and procesed on their kanban board within 1 business day._
 
-Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system. For example, instead of a label called `platform-dev-backend`, we use `#platform :dev ~backend`.
+Opinionated conventions help people work faster and spend less time figuring out what to name things, or misunderstanding why they're named what they are.  This also reduces the total number of labels required while maintaining an expressive labeling system.
 
 Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to have an issue on a single board, make an effort to have only one label with the `#g-` prefix per issue.
 
 > _**Note:** There are only a few "special" labels that are exceptions to this rule:
-> - `bug`
-> - `story`
-> -  `prospect-` _(TODO: This makes sense, but I noticed on Nov 30, 2023 that `customer-` was being used in at least one place `prospect-` was supposed to be.  Let's decide what we'll be doing.  Easiest thing is probably to switch to `customer-` for everything and then clarify who is a customer in the mapping between labels and actual organization names.  Up to Luke and Zay.)_
-> - `customer request` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
-> -  `needs prioritization` _(FUTURE: is this needed? could we use a symbol prefix in front of it?)_
-> - `github_actions` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
-> - `docker` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
-> -  `go` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
-> -  `javascript` _(TODO: why is this here?  Instead we can use prefixes, like `~`)_
-> - `Epic` _(TODO: Find a way to remove this.  It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
-> -  `p4` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Or better yet, delete it.  What is a P4 anyway?)_
-> -  `p5` _(TODO: why is this here?  Instead we can use prefixes, like `~`.  Same as `p4`.)_
-> -  `story to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
-> -  `bug to demo` _(FUTURE: is this needed?  if so, could use special symbol prefix in front of it)_
+> - `bug` A defect in the product.
+> - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
+> - `story` A user story.
+> -  `prospect-` A customer prospect.
+> - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 ### Process new requests
 Team members [process their department's kanban boards](https://fleetdm.com/handbook/company/why-this-way#why-lean-software-development) daily, prioritizing all new requests including issues and PRs within one business day.
@@ -1376,7 +1369,7 @@ TODO: Document.
 
 #### Tracking
 
-When responding to a question or issue in the [#fleet](https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/) channel of the osquery Slack workspace, push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
+When responding to a question or issue in the [#fleet channel of the osquery Slack workspace](https://fleetdm.com/slack), push the thread to Zapier using the `TODO: Update docs` Zap. This will add information about the thread to the [Slack Questions Spreadsheet](https://docs.google.com/spreadsheets/d/15AgmjlnV4oRW5m94N5q7DjeBBix8MANV9XLWRktMDGE/edit#gid=336721544). In the `Notes` field, you can include any information that you think will be helpful when making weekly doc updates. That may be something like
 
 - proposed change to the documentation.
 - documentation link that was sent as a response.

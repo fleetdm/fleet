@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.controlcenter</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.4.2.check</string>
+			<key>PayloadUUID</key>
+			<string>FC6045C3-FFD7-4C0A-A3D5-ED0ADB9FF391</string>
+			<key>Bluetooth</key>
+			<integer>18</integer>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Show Bluetooth Status in Menu Bar Is Enabled</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.4.2</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>F997FFD6-7E39-48C7-A451-B12A79B6FA22</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

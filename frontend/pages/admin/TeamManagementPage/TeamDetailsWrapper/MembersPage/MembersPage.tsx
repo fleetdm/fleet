@@ -286,6 +286,12 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address has already been invited",
             });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }

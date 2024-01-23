@@ -75,6 +75,7 @@ const generateColumnConfigsFromRows = (
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
+      sortType: "caseInsensitive",
     };
   });
   return _unshiftHostname(columnsConfigs);

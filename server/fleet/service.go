@@ -7,8 +7,8 @@ import (
 	"io"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/fleetdm/fleet/v4/server/websocket"
-	"github.com/kolide/kit/version"
 )
 
 // EnterpriseOverrides contains the methods that can be overriden by the
@@ -777,6 +777,11 @@ type Service interface {
 	GetMDMAppleSetupAssistant(ctx context.Context, teamID *uint) (*MDMAppleSetupAssistant, error)
 	// Delete the MDM Apple Setup Assistant for the provided team or no team.
 	DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *uint) error
+
+	// HasCustomSetupAssistantConfigurationWebURL checks if the team/global
+	// config has a custom setup assistant defined, and if the JSON content
+	// defines a custom `configuration_web_url`.
+	HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error)
 
 	// UpdateMDMAppleSetup updates the specified MDM Apple setup values for a
 	// specified team or for hosts with no team.

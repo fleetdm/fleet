@@ -23,6 +23,8 @@ import (
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -31,8 +33,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanomdm/mdm"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/stretchr/testify/require"
 )
 

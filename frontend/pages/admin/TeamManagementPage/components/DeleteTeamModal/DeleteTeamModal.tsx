@@ -25,7 +25,7 @@ const DeleteTeamModal = ({
       onEnter={onSubmit}
       className={baseClass}
     >
-      <form className={`${baseClass}__form`}>
+      <>
         <p>
           You are about to delete{" "}
           <span className={`${baseClass}__name`}>{name}</span> from Fleet.
@@ -49,7 +49,7 @@ const DeleteTeamModal = ({
             Cancel
           </Button>
         </div>
-      </form>
+      </>
     </Modal>
   );
 };

@@ -564,6 +564,13 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 				AutomationsEnabled: true,
 				Logging:            fleet.LoggingSnapshot,
 			}, nil
+		case teamID == nil && name == "query_should_be_saved_and_submitted_with_custom_pack_delimiter":
+			return &fleet.Query{
+				ID:                 1234,
+				Name:               name,
+				AutomationsEnabled: true,
+				Logging:            fleet.LoggingSnapshot,
+			}, nil
 		case teamID == nil && name == "query_should_be_saved_but_not_submitted":
 			return &fleet.Query{
 				ID:                 444,
@@ -628,6 +635,7 @@ func TestSubmitResultLogsToLogDestination(t *testing.T) {
 		`{"diffResults":{"removed":[{"address":"127.0.0.1","hostnames":"kl.groob.io"}],"added":""},"name":"pack\/team-1/hosts","hostIdentifier":"FA01680E-98CA-5557-8F59-7716ECFEE964","calendarTime":"Sun Nov 19 00:02:08 2017 UTC","unixTime":1511049728,"epoch":"0","counter":"10","decorations":{"host_uuid":"FA01680E-98CA-5557-8F59-7716ECFEE964","hostname":"kl.groob.io"}}`,
 
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/query_should_be_saved_and_submitted","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
+		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack_Global_query_should_be_saved_and_submitted_with_custom_pack_delimiter","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:52 2017 UTC","unixTime":1484078932,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
 
 		// Fleet doesn't know of this query, so this result should be streamed as is (This is to support streaming results for osquery nodes that are configured outside of Fleet, e.g. `--config_plugin=filesystem`).
 		`{"snapshot":[{"hour":"20","minutes":"8"}],"action":"snapshot","name":"pack/Global/doesntexist","hostIdentifier":"1379f59d98f4","calendarTime":"Tue Jan 10 20:08:51 2017 UTC","unixTime":1484078931,"decorations":{"host_uuid":"EB714C9D-C1F8-A436-B6DA-3F853C5502EA"}}`,
@@ -844,19 +852,40 @@ func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {
 		{"pack/team-12345/Another Query", ptr.Uint(12345), "Another Query", false},
 		{"pack/team-foo/Query", nil, "", true},
 		{"pack/Global/QueryWith/Slash", nil, "QueryWith/Slash", false},
+		{"packGlobalGlobalGlobalGlobal", nil, "Global", false},                     // pack_delimiter=Global
+		{"packXGlobalGlobalXGlobalQueryWith/Slash", nil, "QueryWith/Slash", false}, // pack_delimiter=XGlobal
+		{"pack//Global//QueryWith/Slash", nil, "QueryWith/Slash", false},           // pack_delimiter=//
 		{"pack/team-1/QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"pack_team-1_QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},
+		{"packFOOBARteam-1FOOBARQueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false},   // pack_delimiter=FOOBAR
+		{"pack123😁123team-1123😁123QueryWith/Slash", ptr.Uint(1), "QueryWith/Slash", false}, // pack_delimiter=123😁123
+		{"pack(foo)team-1(foo)fo(o)bar", ptr.Uint(1), "fo(o)bar", false},                   // pack_delimiter=(foo)
+		{"packteam-1team-1team-1team-1", ptr.Uint(1), "team-1", false},                     // pack_delimiter=team-1
 
 		{"InvalidString", nil, "", true},
 		{"Invalid/Query", nil, "", true},
+		{"pac", nil, "", true},
+		{"pack", nil, "", true},
+		{"pack/", nil, "", true},
+		{"pack/Global", nil, "", true},
+		{"pack/Global/", nil, "", true},
+		{"pack/team/foo", nil, "", true},
+		{"pack/team-123", nil, "", true},
+		{"pack/team-/foo", nil, "", true},
+		{"pack/team-123/", nil, "", true},
 
 		// Legacy 2017 packs should fail the parsing as they are separate
 		// from global or team queries.
 		{"pack/PackName/Query", nil, "", true},
 		{"pack/PackName/QueryWith/Slash", nil, "", true},
+		{"packFOOBARPackNameFOOBARQueryWith/Slash", nil, "", true}, // pack_delimiter=FOOBAR
 	}
 
 	for _, tt := range tests {
+		tt := tt
 		t.Run(tt.input, func(t *testing.T) {
+			t.Parallel()
+
 			id, str, err := getQueryNameAndTeamIDFromResult(tt.input)
 			assert.Equal(t, tt.expectedID, id)
 			assert.Equal(t, tt.expectedName, str)
@@ -1600,9 +1629,10 @@ func TestDetailQueries(t *testing.T) {
 		require.Equal(t, "foo", authToken)
 		return nil
 	}
-	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error {
+	ds.SetOrUpdateHostDisksSpaceFunc = func(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error {
 		require.Equal(t, 277.0, gigsAvailable)
 		require.Equal(t, 56.0, percentAvailable)
+		require.Equal(t, 500.1, gigsTotal)
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, id uint) (*fleet.Host, error) {
@@ -1746,7 +1776,8 @@ func TestDetailQueries(t *testing.T) {
 "fleet_detail_query_disk_space_unix": [
 	{
 		"percent_disk_space_available": "56",
-		"gigs_disk_space_available": "277.0"
+		"gigs_disk_space_available": "277.0",
+		"gigs_total_disk_space": "500.1"
 	}
 ],
 "fleet_detail_query_mdm": [

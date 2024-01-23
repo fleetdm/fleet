@@ -93,20 +93,10 @@ const defaultTableHeaders: IDataColumn[] = [
       return (
         <div className="disk-encryption-table__aggregate-table-data">
           <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-          <ViewAllHostsLink
-            className="view-hosts-link"
-            queryParams={{
-              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
-              team_id: original.teamId,
-            }}
-          />
         </div>
       );
     },
   },
-];
-
-const windowsTableHeader: IDataColumn[] = [
   {
     title: "Windows hosts",
     Header: (cellProps: IHeaderProps) => (
@@ -139,7 +129,7 @@ const windowsTableHeader: IDataColumn[] = [
 ];
 
 export const generateTableHeaders = (): IDataColumn[] => {
-  return [...defaultTableHeaders, ...windowsTableHeader];
+  return defaultTableHeaders;
 };
 
 const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {

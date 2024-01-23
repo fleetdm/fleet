@@ -23,7 +23,8 @@ type AppleMDMTask string
 
 // List of supported tasks.
 const (
-	AppleMDMPostDEPEnrollmentTask AppleMDMTask = "post_dep_enrollment"
+	AppleMDMPostDEPEnrollmentTask    AppleMDMTask = "post_dep_enrollment"
+	AppleMDMPostManualEnrollmentTask AppleMDMTask = "post_manual_enrollment"
 )
 
 // AppleMDM is the job processor for the apple_mdm job.
@@ -61,14 +62,30 @@ func (a *AppleMDM) Run(ctx context.Context, argsJSON json.RawMessage) error {
 
 	switch args.Task {
 	case AppleMDMPostDEPEnrollmentTask:
-		return a.runPostDEPEnrollment(ctx, args)
+		err := a.runPostDEPEnrollment(ctx, args)
+		return ctxerr.Wrap(ctx, err, "running post Apple DEP enrollment task")
+	case AppleMDMPostManualEnrollmentTask:
+		err := a.runPostManualEnrollment(ctx, args)
+		return ctxerr.Wrap(ctx, err, "running post Apple manual enrollment task")
 	default:
 		return ctxerr.Errorf(ctx, "unknown task: %v", args.Task)
 	}
 }
 
+func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArgs) error {
+	if err := a.installFleetd(ctx, args.HostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+	}
+
+	return nil
+}
+
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
-	if err := a.installEnrollmentPackages(ctx, args.HostUUID, args.TeamID); err != nil {
+	if err := a.installFleetd(ctx, args.HostUUID); err != nil {
+		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
+	}
+
+	if err := a.installBootstrapPackage(ctx, args.HostUUID, args.TeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 	}
 
@@ -109,13 +126,16 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	return nil
 }
 
-func (a *AppleMDM) installEnrollmentPackages(ctx context.Context, hostUUID string, teamID *uint) error {
+func (a *AppleMDM) installFleetd(ctx context.Context, hostUUID string) error {
 	cmdUUID := uuid.New().String()
 	if err := a.Commander.InstallEnterpriseApplication(ctx, []string{hostUUID}, cmdUUID, apple_mdm.FleetdPublicManifestURL); err != nil {
 		return err
 	}
 	a.Log.Log("info", "sent command to install fleetd", "host_uuid", hostUUID)
+	return nil
+}
 
+func (a *AppleMDM) installBootstrapPackage(ctx context.Context, hostUUID string, teamID *uint) error {
 	// GetMDMAppleBootstrapPackageMeta expects team id 0 for no team
 	var tmID uint
 	if teamID != nil {
@@ -143,7 +163,7 @@ func (a *AppleMDM) installEnrollmentPackages(ctx context.Context, hostUUID strin
 	}
 
 	manifest := appmanifest.NewFromSha(meta.Sha256, url)
-	cmdUUID = uuid.New().String()
+	cmdUUID := uuid.New().String()
 	err = a.Commander.InstallEnterpriseApplicationWithEmbeddedManifest(ctx, []string{hostUUID}, cmdUUID, manifest)
 	if err != nil {
 		return err

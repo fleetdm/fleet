@@ -202,12 +202,12 @@ const EditQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Query details | Discover TLS certificates | Fleet for osquery
-    const storedQueryTitleCopy = storedQuery?.name
-      ? `${storedQuery.name} | `
-      : "";
-    document.title = `Edit query | ${storedQueryTitleCopy} ${DOCUMENT_TITLE_SUFFIX}`;
-    // }
+    // e.g., Editing Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `Editing ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {
@@ -335,39 +335,37 @@ const EditQueryPage = ({
   return (
     <>
       <MainContent className={baseClass}>
-        <div className={`${baseClass}_wrapper`}>
-          <div className={`${baseClass}__form`}>
-            <div className={`${baseClass}__header-links`}>
-              <BackLink
-                text={queryId ? "Back to report" : "Back to queries"}
-                path={backToQueriesPath()}
-              />
-            </div>
-            <EditQueryForm
-              router={router}
-              onSubmitNewQuery={onSubmitNewQuery}
-              onOsqueryTableSelect={onOsqueryTableSelect}
-              onUpdate={onUpdateQuery}
-              storedQuery={storedQuery}
-              queryIdForEdit={queryId}
-              apiTeamIdForQuery={apiTeamIdForQuery}
-              teamNameForQuery={teamNameForQuery}
-              isStoredQueryLoading={isStoredQueryLoading}
-              showOpenSchemaActionText={showOpenSchemaActionText}
-              onOpenSchemaSidebar={onOpenSchemaSidebar}
-              renderLiveQueryWarning={renderLiveQueryWarning}
-              backendValidators={backendValidators}
-              isQuerySaving={isQuerySaving}
-              isQueryUpdating={isQueryUpdating}
-              hostId={parseInt(location.query.host_ids as string, 10)}
-              queryReportsDisabled={
-                appConfig?.server_settings.query_reports_disabled
-              }
-              showConfirmSaveChangesModal={showConfirmSaveChangesModal}
-              setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
+        <>
+          <div className={`${baseClass}__header-links`}>
+            <BackLink
+              text={queryId ? "Back to report" : "Back to queries"}
+              path={backToQueriesPath()}
             />
           </div>
-        </div>
+          <EditQueryForm
+            router={router}
+            onSubmitNewQuery={onSubmitNewQuery}
+            onOsqueryTableSelect={onOsqueryTableSelect}
+            onUpdate={onUpdateQuery}
+            storedQuery={storedQuery}
+            queryIdForEdit={queryId}
+            apiTeamIdForQuery={apiTeamIdForQuery}
+            teamNameForQuery={teamNameForQuery}
+            isStoredQueryLoading={isStoredQueryLoading}
+            showOpenSchemaActionText={showOpenSchemaActionText}
+            onOpenSchemaSidebar={onOpenSchemaSidebar}
+            renderLiveQueryWarning={renderLiveQueryWarning}
+            backendValidators={backendValidators}
+            isQuerySaving={isQuerySaving}
+            isQueryUpdating={isQueryUpdating}
+            hostId={parseInt(location.query.host_ids as string, 10)}
+            queryReportsDisabled={
+              appConfig?.server_settings.query_reports_disabled
+            }
+            showConfirmSaveChangesModal={showConfirmSaveChangesModal}
+            setShowConfirmSaveChangesModal={setShowConfirmSaveChangesModal}
+          />
+        </>
       </MainContent>
       {showSidebar && (
         <SidePanelContent>

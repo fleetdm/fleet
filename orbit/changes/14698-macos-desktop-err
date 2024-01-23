@@ -1,0 +1,2 @@
+- Fixed issue on MacOS with starting Fleet Desktop for the first time. MacOS would return an error
+  if a user is not logged in via the GUI.

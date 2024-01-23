@@ -63,7 +63,7 @@ locals {
 }
 
 module "main" {
-  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.6.1"
+  source          = "github.com/fleetdm/fleet//terraform?ref=tf-mod-root-v1.7.0"
   certificate_arn = module.acm.acm_certificate_arn
   vpc = {
     name = local.customer
@@ -128,6 +128,7 @@ module "main" {
       prefix  = local.customer
       enabled = true
     }
+    idle_timeout = 300
     #    extra_target_groups = [
     #      {
     #        name             = module.saml_auth_proxy.name
@@ -243,12 +244,15 @@ module "migrations" {
   depends_on = [
     module.geolite2
   ]
-  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v1.0.0"
+  source                   = "github.com/fleetdm/fleet//terraform/addons/migrations?ref=tf-mod-addon-migrations-v2.0.0"
   ecs_cluster              = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
   task_definition          = module.main.byo-vpc.byo-db.byo-ecs.task_definition.family
   task_definition_revision = module.main.byo-vpc.byo-db.byo-ecs.task_definition.revision
   subnets                  = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
   security_groups          = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+  ecs_service              = module.main.byo-vpc.byo-db.byo-ecs.service.name
+  desired_count            = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
+  min_capacity             = module.main.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
 }
 
 module "mdm" {

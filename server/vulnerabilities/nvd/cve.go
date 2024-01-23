@@ -443,26 +443,18 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 
 // checkVersion checks if the host software version matches the CPEMatch rule
 func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version, cve string) (string, error) {
-	for _, condition := range []struct {
-		startIncluding string
-		startExcluding string
-	}{
-		{rule.VersionStartIncluding, ""},
-		{"", rule.VersionStartExcluding},
-	} {
-		constraintStr := buildConstraintString(condition.startIncluding, condition.startExcluding, rule.VersionEndExcluding)
-		if constraintStr == "" {
-			return rule.VersionEndExcluding, nil
-		}
+	constraintStr := buildConstraintString(rule.VersionStartIncluding, rule.VersionStartExcluding, rule.VersionEndExcluding)
+	if constraintStr == "" {
+		return rule.VersionEndExcluding, nil
+	}
 
-		constraint, err := semver.NewConstraint(constraintStr)
-		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
-		}
+	constraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
+	}
 
-		if constraint.Check(softwareVersion) {
-			return rule.VersionEndExcluding, nil
-		}
+	if constraint.Check(softwareVersion) {
+		return rule.VersionEndExcluding, nil
 	}
 
 	return "", nil
@@ -471,12 +463,13 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 // buildConstraintString builds a semver constraint string from the startIncluding,
 // startExcluding, and endExcluding strings
 func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
-	if startIncluding == "" && startExcluding == "" {
-		return ""
-	}
 	startIncluding = preprocessVersion(startIncluding)
 	startExcluding = preprocessVersion(startExcluding)
 	endExcluding = preprocessVersion(endExcluding)
+
+	if startIncluding == "" && startExcluding == "" {
+		return fmt.Sprintf("< %s", endExcluding)
+	}
 
 	if startIncluding != "" {
 		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)
