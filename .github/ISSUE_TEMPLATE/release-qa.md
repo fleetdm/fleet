@@ -158,9 +158,6 @@ List versions changes for any component updates below:
 3. Agent is promoted to `stable`.<br>
 4. Confirms agents running on `stable` receive the new update.
 </td>
-<td>
-
-</td>
 <td>pass/fail</td></tr>
 </table>
   
