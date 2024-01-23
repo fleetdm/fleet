@@ -83,6 +83,14 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
+<tr><td>My device page</td><td>Verify the end user's my device page loads successfully.</td><td>
+
+1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.
+2. The "My device" page is populated correctly and as expected. 
+3. Styling and padding appears correct.
+ 
+</td><td>pass/fail</td></tr>
+
 <tr><td>MDM Smoke Tests</td><td>Verify MDM enrollments, run commands, and script execution</td><td>
   
 1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
