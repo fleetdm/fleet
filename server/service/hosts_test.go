@@ -989,7 +989,7 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
-	ds.ListVulnsByOSFunc = func(ctx context.Context, osID uint, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 
@@ -1031,7 +1031,7 @@ func TestOSVersionsListOptions(t *testing.T) {
 		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
 	}
 
-	ds.ListVulnsByOSFunc = func(ctx context.Context, osID uint, includeCVSS bool) (fleet.Vulnerabilities, error) {
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
 		return fleet.Vulnerabilities{}, nil
 	}
 

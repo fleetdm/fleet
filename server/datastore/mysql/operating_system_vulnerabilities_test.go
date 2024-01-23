@@ -19,7 +19,7 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 	}{
 		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesByOSEmpty},
 		{"ListOSVulnerabilities", testListOSVulnerabilitiesByOS},
-		{"ListVulnssByOS", testListVulnsByOS},
+		{"ListVulnssByOsNameAndVersion", testListVulnsByOsNameAndVersion},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
 		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
 		{"DeleteOSVulnerabilitiesEmpty", testDeleteOSVulnerabilitiesEmpty},
@@ -70,22 +70,44 @@ func testListOSVulnerabilitiesByOS(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testListVulnsByOS(t *testing.T, ds *Datastore) {
+func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	seedOS := fleet.OperatingSystem{
-		Name:           "Microsoft Windows 11 Enterprise Evaluation",
-		Version:        "10.0.22000.795",
-		Arch:           "64-bit",
-		KernelVersion:  "10.0.22000.795",
-		Platform:       "windows",
-		DisplayVersion: "21H2",
+	seedOS := []fleet.OperatingSystem{
+		{
+			Name:           "Microsoft Windows 11 Pro 21H2",
+			Version:        "10.0.22000.795",
+			Arch:           "64-bit",
+			KernelVersion:  "10.0.22000.795",
+			Platform:       "windows",
+			DisplayVersion: "21H2",
+		},
+		{
+			Name:           "Microsoft Windows 11 Pro 21H2",
+			Version:        "10.0.22000.795",
+			Arch:           "ARM 64-bit",
+			KernelVersion:  "10.0.22000.795",
+			Platform:       "windows",
+			DisplayVersion: "21H2",
+		},
+		{
+			Name:           "Microsoft Windows 11 Pro 22H2",
+			Version:        "10.0.22621.890",
+			Arch:           "64-bit",
+			KernelVersion:  "10.0.22621.890",
+			Platform:       "windows",
+			DisplayVersion: "22H2",
+		},
 	}
 
-	os, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), seedOS)
-	require.NoError(t, err)
+	dbOS := []fleet.OperatingSystem{}
+	for _, seed := range seedOS {
+		os, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), seed)
+		require.NoError(t, err)
+		dbOS = append(dbOS, *os)
+	}
 
-	cves, err := ds.ListVulnsByOS(ctx, os.ID, false)
+	cves, err := ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
 	require.NoError(t, err)
 	require.Empty(t, cves)
 
@@ -108,31 +130,43 @@ func testListVulnsByOS(t *testing.T, ds *Datastore) {
 			Published:        ptr.Time(mockTime),
 			Description:      "A worse vulnerability",
 		},
+		{
+			CVE:              "CVE-2021-1236",
+			CVSSScore:        ptr.Float64(9.8),
+			EPSSProbability:  ptr.Float64(0.1),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "A terrible vulnerability",
+		},
 	}
 
 	err = ds.InsertCVEMeta(ctx, cveMeta)
 	require.NoError(t, err)
 
+	// add CVEs for each OS with different architectures
 	vulns := []fleet.OSVulnerability{
-		{CVE: "CVE-2021-1234", OSID: os.ID, ResolvedInVersion: ptr.String("1.2.3")},
-		{CVE: "CVE-2021-1235", OSID: os.ID, ResolvedInVersion: ptr.String("10.14.2")},
+		{CVE: "CVE-2021-1234", OSID: dbOS[0].ID, ResolvedInVersion: ptr.String("1.2.3")},
+		{CVE: "CVE-2021-1234", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("1.2.3")}, // same OS, different arch
+		{CVE: "CVE-2021-1235", OSID: dbOS[1].ID, ResolvedInVersion: ptr.String("10.14.2")},
+		{CVE: "CVE-2021-1236", OSID: dbOS[2].ID, ResolvedInVersion: ptr.String("103.2.1")},
 	}
 
 	_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.MSRCSource)
 	require.NoError(t, err)
 
-	cves, err = ds.ListVulnsByOS(ctx, os.ID, false)
+	// test without CVS meta
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", false)
 	require.NoError(t, err)
-	require.Len(t, cves, 2)
 
 	expected := fleet.Vulnerabilities{
 		{CVE: "CVE-2021-1234"},
 		{CVE: "CVE-2021-1235"},
 	}
-
+	require.Len(t, cves, 2)
 	require.ElementsMatch(t, expected, cves)
 
-	cves, err = ds.ListVulnsByOS(ctx, os.ID, true)
+	// test with CVS meta
+	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true)
 	require.NoError(t, err)
 	require.Len(t, cves, 2)
 

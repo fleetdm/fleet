@@ -7417,12 +7417,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
+	// insert different Vuln for Win ARM64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		CVE:  "CVE-2021-5678",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
-
-	// TODO(tim)remove ID from response
-	osVersionsResp.OSVersions[0].ID = 0
 
 	// Default sort is by hosts count, descending
 	require.Equal(t, fleet.OSVersion{
@@ -7435,6 +7439,10 @@ func (s *integrationTestSuite) TestOSVersions() {
 			{
 				CVE:         "CVE-2021-1234",
 				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			},
+			{
+				CVE:         "CVE-2021-5678", // vulns are aggregated by OS name and version
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
 			},
 		},
 	}, osVersionsResp.OSVersions[0])

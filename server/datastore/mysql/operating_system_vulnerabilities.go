@@ -30,14 +30,14 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 	return r, nil
 }
 
-func (ds *Datastore) ListVulnsByOS(ctx context.Context, osID uint, includeCVSS bool) (fleet.Vulnerabilities, error) {
+func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
 	r := fleet.Vulnerabilities{}
 
 	var sqlstmt string
 
 	if includeCVSS == true {
 		sqlstmt = `
-			SELECT
+			SELECT DISTINCT
 				osv.cve,
 				cm.cvss_score,
 				cm.epss_probability,
@@ -47,18 +47,22 @@ func (ds *Datastore) ListVulnsByOS(ctx context.Context, osID uint, includeCVSS b
 				osv.resolved_in_version
 			FROM operating_system_vulnerabilities osv
 			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
-			WHERE operating_system_id = ?
+			WHERE osv.operating_system_id IN (
+				SELECT id FROM operating_systems WHERE name = ? AND version = ?
+			)
 			`
 	} else {
 		sqlstmt = `
-			SELECT
+			SELECT DISTINCT
 				osv.cve
 			FROM operating_system_vulnerabilities osv
-			WHERE operating_system_id = ?
+			WHERE osv.operating_system_id IN (
+				SELECT id FROM operating_systems WHERE name = ? AND version = ?
+			)
 			`
 	}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, sqlstmt, osID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, sqlstmt, name, version); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
 	}
 
