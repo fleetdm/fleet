@@ -3205,6 +3205,16 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
+
+	// return empty json if UpdateOSVersions cron hasn't run yet for new team
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hosts[0].ID}))
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, osVersionsResp.OSVersions, 0)
+
+	// return err if team_id is invalid
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
