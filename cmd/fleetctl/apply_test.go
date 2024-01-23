@@ -375,7 +375,7 @@ spec:
 			GracePeriodDays: optjson.Int{Set: true},
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []fleet.MDMProfileSpec{{}},
+			CustomSettings: []fleet.MDMProfileSpec{},
 		},
 	}
 

@@ -434,7 +434,6 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
 	}
 	p.Path = backwardsCompat
-	p.Labels = []string{}
 	return nil
 }
 
