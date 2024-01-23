@@ -170,8 +170,6 @@ const RunQuery = ({
     destroyCampaign();
 
     try {
-      console.log("isStoredQueryEdited", isStoredQueryEdited);
-      console.log("lastEditedQueryBody", lastEditedQueryBody);
       const returnedCampaign = await queryAPI.run({
         query: lastEditedQueryBody,
         queryId: isStoredQueryEdited ? null : queryId, // we treat edited SQL as a new query
