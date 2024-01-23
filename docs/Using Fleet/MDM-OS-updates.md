@@ -47,6 +47,6 @@ If an end user was on vacation when the deadline passed, the end user is given a
 Fleet enforces OS updates for quality and feature updates. Read more about the types of Windows OS updates in the Microsoft documentation [here](https://learn.microsoft.com/en-us/windows/deployment/update/get-started-updates-channels-tools#types-of-updates).
 
 <meta name="pageOrderInSection" value="1503">
-<meta name="title" value="macOS updates">
+<meta name="title" value="OS updates">
 <meta name="description" value="Learn how to manage OS updates on macOS and Windows devices.">
 <meta name="navSection" value="Device management">
