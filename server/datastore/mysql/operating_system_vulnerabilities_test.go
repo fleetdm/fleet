@@ -19,7 +19,6 @@ func TestOperatingSystemVulnerabilities(t *testing.T) {
 	}{
 		{"ListOSVulnerabilitiesEmpty", testListOSVulnerabilitiesByOSEmpty},
 		{"ListOSVulnerabilities", testListOSVulnerabilitiesByOS},
-		{"ListVulnssByOS", testListVulnsByOS},
 		{"ListVulnssByOsNameAndVersion", testListVulnsByOsNameAndVersion},
 		{"InsertOSVulnerabilities", testInsertOSVulnerabilities},
 		{"InsertSingleOSVulnerability", testInsertOSVulnerability},
@@ -168,86 +167,6 @@ func testListVulnsByOsNameAndVersion(t *testing.T, ds *Datastore) {
 
 	// test with CVS meta
 	cves, err = ds.ListVulnsByOsNameAndVersion(ctx, "Microsoft Windows 11 Pro 21H2", "10.0.22000.795", true)
-	require.NoError(t, err)
-	require.Len(t, cves, 2)
-
-	require.Equal(t, cveMeta[0].CVE, cves[0].CVE)
-	require.Equal(t, &cveMeta[0].CVSSScore, cves[0].CVSSScore)
-	require.Equal(t, &cveMeta[0].EPSSProbability, cves[0].EPSSProbability)
-	require.Equal(t, &cveMeta[0].CISAKnownExploit, cves[0].CISAKnownExploit)
-	require.Equal(t, cveMeta[0].Published, *cves[0].CVEPublished)
-	require.Equal(t, cveMeta[0].Description, **cves[0].Description)
-	require.Equal(t, cveMeta[1].CVE, cves[1].CVE)
-	require.Equal(t, &cveMeta[1].CVSSScore, cves[1].CVSSScore)
-	require.Equal(t, &cveMeta[1].EPSSProbability, cves[1].EPSSProbability)
-	require.Equal(t, &cveMeta[1].CISAKnownExploit, cves[1].CISAKnownExploit)
-	require.Equal(t, cveMeta[1].Published, *cves[1].CVEPublished)
-	require.Equal(t, cveMeta[1].Description, **cves[1].Description)
-}
-
-func testListVulnsByOS(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	seedOS := fleet.OperatingSystem{
-		Name:           "Microsoft Windows 11 Enterprise Evaluation",
-		Version:        "10.0.22000.795",
-		Arch:           "64-bit",
-		KernelVersion:  "10.0.22000.795",
-		Platform:       "windows",
-		DisplayVersion: "21H2",
-	}
-
-	os, err := newOperatingSystemDB(context.Background(), ds.writer(context.Background()), seedOS)
-	require.NoError(t, err)
-
-	cves, err := ds.ListVulnsByOS(ctx, os.ID, false)
-	require.NoError(t, err)
-	require.Empty(t, cves)
-
-	mockTime := time.Date(2024, time.January, 18, 10, 0, 0, 0, time.UTC)
-
-	cveMeta := []fleet.CVEMeta{
-		{
-			CVE:              "CVE-2021-1234",
-			CVSSScore:        ptr.Float64(9.7),
-			EPSSProbability:  ptr.Float64(4.2),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
-			Description:      "A bad vulnerability",
-		},
-		{
-			CVE:              "CVE-2021-1235",
-			CVSSScore:        ptr.Float64(9.8),
-			EPSSProbability:  ptr.Float64(0.1),
-			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
-			Description:      "A worse vulnerability",
-		},
-	}
-
-	err = ds.InsertCVEMeta(ctx, cveMeta)
-	require.NoError(t, err)
-
-	vulns := []fleet.OSVulnerability{
-		{CVE: "CVE-2021-1234", OSID: os.ID, ResolvedInVersion: ptr.String("1.2.3")},
-		{CVE: "CVE-2021-1235", OSID: os.ID, ResolvedInVersion: ptr.String("10.14.2")},
-	}
-
-	_, err = ds.InsertOSVulnerabilities(ctx, vulns, fleet.MSRCSource)
-	require.NoError(t, err)
-
-	cves, err = ds.ListVulnsByOS(ctx, os.ID, false)
-	require.NoError(t, err)
-	require.Len(t, cves, 2)
-
-	expected := fleet.Vulnerabilities{
-		{CVE: "CVE-2021-1234"},
-		{CVE: "CVE-2021-1235"},
-	}
-
-	require.ElementsMatch(t, expected, cves)
-
-	cves, err = ds.ListVulnsByOS(ctx, os.ID, true)
 	require.NoError(t, err)
 	require.Len(t, cves, 2)
 

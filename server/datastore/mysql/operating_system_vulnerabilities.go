@@ -69,41 +69,6 @@ func (ds *Datastore) ListVulnsByOsNameAndVersion(ctx context.Context, name, vers
 	return r, nil
 }
 
-func (ds *Datastore) ListVulnsByOS(ctx context.Context, osID uint, includeCVSS bool) (fleet.Vulnerabilities, error) {
-	r := fleet.Vulnerabilities{}
-
-	var sqlstmt string
-
-	if includeCVSS == true {
-		sqlstmt = `
-			SELECT
-				osv.cve,
-				cm.cvss_score,
-				cm.epss_probability,
-				cm.cisa_known_exploit,
-				cm.published as cve_published,
-				cm.description,
-				osv.resolved_in_version
-			FROM operating_system_vulnerabilities osv
-			LEFT JOIN cve_meta cm ON cm.cve = osv.cve
-			WHERE operating_system_id = ?
-			`
-	} else {
-		sqlstmt = `
-			SELECT
-				osv.cve
-			FROM operating_system_vulnerabilities osv
-			WHERE operating_system_id = ?
-			`
-	}
-
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &r, sqlstmt, osID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "error executing SQL statement")
-	}
-
-	return r, nil
-}
-
 func (ds *Datastore) InsertOSVulnerabilities(ctx context.Context, vulnerabilities []fleet.OSVulnerability, source fleet.VulnerabilitySource) (int64, error) {
 	var args []interface{}
 
