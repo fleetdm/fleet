@@ -2850,8 +2850,32 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting app config")
 	}
-	if !ac.HostExpirySettings.HostExpiryEnabled {
+
+	query := `SELECT id, config from teams`
+	var teams []*fleet.Team
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &teams, query); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get teams")
+	}
+
+	teamHostExpiryEnabled := false
+	for _, team := range teams {
+		if team.Config.HostExpirySettings.HostExpiryEnabled {
+			teamHostExpiryEnabled = true
+			break
+		}
+	}
+	if !ac.HostExpirySettings.HostExpiryEnabled && !teamHostExpiryEnabled {
 		return nil, nil
+	}
+
+	var teamsUsingGlobalExpiry []uint
+	teamsUsingCustomExpiry := map[uint]int{}
+	for _, team := range teams {
+		if !team.Config.HostExpirySettings.HostExpiryEnabled {
+			teamsUsingGlobalExpiry = append(teamsUsingGlobalExpiry, team.ID)
+		} else {
+			teamsUsingCustomExpiry[team.ID] = team.Config.HostExpirySettings.HostExpiryWindow
+		}
 	}
 
 	// Usual clean up queries used to be like this:
@@ -2859,33 +2883,71 @@ func (ds *Datastore) CleanupExpiredHosts(ctx context.Context) ([]uint, error) {
 	// This means a full table scan for hosts, and for big deployments, that's not ideal
 	// so instead, we get the ids one by one and delete things one by one
 	// it might take longer, but it should lock only the row we need
-
-	var ids []uint
-	err = ds.writer(ctx).SelectContext(
-		ctx,
-		&ids,
-		`SELECT h.id FROM hosts h
+	findHostsSql := `SELECT h.id FROM hosts h
 		LEFT JOIN host_seen_times hst
 		ON h.id = hst.host_id
-		WHERE COALESCE(hst.seen_time, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`,
-		ac.HostExpirySettings.HostExpiryWindow,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting expired host ids")
+		WHERE COALESCE(hst.seen_time, h.created_at) < DATE_SUB(NOW(), INTERVAL ? DAY)`
+
+	var allIdsToDelete []uint
+	// Process hosts using global expiry
+	if ac.HostExpirySettings.HostExpiryEnabled {
+		sqlQuery := findHostsSql + " AND (team_id IS NULL"
+		args := []interface{}{ac.HostExpirySettings.HostExpiryWindow}
+		if len(teamsUsingGlobalExpiry) > 0 {
+			sqlQuery += " OR team_id IN (?)"
+			sqlQuery, args, err = sqlx.In(sqlQuery, args[0], teamsUsingGlobalExpiry)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "building query to get expired host ids")
+			}
+		}
+		sqlQuery += ")"
+		err = ds.writer(ctx).SelectContext(
+			ctx,
+			&allIdsToDelete,
+			sqlQuery,
+			args...,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting global expired hosts")
+		}
 	}
 
-	for _, id := range ids {
+	// Process hosts using team expiry
+	for teamId, expiry := range teamsUsingCustomExpiry {
+		var ids []uint
+		sqlQuery := findHostsSql + " AND team_id = ?"
+		args := []interface{}{expiry, teamId}
+		err = ds.writer(ctx).SelectContext(
+			ctx,
+			&ids,
+			sqlQuery,
+			args...,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting team expired hosts")
+		}
+		allIdsToDelete = append(allIdsToDelete, ids...)
+	}
+
+	for _, id := range allIdsToDelete {
 		err = ds.DeleteHost(ctx, id)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx, `DELETE FROM host_seen_times WHERE seen_time < DATE_SUB(NOW(), INTERVAL ? DAY)`, ac.HostExpirySettings.HostExpiryWindow)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
+	if len(allIdsToDelete) > 0 {
+		sqlQuery, args, err := sqlx.In(`DELETE FROM host_seen_times WHERE host_id in (?)`, allIdsToDelete)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building query to delete host seen times")
+		}
+		_, err = ds.writer(ctx).ExecContext(ctx, sqlQuery, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "deleting expired host seen times")
+		}
 	}
-	return ids, nil
+
+	return allIdsToDelete, nil
 }
 
 func (ds *Datastore) ListHostDeviceMapping(ctx context.Context, id uint) ([]*fleet.HostDeviceMapping, error) {

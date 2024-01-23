@@ -1,1 +1,0 @@
-For `software/titles` and `software/versions` endpoints, the `browser` property is no longer included in the response when empty.
