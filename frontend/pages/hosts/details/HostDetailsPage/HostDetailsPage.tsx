@@ -53,9 +53,13 @@ import {
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
@@ -111,6 +115,8 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
+const DEFAULT_ACTIVITY_PAGE_SIZE = 2;
+
 const HostDetailsPage = ({
   route,
   router,
@@ -160,6 +166,16 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+
+  // activity states
+  const [activeActivityTab, setActiveActivityTab] = useState<
+    "past" | "upcoming"
+  >("past");
+  const [activityPage, setActivityPage] = useState(0);
+
+  // used to track the current script execution id we want to show in the show
+  // details modal.
+  const scriptExecutionId = useRef<string | null>(null);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -324,6 +340,74 @@ const HostDetailsPage = ({
     }
   );
 
+  // get activities data. This is at the host details level because we want to
+  // wait to show the host details page until we have the activities data.
+  const {
+    data: pastActivities,
+    isFetching: pastActivitiesIsFetching,
+    isLoading: pastActivitiesIsLoading,
+    isError: pastActivitiesIsError,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+    }>
+  >(
+    [
+      {
+        scope: "past-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 5000,
+    }
+  );
+
+  const {
+    data: upcomingActivities,
+    isFetching: upcomingActivitiesIsFetching,
+    isLoading: upcomingActivitiesIsLoading,
+    isError: upcomingActivitiesIsError,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+    }>
+  >(
+    [
+      {
+        scope: "upcoming-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostUpcomingActivities(
+        hostIdFromURL,
+        page,
+        perPage
+      );
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 5000,
+    }
+  );
+
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -468,6 +552,11 @@ const HostDetailsPage = ({
     }
   };
 
+  const onChangeActivityTab = (tabIndex: number) => {
+    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    setActivityPage(0);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -567,7 +656,12 @@ const HostDetailsPage = ({
     );
   };
 
-  if (!host || isLoadingHost) {
+  if (
+    !host ||
+    isLoadingHost ||
+    pastActivitiesIsLoading ||
+    upcomingActivitiesIsLoading
+  ) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -667,7 +761,7 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
         />
-        <TabsWrapper>
+        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
@@ -679,24 +773,45 @@ const HostDetailsPage = ({
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__details-panel`}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <div className="col-2">
-                <AgentOptionsCard
-                  osqueryData={osqueryData}
-                  wrapFleetHelper={wrapFleetHelper}
-                  isChromeOS={host?.platform === "chrome"}
-                />
-                <LabelsCard
-                  labels={host?.labels || []}
-                  onLabelClick={onLabelClick}
-                />
-              </div>
+              <ActivityCard
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
+                // TODO: show modal
+                onShowDetails={() => null}
+              />
+              <AgentOptionsCard
+                osqueryData={osqueryData}
+                wrapFleetHelper={wrapFleetHelper}
+                isChromeOS={host?.platform === "chrome"}
+              />
+              <LabelsCard
+                labels={host?.labels || []}
+                onLabelClick={onLabelClick}
+              />
               <UsersCard
                 users={host?.users || []}
                 usersState={usersState}
