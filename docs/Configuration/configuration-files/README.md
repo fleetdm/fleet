@@ -1165,7 +1165,7 @@ Requires `mdm.macos_updates.minimum_version` to be set.
 
 **Applies only to Fleet Premium**.
 
-The following options allow configuring OS updates for macOS hosts.
+The following options allow configuring OS updates for Windows hosts.
 
 ##### mdm.windows_updates.deadline
 
@@ -1176,7 +1176,7 @@ A deadline in days.
   ```yaml
   mdm:
     windows_updates:
-      deadline: "5"
+      deadline_days: "5"
   ```
 
 ##### mdm.windows_updates.grace_period
@@ -1188,7 +1188,7 @@ A grace period in days.
   ```yaml
   mdm:
     windows_updates:
-      grace_period: "2"
+      grace_period_days: "2"
   ```
 
 ##### mdm.macos_settings
