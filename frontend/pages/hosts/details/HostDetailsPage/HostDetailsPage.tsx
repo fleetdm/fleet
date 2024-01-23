@@ -53,6 +53,9 @@ import {
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -112,6 +115,8 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
+const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+
 const HostDetailsPage = ({
   route,
   router,
@@ -160,6 +165,12 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+
+  // activity states
+  const [activeActivityTab, setActiveActivityTab] = useState<
+    "past" | "upcoming"
+  >("past");
+  const [activityPage, setActivityPage] = useState(0);
 
   // used to track the current script execution id we want to show in the show
   // details modal.
@@ -328,6 +339,74 @@ const HostDetailsPage = ({
     }
   );
 
+  // get activities data. This is at the host details level because we want to
+  // wait to show the host details page until we have the activities data.
+  const {
+    data: pastActivities,
+    isFetching: pastActivitiesIsFetching,
+    isLoading: pastActivitiesIsLoading,
+    isError: pastActivitiesIsError,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+    }>
+  >(
+    [
+      {
+        scope: "past-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 5000,
+    }
+  );
+
+  const {
+    data: upcomingActivities,
+    isFetching: upcomingActivitiesIsFetching,
+    isLoading: upcomingActivitiesIsLoading,
+    isError: upcomingActivitiesIsError,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+    }>
+  >(
+    [
+      {
+        scope: "past-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostUpcomingActivities(
+        hostIdFromURL,
+        page,
+        perPage
+      );
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 5000,
+    }
+  );
+
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -472,6 +551,11 @@ const HostDetailsPage = ({
     }
   };
 
+  const onChangeActivityTab = (tabIndex: number) => {
+    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    setActivityPage(0);
+  };
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -574,7 +658,12 @@ const HostDetailsPage = ({
     );
   };
 
-  if (!host || isLoadingHost) {
+  if (
+    !host ||
+    isLoadingHost ||
+    pastActivitiesIsLoading ||
+    upcomingActivitiesIsLoading
+  ) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -712,9 +801,25 @@ const HostDetailsPage = ({
                 mdm={mdm}
               />
               <ActivityCard
-                activities={[]}
-                isLoading={false}
-                onChangeTab={(selectedTab) => undefined}
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
               />
               <div className="col-2">
                 <AgentOptionsCard

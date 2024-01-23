@@ -1,8 +1,12 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 
-import { ActivityType, IActivityDetails } from "interfaces/activity";
-import { getPerformanceImpactDescription } from "utilities/helpers";
-import ActivityItem from "pages/DashboardPage/cards/ActivityFeed/ActivityItem";
+import { IActivity, IActivityDetails } from "interfaces/activity";
+import { IActivitiesResponse } from "services/entities/activities";
+
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import Button from "components/buttons/Button";
+import DataError from "components/DataError";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import PastActivity from "../PastActivity/PastActivity";
@@ -10,61 +14,31 @@ import PastActivity from "../PastActivity/PastActivity";
 const baseClass = "past-activity-feed";
 
 interface IPastActivityFeedProps {
-  activities: any; // TODO: type
+  activities?: IActivitiesResponse;
+  isError?: boolean;
   onDetailsClick: (details: IActivityDetails) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
 }
-
-const testActivity = {
-  created_at: "2021-07-27T13:25:21Z",
-  id: 1,
-  actor_full_name: "Bob",
-  actor_id: 2,
-  actor_gravatar: "",
-  actor_email: "bob@example.com",
-  type: "ran_script",
-  details: {
-    host_id: 1,
-    host_display_name: "Steve's MacBook Pro",
-    script_name: "",
-    script_execution_id: "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-  },
-};
 
 const PastActivityFeed = ({
   activities,
+  isError = false,
   onDetailsClick,
+  onNextPage,
+  onPreviousPage,
 }: IPastActivityFeedProps) => {
-  activities = [testActivity];
+  if (isError) {
+    return <DataError />;
+  }
 
-  const [pageIndex, setPageIndex] = useState(0);
-  const [showShowQueryModal, setShowShowQueryModal] = useState(false);
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
-  const queryShown = useRef("");
-  const queryImpact = useRef<string | undefined>(undefined);
-  const scriptExecutionId = useRef("");
+  if (!activities) {
+    return null;
+  }
 
-  const handleDetailsClick = (
-    activityType: ActivityType,
-    details: IActivityDetails
-  ) => {
-    switch (activityType) {
-      case ActivityType.LiveQuery:
-        queryShown.current = details.query_sql ?? "";
-        queryImpact.current = details.stats
-          ? getPerformanceImpactDescription(details.stats)
-          : undefined;
-        setShowShowQueryModal(true);
-        break;
-      case ActivityType.RanScript:
-        scriptExecutionId.current = details.script_execution_id ?? "";
-        setShowScriptDetailsModal(true);
-        break;
-      default:
-        break;
-    }
-  };
+  const { activities: activitiesList, meta } = activities;
 
-  if (activities.length === 0) {
+  if (activitiesList.length === 0) {
     return (
       <EmptyFeed
         title="No Activity"
@@ -75,9 +49,31 @@ const PastActivityFeed = ({
 
   return (
     <div className={baseClass}>
-      {activities?.map((activity: any) => (
+      {activitiesList.map((activity: IActivity) => (
         <PastActivity activity={activity} onDetailsClick={onDetailsClick} />
       ))}
+      <div className={`${baseClass}__pagination`}>
+        <Button
+          disabled={!meta.has_previous_results}
+          onClick={onPreviousPage}
+          variant="unstyled"
+          className={`${baseClass}__load-activities-button`}
+        >
+          <>
+            <FleetIcon name="chevronleft" /> Previous
+          </>
+        </Button>
+        <Button
+          disabled={!meta.has_next_results}
+          onClick={onNextPage}
+          variant="unstyled"
+          className={`${baseClass}__load-activities-button`}
+        >
+          <>
+            Next <FleetIcon name="chevronright" />
+          </>
+        </Button>
+      </div>
     </div>
   );
 };

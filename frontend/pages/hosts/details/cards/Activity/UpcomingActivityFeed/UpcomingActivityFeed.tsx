@@ -1,6 +1,12 @@
 import React from "react";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IActivity, IActivityDetails } from "interfaces/activity";
+import { IActivitiesResponse } from "services/entities/activities";
+
+// @ts-ignore
+import FleetIcon from "components/icons/FleetIcon";
+import DataError from "components/DataError";
+import Button from "components/buttons/Button";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
@@ -8,8 +14,11 @@ import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
 const baseClass = "upcoming-activity-feed";
 
 interface IUpcomingActivityFeedProps {
-  activities: any; // TODO: type
+  activities?: IActivitiesResponse;
+  isError?: boolean;
   onDetailsClick: (details: IActivityDetails) => void;
+  onNextPage: () => void;
+  onPreviousPage: () => void;
 }
 
 const testActivity = {
@@ -30,11 +39,22 @@ const testActivity = {
 
 const UpcomingActivityFeed = ({
   activities,
+  isError = false,
   onDetailsClick,
+  onNextPage,
+  onPreviousPage,
 }: IUpcomingActivityFeedProps) => {
-  activities = [testActivity];
+  if (isError) {
+    return <DataError />;
+  }
 
-  if (activities.length === 0) {
+  if (!activities) {
+    return null;
+  }
+
+  const { activities: activitiesList, meta } = activities;
+
+  if (activitiesList.length === 0) {
     return (
       <EmptyFeed
         title="No pending activity "
@@ -45,9 +65,31 @@ const UpcomingActivityFeed = ({
 
   return (
     <div className={baseClass}>
-      {activities?.map((activity: any) => (
+      {activitiesList.map((activity: IActivity) => (
         <UpcomingActivity activity={activity} onDetailsClick={onDetailsClick} />
       ))}
+      <div className={`${baseClass}__pagination`}>
+        <Button
+          disabled={!meta.has_previous_results}
+          onClick={onPreviousPage}
+          variant="unstyled"
+          className={`${baseClass}__load-activities-button`}
+        >
+          <>
+            <FleetIcon name="chevronleft" /> Previous
+          </>
+        </Button>
+        <Button
+          disabled={!meta.has_next_results}
+          onClick={onNextPage}
+          variant="unstyled"
+          className={`${baseClass}__load-activities-button`}
+        >
+          <>
+            Next <FleetIcon name="chevronright" />
+          </>
+        </Button>
+      </div>
     </div>
   );
 };

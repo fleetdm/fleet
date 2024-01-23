@@ -37,7 +37,7 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getHostPastAcitivities: (
+  getHostPastActivities: (
     id: number,
     page = DEFAULT_PAGE,
     perPage = DEFAULT_PAGE_SIZE
