@@ -24,6 +24,7 @@ import {
   humanHostLastSeen,
   hostTeamName,
 } from "utilities/helpers";
+import { COLORS } from "styles/var/colors";
 import { IDataColumn } from "interfaces/datatable_config";
 import PATHS from "router/paths";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -171,7 +172,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`host__${cellProps.row.original.id}`}
               data-html
             >
@@ -355,7 +356,7 @@ const allHostTableHeaders: IDataColumn[] = [
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`device_mapping__${cellProps.row.original.id}`}
               data-html
               clickable
@@ -382,7 +383,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM status",
-    Header: (cellProps: IHeaderProps): JSX.Element => {
+    Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
@@ -413,7 +414,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM server URL",
-    Header: (cellProps: IHeaderProps): JSX.Element => {
+    Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
@@ -467,7 +468,7 @@ const allHostTableHeaders: IDataColumn[] = [
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={`public-ip__${cellProps.row.original.id}`}
             data-html
             clickable

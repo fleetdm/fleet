@@ -1,7 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
 import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
@@ -44,7 +43,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
   return (
     <div className={baseClass}>
       <TableContainer
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={tableData}
         resultsTitle="" // TODO: make optional
         isLoading={false}

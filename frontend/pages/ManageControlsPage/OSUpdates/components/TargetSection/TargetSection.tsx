@@ -73,7 +73,7 @@ const TargetSection = ({
 
   // We make the call at this component as multiple children components need
   // this data.
-  const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
+  const { data: teamData, isLoading: isLoadingTeam } = useQuery<
     ILoadTeamResponse,
     Error,
     ITeamConfig
@@ -146,7 +146,7 @@ const TargetSection = ({
 
   return (
     <div className={baseClass}>
-      <SectionHeader title="Target" />
+      <SectionHeader title="Target" className={`${baseClass}__header`} />
       {renderTargetForms()}
     </div>
   );

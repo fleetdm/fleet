@@ -14,9 +14,9 @@ Puppet::Reports.register_report(:fleetdm) do
     response = client.match_profiles(run_identifier, environment)
 
     if response['error'].empty?
-      Puppet.info("successfully matched #{node_name} with a team containing configuration profiles")
+      Puppet.info("Successfully matched #{node_name} with a team containing configuration profiles")
     else
-      Puppet.err("error matching node #{node_name} with a team containing configuration profiles: #{response['error']}")
+      Puppet.err("Error matching node #{node_name} with a team containing configuration profiles: #{response['error']}")
     end
   end
 end

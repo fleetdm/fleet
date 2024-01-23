@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5" // nolint:gosec (only used for tests)
+	"encoding/hex"
 	"fmt"
 	"math/rand"
 	"sort"
@@ -57,6 +59,7 @@ func TestSoftware(t *testing.T) {
 		{"hostSoftwareInstalledPathsDelta", testHostSoftwareInstalledPathsDelta},
 		{"deleteHostSoftwareInstalledPaths", testDeleteHostSoftwareInstalledPaths},
 		{"insertHostSoftwareInstalledPaths", testInsertHostSoftwareInstalledPaths},
+		{"VerifySoftwareChecksum", testVerifySoftwareChecksum},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -550,9 +553,9 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	})
 
 	vulns := []fleet.SoftwareVulnerability{
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: "2.0.0"},
-		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: "2.0.0"},
-		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: "2.0.0"},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0001", ResolvedInVersion: ptr.String("2.0.0")},
+		{SoftwareID: host1.Software[0].ID, CVE: "CVE-2022-0002", ResolvedInVersion: ptr.String("2.0.0")},
+		{SoftwareID: host3.Software[0].ID, CVE: "CVE-2022-0003", ResolvedInVersion: ptr.String("2.0.0")},
 	}
 
 	for _, v := range vulns {
@@ -657,9 +660,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 	t.Run("paginates", func(t *testing.T) {
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				Page:     1,
-				PerPage:  1,
-				OrderKey: "version",
+				Page:            1,
+				PerPage:         1,
+				OrderKey:        "version",
+				IncludeMetadata: true,
 			},
 			IncludeCVEScores: true,
 		}
@@ -704,9 +708,10 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 
 		opts := fleet.SoftwareListOptions{
 			ListOptions: fleet.ListOptions{
-				PerPage:  1,
-				Page:     1,
-				OrderKey: "id",
+				PerPage:         1,
+				Page:            1,
+				OrderKey:        "id",
+				IncludeMetadata: true,
 			},
 			TeamID: &team1.ID,
 		}
@@ -882,12 +887,30 @@ func testSoftwareList(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareListOptions, returnSorted bool) []fleet.Software {
-	software, err := ds.ListSoftware(context.Background(), opts)
+	software, meta, err := ds.ListSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, software, expectedListCount)
 	count, err := ds.CountSoftware(context.Background(), opts)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
+
+	if opts.ListOptions.IncludeMetadata {
+		require.NotNil(t, meta)
+		if expectedListCount == expectedFullCount {
+			require.False(t, meta.HasPreviousResults)
+			require.True(t, meta.HasNextResults)
+		}
+		if expectedFullCount > expectedListCount {
+			shouldHavePrevious := opts.ListOptions.Page > 0
+			require.Equal(t, shouldHavePrevious, meta.HasPreviousResults)
+
+			shouldHaveNext := uint(expectedFullCount) > (opts.ListOptions.Page+1)*opts.ListOptions.PerPage // page is 0-indexed
+			require.Equal(t, shouldHaveNext, meta.HasNextResults)
+		}
+	} else {
+		require.Nil(t, meta)
+	}
+
 	for _, s := range software {
 		sort.Slice(s.Vulnerabilities, func(i, j int) bool {
 			return s.Vulnerabilities[i].CVE < s.Vulnerabilities[j].CVE
@@ -974,7 +997,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	checkTableTotalCount(3)
 
 	// create a software entry without any host and any counts
-	_, err = ds.writer(ctx).ExecContext(ctx, `INSERT INTO software (name, version, source) VALUES ('baz', '0.0.1', 'testing')`)
+	_, err = ds.writer(ctx).ExecContext(ctx, fmt.Sprintf(`INSERT INTO software (name, version, source, checksum) VALUES ('baz', '0.0.1', 'testing', %s)`, softwareChecksumComputedColumn("")))
 	require.NoError(t, err)
 
 	// listing does not return the new software entry
@@ -1372,7 +1395,7 @@ func testHostVulnSummariesBySoftwareIDs(t *testing.T, ds *Datastore) {
 
 	insertVulnSoftwareForTest(t, ds)
 
-	allSoftware, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
+	allSoftware, _, err := ds.ListSoftware(ctx, fleet.SoftwareListOptions{})
 	require.NoError(t, err)
 
 	var fooRpm fleet.Software
@@ -1841,19 +1864,31 @@ func testInsertSoftwareVulnerability(t *testing.T, ds *Datastore) {
 		vuln := fleet.SoftwareVulnerability{
 			SoftwareID:        host.Software[0].ID,
 			CVE:               "cve-3",
-			ResolvedInVersion: "1.2.3",
+			ResolvedInVersion: ptr.String("1.2.3"),
 		}
 
 		inserted, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 		require.True(t, inserted)
 
+		// vulnerability with no ResolvedInVersion
+		vuln = fleet.SoftwareVulnerability{
+			SoftwareID: host.Software[0].ID,
+			CVE:        "cve-4",
+		}
+
+		inserted, err = ds.InsertSoftwareVulnerability(ctx, vuln, fleet.UbuntuOVALSource)
+		require.NoError(t, err)
+		require.True(t, inserted)
+
 		storedVulns, err := ds.ListSoftwareVulnerabilitiesByHostIDsSource(ctx, []uint{host.ID}, fleet.UbuntuOVALSource)
 		require.NoError(t, err)
 
-		require.Len(t, storedVulns[host.ID], 1)
+		require.Len(t, storedVulns[host.ID], 2)
 		require.Equal(t, "cve-3", storedVulns[host.ID][0].CVE)
-		require.Equal(t, "1.2.3", storedVulns[host.ID][0].ResolvedInVersion)
+		require.Equal(t, "1.2.3", *storedVulns[host.ID][0].ResolvedInVersion)
+		require.Equal(t, "cve-4", storedVulns[host.ID][1].CVE)
+		require.Nil(t, storedVulns[host.ID][1].ResolvedInVersion)
 	})
 }
 
@@ -2588,7 +2623,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	host3 := test.NewHost(t, ds, "host3", "", "host3key", "host3uuid", time.Now())
 
 	expectedSoftware := []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions", Browser: "chrome"},
 		{Name: "foo", Version: "v0.0.2", Source: "chrome_extensions"},
 		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
 		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
@@ -2608,7 +2643,9 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getSoftware := func() ([]fleet.Software, error) {
 		var sw []fleet.Software
-		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT * FROM software ORDER BY name, version`)
+		err := ds.writer(ctx).SelectContext(ctx, &sw, `SELECT
+			id, name, version, bundle_identifier, source, extension_id, browser, `+"`release`"+`, vendor, arch, title_id
+		FROM software ORDER BY name, source, browser, version`)
 		if err != nil {
 			return nil, err
 		}
@@ -2617,32 +2654,32 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 
 	getTitles := func() ([]fleet.SoftwareTitle, error) {
 		var swt []fleet.SoftwareTitle
-		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT * FROM software_titles ORDER BY name, source`)
+		err := ds.writer(ctx).SelectContext(ctx, &swt, `SELECT id, name, source, browser FROM software_titles ORDER BY name, source, browser`)
 		if err != nil {
 			return nil, err
 		}
 		return swt, nil
 	}
 
-	expectedTitlesByNS := map[string]fleet.SoftwareTitle{}
+	expectedTitlesByNSB := map[string]fleet.SoftwareTitle{}
 	assertSoftware := func(t *testing.T, wantSoftware []fleet.Software, wantNilTitleID []fleet.Software) {
 		gotSoftware, err := getSoftware()
 		require.NoError(t, err)
 		require.Len(t, gotSoftware, len(wantSoftware))
 
-		byNSV := map[string]fleet.Software{}
+		byNSBV := map[string]fleet.Software{}
 		for _, s := range wantSoftware {
-			byNSV[s.Name+s.Source+s.Version] = s
+			byNSBV[s.Name+s.Source+s.Browser+s.Version] = s
 		}
 
 		for _, r := range gotSoftware {
-			_, ok := byNSV[r.Name+r.Source+r.Version]
+			_, ok := byNSBV[r.Name+r.Source+r.Browser+r.Version]
 			require.True(t, ok)
 
 			if r.TitleID == nil {
 				var found bool
 				for _, s := range wantNilTitleID {
-					if s.Name == r.Name && s.Source == r.Source && s.Version == r.Version {
+					if s.Name == r.Name && s.Source == r.Source && s.Browser == r.Browser && s.Version == r.Version {
 						found = true
 						break
 					}
@@ -2650,12 +2687,13 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 				require.True(t, found)
 			} else {
 				require.NotNil(t, r.TitleID)
-				swt, ok := expectedTitlesByNS[r.Name+r.Source]
+				swt, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
 				require.True(t, ok)
 				require.NotNil(t, r.TitleID)
 				require.Equal(t, swt.ID, *r.TitleID)
 				require.Equal(t, swt.Name, r.Name)
 				require.Equal(t, swt.Source, r.Source)
+				require.Equal(t, swt.Browser, r.Browser)
 			}
 		}
 	}
@@ -2665,11 +2703,12 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 			if len(expectMissing) > 0 {
 				require.NotContains(t, expectMissing, r.Name)
 			}
-			e, ok := expectedTitlesByNS[r.Name+r.Source]
+			e, ok := expectedTitlesByNSB[r.Name+r.Source+r.Browser]
 			require.True(t, ok)
 			require.Equal(t, e.ID, r.ID)
 			require.Equal(t, e.Name, r.Name)
 			require.Equal(t, e.Source, r.Source)
+			require.Equal(t, e.Browser, r.Browser)
 		}
 	}
 
@@ -2680,19 +2719,27 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	swt, err := getTitles()
 	require.NoError(t, err)
-	require.Len(t, swt, 3)
+	require.Len(t, swt, 4)
 
 	require.Equal(t, swt[0].Name, "bar")
 	require.Equal(t, swt[0].Source, "deb_packages")
-	expectedTitlesByNS[swt[0].Name+swt[0].Source] = swt[0]
+	require.Equal(t, swt[0].Browser, "")
+	expectedTitlesByNSB[swt[0].Name+swt[0].Source+swt[0].Browser] = swt[0]
 
 	require.Equal(t, swt[1].Name, "baz")
 	require.Equal(t, swt[1].Source, "deb_packages")
-	expectedTitlesByNS[swt[1].Name+swt[1].Source] = swt[1]
+	require.Equal(t, swt[1].Browser, "")
+	expectedTitlesByNSB[swt[1].Name+swt[1].Source+swt[1].Browser] = swt[1]
 
 	require.Equal(t, swt[2].Name, "foo")
 	require.Equal(t, swt[2].Source, "chrome_extensions")
-	expectedTitlesByNS[swt[2].Name+swt[2].Source] = swt[2]
+	require.Equal(t, swt[2].Browser, "")
+	expectedTitlesByNSB[swt[2].Name+swt[2].Source+swt[2].Browser] = swt[2]
+
+	require.Equal(t, swt[3].Name, "foo")
+	require.Equal(t, swt[3].Source, "chrome_extensions")
+	require.Equal(t, swt[3].Browser, "chrome")
+	expectedTitlesByNSB[swt[3].Name+swt[3].Source+swt[3].Browser] = swt[3]
 
 	// title_id is now populated for all software entries
 	assertSoftware(t, expectedSoftware, nil)
@@ -2706,7 +2753,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(context.Background()))
 	gotTitles, err := getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 2)
+	require.Len(t, gotTitles, 3)
 	assertTitles(t, gotTitles, []string{"bar"})
 
 	// add bar to host 3
@@ -2720,20 +2767,20 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	// bar isn't added back to software titles until we reconcile software titles
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 2)
+	require.Len(t, gotTitles, 3)
 	assertTitles(t, gotTitles, []string{"bar"})
 
 	// reconcile software titles
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 3)
+	require.Len(t, gotTitles, 4)
 
 	// bar was added back to software titles with a new ID
-	require.Equal(t, gotTitles[0].Name, "bar")
-	require.Equal(t, gotTitles[0].Source, "deb_packages")
-	require.NotEqual(t, expectedTitlesByNS[gotTitles[0].Name+gotTitles[0].Source], gotTitles[0].ID)
-	expectedTitlesByNS[gotTitles[0].Name+gotTitles[0].Source] = gotTitles[0]
+	require.Equal(t, "bar", gotTitles[0].Name)
+	require.Equal(t, "deb_packages", gotTitles[0].Source)
+	require.NotEqual(t, expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source], gotTitles[0].ID)
+	expectedTitlesByNSB[gotTitles[0].Name+gotTitles[0].Source] = gotTitles[0]
 	assertTitles(t, gotTitles, nil)
 
 	// title_id is now populated for bar
@@ -2751,7 +2798,7 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 3)
+	require.Len(t, gotTitles, 4)
 	assertTitles(t, gotTitles, nil)
 
 	// title_id is now populated for new version of foo
@@ -2769,10 +2816,11 @@ func TestReconcileSoftwareTitles(t *testing.T) {
 	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
 	gotTitles, err = getTitles()
 	require.NoError(t, err)
-	require.Len(t, gotTitles, 4)
-	require.Equal(t, gotTitles[3].Name, "foo")
-	require.Equal(t, gotTitles[3].Source, "rpm_packages")
-	expectedTitlesByNS[gotTitles[3].Name+gotTitles[3].Source] = gotTitles[3]
+	require.Len(t, gotTitles, 5)
+	require.Equal(t, "foo", gotTitles[4].Name)
+	require.Equal(t, "rpm_packages", gotTitles[4].Source)
+	require.Equal(t, "", gotTitles[4].Browser)
+	expectedTitlesByNSB[gotTitles[4].Name+gotTitles[4].Source+gotTitles[4].Browser] = gotTitles[4]
 	assertTitles(t, gotTitles, nil)
 
 	// title_id is now populated for new source of foo
@@ -2827,4 +2875,40 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 
 	err := g.Wait()
 	require.NoError(t, err)
+}
+func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+
+	computeChecksum := func(sw fleet.Software) string {
+		h := md5.New()
+		// compute the same way as the DB, see the softwareChecksumComputedColumn function
+		cols := []string{sw.Name, sw.Version, sw.Source, sw.BundleIdentifier, sw.Release, sw.Arch, sw.Vendor, sw.Browser, sw.ExtensionID}
+		fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
+	}
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "test"},
+		{Name: "foo", Version: "0.0.1", Source: "test", Browser: "firefox"},
+		{Name: "foo", Version: "0.0.1", Source: "test", ExtensionID: "ext"},
+		{Name: "foo", Version: "0.0.2", Source: "test"},
+	}
+
+	_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+	require.NoError(t, err)
+
+	checksums := make([]string, len(software))
+	for i, sw := range software {
+		checksums[i] = computeChecksum(sw)
+	}
+	for i, cs := range checksums {
+		var got fleet.Software
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got,
+				`SELECT name, version, source, bundle_identifier, `+"`release`"+`, arch, vendor, browser, extension_id FROM software WHERE checksum = UNHEX(?)`, cs)
+		})
+		require.Equal(t, software[i], got)
+	}
 }

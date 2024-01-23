@@ -16,8 +16,12 @@ This page details processes specific to working with Mike McNeil, co-founder and
   - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
 
 ## Responsibilities
-The CEO is the [directly responsible individual](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, [final review of UI or behavioral changes to fleetdm.com and the core product](https://fleetdm.com/handbook/company/product-groups#making-changes), signatures, changes to parts of the handbook, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting) and various other aspects of the company. 
-- **Note** When the CEO is out of office, these responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)  The process for the CEO going out of office is a [work in progress](https://docs.google.com/document/d/1mtFP_92zQKMXW630ZyixBmwQeMY_q_cqW080ZTHFX5E/edit).
+Ultimately, the CEO is responsible for the success or failure of the company.
+
+- The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting), and various internal tools like Zapier.
+- The Apprentice to the CEO is the DRI for the framework behind Fleet's remote work culture, including the handbook, issue templates, key spreadsheets, project management processes, and other [decisions about how to work](https://fleetdm.com/handbook/company/why-this-way).
+
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
@@ -27,35 +31,52 @@ From time to time, you will need to schedule an interview between a candidate an
    - Add candidate's [LinkedIn url](https://www.linkedin.com/search/results/all/?keywords=people) on the first bullet for Mike.
 3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
 
+### Program the CEO to do something
+
+1. If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
+2. If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
+3. Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
+
+```
+Agenda:
+1. Apprentice: Is there enough context for you (CEO) to accomplish this?
+2. Apprentice: Is this still a priority for you (CEO) to do.. right now?  Or should it be "someday/maybe"?
+3. Apprentice: Is there enough time for you (CEO) to do this live? (Right now during this meeting?)
+4. Apprentice: What are the next steps after you (CEO) complete this?
+5. Apprentice: LINK_TO_DOC_OR_ISSUE
+```
+
+> Keep calendar event titles short so they are readable at a glance.  Please include any other info via link, so that information is not duplicated or lost in the calendar.
+
+### Prepare for CEO office minutes meeting 
+Before the start of the meeting, the Apprentice to the CEO will prepare the "CEO office minutes" meeting [agenda](https://docs.google.com/document/d/12cd0N8KvHkfJxYlo7ggdisrvqw4MCErDoIzLjmBIdj4/edit) such that the following is true:
+1. All agenda items are prefixed with a date of when the item will be covered and name of the person requesting to discuss the issue.
+2. All team members with an agenda item have added themselves **and their manager** to the correct calendar event. If the team member or manager hasn't been added to the calendar event before the meeting begins, the agenda item is de-prioritized in favor of others with representatives in attendance. 
+3. If there are more that two team members attending, the Apprentice will work with the team members to schedule additional time to cover the agenda.  
+
+> If the manager is unable to attend the scheduled time of the meeting, the Apprentice will work with the team member to schedule an adhoc meeting between them, their manager, and the CEO.
+
 ### Process the CEO's calendar
-Time management for the CEO is essential.  The Apprentice processes the CEO's calendar by checking for and correcting any double-booking (e.g. two meetings scheduled for overlapping times that the CEO needs to attend) or new meetings added.
+Time management for the CEO is essential.  The Apprentice processes the CEO's calendar multiple times per day.
 
-Prioritizing in order of importance:
- - Travel and personal commitments
- - External meetings
- - Board meetings
- - Priority design reviews
- - E-group
- - ❌ Reserved until day of
- - Customer or prospect calls _(up to the first 4 hours per week)_
- - Design reviews
- - Puppet show 
-
-_Please do not move external meetings, travel, and personal commitments without asking the CEO first._ 
-
-[Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
-
-In the notes document include:
-  1. LinkedIn profile link of all outside participants
-  2. Screen-shot of LinkedIn profile pic
-  3. Company name (in doc title and file name)
-  4. Correct date (20XX-XX-XX in doc title and file name)
-  5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
-     - CEO's email
-     - LinkedIn messages (careful not to mark things as read!)
-     - Google Drive 
-Be sure to do this from Mike's browser so as to not lock him out of any meeting docs.
-
+- **Clear any unexpected new events or double-bookings.** Look for any new double-bookings, invites that haven't been accepted, or other events you don't recognize.
+  1. Double-book temporarily with a "UNCONFIRMED" calendar block so that the CEO ignores it and doesn't spend time trying to figure out what it is.
+  2. Go to the organizer (or nearest fleetie who's not the CEO):
+    - Get full context on what the CEO should know as to the purpose of the meeting and why the organizer thinks it is helpful or necessary for the CEO to attend.
+    - Remind the organizer with [this link to the handbook that all CEO events have times chosen by Sam before booking](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+  3. Bring prepped discussion item about this proposed event to the next CEO roundup, including the purpose of the event and why it is helpful or necessary for the CEO to attend (according to the person requesting the CEO's attendance).  The CEO will decide whether to attend.
+  4. Delete the "UNCONFIRMED" block if the meeting is confirmed, or otherwise work with the organizer to pick a new time or let them know the decision.
+- **Prepare the agenda for any newly-added meetings**: [Meeting agenda prep](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) is especially important to help the CEO focus and transition quickly in and between meetings.
+  - In the notes document include:
+    1. LinkedIn profile link of all outside participants
+    2. Screen-shot of LinkedIn profile pic
+    3. Company name (in doc title and file name)
+    4. Correct date (20XX-XX-XX in doc title and file name)
+    5. Context that helps the CEO to understand the purpose of the meeting at a glance from:
+       - CEO's email
+       - LinkedIn messages (careful not to mark things as read!)
+       - Google Drive 
+  - Be sure to do this from the CEO's browser so as to not lock him out of any meeting docs.
 
 ### Process the CEO's inbox
 - The Apprentice to the CEO is [responsible](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for [processing all email traffic](https://docs.google.com/document/d/1gH3IRRgptrqSYzBFy-77g98JROTL8wqrazJIMkp-Gb4/edit#heading=h.i7mkhr6m123r) prior to CEO review.
@@ -171,7 +192,7 @@ Thanks to everyone who contributed to today's "All hands" call.
 
 :tv: If you weren't able to attend, please *[watch the recording](Current-link-to-Gong-recording)* _(1.5x playback supported)_.
 
-You can also grab a copy of the [original slides](https://fleetdm.com/handbook/business-operations#all-hands) for use in your own confidential presentations.
+You can also grab a copy of the [original slides](https://fleetdm.com/handbook/company/communications#all-hands) for use in your own confidential presentations.
 ```
 
 - Copy and paste the template to the "[# general](https://fleetdm.slack.com/archives/C019FNQPA23)" Slack channel.
@@ -200,7 +221,7 @@ Goal: No one else is currently LinkedIn connecting with community Slack particip
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
 
-30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/u/0/folders/1SP6J-F6M5engq5ivV0Sv3tq8nNIwYFcq)
+30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae)
 
 Then process the backup Sid agenda by:
 - Leaving google doc comments assigning all Fleet TODOs to correct Fleeties.
@@ -259,10 +280,10 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
 
 ## Rituals
 
-- Note: Some rituals are especially time-sensitive and require attention multiple times per day (⏰).  Set reminders for the following times (CT):
-  - 9:30 AM /before start of business
-  - 12:30 PM /beginning of "reserved block"
-  - 6:30 PM /post-mortem days meetings
+- Note: Some rituals (⏰) are especially time-sensitive and require attention multiple times (3+) per day.  Set reminders for the following times (CT):
+  - 9:30 AM _(/before first meeting)_
+  - 12:30 PM CT _(/beginning of "reserved block")_
+  - 6:30 PM CT _(/after last meeting, before roundup / Japan calls)_
 
 <rituals :rituals="rituals['handbook/company/ceo.rituals.yml']"></rituals>
 

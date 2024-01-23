@@ -1672,9 +1672,6 @@ func TestApplyMacosSetup(t *testing.T) {
 	}
 
 	emptyMacosSetup := writeTmpJSON(t, map[string]any{})
-	invalidWebURLMacosSetup := writeTmpJSON(t, map[string]any{
-		"configuration_web_url": "https://example.com",
-	})
 	invalidURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"url": "https://example.com",
 	})
@@ -1981,27 +1978,13 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig with invalid key #1
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidWebURLMacosSetup))
-		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
-		// apply appconfig with invalid key #3
+		// apply appconfig with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
-		// apply teams with invalid key #1
-		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidWebURLMacosSetup, "", invalidWebURLMacosSetup))
-		ds.SaveTeamFuncInvoked = false
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
-		// apply teams with invalid key #3
+		// apply teams with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")

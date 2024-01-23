@@ -25,7 +25,7 @@ const STATUS_DISPLAY_CONFIG: Record<
     displayText: "Ran",
     iconStatus: "success",
     tooltip: (executedAt) =>
-      `Script ran and exited with exit code 0. (${executedAt} ago)`,
+      `Script ran and exited with exit code 0 (${executedAt} ago).`,
   },
   pending: {
     displayText: "Pending",
@@ -37,7 +37,7 @@ const STATUS_DISPLAY_CONFIG: Record<
     displayText: "Error",
     iconStatus: "error",
     tooltip: (executedAt) =>
-      `Script ran and exited with a non-zero exit code. (${executedAt} ago)`,
+      `Script ran and exited with a non-zero exit code (${executedAt} ago).`,
   },
 };
 

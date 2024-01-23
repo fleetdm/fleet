@@ -7,3 +7,4 @@
   dri: "noahtalerman" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-endpoint-ops" ] # label to be applied to issue
+    repo: "confidential"

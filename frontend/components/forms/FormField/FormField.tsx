@@ -4,13 +4,14 @@ import { isEmpty } from "lodash";
 
 import TooltipWrapper from "components/TooltipWrapper";
 
+// all form-field styles are defined in _global.scss, which apply here and elsewhere
 const baseClass = "form-field";
 
 export interface IFormFieldProps {
   children: JSX.Element;
   className: string;
   error: string;
-  hint: Array<any> | JSX.Element | string;
+  helpText: Array<any> | JSX.Element | string;
   label: Array<any> | JSX.Element | string;
   name: string;
   type: string;
@@ -21,7 +22,7 @@ const FormField = ({
   children,
   className,
   error,
-  hint,
+  helpText,
   label,
   name,
   type,
@@ -54,9 +55,9 @@ const FormField = ({
     );
   };
 
-  const renderHint = () => {
-    if (hint) {
-      return <span className={`${baseClass}__hint`}>{hint}</span>;
+  const renderHelpText = () => {
+    if (helpText) {
+      return <span className={`${baseClass}__help-text`}>{helpText}</span>;
     }
 
     return false;
@@ -74,7 +75,7 @@ const FormField = ({
     <div className={formFieldClass}>
       {renderLabel()}
       {children}
-      {renderHint()}
+      {renderHelpText()}
     </div>
   );
 };

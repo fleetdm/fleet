@@ -337,6 +337,28 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
 
+	// dry-run with invalid host_expiry_settings.host_expiry_window
+	teamSpecs = map[string]any{
+		"specs": []map[string]any{
+			{
+				"name": teamName,
+				"host_expiry_settings": map[string]any{
+					"host_expiry_window":  0,
+					"host_expiry_enabled": true,
+				},
+			},
+		},
+	}
+	// Update team
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+	// Create team (coverage should show that this validation was covered for both update and create)
+	teamSpecs["specs"].([]map[string]any)[0]["name"] = teamName + "invalid host expiry window"
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "host expiry window")
+
 	// dry-run with valid agent options only
 	agentOpts = json.RawMessage(`{"config": {"views": {"foo": "qux"}}}`)
 	teamSpecs = map[string]any{
@@ -862,6 +884,18 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("POST", "/api/latest/fleet/teams", team3, http.StatusUnprocessableEntity, &tmResp)
 
+	// create a team with invalid host expiry window
+	team4 := &fleet.TeamPayload{
+		Name:        ptr.String(name + "invalid host_expiry_window"),
+		Description: ptr.String("Team4 description"),
+		Secrets:     []*fleet.EnrollSecret{{Secret: "TEAM4"}},
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  -1,
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/teams", team4, http.StatusUnprocessableEntity, &tmResp)
+
 	// list teams
 	var listResp listTeamsResponse
 	s.DoJSON("GET", "/api/latest/fleet/teams", nil, http.StatusOK, &listResp, "query", name, "per_page", "2")
@@ -910,10 +944,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), team, http.StatusOK, &tmResp)
 	assert.Equal(t, defaultFeatures, tmResp.Team.Config.Features)
+	assert.False(t, tmResp.Team.Config.HostExpirySettings.HostExpiryEnabled)
 
 	// modify non-existing team
 	tmResp.Team = nil
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID+1), team, http.StatusNotFound, &tmResp)
+
+	// modify team host expiry
+	modifyExpiry := fleet.TeamPayload{
+		HostExpirySettings: &fleet.HostExpirySettings{
+			HostExpiryEnabled: true,
+			HostExpiryWindow:  10,
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusOK, &tmResp)
+	assert.Equal(t, *modifyExpiry.HostExpirySettings, tmResp.Team.Config.HostExpirySettings)
+
+	// invalid team host expiry (<= 0)
+	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
 
 	// list team users
 	var usersResp listUsersResponse
@@ -978,6 +1027,16 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(`{
 		"x": "y"
 	}`), http.StatusBadRequest, &tmResp)
+
+	// modify team agent options with invalid platform options
+	tmResp.Team = nil
+	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/agent_options", tm1ID), json.RawMessage(
+		`{"overrides": {
+			"platforms": {
+				"linux": null
+			}
+		}}`,
+	), http.StatusBadRequest, &tmResp)
 
 	// modify team agent options with invalid options, but force-apply them
 	tmResp.Team = nil
@@ -2965,8 +3024,8 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	require.NotNil(t, host3)
 
 	// set disk space information for some hosts (none provided for host3)
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host1.ID, 10.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host2.ID, 40.0, 4.0, 1000.0))
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -3020,6 +3079,59 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	s.DoJSON("GET", "/api/latest/fleet/host_summary", nil, http.StatusOK, &summaryResp, "team_id", "1", "platform", "linux")
 	require.Equal(t, uint(0), summaryResp.TotalsHostsCount)
 	require.Nil(t, summaryResp.LowDiskSpaceCount)
+
+	// populate software for hosts
+	now := time.Now()
+
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), host1.ID, software)
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.LoadHostSoftware(context.Background(), host1, false))
+
+	inserted, err := s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: host1.Software[0].ID,
+		CVE:        "cve-123-123-123",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+	require.True(t, inserted)
+
+	vulnMeta := []fleet.CVEMeta{{
+		CVE:              "cve-123-123-123",
+		CVSSScore:        ptr.Float64(5.4),
+		EPSSProbability:  ptr.Float64(0.5),
+		CISAKnownExploit: ptr.Bool(true),
+		Published:        &now,
+		Description:      "a long description of the cve",
+	}}
+
+	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), vulnMeta))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "true")
+	require.Len(t, resp.Hosts, 3)
+	for _, h := range resp.Hosts {
+		if h.ID == host1.ID {
+			require.NotEmpty(t, h.Software)
+			require.Len(t, h.Software, 1)
+			require.NotEmpty(t, h.Software[0].Vulnerabilities)
+
+			s := &vulnMeta[0].Description
+			require.Equal(t, &vulnMeta[0].CVSSScore, h.Software[0].Vulnerabilities[0].CVSSScore)
+			require.Equal(t, &vulnMeta[0].EPSSProbability, h.Software[0].Vulnerabilities[0].EPSSProbability)
+			require.Equal(t, &vulnMeta[0].CISAKnownExploit, h.Software[0].Vulnerabilities[0].CISAKnownExploit)
+			require.Equal(t, &s, h.Software[0].Vulnerabilities[0].Description)
+		}
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	require.Len(t, resp.Hosts, 3)
+	for _, h := range resp.Hosts {
+		require.Empty(t, h.Software)
+	}
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -3405,7 +3517,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 		ctx, fleet.SoftwareVulnerability{
 			SoftwareID:        bar.ID,
 			CVE:               "cve-123",
-			ResolvedInVersion: "1.2.3",
+			ResolvedInVersion: ptr.String("1.2.3"),
 		}, fleet.NVDSource,
 	)
 	require.NoError(t, err)
@@ -4280,8 +4392,37 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, scriptResultResp.HostTimeout)
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
 
-	// verify that orbit would get the notification that it has a script to run
+	// Disable scripts and verify that there are no Orbit notifs
+	acr := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": true
+		}
+	}`), http.StatusOK, &acr)
+	require.True(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
 	var orbitResp orbitGetConfigResponse
+	s.DoJSON("POST", "/api/fleet/orbit/config",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
+		http.StatusOK, &orbitResp)
+	require.Empty(t, orbitResp.Notifications.PendingScriptExecutionIDs)
+
+	// Verify that endpoints related to scripts are disabled
+	srResp := s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	srResp = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusForbidden)
+	assertBodyContains(t, srResp, fleet.RunScriptScriptsDisabledGloballyErrMsg)
+
+	acr = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"server_settings": {
+			"scripts_disabled": false
+		}
+	}`), http.StatusOK, &acr)
+	require.False(t, acr.AppConfig.ServerSettings.ScriptsDisabled)
+
+	// verify that orbit would get the notification that it has a script to run
 	s.DoJSON("POST", "/api/fleet/orbit/config",
 		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *host.OrbitNodeKey)),
 		http.StatusOK, &orbitResp)
@@ -4346,7 +4487,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
 	runSyncResp = runScriptSyncResponse{}
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusGatewayTimeout, &runSyncResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.True(t, runSyncResp.HostTimeout)
@@ -4564,7 +4705,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// create a valid sync script execution request, fails because the
 	// request will time-out waiting for a result.
 	var runSyncResp runScriptSyncResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusGatewayTimeout, &runSyncResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedNoTmScript.ID}, http.StatusRequestTimeout, &runSyncResp)
 	require.Equal(t, host.ID, runSyncResp.HostID)
 	require.NotEmpty(t, runSyncResp.ExecutionID)
 	require.NotNil(t, runSyncResp.ScriptID)
@@ -5352,6 +5493,84 @@ VALUES
 		require.NotNil(t, resp.Scripts)
 		require.Len(t, resp.Scripts, 0)
 	})
+
+	t.Run("get script results user message", func(t *testing.T) {
+		// add a script with an older created_at timestamp
+		var oldScriptID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_contents, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+			oldScriptID = uint(id)
+			return nil
+		})
+
+		for _, c := range []struct {
+			name       string
+			exitCode   *int64
+			executedAt time.Time
+			expected   string
+		}{
+			{
+				name:       "host-timeout",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptHostTimeoutErrMsg,
+			},
+			{
+				name:       "script-timeout",
+				exitCode:   ptr.Int64(-1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptScriptTimeoutErrMsg,
+			},
+			{
+				name:       "pending",
+				exitCode:   nil,
+				executedAt: now.Add(-1 * time.Minute),
+				expected:   fleet.RunScriptAlreadyRunningErrMsg,
+			},
+			{
+				name:       "success",
+				exitCode:   ptr.Int64(0),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "error",
+				exitCode:   ptr.Int64(1),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   "",
+			},
+			{
+				name:       "disabled",
+				exitCode:   ptr.Int64(-2),
+				executedAt: now.Add(-1 * time.Hour),
+				expected:   fleet.RunScriptDisabledErrMsg,
+			},
+		} {
+			t.Run(c.name, func(t *testing.T) {
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+
+				var resp getScriptResultResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
+				require.Equal(t, c.expected, resp.Message)
+			})
+		}
+	})
 }
 
 // generates the body and headers part of a multipart request ready to be
@@ -5788,292 +6007,300 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	var resp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "foo",
+			Source:        "homebrew",
+			VersionsCount: 2,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.1", Vulnerabilities: nil},
+				{Version: "0.0.3", Vulnerabilities: nil},
+			},
+		},
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// per_page equals 1, so we get only one item, but the total count is
+	// still 2
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "foo",
+			Source:        "homebrew",
+			VersionsCount: 2,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.1", Vulnerabilities: nil},
+				{Version: "0.0.3", Vulnerabilities: nil},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// get the second item
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"page", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// asking for a non-existent page returns an empty list
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"per_page", "1",
+		"page", "4",
+		"order_key", "name",
+		"order_direction", "desc",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.Empty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch(nil, resp.SoftwareTitles)
+
+	// asking for vulnerable only software returns the expected values
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"vulnerable", "true",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
+			},
+		},
+	}, resp.SoftwareTitles)
+
+	// request titles for team1, nothing there yet
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", "1",
+	)
+	require.Equal(t, 0, resp.Count)
+	require.Empty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch(nil, resp.SoftwareTitles)
+
+	// add new software for tmHost
+	software = []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "baz", Version: "0.0.5", Source: "deb_packages"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), tmHost.ID, software)
+	require.NoError(t, err)
+
+	// calculate hosts counts
+	hostsCountTs = time.Now().UTC()
 	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
 	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
 
-	t.Run("GET /software/titles", func(t *testing.T) {
-		var resp listSoftwareTitlesResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &resp)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "foo",
-				Source:        "homebrew",
-				VersionsCount: 2,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil},
-					{Version: "0.0.3", Vulnerabilities: nil},
-				},
+	// request software for the team, this time we get results
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"team_id", "1",
+		"order_key", "name",
+		"order_direction", "desc",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
 			},
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
+		},
+		{
+			Name:          "foo",
+			Source:        "homebrew",
+			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
+			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.1", Vulnerabilities: nil}, // NOTE: this only includes versions present in the team
 			},
-		}, resp.SoftwareTitles)
+		},
+	}, resp.SoftwareTitles)
 
-		// per_page equals 1, so we get only one item, but the total count is
-		// still 2
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"per_page", "1",
-			"order_key", "name",
-			"order_direction", "desc",
-		)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "foo",
-				Source:        "homebrew",
-				VersionsCount: 2,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil},
-					{Version: "0.0.3", Vulnerabilities: nil},
-				},
+	// request software for no-team, we get all results and 2 hosts for
+	// `"foo"`
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"order_key", "name",
+		"order_direction", "desc",
+	)
+	require.Equal(t, 3, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
 			},
-		}, resp.SoftwareTitles)
-
-		// get the second item
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"per_page", "1",
-			"page", "1",
-			"order_key", "name",
-			"order_direction", "desc",
-		)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
+		},
+		{
+			Name:          "foo",
+			Source:        "homebrew",
+			VersionsCount: 2, // NOTE: this value is 2, important because no team filter was applied
+			HostsCount:    2, // NOTE: this value is 2, important because no team filter was applied
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.1", Vulnerabilities: nil},
+				{Version: "0.0.3", Vulnerabilities: nil},
 			},
-		}, resp.SoftwareTitles)
-
-		// asking for a non-existent page returns an empty list
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"per_page", "1",
-			"page", "4",
-			"order_key", "name",
-			"order_direction", "desc",
-		)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch(nil, resp.SoftwareTitles)
-
-		// asking for vulnerable only software returns the expected values
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"vulnerable", "true",
-		)
-		require.Equal(t, 1, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
+		},
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-		}, resp.SoftwareTitles)
+		},
+	}, resp.SoftwareTitles)
 
-		// request titles for team1, nothing there yet
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"team_id", "1",
-		)
-		require.Equal(t, 0, resp.Count)
-		softwareTitlesMatch(nil, resp.SoftwareTitles)
-
-		// add new software for tmHost
-		software = []fleet.Software{
-			{Name: "foo", Version: "0.0.1", Source: "homebrew"},
-			{Name: "baz", Version: "0.0.5", Source: "deb_packages"},
-		}
-		_, err = s.ds.UpdateHostSoftware(context.Background(), tmHost.ID, software)
-		require.NoError(t, err)
-
-		// calculate hosts counts
-		hostsCountTs := time.Now().UTC()
-		require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
-		require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
-
-		// request software for the team, this time we get results
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"team_id", "1",
-			"order_key", "name",
-			"order_direction", "desc",
-		)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "baz",
-				Source:        "deb_packages",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.5", Vulnerabilities: nil},
-				},
+	// match cve by name
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "123",
+	)
+	require.Equal(t, 1, resp.Count)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-			{
-				Name:          "foo",
-				Source:        "homebrew",
-				VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
-				HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil},
-					{Version: "0.0.3", Vulnerabilities: nil},
-				},
-			},
-		}, resp.SoftwareTitles)
+		},
+	}, resp.SoftwareTitles)
 
-		// request software for no-team, we get all results and 2 hosts for
-		// `"foo"`
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"order_key", "name",
-			"order_direction", "desc",
-		)
-		require.Equal(t, 3, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "baz",
-				Source:        "deb_packages",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.5", Vulnerabilities: nil},
-				},
+	// match software title by name
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "ba",
+	)
+	require.Equal(t, 2, resp.Count)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
+			Name:          "bar",
+			Source:        "apps",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
 			},
-			{
-				Name:          "foo",
-				Source:        "homebrew",
-				VersionsCount: 2, // NOTE: this value is 2, important because no team filter was applied
-				HostsCount:    2, // NOTE: this value is 2, important because no team filter was applied
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.1", Vulnerabilities: nil},
-					{Version: "0.0.3", Vulnerabilities: nil},
-				},
+		},
+		{
+			Name:          "baz",
+			Source:        "deb_packages",
+			VersionsCount: 1,
+			HostsCount:    1,
+			Versions: []fleet.SoftwareVersion{
+				{Version: "0.0.5", Vulnerabilities: nil},
 			},
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
-			},
-		}, resp.SoftwareTitles)
+		},
+	}, resp.SoftwareTitles)
 
-		// match cve by name
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"query", "123",
-		)
-		require.Equal(t, 1, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
-			},
-		}, resp.SoftwareTitles)
+	// find the ID of "foo"
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "foo",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.Len(t, resp.SoftwareTitles, 1)
+	require.NotEmpty(t, resp.CountsUpdatedAt)
+	fooTitle := resp.SoftwareTitles[0]
+	require.Equal(t, "foo", fooTitle.Name)
 
-		// match software title by name
-		resp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &resp,
-			"query", "ba",
-		)
-		require.Equal(t, 2, resp.Count)
-		softwareTitlesMatch([]fleet.SoftwareTitle{
-			{
-				Name:          "bar",
-				Source:        "apps",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.4", Vulnerabilities: &fleet.SliceString{"cve-123-123-132"}},
-				},
-			},
-			{
-				Name:          "baz",
-				Source:        "deb_packages",
-				VersionsCount: 1,
-				HostsCount:    1,
-				Versions: []fleet.SoftwareVersion{
-					{Version: "0.0.5", Vulnerabilities: nil},
-				},
-			},
-		}, resp.SoftwareTitles)
-	})
+	// non-existent id is a 404
+	var stResp getSoftwareTitleResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &stResp)
 
-	t.Run("GET /software/titles/:id", func(t *testing.T) {
-		// find the ID of "foo"
-		var softwareListResp listSoftwareTitlesResponse
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &softwareListResp,
-			"query", "foo",
-		)
-		require.Equal(t, 1, softwareListResp.Count)
-		require.Len(t, softwareListResp.SoftwareTitles, 1)
-		fooTitle := softwareListResp.SoftwareTitles[0]
-		require.Equal(t, "foo", fooTitle.Name)
-
-		// non-existent id is a 404
-		var resp getSoftwareTitleResponse
-		s.DoJSON("GET", "/api/latest/fleet/software/titles/999", getSoftwareTitleRequest{}, http.StatusNotFound, &resp)
-
-		// valid title
-		resp = getSoftwareTitleResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
+	// valid title
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
 			Name:          "foo",
 			Source:        "homebrew",
 			VersionsCount: 2,
@@ -6081,26 +6308,28 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(2)},
 				{Version: "0.0.3", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
-			}},
-		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
+			},
+		},
+	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
-		// find the ID of "bar"
-		softwareListResp = listSoftwareTitlesResponse{}
-		s.DoJSON(
-			"GET", "/api/latest/fleet/software/titles",
-			listSoftwareTitlesRequest{},
-			http.StatusOK, &softwareListResp,
-			"query", "bar",
-		)
-		require.Equal(t, 1, softwareListResp.Count)
-		require.Len(t, softwareListResp.SoftwareTitles, 1)
-		barTitle := softwareListResp.SoftwareTitles[0]
-		require.Equal(t, "bar", barTitle.Name)
+	// find the ID of "bar"
+	resp = listSoftwareTitlesResponse{}
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/titles",
+		listSoftwareTitlesRequest{},
+		http.StatusOK, &resp,
+		"query", "bar",
+	)
+	require.Equal(t, 1, resp.Count)
+	require.Len(t, resp.SoftwareTitles, 1)
+	barTitle := resp.SoftwareTitles[0]
+	require.Equal(t, "bar", barTitle.Name)
 
-		// valid title with vulnerabilities
-		resp = getSoftwareTitleResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &resp)
-		softwareTitlesMatch([]fleet.SoftwareTitle{{
+	// valid title with vulnerabilities
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp)
+	softwareTitlesMatch([]fleet.SoftwareTitle{
+		{
 			Name:          "bar",
 			Source:        "apps",
 			VersionsCount: 1,
@@ -6111,9 +6340,9 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 					Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
 					HostsCount:      ptr.Uint(1),
 				},
-			}},
-		}, []fleet.SoftwareTitle{*resp.SoftwareTitle})
-	})
+			},
+		},
+	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with

@@ -699,7 +699,7 @@ Retrieves a list of the non expired carves. Carve contents remain available for 
 
 Retrieves the specified carve.
 
-`GET /api/v1/fleet/carves/{id}`
+`GET /api/v1/fleet/carves/:id`
 
 #### Parameters
 
@@ -738,7 +738,7 @@ Retrieves the specified carve.
 
 Retrieves the specified carve block. This endpoint retrieves the data that was carved.
 
-`GET /api/v1/fleet/carves/{id}/block/{block_id}`
+`GET /api/v1/fleet/carves/:id/block/:block_id`
 
 #### Parameters
 
@@ -1394,7 +1394,7 @@ Delete all global enroll secrets.
 
 Returns the valid team enroll secrets.
 
-`GET /api/v1/fleet/teams/{id}/secrets`
+`GET /api/v1/fleet/teams/:id/secrets`
 
 #### Parameters
 
@@ -1425,7 +1425,7 @@ None.
 
 Replaces all existing team enroll secrets.
 
-`PATCH /api/v1/fleet/teams/{id}/secrets`
+`PATCH /api/v1/fleet/teams/:id/secrets`
 
 #### Parameters
 
@@ -1623,7 +1623,7 @@ Returns a list of the active invitations in Fleet.
 
 Delete the specified invite from Fleet.
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/v1/fleet/invites/:id`
 
 #### Parameters
 
@@ -1633,7 +1633,7 @@ Delete the specified invite from Fleet.
 
 #### Example
 
-`DELETE /api/v1/fleet/invites/{id}`
+`DELETE /api/v1/fleet/invites/123`
 
 ##### Default response
 
@@ -1644,7 +1644,7 @@ Delete the specified invite from Fleet.
 
 Verify the specified invite.
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/v1/fleet/invites/:token`
 
 #### Parameters
 
@@ -1654,7 +1654,7 @@ Verify the specified invite.
 
 #### Example
 
-`GET /api/v1/fleet/invites/{token}`
+`GET /api/v1/fleet/invites/abcdef012456789`
 
 ##### Default response
 
@@ -1693,7 +1693,7 @@ Verify the specified invite.
 
 ### Update invite
 
-`PATCH /api/v1/fleet/invites/{id}`
+`PATCH /api/v1/fleet/invites/:id`
 
 #### Parameters
 
@@ -1862,7 +1862,7 @@ the `software` table.
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used. **Note:** Use `page` instead of `after`                                                                                                                                                                                                                                    |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
@@ -1882,6 +1882,7 @@ the `software` table.
 | bootstrap_package       | string | query | _Available in Fleet Premium_ Filters the hosts by the status of the MDM bootstrap package on the host. Valid options are 'installed', 'pending', or 'failed'. |
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
+| populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
 
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
@@ -1898,7 +1899,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
 
 ##### Request query parameters
 
@@ -1960,7 +1961,37 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       "display_text": "2ceca32fe484",
       "team_id": null,
       "team_name": null,
-      "pack_stats": null,
+      "gigs_disk_space_available": 174.98,
+      "percent_disk_space_available": 71,
+      "gigs_total_disk_space": 246,
+      "pack_stats": [
+        {
+          "pack_id": 0,
+          "pack_name": "Global",
+          "type": "global",
+          "query_stats": [
+            {
+            "scheduled_query_name": "Get recently added or removed USB drives",
+            "scheduled_query_id": 5535,
+            "query_name": "Get recently added or removed USB drives",
+            "discard_data": false,
+            "last_fetched": null,
+            "automations_enabled": false,
+            "description": "Returns a record every time a USB device is plugged in or removed",
+            "pack_name": "Global",
+            "average_memory": 434176,
+            "denylisted": false,
+            "executions": 2,
+            "interval": 86400,
+            "last_executed": "2023-11-28T00:02:07Z",
+            "output_size": 891,
+            "system_time": 10,
+            "user_time": 6,
+            "wall_time": 0
+            }
+          ]
+        }
+      ],
       "issues": {
         "failing_policies_count": 2,
         "total_issues_count": 2
@@ -1978,7 +2009,29 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": null,
         "name": "",
         "server_url": null
-      }
+      },
+      "software": [
+        {
+          "id": 1,
+          "name": "glibc",
+          "version": "2.12",
+          "source": "rpm_packages",
+          "generated_cpe": "cpe:2.3:a:gnu:glibc:2.12:*:*:*:*:*:*:*",
+          "vulnerabilities": [
+            {
+              "cve": "CVE-2009-5155",
+              "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2009-5155",
+              "cvss_score": 7.5, // Fleet Premium only
+              "epss_probability": 0.01537, // Fleet Premium only
+              "cisa_known_exploit": false, // Fleet Premium only
+              "cve_published": "2022-01-01 12:32:00", // Fleet Premium only
+              "cve_description": "In the GNU C Library (aka glibc or libc6) before 2.28, parse_reg_exp in posix/regcomp.c misparses alternatives, which allows attackers to cause a denial of service (assertion failure and application exit) or trigger an incorrect result by attempting a regular-expression match.", // Fleet Premium only
+              "resolved_in_version": "2.28" // Fleet Premium only
+            }
+          ],
+          "installed_paths": ["/usr/lib/some-path-1"]
+        }
+      ]
     }
   ]
 }
@@ -2024,7 +2077,7 @@ Response payload with the `munki_issue_id` filter provided:
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | after                   | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                                                                                                                                    |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
@@ -2178,7 +2231,7 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 Returns the information of the specified host.
 
-`GET /api/v1/fleet/hosts/{id}`
+`GET /api/v1/fleet/hosts/:id`
 
 #### Parameters
 
@@ -2270,7 +2323,8 @@ Returns the information of the specified host.
     "team_name": null,
     "additional": {},
     "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 73,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
     "users": [
       {
@@ -2328,16 +2382,6 @@ Returns the information of the specified host.
     "display_text": "23cfc9caacf0",
     "policies": [
       {
-        "id": 1,
-        "name": "SomeQuery",
-        "query": "SELECT * FROM foo;",
-        "description": "this is a query",
-        "resolution": "fix with these steps...",
-        "platform": "windows,linux",
-        "response": "pass",
-        "critical": false
-      },
-      {
         "id": 2,
         "name": "SomeQuery2",
         "query": "SELECT * FROM bar;",
@@ -2355,6 +2399,16 @@ Returns the information of the specified host.
         "resolution": "",
         "platform": "",
         "response": "",
+        "critical": false
+      },
+      {
+        "id": 1,
+        "name": "SomeQuery",
+        "query": "SELECT * FROM foo;",
+        "description": "this is a query",
+        "resolution": "fix with these steps...",
+        "platform": "windows,linux",
+        "response": "pass",
         "critical": false
       }
     ],
@@ -2416,16 +2470,16 @@ Returns the information of the specified host.
 
 ### Get host by identifier
 
-Returns the information of the host specified using the `uuid`, `osquery_host_id`, `hostname`, or
+Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier
 
-`GET /api/v1/fleet/hosts/identifier/{identifier}`
+`GET /api/v1/fleet/hosts/identifier/:identifier`
 
 #### Parameters
 
 | Name       | Type              | In   | Description                                                                   |
 | ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| identifier | integer or string | path | **Required**. The host's `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
+| identifier | integer or string | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key` |
 
 #### Example
 
@@ -2514,6 +2568,7 @@ Returns the information of the host specified using the `uuid`, `osquery_host_id
     "team_name": null,
     "gigs_disk_space_available": 19.29,
     "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 192,
     "issues": {
         "total_issues_count": 0,
         "failing_policies_count": 0
@@ -2626,7 +2681,7 @@ Returns a subset of information about the host specified by `token`. To get all 
 
 This is the API route used by the **My device** page in Fleet desktop to display information about the host to the end user.
 
-`GET /api/v1/fleet/device/{token}`
+`GET /api/v1/fleet/device/:token`
 
 ##### Parameters
 
@@ -2713,7 +2768,8 @@ This is the API route used by the **My device** page in Fleet desktop to display
     "team_name": null,
     "additional": {},
     "gigs_disk_space_available": 46.1,
-    "percent_disk_space_available": 73,
+    "percent_disk_space_available": 74,
+    "gigs_total_disk_space": 160,
     "disk_encryption_enabled": true,
     "dep_assigned_to_fleet": false,
     "users": [
@@ -2824,7 +2880,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
 
 Deletes the specified host from Fleet. Note that a deleted host will fail authentication with the previous node key, and in most osquery configurations will attempt to re-enroll automatically. If the host still has a valid enroll secret, it will re-enroll successfully.
 
-`DELETE /api/v1/fleet/hosts/{id}`
+`DELETE /api/v1/fleet/hosts/:id`
 
 #### Parameters
 
@@ -2845,7 +2901,7 @@ Deletes the specified host from Fleet. Note that a deleted host will fail authen
 
 Flags the host details, labels and policies to be refetched the next time the host checks in for distributed queries. Note that we cannot be certain when the host will actually check in and update the query results. Further requests to the host APIs will indicate that the refetch has been requested through the `refetch_requested` field on the host object.
 
-`POST /api/v1/fleet/hosts/{id}/refetch`
+`POST /api/v1/fleet/hosts/:id/refetch`
 
 #### Parameters
 
@@ -2904,7 +2960,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
 
 #### Example
 
@@ -2934,7 +2990,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | ids     | list    | body | A list of the host IDs you'd like to delete. If `ids` is specified, `filters` cannot be specified.                                                                                                                                                                                                                                                           |
-| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. If `filters` is specified, `id` cannot be specified. `label_id` and `status` cannot be used at the same time. |
 
 Either ids or filters are required.
 
@@ -2984,13 +3040,15 @@ Request (`filters` is specified and empty, to delete all hosts):
 
 `Status: 200`
 
-### Get host's Google Chrome profiles
+### Get human-device mapping
 
-Retrieves a host's Google Chrome profile information which can be used to link a host to a specific user by email.
+Returns the end user's email(s) they use to log in to their Identity Provider (IdP) and Google Chrome profile.
 
-Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
+Also returns the custom email that's set via the `PUT /api/v1/fleet/hosts/:id/device_mapping` endpoint (docs [here](#update-custom-human-device-mapping))
 
-`GET /api/v1/fleet/hosts/{id}/device_mapping`
+Note that IdP email is only supported on macOS hosts. It's collected once, during automatic enrollment (DEP), only if the end user authenticates with the IdP and the DEP profile has `await_device_configured` set to `true`.
+
+`GET /api/v1/fleet/hosts/:id/device_mapping`
 
 #### Parameters
 
@@ -3012,9 +3070,115 @@ Requires [Fleetd](https://fleetdm.com/docs/using-fleet/fleetd), the osquery mana
   "device_mapping": [
     {
       "email": "user@example.com",
+      "source": "identity_provider"
+    },
+    {
+      "email": "user@example.com",
       "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "custom"
     }
   ]
+}
+```
+
+---
+
+### Update custom human-device mapping
+
+`PUT /api/v1/fleet/hosts/:id/device_mapping`
+
+Updates the email for the `custom` data source in the human-device mapping. This source can only have one email.
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+| email      | string            | body | **Required**. The custom email.                                               |
+
+#### Example
+
+`PUT /api/v1/fleet/hosts/1/device_mapping`
+
+##### Request body
+
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "device_mapping": [
+    {
+      "email": "user@example.com",
+      "source": "identity_provider"
+    },
+    {
+      "email": "user@example.com",
+      "source": "google_chrome_profiles"
+    },
+    {
+      "email": "user@example.com",
+      "source": "custom"
+    }
+  ]
+}
+```
+
+### Get host's device health report
+
+Retrieves information about a single host's device health.
+
+This report includes a subset of host vitals, and simplified policy and vulnerable software information. Data is cached to preserve performance. To get all up-to-date information about a host, use the "Get host" endpoint [here](#get-host).
+
+
+`GET /api/v1/fleet/hosts/:id/health`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id         | integer           | path | **Required**. The host's `id`.                                                |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/health`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 1,
+  "health": {
+    "updated_at": "2023-09-16T18:52:19Z",
+    "os_version": "CentOS Linux 8.3.2011",
+    "disk_encryption_enabled": true,
+    "failing_policies": [
+      {
+        "id": 123,
+        "name": "Google Chrome is up to date",
+      }
+    ],
+    "vulnerable_software": [
+      {
+        "id": 321,
+        "name": "Firefox.app",
+        "version": "116.0.3",
+      }
+    ]
+  }
 }
 ```
 
@@ -3030,7 +3194,7 @@ Retrieves a host's MDM enrollment status and MDM server URL.
 
 If the host exists but is not enrolled to an MDM server, then this API returns `null`.
 
-`GET /api/v1/fleet/hosts/{id}/mdm`
+`GET /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
 
@@ -3122,7 +3286,7 @@ Currently supported only on macOS.
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
-`GET /api/v1/fleet/hosts/{id}/macadmins`
+`GET /api/v1/fleet/hosts/:id/macadmins`
 
 #### Parameters
 
@@ -3351,7 +3515,7 @@ requested by a web browser.
 | order_key               | string  | query | What to order results by. Can be any column in the hosts table.                                                                                                                                                                                                                                                                             |
 | order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                                                                                                                                               |
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
-| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
+| query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an `@`, no space, etc.).                                                                                                                |
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
@@ -3379,10 +3543,10 @@ If `mdm_id`, `mdm_name` or `mdm_enrollment_status` is specified, then Windows Se
 `Status: 200`
 
 ```csv
-created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available,issues,device_mapping,status,display_text
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
-2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,,,,
+created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,last_enrolled_at,seen_time,refetch_requested,hostname,uuid,platform,osquery_version,os_version,build,platform_like,code_name,uptime,memory,cpu_type,cpu_subtype,cpu_brand,cpu_physical_cores,cpu_logical_cores,hardware_vendor,hardware_model,hardware_version,hardware_serial,computer_name,primary_ip_id,primary_ip,primary_mac,distributed_interval,config_tls_refresh,logger_tls_period,team_id,team_name,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space,issues,device_mapping,status,display_text
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,1,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,false,foo.local0,a4fc55a1-b5de-409c-a2f4-441f564680d3,debian,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:22:56Z,false,foo.local1,689539e5-72f0-4bf7-9cc5-1530d3814660,rhel,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
+2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,3,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:23:56Z,2022-03-15T17:21:56Z,false,foo.local2,48ebe4b0-39c3-4a74-a67f-308f7b5dd171,linux,,,,,,0s,0,,,,0,0,,,,,,,,,0,0,0,,,0,0,0,0,,,,
 ```
 
 ### Get host's disk encryption key
@@ -3531,7 +3695,7 @@ Creates a dynamic label.
 
 Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
-`PATCH /api/v1/fleet/labels/{id}`
+`PATCH /api/v1/fleet/labels/:id`
 
 #### Parameters
 
@@ -3582,7 +3746,7 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 
 Returns the specified label.
 
-`GET /api/v1/fleet/labels/{id}`
+`GET /api/v1/fleet/labels/:id`
 
 #### Parameters
 
@@ -3771,7 +3935,7 @@ Returns a list of all the labels in Fleet.
 
 Returns a list of the hosts that belong to the specified label.
 
-`GET /api/v1/fleet/labels/{id}/hosts`
+`GET /api/v1/fleet/labels/:id/hosts`
 
 #### Parameters
 
@@ -3784,7 +3948,7 @@ Returns a list of the hosts that belong to the specified label.
 | order_direction          | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include 'asc' and 'desc'. Default is 'asc'.                                                                                              |
 | after                    | string  | query | The value to get results after. This needs `order_key` defined, as that's the column that would be used.                                                                                                                   |
 | status                   | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                 |
-| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `machine_serial`, `uuid`, and `ipv4`.                                                                                                                         |
+| query                    | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`.                                                                                                                         |
 | team_id                  | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                |
 | disable_failing_policies | boolean | query | If "true", hosts will return failing policies as 0 regardless of whether there are any that failed for the host. This is meant to be used when increased performance is needed in exchange for the extra information.      |
 | mdm_id                   | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).      |
@@ -3867,7 +4031,7 @@ If `mdm_id`, `mdm_name`, `mdm_enrollment_status`, `os_settings`, or `os_settings
 
 Deletes the label specified by name.
 
-`DELETE /api/v1/fleet/labels/{name}`
+`DELETE /api/v1/fleet/labels/:name`
 
 #### Parameters
 
@@ -3888,7 +4052,7 @@ Deletes the label specified by name.
 
 Deletes the label specified by ID.
 
-`DELETE /api/v1/fleet/labels/id/{id}`
+`DELETE /api/v1/fleet/labels/id/:id`
 
 #### Parameters
 
@@ -4056,7 +4220,7 @@ List all configuration profiles for macOS hosts enrolled to Fleet's MDM that are
 
 ### Download custom macOS setting (configuration profile)
 
-`GET /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`
 
 #### Parameters
 
@@ -4108,7 +4272,7 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom macOS setting (configuration profile)
 
-`DELETE /api/v1/fleet/mdm/apple/profiles/{profile_id}`
+`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`
 
 #### Parameters
 
@@ -4286,6 +4450,8 @@ This endpoint returns the results for a specific custom MDM command.
   ]
 }
 ```
+
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
 ### List custom MDM commands
 
@@ -4482,7 +4648,7 @@ None.
 
 ### Turn off MDM for a host
 
-`PATCH /api/v1/fleet/mdm/hosts/{id}/unenroll`
+`PATCH /api/v1/fleet/mdm/hosts/:id/unenroll`
 
 #### Parameters
 
@@ -4552,7 +4718,7 @@ _Available in Fleet Premium_
 
 Get information about a bootstrap package that was uploaded to Fleet.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/{team_id}/metadata`
+`GET /api/v1/fleet/mdm/apple/bootstrap/:team_id/metadata`
 
 #### Parameters
 
@@ -4590,7 +4756,7 @@ _Available in Fleet Premium_
 
 Delete a team's bootstrap package.
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/{team_id}`
+`DELETE /api/v1/fleet/mdm/apple/bootstrap/:team_id`
 
 #### Parameters
 
@@ -4774,7 +4940,7 @@ _Available in Fleet Premium_
 
 Delete an EULA file.
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/{token}`
+`DELETE /api/v1/fleet/mdm/apple/setup/eula/:token`
 
 #### Parameters
 
@@ -4796,7 +4962,7 @@ _Available in Fleet Premium_
 
 Download an EULA file
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/{token}`
+`GET /api/v1/fleet/mdm/apple/setup/eula/:token`
 
 #### Parameters
 
@@ -4879,7 +5045,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -4896,7 +5063,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-31T14:52:27Z",
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -4932,7 +5100,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
 
 ### Get policy by ID
 
-`GET /api/v1/fleet/global/policies/{id}`
+`GET /api/v1/fleet/global/policies/:id`
 
 #### Parameters
 
@@ -4965,7 +5133,8 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "created_at": "2021-12-15T15:23:57Z",
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
 }
 ```
@@ -5033,7 +5202,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5073,7 +5243,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5112,7 +5283,7 @@ Where `query_id` references an existing `query`.
 
 ### Edit policy
 
-`PATCH /api/v1/fleet/global/policies/{policy_id}`
+`PATCH /api/v1/fleet/global/policies/:id`
 
 #### Parameters
 
@@ -5164,7 +5335,8 @@ Where `query_id` references an existing `query`.
     "created_at": "2022-03-17T20:15:55Z",
     "updated_at": "2022-03-17T20:15:55Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5221,13 +5393,13 @@ Team policies work the same as policies, but at the team level.
 
 ### List team policies
 
-`GET /api/v1/fleet/teams/{id}/policies`
+`GET /api/v1/fleet/teams/:id/policies`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| id                 | integer | url  | Required. Defines what team ID to operate on                                                                            |
+| id                 | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
 #### Example
@@ -5256,7 +5428,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2000,
-      "failing_host_count": 300
+      "failing_host_count": 300,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
       "id": 2,
@@ -5273,7 +5446,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2021-12-16T14:37:37Z",
       "updated_at": "2021-12-16T16:39:00Z",
       "passing_host_count": 2300,
-      "failing_host_count": 0
+      "failing_host_count": 0,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ],
   "inherited_policies": [
@@ -5292,7 +5466,8 @@ Team policies work the same as policies, but at the team level.
       "created_at": "2022-08-04T19:30:18Z",
       "updated_at": "2022-08-30T15:08:26Z",
       "passing_host_count": 10,
-      "failing_host_count": 9
+      "failing_host_count": 9,
+      "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
 }
@@ -5300,11 +5475,12 @@ Team policies work the same as policies, but at the team level.
 
 ### Count team policies
 
-`GET /api/v1/fleet/team/{team_id}/policies/count`
+`GET /api/v1/fleet/team/:team_id/policies/count`
 
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -5325,14 +5501,14 @@ Team policies work the same as policies, but at the team level.
 
 ### Get team policy by ID
 
-`GET /api/v1/fleet/teams/{team_id}/policies/{id}`
+`GET /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
 #### Parameters
 
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id            | integer | url  | Defines what team ID to operate on                                                                            |
-| id                 | integer | path | **Required.** The policy's ID.                                                                                |
+| team_id            | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
+| policy_id                 | integer | path | **Required.** The policy's ID.                                                                                |
 
 #### Example
 
@@ -5359,7 +5535,8 @@ Team policies work the same as policies, but at the team level.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5368,13 +5545,13 @@ Team policies work the same as policies, but at the team level.
 
 The semantics for creating a team policy are the same as for global policies, see [Add policy](#add-policy).
 
-`POST /api/v1/fleet/teams/{team_id}/policies`
+`POST /api/v1/fleet/teams/:id/policies`
 
 #### Parameters
 
 | Name        | Type    | In   | Description                          |
 | ----------  | ------- | ---- | ------------------------------------ |
-| team_id     | integer | url  | Defines what team ID to operate on.  |
+| id         | integer | path | Defines what team ID to operate on.  |
 | name        | string  | body | The query's name.                    |
 | query       | string  | body | The query in SQL.                    |
 | description | string  | body | The query's description.             |
@@ -5423,20 +5600,21 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
 
 ### Remove team policies
 
-`POST /api/v1/fleet/teams/{team_id}/policies/delete`
+`POST /api/v1/fleet/teams/:team_id/policies/delete`
 
 #### Parameters
 
 | Name     | Type    | In   | Description                                       |
 | -------- | ------- | ---- | ------------------------------------------------- |
-| team_id  | integer | url  | Defines what team ID to operate on                |
+| team_id  | integer | path  | **Required.** Defines what team ID to operate on                |
 | ids      | list    | body | **Required.** The IDs of the policies to delete.  |
 
 #### Example
@@ -5463,7 +5641,7 @@ Either `query` or `query_id` must be provided.
 
 ### Edit team policy
 
-`PATCH /api/v1/fleet/teams/{team_id}/policies/{policy_id}`
+`PATCH /api/v1/fleet/teams/:team_id/policies/:policy_id`
 
 #### Parameters
 
@@ -5516,7 +5694,8 @@ Either `query` or `query_id` must be provided.
     "created_at": "2021-12-16T14:37:37Z",
     "updated_at": "2021-12-16T16:39:00Z",
     "passing_host_count": 0,
-    "failing_host_count": 0
+    "failing_host_count": 0,
+    "host_count_updated_at": null
   }
 }
 ```
@@ -5528,6 +5707,7 @@ Either `query` or `query_id` must be provided.
 - [List queries](#list-queries)
 - [Get query](#get-query)
 - [Get query report](#get-query-report)
+- [Get query report for one host](#get-query-report-for-one-host)
 - [Create query](#create-query)
 - [Modify query](#modify-query)
 - [Delete query by name](#delete-query-by-name)
@@ -5550,6 +5730,7 @@ Returns a list of global queries or team queries.
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
 | team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+| query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 
 
 #### Example
@@ -5646,7 +5827,7 @@ Returns a list of global queries or team queries.
 
 Returns the query specified by ID.
 
-`GET /api/v1/fleet/queries/{id}`
+`GET /api/v1/fleet/queries/:id`
 
 #### Parameters
 
@@ -5709,13 +5890,13 @@ Returns the query specified by ID.
 
 Returns the query report specified by ID.
 
-`GET /api/v1/fleet/queries/{id}/report`
+`GET /api/v1/fleet/queries/:id/report`
 
 #### Parameters
 
-| Name | Type    | In   | Description                                |
-| ---- | ------- | ---- | ------------------------------------------ |
-| id   | integer | path | **Required**. The ID of the desired query. |
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired query. |
 
 #### Example
 
@@ -5783,6 +5964,72 @@ If a query has no results stored, then `results` will be an empty array:
 ```json
 {
   "query_id": 32,
+  "results": []
+}
+```
+
+> Note: osquery scheduled queries do not return errors, so only non-error results are included in the report. If you suspect a query may be running into errors, you can use the [live query](#run-live-query) endpoint to get diagnostics.
+
+### Get query report for one host
+
+Returns a query report for a single host.
+
+`GET /api/v1/fleet/hosts/:id/queries/:query_id`
+
+#### Parameters
+
+| Name      | Type    | In    | Description                                |
+| --------- | ------- | ----- | ------------------------------------------ |
+| id        | integer | path  | **Required**. The ID of the desired host.          |
+| query_id  | integer | path  | **Required**. The ID of the desired query.         |
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/queries/31`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
+  "results": [
+    {
+      "columns": {
+        "model": "USB 2.0 Hub",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Keyboard",
+        "vendor": "VIA Labs, Inc."
+      }
+    },
+    {
+      "columns": {
+        "model": "USB Reciever",
+        "vendor": "Logitech"
+      }
+    }
+  ]
+}
+```
+
+If a query has no results stored for the specified host, then `results` will be an empty array:
+
+```json
+{
+  "query_id": 31,
+  "host_id": 1,
+  "host_name": "foo",
+  "last_fetched": "2021-01-19T17:08:31Z",
+  "report_clipped": false,
   "results": []
 }
 ```
@@ -5866,7 +6113,7 @@ Creates a global query or team query.
 
 Modifies the query specified by ID.
 
-`PATCH /api/v1/fleet/queries/{id}`
+`PATCH /api/v1/fleet/queries/:id`
 
 #### Parameters
 
@@ -5939,7 +6186,7 @@ Modifies the query specified by ID.
 
 Deletes the query specified by name.
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/:name`
 
 #### Parameters
 
@@ -5950,7 +6197,7 @@ Deletes the query specified by name.
 
 #### Example
 
-`DELETE /api/v1/fleet/queries/{name}`
+`DELETE /api/v1/fleet/queries/foo`
 
 ##### Default response
 
@@ -5961,7 +6208,7 @@ Deletes the query specified by name.
 
 Deletes the query specified by ID.
 
-`DELETE /api/v1/fleet/queries/id/{id}`
+`DELETE /api/v1/fleet/queries/id/:id`
 
 #### Parameters
 
@@ -6016,38 +6263,32 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 ### Run live query
 
-Run one or more live queries against the specified hosts and responds with the results
-collected after 25 seconds.
+> This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
-If multiple queries are provided, they run concurrently. Response time is capped at 25 seconds from
-when the API request was received, regardless of how many queries you are running, and regardless
-whether all results have been gathered or not. This API does not return any results until the fixed
-time period elapses, at which point all of the collected results are returned.
+Runs a live query against the specified hosts and responds with the results.
 
-The fixed time period is configurable via environment variable on the Fleet server (eg.
-`FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value, be sure that you do not exceed your
-load balancer timeout.
+If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
 
-> WARNING: This API endpoint collects responses in-memory (RAM) on the Fleet compute instance handling this request, which can overflow if the result set is large enough.  This has the potential to crash the process and/or cause an autoscaling event in your cloud provider, depending on how Fleet is deployed.
+The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
 
-`GET /api/v1/fleet/queries/run`
+
+`POST /api/v1/fleet/queries/:id/run`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| query_ids | array | body | **Required**. The IDs of the saved queries to run. If a mix of authorized and unauthorized IDs is provided, only results from authorized queries will be returned. |
+| query_id | integer | path | **Required**. The ID of the saved query to run. |
 | host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
 
 #### Example
 
-`GET /api/v1/fleet/queries/run`
+`POST /api/v1/fleet/queries/123/run`
 
 ##### Request body
 
 ```json
 {
-  "query_ids": [ 1, 2 ],
   "host_ids": [ 1, 4, 34, 27 ]
 }
 ```
@@ -6056,40 +6297,34 @@ load balancer timeout.
 
 ```json
 {
-  "summary": {
-    "targeted_host_count": 4,
-    "responded_host_count": 2
-  },
-  "live_query_results": [
+  "query_id": 123,
+  "targeted_host_count": 4,
+  "responded_host_count": 2,
+  "results": [
     {
-      "query_id": 2,
-      "results": [
+      "host_id": 1,
+      "rows": [
         {
-          "host_id": 1,
-          "rows": [
-            {
-              "build_distro": "10.12",
-              "build_platform": "darwin",
-              "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
-              "config_valid": "1",
-              "extensions": "active",
-              "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
-              "pid": "23413",
-              "platform_mask": "21",
-              "start_time": "1635194306",
-              "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
-              "version": "4.9.0",
-              "watcher": "23412"
-            }
-          ],
-          "error": null
-        },
-        {
-          "host_id": 2,
-          "rows": [],
-          "error": "no such table: os_version"
+          "build_distro": "10.12",
+          "build_platform": "darwin",
+          "config_hash": "7bb99fa2c8a998c9459ec71da3a84d66c592d6d3",
+          "config_valid": "1",
+          "extensions": "active",
+          "instance_id": "9a2ec7bf-4946-46ea-93bf-455e0bcbd068",
+          "pid": "23413",
+          "platform_mask": "21",
+          "start_time": "1635194306",
+          "uuid": "4C182AC7-75F7-5AF4-A74B-1E165ED35742",
+          "version": "4.9.0",
+          "watcher": "23412"
         }
-      ]
+      ],
+      "error": null
+    },
+    {
+      "host_id": 2,
+      "rows": [],
+      "error": "no such table: os_version"
     }
   ]
 }
@@ -6252,7 +6487,7 @@ None.
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`PATCH /api/v1/fleet/global/schedule/{id}`
+`PATCH /api/v1/fleet/global/schedule/:id`
 
 #### Parameters
 
@@ -6308,7 +6543,7 @@ None.
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`DELETE /api/v1/fleet/global/schedule/{id}`
+`DELETE /api/v1/fleet/global/schedule/:id`
 
 #### Parameters
 
@@ -6342,7 +6577,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`GET /api/v1/fleet/teams/{id}/schedule`
+`GET /api/v1/fleet/teams/:id/schedule`
 
 #### Parameters
 
@@ -6422,7 +6657,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`POST /api/v1/fleet/teams/{id}/schedule`
+`POST /api/v1/fleet/teams/:id/schedule`
 
 #### Parameters
 
@@ -6480,7 +6715,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`PATCH /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`PATCH /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
 
 #### Parameters
 
@@ -6537,7 +6772,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 > The schedule API endpoints are deprecated as of Fleet 4.35. They are maintained for backwards compatibility.
 > Please use the [queries](#queries) endpoints, which as of 4.35 have attributes such as `interval` and `platform` that enable scheduling.
 
-`DELETE /api/v1/fleet/teams/{team_id}/schedule/{scheduled_query_id}`
+`DELETE /api/v1/fleet/teams/:team_id/schedule/:scheduled_query_id`
 
 #### Parameters
 
@@ -6570,7 +6805,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 _Available in Fleet Premium_
 
-Execute a script and see script results (1 minute timeout).
+Execute a script and see script results (5 minute timeout).
 
 `POST /api/v1/fleet/scripts/run/sync`
 
@@ -6619,7 +6854,7 @@ Gets the result of a script that was executed.
 
 #### Example
 
-`GET /api/v1/fleet/scripts/results/{execution_id}`
+`GET /api/v1/fleet/scripts/results/:execution_id`
 
 ##### Default Response
 
@@ -6699,7 +6934,7 @@ _Available in Fleet Premium_
 
 Deletes an existing script.
 
-`DELETE /api/v1/fleet/scripts/{id}`
+`DELETE /api/v1/fleet/scripts/:id`
 
 #### Parameters
 
@@ -6766,7 +7001,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/scripts/{id}`
+`GET /api/v1/fleet/scripts/:id`
 
 #### Parameters
 
@@ -6818,7 +7053,7 @@ echo "hello"
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/hosts/{id}/scripts`
+`GET /api/v1/fleet/hosts/:id/scripts`
 
 #### Parameters
 
@@ -6829,7 +7064,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`GET /api/v1/fleet/hosts/{id}/scripts`
+`GET /api/v1/fleet/hosts/123/scripts`
 
 ##### Default response
 
@@ -6885,7 +7120,7 @@ _Available in Fleet Premium_
 
 Returns the session information for the session specified by ID.
 
-`GET /api/v1/fleet/sessions/{id}`
+`GET /api/v1/fleet/sessions/:id`
 
 #### Parameters
 
@@ -6913,7 +7148,7 @@ Returns the session information for the session specified by ID.
 
 Deletes the session specified by ID. When the user associated with the session next attempts to access Fleet, they will be asked to log in.
 
-`DELETE /api/v1/fleet/sessions/{id}`
+`DELETE /api/v1/fleet/sessions/:id`
 
 #### Parameters
 
@@ -6987,6 +7222,17 @@ Deletes the session specified by ID. When the user associated with the session n
           }
         ],
         "hosts_count": 1
+      },
+      {
+        "id": 2,
+        "name": "1Password – Password Manager",
+        "version": "2.3.7",
+        "source": "chrome_extensions",
+        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "browser": "chrome",
+        "generated_cpe": "cpe:2.3:a:1password:1password:2.3.7:*:*:*:*:chrome:*:*",
+        "vulnerabilities": null,
+        "hosts_count": 2
       }
     ]
 }
@@ -7299,7 +7545,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/teams/{id}`
+`GET /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -7451,7 +7697,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/teams/{id}`
+`PATCH /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -7630,7 +7876,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/teams/{id}/agent_options`
+`POST /api/v1/fleet/teams/:id/agent_options`
 
 #### Parameters
 
@@ -7719,7 +7965,7 @@ _Available in Fleet Premium_
 
 _Available in Fleet Premium_
 
-`DELETE /api/v1/fleet/teams/{id}`
+`DELETE /api/v1/fleet/teams/:id`
 
 #### Parameters
 
@@ -8130,7 +8376,7 @@ By default, the user will be forced to reset its password upon first login.
 
 Returns all information about a specific user.
 
-`GET /api/v1/fleet/users/{id}`
+`GET /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8190,7 +8436,7 @@ Returns all information about a specific user.
 
 ### Modify user
 
-`PATCH /api/v1/fleet/users/{id}`
+`PATCH /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8298,7 +8544,7 @@ Returns all information about a specific user.
 
 Delete the specified user from Fleet.
 
-`DELETE /api/v1/fleet/users/{id}`
+`DELETE /api/v1/fleet/users/:id`
 
 #### Parameters
 
@@ -8319,7 +8565,7 @@ Delete the specified user from Fleet.
 
 The selected user is logged out of Fleet and required to reset their password during the next attempt to log in. This also revokes all active Fleet API tokens for this user. Returns the user object.
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/v1/fleet/users/:id/require_password_reset`
 
 #### Parameters
 
@@ -8330,7 +8576,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 #### Example
 
-`POST /api/v1/fleet/users/{id}/require_password_reset`
+`POST /api/v1/fleet/users/123/require_password_reset`
 
 ##### Request body
 
@@ -8365,7 +8611,7 @@ The selected user is logged out of Fleet and required to reset their password du
 
 Returns a list of the user's sessions in Fleet.
 
-`GET /api/v1/fleet/users/{id}/sessions`
+`GET /api/v1/fleet/users/:id/sessions`
 
 #### Parameters
 
@@ -8405,7 +8651,7 @@ None.
 
 Deletes the selected user's sessions in Fleet. Also deletes the user's API token.
 
-`DELETE /api/v1/fleet/users/{id}/sessions`
+`DELETE /api/v1/fleet/users/:id/sessions`
 
 #### Parameters
 
@@ -8483,7 +8729,7 @@ Returns information about the current state of the database; valid keys are:
 - `innodb-status`: returns InnoDB status information.
 - `process-list`: returns running processes (queries, etc).
 
-`GET /debug/db/{key}`
+`GET /debug/db/:key`
 
 #### Parameters
 
@@ -8495,7 +8741,7 @@ Returns runtime profiling data of the server in the format expected by `go tools
 
 Valid keys are: `cmdline`, `profile`, `symbol` and `trace`.
 
-`GET /debug/pprof/{key}`
+`GET /debug/pprof/:key`
 
 #### Parameters
 None.

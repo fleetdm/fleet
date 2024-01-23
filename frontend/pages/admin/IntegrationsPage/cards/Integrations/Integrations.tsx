@@ -23,6 +23,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import AddIntegrationModal from "./components/AddIntegrationModal";
 import DeleteIntegrationModal from "./components/DeleteIntegrationModal";
@@ -398,7 +399,7 @@ const Integrations = (): JSX.Element => {
 
   return (
     <div className={`${baseClass}`}>
-      <h2 className={`${baseClass}__title`}>Ticket destinations</h2>
+      <SectionHeader title="Ticket destinations" />
       <p className={`${baseClass}__page-description`}>
         Add or edit integrations to create tickets when Fleet detects new
         vulnerabilities.
@@ -407,7 +408,7 @@ const Integrations = (): JSX.Element => {
         <TableDataError />
       ) : (
         <TableContainer
-          columns={tableHeaders}
+          columnConfigs={tableHeaders}
           data={tableData}
           isLoading={isLoadingIntegrations}
           defaultSortHeader={"name"}

@@ -11,7 +11,7 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server"
-	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/stretchr/testify/require"
 )
 

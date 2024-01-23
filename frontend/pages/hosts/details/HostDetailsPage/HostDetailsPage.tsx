@@ -52,6 +52,7 @@ import {
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -62,7 +63,7 @@ import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
-import ScheduleCard from "../cards/Schedule";
+import QueriesCard from "../cards/Queries";
 import PacksCard from "../cards/Packs";
 import PolicyDetailsModal from "../cards/Policies/HostPoliciesTable/PolicyDetailsModal";
 import UnenrollMdmModal from "./modals/UnenrollMdmModal";
@@ -153,7 +154,7 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPacksState] = useState<IPackStats[]>();
+  const [packsState, setPackState] = useState<IPackStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
@@ -300,6 +301,7 @@ const HostDetailsPage = ({
         }
         setHostSoftware(returnedHost.software || []);
         setUsersState(returnedHost.users || []);
+        setSchedule(schedule);
         if (returnedHost.pack_stats) {
           const packStatsByType = returnedHost.pack_stats.reduce(
             (
@@ -319,7 +321,6 @@ const HostDetailsPage = ({
             { packs: [], schedule: [] }
           );
           setSchedule(packStatsByType.schedule);
-          setPacksState(packStatsByType.packs);
         }
       },
       onError: (error) => handlePageError(error),
@@ -344,23 +345,12 @@ const HostDetailsPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `Host ${hostTab()} details ${
-      host?.display_name ? `| ${host?.display_name} |` : "|"
-    } Fleet for osquery`;
+    if (host?.display_name) {
+      // e.g., Rachel's Macbook Pro | Hosts | Fleet
+      document.title = `${host?.display_name} | Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, host]);
 
   // Used for back to software pathname
@@ -583,7 +573,7 @@ const HostDetailsPage = ({
     );
   };
 
-  if (isLoadingHost) {
+  if (!host || isLoadingHost) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -605,9 +595,9 @@ const HostDetailsPage = ({
       pathname: PATHS.HOST_SOFTWARE(hostIdFromURL),
     },
     {
-      name: "Schedule",
-      title: "schedule",
-      pathname: PATHS.HOST_SCHEDULE(hostIdFromURL),
+      name: "Queries",
+      title: "queries",
+      pathname: PATHS.HOST_QUERIES(hostIdFromURL),
     },
     {
       name: (
@@ -673,7 +663,7 @@ const HostDetailsPage = ({
 
   return (
     <MainContent className={baseClass}>
-      <div className={`${baseClass}__wrapper`}>
+      <>
         <HostDetailsBanners
           hostMdmEnrollmentStatus={host?.mdm.enrollment_status}
           hostPlatform={host?.platform}
@@ -759,7 +749,7 @@ const HostDetailsPage = ({
                 pathname={pathname}
                 pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
               />
-              {host?.platform === "darwin" && macadmins && (
+              {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -768,10 +758,14 @@ const HostDetailsPage = ({
               )}
             </TabPanel>
             <TabPanel>
-              <ScheduleCard
-                isChromeOSHost={host?.platform === "chrome"}
+              <QueriesCard
+                hostId={host.id}
+                router={router}
+                isChromeOSHost={host.platform === "chrome"}
                 schedule={schedule}
-                isLoading={isLoadingHost}
+                queryReportsDisabled={
+                  config?.server_settings?.query_reports_disabled
+                }
               />
               {canViewPacks && (
                 <PacksCard packsState={packsState} isLoading={isLoadingHost} />
@@ -854,7 +848,7 @@ const HostDetailsPage = ({
             onCancel={onCancelScriptDetailsModal}
           />
         )}
-      </div>
+      </>
     </MainContent>
   );
 };

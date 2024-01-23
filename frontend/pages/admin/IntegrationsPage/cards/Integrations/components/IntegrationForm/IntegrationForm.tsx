@@ -15,6 +15,7 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 
 import Spinner from "components/Spinner";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "integration-form";
 
@@ -300,7 +301,7 @@ const IntegrationForm = ({
               className={`add-integration-tooltip`}
               place="bottom"
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id="add-integration-button"
               data-html
             >

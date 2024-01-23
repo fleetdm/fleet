@@ -76,7 +76,7 @@ func (c *goqueryClient) ScheduleQuery(uuid, query string) (string, error) {
 		return "", errors.New("could not lookup host")
 	}
 
-	res, err := c.client.LiveQuery(query, []string{}, []string{hostname})
+	res, err := c.client.LiveQuery(query, nil, []string{}, []string{hostname})
 	if err != nil {
 		return "", err
 	}

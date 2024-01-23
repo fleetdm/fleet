@@ -1,8 +1,4 @@
 .edit-pack-form {
-  h1 {
-    margin: $pad-large 0 $pad-medium;
-  }
-
   &__pack-title {
     .input-field {
       width: 100%;
@@ -26,7 +22,6 @@
   &__pack-buttons {
     display: flex;
     justify-content: flex-end;
-    margin-top: $pad-large;
     gap: $pad-medium;
   }
 }

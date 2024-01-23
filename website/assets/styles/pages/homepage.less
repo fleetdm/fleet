@@ -2,7 +2,7 @@
   h1 {
     font-weight: 800;
     font-size: 64px;
-    line-height: 76px;
+    line-height: 1.2;
   }
   h3 {
     font-weight: 800;
@@ -96,6 +96,13 @@
       height: 24px;
     }
   }
+  [purpose='logo-column'] {
+    width: 100%;
+    img {
+      margin-right: auto;
+      margin-left: auto;
+    }
+  }
 
   [purpose='homepage-content'] {
     max-width: 1200px;
@@ -146,8 +153,8 @@
   }
   [purpose='homepage-text-block'] {
     margin-top: 160px;
-    margin-bottom: 160px;
-    max-width: 872px;
+    margin-bottom: 120px;
+    max-width: 642px;
     h2 {
       font-weight: 800;
       font-size: 32px;
@@ -194,7 +201,7 @@
         }
       }
     }
-    margin-bottom: 100px;
+    margin-bottom: 160px;
     h3 {
       font-weight: 800;
       font-size: 24px;
@@ -602,7 +609,7 @@
     }
     &:first-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
+        background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
         background-position: center;
         background-size: cover;
       }
@@ -611,7 +618,7 @@
     }
     &:last-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
+        background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
         background-position: center;
         background-size: cover;
       }
@@ -658,8 +665,6 @@
     [purpose='hero-logos'] {
       margin-top: 32px;
       margin-bottom: 120px;
-      padding-right: 60px;
-      padding-left: 60px;
       [purpose='snowflake-logo'] {
         height: 28px;
       }
@@ -696,6 +701,14 @@
       padding-right: 0px;
     }
 
+
+    [purpose='bottom-cta'] {
+      h1 {
+        font-weight: 800;
+        font-size: 56px;
+      }
+    }
+
   }
 
   @media (max-width: 1199px) {
@@ -709,6 +722,11 @@
     [purpose='homepage-hero'] {
       max-width: 1080px;
       height: 726px;
+    }
+
+    [purpose='hero-logos'] {
+      padding-right: 60px;
+      padding-left: 60px;
     }
 
     [purpose='homepage-content'] {
@@ -810,6 +828,10 @@
     }
     [purpose='logo-column'] {
       margin-bottom: 32px;
+      img {
+        margin-right: 0;
+        margin-left: 0;
+      }
     }
     [purpose='category-switch'] {
       width: 687px;
@@ -899,6 +921,9 @@
 
   @media (max-width: 767px) {
 
+    h1 {
+      font-size: 54px;
+    }
     [purpose='hero-background-image'] {
       background-size: 2600px auto;
       background-position: center bottom;
@@ -1022,7 +1047,7 @@
     [purpose='testimonial'] {
       &:first-of-type {
         [purpose='testimonial-video'] {
-          background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
+          background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
           background-position: center;
           background-size: cover;
         }
@@ -1032,7 +1057,7 @@
       }
       &:last-of-type {
         [purpose='testimonial-video'] {
-          background: url('/images/video-testimonial-nick-fohs-1440x810@2x.jpg');
+          background: url('/images/video-testimonial-austin-anderson-1440x810@2x.jpg');
           background-position: center;
           background-size: cover;
         }
@@ -1053,9 +1078,21 @@
         height: 304px;
       }
     }
+    [purpose='bottom-cta'] {
+      h1 {
+        font-size: 54px;
+      }
+    }
   }
 
   @media (max-width: 575px) {
+
+    h1 {
+      font-size: 40px;
+    }
+    h4 {
+      font-size: 14px;
+    }
 
     [purpose='hero-background-image'] {
       background-size: 2000px auto;
@@ -1068,20 +1105,9 @@
       padding-left: 24px;
       padding-right: 24px;
     }
-    h1 {
-      font-weight: 800;
-      font-size: 40px;
-      line-height: 48px;
-    }
+
     [purpose='hero-text'] {
       padding-bottom: 260px;
-      h1 {
-        font-size: 40px;
-        line-height: 48px;
-      }
-      h4 {
-        font-size: 14px;
-      }
       p {
         font-size: 16px;
       }
@@ -1194,10 +1220,22 @@
         height: calc(~'9/16 * 95vw');
       }
     }
+    [purpose='bottom-cta'] {
+      h1 {
+        font-size: 40px;
+      }
+    }
   }
 
   @media (max-width: 375px) {
 
+
+    h1 {
+      font-size: 35px;
+    }
+    h4 {
+      font-size: 14px;
+    }
 
     [purpose='hero-background-image'] {
       background-size: 1400px auto;
@@ -1207,13 +1245,6 @@
 
     [purpose='hero-text'] {
       padding-bottom: 260px;
-      h1 {
-        font-size: 35px;
-        line-height: 60px;
-      }
-      h4 {
-        font-size: 14px;
-      }
       p {
         font-size: 16px;
       }
@@ -1243,6 +1274,11 @@
       }
       &:hover:after {
         left: 85px;
+      }
+    }
+    [purpose='bottom-cta'] {
+      h1 {
+        font-size: 35px;
       }
     }
 

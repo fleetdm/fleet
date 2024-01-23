@@ -16,6 +16,7 @@ import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { COLORS } from "styles/var/colors";
 
 export interface ISaveNewPolicyModalProps {
   baseClass: string;
@@ -120,7 +121,7 @@ const SaveNewPolicyModal = ({
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
-            hint="What yes or no question does your policy ask about your hosts?"
+            helpText="What yes or no question does your policy ask about your hosts?"
             autofocus
             ignore1password
           />
@@ -139,7 +140,7 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label="Resolution"
             type="textarea"
-            hint="What steps should an end user take to resolve a host that fails this policy? (optional)"
+            helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
           {isPremiumTier && (
@@ -186,7 +187,7 @@ const SaveNewPolicyModal = ({
                 place="bottom"
                 effect="solid"
                 id={`${baseClass}__button--modal-save-tooltip`}
-                backgroundColor="#3e4771"
+                backgroundColor={COLORS["tooltip-bg"]}
               >
                 Select the platform(s) this
                 <br />

@@ -92,10 +92,55 @@ describe("Activity Feed", () => {
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
-    expect(
-      screen.getByText("ran the query as a live query .")
-    ).toBeInTheDocument();
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
     expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+  it("renders a live_query type activity for a saved live query with targets and performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 50.4923,
+          total_executions: 345,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(
+      screen.getByText(/with excessive performance impact on 10 hosts\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText("Show query")).toBeInTheDocument();
+  });
+
+  it("renders a live_query type activity for a saved live query with targets and no performance impact", () => {
+    const activity = createMockActivity({
+      type: ActivityType.LiveQuery,
+      details: {
+        query_name: "Test Query",
+        query_sql: "SELECT * FROM users",
+        targets_count: 10,
+        stats: {
+          system_time_p50: 0,
+          system_time_p95: 0,
+          total_executions: 0,
+        },
+      },
+    });
+
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(screen.getByText(/ran the/)).toBeInTheDocument();
+    expect(screen.getByText("Test Query")).toBeInTheDocument();
+    expect(screen.queryByText(/Undetermined/)).toBeNull();
     expect(screen.getByText("Show query")).toBeInTheDocument();
   });
 
