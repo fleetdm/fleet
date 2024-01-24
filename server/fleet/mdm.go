@@ -116,7 +116,9 @@ type ExpectedMDMProfile struct {
 	// the checksums are not available in the osquery profiles table.
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
 	// RawProfile contains the raw profile contents
-	RawProfile []byte `db:"raw_profile"`
+	RawProfile         []byte `db:"raw_profile"`
+	CountProfileLabels uint   `db:"count_profile_labels"`
+	CountHostLabels    uint   `db:"count_host_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
