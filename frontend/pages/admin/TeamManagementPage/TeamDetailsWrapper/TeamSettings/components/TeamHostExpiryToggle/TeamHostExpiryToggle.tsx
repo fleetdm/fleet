@@ -55,22 +55,24 @@ const TeamHostExpiryToggle = ({
         }
         helpText={renderHelpText()}
         tooltipContent={
-          <>
-            When enabled, allows automatic cleanup of
-            <br />
-            hosts that have not communicated with Fleet in
-            <br />
-            the number of days specified in the{" "}
-            <strong>
-              Host expiry
+          !globalHostExpiryEnabled && (
+            <>
+              When enabled, allows automatic cleanup of
               <br />
-              window
-            </strong>{" "}
-            setting.{" "}
-            <em>
-              (Default: <strong>Off</strong>)
-            </em>
-          </>
+              hosts that have not communicated with Fleet in
+              <br />
+              the number of days specified in the{" "}
+              <strong>
+                Host expiry
+                <br />
+                window
+              </strong>{" "}
+              setting.{" "}
+              <em>
+                (Default: <strong>Off</strong>)
+              </em>
+            </>
+          )
         }
       >
         Enable host expiry
