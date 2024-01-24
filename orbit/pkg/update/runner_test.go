@@ -1,8 +1,10 @@
 package update
 
 import (
+	"math/rand"
 	"os"
 	"runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -104,7 +106,27 @@ func TestGetVersion(t *testing.T) {
 				require.NoError(t, err)
 				_ = file.Close()
 
-				version := GetVersion(file.Name())
+				// "text file busy" is a Go issue when executing file just written: https://github.com/golang/go/issues/22315
+				var version string
+				retries := 0
+				for {
+					version, err = GetVersion(file.Name())
+					if err != nil {
+						t.Log(err)
+						if strings.Contains(err.Error(), "text file busy") {
+							if retries > 5 {
+								t.Fatal("too many retries due to 'text file busy' error: https://github.com/golang/go/issues/22315")
+							}
+							// adding some randomization so that parallel tests get out of sync if needed
+							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond) //nolint:gosec
+							retries++
+						} else {
+							break
+						}
+					} else {
+						break
+					}
+				}
 				assert.Equal(t, tc.version, version)
 			},
 		)
@@ -172,7 +194,27 @@ func TestCompareVersion(t *testing.T) {
 				require.NoError(t, err)
 				_ = file.Close()
 
-				result := compareVersion(file.Name(), tc.oldVersion, "target")
+				// "text file busy" is a Go issue when executing file just written: https://github.com/golang/go/issues/22315
+				var result *int
+				retries := 0
+				for {
+					result, err = compareVersion(file.Name(), tc.oldVersion, "target")
+					if err != nil {
+						t.Log(err)
+						if strings.Contains(err.Error(), "text file busy") {
+							if retries > 5 {
+								t.Fatal("too many retries due to 'text file busy' error: https://github.com/golang/go/issues/22315")
+							}
+							// adding some randomization so that parallel tests get out of sync if needed
+							time.Sleep((500 + time.Duration(rand.Intn(100))) * time.Millisecond) //nolint:gosec
+							retries++
+						} else {
+							break
+						}
+					} else {
+						break
+					}
+				}
 				assert.Equal(t, tc.expected, result)
 			},
 		)

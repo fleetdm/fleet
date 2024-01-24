@@ -7,6 +7,10 @@
 			"created_at": "1999-03-10T02:45:06.371Z",
 			"name": "team1",
 			"description": "team1 description",
+			"host_expiry_settings": {
+				"host_expiry_enabled": false,
+				"host_expiry_window": 0
+			},
 			"webhook_settings": {
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
@@ -71,6 +75,10 @@
 						}
 					}
 				}
+			},
+			"host_expiry_settings": {
+				"host_expiry_enabled": true,
+				"host_expiry_window": 15
 			},
 			"webhook_settings": {
 				"failing_policies_webhook": {

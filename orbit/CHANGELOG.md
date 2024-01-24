@@ -1,3 +1,18 @@
+## Orbit 1.20.1 (Jan 23, 2024)
+
+* Attempt to automatically decrypt the disk before performing a BitLocker encryption if it was previously encrypted and Fleet doesn't have the key.
+
+* Fixed an issue that would cause `fleetd` to report the wrong error if BitLocker encryption fails.
+
+* Fixed the maximum age of a pending script when notifying fleetd of a script to run so that it matches the duration used elsewhere in Fleet.
+
+* Fixed issue on MacOS with starting Fleet Desktop for the first time. MacOS would return an error
+  if a user is not logged in via the GUI.
+
+* Improved the HTTP client used by `fleetctl` and `fleetd` to prevent errors for 204 responses.
+
+* Fixed a log timestamp to print the right duration value when a fleet update has exceeded the maximum number of retries.
+
 ## Orbit 1.20.0 (Jan 10, 2024)
 
 * Allow configuring TUF channels of `orbit`, `osqueryd` and `desktop` from Fleet agent settings.
