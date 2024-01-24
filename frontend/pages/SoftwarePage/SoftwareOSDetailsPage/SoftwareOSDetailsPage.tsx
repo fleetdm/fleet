@@ -1,9 +1,8 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { RouteComponentProps } from "react-router";
 
 import osVersionsAPI, {
-  IOSVersionResponse,
+  IOSVersionsResponse,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
@@ -38,45 +37,55 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   );
 };
 
-interface ISoftwareOSDetailsRouteParams {
-  id: string;
+// interface ISoftwareOSDetailsRouteParams {
+//   name: string;
+//   version: string;
+// }
+
+// type ISoftwareOSDetailsPageProps = RouteComponentProps<
+//   undefined,
+//   ISoftwareOSDetailsRouteParams
+//   >;
+
+interface ISoftwareOSDetailsPageProps {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  location: { query: { name: string; version: string } }; // no type in react-router v3
 }
 
-type ISoftwareOSDetailsPageProps = RouteComponentProps<
-  undefined,
-  ISoftwareOSDetailsRouteParams
->;
-
-const SoftwareOSDetailsPage = ({
-  routeParams,
-}: ISoftwareOSDetailsPageProps) => {
-  // TODO: handle non integer values
-  const osVersionId = parseInt(routeParams.id, 10);
-
+const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
+  const name = location.query.name;
+  const osVersion = location.query.version;
   const { data, isLoading, isError } = useQuery<
-    IOSVersionResponse,
+    IOSVersionsResponse,
     Error,
     IOperatingSystemVersion
   >(
-    ["osVersionById", osVersionId],
-    () => osVersionsAPI.getOSVersion(osVersionId),
+    ["osVersionDetails", name, osVersion],
+    () => osVersionsAPI.getOSVersion({ os_name: name, os_version: osVersion }),
     {
-      select: (res) => res.os_version,
+      select: (res) => res.os_versions[0],
     }
   );
 
-  const renderTabel = () => {
-    if (!data) {
+  const osVersionDetails = data;
+
+  console.log("osVersionDetails", osVersionDetails);
+
+  const renderTable = () => {
+    if (!osVersionDetails) {
       return null;
     }
 
-    if (data.platform !== "darwin" && data.platform !== "windows") {
-      return <NotSupportedVuln platform={data.platform} />;
+    if (
+      osVersionDetails.platform !== "darwin" &&
+      osVersionDetails.platform !== "windows"
+    ) {
+      return <NotSupportedVuln platform={osVersionDetails.platform} />;
     }
 
     return (
       <SoftwareVulnerabilitiesTable
-        data={data.vulnerabilities}
+        data={osVersionDetails.vulnerabilities}
         itemName="version"
         isLoading={isLoading}
       />
@@ -92,22 +101,25 @@ const SoftwareOSDetailsPage = ({
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
-    if (!data) {
+    if (!osVersionDetails) {
       return null;
     }
 
     return (
       <>
         <SoftwareDetailsSummary
-          title={`${data.name} ${data.version}`}
-          hosts={data.hosts_count}
-          queryParams={{ os_name: data.name_only, os_version: data.version }}
-          name={data.name}
+          title={`${osVersionDetails.name} ${osVersionDetails.version}`}
+          hosts={osVersionDetails.hosts_count}
+          queryParams={{
+            os_name: osVersionDetails.name_only,
+            os_version: osVersionDetails.version,
+          }}
+          name={osVersionDetails.name}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__vulnerabilities-section`}>
           <h2>Vulnerabilities</h2>
-          {renderTabel()}
+          {renderTable()}
         </div>
       </>
     );
