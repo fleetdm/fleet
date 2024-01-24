@@ -282,7 +282,7 @@ func TestExtractTeamSpecsMDMCustomSettings(t *testing.T) {
 	cases := []struct {
 		desc string
 		yaml string
-		want map[string][]string
+		want map[string][]fleet.MDMProfileSpec
 	}{
 		{
 			"no settings",
@@ -342,10 +342,41 @@ spec:
       windows_settings:
         custom_settings:
 `,
-			map[string][]string{"Fleet": {}, "Fleet2": {}},
+			map[string][]fleet.MDMProfileSpec{"Fleet": {}, "Fleet2": {}},
 		},
 		{
 			"custom settings specified",
+			`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: "Fleet"
+    mdm:
+      macos_settings:
+        custom_settings:
+          - path: "a"
+            labels:
+              - "foo"
+              - bar
+          - path: "b"
+      windows_settings:
+        custom_settings:
+           - path: "c"
+           - path: "d"
+             labels:
+               - "foo"
+               - baz
+`,
+			map[string][]fleet.MDMProfileSpec{"Fleet": {
+				{Path: "a", Labels: []string{"foo", "bar"}},
+				{Path: "b"},
+				{Path: "c"},
+				{Path: "d", Labels: []string{"foo", "baz"}},
+			}},
+		},
+		{
+			"old custom settings specified",
 			`
 apiVersion: v1
 kind: team
@@ -362,10 +393,40 @@ spec:
           - "c"
           - "d"
 `,
-			map[string][]string{"Fleet": {"a", "b", "c", "d"}},
+			map[string][]fleet.MDMProfileSpec{"Fleet": {{Path: "a"}, {Path: "b"}, {Path: "c"}, {Path: "d"}}},
 		},
 		{
 			"invalid custom settings",
+			`
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: "Fleet"
+    mdm:
+      macos_settings:
+        custom_settings:
+          - path: "a"
+            labels:
+              - "y"
+          - path: ""
+          - path: 42
+            labels:
+              - "x"
+          - path: "c"
+      windows_settings:
+        custom_settings:
+          - path: "x"
+          - path: ""
+            labels:
+              - "x"
+          - path: 24
+          - path: "y"
+`,
+			map[string][]fleet.MDMProfileSpec{},
+		},
+		{
+			"old invalid custom settings",
 			`
 apiVersion: v1
 kind: team
@@ -386,7 +447,7 @@ spec:
           - 24
           - "y"
 `,
-			map[string][]string{},
+			map[string][]fleet.MDMProfileSpec{},
 		},
 	}
 	for _, c := range cases {
@@ -426,11 +487,14 @@ func TestExtractFilenameFromPath(t *testing.T) {
 
 func TestGetProfilesContents(t *testing.T) {
 	tempDir := t.TempDir()
+	darwinProfile := mobileconfigForTest("bar", "I")
+	windowsProfile := syncMLForTest("./some/path")
 
 	tests := []struct {
 		name        string
 		baseDir     string
 		setupFiles  [][2]string
+		labels      []string
 		expectError bool
 		want        []fleet.MDMProfileBatchPayload
 	}{
@@ -447,27 +511,47 @@ func TestGetProfilesContents(t *testing.T) {
 			name:    "windows and darwin files",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"foo.xml", string(syncMLForTest("./some/path"))},
-				{"bar.mobileconfig", string(mobileconfigForTest("bar", "I"))},
+				{"foo.xml", string(windowsProfile)},
+				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			expectError: false,
-			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}, {Name: "bar"}},
+			want: []fleet.MDMProfileBatchPayload{
+				{Name: "foo", Contents: windowsProfile},
+				{Name: "bar", Contents: darwinProfile},
+			},
+		},
+		{
+			name:    "windows and darwin files with labels",
+			baseDir: tempDir,
+			setupFiles: [][2]string{
+				{"foo.xml", string(windowsProfile)},
+				{"bar.mobileconfig", string(darwinProfile)},
+			},
+			labels:      []string{"foo", "bar"},
+			expectError: false,
+			want: []fleet.MDMProfileBatchPayload{
+				{Name: "foo", Contents: windowsProfile, Labels: []string{"foo", "bar"}},
+				{Name: "bar", Contents: darwinProfile, Labels: []string{"foo", "bar"}},
+			},
 		},
 		{
 			name:    "darwin files with file name != PayloadDisplayName",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"foo.xml", string(syncMLForTest("./some/path"))},
-				{"bar.mobileconfig", string(mobileconfigForTest("fizz", "I"))},
+				{"foo.xml", string(windowsProfile)},
+				{"bar.mobileconfig", string(darwinProfile)},
 			},
 			expectError: false,
-			want:        []fleet.MDMProfileBatchPayload{{Name: "foo"}, {Name: "fizz"}},
+			want: []fleet.MDMProfileBatchPayload{
+				{Name: "foo", Contents: windowsProfile},
+				{Name: "bar", Contents: darwinProfile},
+			},
 		},
 		{
 			name:    "duplicate names across windows and darwin",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"baz.xml", string(syncMLForTest("./some/path"))},
+				{"baz.xml", string(windowsProfile)},
 				{"bar.mobileconfig", string(mobileconfigForTest("baz", "I"))},
 			},
 			expectError: true,
@@ -476,8 +560,8 @@ func TestGetProfilesContents(t *testing.T) {
 			name:    "duplicate file names",
 			baseDir: tempDir,
 			setupFiles: [][2]string{
-				{"baz.xml", string(syncMLForTest("./some/path"))},
-				{"baz.xml", string(syncMLForTest("./some/path"))},
+				{"baz.xml", string(windowsProfile)},
+				{"baz.xml", string(windowsProfile)},
 			},
 			expectError: true,
 		},
@@ -489,7 +573,7 @@ func TestGetProfilesContents(t *testing.T) {
 			for _, fileSpec := range tt.setupFiles {
 				filePath := filepath.Join(tempDir, fileSpec[0])
 				require.NoError(t, os.WriteFile(filePath, []byte(fileSpec[1]), 0644))
-				paths = append(paths, fleet.MDMProfileSpec{Path: filePath})
+				paths = append(paths, fleet.MDMProfileSpec{Path: filePath, Labels: tt.labels})
 			}
 
 			profileContents, err := getProfilesContents(tt.baseDir, paths)
