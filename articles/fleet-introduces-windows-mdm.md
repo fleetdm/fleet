@@ -24,7 +24,9 @@ Our journey in developing Fleet revealed a clear demand for a more adaptable and
 * Advanced APIs for custom workflow integration across various operating systems.
 
 
-Existing solutions often fall into two categories: Windows-centric MDMs like Intune, which offer robust support for Windows but less flexibility for other platforms, and macOS-focused MDMs like Jamf, which are not designed for Windows integration. This segmentation in the MDM landscape leaves a significant gap for organizations that use a mix of Windows, macOS, and other operating systems.
+Existing solutions often fall into two categories: Windows-centric MDMs like Intune, which offer robust support for Windows but less flexibility for other platforms, and macOS-focused MDMs like Jamf, which are not designed for Windows integration. This segmentation in the MDM landscape leaves a significant gap for organizations that use a mix of Windows, macOS, and other operating systems. Fleet is purpose-built to bridge this divide and stands out as a comprehensive, cross-platform MDM solution that works cohesively across all major operating systems.
+
+![Fleet MDM Cover](../website/assets/images/articles/fleet-windows-mdm-launch-os-settings-800x640@2x.png)
 
 
 Expanding Fleet's MDM capabilities to encompass Windows significantly broadens the scope of device management for organizations operating in mixed OS environments. With this development, the deployment and management of configuration profiles, settings, and policies become universally accessible, regardless of the operating system. This inclusivity means IT admins can efficiently manage all devices in one place. Moreover, the near real-time verification of MDM profiles using osquery, a feature highlighted for macOS, is now equally applicable to Windows devices.
@@ -32,8 +34,8 @@ Expanding Fleet's MDM capabilities to encompass Windows significantly broadens t
 
 Likewise, Fleet's MDM provides the tools for teams to stay compliant with organizational policies, from encryption standards to operating system updates, and offers capabilities like remote locking or wiping lost devices.
 
-Fleet is purpose-built to bridge this divide and stands out as a comprehensive, cross-platform MDM solution that works cohesively across all major operating systems. 
-
+ 
+![Fleet MDM Cover](../website/assets/images/articles/fleet-windows-mdm-launch-disk-encryption-800x640@2x.png)
 
 
 
