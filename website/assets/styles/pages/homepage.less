@@ -240,14 +240,6 @@
   }
 
   [purpose='platform-block'] {
-    [purpose='category-image'] {
-      margin-left: 60px;
-      padding-right: 40px;
-      img {
-        width: auto;
-        height: 293px;
-      }
-    }
     margin-bottom: 120px;
     h3 {
       font-weight: 800;
@@ -261,6 +253,14 @@
       line-height: 24px;
     }
     max-width: 1080px;
+  }
+  [purpose='category-image'] {
+    margin-left: 60px;
+    padding-right: 40px;
+    img {
+      width: auto;
+      height: 293px;
+    }
   }
   [purpose='category-button'] {
     display: flex;
@@ -803,17 +803,14 @@
       padding-left: 0px;
       text-align: center;
     }
-    [purpose='platform-block'] {
-
-      [purpose='category-image'] {
-        width: 100%;
-        height: auto;
-        margin-left: 0px;
-        padding-right: 0px;
-        img {
-          margin-left: auto;
-          margin-right: auto;
-        }
+    [purpose='category-image'] {
+      width: 100%;
+      height: auto;
+      margin-left: 0px;
+      padding-right: 0px;
+      img {
+        margin-left: auto;
+        margin-right: auto;
       }
     }
     [purpose='category-button'] {
@@ -1254,21 +1251,10 @@
     [purpose='category-image'] {
       width: 100%;
       height: auto;
-      [purpose='endpoint-ops-image'] {
-        width: 100%;
-        height: auto;
-      }
-      [purpose='vulnerability-management-image'] {
-        width: calc(~'100% + 18px');
-        height: auto;
-        margin-left: -9px;
-      }
-    }
-    [purpose='device-management-image'] {
       img {
+        max-height: 293px;
         width: auto;
         height: auto;
-        max-height: 236px;
       }
     }
     [purpose='category-button'] {
