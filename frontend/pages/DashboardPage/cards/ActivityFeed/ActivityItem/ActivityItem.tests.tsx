@@ -5,8 +5,6 @@ import createMockActivity from "__mocks__/activityMock";
 import createMockQuery from "__mocks__/queryMock";
 import { createMockTeamSummary } from "__mocks__/teamMock";
 import { ActivityType } from "interfaces/activity";
-import { createCustomRenderer } from "test/test-utils";
-import createMockConfig from "__mocks__/configMock";
 
 import ActivityItem from ".";
 

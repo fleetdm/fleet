@@ -14,7 +14,6 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
-import { ISoftware } from "interfaces/software";
 import { IPolicy } from "interfaces/policy";
 import {
   HOSTS_QUERY_PARAMS,

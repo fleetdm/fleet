@@ -54,22 +54,22 @@ const LabelPage = ({
   );
   const { renderFlash } = useContext(NotificationContext);
 
-  const { data: labels, error: labelsError } = useQuery<
-    ILabelsResponse,
-    Error,
-    ILabel[]
-  >(["labels"], () => labelsAPI.loadAll(), {
-    select: (data: ILabelsResponse) => data.labels,
-    onSuccess: (responseLabels: ILabel[]) => {
-      if (params.label_id) {
-        const selectLabel = responseLabels.find(
-          (label) => label.id === parseInt(params.label_id, 10)
-        );
-        setSelectedLabel(selectLabel);
-        setIsLoading(false);
-      }
-    },
-  });
+  const { error: labelsError } = useQuery<ILabelsResponse, Error, ILabel[]>(
+    ["labels"],
+    () => labelsAPI.loadAll(),
+    {
+      select: (data: ILabelsResponse) => data.labels,
+      onSuccess: (responseLabels: ILabel[]) => {
+        if (params.label_id) {
+          const selectLabel = responseLabels.find(
+            (label) => label.id === parseInt(params.label_id, 10)
+          );
+          setSelectedLabel(selectLabel);
+          setIsLoading(false);
+        }
+      },
+    }
+  );
 
   const onCloseSchemaSidebar = () => {
     setSidePanelOpen(false);
@@ -145,7 +145,7 @@ const LabelPage = ({
           "Label created. Try refreshing this page in just a moment to see the updated host count for your label."
         );
       })
-      .catch((updateError: any) => {
+      .catch((updateError: { data: IApiError }) => {
         if (updateError.data.errors[0].reason.includes("Duplicate")) {
           setLabelValidator({
             name: "A label with this name already exists",

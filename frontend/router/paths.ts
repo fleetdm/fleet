@@ -117,7 +117,7 @@ export default {
   },
   HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
-  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+  DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
