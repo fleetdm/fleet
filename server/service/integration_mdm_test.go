@@ -3309,7 +3309,11 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 	}
 
 	generateNewReq := func(name string, teamID *uint) (*bytes.Buffer, map[string]string) {
-		return generateNewProfileMultipartRequest(t, teamID, "some_filename", testProfiles[name].Mobileconfig, s.token)
+		args := map[string][]string{}
+		if teamID != nil {
+			args["team_id"] = []string{fmt.Sprintf("%d", *teamID)}
+		}
+		return generateNewProfileMultipartRequest(t, "some_filename", testProfiles[name].Mobileconfig, s.token, args)
 	}
 
 	checkGetResponse := func(resp *http.Response, expected fleet.MDMAppleConfigProfile) {
@@ -3444,10 +3448,12 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 			Identifier:   "valid.identifier",
 			Mobileconfig: mcBytesForTest(name, "valid.identifier", "some-uuid"),
 		}
-		body, headers := generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
+		body, headers := generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 
-		body, headers = generateNewProfileMultipartRequest(t, &testTeam.ID, "some_filename", cp.Mobileconfig, s.token)
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
+			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+		})
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 
 		cp, err := fleet.NewMDMAppleConfigProfile(mobileconfigForTestWithContent(
@@ -3458,11 +3464,14 @@ func (s *integrationMDMTestSuite) TestMDMAppleConfigProfileCRUD() {
 			name,
 		), nil)
 		require.NoError(t, err)
-		body, headers = generateNewProfileMultipartRequest(t, nil, "some_filename", cp.Mobileconfig, s.token)
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, nil)
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 
 		cp.TeamID = &testTeam.ID
-		body, headers = generateNewProfileMultipartRequest(t, &testTeam.ID, "some_filename", cp.Mobileconfig, s.token)
+		body, headers = generateNewProfileMultipartRequest(t, "some_filename", cp.Mobileconfig, s.token, map[string][]string{
+			"team_id": {fmt.Sprintf("%d", testTeam.ID)},
+		})
+
 		s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	}
 
@@ -4435,8 +4444,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	triggerReconcileProfiles()
 
 	// add a profile to no team (h2 and h4 are now part of no team)
-	body, headers := generateNewProfileMultipartRequest(t, nil,
-		"some_name", mobileconfigForTest("G3", "G3"), s.token)
+	body, headers := generateNewProfileMultipartRequest(t,
+		"some_name", mobileconfigForTest("G3", "G3"), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h2: {
@@ -4454,8 +4463,8 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	})
 
 	// add a profile to team 2 (h1 and h3 are now part of team 2)
-	body, headers = generateNewProfileMultipartRequest(t, &tm2.ID,
-		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token)
+	body, headers = generateNewProfileMultipartRequest(t,
+		"some_name", mobileconfigForTest("T2.2", "T2.2"), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm2.ID)}})
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 	s.assertHostConfigProfiles(map[*fleet.Host][]fleet.HostMDMAppleProfile{
 		h1: {
@@ -6273,27 +6282,34 @@ func (s *integrationMDMTestSuite) assertWindowsConfigProfilesByName(teamID *uint
 
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/mdm/apple/profiles.
-func generateNewProfileMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string,
+func generateNewProfileMultipartRequest(t *testing.T,
+	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
-	return generateMultipartRequest(t, tmID, "profile", fileName, fileContent, token)
+	return generateMultipartRequest(t, "profile", fileName, fileContent, token, extraFields)
 }
 
-func generateMultipartRequest(t *testing.T, tmID *uint,
+func generateMultipartRequest(t *testing.T,
 	uploadFileField, fileName string, fileContent []byte, token string,
+	extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
 	var body bytes.Buffer
 
 	writer := multipart.NewWriter(&body)
-	if tmID != nil {
-		err := writer.WriteField("team_id", fmt.Sprintf("%d", *tmID))
-		require.NoError(t, err)
-	}
 
+	// add file content
 	ff, err := writer.CreateFormFile(uploadFileField, fileName)
 	require.NoError(t, err)
 	_, err = io.Copy(ff, bytes.NewReader(fileContent))
 	require.NoError(t, err)
+
+	// add extra fields
+	for key, values := range extraFields {
+		for _, value := range values {
+			err := writer.WriteField(key, value)
+			require.NoError(t, err)
+		}
+	}
+
 	err = writer.Close()
 	require.NoError(t, err)
 
@@ -8601,13 +8617,16 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
-	assertAppleProfile := func(filename, name, ident string, teamID uint, wantStatus int, wantErrMsg string) string {
-		var tmPtr *uint
-		if teamID > 0 {
-			tmPtr = &teamID
+	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := map[string][]string{
+			"labels": labelNames,
 		}
-		body, headers := generateNewProfileMultipartRequest(t, tmPtr,
-			filename, mobileconfigForTest(name, ident), s.token)
+		if teamID > 0 {
+			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+		}
+		body, headers := generateNewProfileMultipartRequest(
+			t, filename, mobileconfigForTest(name, ident), s.token, fields,
+		)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), wantStatus, headers)
 
 		if wantErrMsg != "" {
@@ -8623,8 +8642,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Equal(t, "a", string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
-	createAppleProfile := func(name, ident string, teamID uint) string {
-		uid := assertAppleProfile(name+".mobileconfig", name, ident, teamID, http.StatusOK, "")
+	createAppleProfile := func(name, ident string, teamID uint, labelNames []string) string {
+		uid := assertAppleProfile(name+".mobileconfig", name, ident, teamID, labelNames, http.StatusOK, "")
 
 		var wantJSON string
 		if teamID == 0 {
@@ -8637,13 +8656,20 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		return uid
 	}
 
-	assertWindowsProfile := func(filename, locURI string, teamID uint, wantStatus int, wantErrMsg string) string {
-		var tmPtr *uint
-		if teamID > 0 {
-			tmPtr = &teamID
+	assertWindowsProfile := func(filename, locURI string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := map[string][]string{
+			"labels": labelNames,
 		}
-		body, headers := generateNewProfileMultipartRequest(t, tmPtr,
-			filename, []byte(fmt.Sprintf(`<Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI)), s.token)
+		if teamID > 0 {
+			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+		}
+		body, headers := generateNewProfileMultipartRequest(
+			t,
+			filename,
+			[]byte(fmt.Sprintf(`<Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI)),
+			s.token,
+			fields,
+		)
 		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), wantStatus, headers)
 
 		if wantErrMsg != "" {
@@ -8659,8 +8685,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Equal(t, "w", string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
-	createWindowsProfile := func(name string, teamID uint) string {
-		uid := assertWindowsProfile(name+".xml", "./Test", teamID, http.StatusOK, "")
+	createWindowsProfile := func(name string, teamID uint, labels []string) string {
+		uid := assertWindowsProfile(name+".xml", "./Test", teamID, labels, http.StatusOK, "")
 
 		var wantJSON string
 		if teamID == 0 {
@@ -8674,52 +8700,92 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	}
 
 	// create a couple Apple profiles for no-team and team
-	noTeamAppleProfUUID := createAppleProfile("apple-global-profile", "test-global-ident", 0)
-	teamAppleProfUUID := createAppleProfile("apple-team-profile", "test-team-ident", testTeam.ID)
+	noTeamAppleProfUUID := createAppleProfile("apple-global-profile", "test-global-ident", 0, nil)
+	teamAppleProfUUID := createAppleProfile("apple-team-profile", "test-team-ident", testTeam.ID, nil)
 	// create a couple Windows profiles for no-team and team
-	noTeamWinProfUUID := createWindowsProfile("win-global-profile", 0)
-	teamWinProfUUID := createWindowsProfile("win-team-profile", testTeam.ID)
+	noTeamWinProfUUID := createWindowsProfile("win-global-profile", 0, nil)
+	teamWinProfUUID := createWindowsProfile("win-team-profile", testTeam.ID, nil)
 
 	// Windows profile name conflicts with Apple's for no team
-	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-global-profile.xml", "./Test", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
-	assertWindowsProfile("apple-global-profile.xml", "./Test", testTeam.ID, http.StatusOK, "")
+	assertWindowsProfile("apple-global-profile.xml", "./Test", testTeam.ID, nil, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for no team
-	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for team 1
-	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, http.StatusOK, "")
+	assertAppleProfile("win-global-profile.mobileconfig", "win-global-profile", "test-global-ident-2", testTeam.ID, nil, http.StatusOK, "")
 	// Windows profile name conflicts with Apple's for team 1
-	assertWindowsProfile("apple-team-profile.xml", "./Test", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertWindowsProfile("apple-team-profile.xml", "./Test", testTeam.ID, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
-	assertWindowsProfile("apple-team-profile.xml", "./Test", 0, http.StatusOK, "")
+	assertWindowsProfile("apple-team-profile.xml", "./Test", 0, nil, http.StatusOK, "")
 	// Apple profile name conflicts with Windows' for team 1
-	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
-	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, http.StatusOK, "")
+	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
 
 	// not an xml nor mobileconfig file
-	assertWindowsProfile("foo.txt", "./Test", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
-	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
 
 	// Windows-reserved LocURI
-	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
-	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
+	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
+	assertWindowsProfile("updates.xml", syncml.FleetOSUpdateTargetLocURI, testTeam.ID, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include Windows updates settings.")
 
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
-		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
-		assertWindowsProfile(name+".xml", "./Test", 0, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
+		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
+		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
 	}
 
+	// profiles with non-existent labels
+	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+
+	// create a couple of labels
+	labelFoo := &fleet.Label{Name: "foo", Query: "select * from foo;"}
+	labelFoo, err = s.ds.NewLabel(context.Background(), labelFoo)
+	require.NoError(t, err)
+	labelBar := &fleet.Label{Name: "bar", Query: "select * from bar;"}
+	labelBar, err = s.ds.NewLabel(context.Background(), labelBar)
+	require.NoError(t, err)
+
+	// profiles mixing existent and non-existent labels
+	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+
+	// profiles with valid labels
+	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"foo"}, http.StatusOK, "")
+	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"foo", "bar"}, http.StatusOK, "")
+
+	// verify that the label associations have been created
+	// TODO: update when we have datastore methods to get this data
+	var profileLabels []fleet.ConfigurationProfileLabel
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		stmt := `SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id FROM mdm_configuration_profile_labels`
+		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
+	})
+
+	require.NotEmpty(t, profileLabels)
+	require.Len(t, profileLabels, 3)
+	require.ElementsMatch(
+		t,
+		[]fleet.ConfigurationProfileLabel{
+			{ProfileUUID: uuidAppleWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
+			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
+			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelBar.Name, LabelID: labelBar.ID},
+		},
+		profileLabels,
+	)
+
 	// Windows invalid content
-	body, headers := generateNewProfileMultipartRequest(t, nil, "win.xml", []byte("\x00\x01\x02"), s.token)
+	body, headers := generateNewProfileMultipartRequest(t, "win.xml", []byte("\x00\x01\x02"), s.token, nil)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
 
 	// Apple invalid content
-	body, headers = generateNewProfileMultipartRequest(t, nil,
-		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token)
+	body, headers = generateNewProfileMultipartRequest(t,
+		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "mobileconfig is not XML nor PKCS7 parseable")
@@ -8782,7 +8848,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// trying to create/delete profiles managed by Fleet fails
 	for p := range mobileconfig.FleetPayloadIdentifiers() {
-		assertAppleProfile("foo.mobileconfig", p, p, 0, http.StatusBadRequest, fmt.Sprintf("payload identifier %s is not allowed", p))
+		assertAppleProfile("foo.mobileconfig", p, p, 0, nil, http.StatusBadRequest, fmt.Sprintf("payload identifier %s is not allowed", p))
 
 		// create it directly in the DB to test deletion
 		uid := "a" + uuid.NewString()

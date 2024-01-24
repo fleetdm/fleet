@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -31,6 +32,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
 		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
+		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 	}
 
 	for _, c := range cases {
@@ -1924,4 +1926,168 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			}
 		})
 	}
+}
+
+func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a label
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+	}
+	label, err := ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+
+	// create a macOS config profile
+	macOSProfile, err := ds.NewMDMAppleConfigProfile(
+		ctx,
+		fleet.MDMAppleConfigProfile{
+			Name:         "DummyTestName",
+			Identifier:   "DummyTestIdentifier",
+			Mobileconfig: mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes")),
+			TeamID:       nil,
+		},
+	)
+	require.NoError(t, err)
+
+	// create a Windows config profile
+	windowsProfile, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "with-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+		},
+	)
+	require.NoError(t, err)
+
+	platforms := map[string]string{
+		"darwin":  macOSProfile.ProfileUUID,
+		"windows": windowsProfile.ProfileUUID,
+	}
+
+	for platform, uuid := range platforms {
+		expectLabels := func(t *testing.T, want []fleet.ConfigurationProfileLabel) {
+			if len(want) == 0 {
+				return
+			}
+
+			var sb strings.Builder
+			var args []any
+			for i, cpl := range want {
+				if i > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString("(?, ?)")
+				args = append(args, cpl.ProfileUUID, cpl.LabelName)
+			}
+
+			p := platform
+			if p == "darwin" {
+				p = "apple"
+			}
+
+			query := fmt.Sprintf("SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE (%s_profile_uuid, label_name) IN (%s)", p, p, sb.String())
+			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+				var got []fleet.ConfigurationProfileLabel
+				err := sqlx.SelectContext(ctx, tx, &got, query, args...)
+				require.NoError(t, err)
+				require.Len(t, got, len(want))
+				return nil
+			})
+		}
+
+		t.Run("empty input "+platform, func(t *testing.T) {
+			want := []fleet.ConfigurationProfileLabel{}
+			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, want, platform)
+			})
+			require.NoError(t, err)
+			expectLabels(t, want)
+		})
+
+		t.Run("valid input "+platform, func(t *testing.T) {
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
+			}
+			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+			})
+			require.NoError(t, err)
+			expectLabels(t, profileLabels)
+		})
+
+		t.Run("invalid profile UUID "+platform, func(t *testing.T) {
+			invalidProfileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: "invalid-uuid", LabelName: label.Name, LabelID: label.ID},
+			}
+
+			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+			})
+			require.Error(t, err)
+		})
+
+		t.Run("invalid label data "+platform, func(t *testing.T) {
+			// invalid id
+			invalidProfileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: 12345},
+			}
+			err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+			})
+			require.Error(t, err)
+
+			// both invalid
+			invalidProfileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: "xyz", LabelID: 1235},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, invalidProfileLabels, platform)
+			})
+			require.Error(t, err)
+		})
+
+		t.Run("labels are removed "+platform, func(t *testing.T) {
+			// create a new label
+			newLabel := &fleet.Label{
+				Name:        "new label" + platform,
+				Description: "a label",
+				Query:       "select 1 from orbit_info;",
+			}
+			newLabel, err := ds.NewLabel(ctx, newLabel)
+			require.NoError(t, err)
+
+			// apply a batch set with the new label
+			profileLabels := []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
+				{ProfileUUID: uuid, LabelName: newLabel.Name, LabelID: newLabel.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+			})
+			require.NoError(t, err)
+			// both are stored in the DB
+			expectLabels(t, profileLabels)
+
+			// batch apply again without the newLabel
+			profileLabels = []fleet.ConfigurationProfileLabel{
+				{ProfileUUID: uuid, LabelName: label.Name, LabelID: label.ID},
+			}
+			err = ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
+			})
+			require.NoError(t, err)
+			expectLabels(t, profileLabels)
+		})
+	}
+
+	t.Run("unsupported platform", func(t *testing.T) {
+		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+			return batchSetProfileLabelAssociationsDB(ctx, tx, []fleet.ConfigurationProfileLabel{{}}, "unsupported")
+		})
+		require.Error(t, err)
+	})
 }

@@ -721,3 +721,75 @@ WHERE
 
 	return dest, nil
 }
+
+func batchSetProfileLabelAssociationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	profileLabels []fleet.ConfigurationProfileLabel,
+	platform string,
+) error {
+	if len(profileLabels) == 0 {
+		return nil
+	}
+
+	var platformPrefix string
+	switch platform {
+	case "darwin":
+		// map "darwin" to "apple" to be consistent with other
+		// "platform-agnostic" datastore methods. We initially used "darwin"
+		// because that's what hosts use (as the data is reported by osquery)
+		// and sometimes we want to dynamically select a table based on host
+		// data.
+		platformPrefix = "apple"
+	case "windows":
+		platformPrefix = "windows"
+	default:
+		return fmt.Errorf("unsupported platform %s", platform)
+	}
+
+	deleteStmt := `
+	  DELETE FROM mdm_configuration_profile_labels
+	  WHERE (%s_profile_uuid, label_id) NOT IN (%s)
+	`
+
+	upsertStmt := `
+	  INSERT INTO mdm_configuration_profile_labels
+              (%s_profile_uuid, label_id, label_name)
+          VALUES
+              %s
+          ON DUPLICATE KEY UPDATE
+              label_id = VALUES(label_id)
+	`
+
+	var insertBuilder strings.Builder
+	var deleteBuilder strings.Builder
+	var insertParams []any
+	var deleteParams []any
+	for i, pl := range profileLabels {
+		if i > 0 {
+			insertBuilder.WriteString(",")
+			deleteBuilder.WriteString(",")
+		}
+		insertBuilder.WriteString("(?, ?, ?)")
+		deleteBuilder.WriteString("(?, ?)")
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
+	if err != nil {
+		if isChildForeignKeyError(err) {
+			// one of the provided labels doesn't exist
+			return foreignKey("mdm_configuration_profile_labels", fmt.Sprintf("(profile, label)=(%v)", insertParams))
+		}
+
+		return ctxerr.Wrap(ctx, err, "setting label associations for profile")
+	}
+
+	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String())
+	if _, err := tx.ExecContext(ctx, deleteStmt, deleteParams...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting labels for profiles")
+	}
+
+	return nil
+}
