@@ -4,10 +4,6 @@ import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { OsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
-// import {
-//   createMockOSVersionResponse,
-//   createMockOSVersionsResponse,
-// } from "__mocks__/operatingSystemsMock";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
@@ -28,7 +24,7 @@ export interface IGetOSVersionsQueryParams {
 }
 
 export interface IGetOSVersionsDetailsQueryParams {
-  name?: string;
+  name_only?: string;
   version?: string;
 }
 
@@ -80,14 +76,14 @@ export const getOSVersions = ({
 };
 
 const getOSVersion = ({
-  name,
+  name_only,
   version,
 }: IGetOSVersionsDetailsQueryParams): Promise<IOSVersionResponse> => {
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
 
   const queryString = buildQueryStringFromParams({
-    name,
+    name_only,
     version,
   });
 

@@ -1,7 +1,5 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter, Params } from "react-router/lib/Router";
-import { RouteProps } from "react-router/lib/Route";
 
 import osVersionsAPI, {
   IOSVersionResponse,
@@ -63,7 +61,7 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
     IOperatingSystemVersion
   >(
     ["osVersionDetails", name, osVersion],
-    () => osVersionsAPI.getOSVersion({ name, version: osVersion }),
+    () => osVersionsAPI.getOSVersion({ name_only: name, version: osVersion }),
     {
       select: (res) => res.os_version,
     }
