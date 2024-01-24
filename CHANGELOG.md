@@ -1,3 +1,27 @@
+## Fleet 4.43.3 (Jan 23, 2024)
+
+### Bug fixes
+
+* Fixed incorrect padding on the my device page.
+
+## Fleet 4.43.2 (Jan 22, 2024)
+
+### Bug fixes
+
+* Improved HTTP client used by `fleetctl` and `fleetd` to prevent errors for 204 responses.
+* Added free tier UI state to OS updates and setup experience pages.
+* Added warning/info messages when downgrading/upgrading `fleetd` or OSQuery.
+* Updated links to an expired osquery Slack invitation to go to the support page on the Fleet website.
+* Cleaned settings styling.
+* Created consistent loading states when using search filter.
+* Fixed center styling for empty states. For `software/titles` and `software/versions` endpoints, the
+  `browser` property is no longer included in the response when empty.
+* Fixed the Windows MDM polling interval so that enrolled devices check-in regularly with Fleet to look for pending MDM-related actions.
+* Fixed missing empty members SVG by fixing SVG IDs.
+* Fixed a bug that caused the software/titles page to error.
+* Fixed 2 vulnerability false positives on Microsoft Teams on MacOS.
+* Fixed bug in CIS policy: Ensure an Inactivity Interval of 20 Minutes Or Less for the Screen Saver Is Enabled.
+
 ## Fleet 4.43.1 (Jan 15, 2024)
 
 ### Bug fixes

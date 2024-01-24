@@ -325,12 +325,12 @@ const generateTableHeaders = (
 };
 
 // The next update will match the next host count update, unless extra time is needed for hosts to send in their policy results.
-const nextPolicyUpdateMs = function (
+const nextPolicyUpdateMs = (
   policyItemUpdatedAtMs: Date,
   nextHostCountUpdateMs: number,
   hostCountUpdateIntervalMs: number,
   osqueryPolicyMs: number
-) {
+) => {
   let timeFromPolicyItemUpdateToNextHostCountUpdateMs =
     Date.now() - policyItemUpdatedAtMs.getTime() + nextHostCountUpdateMs;
   let additionalUpdateTimeMs = 0;
