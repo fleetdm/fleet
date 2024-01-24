@@ -42,7 +42,7 @@ jobs:
       matrix:
         os: [ubuntu-latest]
         go-version: ['${{ vars.GO_VERSION }}']
-        mysql: ["mysql:5.7.21", "mysql:8.0.28"]
+        mysql: ["percona:ps-5.7.25"]
     runs-on: ${{ matrix.os }}
 
     env:
