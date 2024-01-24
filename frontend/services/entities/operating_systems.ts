@@ -4,10 +4,6 @@ import endpoints from "utilities/endpoints";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { OsqueryPlatform } from "interfaces/platform";
 import { buildQueryStringFromParams } from "utilities/url";
-import {
-  createMockOSVersionResponse,
-  createMockOSVersionsResponse,
-} from "__mocks__/operatingSystemsMock";
 
 // TODO: add platforms to this constant as new ones are supported
 export const OS_VERSIONS_API_SUPPORTED_PLATFORMS = [
@@ -27,6 +23,11 @@ export interface IGetOSVersionsQueryParams {
   per_page?: number;
 }
 
+export interface IGetOSVersionsDetailsQueryParams {
+  os_name?: string;
+  os_version?: string;
+}
+
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
   scope: string;
 }
@@ -39,10 +40,6 @@ export interface IOSVersionsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
-}
-
-export interface IOSVersionResponse {
-  os_version: IOperatingSystemVersion;
 }
 
 export const getOSVersions = ({
@@ -71,18 +68,23 @@ export const getOSVersions = ({
 
   if (queryString) path += `?${queryString}`;
 
-  // return sendRequest("GET", path); // TODO: API INTEGRATION: uncomment when API is ready
-  return new Promise((resolve, reject) => {
-    resolve(createMockOSVersionsResponse());
-  });
+  return sendRequest("GET", path);
 };
 
-const getOSVersion = (id: number): Promise<IOSVersionResponse> => {
-  const { OS_VERSION } = endpoints;
-  // return sendRequest("GET", OS_VERSION(id)); // TODO: API INTEGRATION: uncomment when API is ready
-  return new Promise((resolve, reject) => {
-    resolve(createMockOSVersionResponse());
+const getOSVersion = ({
+  os_name,
+  os_version,
+}: IGetOSVersionsDetailsQueryParams): Promise<IOSVersionsResponse> => {
+  const { OS_VERSIONS } = endpoints;
+  let path = OS_VERSIONS;
+
+  const queryString = buildQueryStringFromParams({
+    os_name,
+    os_version,
   });
+
+  if (queryString) path += `?${queryString}`;
+  return sendRequest("GET", path);
 };
 
 export default {

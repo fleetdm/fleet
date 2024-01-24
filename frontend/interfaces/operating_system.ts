@@ -1,14 +1,13 @@
 import { ISoftwareVulnerability } from "./software";
 
 export interface IOperatingSystemVersion {
-  id: number;
   name: string;
   name_only: string;
   version: string;
   platform: string;
   hosts_count: number;
-  generated_cpe: string; // TODO: API INTEGRATION: can this be other values?
-  vulnerabilities: ISoftwareVulnerability[]; // TODO: API INTEGRATION: can this be other values?
+  generated_cpe: string;
+  vulnerabilities: ISoftwareVulnerability[];
 }
 
 export const OS_VENDOR_BY_PLATFORM: Record<string, string> = {
