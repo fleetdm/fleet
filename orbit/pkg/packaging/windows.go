@@ -150,17 +150,42 @@ func BuildMSI(opt Options) (string, error) {
 	}
 
 	absWixDir := opt.LocalWixDir
+	wineChecked := false
+
+	// Download wix for macOS running on arm64
+	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
+		const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
+		fmt.Println("Detected macOS arm64. fleetctl must use wine and wix to build the MSI package.")
+
+		if err = checkWine(false); err != nil {
+			return "", err
+		}
+		wineChecked = true
+
+		fmt.Printf("Downloading wix from %s\n", wixDownload)
+		wixZip := filepath.Join(tmpDir, "wix.zip")
+		cmd := exec.Command("wget", wixDownload, "-nv", "-O", wixZip)
+		if err = cmd.Run(); err != nil {
+			return "", fmt.Errorf("download wix: %w", err)
+		}
+		err = os.Mkdir(filepath.Join(tmpDir, "wix"), constant.DefaultDirMode)
+		if err != nil {
+			return "", fmt.Errorf("could not create wix directory: %w", err)
+		}
+		cmd = exec.Command("unzip", "-d", filepath.Join(tmpDir, "wix"), wixZip)
+		if err = cmd.Run(); err != nil {
+			return "", fmt.Errorf("unzip wix: %w", err)
+		}
+		absWixDir = filepath.Join(tmpDir, "wix")
+	}
+
 	if absWixDir != "" {
 		absWixDir, err = filepath.Abs(absWixDir)
 		if err != nil {
 			return "", fmt.Errorf("could not get filepath from local-wix-dir %s: %w", opt.LocalWixDir, err)
 		}
-		if runtime.GOOS == "darwin" {
-			// Ensure wine is installed
-			cmd := exec.Command(wix.WineCmd, "--version")
-			if err = cmd.Run(); err != nil {
-				return "", fmt.Errorf("%s failed. Is it properly installed and configured? %w", wix.WineCmd, err)
-			}
+		if err = checkWine(wineChecked); err != nil {
+			return "", err
 		}
 	}
 	if err := wix.Heat(tmpDir, opt.NativeTooling, absWixDir); err != nil {
@@ -189,6 +214,17 @@ func BuildMSI(opt Options) (string, error) {
 	log.Info().Str("path", filename).Msg("wrote msi package")
 
 	return filename, nil
+}
+
+func checkWine(wineChecked bool) error {
+	if !wineChecked && runtime.GOOS == "darwin" {
+		// Ensure wine is installed
+		cmd := exec.Command(wix.WineCmd, "--version")
+		if err := cmd.Run(); err != nil {
+			return fmt.Errorf("%s failed. Is it properly installed and configured? https://wiki.winehq.org/MacOS %w", wix.WineCmd, err)
+		}
+	}
+	return nil
 }
 
 func writeWixFile(opt Options, rootPath string) error {
