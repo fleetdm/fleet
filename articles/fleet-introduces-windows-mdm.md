@@ -55,11 +55,11 @@ Fleet simplifies the management of device posture and offers flexibility in cond
 ## Unified GitOps workflow
 
 
+<blockquote purpose="quote">
+I don't want one bad actor to brick my fleet; I want them to make a pull request first.
 
-    _"I don't want one bad actor to brick my fleet; I want them to make a pull request first."_
-
-    Matt Carr, CPE manager
-
+Matt Carr, CPE manager
+</blockquote>
 
 Fleet's adoption of the GitOps workflow represents a significant advancement in managing device configuration profiles. This modern approach to continuous deployment (CD) uses Git as the central source of truth for declarative infrastructure and application configurations and, now, with our latest update, for MDM configuration profiles across both macOS and Windows platforms.
 
