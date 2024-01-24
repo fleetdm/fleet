@@ -502,6 +502,7 @@ module.exports.routes = {
   'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
   'GET /mdm': '/device-management',// « alias for radio ad
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
+  'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
 
   // Fleet UI
   // =============================================================================================================
