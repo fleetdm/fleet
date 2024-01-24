@@ -26,6 +26,7 @@ import Slider from "components/forms/fields/Slider";
 import Radio from "components/forms/fields/Radio";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import CustomLink from "components/CustomLink";
 import validUrl from "components/forms/validators/valid_url";
 
 import { IWebhookSoftwareVulnerabilities } from "interfaces/webhook";
@@ -480,6 +481,15 @@ const ManageAutomationsModal = ({
               />
             </div>
             {integrationEnabled ? renderTicket() : renderWebhook()}
+            <p>
+              Vulnerability automations currently run for software
+              vulnerabilities. Interested in automations for OS vulnerabilities?{" "}
+              <CustomLink
+                url="https://www.fleetdm.com/support"
+                text="Let us know"
+                newTab
+              />
+            </p>
           </div>
           {!softwareAutomationsEnabled && (
             <div className={`${baseClass}__overlay`} />
