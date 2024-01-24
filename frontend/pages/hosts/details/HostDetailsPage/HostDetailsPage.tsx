@@ -20,6 +20,8 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
+
+import { IActivityDetails } from "interfaces/activity";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -81,6 +83,7 @@ import RunScriptModal from "./modals/RunScriptModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
+import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 
 const baseClass = "host-details";
 
@@ -115,7 +118,7 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
-const DEFAULT_ACTIVITY_PAGE_SIZE = 2;
+const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
 
 const HostDetailsPage = ({
   route,
@@ -172,10 +175,6 @@ const HostDetailsPage = ({
     "past" | "upcoming"
   >("past");
   const [activityPage, setActivityPage] = useState(0);
-
-  // used to track the current script execution id we want to show in the show
-  // details modal.
-  const scriptExecutionId = useRef<string | null>(null);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -347,6 +346,7 @@ const HostDetailsPage = ({
     isFetching: pastActivitiesIsFetching,
     isLoading: pastActivitiesIsLoading,
     isError: pastActivitiesIsError,
+    refetch: refetchPastActivities,
   } = useQuery<
     IActivitiesResponse,
     Error,
@@ -355,6 +355,7 @@ const HostDetailsPage = ({
       scope: string;
       pageIndex: number;
       perPage: number;
+      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -362,6 +363,7 @@ const HostDetailsPage = ({
         scope: "past-activities",
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ pageIndex: page, perPage }] }) => {
@@ -378,6 +380,7 @@ const HostDetailsPage = ({
     isFetching: upcomingActivitiesIsFetching,
     isLoading: upcomingActivitiesIsLoading,
     isError: upcomingActivitiesIsError,
+    refetch: refetchUpcomingActivities,
   } = useQuery<
     IActivitiesResponse,
     Error,
@@ -386,6 +389,7 @@ const HostDetailsPage = ({
       scope: string;
       pageIndex: number;
       perPage: number;
+      activeTab: "past" | "upcoming";
     }>
   >(
     [
@@ -393,6 +397,7 @@ const HostDetailsPage = ({
         scope: "upcoming-activities",
         pageIndex: activityPage,
         perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        activeTab: activeActivityTab,
       },
     ],
     ({ queryKey: [{ pageIndex: page, perPage }] }) => {
@@ -557,6 +562,19 @@ const HostDetailsPage = ({
     setActivityPage(0);
   };
 
+  const onShowActivityDetails = useCallback(
+    ({ type, details }: IShowActivityDetailsData) => {
+      console.log("clicked", type, details);
+      switch (type) {
+        case "ran_script":
+          setScriptDetailsId(details?.script_execution_id || "");
+          break;
+        default: // do nothing
+      }
+    },
+    []
+  );
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -613,6 +631,12 @@ const HostDetailsPage = ({
     },
     []
   );
+
+  const onCloseRunScriptModal = useCallback(() => {
+    setShowRunScriptModal(false);
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [refetchPastActivities, refetchUpcomingActivities]);
 
   const onSelectHostAction = (action: string) => {
     switch (action) {
@@ -801,7 +825,7 @@ const HostDetailsPage = ({
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
                 // TODO: show modal
-                onShowDetails={() => null}
+                onShowDetails={onShowActivityDetails}
               />
               <AgentOptionsCard
                 osqueryData={osqueryData}
@@ -888,7 +912,7 @@ const HostDetailsPage = ({
             currentUser={currentUser}
             scriptDetailsId={scriptDetailsId}
             setScriptDetailsId={setScriptDetailsId}
-            setShowModal={setShowRunScriptModal}
+            onClose={onCloseRunScriptModal}
           />
         )}
         {!!host && showTransferHostModal && (

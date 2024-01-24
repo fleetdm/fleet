@@ -12,13 +12,14 @@ import {
   addGravatarUrlToResource,
   internationalTimeFormat,
 } from "utilities/helpers";
-import { IActivityDetails } from "interfaces/activity";
+import { IActivity, IActivityDetails } from "interfaces/activity";
+import { ShowActivityDetailsHandler } from "../Activity";
 
 const baseClass = "past-activity";
 
 interface IPastActivityProps {
-  activity: any; // TODO: type
-  onDetailsClick: (details: IActivityDetails) => void;
+  activity: IActivity; // TODO: type
+  onDetailsClick: ShowActivityDetailsHandler;
 }
 
 const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
@@ -49,15 +50,11 @@ const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
             <b>{activity.actor_full_name} </b>
             <>
               {" "}
-              ran {scriptNameDisplay} on this host.{" "}
+              told Fleet to run {scriptNameDisplay} on this host.{" "}
               <Button
                 className={`${baseClass}__show-query-link`}
                 variant="text-link"
-                onClick={() =>
-                  onDetailsClick?.({
-                    script_execution_id: activity.details?.script_execution_id,
-                  })
-                }
+                onClick={() => onDetailsClick?.(activity)}
               >
                 Show details{" "}
                 <Icon className={`${baseClass}__show-query-icon`} name="eye" />

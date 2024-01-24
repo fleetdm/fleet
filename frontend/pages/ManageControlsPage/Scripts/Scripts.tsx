@@ -7,9 +7,9 @@ import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import scriptAPI, {
   IListScriptsQueryKey,
-  IScript,
   IScriptsResponse,
 } from "services/entities/scripts";
+import { IScript } from "interfaces/script";
 
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";

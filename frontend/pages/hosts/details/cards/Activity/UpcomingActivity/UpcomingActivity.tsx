@@ -2,7 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 import { formatDistanceToNowStrict } from "date-fns";
 
-import { IActivityDetails } from "interfaces/activity";
+import { IActivity } from "interfaces/activity";
 import { COLORS } from "styles/var/colors";
 import { DEFAULT_GRAVATAR_LINK } from "utilities/constants";
 import {
@@ -13,12 +13,13 @@ import {
 import Avatar from "components/Avatar";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import { ShowActivityDetailsHandler } from "../Activity";
 
 const baseClass = "upcoming-activity";
 
 interface IUpcomingActivityProps {
-  activity: any;
-  onDetailsClick: (details: IActivityDetails) => void;
+  activity: IActivity;
+  onDetailsClick: ShowActivityDetailsHandler;
 }
 
 const UpcomingActivity = ({
@@ -56,11 +57,7 @@ const UpcomingActivity = ({
               <Button
                 className={`${baseClass}__show-query-link`}
                 variant="text-link"
-                onClick={() =>
-                  onDetailsClick?.({
-                    script_execution_id: activity.details?.script_execution_id,
-                  })
-                }
+                onClick={() => onDetailsClick?.(activity)}
               >
                 Show details{" "}
                 <Icon className={`${baseClass}__show-query-icon`} name="eye" />

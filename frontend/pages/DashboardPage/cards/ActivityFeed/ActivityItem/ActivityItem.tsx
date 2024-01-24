@@ -614,16 +614,26 @@ const TAGGED_TEMPLATES = {
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
+    const { script_name, host_display_name, script_execution_id } =
+      activity.details || {};
     return (
       <>
         {" "}
-        ran a script on {activity.details?.host_display_name}.{" "}
+        told Fleet to run{" "}
+        {script_name ? (
+          <>
+            the <b>{script_name}</b> script
+          </>
+        ) : (
+          "a script"
+        )}{" "}
+        on {host_display_name}.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
           onClick={() =>
             onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id: activity.details?.script_execution_id,
+              script_execution_id,
             })
           }
         >

@@ -1,8 +1,5 @@
-import {
-  IHostScript,
-  IScript,
-  IScriptResultResponse,
-} from "services/entities/scripts";
+import { IScriptResultResponse } from "services/entities/scripts";
+import { IScript, IHostScript } from "interfaces/script";
 
 const DEFAULT_SCRIPT_MOCK: IScript = {
   id: 1,

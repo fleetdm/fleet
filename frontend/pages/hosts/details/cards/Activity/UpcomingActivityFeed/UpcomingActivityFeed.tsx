@@ -10,13 +10,14 @@ import Button from "components/buttons/Button";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
+import { ShowActivityDetailsHandler } from "../Activity";
 
 const baseClass = "upcoming-activity-feed";
 
 interface IUpcomingActivityFeedProps {
   activities?: IActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: (details: IActivityDetails) => void;
+  onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }
