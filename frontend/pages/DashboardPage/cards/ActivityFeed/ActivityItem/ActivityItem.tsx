@@ -610,6 +610,9 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  // TODO: Combine ranScript template with host details page templates
+  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
+  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
   ranScript: (
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void

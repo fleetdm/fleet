@@ -22,6 +22,8 @@ interface IUpcomingActivityProps {
   onDetailsClick: ShowActivityDetailsHandler;
 }
 
+// TODO: Combine this with ./UpcomingActivity/UpcomingActivity.tsx and
+// frontend/pages/DashboardPage/cards/ActivityFeed/ActivityItem/ActivityItem.tsx
 const UpcomingActivity = ({
   activity,
   onDetailsClick,

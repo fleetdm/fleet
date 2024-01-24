@@ -18,10 +18,11 @@ import { ShowActivityDetailsHandler } from "../Activity";
 const baseClass = "past-activity";
 
 interface IPastActivityProps {
-  activity: IActivity; // TODO: type
+  activity: IActivity;
   onDetailsClick: ShowActivityDetailsHandler;
 }
-
+// TODO: Combine this with ./UpcomingActivity/UpcomingActivity.tsx and
+// frontend/pages/DashboardPage/cards/ActivityFeed/ActivityItem/ActivityItem.tsx
 const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
   const { actor_email } = activity;
   const { gravatar_url } = actor_email
