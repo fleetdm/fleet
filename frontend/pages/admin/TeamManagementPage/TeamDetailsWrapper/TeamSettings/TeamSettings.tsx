@@ -1,18 +1,25 @@
-import Button from "components/buttons/Button";
-// @ts-ignore
-import InputField from "components/forms/fields/InputField";
+import React, { useCallback, useContext, useEffect, useState } from "react";
+
+import { useQuery } from "react-query";
+
+import { NotificationContext } from "context/notification";
+
 import useTeamIdParam from "hooks/useTeamIdParam";
+
+import { IApiError } from "interfaces/errors";
+import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
-import React, { useCallback, useContext, useEffect, useState } from "react";
-import { useQuery } from "react-query";
-import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
 import configAPI from "services/entities/config";
-import { IConfig } from "interfaces/config";
-import { NotificationContext } from "context/notification";
-import { IApiError } from "interfaces/errors";
-import Spinner from "components/Spinner";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
+import Button from "components/buttons/Button";
 import DataError from "components/DataError";
+// @ts-ignore
+import InputField from "components/forms/fields/InputField";
+import Spinner from "components/Spinner";
+
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
 const baseClass = "team-settings";
@@ -86,16 +93,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
-    const castedHostExpiryWindow = Number(UITeamHostExpiryWindow);
+    const numHostExpiryWindow = Number(UITeamHostExpiryWindow);
     if (
       // with no global setting, team window can't be empty if enabled
       (!globalHostExpiryEnabled &&
         UITeamExpiryEnabled &&
-        !castedHostExpiryWindow) ||
+        !numHostExpiryWindow) ||
       // if nonempty, must be a positive number
-      isNaN(castedHostExpiryWindow) ||
+      isNaN(numHostExpiryWindow) ||
       // if overriding a global setting, can be empty to disable local setting
-      castedHostExpiryWindow < 0
+      numHostExpiryWindow < 0
     ) {
       errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
     }
