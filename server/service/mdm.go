@@ -1377,7 +1377,7 @@ func (svc *Service) batchValidateProfileLabels(ctx context.Context, labelNames [
 func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []string) ([]fleet.ConfigurationProfileLabel, error) {
 	labelMap, err := svc.batchValidateProfileLabels(ctx, labelNames)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "validating single profile")
+		return nil, ctxerr.Wrap(ctx, err, "validating profile labels")
 	}
 
 	var profLabels []fleet.ConfigurationProfileLabel
@@ -1593,7 +1593,6 @@ func getAppleProfiles(
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
 		}
 
-		fmt.Println("mdmProf.Name, prof.Name", mdmProf.Name, prof.Name)
 		if mdmProf.Name != prof.Name {
 			return nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),

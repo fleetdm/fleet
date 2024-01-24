@@ -279,10 +279,8 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 	return fn(appCfg)
 }
 
-// getProfilesContents takes file paths and creates a map of profile contents
-// keyed by the name of the profile (the file name on Windows,
-// PayloadDisplayName on macOS)
-// TODO: update description
+// getProfilesContents takes file paths and creates a slice of profile payloads
+// ready to batch-apply.
 func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
 	fileNameMap := make(map[string]struct{}, len(profiles))
 	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
