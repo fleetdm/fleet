@@ -157,9 +157,9 @@ func BuildMSI(opt Options) (string, error) {
 		}
 		if runtime.GOOS == "darwin" {
 			// Ensure wine is installed
-			cmd := exec.Command("wine", "--version")
+			cmd := exec.Command(wix.WineCmd, "--version")
 			if err = cmd.Run(); err != nil {
-				return "", fmt.Errorf("wine failed. Is it installed? %w", err)
+				return "", fmt.Errorf("%s failed. Is it properly installed and configured? %w", wix.WineCmd, err)
 			}
 		}
 	}

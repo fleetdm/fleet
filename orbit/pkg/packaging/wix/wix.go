@@ -14,7 +14,8 @@ import (
 const (
 	directoryReference = "ORBITROOT"
 	imageName          = "fleetdm/wix:latest"
-	platform           = "linux/amd64"
+	dockerPlatform     = "linux/amd64"
+	WineCmd            = "wine64"
 )
 
 // Heat runs the WiX Heat command on the provided directory.
@@ -28,7 +29,7 @@ func Heat(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", platform,
+			"docker", "run", "--rm", "--platform", dockerPlatform,
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -38,7 +39,7 @@ func Heat(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		heatPath = filepath.Join(localWixDir, `heat.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, "wine")
+			args = append(args, WineCmd)
 		}
 	}
 
@@ -54,6 +55,10 @@ func Heat(path string, native bool, localWixDir string) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if args[0] == WineCmd {
+		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
+	}
 
 	if native || localWixDir != "" {
 		cmd.Dir = path
@@ -76,7 +81,7 @@ func Candle(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", platform,
+			"docker", "run", "--rm", "--platform", dockerPlatform,
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -86,7 +91,7 @@ func Candle(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		candlePath = filepath.Join(localWixDir, `candle.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, "wine")
+			args = append(args, WineCmd)
 		}
 	}
 	args = append(args,
@@ -97,6 +102,10 @@ func Candle(path string, native bool, localWixDir string) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if args[0] == WineCmd {
+		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
+	}
 
 	if native || localWixDir != "" {
 		cmd.Dir = path
@@ -119,7 +128,7 @@ func Light(path string, native bool, localWixDir string) error {
 	if !native && localWixDir == "" {
 		args = append(
 			args,
-			"docker", "run", "--rm", "--platform", platform,
+			"docker", "run", "--rm", "--platform", dockerPlatform,
 			"--volume", path+":/wix", // mount volume
 			imageName, // image name
 		)
@@ -129,7 +138,7 @@ func Light(path string, native bool, localWixDir string) error {
 	if localWixDir != "" {
 		lightPath = filepath.Join(localWixDir, `light.exe`)
 		if runtime.GOOS == "darwin" {
-			args = append(args, "wine")
+			args = append(args, WineCmd)
 		}
 	}
 	args = append(args,
@@ -142,6 +151,10 @@ func Light(path string, native bool, localWixDir string) error {
 
 	cmd := exec.Command(args[0], args[1:]...)
 	cmd.Stdout, cmd.Stderr = os.Stdout, os.Stderr
+
+	if args[0] == WineCmd {
+		cmd.Env = append(os.Environ(), "WINEDEBUG=-all")
+	}
 
 	if native || localWixDir != "" {
 		cmd.Dir = path
