@@ -152,11 +152,12 @@ func BuildMSI(opt Options) (string, error) {
 	absWixDir := opt.LocalWixDir
 	wineChecked := false
 
-	// Download wix for macOS running on arm64
+	// Download wix for macOS running on arm64, unless a local-wix-dir is provided
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
 		const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
 		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
 
+		// Ensure wine is installed before downloading wix
 		if err = checkWine(false); err != nil {
 			return "", err
 		}
@@ -221,7 +222,10 @@ func checkWine(wineChecked bool) error {
 		// Ensure wine is installed
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
-			return fmt.Errorf("%s failed. Is it properly installed and configured? https://wiki.winehq.org/MacOS %w", wix.WineCmd, err)
+			return fmt.Errorf(
+				"%s failed. Is it properly installed and configured? See https://github.com/fleetdm/fleet/blob/main/orbit/tools/build/install-wine-macos.sh %w",
+				wix.WineCmd, err,
+			)
 		}
 	}
 	return nil
