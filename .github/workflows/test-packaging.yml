@@ -86,7 +86,6 @@ jobs:
         unzip wix.zip -d wix
         rm -f wix.zip
         echo wix installed at $(pwd)/wix
-        export WIXPATH=$(pwd)/wix
 
       # It seems faster not to cache Go dependencies
     - name: Install Go Dependencies
@@ -121,4 +120,4 @@ jobs:
 
     - name: Build MSI (using local Wix)
       if: matrix.os == 'macos-latest'
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir $WIXPATH
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir /Users/runner/work/fleet/fleet/wix
