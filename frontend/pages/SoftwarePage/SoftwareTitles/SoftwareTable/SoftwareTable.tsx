@@ -222,10 +222,15 @@ const SoftwareTable = ({
   };
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
-      software_title_id: row.original.id,
-      team_id: teamId,
-    };
+    const hostsBySoftwareParams = showVersions
+      ? {
+          software_version_id: row.original.id,
+          team_id: teamId,
+        }
+      : {
+          software_title_id: row.original.id,
+          team_id: teamId,
+        };
 
     const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
       hostsBySoftwareParams
