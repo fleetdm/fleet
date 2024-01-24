@@ -55,7 +55,7 @@ interface ISoftwareOSDetailsPageProps {
 const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
   const name = location.query.name;
   const osVersion = location.query.version;
-  const { data, isLoading, isError } = useQuery<
+  const { data: osVersionDetails, isLoading, isError } = useQuery<
     IOSVersionsResponse,
     Error,
     IOperatingSystemVersion
@@ -66,10 +66,6 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
       select: (res) => res.os_versions[0],
     }
   );
-
-  const osVersionDetails = data;
-
-  console.log("osVersionDetails", osVersionDetails);
 
   const renderTable = () => {
     if (!osVersionDetails) {
