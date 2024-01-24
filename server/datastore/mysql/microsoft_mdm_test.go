@@ -1813,11 +1813,29 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.NotEmpty(t, profWithLabel.ProfileUUID)
 
+	// get that profile with label
+	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, label.Name, prof.Labels[0].LabelName)
+	require.Equal(t, label.ID, prof.Labels[0].LabelID)
+	require.False(t, prof.Labels[0].Broken)
+
+	// break that profile by deleting the label
+	require.NoError(t, ds.DeleteLabel(ctx, label.Name))
+
+	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, label.Name, prof.Labels[0].LabelName)
+	require.Zero(t, prof.Labels[0].LabelID)
+	require.True(t, prof.Labels[0].Broken)
+
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
+	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, profA.ProfileUUID, prof.ProfileUUID)
 	require.NotNil(t, prof.TeamID)
@@ -1826,6 +1844,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UpdatedAt)
+	require.Nil(t, prof.Labels)
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)

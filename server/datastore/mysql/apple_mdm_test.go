@@ -196,9 +196,46 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
 	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
+
+	// create a label-based profile
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "lbl", Query: "select 1"})
+	require.NoError(t, err)
+
+	labelCP := fleet.MDMAppleConfigProfile{
+		Name:         "label-based",
+		Identifier:   "label-based",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("LabelTestMobileconfigBytes")),
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: lbl.Name, LabelID: lbl.ID},
+		},
+	}
+	labelProf, err := ds.NewMDMAppleConfigProfile(ctx, labelCP)
+	require.NoError(t, err)
+
+	// get it back from both the deprecated ID and the uuid methods, labels are
+	// only included in the uuid one
+	prof, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, labelProf.ProfileID)
+	require.NoError(t, err)
+	require.Nil(t, prof.Labels)
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.False(t, prof.Labels[0].Broken)
+
+	// break the profile by deleting the label
+	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
+
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.True(t, prof.Labels[0].Broken)
 }
 
 func generateCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
