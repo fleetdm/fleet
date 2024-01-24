@@ -4,7 +4,7 @@ import { render, screen } from "@testing-library/react";
 
 import ReportUpdatedCell from "./ReportUpdatedCell";
 
-const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/{1,2}\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
+const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/\d{1,2}\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
 
 describe("ReportUpdatedCell component", () => {
   it("Renders '---' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
