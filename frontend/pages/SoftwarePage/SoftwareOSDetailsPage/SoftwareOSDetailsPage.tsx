@@ -2,7 +2,7 @@ import React from "react";
 import { useQuery } from "react-query";
 
 import osVersionsAPI, {
-  IOSVersionResponse,
+  IOSVersionsResponse,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
@@ -56,29 +56,36 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
   const name = location.query.name;
   const osVersion = location.query.version;
   const { data, isLoading, isError } = useQuery<
-    IOSVersionResponse,
+    IOSVersionsResponse,
     Error,
     IOperatingSystemVersion
   >(
     ["osVersionDetails", name, osVersion],
-    () => osVersionsAPI.getOSVersion({ name_only: name, version: osVersion }),
+    () => osVersionsAPI.getOSVersion({ os_name: name, os_version: osVersion }),
     {
-      select: (res) => res.os_version,
+      select: (res) => res.os_versions[0],
     }
   );
 
+  const osVersionDetails = data;
+
+  console.log("osVersionDetails", osVersionDetails);
+
   const renderTable = () => {
-    if (!data) {
+    if (!osVersionDetails) {
       return null;
     }
 
-    if (data.platform !== "darwin" && data.platform !== "windows") {
-      return <NotSupportedVuln platform={data.platform} />;
+    if (
+      osVersionDetails.platform !== "darwin" &&
+      osVersionDetails.platform !== "windows"
+    ) {
+      return <NotSupportedVuln platform={osVersionDetails.platform} />;
     }
 
     return (
       <SoftwareVulnerabilitiesTable
-        data={data.vulnerabilities}
+        data={osVersionDetails.vulnerabilities}
         itemName="version"
         isLoading={isLoading}
       />
@@ -94,20 +101,20 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
-    if (!data) {
+    if (!osVersionDetails) {
       return null;
     }
 
     return (
       <>
         <SoftwareDetailsSummary
-          title={`${data.name} ${data.version}`}
-          hosts={data.hosts_count}
+          title={`${osVersionDetails.name} ${osVersionDetails.version}`}
+          hosts={osVersionDetails.hosts_count}
           queryParams={{
-            os_name: data.name_only,
-            os_version: data.version,
+            os_name: osVersionDetails.name_only,
+            os_version: osVersionDetails.version,
           }}
-          name={data.name}
+          name={osVersionDetails.name}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__vulnerabilities-section`}>

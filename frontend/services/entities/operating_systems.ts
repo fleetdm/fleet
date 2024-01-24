@@ -24,8 +24,8 @@ export interface IGetOSVersionsQueryParams {
 }
 
 export interface IGetOSVersionsDetailsQueryParams {
-  name_only?: string;
-  version?: string;
+  os_name?: string;
+  os_version?: string;
 }
 
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
@@ -40,10 +40,6 @@ export interface IOSVersionsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
-}
-
-export interface IOSVersionResponse {
-  os_version: IOperatingSystemVersion;
 }
 
 export const getOSVersions = ({
@@ -76,15 +72,15 @@ export const getOSVersions = ({
 };
 
 const getOSVersion = ({
-  name_only,
-  version,
-}: IGetOSVersionsDetailsQueryParams): Promise<IOSVersionResponse> => {
+  os_name,
+  os_version,
+}: IGetOSVersionsDetailsQueryParams): Promise<IOSVersionsResponse> => {
   const { OS_VERSIONS } = endpoints;
   let path = OS_VERSIONS;
 
   const queryString = buildQueryStringFromParams({
-    name_only,
-    version,
+    os_name,
+    os_version,
   });
 
   if (queryString) path += `?${queryString}`;
