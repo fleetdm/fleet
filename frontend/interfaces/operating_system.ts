@@ -1,7 +1,6 @@
 import { ISoftwareVulnerability } from "./software";
 
 export interface IOperatingSystemVersion {
-  os_id: number; // TODO: API INTEGRATION: does this actaully exist?
   id: number;
   name: string;
   name_only: string;
