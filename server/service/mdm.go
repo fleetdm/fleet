@@ -1,6 +1,7 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1405,19 +1406,20 @@ func (bcp *backwardsCompatProfilesParam) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// use []fleet.MDMProfileBatchPayload to prevent infinite recursion if
-	// we use `backwardsCompatProfileSlice`
-	var profs []fleet.MDMProfileBatchPayload
-	newFormatErr := json.Unmarshal(data, &profs)
-	if newFormatErr == nil {
+	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '[' {
+		// use []fleet.MDMProfileBatchPayload to prevent infinite recursion if we
+		// use `backwardsCompatProfileSlice`
+		var profs []fleet.MDMProfileBatchPayload
+		if err := json.Unmarshal(data, &profs); err != nil {
+			return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
+		}
 		*bcp = profs
 		return nil
 	}
 
 	var backwardsCompat map[string][]byte
-	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
-	if newFormatErr != nil && oldFormatErr != nil {
-		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
+	if err := json.Unmarshal(data, &backwardsCompat); err != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
 	}
 
 	*bcp = make(backwardsCompatProfilesParam, 0, len(backwardsCompat))

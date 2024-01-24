@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -416,25 +417,25 @@ func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 
-	// use an alias type to avoid recursively calling this function
-	// forever.
+	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
+		var backwardsCompat string
+		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
+			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
+		}
+		p.Path = backwardsCompat
+		return nil
+	}
+
+	// use an alias type to avoid recursively calling this function forever.
 	type Alias MDMProfileSpec
 	aliasData := struct {
 		*Alias
 	}{
 		Alias: (*Alias)(p),
 	}
-	newFormatErr := json.Unmarshal(data, &aliasData)
-	if newFormatErr == nil {
-		return nil
+	if err := json.Unmarshal(data, &aliasData); err != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
 	}
-
-	var backwardsCompat string
-	oldFormatErr := json.Unmarshal(data, &backwardsCompat)
-	if newFormatErr != nil && oldFormatErr != nil {
-		return fmt.Errorf("unmarshal profile spec. Error using new format: %w. Error using old format: %w", newFormatErr, oldFormatErr)
-	}
-	p.Path = backwardsCompat
 	return nil
 }
 
