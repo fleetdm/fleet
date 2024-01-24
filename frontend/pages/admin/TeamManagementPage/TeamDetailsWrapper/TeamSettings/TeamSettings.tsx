@@ -165,15 +165,14 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamHostExpiry}>
-        {globalHostExpiryEnabled !== undefined &&
-          globalHostExpiryWindow !== undefined && (
-            <TeamHostExpiryToggle
-              globalHostExpiryEnabled={globalHostExpiryEnabled}
-              globalHostExpiryWindow={globalHostExpiryWindow}
-              teamExpiryEnabled={UITeamExpiryEnabled}
-              setTeamExpiryEnabled={setUITeamExpiryEnabled}
-            />
-          )}
+        {globalHostExpiryEnabled !== undefined && (
+          <TeamHostExpiryToggle
+            globalHostExpiryEnabled={globalHostExpiryEnabled}
+            globalHostExpiryWindow={globalHostExpiryWindow}
+            teamExpiryEnabled={UITeamExpiryEnabled}
+            setTeamExpiryEnabled={setUITeamExpiryEnabled}
+          />
+        )}
         {UITeamExpiryEnabled && (
           <InputField
             label="Host expiry window"

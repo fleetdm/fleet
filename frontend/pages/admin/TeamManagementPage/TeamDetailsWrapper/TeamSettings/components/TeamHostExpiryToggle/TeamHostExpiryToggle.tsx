@@ -7,7 +7,7 @@ const baseClass = "team-host-expiry-toggle";
 
 interface ITeamHostExpiryToggle {
   globalHostExpiryEnabled: boolean;
-  globalHostExpiryWindow: number;
+  globalHostExpiryWindow?: number;
   teamExpiryEnabled: boolean;
   setTeamExpiryEnabled: (value: boolean) => void;
 }
@@ -19,6 +19,7 @@ const TeamHostExpiryToggle = ({
   setTeamExpiryEnabled,
 }: ITeamHostExpiryToggle) => {
   const renderHelpText = () =>
+    // this will never be rendered while globalHostExpiryWindow is undefined
     globalHostExpiryEnabled ? (
       <div className="help-text">
         Host expiry is globally enabled in organization settings. By default,
