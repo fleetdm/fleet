@@ -9,6 +9,7 @@ import softwareAPI, {
   ISoftwareVersionsResponse,
 } from "services/entities/software";
 
+import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import SoftwareTable from "./SoftwareTable";
 
@@ -112,6 +113,10 @@ const SoftwareTitles = ({
       enabled: location.pathname === PATHS.SOFTWARE_VERSIONS,
     }
   );
+
+  if (isTitlesFetching) {
+    return <Spinner />;
+  }
 
   if (isTitlesError || isVersionsError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
