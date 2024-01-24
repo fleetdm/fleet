@@ -210,8 +210,8 @@ type MDMAppleConfigProfile struct {
 type ConfigurationProfileLabel struct {
 	ProfileUUID string `db:"profile_uuid" json:"-"`
 	LabelName   string `db:"label_name" json:"name"`
-	LabelID     uint   `db:"label_id" json:"id"`
-	Broken      *bool  `db:"broken" json:"broken,omitempty"`
+	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
+	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {

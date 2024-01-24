@@ -188,6 +188,61 @@ FROM (
 			profs = profs[:len(profs)-1]
 		}
 	}
+
+	// load the labels associated with those profiles
+	const labelsStmt = `
+SELECT
+	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
+	label_name,
+	COALESCE(label_id, 0) as label_id,
+	IF(label_id IS NULL, 1, 0) as broken
+FROM
+	mdm_configuration_profile_labels mcpl
+WHERE
+	mcpl.apple_profile_uuid IN (?) OR
+	mcpl.windows_profile_uuid IN (?)
+ORDER BY
+	profile_uuid, label_name
+`
+	var winProfUUIDs, macProfUUIDs []string
+	for _, prof := range profs {
+		if prof.Platform == "windows" {
+			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
+		} else {
+			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
+		}
+	}
+
+	// ensure there's at least one (non-matching) value in the slice so the IN
+	// clause is valid
+	if len(winProfUUIDs) == 0 {
+		winProfUUIDs = []string{"-"}
+	}
+	if len(macProfUUIDs) == 0 {
+		macProfUUIDs = []string{"-"}
+	}
+
+	stmt, args, err = sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In for labels in ListMDMConfigProfiles")
+	}
+	var labels []fleet.ConfigurationProfileLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles labels")
+	}
+
+	// match the labels with their profiles
+	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
+	for _, prof := range profs {
+		profMap[prof.ProfileUUID] = prof
+	}
+	for _, label := range labels {
+		prof, ok := profMap[label.ProfileUUID]
+		if ok {
+			prof.Labels = append(prof.Labels, label)
+		}
+	}
+
 	return profs, metaData, nil
 }
 

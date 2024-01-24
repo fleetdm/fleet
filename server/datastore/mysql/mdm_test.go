@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"sort"
+	"strconv"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -364,20 +365,81 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, profB.Name, profs[0].Name)
 	require.Equal(t, *meta, fleet.PaginationMetadata{})
 
+	// create 8 labels for label-based profiles
+	var labels []*fleet.Label
+	for i := 0; i < 8; i++ {
+		lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "l" + strconv.Itoa(i), Query: "select 1"})
+		require.NoError(t, err)
+		labels = append(labels, lbl)
+	}
+
 	// create more profiles and test the pagination with a table-driven test so that
 	// global and team both have 9 profiles (including A and B already created above).
 	for i := 0; i < 3; i++ {
 		inc := i * 4 // e.g. C, D, E, F on first loop, G, H, I, J on second loop, etc.
 
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0))
-		require.NoError(t, err)
-		_, err = ds.NewMDMAppleConfigProfile(ctx, *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID))
+		// create label-based profiles for i==0, meaning CDEF will be label-based
+		acp := *generateCP(string(rune('C'+inc)), string(rune('C'+inc)), 0)
+		if i == 0 {
+			acp.Labels = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[0].Name, LabelID: labels[0].ID},
+				{LabelName: labels[1].Name, LabelID: labels[1].ID},
+			}
+		}
+		_, err = ds.NewMDMAppleConfigProfile(ctx, acp)
 		require.NoError(t, err)
 
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 2)), TeamID: nil, SyncML: winProf})
+		acp = *generateCP(string(rune('C'+inc+1)), string(rune('C'+inc+1)), team.ID)
+		if i == 0 {
+			acp.Labels = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[2].Name, LabelID: labels[2].ID},
+				{LabelName: labels[3].Name, LabelID: labels[3].ID},
+			}
+		}
+		_, err = ds.NewMDMAppleConfigProfile(ctx, acp)
 		require.NoError(t, err)
-		_, err = ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 3)), TeamID: &team.ID, SyncML: winProf})
+
+		wcp := fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 2)), TeamID: nil, SyncML: winProf}
+		if i == 0 {
+			wcp.Labels = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[4].Name, LabelID: labels[4].ID},
+				{LabelName: labels[5].Name, LabelID: labels[5].ID},
+			}
+		}
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
 		require.NoError(t, err)
+
+		wcp = fleet.MDMWindowsConfigProfile{Name: string(rune('C' + inc + 3)), TeamID: &team.ID, SyncML: winProf}
+		if i == 0 {
+			wcp.Labels = []fleet.ConfigurationProfileLabel{
+				{LabelName: labels[6].Name, LabelID: labels[6].ID},
+				{LabelName: labels[7].Name, LabelID: labels[7].ID},
+			}
+		}
+		_, err = ds.NewMDMWindowsConfigProfile(ctx, wcp)
+		require.NoError(t, err)
+	}
+
+	// delete label 3 and 4 so that profiles D and E are broken
+	require.NoError(t, ds.DeleteLabel(ctx, labels[3].Name))
+	require.NoError(t, ds.DeleteLabel(ctx, labels[4].Name))
+	profLabels := map[string][]fleet.ConfigurationProfileLabel{
+		"C": {
+			{LabelName: labels[0].Name, LabelID: labels[0].ID},
+			{LabelName: labels[1].Name, LabelID: labels[1].ID},
+		},
+		"D": {
+			{LabelName: labels[2].Name, LabelID: labels[2].ID},
+			{LabelName: labels[3].Name, LabelID: 0, Broken: true},
+		},
+		"E": {
+			{LabelName: labels[4].Name, LabelID: 0, Broken: true},
+			{LabelName: labels[5].Name, LabelID: labels[5].ID},
+		},
+		"F": {
+			{LabelName: labels[6].Name, LabelID: labels[6].ID},
+			{LabelName: labels[7].Name, LabelID: labels[7].ID},
+		},
 	}
 
 	cases := []struct {
@@ -424,6 +486,17 @@ func testListMDMConfigProfiles(t *testing.T, ds *Datastore) {
 			got := make([]string, len(profs))
 			for i, p := range profs {
 				got[i] = p.Name
+
+				wantProfs := profLabels[p.Name]
+				require.Equal(t, len(wantProfs), len(p.Labels), "profile name: %s", p.Name)
+				if len(wantProfs) > 0 {
+					// clear the profile uuids from the labels list
+					for i, l := range p.Labels {
+						l.ProfileUUID = ""
+						p.Labels[i] = l
+					}
+					require.ElementsMatch(t, wantProfs, p.Labels, "profile name: %s", p.Name)
+				}
 			}
 			require.Equal(t, got, c.wantNames)
 
