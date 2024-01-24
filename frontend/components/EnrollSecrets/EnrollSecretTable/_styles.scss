@@ -3,7 +3,9 @@
     .buttons {
       display: flex;
       position: absolute;
-      left: 475px;
+      left: 410px;
+      justify-content: flex-end;
+      min-width: 130px;
     }
   }
 }

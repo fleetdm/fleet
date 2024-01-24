@@ -48,10 +48,6 @@ interface IDataColumn {
   // or one of the custom `filterTypes` defined for the `useTable` instance (see `DataTable`)
 }
 
-interface IMunkiIssueTableData extends IMunkiIssue {
-  time: string;
-}
-
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
 export const munkiIssuesTableHeaders: IDataColumn[] = [

@@ -90,7 +90,6 @@ const ManageQueriesPage = ({
     filteredQueriesPath,
     isPremiumTier,
     isSandboxMode,
-    isGlobalObserver,
     config,
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
