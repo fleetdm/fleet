@@ -155,7 +155,7 @@ func BuildMSI(opt Options) (string, error) {
 	// Download wix for macOS running on arm64
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
 		const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
-		fmt.Println("Detected macOS arm64. fleetctl must use wine and wix to build the MSI package.")
+		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
 
 		if err = checkWine(false); err != nil {
 			return "", err

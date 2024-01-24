@@ -120,4 +120,4 @@ jobs:
 
     - name: Build MSI (using local Wix)
       if: matrix.os == 'macos-latest'
-      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir /Users/runner/work/fleet/fleet/wix
+      run: ./build/fleetctl package --type msi --enroll-secret=foo --fleet-url=https://localhost:8080 --fleet-desktop --local-wix-dir ./wix
