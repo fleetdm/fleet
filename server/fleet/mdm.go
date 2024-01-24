@@ -362,7 +362,8 @@ type MDMConfigProfilePayload struct {
 	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
-// MDMProfileBatchPayload represents
+// MDMProfileBatchPayload represents the payload to batch-set the profiles for
+// a team or no-team.
 type MDMProfileBatchPayload struct {
 	Name     string   `json:"name,omitempty"`
 	Contents []byte   `json:"contents,omitempty"`

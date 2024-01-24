@@ -333,11 +333,8 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 						spec.Path = path
 					}
 
-					// extract the Labels field
-					//
-					// TODO: what's the behavior for labels? not provided
-					// means that the labels are not modified or that
-					// should be cleaned?
+					// extract the Labels field (if they are not provided, labels are
+					// cleared for that profile)
 					if labels, ok := m["labels"].([]interface{}); ok {
 						for _, label := range labels {
 							if strLabel, ok := label.(string); ok {
@@ -574,7 +571,13 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
-		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+		for i, mps := range c.MDM.MacOSSettings.CustomSettings {
+			clone.MDM.MacOSSettings.CustomSettings[i] = *mps.Copy()
+		}
+	}
+	if c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+		b := *c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption
+		clone.MDM.MacOSSettings.DeprecatedEnableDiskEncryption = &b
 	}
 
 	if c.Scripts.Set {
@@ -585,7 +588,9 @@ func (c *AppConfig) Copy() *AppConfig {
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
 		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
+		for i, mps := range c.MDM.WindowsSettings.CustomSettings.Value {
+			windowsSettings[i] = *mps.Copy()
+		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
