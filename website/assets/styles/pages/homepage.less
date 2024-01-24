@@ -240,24 +240,12 @@
   }
 
   [purpose='platform-block'] {
-    &.hidden {
-      height: 0;
-      margin-bottom: 0;
-      opacity: 0;
-      transition: none;
-    }
-    &.show {
-      transition: opacity 0.3s ease-in;
-      opacity: 1;
-      [purpose='category-image'] {
-        [purpose='vulnerability-management-image'] {
-          [purpose='vulnerability-management-image-1'] {
-            transform: none;
-          }
-          [purpose='vulnerability-management-image-2'] {
-            transform: none;
-          }
-        }
+    [purpose='category-image'] {
+      margin-left: 60px;
+      padding-right: 40px;
+      img {
+        width: auto;
+        height: 293px;
       }
     }
     margin-bottom: 120px;
@@ -296,7 +284,6 @@
   }
   [purpose='category-text-block'] {
     max-width: 428px;
-    padding-right: 32px;
     padding-left: 40px;
   }
   [purpose='platform-left-text-block'] {
@@ -311,13 +298,7 @@
     max-width: 320px;
     margin-right: 80px;
   }
-  [purpose='device-management-image'] {
-    margin-left: 60px;
-    img {
-      width: auto;
-      height: 293px;
-    }
-  }
+
 
   [purpose='category-image'] {
     img {
@@ -325,40 +306,6 @@
       height: 293px;
     }
     transition: transform 0.3s, right 0.3s, left 0.3s, bottom 0.3s;
-
-    [purpose='vulnerability-management-image'] {
-      position: relative;
-      width: 100%;
-      height: 293px;
-      [purpose='vulnerability-management-image-1'] {
-        background: url('/images/homepage-vulnerability-management-table-617x440@2x.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        position: absolute;
-        top: 0;
-        right: 0;
-        z-index: 3;
-        width: 100%;
-        height: 100%;
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
-        transform: translate(10px, 10px);
-      }
-      [purpose='vulnerability-management-image-2'] {
-        background: url('/images/homepage-vulnerability-management-chart-617x440@2x.png');
-        background-size: contain;
-        background-repeat: no-repeat;
-        background-position: center;
-        position: absolute;
-        top: 0;
-        right: 0;
-        z-index: 3;
-        width: 100%;
-        height: 100%;
-        transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) 0.2s;
-        transform: translate(-10px, -10px);
-      }
-    }
   }
   [purpose='platform-image'] {
     width: 520px;
@@ -856,29 +803,17 @@
       padding-left: 0px;
       text-align: center;
     }
-    [purpose='category-image'] {
-      width: 100%;
-      height: auto;
+    [purpose='platform-block'] {
 
-      [purpose='endpoint-ops-image'] {
-        width: auto;
-        height: 292px;
-        margin-left: auto;
-        margin-right: auto;
-      }
-      [purpose='vulnerability-management-image'] {
-        width: calc(~'100% + 26px');
+      [purpose='category-image'] {
+        width: 100%;
         height: auto;
-        margin-left: -12px;
-      }
-    }
-    [purpose='device-management-image'] {
-      width: 100%;
-      margin-top: 60px;
-      margin-left: 0px;
-      img {
-        margin-left: auto;
-        margin-right: auto;
+        margin-left: 0px;
+        padding-right: 0px;
+        img {
+          margin-left: auto;
+          margin-right: auto;
+        }
       }
     }
     [purpose='category-button'] {
@@ -1077,7 +1012,6 @@
         margin: 0 auto;
       }
     }
-
     [purpose='category-switch'] {
       width: 100%;
       margin-top: 60px;
@@ -1101,9 +1035,6 @@
         width: 100%;
       }
     }
-
-
-
     [purpose='platform-left-text-block'] {
       max-width: 100%;
       margin-right: 0px;
@@ -1131,29 +1062,6 @@
         height: auto;
       }
     }
-    [purpose='supported-platforms'] {
-      margin-bottom: 100px;
-    }
-
-    [purpose='platform'] {
-      margin-bottom: 80px;
-    }
-    [purpose='homepage-cards'] {
-      margin-bottom: 100px;
-      [purpose='homepage-card'] {
-        background: #FFFFFF;
-        box-shadow: 0px 4px 32px rgba(0, 0, 0, 0.1);
-        border-radius: 16px;
-        padding: 40px;
-        width: 100%;
-        margin-left: auto;
-        margin-right: auto;
-        border: none;
-        &:first-of-type {
-          margin-bottom: 60px;
-        }
-      }
-    }
     [purpose='three-column-features'] {
       margin-bottom: 120px;
     }
@@ -1179,7 +1087,6 @@
         margin-left: auto;
       }
     }
-
     [purpose='endpoints-banner'] {
       max-height: 480px;
       flex-direction: column;
@@ -1299,7 +1206,12 @@
   //
   @media (max-width: 575px) {
 
-
+    h1 {
+      font-size: 36px;
+    }
+    h4 {
+      font-size: 14px;
+    }
 
     [purpose='hero-background-image'] {
       background-size: 2000px auto;
@@ -1360,7 +1272,6 @@
       }
     }
     [purpose='category-button'] {
-      // flex-grow: 1;
       a {
         width: 100%;
       }
