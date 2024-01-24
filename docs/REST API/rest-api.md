@@ -2454,7 +2454,7 @@ Returns the information of the specified host.
       },
       "profiles": [
         {
-          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -2661,7 +2661,7 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       },
       "profiles": [
         {
-          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -2856,7 +2856,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
       },
       "profiles": [
         {
-          "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24,
+          "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24",
           "name": "profile1",
           "status": "verifying",
           "operation_type": "install",
@@ -3618,7 +3618,7 @@ Retrieves a list of the configuration profiles assigned to a host.
   "host_id": 8,
   "profiles": [
     {
-      "profile_uuid": bc84dae7-396c-4e10-9d45-5768bce8b8bd,
+      "profile_uuid": "bc84dae7-396c-4e10-9d45-5768bce8b8bd",
       "team_id": 0,
       "name": "Example profile",
       "identifier": "com.example.profile",
@@ -4174,7 +4174,7 @@ Content-Type: application/octet-stream
 
 ```json
 {
-  "profile_uuid": 954ec5ea-a334-4825-87b3-937e7e381f24
+  "profile_uuid": "954ec5ea-a334-4825-87b3-937e7e381f24"
 }
 ```
 
@@ -4217,7 +4217,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 {
   "profiles": [
     {
-      "profile_uuid": 39f6cbbc-fe7b-4adc-b7a9-542d1af89c63,
+      "profile_uuid": "39f6cbbc-fe7b-4adc-b7a9-542d1af89c63",
       "team_id": 0,
       "name": "Example macOS profile",
       "platform": "darwin",
@@ -4227,7 +4227,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "dGVzdAo="
     },
     {
-      "profile_uuid": f5ad01cc-f416-4b5f-88f3-a26da3b56a19,
+      "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
