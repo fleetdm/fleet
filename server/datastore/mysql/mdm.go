@@ -514,21 +514,56 @@ func (ds *Datastore) GetHostMDMProfilesExpectedForVerification(ctx context.Conte
 	case "darwin":
 		return ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, host.ID)
 	case "windows":
-		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID)
+		return ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, host.ID)
 	default:
 		return nil, fmt.Errorf("unsupported platform: %s", host.Platform)
 	}
 }
 
-func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
+func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
-  SELECT name, syncml as raw_profile, updated_at as earliest_install_date
-  FROM mdm_windows_configuration_profiles mwcp
-  WHERE mwcp.team_id = ?
+SELECT
+	name,
+	syncml AS raw_profile,
+	mwcp.updated_at AS earliest_install_date,
+	0 AS count_profile_labels,
+	0 AS count_host_labels
+FROM
+	mdm_windows_configuration_profiles mwcp
+WHERE
+	mwcp.team_id = ?
+	AND NOT EXISTS (
+		SELECT
+			1
+		FROM
+			mdm_configuration_profile_labels mcpl
+		WHERE
+			mcpl.apple_profile_uuid = mwcp.profile_uuid)
+	UNION
+	SELECT
+		name,
+		syncml AS raw_profile,
+		mwcp.updated_at AS earliest_install_date,
+		0 AS count_profile_labels,
+		0 AS count_host_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+		JOIN mdm_configuration_profile_labels mcpl ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+		LEFT OUTER JOIN label_membership lm ON lm.label_id = mcpl.label_id
+			AND lm.host_id = ?
+	WHERE
+		mwcp.team_id = ?
+	GROUP BY
+		name
+	HAVING
+		count_profile_labels > 0
+		AND count_host_labels = count_profile_labels
+    
   `
 
 	var profiles []*fleet.ExpectedMDMProfile
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID)
+	// Note: teamID provided twice
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
 	if err != nil {
 		return nil, err
 	}
@@ -543,8 +578,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 
 func (ds *Datastore) getHostMDMAppleProfilesExpectedForVerification(ctx context.Context, teamID, hostID uint) (map[string]*fleet.ExpectedMDMProfile, error) {
 	stmt := `
-	
-		SELECT
+SELECT
 	macp.identifier AS identifier,
 	0 AS count_profile_labels,
 	0 AS count_host_labels,
@@ -568,7 +602,6 @@ WHERE
 			mdm_configuration_profile_labels mcpl
 		WHERE
 			mcpl.apple_profile_uuid = macp.profile_uuid)
-		AND TRUE
 	UNION
 	-- label-based profiles where the host is a member of all the labels
 	SELECT
@@ -591,7 +624,6 @@ WHERE
 			AND lm.host_id = ?
 	WHERE
 		macp.team_id = ?
-		AND TRUE
 	GROUP BY
 		identifier
 	HAVING
