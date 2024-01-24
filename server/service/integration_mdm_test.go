@@ -4718,8 +4718,13 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 	assignHostToTeam(h1, &tm1.ID)
 
 	// Create a new profile that will be labeled
-	body, headers = generateNewProfileMultipartRequest(t, &tm1.ID,
-		"label_prof", mobileconfigForTest("label_prof", "label_prof"), s.token)
+	body, headers = generateNewProfileMultipartRequest(
+		t,
+		"label_prof",
+		mobileconfigForTest("label_prof", "label_prof"),
+		s.token,
+		map[string][]string{"team_id": {fmt.Sprintf("%d", tm1.ID)}},
+	)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/profiles", body.Bytes(), http.StatusOK, headers)
 
 	var uid string
