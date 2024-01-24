@@ -25,12 +25,12 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		// {"TestMDMCommands", testMDMCommands},
-		// {"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
-		// {"TestListMDMConfigProfiles", testListMDMConfigProfiles},
-		// {"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
-		// {"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
-		// {"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
+		{"TestMDMCommands", testMDMCommands},
+		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
+		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
+		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
+		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
+		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
 		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
 	}
 
@@ -1295,10 +1295,10 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 		nanoEnroll(t, ds, macH, false)
 
 		// create a team
-		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{macH.ID})
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{macH.ID})
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -1307,14 +1307,14 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			configProfileForTest(t, "T1.2", "T1.2", "e"),
 		}
 
-		err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm1DarwinProfiles, nil)
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, tm1DarwinProfiles, nil)
 		require.NoError(t, err)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team1.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 2)
 
-		return team1.ID, macH.ID
+		return team.ID, macH.ID
 	}
 
 	setup2 := func() (uint, uint) {
@@ -1329,10 +1329,10 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 		nanoEnroll(t, ds, macH, false)
 
 		// create a team
-		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{macH.ID})
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{macH.ID})
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -1345,7 +1345,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_1"})
 		require.NoError(t, err)
 
-		err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm2DarwinProfiles, nil)
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, tm2DarwinProfiles, nil)
 		require.NoError(t, err)
 
 		var uid string
@@ -1380,11 +1380,11 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team1.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team1.ID, macH.ID
+		return team.ID, macH.ID
 	}
 
 	setup3 := func() (uint, uint) {
@@ -1399,10 +1399,10 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 		nanoEnroll(t, ds, macH, false)
 
 		// create a team
-		team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
 		require.NoError(t, err)
 
-		err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{macH.ID})
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{macH.ID})
 		require.NoError(t, err)
 
 		// create profiles for team 1
@@ -1418,7 +1418,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_3"})
 		require.NoError(t, err)
 
-		err = ds.BatchSetMDMProfiles(ctx, &team1.ID, tm2DarwinProfiles, nil)
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, tm2DarwinProfiles, nil)
 		require.NoError(t, err)
 
 		var uid string
@@ -1467,11 +1467,85 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			},
 		)
 
-		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team1.ID, fleet.ListOptions{})
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
 		require.NoError(t, err)
 		require.Len(t, profs, 3)
 
-		return team1.ID, macH.ID
+		return team.ID, macH.ID
+	}
+
+	setup4 := func() (uint, uint) {
+		macH, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-4",
+			OsqueryHostID: ptr.String("osquery-macos-4"),
+			NodeKey:       ptr.String("node-key-macos-4"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, macH, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 4"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{macH.ID})
+		require.NoError(t, err)
+
+		// create profiles for team
+		tm2DarwinProfiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T4.1", "T4.1", "d"),
+			configProfileForTest(t, "T4.2", "T4.2", "e"),
+			configProfileForTest(t, "broken_label_prof", "broken_label_prof", "broken_label_prof"),
+		}
+
+		testLabel4, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_4"})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, tm2DarwinProfiles, nil)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "broken_label_prof")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					macH.ID,
+					testLabel4.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel4.Name,
+					testLabel4.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// Now delete label, we shouldn't see the related profile
+		err = ds.DeleteLabel(ctx, testLabel4.Name)
+		require.NoError(t, err)
+
+		return team.ID, macH.ID
 	}
 
 	tests := []struct {
@@ -1484,7 +1558,6 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			name:      "basic team profiles no labels",
 			setupFunc: setup1,
 			want: map[string]*fleet.ExpectedMDMProfile{
-				// TODO: find way to get the time
 				"T1.1": {Identifier: "T1.1"},
 				"T1.2": {Identifier: "T1.2"},
 			},
@@ -1498,7 +1571,6 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 				"labeled_prof": {Identifier: "labeled_prof"},
 			},
 		},
-
 		{
 			name:      "labeled team profile with additional labeled profile",
 			setupFunc: setup3,
@@ -1507,6 +1579,16 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			want: map[string]*fleet.ExpectedMDMProfile{
 				"T3.1": {Identifier: "T3.1"},
 				"T3.2": {Identifier: "T3.2"},
+			},
+		},
+		{
+			name:      "profile with broken label",
+			setupFunc: setup4,
+			// Our expected profiles should not include the labeled profile, because it is broken
+			// (the label was deleted)
+			want: map[string]*fleet.ExpectedMDMProfile{
+				"T4.1": {Identifier: "T4.1"},
+				"T4.2": {Identifier: "T4.2"},
 			},
 		},
 	}
