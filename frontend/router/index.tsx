@@ -63,6 +63,7 @@ import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
+import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 
 import PATHS from "router/paths";
 
@@ -78,7 +79,6 @@ import AuthAnyMaintainerAnyAdminRoutes from "./components/AuthAnyMaintainerAnyAd
 import AuthAnyMaintainerAdminObserverPlusRoutes from "./components/AuthAnyMaintainerAdminObserverPlusRoutes";
 import PremiumRoutes from "./components/PremiumRoutes";
 import ExcludeInSandboxRoutes from "./components/ExcludeInSandboxRoutes";
-import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 
 interface IAppWrapperProps {
   children: JSX.Element;
