@@ -99,6 +99,11 @@ Using the migration scripts located in fleet/test/upgrade/
 1. Run the upgrade_test.go script using the most recent stable version of Fleet and `main`.
 2. Upgrade test returns an 'OK' response.
 </td><td>pass/fail</td></tr>
+
+<tr><td>Migration Test with Percona XtraDB MySQL Server</td><td>Verify Fleet can migrate to the next version without issues when using a specific version of Percona XtraDB Server.</td><td>
+
+Run the instructions in [tools/percona/test/README.md](../../tools/percona/test/README.md)
+</td><td>pass/fail</td></tr>
   
 <tr><td>Release blockers</td><td>Verify there are no outstanding release blocking tickets.</td><td>
   
