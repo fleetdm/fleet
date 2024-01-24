@@ -162,9 +162,7 @@ const HostsFilterBlock = ({
     if (!osId && !(osName && osVersion)) return null;
 
     let os: IOperatingSystemVersion | undefined;
-    if (osId) {
-      os = osVersions?.find((v) => v.os_id === osId);
-    } else if (osName && osVersion) {
+    if (osName && osVersion) {
       const name: string = osName;
       const vers: string = osVersion;
 

@@ -6,7 +6,6 @@ import {
 import { createMockSoftwareVulnerability } from "./softwareMock";
 
 const DEFAULT_OS_VERSION: IOperatingSystemVersion = {
-  os_id: 1,
   id: 1,
   name: "Mac OS X",
   name_only: "Mac OS X",
