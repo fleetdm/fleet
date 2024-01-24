@@ -10,8 +10,6 @@ interface ITeamHostExpiryToggle {
   globalHostExpiryWindow: number;
   teamExpiryEnabled: boolean;
   setTeamExpiryEnabled: (value: boolean) => void;
-  addingCustomWindow: boolean;
-  setAddingCustomWindow: (value: boolean) => void;
 }
 
 const TeamHostExpiryToggle = ({
@@ -19,20 +17,18 @@ const TeamHostExpiryToggle = ({
   globalHostExpiryWindow,
   teamExpiryEnabled,
   setTeamExpiryEnabled,
-  addingCustomWindow,
-  setAddingCustomWindow,
 }: ITeamHostExpiryToggle) => {
   const renderHelpText = () =>
     globalHostExpiryEnabled ? (
       <div className="help-text">
         Host expiry is globally enabled in organization settings. By default,
         hosts expire after {globalHostExpiryWindow} days.{" "}
-        {!addingCustomWindow && (
+        {!teamExpiryEnabled && (
           <Link
             to={""}
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
-              setAddingCustomWindow(true);
+              setTeamExpiryEnabled(true);
             }}
             className={`${baseClass}__add-custom-window`}
           >

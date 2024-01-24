@@ -20,7 +20,7 @@ const baseClass = "team-settings";
 const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
 
 const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
-  const [UITeamHostExpiryEnabled, setUITeamHostExpiryEnabled] = useState(false); // default false until API response
+  const [UITeamExpiryEnabled, setUITeamExpiryEnabled] = useState(false); // default false until API response
   const [UITeamHostExpiryWindow, setUITeamHostExpiryWindow] = useState<
     number | string
   >("");
@@ -28,7 +28,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
-  const [addingCustomWindow, setAddingCustomWindow] = useState(false);
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -74,7 +73,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       onSuccess: (teamConfig) => {
         // default this setting to current team setting
         // can be updated by user actions
-        setUITeamHostExpiryEnabled(
+        setUITeamExpiryEnabled(
           teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false
         );
         setUITeamHostExpiryWindow(
@@ -87,36 +86,48 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
+    const castedHostExpiryWindow = Number(UITeamHostExpiryWindow);
     if (
+      // with no global setting, team window can't be empty if enabled
       (!globalHostExpiryEnabled &&
-        UITeamHostExpiryEnabled &&
-        !UITeamHostExpiryWindow) ||
-      Number(UITeamHostExpiryWindow) < 0
+        UITeamExpiryEnabled &&
+        !castedHostExpiryWindow) ||
+      // if nonempty, must be a positive number
+      isNaN(castedHostExpiryWindow) ||
+      // if overriding a global setting, can be empty to disable local setting
+      castedHostExpiryWindow < 0
     ) {
       errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
     }
 
     setFormErrors(errors);
-  }, [
-    UITeamHostExpiryEnabled,
-    UITeamHostExpiryWindow,
-    globalHostExpiryEnabled,
-  ]);
+  }, [UITeamExpiryEnabled, UITeamHostExpiryWindow, globalHostExpiryEnabled]);
 
   useEffect(() => {
     validate();
-  }, [UITeamHostExpiryEnabled, UITeamHostExpiryWindow, validate]);
+  }, [UITeamExpiryEnabled, UITeamHostExpiryWindow, validate]);
+
   const updateTeamHostExpiry = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
-
       setUpdatingTeamSettings(true);
+      const castedHostExpiryWindow = Number(UITeamHostExpiryWindow);
+      let enableHostExpiry;
+      if (globalHostExpiryEnabled) {
+        if (!castedHostExpiryWindow) {
+          enableHostExpiry = false;
+        } else {
+          enableHostExpiry = UITeamExpiryEnabled;
+        }
+      } else {
+        enableHostExpiry = UITeamExpiryEnabled;
+      }
       teamsAPI
         .update(
           {
             host_expiry_settings: {
-              host_expiry_enabled: UITeamHostExpiryEnabled,
-              host_expiry_window: Number(UITeamHostExpiryWindow),
+              host_expiry_enabled: enableHostExpiry,
+              host_expiry_window: castedHostExpiryWindow,
             },
           },
           teamIdForApi
@@ -136,8 +147,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         });
     },
     [
-      UITeamHostExpiryEnabled,
+      UITeamExpiryEnabled,
       UITeamHostExpiryWindow,
+      globalHostExpiryEnabled,
       refetchTeamConfig,
       renderFlash,
       teamIdForApi,
@@ -158,16 +170,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             <TeamHostExpiryToggle
               globalHostExpiryEnabled={globalHostExpiryEnabled}
               globalHostExpiryWindow={globalHostExpiryWindow}
-              teamExpiryEnabled={UITeamHostExpiryEnabled}
-              setTeamExpiryEnabled={setUITeamHostExpiryEnabled}
-              addingCustomWindow={addingCustomWindow}
-              setAddingCustomWindow={setAddingCustomWindow}
+              teamExpiryEnabled={UITeamExpiryEnabled}
+              setTeamExpiryEnabled={setUITeamExpiryEnabled}
             />
           )}
-        {(UITeamHostExpiryEnabled || addingCustomWindow) && (
+        {UITeamExpiryEnabled && (
           <InputField
             label="Host expiry window"
-            type="number"
+            // type="text" allows `validate` to differentiate between
+            // non-numerical input and an empty input
+            type="text"
             onChange={setUITeamHostExpiryWindow}
             name="host-expiry-window"
             value={UITeamHostExpiryWindow}
