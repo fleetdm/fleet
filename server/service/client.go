@@ -390,6 +390,13 @@ func (c *Client) ApplyGroup(
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
 		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, allCustomSettings)
 			if err != nil {
@@ -649,11 +656,7 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 				profSpec.Path = path
 			}
 
-			// extract the Labels field
-			//
-			// TODO: what's the behavior for labels? not provided
-			// means that the labels are not modified or that
-			// should be cleaned?
+			// extract the Labels field, labels are cleared if not provided
 			if labels, ok := m["labels"].([]interface{}); ok {
 				for _, label := range labels {
 					if strLabel, ok := label.(string); ok {
