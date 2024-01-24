@@ -190,6 +190,35 @@ FROM (
 	}
 
 	// load the labels associated with those profiles
+	var winProfUUIDs, macProfUUIDs []string
+	for _, prof := range profs {
+		if prof.Platform == "windows" {
+			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
+		} else {
+			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
+		}
+	}
+	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// match the labels with their profiles
+	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
+	for _, prof := range profs {
+		profMap[prof.ProfileUUID] = prof
+	}
+	for _, label := range labels {
+		if prof, ok := profMap[label.ProfileUUID]; ok {
+			prof.Labels = append(prof.Labels, label)
+		}
+	}
+
+	return profs, metaData, nil
+}
+
+func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+	// load the labels associated with those profiles
 	const labelsStmt = `
 SELECT
 	COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid,
@@ -204,14 +233,6 @@ WHERE
 ORDER BY
 	profile_uuid, label_name
 `
-	var winProfUUIDs, macProfUUIDs []string
-	for _, prof := range profs {
-		if prof.Platform == "windows" {
-			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
-		} else {
-			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
-		}
-	}
 
 	// ensure there's at least one (non-matching) value in the slice so the IN
 	// clause is valid
@@ -222,28 +243,16 @@ ORDER BY
 		macProfUUIDs = []string{"-"}
 	}
 
-	stmt, args, err = sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs)
+	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs)
 	if err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "sqlx.In for labels in ListMDMConfigProfiles")
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for profiles")
 	}
+
 	var labels []fleet.ConfigurationProfileLabel
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
-		return nil, nil, ctxerr.Wrap(ctx, err, "select profiles labels")
+		return nil, ctxerr.Wrap(ctx, err, "select profiles labels")
 	}
-
-	// match the labels with their profiles
-	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
-	for _, prof := range profs {
-		profMap[prof.ProfileUUID] = prof
-	}
-	for _, label := range labels {
-		prof, ok := profMap[label.ProfileUUID]
-		if ok {
-			prof.Labels = append(prof.Labels, label)
-		}
-	}
-
-	return profs, metaData, nil
+	return labels, nil
 }
 
 // Note that team ID 0 is used for profiles that apply to hosts in no team

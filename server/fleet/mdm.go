@@ -384,6 +384,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Platform:    "windows",
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
 }
 
@@ -401,6 +402,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:    cp.Checksum,
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
 }
 

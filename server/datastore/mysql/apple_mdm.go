@@ -189,6 +189,19 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm apple config profile")
 	}
 
+	// get the labels for that profile, except if the profile was loaded by the
+	// old (deprecated) endpoint.
+	if uuid != "" {
+		labels, err := ds.listProfileLabelsForProfiles(ctx, nil, []string{res.ProfileUUID})
+		if err != nil {
+			return nil, err
+		}
+		if len(labels) > 0 {
+			// ensure we leave Labels nil if there are none
+			res.Labels = labels
+		}
+	}
+
 	return &res, nil
 }
 

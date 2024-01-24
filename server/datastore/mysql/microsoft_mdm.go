@@ -701,6 +701,15 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm windows config profile")
 	}
 
+	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(labels) > 0 {
+		// ensure we leave Labels nil if there are none
+		res.Labels = labels
+	}
+
 	return &res, nil
 }
 
