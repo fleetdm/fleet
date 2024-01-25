@@ -56,10 +56,10 @@ const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 /**
  *
  * @param count The number of items.
- * @param root The root word, omitting any suffixs.
- * @param pluralSuffix The suffix to add to the root word if the count is not 1. Defaults to "s".
- * @param singularSuffix The suffix to add to the root word if the count is 1. Defaults to "".
- * @returns A string with the root word and the appropriate suffix.
+ * @param root The root of the word, omitting any suffixs.
+ * @param pluralSuffix The suffix to add to the root if the count is not 1.
+ * @param singularSuffix The suffix to add to the root if the count is 1.
+ * @returns A string with the root and the appropriate suffix.
  *
  * @example
  * pluralize(1, "hero", "es", "") // "hero"
@@ -72,8 +72,8 @@ const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 export const pluralize = (
   count: number,
   root: string,
-  pluralSuffix = "s",
-  singularSuffix = ""
+  pluralSuffix: string,
+  singularSuffix: string
 ) => {
   return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
 };
