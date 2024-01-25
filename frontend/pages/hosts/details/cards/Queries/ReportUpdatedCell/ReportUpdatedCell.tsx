@@ -34,8 +34,7 @@ const ReportUpdatedCell = ({
         // query runs, sends results to a logging dest, doesn't cache
         return (
           <TextCell
-            greyed
-            classes={`${baseClass}__value`}
+            classes={`${baseClass}__value no-report`}
             formatter={(val) => {
               const tooltipId = uniqueId();
               return (
