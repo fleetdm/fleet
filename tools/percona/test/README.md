@@ -1,8 +1,14 @@
 # Test migrations with Percona Server XtraDB 5.7.25
 
+> IMPORTANT: 
+> - The test performed here will clear your local database (make sure to run `make db-backup` before running this, and run `make db-restore` after your are done).
+> - This test was developed and tested on a macOS Intel device.
+
 Following are the instructions to test Fleet DB migrations with a specific version of Percona Server XtraDB (5.7.25).
 
-> The following was tested on a macOS (Intel) device.
+Dependencies:
+- Docker for Mac.
+- `mysql` client (`brew install mysql-client`).
 
 1. At the root of the repository run:
 ```sh
