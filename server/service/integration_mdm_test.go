@@ -10828,3 +10828,7 @@ func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, &applyResp)
 }
+
+func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
+	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/mdm/manual_enrollment_profile")
+}

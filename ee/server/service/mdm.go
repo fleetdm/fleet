@@ -1074,3 +1074,26 @@ func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint
 	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsOSUpdatesProfileName)
 	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
 }
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEnrollmentProfile{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDM.AppleSCEPChallenge,
+		svc.mdmPushCertTopic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return mobileConfig, nil
+}

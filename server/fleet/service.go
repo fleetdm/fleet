@@ -791,6 +791,8 @@ type Service interface {
 	// for MDM macOS migration.
 	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
 
+	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
 
