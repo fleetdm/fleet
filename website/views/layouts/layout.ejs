@@ -184,11 +184,12 @@
                 <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
                 <div class="d-block">
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a href="/announcements">Announcements</a>
-                    <a href="/securing">Security</a>
-                    <a href="/engineering">Engineering</a>
-                    <a href="/podcasts">Podcasts</a>
-                    <a href="/reports/state-of-device-management">Reports</a>
+                    <span>ARTICLES</span>
+                    <a class="pl-3" href="/announcements">Announcements</a>
+                    <a class="pl-3" href="/securing">Security</a>
+                    <a class="pl-3" href="/engineering">Engineering</a>
+                    <a class="pl-3" href="/podcasts">Podcasts</a>
+                    <a class="pl-3" href="/reports/state-of-device-management">Reports</a>
                     <span>CONTRIBUTE</span>
                     <a class="pl-3" href="/slack" target="_blank">Join the conversation</a>
                     <a class="pl-3" href="/contribute">Contribute to Fleet</a>
@@ -234,6 +235,7 @@
               <div purpose="dropdown-button" class="btn-group">
                 <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
                 <div purpose="header-dropdown" class="dropdown-menu">
+                  <span class="muted dropdown-header">ARTICLES</span>
                   <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
                   <a class="dropdown-item mb-1" href="/securing">Security</a>
                   <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
