@@ -4426,15 +4426,20 @@ WHERE
 		counts = filtered
 	}
 
+	// filter by name and version
+	if name != nil && version != nil {
+		var filtered []fleet.OSVersion
+		for _, os := range counts {
+			if *name == os.NameOnly && *version == os.Version {
+				filtered = append(filtered, os)
+			}
+		}
+		counts = filtered
+	}
+
 	// aggregate counts by name and version
 	byNameVers := make(map[string]fleet.OSVersion)
 	for _, os := range counts {
-		if name != nil &&
-			version != nil &&
-			*name != os.NameOnly &&
-			*version != os.Version {
-			continue
-		}
 		key := fmt.Sprintf("%s %s", os.NameOnly, os.Version)
 		val, ok := byNameVers[key]
 		if !ok {
