@@ -30,6 +30,11 @@
     gap: $pad-medium;
   }
 
+  // Fix dropdown form bug
+  &__version-slider {
+    width: 210px;
+  }
+
   .table-container {
     &__header {
       flex-direction: column-reverse; // Search bar on top
@@ -70,7 +75,6 @@
     &__data-table-block {
       .data-table-block {
         .data-table__table {
-
           // for showing and hiding "view all hosts" link on hover
           tr {
             .software-link {
@@ -96,7 +100,6 @@
             }
 
             @media (min-width: $break-lg) {
-
               // expand the width of version header at larger screen sizes
               .versions__header {
                 width: $col-md;
