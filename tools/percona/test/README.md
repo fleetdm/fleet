@@ -24,6 +24,7 @@ git pull origin main
 1. Restore your previous setup by running the following:
 ```sh
 docker compose down
+docker volume rm fleet_mysql-persistent-volume
 docker compose up
 make db-restore
 ```
