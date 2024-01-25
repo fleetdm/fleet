@@ -161,8 +161,6 @@ const SoftwareTable = ({
     return generateTableConfig(router, teamId);
   }, [generateTableConfig, data, router, teamId]);
 
-  if (!data && isLoading) return null;
-
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
