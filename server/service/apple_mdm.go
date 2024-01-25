@@ -2159,7 +2159,6 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 type getManualEnrollmentProfileRequest struct{}
 
 func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	_ = request.(*getManualEnrollmentProfileRequest)
 	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
 	if err != nil {
 		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
