@@ -30,12 +30,11 @@ const UpcomingTooltip = () => {
       position="top-start"
       tipContent={
         <>
-          <p>
-            Upcoming activities will run as listed. Failure of one activity
-            won’t cancel other activities.
-          </p>
+          Upcoming activities will run as listed. Failure of one activity won’t
+          cancel other activities.
           <br />
-          <p>Currently, only scripts are guaranteed to run in order.</p>
+          <br />
+          Currently, only scripts are guaranteed to run in order.
         </>
       }
       className={`${baseClass}__upcoming-tooltip`}
