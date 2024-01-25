@@ -37,16 +37,6 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   );
 };
 
-// interface ISoftwareOSDetailsRouteParams {
-//   name: string;
-//   version: string;
-// }
-
-// type ISoftwareOSDetailsPageProps = RouteComponentProps<
-//   undefined,
-//   ISoftwareOSDetailsRouteParams
-//   >;
-
 interface ISoftwareOSDetailsPageProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   location: { query: { name: string; version: string } }; // no type in react-router v3
