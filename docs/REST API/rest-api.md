@@ -4299,7 +4299,16 @@ If one or more assigned labels are deleted profile is broken (`broken: true`). I
   "identifier": "com.example.profile",
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
-  "checksum": "dGVzdAo="
+  "checksum": "dGVzdAo=",
+  "labels": [
+    {
+      "name": "Label name 1",
+      "broken": true
+    },
+    {
+      "name": "Label name 2",
+    }
+  ]
 }
 ```
 
