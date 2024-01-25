@@ -23,7 +23,7 @@
     // Global style max width of all content to 754px
     > * {
       width: 100%;
-      max-width: 754px;
+      max-width: $settings-form-max-width;
     }
   }
 }

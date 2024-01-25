@@ -1,6 +1,7 @@
 ---
 name:  Release QA
 about: Checklist of required tests prior to release
+
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
 assignees: 'xpkoala,sabrinabuckets'
@@ -82,6 +83,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 2. Software, query, policy, and packs logs are successfully sent to Filesystem log destinations
  
 </td><td>pass/fail</td></tr>
+
 
 <tr><td>My device page</td><td>Verify the end user's my device page loads successfully.</td><td>
 
@@ -168,6 +170,7 @@ List versions changes for any component updates below:
 </td>
 <td>pass/fail</td></tr>
 </table>
+
   
 # Notes
 
@@ -176,5 +179,6 @@ Issues found new to this version:
 Issues found that reproduce in last stable version: 
 
 What has not been tested:
+
 
 Include any notes on whether issues should block release or not as needed:

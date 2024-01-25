@@ -47,12 +47,16 @@ export default {
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
+  },
+  SOFTWARE_OS_DETAILS: (name: string, version: string): string => {
+    return `${URL_PREFIX}/software/os/details?name=${name}&version=${version}`;
   },
 
   EDIT_PACK: (packId: number): string => {
@@ -136,6 +140,12 @@ export default {
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
+  },
+  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
