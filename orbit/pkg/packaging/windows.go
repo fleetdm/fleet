@@ -165,7 +165,7 @@ func BuildMSI(opt Options) (string, error) {
 
 		fmt.Printf("Downloading wix from %s\n", wixDownload)
 		wixZip := filepath.Join(tmpDir, "wix.zip")
-		cmd := exec.Command("wget", wixDownload, "-nv", "-O", wixZip)
+		cmd := exec.Command("curl", "--location", "--output", wixZip, wixDownload)
 		if err = cmd.Run(); err != nil {
 			return "", fmt.Errorf("download wix: %w", err)
 		}
