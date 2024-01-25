@@ -46,12 +46,12 @@ const SoftwareVersionDetailsPage = ({
     }
   );
 
-  const {
-    data: hostsCount,
-    // TODO: Confirm desired UX for error and loading states
-    // isError: isHostsCountError,
-    // isLoading: isHostsCountLoading,
-  } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
+  const { data: hostsCount } = useQuery<
+    IHostsCountResponse,
+    Error,
+    number,
+    IHostsCountQueryKey[]
+  >(
     [{ scope: "hosts_count", softwareVersionId: versionId }],
     ({ queryKey }) => hostsCountAPI.load(queryKey[0]),
     {

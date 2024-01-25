@@ -140,8 +140,6 @@ const SoftwareTable = ({
     [determineQueryParamChange, generateNewQueryParams, router, currentPath]
   );
 
-  // TODO: comment. determine the data accessor based on the type of data we're
-  // getting from the API.
   let tableData: ISoftwareTitle[] | ISoftwareVersion[] | undefined;
   let generateTableConfig: ITableConfigGenerator;
 
