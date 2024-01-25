@@ -7,7 +7,7 @@ import ReportUpdatedCell from "./ReportUpdatedCell";
 const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/\d{1,2}\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
 
 describe("ReportUpdatedCell component", () => {
-  it("Renders '---' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
+  it("Renders 'No report' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
     render(
       <ReportUpdatedCell
         interval={1000}
@@ -17,7 +17,7 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(screen.getByText(/---/)).toBeInTheDocument();
+    expect(screen.getByText(/No report/)).toBeInTheDocument();
     expect(screen.getByText(/Results from this query/)).toBeInTheDocument();
     expect(screen.queryByText(/View report/)).toBeNull();
   });
