@@ -84,7 +84,7 @@ git cherry-pick d34db33f
   
 ```sh
 git tag fleet-v4.3.1
-git push origin fleet-4.3.1
+git push origin fleet-v4.3.1
 ```
 
 Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here

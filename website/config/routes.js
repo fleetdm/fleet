@@ -249,7 +249,7 @@ module.exports.routes = {
   },
 
   'GET /device-management': {
-    action: 'view-fleet-mdm',
+    action: 'view-device-management',
     locals: {
       pageTitleForMeta: 'Device management (MDM) | Fleet',
       pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
