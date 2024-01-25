@@ -189,7 +189,6 @@ const generateTableConfig = (
       title: "Published",
       accessor: "cve_published",
       disableSortBy: false,
-      sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
