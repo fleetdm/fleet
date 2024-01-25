@@ -564,7 +564,6 @@ const HostDetailsPage = ({
 
   const onShowActivityDetails = useCallback(
     ({ type, details }: IShowActivityDetailsData) => {
-      console.log("clicked", type, details);
       switch (type) {
         case "ran_script":
           setScriptDetailsId(details?.script_execution_id || "");
@@ -824,7 +823,6 @@ const HostDetailsPage = ({
                 onChangeTab={onChangeActivityTab}
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
-                // TODO: show modal
                 onShowDetails={onShowActivityDetails}
               />
               <AgentOptionsCard
