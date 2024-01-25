@@ -15,6 +15,15 @@ import UpcomingActivityFeed from "./UpcomingActivityFeed";
 
 const baseClass = "activity-card";
 
+export interface IShowActivityDetailsData {
+  type: string;
+  details?: IActivityDetails;
+}
+
+export type ShowActivityDetailsHandler = (
+  data: IShowActivityDetailsData
+) => void;
+
 const UpcomingTooltip = () => {
   return (
     <TooltipWrapper
@@ -44,7 +53,7 @@ interface IActivityProps {
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
-  onShowDetails: (details: IActivityDetails) => void;
+  onShowDetails: ShowActivityDetailsHandler;
 }
 
 const Activity = ({
@@ -57,6 +66,7 @@ const Activity = ({
   onPreviousPage,
   onShowDetails,
 }: IActivityProps) => {
+  // TODO: add count to upcoming activities tab when available via API
   return (
     <Card borderRadiusSize="large" includeShadow className={baseClass}>
       {isLoading && (
@@ -72,10 +82,7 @@ const Activity = ({
         >
           <TabList>
             <Tab>Past</Tab>
-            {/* TODO: count from API */}
-            <Tab>
-              Upcoming <div className={`${baseClass}__upcoming-count`}>10</div>
-            </Tab>
+            <Tab>Upcoming</Tab>
           </TabList>
           <TabPanel>
             <PastActivityFeed

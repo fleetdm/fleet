@@ -10,10 +10,10 @@ import { IHost } from "interfaces/host";
 import { IUser } from "interfaces/user";
 
 import scriptsAPI, {
-  IHostScript,
   IHostScriptsQueryKey,
   IHostScriptsResponse,
 } from "services/entities/scripts";
+import { IHostScript } from "interfaces/script";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
@@ -34,7 +34,7 @@ interface IScriptsProps {
   host: IHost;
   scriptDetailsId: string;
   setScriptDetailsId: React.Dispatch<React.SetStateAction<string>>;
-  setShowModal: React.Dispatch<React.SetStateAction<boolean>>;
+  onClose: () => void;
 }
 
 const EmptyComponent = () => <></>;
@@ -44,7 +44,7 @@ const RunScriptModal = ({
   host,
   scriptDetailsId,
   setScriptDetailsId,
-  setShowModal,
+  onClose,
 }: IScriptsProps) => {
   const [page, setPage] = useState<number>(0);
   const [runScriptRequested, setRunScriptRequested] = useState(false);
@@ -75,10 +75,6 @@ const RunScriptModal = ({
       },
     }
   );
-
-  const onCancel = useCallback(() => {
-    setShowModal(false);
-  }, [setShowModal]);
 
   const onSelectAction = useCallback(
     async (action: string, script: IHostScript) => {
@@ -133,8 +129,8 @@ const RunScriptModal = ({
   return (
     <Modal
       title={"Run script"}
-      onExit={onCancel}
-      onEnter={onCancel}
+      onExit={onClose}
+      onEnter={onClose}
       className={`${baseClass}`}
       isHidden={isShowingScriptDetails}
       isLoading={runScriptRequested || isFetching || isLoading}
@@ -168,7 +164,7 @@ const RunScriptModal = ({
           )}
         </div>
         <div className={`modal-cta-wrap`}>
-          <Button onClick={onCancel} variant="brand">
+          <Button onClick={onClose} variant="brand">
             Done
           </Button>
         </div>

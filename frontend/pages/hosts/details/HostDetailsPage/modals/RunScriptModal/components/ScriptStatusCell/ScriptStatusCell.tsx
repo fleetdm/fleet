@@ -1,10 +1,7 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 
-import {
-  ILastExecution,
-  IScriptExecutionStatus,
-} from "services/entities/scripts";
+import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
 
 import StatusIndicatorWithIcon, {
   IndicatorStatus,

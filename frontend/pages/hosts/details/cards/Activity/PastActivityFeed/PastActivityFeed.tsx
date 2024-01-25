@@ -10,13 +10,14 @@ import DataError from "components/DataError";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import PastActivity from "../PastActivity/PastActivity";
+import { ShowActivityDetailsHandler } from "../Activity";
 
 const baseClass = "past-activity-feed";
 
 interface IPastActivityFeedProps {
   activities?: IActivitiesResponse;
   isError?: boolean;
-  onDetailsClick: (details: IActivityDetails) => void;
+  onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
   onPreviousPage: () => void;
 }

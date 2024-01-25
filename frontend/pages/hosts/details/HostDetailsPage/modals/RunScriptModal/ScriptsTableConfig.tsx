@@ -5,7 +5,7 @@ import { noop } from "lodash";
 import { COLORS } from "styles/var/colors";
 
 import { IDropdownOption } from "interfaces/dropdownOption";
-import { IHostScript, ILastExecution } from "services/entities/scripts";
+import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
