@@ -58,6 +58,9 @@ interface IHeaderProps {
 }
 
 const getVulnerabilities = (versions: ISoftwareTitleVersion[]) => {
+  if (!versions) {
+    return [];
+  }
   const vulnerabilities = versions.reduce((acc: string[], currentVersion) => {
     if (
       currentVersion.vulnerabilities &&
