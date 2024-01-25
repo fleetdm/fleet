@@ -2027,8 +2027,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect(nil, ptr.Uint(1), nil)
 }
 
-func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWindowsConfigProfile {
-	return &fleet.MDMWindowsConfigProfile{
+func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*fleet.Label) *fleet.MDMWindowsConfigProfile {
+	prof := &fleet.MDMWindowsConfigProfile{
 		Name: name,
 		SyncML: []byte(fmt.Sprintf(`
 			<Replace>
@@ -2040,4 +2040,10 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWi
 			</Replace>
 		`, locURI)),
 	}
+
+	for _, lbl := range labels {
+		prof.Labels = append(prof.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+	}
+
+	return prof
 }
