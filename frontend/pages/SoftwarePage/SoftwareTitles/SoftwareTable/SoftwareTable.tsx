@@ -256,12 +256,15 @@ const SoftwareTable = ({
   const renderCustomFilters = () => {
     return (
       <div className={`${baseClass}__filter-controls`}>
-        <Slider
-          value={showVersions}
-          onChange={handleShowVersionsToggle}
-          inactiveText="Show versions"
-          activeText="Show versions"
-        />
+        <div className={`${baseClass}__version-slider`}>
+          {/* div required dropdown form field width bug */}
+          <Slider
+            value={showVersions}
+            onChange={handleShowVersionsToggle}
+            inactiveText="Show versions"
+            activeText="Show versions"
+          />
+        </div>
         <Dropdown
           value={showVulnerableSoftware}
           className={`${baseClass}__vuln_dropdown`}
