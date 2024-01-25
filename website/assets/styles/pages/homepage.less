@@ -48,16 +48,14 @@
   }
 
   [purpose='homepage-hero'] {
-    padding-top: 40px;
+    padding-top: 100px;
     padding-left: 40px;
     padding-right: 40px;
-    padding-bottom: 40px;
+    padding-bottom: 415px;
     max-width: 1200px;
-    height: 750px;
   }
 
   [purpose='hero-text'] {
-    padding-top: 20px;
     min-width: 540px;
     text-align: center;
     h1 {
@@ -66,9 +64,6 @@
     p {
       margin-bottom: 40px;
       font-size: 18px;
-    }
-    [purpose='button-row'] {
-      margin-bottom: 40px;
     }
   }
 
@@ -569,7 +564,6 @@
   @media (max-width: 1400px) {
 
     [purpose='hero-logos'] {
-      margin-top: 32px;
       margin-bottom: 120px;
       [purpose='snowflake-logo'] {
         height: 28px;
@@ -628,7 +622,6 @@
 
     [purpose='homepage-hero'] {
       max-width: 1080px;
-      height: 726px;
     }
 
     [purpose='hero-logos'] {
@@ -674,26 +667,26 @@
   //
   @media (max-width: 991px) {
 
+    h1 {
+      font-size: 48px;
+    }
+
     [purpose='hero-background-image'] {
       background-size: 2800px auto;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
+
     [purpose='homepage-hero'] {
       max-width: 100%;
-      height: 720px;
     }
     [purpose='homepage-content'] {
       padding-right: 60px;
       padding-left: 60px;
     }
-    [purpose='hero-text'] {
-      padding-top: 20px;
-      max-width: 450px;
-    }
     [purpose='hero-logos'] {
       max-width: 688px;
-      margin-top: 24px;
+      // margin-top: 24px;
       padding-left: 40px;
       padding-right: 40px;
       img {
@@ -906,13 +899,15 @@
       font-size: 48px;
     }
     [purpose='hero-background-image'] {
-      background-size: 2600px auto;
+      background-size: auto 278px;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
 
     [purpose='homepage-hero'] {
-      height: 650px;
+      padding-top: 80px;
+      padding-bottom: 278px;
+      // height: 650px;
     }
 
     [purpose='homepage-content'] {
@@ -1136,20 +1131,14 @@
       font-size: 14px;
     }
 
-    [purpose='hero-background-image'] {
-      background-size: 2000px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
-
     [purpose='homepage-hero'] {
-      height: 600px;
+      padding-top: 60px;
+      padding-bottom: 236px;
       padding-left: 24px;
       padding-right: 24px;
     }
 
     [purpose='hero-text'] {
-      padding-bottom: 260px;
       p {
         font-size: 16px;
       }
@@ -1216,9 +1205,6 @@
       padding-left: 24px;
     }
 
-    [purpose='platform-left-text-block'], [purpose='platform-right-text-block'] {
-      text-align: left;
-    }
     // To make the secondary CTA buttons into white outline buttons, uncomment this section.
     // [purpose='animated-arrow-button-red'] {
     //   display: flex;
@@ -1359,11 +1345,7 @@
     [purpose='truncated-vulnerability-management-text'] {
       display: none;
     }
-    [purpose='hero-background-image'] {
-      background-size: 1400px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
+
 
     [purpose='hero-text'] {
       p {
@@ -1375,10 +1357,6 @@
         padding-left: 24px;
         padding-right: 24px;
       }
-    }
-
-    [purpose='homepage-hero'] {
-      height: 550px;
     }
 
     [purpose='homepage-content'] {
