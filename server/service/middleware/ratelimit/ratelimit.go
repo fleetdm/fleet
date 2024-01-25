@@ -45,7 +45,7 @@ func (m *Middleware) Limit(keyName string, quota throttled.RateQuota) endpoint.M
 				if az, ok := authz_ctx.FromContext(ctx); ok {
 					az.SetChecked()
 				}
-				return nil, ctxerr.Wrap(ctx, err, "failed to rate limit")
+				return nil, ctxerr.Wrap(ctx, err, "rate limit Middleware: failed to increase rate limit")
 			}
 
 			if limited {
@@ -97,7 +97,7 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpo
 				if az, ok := authz_ctx.FromContext(ctx); ok {
 					az.SetChecked()
 				}
-				return nil, ctxerr.Wrap(ctx, err, "failed to rate limit")
+				return nil, ctxerr.Wrap(ctx, err, "rate limit ErrorMiddleware: failed to check rate limit")
 			}
 			if result.Remaining == 0 {
 				// We need to set authentication as checked, otherwise we end up returning HTTP 500 errors.
@@ -111,7 +111,7 @@ func (m *ErrorMiddleware) Limit(keyName string, quota throttled.RateQuota) endpo
 			if err != nil {
 				_, _, rateErr := limiter.RateLimit(ipKeyName, 1)
 				if rateErr != nil {
-					return nil, ctxerr.Wrap(ctx, err, "failed to rate limit")
+					return nil, ctxerr.Wrap(ctx, err, "rate limit ErrorMiddleware: failed to increase rate limit")
 				}
 			}
 			return resp, err
