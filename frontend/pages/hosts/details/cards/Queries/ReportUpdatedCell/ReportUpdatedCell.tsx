@@ -36,13 +36,31 @@ const ReportUpdatedCell = ({
           <TextCell
             greyed
             classes={`${baseClass}__value`}
-            emptyCellTooltipText={
-              <>
-                Results from this query are not reported in Fleet.
-                <br />
-                Data is being sent to your log destination.
-              </>
-            }
+            formatter={(val) => {
+              const tooltipId = uniqueId();
+              return (
+                <>
+                  <span data-tip data-for={tooltipId}>
+                    {val}
+                  </span>
+                  <ReactTooltip
+                    place="top"
+                    effect="solid"
+                    backgroundColor={COLORS["tooltip-bg"]}
+                    id={tooltipId}
+                  >
+                    {
+                      <>
+                        Results from this query are not reported in Fleet.
+                        <br />
+                        Data is being sent to your log destination.
+                      </>
+                    }
+                  </ReactTooltip>
+                </>
+              );
+            }}
+            value="No report"
           />
         );
       }
