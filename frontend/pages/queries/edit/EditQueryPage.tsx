@@ -71,6 +71,7 @@ const EditQueryPage = ({
     config,
   } = useContext(AppContext);
   const {
+    editingExistingQuery,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     lastEditedQueryName,
@@ -127,7 +128,7 @@ const EditQueryPage = ({
     ["query", queryId],
     () => queryAPI.load(queryId as number),
     {
-      enabled: !!queryId,
+      enabled: !!queryId && !editingExistingQuery,
       refetchOnWindowFocus: false,
       select: (data) => data.query,
       onSuccess: (returnedQuery) => {
