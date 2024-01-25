@@ -14,6 +14,11 @@ Dependencies:
 Everything should be executed at the root of the repository.
 
 1. Backup first by running `make db-backup`.
+1. Make sure to be on latest `main`:
+```sh
+git checkout main
+git pull origin main
+```
 1. Run the upgrade test script: `./tools/percona/test/upgrade.sh`.
 1. Once the script finishes (you should see `Migrations completed.` at the very end), run `fleet serve` and perform smoke tests as usual.
 1. Restore your previous setup by running the following:

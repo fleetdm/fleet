@@ -6,10 +6,6 @@ set -e
 # Up to `fleet-v4.40.0` there are no migration issues with Percona Server XtraDB's `pxc_strict_mode=ENFORCING` default value.
 # We introduced issues with `pxc_strict_mode=ENFORCING` in DB migrations in `fleet-v4.41.0` and in `fleet-v4.42.0`.
 
-# Pull latest from `main`.
-git checkout main
-git pull origin main
-
 # Bring everything down.
 docker compose down
 docker volume rm fleet_mysql-persistent-volume
