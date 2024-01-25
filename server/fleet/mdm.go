@@ -353,14 +353,23 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID string    `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint     `json:"team_id" db:"team_id"` // null for no-team
-	Name        string    `json:"name" db:"name"`
-	Platform    string    `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier  string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum    []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ProfileUUID string                      `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint                       `json:"team_id" db:"team_id"` // null for no-team
+	Name        string                      `json:"name" db:"name"`
+	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time                   `json:"updated_at" db:"updated_at"`
+	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
+}
+
+// MDMProfileBatchPayload represents the payload to batch-set the profiles for
+// a team or no-team.
+type MDMProfileBatchPayload struct {
+	Name     string   `json:"name,omitempty"`
+	Contents []byte   `json:"contents,omitempty"`
+	Labels   []string `json:"labels,omitempty"`
 }
 
 // MDMProfileBatchPayload represents the payload to batch-set the profiles for
@@ -383,6 +392,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Platform:    "windows",
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
 }
 
@@ -400,6 +410,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:    cp.Checksum,
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
 }
 

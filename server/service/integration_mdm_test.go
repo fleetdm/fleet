@@ -8854,10 +8854,26 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	require.NoError(t, err)
 	// checksum is not returned by New..., so compute it manually
 	checkSum := md5.Sum(tm2ProfF.Mobileconfig) // nolint:gosec // used only for test
-
 	tm2ProfF.Checksum = checkSum[:]
-	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{Name: "tG", TeamID: &tm2.ID, SyncML: []byte(`<Replace></Replace>`)})
+
+	// make tm2ProfG a label-based profile
+	lblFoo, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "foo", Query: "select 1"})
 	require.NoError(t, err)
+	lblBar, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "bar", Query: "select 1"})
+	require.NoError(t, err)
+
+	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		Name:   "tG",
+		TeamID: &tm2.ID,
+		SyncML: []byte(`<Replace></Replace>`),
+		Labels: []mdm_types.ConfigurationProfileLabel{
+			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+		},
+	})
+	require.NoError(t, err)
+	// break lblFoo by deleting it
+	require.NoError(t, s.ds.DeleteLabel(ctx, lblFoo.Name))
 
 	// test that all fields are correctly returned with team 2
 	var listResp listMDMConfigProfilesResponse
@@ -8876,13 +8892,49 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Platform:    "darwin",
 		Identifier:  tm2ProfF.Identifier,
 		Checksum:    tm2ProfF.Checksum,
+		Labels:      nil,
 	}, listResp.Profiles[0])
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
 		TeamID:      tm2ProfG.TeamID,
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
+		// labels are ordered by name
+		Labels: []mdm_types.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
 	}, listResp.Profiles[1])
+
+	// get the specific label-based profile returns the information
+	var getProfResp getMDMConfigProfileResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
+	getProfResp.CreatedAt, getProfResp.UpdatedAt = time.Time{}, time.Time{}
+	require.Equal(t, &fleet.MDMConfigProfilePayload{
+		ProfileUUID: tm2ProfG.ProfileUUID,
+		TeamID:      tm2ProfG.TeamID,
+		Name:        tm2ProfG.Name,
+		Platform:    "windows",
+		// labels are ordered by name
+		Labels: []mdm_types.ConfigurationProfileLabel{
+			{LabelID: lblBar.ID, LabelName: lblBar.Name},
+			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
+		},
+	}, getProfResp.MDMConfigProfilePayload)
+
+	// get the non label-based profile returns no labels
+	getProfResp = getMDMConfigProfileResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
+	getProfResp.CreatedAt, getProfResp.UpdatedAt = time.Time{}, time.Time{}
+	require.Equal(t, &fleet.MDMConfigProfilePayload{
+		ProfileUUID: tm2ProfF.ProfileUUID,
+		TeamID:      tm2ProfF.TeamID,
+		Name:        tm2ProfF.Name,
+		Platform:    "darwin",
+		Identifier:  tm2ProfF.Identifier,
+		Checksum:    tm2ProfF.Checksum,
+		Labels:      nil,
+	}, getProfResp.MDMConfigProfilePayload)
 
 	// list for a non-existing team returns 404
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusNotFound, &listResp, "team_id", "99999")
@@ -8960,6 +9012,11 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 				gotNames = make([]string, len(listResp.Profiles))
 				for i, p := range listResp.Profiles {
 					gotNames[i] = p.Name
+					if p.Name == "tG" {
+						require.Len(t, p.Labels, 2)
+					} else {
+						require.Nil(t, p.Labels)
+					}
 					if c.teamID == nil {
 						// we set it to 0 for global
 						require.NotNil(t, p.TeamID)
