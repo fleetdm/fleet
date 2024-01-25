@@ -5,6 +5,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -622,15 +623,8 @@ const TAGGED_TEMPLATES = {
     return (
       <>
         {" "}
-        told Fleet to run{" "}
-        {script_name ? (
-          <>
-            the <b>{script_name}</b> script
-          </>
-        ) : (
-          "a script"
-        )}{" "}
-        on {host_display_name}.{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on{" "}
+        {host_display_name}.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
