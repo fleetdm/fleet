@@ -63,6 +63,7 @@ import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
+import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 
 import PATHS from "router/paths";
@@ -158,6 +159,7 @@ const routes = (
             <Route path="teams" component={TeamDetailsWrapper}>
               <Route path="members" component={MembersPage} />
               <Route path="options" component={AgentOptionsPage} />
+              <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
             <Redirect from="teams/:team_id/members" to="teams" />
