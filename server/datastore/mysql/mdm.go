@@ -675,9 +675,13 @@ func batchSetProfileLabelAssociationsDB(
 		return fmt.Errorf("unsupported platform %s", platform)
 	}
 
+	// delete any profile+label tuple that is NOT in the list of provided tuples
+	// but are associated with the provided profiles (so we don't delete
+	// unrelated profile+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_configuration_profile_labels
-	  WHERE (%s_profile_uuid, label_id) NOT IN (%s)
+	  WHERE (%s_profile_uuid, label_id) NOT IN (%s) AND
+	  %s_profile_uuid IN (?)
 	`
 
 	upsertStmt := `
@@ -689,10 +693,14 @@ func batchSetProfileLabelAssociationsDB(
               label_id = VALUES(label_id)
 	`
 
-	var insertBuilder strings.Builder
-	var deleteBuilder strings.Builder
-	var insertParams []any
-	var deleteParams []any
+	var (
+		insertBuilder strings.Builder
+		deleteBuilder strings.Builder
+		insertParams  []any
+		deleteParams  []any
+
+		setProfileUUIDs = make(map[string]struct{})
+	)
 	for i, pl := range profileLabels {
 		if i > 0 {
 			insertBuilder.WriteString(",")
@@ -702,6 +710,8 @@ func batchSetProfileLabelAssociationsDB(
 		deleteBuilder.WriteString("(?, ?)")
 		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
 		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
+
+		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, platformPrefix, insertBuilder.String()), insertParams...)
@@ -714,8 +724,19 @@ func batchSetProfileLabelAssociationsDB(
 		return ctxerr.Wrap(ctx, err, "setting label associations for profile")
 	}
 
-	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String())
-	if _, err := tx.ExecContext(ctx, deleteStmt, deleteParams...); err != nil {
+	deleteStmt = fmt.Sprintf(deleteStmt, platformPrefix, deleteBuilder.String(), platformPrefix)
+
+	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	for k := range setProfileUUIDs {
+		profUUIDs = append(profUUIDs, k)
+	}
+	deleteArgs := append(deleteParams, profUUIDs)
+
+	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In delete labels for profiles")
+	}
+	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting labels for profiles")
 	}
 

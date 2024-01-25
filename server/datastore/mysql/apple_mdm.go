@@ -1167,6 +1167,7 @@ func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	const loadExistingProfiles = `
 SELECT
   identifier,
+  profile_uuid,
   mobileconfig
 FROM
   mdm_apple_configuration_profiles
@@ -1261,6 +1262,40 @@ ON DUPLICATE KEY UPDATE
 			if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
 			}
+		}
+
+		// build a list of labels so the associations can be batch-set all at once
+		// TODO: with minor changes this chunk of code could be shared
+		// between macOS and Windows, but at the time of this
+		// implementation we're under tight time constraints.
+		incomingLabels := []fleet.ConfigurationProfileLabel{}
+		if len(incomingIdents) > 0 {
+			var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
+			// load current profiles (again) that match the incoming profiles by name to grab their uuids
+			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
+			}
+
+			for _, newlyInsertedProf := range newlyInsertedProfs {
+				incomingProf, ok := incomingProfs[newlyInsertedProf.Identifier]
+				if !ok {
+					return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
+				}
+
+				for _, label := range incomingProf.Labels {
+					label.ProfileUUID = newlyInsertedProf.ProfileUUID
+					incomingLabels = append(incomingLabels, label)
+				}
+			}
+		}
+
+		// insert label associations
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
 		}
 		return nil
 	})

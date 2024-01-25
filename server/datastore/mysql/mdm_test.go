@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
-	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -2130,6 +2129,16 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		},
 	)
 	require.NoError(t, err)
+	otherMacProfile, err := ds.NewMDMAppleConfigProfile(
+		ctx,
+		fleet.MDMAppleConfigProfile{
+			Name:         "OtherDummyTestName",
+			Identifier:   "OtherDummyTestIdentifier",
+			Mobileconfig: mobileconfig.Mobileconfig([]byte("OtherDummyTestMobileconfigBytes")),
+			TeamID:       nil,
+		},
+	)
+	require.NoError(t, err)
 
 	// create a Windows config profile
 	windowsProfile, err := ds.NewMDMWindowsConfigProfile(
@@ -2141,6 +2150,25 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		},
 	)
 	require.NoError(t, err)
+	otherWinProfile, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "other-with-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+		},
+	)
+	require.NoError(t, err)
+
+	// assign the label to the "other" profiles, should not change throughout the test
+	wantOtherWin := []fleet.ConfigurationProfileLabel{
+		{ProfileUUID: otherWinProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
+	}
+	require.NoError(t, batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherWin, "windows"))
+	wantOtherMac := []fleet.ConfigurationProfileLabel{
+		{ProfileUUID: otherMacProfile.ProfileUUID, LabelName: label.Name, LabelID: label.ID},
+	}
+	require.NoError(t, batchSetProfileLabelAssociationsDB(ctx, ds.writer(ctx), wantOtherMac, "darwin"))
 
 	platforms := map[string]string{
 		"darwin":  macOSProfile.ProfileUUID,
@@ -2148,19 +2176,9 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 	}
 
 	for platform, uuid := range platforms {
-		expectLabels := func(t *testing.T, want []fleet.ConfigurationProfileLabel) {
+		expectLabels := func(t *testing.T, profUUID, platform string, want []fleet.ConfigurationProfileLabel) {
 			if len(want) == 0 {
 				return
-			}
-
-			var sb strings.Builder
-			var args []any
-			for i, cpl := range want {
-				if i > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString("(?, ?)")
-				args = append(args, cpl.ProfileUUID, cpl.LabelName)
 			}
 
 			p := platform
@@ -2168,14 +2186,16 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				p = "apple"
 			}
 
-			query := fmt.Sprintf("SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE (%s_profile_uuid, label_name) IN (%s)", p, p, sb.String())
+			query := fmt.Sprintf("SELECT %s_profile_uuid as profile_uuid, label_id, label_name FROM mdm_configuration_profile_labels WHERE %s_profile_uuid = ?", p, p)
+
+			var got []fleet.ConfigurationProfileLabel
 			ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-				var got []fleet.ConfigurationProfileLabel
-				err := sqlx.SelectContext(ctx, tx, &got, query, args...)
+				err := sqlx.SelectContext(ctx, tx, &got, query, profUUID)
 				require.NoError(t, err)
 				require.Len(t, got, len(want))
 				return nil
 			})
+			require.ElementsMatch(t, want, got)
 		}
 
 		t.Run("empty input "+platform, func(t *testing.T) {
@@ -2184,7 +2204,10 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, want, platform)
 			})
 			require.NoError(t, err)
-			expectLabels(t, want)
+			expectLabels(t, uuid, platform, want)
+			// does not change other profiles
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 
 		t.Run("valid input "+platform, func(t *testing.T) {
@@ -2195,7 +2218,10 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
 			})
 			require.NoError(t, err)
-			expectLabels(t, profileLabels)
+			expectLabels(t, uuid, platform, profileLabels)
+			// does not change other profiles
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 
 		t.Run("invalid profile UUID "+platform, func(t *testing.T) {
@@ -2249,7 +2275,7 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 			// both are stored in the DB
-			expectLabels(t, profileLabels)
+			expectLabels(t, uuid, platform, profileLabels)
 
 			// batch apply again without the newLabel
 			profileLabels = []fleet.ConfigurationProfileLabel{
@@ -2259,7 +2285,11 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 				return batchSetProfileLabelAssociationsDB(ctx, tx, profileLabels, platform)
 			})
 			require.NoError(t, err)
-			expectLabels(t, profileLabels)
+			expectLabels(t, uuid, platform, profileLabels)
+
+			// does not change other profiles
+			expectLabels(t, otherWinProfile.ProfileUUID, "windows", wantOtherWin)
+			expectLabels(t, otherMacProfile.ProfileUUID, "darwin", wantOtherMac)
 		})
 	}
 
