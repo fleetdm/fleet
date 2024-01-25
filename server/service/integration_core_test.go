@@ -202,7 +202,7 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 }
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
-	params := fleet.UserPayload{
+	newUserParams := fleet.UserPayload{
 		Name:  ptr.String("user_invalid_email"),
 		Email: ptr.String("test@example.com"),
 		// This is 73 characters long
@@ -210,8 +210,13 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 
-	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(s.T(), resp, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+	// test creating a new user
+	respNew := s.Do("POST", "/api/latest/fleet/users/admin", &newUserParams, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), respNew, "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+
+	requiredResetparams := fleet.performRequiredPasswordResetRequest{Password: ptr.String("password123#password123#password123#password123#password123#password123##"), ID: ptr.Uint(12)}
+	// test admin-required password reset
+	respReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &newUserParams, http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {

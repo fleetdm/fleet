@@ -149,7 +149,7 @@ func (e InvalidArgumentError) Error() string {
 		return fmt.Sprintf("validation failed: %s %s", e.Errors[0].name, e.Errors[0].reason)
 	default:
 		return fmt.Sprintf("validation failed: %s %s and %d other errors", e.Errors[0].name, e.Errors[0].reason,
-			len(e.Errors))
+			len(e.Errors)-1)
 	}
 }
 

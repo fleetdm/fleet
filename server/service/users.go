@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/go-kit/kit/log/level"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -871,9 +872,11 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	user.AdminForcedPasswordReset = false
 	err := svc.setNewPassword(ctx, user, password)
 	if err != nil {
+		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+			return nil, ctxerr.Wrap(ctx, badRequestErr("Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.", err))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "setting new password")
 	}
-
 	// Sessions should already have been cleared when the reset was
 	// required
 
