@@ -3465,7 +3465,7 @@ Retrieves the aggregated host OS versions information.
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
-          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",// Available in Fleet Premium
+          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
           "cvss_score": 7.8,// Available in Fleet Premium
           "epss_probability": 0.9729,// Available in Fleet Premium
           "cisa_known_exploit": false,// Available in Fleet Premium
