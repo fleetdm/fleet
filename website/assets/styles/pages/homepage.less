@@ -48,16 +48,14 @@
   }
 
   [purpose='homepage-hero'] {
-    padding-top: 40px;
+    padding-top: 100px;
     padding-left: 40px;
     padding-right: 40px;
-    padding-bottom: 40px;
+    padding-bottom: 480px;
     max-width: 1200px;
-    height: 750px;
   }
 
   [purpose='hero-text'] {
-    padding-top: 20px;
     min-width: 540px;
     text-align: center;
     h1 {
@@ -66,9 +64,6 @@
     p {
       margin-bottom: 40px;
       font-size: 18px;
-    }
-    [purpose='button-row'] {
-      margin-bottom: 40px;
     }
   }
 
@@ -286,19 +281,6 @@
     max-width: 428px;
     padding-left: 40px;
   }
-  [purpose='platform-left-text-block'] {
-    max-width: 480px;
-    margin-right: 80px;
-  }
-  [purpose='platform-right-text-block'] {
-    max-width: 480px;
-    margin-left: 80px;
-  }
-  [purpose='platform-small-text-block'] {
-    max-width: 320px;
-    margin-right: 80px;
-  }
-
 
   [purpose='category-image'] {
     img {
@@ -307,27 +289,13 @@
     }
     transition: transform 0.3s, right 0.3s, left 0.3s, bottom 0.3s;
   }
-  [purpose='platform-image'] {
-    width: 520px;
-    img {
-      width: 100%;
-      height: auto;
-    }
-  }
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
-  }
-  [purpose='bottom-cloud-city-banner'] {
-    background: linear-gradient(180deg, #E9F4F4 0%, #FFFFFF 100%);
-    img {
-      width: 100%;
-    }
   }
   [purpose='button-row'] {
     a {
       font-weight: 700;
       font-size: 16px;
-      line-height: 24px;
       text-decoration: none;
     }
     [purpose='cta-button'] {
@@ -409,14 +377,8 @@
         max-width: 320px;
         p {
           font-size: 14px;
-          line-height: 21px;
         }
       }
-    }
-    h2 {
-      font-size: 32px;
-      line-height: 48px;
-      margin-bottom: 40px;
     }
   }
 
@@ -464,7 +426,6 @@
       &:hover {
         box-shadow: 0px 4px 16px 0px #E2E4EA;
       }
-
       cursor: pointer;
       width: 222px;
       height: 169px;
@@ -541,6 +502,7 @@
         border: 1px dashed #C5C7D1;
         background: rgba(0, 0, 0, 0.01);
         &:has(img) {
+          border: 1px solid #C5C7D1;
           background: #FFF;
         }
         margin-left: 8px;
@@ -602,7 +564,6 @@
   @media (max-width: 1400px) {
 
     [purpose='hero-logos'] {
-      margin-top: 32px;
       margin-bottom: 120px;
       [purpose='snowflake-logo'] {
         height: 28px;
@@ -639,15 +600,6 @@
       max-width: 468px;
       padding-right: 0px;
     }
-
-
-    [purpose='bottom-cta'] {
-      h1 {
-        font-weight: 800;
-        font-size: 56px;
-      }
-    }
-
   }
   //  ██╗      ██████╗
   //  ██║     ██╔════╝
@@ -666,7 +618,6 @@
 
     [purpose='homepage-hero'] {
       max-width: 1080px;
-      height: 726px;
     }
 
     [purpose='hero-logos'] {
@@ -681,6 +632,11 @@
     }
     [purpose='page-section'] {
       margin-bottom: 160px;
+    }
+    [purpose='bottom-cta'] {
+      h1 {
+        font-size: 48px;
+      }
     }
     [purpose='video-modal'] {
       [purpose='modal-dialog'] {
@@ -707,26 +663,27 @@
   //
   @media (max-width: 991px) {
 
+    h1 {
+      font-size: 48px;
+    }
+
     [purpose='hero-background-image'] {
       background-size: 2800px auto;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
+
     [purpose='homepage-hero'] {
       max-width: 100%;
-      height: 720px;
+      padding-top: 80px;
+      padding-bottom: 400px;
     }
     [purpose='homepage-content'] {
       padding-right: 60px;
       padding-left: 60px;
     }
-    [purpose='hero-text'] {
-      padding-top: 20px;
-      max-width: 450px;
-    }
     [purpose='hero-logos'] {
       max-width: 688px;
-      margin-top: 24px;
       padding-left: 40px;
       padding-right: 40px;
       img {
@@ -734,18 +691,36 @@
       }
       [purpose='snowflake-logo'] {
         height: 22px;
+        margin-left: 0px;
+        margin-right: 20px;
       }
       [purpose='wayfair-logo'] {
         height: 22px;
+        margin-left: 20px;
+        margin-right: 20px;
       }
       [purpose='uber-logo'] {
         height: 22px;
+        margin-left: 20px;
+        margin-right: 20px;
       }
       [purpose='atlassian-logo'] {
         height: 16px;
+        margin-left: 0px;
+        margin-right: 20px;
       }
       [purpose='segment-logo'] {
         height: 24px;
+        margin-left: 20px;
+        margin-right: 0px;
+      }
+      [purpose='fastly-logo'] {
+        margin-left: 20px;
+        margin-right: 0px;
+      }
+      [purpose='gusto-logo'] {
+        margin-left: 20px;
+        margin-right: 20px;
       }
     }
     [purpose='logo-column'] {
@@ -833,28 +808,6 @@
       }
     }
 
-    [purpose='platform-left-text-block'] {
-      max-width: 357px;
-      margin-right: 80px;
-    }
-    [purpose='platform-right-text-block'] {
-      max-width: 357px;
-      margin-left: 80px;
-    }
-    [purpose='platform-small-text-block'] {
-      min-width: 320px;
-      margin-right: 20px;
-    }
-
-    [purpose='platform-animated-image'] {
-      width: 453px;
-      height: auto;
-      img {
-        width: 100%;
-        height: 100%;
-      }
-    }
-
     [purpose='integration-cards'] {
       [purpose='integration-card-column'] {
         margin-left: 24px;
@@ -865,38 +818,16 @@
         a:last-child {
           margin-left: 0px;
         }
-
       }
       [purpose='integration-card'] {
         width: 100%;
-        display: flex;
-        padding: 24px;
-        align-items: flex-start;
         justify-content: center;
-        flex-direction: column;
-        border-radius: 8px;
-        border: 1px solid #E2E4EA;
-        background: #FFF;
         margin-left: 0px;
         margin-right: 0px;
         margin-bottom: 24px;
-
-        img {
-          width: 32px;
-          height: 36px;
-          margin-bottom: 4px;
-        }
-        p {
-          font-size: 12px;
-          margin-bottom: 0px;
-        }
-        strong {
-          font-size: 14px;
-          line-height: 150%;
-          margin-bottom: 4px;
-        }
       }
     }
+
     [purpose='endpoints-banner'] {
       max-height: 282px;
       padding-left: 40px;
@@ -914,9 +845,6 @@
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
             margin-left: 6px;
             margin-right: 6px;
             img {
@@ -925,7 +853,6 @@
             }
             p {
               font-size: 6.75px;
-              font-weight: 500;
               line-height: 9px;
             }
           }
@@ -969,13 +896,14 @@
       font-size: 48px;
     }
     [purpose='hero-background-image'] {
-      background-size: 2600px auto;
+      background-size: auto 278px;
       background-position: center bottom;
       background-repeat: no-repeat;
     }
 
     [purpose='homepage-hero'] {
-      height: 650px;
+      padding-top: 80px;
+      padding-bottom: 308px;
     }
 
     [purpose='homepage-content'] {
@@ -1109,16 +1037,7 @@
             width: 80px;
             height: 80px;
             padding: 16px 10px 7px 10px;
-            flex-direction: column;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
             border-radius: 12px;
-            border: 1px dashed #C5C7D1;
-            background: rgba(0, 0, 0, 0.01);
-            &:has(img) {
-              background: #FFF;
-            }
             margin-left: 8px;
             margin-right: 8px;
             img {
@@ -1126,9 +1045,7 @@
               height: 36px;
             }
             p {
-              margin-bottom: 0px;
               font-size: 9px;
-              font-weight: 500;
               line-height: 12px;
             }
           }
@@ -1210,24 +1127,39 @@
       font-size: 14px;
     }
 
-    [purpose='hero-background-image'] {
-      background-size: 2000px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
-
     [purpose='homepage-hero'] {
-      height: 600px;
+      padding-top: 60px;
+      padding-bottom: 270px;
       padding-left: 24px;
       padding-right: 24px;
     }
 
     [purpose='hero-text'] {
-      padding-bottom: 260px;
       p {
         font-size: 16px;
       }
     }
+    [purpose='hero-logos'] {
+      [purpose='wayfair-logo'] {
+        margin-right: 0px;
+      }
+      [purpose='uber-logo'] {
+        margin-left: 0px;
+        margin-right: auto;
+      }
+      [purpose='atlassian-logo'] {
+        margin-left: auto;
+        margin-right: 0px;
+      }
+      [purpose='fastly-logo'] {
+        margin-left: auto;
+        margin-right: auto;
+      }
+      [purpose='gusto-logo'] {
+        margin-left: 0px;
+      }
+    }
+
     [purpose='testimonials'] {
       margin-bottom: 40px;
     }
@@ -1269,11 +1201,8 @@
       padding-left: 24px;
     }
 
-    [purpose='platform-left-text-block'], [purpose='platform-right-text-block'] {
-      text-align: left;
-    }
     // To make the secondary CTA buttons into white outline buttons, uncomment this section.
-    // [purpose='animated-arrow-button-red'], [purpose='lg-animated-arrow-button-red'] {
+    // [purpose='animated-arrow-button-red'] {
     //   display: flex;
     //   width: 100%;
     //   background-color: #FFF;
@@ -1360,7 +1289,6 @@
             }
             p {
               font-size: 6.75px;
-              font-weight: 500;
               line-height: 9px;
             }
           }
@@ -1385,19 +1313,6 @@
           text-align: center;
           width: 100%;
         }
-        &:first-of-type {
-          // [purpose='integration-card'] {
-          //   margin-left: 0px;
-          //   margin-right: 0px;
-          // }
-        }
-        &:last-of-type {
-          // [purpose='integration-card'] {
-          //   margin-left: 0px;
-          //   margin-right: 0px;
-          // }
-        }
-
       }
     }
     [purpose='bottom-cta'] {
@@ -1424,18 +1339,11 @@
     }
 
     [purpose='truncated-vulnerability-management-text'] {
-
       display: none;
+    }
 
-    }
-    [purpose='hero-background-image'] {
-      background-size: 1400px auto;
-      background-position: center bottom;
-      background-repeat: no-repeat;
-    }
 
     [purpose='hero-text'] {
-      padding-bottom: 260px;
       p {
         font-size: 16px;
       }
@@ -1445,10 +1353,6 @@
         padding-left: 24px;
         padding-right: 24px;
       }
-    }
-
-    [purpose='homepage-hero'] {
-      height: 550px;
     }
 
     [purpose='homepage-content'] {
@@ -1476,7 +1380,6 @@
             }
             p {
               font-size: 6px;
-              font-weight: 500;
               line-height: 9px;
             }
           }
@@ -1484,18 +1387,7 @@
       }
     }
 
-    [purpose='lg-animated-arrow-button-red'] {
-      br {
-        display: block;
-      }
-      &:after {
-        top: 18px;
-        left: 80px;
-      }
-      &:hover:after {
-        left: 85px;
-      }
-    }
+
     [purpose='bottom-cta'] {
       h1 {
         font-size: 32px;
