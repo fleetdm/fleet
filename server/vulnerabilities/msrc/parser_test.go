@@ -40,7 +40,7 @@ func TestParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// All the products we expect to see, grouped by their product name
-	expectedProducts := map[string]map[string]parsed.Product{
+	expectedProducts := map[string]parsed.Products{
 		"Windows 10": {
 			"11568": parsed.NewProductFromFullName("Windows 10 Version 1809 for 32-bit Systems"),
 			"11569": parsed.NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems"),
@@ -1195,7 +1195,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("each bulletin should have the right products", func(t *testing.T) {
 			for _, g := range bulletins {
-				require.Equal(t, g.Products, expectedProducts[g.ProductName], g.ProductName)
+				require.Equal(t, expectedProducts[g.ProductName], g.Products, g.ProductName)
 			}
 		})
 

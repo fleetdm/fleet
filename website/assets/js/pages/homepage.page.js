@@ -4,7 +4,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
-    selectedCategory: 'endpoint-ops'
+    selectedCategory: 'device-management'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗

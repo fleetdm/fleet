@@ -60,10 +60,11 @@ import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/A
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
-import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
+import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -219,12 +220,14 @@ const routes = (
             <IndexRedirect to="titles" />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
-              <Route path="versions" component={SoftwareVersions} />
+              <Route path="versions" component={SoftwareTitles} />
+              <Route path="os" component={SoftwareOS} />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/details" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

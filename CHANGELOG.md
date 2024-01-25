@@ -1,3 +1,9 @@
+## Fleet 4.43.3 (Jan 23, 2024)
+
+### Bug fixes
+
+* Fixed incorrect padding on the my device page.
+
 ## Fleet 4.43.2 (Jan 22, 2024)
 
 ### Bug fixes
