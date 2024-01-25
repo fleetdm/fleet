@@ -1,6 +1,4 @@
-.software-versions {
-  margin-top: $pad-xxlarge;
-
+.software-table {
   &__count {
     display: flex;
     gap: 12px;
@@ -24,6 +22,17 @@
     .dropdown__custom-value-label {
       width: 155px; // Override 105px for longer text options
     }
+  }
+
+  &__filter-controls {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  // Fix dropdown form bug
+  &__version-slider {
+    width: 210px;
   }
 
   .table-container {
@@ -66,7 +75,6 @@
     &__data-table-block {
       .data-table-block {
         .data-table__table {
-
           // for showing and hiding "view all hosts" link on hover
           tr {
             .software-link {
@@ -93,7 +101,7 @@
 
             @media (min-width: $break-lg) {
               // expand the width of version header at larger screen sizes
-              .version__header {
+              .versions__header {
                 width: $col-md;
               }
             }
@@ -122,7 +130,6 @@
               gap: $pad-small;
             }
 
-
             .hosts_count__cell {
               .hosts-cell__wrapper {
                 display: flex;
@@ -143,7 +150,7 @@
             }
 
             @media (min-width: $break-lg) {
-              .version__cell {
+              .versions__cell {
                 width: $col-md;
               }
             }
@@ -158,9 +165,5 @@
     &__wrapper {
       overflow-x: auto;
     }
-  }
-
-  &__table-error {
-    margin-top: $pad-xxxlarge;
   }
 }

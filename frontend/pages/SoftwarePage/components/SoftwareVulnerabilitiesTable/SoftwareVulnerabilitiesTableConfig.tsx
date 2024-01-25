@@ -2,6 +2,7 @@ import React from "react";
 
 import { formatFloatAsPercentage } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { ISoftwareVulnerability } from "interfaces/software";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -9,7 +10,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { ISoftwareVulnerability } from "interfaces/software";
 
 interface IHeaderProps {
   column: {
@@ -62,7 +62,7 @@ const formatSeverity = (float: number | null) => {
   return `${severity} (${float.toFixed(1)})`;
 };
 
-const generateSoftwareVersionDetailsTableConfig = (
+const generateTableConfig = (
   isPremiumTier: boolean,
   isSandboxMode: boolean
 ): IDataColumn[] => {
@@ -189,7 +189,6 @@ const generateSoftwareVersionDetailsTableConfig = (
       title: "Published",
       accessor: "cve_published",
       disableSortBy: false,
-      sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
@@ -228,4 +227,4 @@ const generateSoftwareVersionDetailsTableConfig = (
   return isPremiumTier ? tableHeaders.concat(premiumHeaders) : tableHeaders;
 };
 
-export default generateSoftwareVersionDetailsTableConfig;
+export default generateTableConfig;

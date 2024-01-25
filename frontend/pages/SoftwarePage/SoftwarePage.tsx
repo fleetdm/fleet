@@ -39,13 +39,18 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
     pathname: PATHS.SOFTWARE_TITLES,
   },
   {
-    name: "Versions",
-    pathname: PATHS.SOFTWARE_VERSIONS,
+    name: "OS",
+    pathname: PATHS.SOFTWARE_OS,
   },
 ];
 
 const getTabIndex = (path: string): number => {
   return softwareSubNav.findIndex((navItem) => {
+    // This check ensures that for software versions path we still
+    // highlight the software tab.
+    if (navItem.name === "Software" && PATHS.SOFTWARE_VERSIONS === path) {
+      return true;
+    }
     // tab stays highlighted for paths that start with same pathname
     return path.startsWith(navItem.pathname);
   });
@@ -107,7 +112,6 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const queryParams = location.query;
 
   // initial values for query params used on this page
-  const query = queryParams && queryParams.query ? queryParams.query : "";
   const sortHeader =
     queryParams && queryParams.order_key
       ? queryParams.order_key
@@ -120,6 +124,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     queryParams && queryParams.page
       ? parseInt(queryParams.page, 10)
       : DEFAULT_PAGE;
+  // TODO: move these down into the Software Titles component.
+  const query = queryParams && queryParams.query ? queryParams.query : "";
   const showVulnerableSoftware =
     queryParams !== undefined && queryParams.vulnerable === "true";
 
@@ -322,14 +328,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           isSoftwareEnabled: Boolean(
             softwareConfig?.features?.enable_software_inventory
           ),
-          query,
-          // NOTE: may move this lower in tree if we need different values for different pages
           perPage: DEFAULT_PAGE_SIZE,
           orderDirection: sortDirection,
           orderKey: sortHeader,
-          showVulnerableSoftware,
           currentPage: page,
           teamId: teamIdForApi,
+          // TODO: move down into the Software Titles component
+          query,
+          showVulnerableSoftware,
         })}
       </div>
     );
