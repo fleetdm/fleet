@@ -1566,7 +1566,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			Platform:      "windows",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, host, false)
+		windowsEnroll(t, ds, host)
 
 		// create a team
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 5"})
@@ -1600,7 +1600,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			Platform:      "windows",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, host, false)
+		windowsEnroll(t, ds, host)
 
 		// create a team
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 6"})
@@ -1670,7 +1670,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			Platform:      "windows",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, host, false)
+		windowsEnroll(t, ds, host)
 
 		// create a team
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 7"})
@@ -1757,7 +1757,7 @@ func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datast
 			Platform:      "windows",
 		})
 		require.NoError(t, err)
-		nanoEnroll(t, ds, host, false)
+		windowsEnroll(t, ds, host)
 
 		// create a team
 		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 8"})

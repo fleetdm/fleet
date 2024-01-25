@@ -544,8 +544,8 @@ WHERE
 		name,
 		syncml AS raw_profile,
 		mwcp.updated_at AS earliest_install_date,
-		0 AS count_profile_labels,
-		0 AS count_host_labels
+		COUNT(*) AS count_profile_labels,
+		COUNT(lm.label_id) AS count_host_labels
 	FROM
 		mdm_windows_configuration_profiles mwcp
 		JOIN mdm_configuration_profile_labels mcpl ON mcpl.windows_profile_uuid = mwcp.profile_uuid
