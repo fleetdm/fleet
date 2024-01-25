@@ -22,7 +22,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
-    {`${count} ${pluralize(count, "label")}`}
+    {`${count} ${pluralize(count, "label", "s", "")}`}
   </div>
 );
 
