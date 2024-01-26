@@ -2443,7 +2443,6 @@ Returns the information of the specified host.
       "name": "",
       "server_url": null,
       "locked": false,
-      "unlock_pin": "",
       "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
