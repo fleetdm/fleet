@@ -701,6 +701,15 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm windows config profile")
 	}
 
+	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil)
+	if err != nil {
+		return nil, err
+	}
+	if len(labels) > 0 {
+		// ensure we leave Labels nil if there are none
+		res.Labels = labels
+	}
+
 	return &res, nil
 }
 
@@ -1074,8 +1083,63 @@ GROUP BY
 	return counts, nil
 }
 
+const windowsMDMProfilesDesiredStateQuery = `
+	-- non label-based profiles
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		h.uuid as host_uuid,
+		0 as count_profile_labels,
+		0 as count_host_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+	WHERE
+		h.platform = 'windows' AND
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE mcpl.windows_profile_uuid = mwcp.profile_uuid
+		) AND
+		( %s )
+
+	UNION
+
+	-- label-based profiles
+	SELECT
+		mwcp.profile_uuid,
+		mwcp.name,
+		h.uuid as host_uuid,
+		COUNT(*) as count_profile_labels,
+		COUNT(lm.label_id) as count_host_labels
+	FROM
+		mdm_windows_configuration_profiles mwcp
+			JOIN hosts h
+				ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
+			JOIN mdm_windows_enrollments mwe
+				ON mwe.host_uuid = h.uuid
+			JOIN mdm_configuration_profile_labels mcpl
+				ON mcpl.windows_profile_uuid = mwcp.profile_uuid
+			LEFT OUTER JOIN label_membership lm
+				ON lm.label_id = mcpl.label_id AND lm.host_id = h.id
+	WHERE
+		h.platform = 'windows' AND
+		( %s )
+	GROUP BY
+		mwcp.profile_uuid, mwcp.name, h.uuid
+	HAVING
+		count_profile_labels > 0 AND count_host_labels = count_profile_labels
+`
+
 func (ds *Datastore) ListMDMWindowsProfilesToInstall(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
+	// TODO(mna): why is this in a transaction/reading from the primary, but not
+	// Apple's implementation? I see that the called private method is sometimes
+	// called inside a transaction, but when called from here it could (should?)
+	// be without and use the reader replica?
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToInstallDB(ctx, tx, nil)
@@ -1091,9 +1155,10 @@ func listMDMWindowsProfilesToInstallDB(
 ) ([]*fleet.MDMWindowsProfilePayload, error) {
 	// The query below is a set difference between:
 	//
-	// - Set A (ds), the desired state, can be obtained from a JOIN between
+	// - Set A (ds), the "desired state", can be obtained from a JOIN between
 	//   mdm_windows_configuration_profiles and hosts.
-	// - Set B, the current state given by host_mdm_windows_profiles.
+	//
+	// - Set B, the "current state" given by host_mdm_windows_profiles.
 	//
 	// A - B gives us the profiles that need to be installed:
 	//
@@ -1105,26 +1170,26 @@ func listMDMWindowsProfilesToInstallDB(
 	//   to independent verification by Fleet (verifying), or has reached a terminal
 	//   state (failed or verified). If the profile's content is edited, all relevant hosts will
 	//   be marked as status NULL so that it gets re-installed.
-	query := `
-        SELECT
-            ds.profile_uuid,
-            ds.host_uuid,
-	    ds.name as profile_name
-        FROM (
-            SELECT mwcp.profile_uuid, mwcp.name, h.uuid as host_uuid
-            FROM mdm_windows_configuration_profiles mwcp
-            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
-            JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-            WHERE h.platform = 'windows' AND (%s)
-        ) as ds
-        LEFT JOIN host_mdm_windows_profiles hmwp
-            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
-        WHERE
-        -- profiles in A but not in B
-        ( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
-        -- profiles in A and B with operation type "install" and NULL status
-        ( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
-`
+	//
+	// Note that for label-based profiles, only fully-satisfied profiles are
+	// considered for installation. This means that a broken label-based profile,
+	// where one of the labels does not exist anymore, will not be considered for
+	// installation.
+
+	query := fmt.Sprintf(`
+	SELECT
+		ds.profile_uuid,
+		ds.host_uuid,
+		ds.name as profile_name
+	FROM ( %s ) as ds
+		LEFT JOIN host_mdm_windows_profiles hmwp
+			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
+	WHERE
+		-- profiles in A but not in B
+		( hmwp.profile_uuid IS NULL AND hmwp.host_uuid IS NULL ) OR
+		-- profiles in A and B with operation type "install" and NULL status
+		( hmwp.host_uuid IS NOT NULL AND hmwp.operation_type = ? AND hmwp.status IS NULL )
+`, windowsMDMProfilesDesiredStateQuery)
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
@@ -1133,9 +1198,9 @@ func listMDMWindowsProfilesToInstallDB(
 
 	var err error
 	args := []any{fleet.MDMOperationTypeInstall}
-	query = fmt.Sprintf(query, hostFilter)
+	query = fmt.Sprintf(query, hostFilter, hostFilter)
 	if len(hostUUIDs) > 0 {
-		query, args, err = sqlx.In(query, hostUUIDs, args)
+		query, args, err = sqlx.In(query, hostUUIDs, hostUUIDs, fleet.MDMOperationTypeInstall)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "building sqlx.In")
 		}
@@ -1148,6 +1213,7 @@ func listMDMWindowsProfilesToInstallDB(
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
+	// TODO(mna): same question here
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
@@ -1171,39 +1237,51 @@ func listMDMWindowsProfilesToRemoveDB(
 	// B - A gives us the profiles that need to be removed
 	//
 	// Any other case are profiles that are in both B and A, and as such are
-	// processed by the ListMDMWindowsProfilesToInstall method (since they are in
-	// both, their desired state is necessarily to be installed).
-	query := `
-        SELECT
-	    hmwp.profile_uuid,
-	    hmwp.host_uuid,
-	    hmwp.operation_type,
-	    COALESCE(hmwp.detail, '') as detail,
-	    hmwp.status,
-	    hmwp.command_uuid
-          FROM (
-            SELECT h.uuid, mwcp.profile_uuid
-            FROM mdm_windows_configuration_profiles mwcp
-            JOIN hosts h ON h.team_id = mwcp.team_id OR (h.team_id IS NULL AND mwcp.team_id = 0)
-	    JOIN mdm_windows_enrollments mwe ON mwe.host_uuid = h.uuid
-            WHERE h.platform = 'windows'
-          ) as ds
-          RIGHT JOIN host_mdm_windows_profiles hmwp
-            ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.uuid
-          -- profiles that are in B but not in A
-          WHERE ds.profile_uuid IS NULL
-	    AND ds.uuid IS NULL
-	    AND (%s)
-`
+	// processed by the ListMDMWindowsProfilesToInstall method (since they are
+	// in both, their desired state is necessarily to be installed).
+	//
+	// Note that for label-based profiles, only those that are fully-sastisfied
+	// by the host are considered for install (are part of the desired state used
+	// to compute the ones to remove). However, as a special case, a broken
+	// label-based profile will NOT be removed from a host where it was
+	// previously installed. However, if a host used to satisfy a label-based
+	// profile but no longer does (and that label-based profile is not "broken"),
+	// the profile will be removed from the host.
 
 	hostFilter := "TRUE"
 	if len(hostUUIDs) > 0 {
 		hostFilter = "hmwp.host_uuid IN (?)"
 	}
 
+	query := fmt.Sprintf(`
+	SELECT
+		hmwp.profile_uuid,
+		hmwp.host_uuid,
+		hmwp.operation_type,
+		COALESCE(hmwp.detail, '') as detail,
+		hmwp.status,
+		hmwp.command_uuid
+	FROM ( %s ) as ds
+		RIGHT JOIN host_mdm_windows_profiles hmwp
+			ON hmwp.profile_uuid = ds.profile_uuid AND hmwp.host_uuid = ds.host_uuid
+	WHERE
+		-- profiles that are in B but not in A
+		ds.profile_uuid IS NULL AND ds.host_uuid IS NULL AND
+		-- TODO(mna): why don't we have the same exception for "remove" operations as for Apple
+
+		-- except "would be removed" profiles if they are a broken label-based profile
+		NOT EXISTS (
+			SELECT 1
+			FROM mdm_configuration_profile_labels mcpl
+			WHERE
+				mcpl.windows_profile_uuid = hmwp.profile_uuid AND
+				mcpl.label_id IS NULL
+		) AND
+		(%s)
+`, fmt.Sprintf(windowsMDMProfilesDesiredStateQuery, "TRUE", "TRUE"), hostFilter)
+
 	var err error
 	var args []any
-	query = fmt.Sprintf(query, hostFilter)
 	if len(hostUUIDs) > 0 {
 		query, args, err = sqlx.In(query, hostUUIDs)
 		if err != nil {
@@ -1379,7 +1457,7 @@ func (ds *Datastore) bulkDeleteMDMWindowsHostsConfigProfilesDB(
 
 func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) (*fleet.MDMWindowsConfigProfile, error) {
 	profileUUID := "w" + uuid.New().String()
-	stmt := `
+	insertProfileStmt := `
 INSERT INTO
     mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
 (SELECT ?, ?, ?, ? FROM DUAL WHERE
@@ -1393,27 +1471,41 @@ INSERT INTO
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
-	if err != nil {
-		switch {
-		case isDuplicate(err):
-			return nil, &existsError{
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+		if err != nil {
+			switch {
+			case isDuplicate(err):
+				return &existsError{
+					ResourceType: "MDMWindowsConfigProfile.Name",
+					Identifier:   cp.Name,
+					TeamID:       cp.TeamID,
+				}
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return &existsError{
 				ResourceType: "MDMWindowsConfigProfile.Name",
 				Identifier:   cp.Name,
 				TeamID:       cp.TeamID,
 			}
-		default:
-			return nil, ctxerr.Wrap(ctx, err, "creating new windows mdm config profile")
 		}
-	}
 
-	aff, _ := res.RowsAffected()
-	if aff == 0 {
-		return nil, &existsError{
-			ResourceType: "MDMWindowsConfigProfile.Name",
-			Identifier:   cp.Name,
-			TeamID:       cp.TeamID,
+		for i := range cp.Labels {
+			cp.Labels[i].ProfileUUID = profileUUID
 		}
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, cp.Labels, "windows"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+		}
+
+		return nil
+	})
+	if err != nil {
+		return nil, err
 	}
 
 	return &fleet.MDMWindowsConfigProfile{
@@ -1478,6 +1570,7 @@ func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	const loadExistingProfiles = `
 SELECT
   name,
+  profile_uuid,
   syncml
 FROM
   mdm_windows_configuration_profiles
@@ -1579,6 +1672,41 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 			}
 		}
+
+		// build a list of labels so the associations can be batch-set all at once
+		// TODO: with minor changes this chunk of code could be shared
+		// between macOS and Windows, but at the time of this
+		// implementation we're under tight time constraints.
+		incomingLabels := []fleet.ConfigurationProfileLabel{}
+		if len(incomingNames) > 0 {
+			var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
+			// load current profiles (again) that match the incoming profiles by name to grab their uuids
+			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+			}
+			if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil {
+				return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
+			}
+
+			for _, newlyInsertedProf := range newlyInsertedProfs {
+				incomingProf, ok := incomingProfs[newlyInsertedProf.Name]
+				if !ok {
+					return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Name)
+				}
+
+				for _, label := range incomingProf.Labels {
+					label.ProfileUUID = newlyInsertedProf.ProfileUUID
+					incomingLabels = append(incomingLabels, label)
+				}
+			}
+		}
+
+		// insert/delete the label associations
+		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "windows"); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
+		}
+
 		return nil
 	})
 }

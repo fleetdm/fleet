@@ -195,9 +195,23 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum  []byte    `db:"checksum" json:"checksum,omitempty"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
+	// Labels are the associated labels for this profile
+	Labels    []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	CreatedAt time.Time                   `db:"created_at" json:"created_at"`
+	UpdatedAt time.Time                   `db:"updated_at" json:"updated_at"`
+}
+
+// ConfigurationProfileLabel represents the many-to-many relationship between
+// profiles and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within profile responses.
+type ConfigurationProfileLabel struct {
+	ProfileUUID string `db:"profile_uuid" json:"-"`
+	LabelName   string `db:"label_name" json:"name"`
+	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
+	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
