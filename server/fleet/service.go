@@ -618,7 +618,7 @@ type Service interface {
 	GetHostDEPAssignment(ctx context.Context, host *Host) (*HostDEPAssignment, error)
 
 	// NewMDMAppleConfigProfile creates a new configuration profile for the specified team.
-	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*MDMAppleConfigProfile, error)
+	NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*MDMAppleConfigProfile, error)
 	// GetMDMAppleConfigProfileByDeprecatedID retrieves the specified Apple
 	// configuration profile via its numeric ID. This method is deprecated and
 	// should not be used for new endpoints.
@@ -856,7 +856,7 @@ type Service interface {
 
 	// NewMDMWindowsConfigProfile creates a new Windows configuration profile for
 	// the specified team.
-	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader) (*MDMWindowsConfigProfile, error)
+	NewMDMWindowsConfigProfile(ctx context.Context, teamID uint, profileName string, r io.Reader, labels []string) (*MDMWindowsConfigProfile, error)
 
 	// NewMDMUnsupportedConfigProfile is called when a profile with an
 	// unsupported extension is uploaded.
@@ -867,7 +867,7 @@ type Service interface {
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles map[string][]byte, dryRun bool, skipBulkPending bool) error
+	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM

@@ -31,12 +31,13 @@ type MDMWindowsBitLockerSummary struct {
 type MDMWindowsConfigProfile struct {
 	// ProfileUUID is the unique identifier of the configuration profile in
 	// Fleet. For Windows profiles, it is the letter "w" followed by a uuid.
-	ProfileUUID string    `db:"profile_uuid" json:"profile_uuid"`
-	TeamID      *uint     `db:"team_id" json:"team_id"`
-	Name        string    `db:"name" json:"name"`
-	SyncML      []byte    `db:"syncml" json:"-"`
-	CreatedAt   time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt   time.Time `db:"updated_at" json:"updated_at"`
+	ProfileUUID string                      `db:"profile_uuid" json:"profile_uuid"`
+	TeamID      *uint                       `db:"team_id" json:"team_id"`
+	Name        string                      `db:"name" json:"name"`
+	SyncML      []byte                      `db:"syncml" json:"-"`
+	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
+	UpdatedAt   time.Time                   `db:"updated_at" json:"updated_at"`
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid

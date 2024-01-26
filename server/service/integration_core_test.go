@@ -3713,7 +3713,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
 	require.Len(t, lblIDs, 1)
-	labelID := lblIDs[0]
+	labelID := lblIDs["All Hosts"]
 
 	hosts := s.createHosts(t, "darwin")
 	host := hosts[0]
@@ -5344,8 +5344,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
 
 	// create a saved script
-	body, headers := generateNewScriptMultipartRequest(t, nil,
-		"myscript.sh", []byte(`echo "hello"`), s.token)
+	body, headers := generateNewScriptMultipartRequest(t,
+		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
 
 	// delete a saved script
@@ -6160,9 +6160,9 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	// no search criteria
 	var searchResp searchTargetsResponse
@@ -6171,6 +6171,11 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
+
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
@@ -6272,12 +6277,12 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	for i := range hosts {
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -6299,6 +6304,10 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 	// all hosts label selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
@@ -6933,7 +6942,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
-	customLabelID := lids[0]
+	customLabelID := lids[t.Name()]
 
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
