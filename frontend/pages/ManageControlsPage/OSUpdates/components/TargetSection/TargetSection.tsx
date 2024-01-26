@@ -15,7 +15,7 @@ import SectionHeader from "components/SectionHeader";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
-import PlatformsAccordion from "../PlatformsAccordion";
+import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
@@ -117,7 +117,7 @@ const TargetSection = ({
   const renderTargetForms = () => {
     if (isMacMdmEnabled && isWindowsMdmEnabled) {
       return (
-        <PlatformsAccordion
+        <PlatformTabs
           currentTeamId={currentTeamId}
           defaultMacOSVersion={defaultMacOSVersion}
           defaultMacOSDeadline={defaultMacOSDeadline}
