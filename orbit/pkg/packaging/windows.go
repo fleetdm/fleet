@@ -494,6 +494,10 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 
 	// Clean the archive path to prevent extracting files outside the destination.
 	archivePath := filepath.Clean(archiveReader.Name)
+	if strings.HasPrefix(archivePath, ".."+string(filepath.Separator)) {
+		// Skip relative paths for security reasons
+		return nil
+	}
 	// Prepare to write the file
 	finalPath := filepath.Join(destPath, archivePath)
 
