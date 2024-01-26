@@ -371,7 +371,7 @@ const HostDetailsPage = ({
     },
     {
       keepPreviousData: true,
-      staleTime: 5000,
+      staleTime: 2000,
     }
   );
 
@@ -409,7 +409,7 @@ const HostDetailsPage = ({
     },
     {
       keepPreviousData: true,
-      staleTime: 5000,
+      staleTime: 2000,
     }
   );
 
