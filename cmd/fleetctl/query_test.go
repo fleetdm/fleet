@@ -51,7 +51,7 @@ func TestSavedLiveQuery(t *testing.T) {
 	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -195,7 +195,7 @@ func TestAdHocLiveQuery(t *testing.T) {
 	ds.HostIDsByNameFunc = func(ctx context.Context, filter fleet.TeamFilter, hostnames []string) ([]uint, error) {
 		return []uint{1234}, nil
 	}
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		return nil, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {

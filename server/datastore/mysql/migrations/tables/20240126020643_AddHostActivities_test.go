@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240119091638(t *testing.T) {
+func TestUp_20240126020643(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	// create a couple users

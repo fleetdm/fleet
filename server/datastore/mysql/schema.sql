@@ -670,6 +670,25 @@ CREATE TABLE `mdm_apple_setup_assistants` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `mdm_configuration_profile_labels` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `apple_profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `windows_profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `label_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `label_id` int(10) unsigned DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `idx_mdm_configuration_profile_labels_apple_label_name` (`apple_profile_uuid`,`label_name`),
+  UNIQUE KEY `idx_mdm_configuration_profile_labels_windows_label_name` (`windows_profile_uuid`,`label_name`),
+  KEY `label_id` (`label_id`),
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_1` FOREIGN KEY (`apple_profile_uuid`) REFERENCES `mdm_apple_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_2` FOREIGN KEY (`windows_profile_uuid`) REFERENCES `mdm_windows_configuration_profiles` (`profile_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_configuration_profile_labels_ibfk_3` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_delivery_status` (
   `status` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
   PRIMARY KEY (`status`)

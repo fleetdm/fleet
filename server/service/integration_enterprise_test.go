@@ -148,7 +148,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -206,7 +206,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -227,7 +227,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -250,7 +250,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
 
@@ -1911,7 +1911,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -5022,8 +5022,8 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create a saved script for no team
 	var newScriptResp createScriptResponse
-	body, headers := generateNewScriptMultipartRequest(t, nil,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, nil)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err := json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5055,50 +5055,50 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp, "alt", "media")
 
 	// file name is empty
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "no file headers for script")
 
 	// file name is not .sh
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"not_sh.txt", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"not_sh.txt", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
 
 	// file content is empty
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(``), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(``), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script contents must not be empty")
 
 	// file content is too large
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// invalid hashbang
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(`#!/bin/python`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(`#!/bin/python`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Interpreter not supported.")
 
 	// script already exists with this name for this no-team
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "A script with this name already exists")
 
 	// team id does not exist
-	body, headers = generateNewScriptMultipartRequest(t, ptr.Uint(123),
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The team does not exist.")
@@ -5108,8 +5108,8 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 
 	// create with existing name for this time for a team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "team"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5119,8 +5119,9 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
 
 	// create a windows script
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5148,15 +5149,17 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
 
 	// script already exists with this name for this team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "A script with this name already exists")
 
 	// create with a different name for this team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script2.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5681,10 +5684,10 @@ VALUES
 
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/scripts.
-func generateNewScriptMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string,
+func generateNewScriptMultipartRequest(t *testing.T,
+	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
-	return generateMultipartRequest(t, tmID, "script", fileName, fileContent, token)
+	return generateMultipartRequest(t, "script", fileName, fileContent, token, extraFields)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {

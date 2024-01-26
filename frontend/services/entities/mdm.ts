@@ -40,6 +40,12 @@ export interface IMdmProfilesResponse {
   };
 }
 
+export interface IUploadProfileApiParams {
+  file: File;
+  teamId?: number;
+  labels?: string[];
+}
+
 const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
@@ -79,7 +85,7 @@ const mdmService = {
     return sendRequest("GET", path);
   },
 
-  uploadProfile: (file: File, teamId?: number) => {
+  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -88,6 +94,10 @@ const mdmService = {
     if (teamId) {
       formData.append("team_id", teamId.toString());
     }
+
+    labels?.forEach((label) => {
+      formData.append("labels", label);
+    });
 
     return sendRequest("POST", MDM_PROFILES, formData);
   },

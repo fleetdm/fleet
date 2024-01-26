@@ -8,10 +8,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240119091638, Down_20240119091638)
+	MigrationClient.AddMigration(Up_20240126020643, Down_20240126020643)
 }
 
-func Up_20240119091638(tx *sql.Tx) error {
+func Up_20240126020643(tx *sql.Tx) error {
 	// add user_id to host_script_results so that we can display the "actor" in
 	// the upcoming activities for a host (who requested the script execution).
 	// Unlike for activities, we don't copy over all the user's information,
@@ -52,6 +52,6 @@ func Up_20240119091638(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240119091638(tx *sql.Tx) error {
+func Down_20240126020643(tx *sql.Tx) error {
 	return nil
 }

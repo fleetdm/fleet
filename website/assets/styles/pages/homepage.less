@@ -253,8 +253,16 @@
     margin-left: 60px;
     padding-right: 40px;
     img {
-      width: auto;
-      height: 293px;
+      width: 380px;
+      height: auto;
+    }
+  }
+  [purpose='vuln-management-image'] {
+    margin-left: 60px;
+    padding-right: 40px;
+    img {
+      width: 360px;
+      height: auto;
     }
   }
   [purpose='category-button'] {
@@ -282,13 +290,6 @@
     padding-left: 40px;
   }
 
-  [purpose='category-image'] {
-    img {
-      width: auto;
-      height: 293px;
-    }
-    transition: transform 0.3s, right 0.3s, left 0.3s, bottom 0.3s;
-  }
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
   }
@@ -788,6 +789,17 @@
         margin-right: auto;
       }
     }
+    [purpose='vuln-management-image'] {
+      width: 100%;
+      height: auto;
+      margin-left: 0px;
+      padding-right: 0px;
+      padding-left: 75px;
+      img {
+        margin-left: auto;
+        margin-right: auto;
+      }
+    }
     [purpose='category-button'] {
       width: 100%;
       display: flex;
@@ -1184,7 +1196,18 @@
       width: 100%;
       height: auto;
       img {
-        max-height: 293px;
+        max-height: 236px;
+        max-width: 100%;
+        width: auto;
+        height: auto;
+      }
+    }
+    [purpose='vuln-management-image'] {
+      width: 100%;
+      height: auto;
+      padding-left: 48px;
+      img {
+        max-height: 236px;
         max-width: 100%;
         width: auto;
         height: auto;
