@@ -83,6 +83,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         <div className={`${baseClass}__form-table-content`}>
           <CurrentVersionSection currentTeamId={teamIdForApi} />
           <TargetSection
+            key={teamIdForApi} // we need to re-render this component when the team id changes.
             currentTeamId={teamIdForApi}
             onSelectAccordionItem={handleSelectPlatform}
           />
