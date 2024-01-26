@@ -2653,7 +2653,6 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "name": "",
       "server_url": null,
       "locked": false,
-      "unlock_pin": "",
       "wiped": false,
       "macos_settings": {
         "disk_encryption": null,
