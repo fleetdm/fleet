@@ -7357,9 +7357,9 @@ Get a list of all software versions.
         "hosts_count": 1
       },
       {
-        "id": 32,
+        "id": 2,
         "name": "1Password – Password Manager",
-        "versions": "2.10.0",
+        "version": "2.10.0",
         "source": "chrome_extensions",
         "browser": "chrome",
         "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
