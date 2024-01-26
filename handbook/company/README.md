@@ -130,6 +130,8 @@ Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/ceo), to
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
+### 2024: Your last MDM migration
+Fleet announces [support for Windows and Linux devices](https://fleetdm.com/announcements/fleet-introduces-windows-mdm), enabling IT departments to consolidate tools and implement “zero trust” faster using a modern Mac-first MDM. Removing the need for proprietary alternatives like Jamf Pro, Jamf Protect, Microsoft Intune, Ivanti MobileIron, and Broadcom's recently acquired Workspace ONE (originally known as "Airwatch"). 
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
