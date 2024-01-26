@@ -119,6 +119,10 @@ type ExpectedMDMProfile struct {
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
 	// RawProfile contains the raw profile contents
 	RawProfile []byte `db:"raw_profile"`
+	// CountProfileLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountProfileLabels uint `db:"count_profile_labels"`
+	// CountHostLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountHostLabels uint `db:"count_host_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.

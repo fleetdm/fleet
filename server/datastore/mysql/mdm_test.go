@@ -31,6 +31,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
+		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 	}
 
@@ -2176,6 +2177,654 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			{ProfileUUID: newGlobalProfiles[10].ProfileUUID, Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
 		},
 	})
+}
+
+func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Setup funcs
+
+	// ===================================================
+	// MacOS
+	// ===================================================
+	setup1 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test",
+			OsqueryHostID: ptr.String("osquery-macos"),
+			NodeKey:       ptr.String("node-key-macos"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 1"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T1.1", "T1.1", "d"),
+			configProfileForTest(t, "T1.2", "T1.2", "e"),
+		}
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil)
+		require.NoError(t, err)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 2)
+
+		return team.ID, host.ID
+	}
+
+	setup2 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-2",
+			OsqueryHostID: ptr.String("osquery-macos-2"),
+			NodeKey:       ptr.String("node-key-macos-2"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T2.1", "T2.1", "d"),
+			configProfileForTest(t, "T2.2", "T2.2", "e"),
+			configProfileForTest(t, "labeled_prof", "labeled_prof", "labeled_prof"),
+		}
+
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_1"})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "labeled_prof")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					label.Name,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		return team.ID, host.ID
+	}
+
+	setup3 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-3",
+			OsqueryHostID: ptr.String("osquery-macos-3"),
+			NodeKey:       ptr.String("node-key-macos-3"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 3"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T3.1", "T3.1", "d"),
+			configProfileForTest(t, "T3.2", "T3.2", "e"),
+			configProfileForTest(t, "labeled_prof_2", "labeled_prof_2", "labeled_prof_2"),
+		}
+
+		testLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_2"})
+		require.NoError(t, err)
+
+		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_3"})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "labeled_prof_2")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					testLabel2.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel2.Name,
+					testLabel2.ID,
+				)
+				return err
+			},
+		)
+
+		// Also add mapping to test label 3
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel3.Name,
+					testLabel3.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		return team.ID, host.ID
+	}
+
+	setup4 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "macos-test-4",
+			OsqueryHostID: ptr.String("osquery-macos-4"),
+			NodeKey:       ptr.String("node-key-macos-4"),
+			UUID:          uuid.NewString(),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+		nanoEnroll(t, ds, host, false)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 4"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team
+		profiles := []*fleet.MDMAppleConfigProfile{
+			configProfileForTest(t, "T4.1", "T4.1", "d"),
+			configProfileForTest(t, "T4.2", "T4.2", "e"),
+			configProfileForTest(t, "broken_label_prof", "broken_label_prof", "broken_label_prof"),
+		}
+
+		testLabel4, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_4"})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, profiles, nil)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "broken_label_prof")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					testLabel4.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (apple_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel4.Name,
+					testLabel4.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// Now delete label, we shouldn't see the related profile
+		err = ds.DeleteLabel(ctx, testLabel4.Name)
+		require.NoError(t, err)
+
+		return team.ID, host.ID
+	}
+
+	// ===================================================
+	// Windows
+	// ===================================================
+
+	setup5 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "windows-test",
+			OsqueryHostID: ptr.String("osquery-windows"),
+			NodeKey:       ptr.String("node-key-windows"),
+			UUID:          uuid.NewString(),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, host)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 5"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "T5.1", "T5.1"),
+			windowsConfigProfileForTest(t, "T5.2", "T5.2"),
+		}
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles)
+		require.NoError(t, err)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 2)
+
+		return team.ID, host.ID
+	}
+
+	setup6 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "windows-test-2",
+			OsqueryHostID: ptr.String("osquery-windows-2"),
+			NodeKey:       ptr.String("node-key-windows-2"),
+			UUID:          uuid.NewString(),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, host)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 6"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "T6.1", "T6.1"),
+			windowsConfigProfileForTest(t, "T6.2", "T6.2"),
+			windowsConfigProfileForTest(t, "labeled_prof", "labeled_prof"),
+		}
+
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: "test_label_6"})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "labeled_prof")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					label.Name,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		return team.ID, host.ID
+	}
+
+	setup7 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "windows-test-3",
+			OsqueryHostID: ptr.String("osquery-windows-3"),
+			NodeKey:       ptr.String("node-key-windows-3"),
+			UUID:          uuid.NewString(),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, host)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 7"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team 1
+		profiles := []*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "T7.1", "T7.1"),
+			windowsConfigProfileForTest(t, "T7.2", "T3.7"),
+			windowsConfigProfileForTest(t, "labeled_prof_2", "labeled_prof_2"),
+		}
+
+		testLabel2, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
+		require.NoError(t, err)
+
+		testLabel3, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "labeled_prof_2")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					testLabel2.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel2.Name,
+					testLabel2.ID,
+				)
+				return err
+			},
+		)
+
+		// Also add mapping to test label 3
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					testLabel3.Name,
+					testLabel3.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		return team.ID, host.ID
+	}
+
+	setup8 := func() (uint, uint) {
+		host, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      "windows-test-4",
+			OsqueryHostID: ptr.String("osquery-windows-4"),
+			NodeKey:       ptr.String("node-key-windows-4"),
+			UUID:          uuid.NewString(),
+			Platform:      "windows",
+		})
+		require.NoError(t, err)
+		windowsEnroll(t, ds, host)
+
+		// create a team
+		team, err := ds.NewTeam(ctx, &fleet.Team{Name: "team 8"})
+		require.NoError(t, err)
+
+		err = ds.AddHostsToTeam(ctx, &team.ID, []uint{host.ID})
+		require.NoError(t, err)
+
+		// create profiles for team
+		profiles := []*fleet.MDMWindowsConfigProfile{
+			windowsConfigProfileForTest(t, "T8.1", "T8.1"),
+			windowsConfigProfileForTest(t, "T8.2", "T8.2"),
+			windowsConfigProfileForTest(t, "broken_label_prof", "broken_label_prof"),
+		}
+
+		label, err := ds.NewLabel(ctx, &fleet.Label{Name: uuid.NewString()})
+		require.NoError(t, err)
+
+		err = ds.BatchSetMDMProfiles(ctx, &team.ID, nil, profiles)
+		require.NoError(t, err)
+
+		var uid string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_windows_configuration_profiles WHERE name = ?`, "broken_label_prof")
+		})
+
+		// Update label with host membership
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+					host.ID,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		// Update profile <-> label mapping
+		ExecAdhocSQL(
+			t, ds, func(db sqlx.ExtContext) error {
+				_, err := db.ExecContext(
+					context.Background(),
+					"INSERT INTO mdm_configuration_profile_labels (windows_profile_uuid, label_name, label_id) VALUES (?, ?, ?)",
+					uid,
+					label.Name,
+					label.ID,
+				)
+				return err
+			},
+		)
+
+		profs, _, err := ds.ListMDMConfigProfiles(ctx, &team.ID, fleet.ListOptions{})
+		require.NoError(t, err)
+		require.Len(t, profs, 3)
+
+		// Now delete label, we shouldn't see the related profile
+		err = ds.DeleteLabel(ctx, label.Name)
+		require.NoError(t, err)
+
+		return team.ID, host.ID
+	}
+
+	tests := []struct {
+		name        string
+		setupFunc   func() (uint, uint)
+		wantMac     map[string]*fleet.ExpectedMDMProfile
+		wantWindows map[string]*fleet.ExpectedMDMProfile
+		os          string
+	}{
+		{
+			name:      "macos basic team profiles no labels",
+			setupFunc: setup1,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T1.1": {Identifier: "T1.1"},
+				"T1.2": {Identifier: "T1.2"},
+			},
+		},
+		{
+			name:      "macos labeled team profile",
+			setupFunc: setup2,
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T2.1":         {Identifier: "T2.1"},
+				"T2.2":         {Identifier: "T2.2"},
+				"labeled_prof": {Identifier: "labeled_prof"},
+			},
+		},
+		{
+			name:      "macos labeled team profile with additional labeled profile",
+			setupFunc: setup3,
+			// Our expected profiles should not include the labeled profile, because it
+			// maps to a label that is not applied to the host.
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T3.1": {Identifier: "T3.1"},
+				"T3.2": {Identifier: "T3.2"},
+			},
+		},
+		{
+			name:      "macos profile with broken label",
+			setupFunc: setup4,
+			// Our expected profiles should not include the labeled profile, because it is broken
+			// (the label was deleted)
+			wantMac: map[string]*fleet.ExpectedMDMProfile{
+				"T4.1": {Identifier: "T4.1"},
+				"T4.2": {Identifier: "T4.2"},
+			},
+		},
+		{
+			name:      "windows basic team profiles no labels",
+			setupFunc: setup5,
+			wantWindows: map[string]*fleet.ExpectedMDMProfile{
+				"T5.1": {Name: "T5.1"},
+				"T5.2": {Name: "T5.2"},
+			},
+		},
+		{
+			name:      "windows labeled team profile",
+			setupFunc: setup6,
+			wantWindows: map[string]*fleet.ExpectedMDMProfile{
+				"T6.1":         {Name: "T6.1"},
+				"T6.2":         {Name: "T6.2"},
+				"labeled_prof": {Name: "labeled_prof"},
+			},
+		},
+		{
+			name:      "windows labeled team profile with additional labeled profile",
+			setupFunc: setup7,
+			// Our expected profiles should not include the labeled profile, because it
+			// maps to a label that is not applied to the host.
+			wantWindows: map[string]*fleet.ExpectedMDMProfile{
+				"T7.1": {Name: "T7.1"},
+				"T7.2": {Name: "T7.2"},
+			},
+		},
+		{
+			name:      "windows profile with broken label",
+			setupFunc: setup8,
+			// Our expected profiles should not include the labeled profile, because it is broken
+			// (the label was deleted)
+			wantWindows: map[string]*fleet.ExpectedMDMProfile{
+				"T8.1": {Name: "T8.1"},
+				"T8.2": {Name: "T8.2"},
+			},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			teamID, hostID := tt.setupFunc()
+			if len(tt.wantMac) > 0 {
+				got, err := ds.getHostMDMAppleProfilesExpectedForVerification(ctx, teamID, hostID)
+				require.NoError(t, err)
+				for k, v := range tt.wantMac {
+					require.Contains(t, got, k)
+					require.Equal(t, v.Identifier, got[k].Identifier)
+				}
+			}
+
+			if len(tt.wantWindows) > 0 {
+				got, err := ds.getHostMDMWindowsProfilesExpectedForVerification(ctx, teamID, hostID)
+				require.NoError(t, err)
+				for k, v := range tt.wantWindows {
+					require.Contains(t, got, k)
+					require.Equal(t, v.Name, got[k].Name)
+				}
+			}
+		})
+	}
 }
 
 func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
