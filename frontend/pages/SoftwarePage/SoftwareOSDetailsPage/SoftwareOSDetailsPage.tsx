@@ -94,7 +94,7 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
     return (
       <>
         <SoftwareDetailsSummary
-          title={`${osVersionDetails.name} ${osVersionDetails.version}`}
+          title={osVersionDetails.name}
           hosts={osVersionDetails.hosts_count}
           queryParams={{
             os_name: osVersionDetails.name_only,
