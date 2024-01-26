@@ -2014,7 +2014,6 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "name": "",
         "server_url": null,
         "locked": false,
-        "unlock_pin": "",
         "wiped": false
       },
       "software": [
