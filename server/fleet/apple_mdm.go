@@ -88,7 +88,7 @@ type MDMAppleManualEnrollmentProfile struct{}
 
 // AuthzType implements authz.AuthzTyper
 func (m MDMAppleManualEnrollmentProfile) AuthzType() string {
-	return "mdm_apple_enrollment_profile"
+	return "mdm_apple_manual_enrollment_profile"
 }
 
 // MDMAppleDEPKeyPair contains the DEP public key certificate and private key pair. Both are PEM encoded.
