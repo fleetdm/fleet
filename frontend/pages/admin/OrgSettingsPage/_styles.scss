@@ -46,22 +46,6 @@
           margin-right: 18px;
         }
 
-        .smtp-header {
-          display: flex;
-          justify-content: space-between;
-
-          // TODO: remove when we work on story to update header styles. Will
-          // likely have to chage SectionHeader component to take JSX instead of
-          // title string.
-          padding-bottom: $pad-medium;
-          max-width: 100%;
-          font-size: $medium;
-          font-weight: $regular;
-          color: $core-fleet-black;
-          border-bottom: solid 1px $ui-fleet-black-10;
-          margin: 0 0 $pad-xxlarge;
-        }
-
         .empty-table__container {
           margin: 96px 0 1.5rem;
         }
@@ -70,7 +54,6 @@
           font-size: 15px;
           font-weight: $bold;
           color: $core-fleet-black;
-          padding-left: 15px;
 
           em {
             font-style: normal;

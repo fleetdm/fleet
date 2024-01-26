@@ -39,6 +39,7 @@ func TestMDMApple(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -138,6 +139,38 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &existsErr)
 }
 
+func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+	cp := fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: dummyMC,
+		TeamID:       nil,
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: "foo", LabelID: 1},
+		},
+	}
+	_, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NotNil(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+	cp.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: label.Name, LabelID: label.ID},
+	}
+	prof, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NoError(t, err)
+	require.NotEmpty(t, prof.ProfileUUID)
+}
+
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	initialCP := storeDummyConfigProfileForTest(t, ds)
@@ -163,9 +196,46 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
 	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
+
+	// create a label-based profile
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "lbl", Query: "select 1"})
+	require.NoError(t, err)
+
+	labelCP := fleet.MDMAppleConfigProfile{
+		Name:         "label-based",
+		Identifier:   "label-based",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("LabelTestMobileconfigBytes")),
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: lbl.Name, LabelID: lbl.ID},
+		},
+	}
+	labelProf, err := ds.NewMDMAppleConfigProfile(ctx, labelCP)
+	require.NoError(t, err)
+
+	// get it back from both the deprecated ID and the uuid methods, labels are
+	// only included in the uuid one
+	prof, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, labelProf.ProfileID)
+	require.NoError(t, err)
+	require.Nil(t, prof.Labels)
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.False(t, prof.Labels[0].Broken)
+
+	// break the profile by deleting the label
+	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
+
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.True(t, prof.Labels[0].Broken)
 }
 
 func generateCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
@@ -1027,12 +1097,17 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
-func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MDMAppleConfigProfile {
+func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
 	cp, err := fleet.NewMDMAppleConfigProfile(configProfileBytesForTest(name, identifier, uuid), nil)
 	require.NoError(t, err)
 	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
+
+	for _, lbl := range labels {
+		cp.Labels = append(cp.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+	}
+
 	return cp
 }
 

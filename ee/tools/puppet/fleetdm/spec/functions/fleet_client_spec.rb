@@ -64,7 +64,7 @@ describe 'Puppet::Util::FleetClient' do
           request_body: { 'external_host_identifier' => identifier },
           response: instance_double(Net::HTTPSuccess, code: 204, body: nil),
         )
-        client.match_profiles(identifier)
+        client.match_profiles(identifier, 'production')
       end
 
       it { expect(result['body']).to eq({}) }
@@ -83,7 +83,7 @@ describe 'Puppet::Util::FleetClient' do
             body: body.to_json,
           ),
         )
-        client.match_profiles(identifier)
+        client.match_profiles(identifier, 'production')
       end
 
       let(:body) do

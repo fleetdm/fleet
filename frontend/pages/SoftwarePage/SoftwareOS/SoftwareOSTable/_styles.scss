@@ -1,0 +1,40 @@
+.software-os-table {
+  &__count {
+    display: flex;
+    gap: 12px;
+  }
+
+  .hosts-cell__wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .os-hosts-link {
+    opacity: 0;
+    transition: 250ms;
+  }
+
+  tr:hover {
+    .os-hosts-link {
+      opacity: 1;
+    }
+  }
+
+  .table-container {
+    &__data-table-block {
+      .data-table-block {
+        .data-table__table {
+          tbody {
+            .link-cell {
+              display: flex;
+              align-items: center;
+              gap: $pad-small;
+            }
+          }
+        }
+      }
+    }
+  }
+
+}
