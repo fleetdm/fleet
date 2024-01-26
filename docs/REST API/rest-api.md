@@ -3700,7 +3700,7 @@ Sends a command to unlock the specified Windows or Linux host. The host is unloc
 
 Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
 
-`GET /api/v1/fleet/hosts/:id/wipe`
+`POST /api/v1/fleet/hosts/:id/wipe`
 
 #### Parameters
 
@@ -3710,7 +3710,7 @@ Sends a command to wipe the specified macOS, Windows, or Linux host. The host is
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/wipe`
+`POST /api/v1/fleet/hosts/123/wipe`
 
 ##### Default response
 
