@@ -1,10 +1,13 @@
 package packaging
 
 import (
+	"archive/zip"
 	"bytes"
 	"crypto/tls"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -17,10 +20,13 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging/wix"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/josephspurrier/goversioninfo"
 	"github.com/rs/zerolog/log"
 )
+
+const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
 
 // BuildMSI builds a Windows .msi.
 // Note: this function is not safe for concurrent use
@@ -152,9 +158,10 @@ func BuildMSI(opt Options) (string, error) {
 	absWixDir := opt.LocalWixDir
 	wineChecked := false
 
-	// Download wix for macOS running on arm64, unless a local-wix-dir is provided
+	// Download wix for macOS running on arm64, unless a local-wix-dir is provided.
+	// We are using native MSI build on macOS arm64, instead of Docker, because the current fleetdm/wix Docker image is unreliable on macOS arm64.
+	// We are looking into creating a new Docker image for macOS arm64.
 	if runtime.GOOS == "darwin" && runtime.GOARCH == "arm64" && absWixDir == "" {
-		const wixDownload = "https://github.com/wixtoolset/wix3/releases/download/wix3112rtm/wix311-binaries.zip"
 		fmt.Println("Detected macOS arm64. fleetctl must use locally installed wine and wix to build the MSI package.")
 
 		// Ensure wine is installed before downloading wix
@@ -164,20 +171,12 @@ func BuildMSI(opt Options) (string, error) {
 		wineChecked = true
 
 		fmt.Printf("Downloading wix from %s\n", wixDownload)
-		wixZip := filepath.Join(tmpDir, "wix.zip")
-		cmd := exec.Command("curl", "--location", "--output", wixZip, wixDownload)
-		if err = cmd.Run(); err != nil {
-			return "", fmt.Errorf("download wix: %w", err)
-		}
-		err = os.Mkdir(filepath.Join(tmpDir, "wix"), constant.DefaultDirMode)
-		if err != nil {
-			return "", fmt.Errorf("could not create wix directory: %w", err)
-		}
-		cmd = exec.Command("unzip", "-d", filepath.Join(tmpDir, "wix"), wixZip)
-		if err = cmd.Run(); err != nil {
-			return "", fmt.Errorf("unzip wix: %w", err)
-		}
+		client := fleethttp.NewClient()
 		absWixDir = filepath.Join(tmpDir, "wix")
+		err = downloadAndExtractZip(client, wixDownload, absWixDir)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	if absWixDir != "" {
@@ -430,5 +429,90 @@ func writeResourceSyso(opt Options, orbitPath string) error {
 		return fmt.Errorf("creating syso file: %w", err)
 	}
 
+	return nil
+}
+
+func downloadAndExtractZip(client *http.Client, urlPath string, destPath string) error {
+	zipFile, err := os.CreateTemp("", "file.zip")
+	if err != nil {
+		return fmt.Errorf("create file: %w", err)
+	}
+	defer zipFile.Close()
+	defer os.Remove(zipFile.Name())
+
+	req, err := http.NewRequest(http.MethodGet, urlPath, nil)
+	if err != nil {
+		return err
+	}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("could not download %s: %w", urlPath, err)
+	}
+	defer resp.Body.Close()
+	_, err = io.Copy(zipFile, resp.Body)
+	if err != nil {
+		return fmt.Errorf("could not write %s: %w", zipFile.Name(), err)
+	}
+
+	// Open the downloaded file for reading. With zip, we cannot unzip directly from resp.Body
+	zipReader, err := zip.OpenReader(zipFile.Name())
+	if err != nil {
+		return fmt.Errorf("could not open %s: %w", zipFile.Name(), err)
+	}
+	defer zipReader.Close()
+
+	err = os.MkdirAll(filepath.Dir(destPath), 0755)
+	if err != nil {
+		return fmt.Errorf("could not create directory %s: %w", filepath.Dir(destPath), err)
+	}
+
+	// Extract each file in the archive
+	for _, archiveReader := range zipReader.File {
+		err = extractZipFile(archiveReader, destPath)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+
+}
+
+func extractZipFile(archiveReader *zip.File, destPath string) error {
+	// Open the file in the archive
+	archiveFile, err := archiveReader.Open()
+	if err != nil {
+		return fmt.Errorf("could not open archive %s: %w", archiveReader.Name, err)
+	}
+	defer archiveFile.Close()
+
+	// Prepare to write the file
+	finalPath := filepath.Join(destPath, archiveReader.Name)
+
+	// Check if the file to extract is just a directory
+	if archiveReader.FileInfo().IsDir() {
+		err = os.MkdirAll(finalPath, 0755)
+		if err != nil {
+			return fmt.Errorf("could not create directory %s: %w", finalPath, err)
+		}
+	} else {
+		// Create all needed directories
+		if os.MkdirAll(filepath.Dir(finalPath), 0755) != nil {
+			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
+		}
+
+		// Prepare to write the destination file
+		destinationFile, err := os.OpenFile(finalPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, archiveReader.Mode())
+		if err != nil {
+			return fmt.Errorf("could not open file %s: %w", finalPath, err)
+		}
+		defer destinationFile.Close()
+
+		// Write the destination file
+		if _, err = io.Copy(destinationFile, archiveFile); err != nil {
+			return fmt.Errorf("could not write file %s: %w", finalPath, err)
+		}
+	}
 	return nil
 }
