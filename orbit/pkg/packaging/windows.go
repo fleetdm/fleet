@@ -480,6 +480,11 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 }
 
 func extractZipFile(archiveReader *zip.File, destPath string) error {
+	if archiveReader.FileInfo().Mode()&os.ModeSymlink != 0 {
+		// Skip symlinks for security reasons
+		return nil
+	}
+
 	// Open the file in the archive
 	archiveFile, err := archiveReader.Open()
 	if err != nil {
@@ -487,8 +492,10 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 	}
 	defer archiveFile.Close()
 
+	// Clean the archive path to prevent extracting files outside the destination.
+	archivePath := filepath.Clean(archiveReader.Name)
 	// Prepare to write the file
-	finalPath := filepath.Join(destPath, archiveReader.Name)
+	finalPath := filepath.Join(destPath, archivePath)
 
 	// Check if the file to extract is just a directory
 	if archiveReader.FileInfo().IsDir() {
