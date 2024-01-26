@@ -6949,9 +6949,10 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	for _, p := range profile.PayloadContent {
 		switch p.PayloadType {
 		case "com.apple.security.scep":
-			require.NotEmpty(t, p.PayloadContent.URL)
+			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.SCEPPath, p.PayloadContent.URL)
+			require.Equal(t, s.fleetCfg.MDM.AppleSCEPChallenge, p.PayloadContent.Challenge)
 		case "com.apple.mdm":
-			require.NotEmpty(t, p.ServerURL)
+			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath, p.ServerURL)
 		default:
 			require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
 		}
