@@ -359,11 +359,11 @@ const DeviceUserPage = ({
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
 
     return (
-      <div className="fleet-desktop-wrapper">
+      <div className="core-wrapper">
         {isLoadingHost ? (
           <Spinner />
         ) : (
-          <div className={`${baseClass} body-wrap`}>
+          <div className={`${baseClass} main-content`}>
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (

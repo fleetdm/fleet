@@ -1,8 +1,5 @@
 .edit-query-page {
   @include page;
-  .body-wrap {
-    min-width: 0;
-  }
 
   &__warning {
     padding: $pad-medium;

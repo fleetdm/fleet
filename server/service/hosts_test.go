@@ -998,25 +998,110 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+		return fleet.Vulnerabilities{}, nil
+	}
+
 	// team exists with stats
-	vers, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
+}
+
+func TestOSVersionsListOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testVersions := []fleet.OSVersion{
+		{HostsCount: 4, NameOnly: "Windows 11 Pro 22H2", Platform: "windows"},
+		{HostsCount: 1, NameOnly: "macOS 12.1", Platform: "darwin"},
+		{HostsCount: 2, NameOnly: "macOS 12.2", Platform: "darwin"},
+		{HostsCount: 3, NameOnly: "Windows 11 Pro 21H2", Platform: "windows"},
+		{HostsCount: 5, NameOnly: "Ubuntu 20.04", Platform: "ubuntu"},
+		{HostsCount: 6, NameOnly: "Ubuntu 21.04", Platform: "ubuntu"},
+	}
+
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+		return fleet.Vulnerabilities{}, nil
+	}
+
+	// test default descending count sort
+	opts := fleet.ListOptions{}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[2].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[3].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[4].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[5].NameOnly)
+
+	// test ascending count sort
+	opts = fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[2].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[3].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[4].NameOnly)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
+
+	// pagination
+	opts = fleet.ListOptions{Page: 0, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
+
+	opts = fleet.ListOptions{Page: 1, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[1].NameOnly)
+
+	// pagination + ascending hosts_count sort
+	opts = fleet.ListOptions{Page: 0, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
+
+	// per page too high
+	opts = fleet.ListOptions{Page: 0, PerPage: 1000}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+
+	// Page number too high
+	opts = fleet.ListOptions{Page: 1000, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 0)
 }
 
 func TestHostEncryptionKey(t *testing.T) {

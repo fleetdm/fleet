@@ -3917,7 +3917,6 @@ func testTeamHostsExpiration(t *testing.T, ds *Datastore) {
 	assert.Len(t, deleted, 0)
 
 	_ = listHostsCheckCount(t, ds, filter, fleet.HostListOptions{}, 5)
-
 }
 
 func testHostsIncludesScheduledQueriesInPackStats(t *testing.T, ds *Datastore) {
@@ -6151,6 +6150,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 
 	osVersions, err = ds.OSVersions(ctx, nil, nil, nil, nil)
 	require.NoError(t, err)
+
 	expected = []fleet.OSVersion{
 		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
 		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
@@ -6308,13 +6308,6 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	err = ds.BulkUpsertMDMAppleHostProfiles(context.Background(), []*fleet.MDMAppleBulkUpsertHostProfilePayload{
 		{ProfileUUID: prof.ProfileUUID, ProfileIdentifier: prof.Identifier, ProfileName: prof.Name, HostUUID: host.UUID, OperationType: fleet.MDMOperationTypeInstall, Checksum: []byte("csum")},
 	})
-	require.NoError(t, err)
-
-	// Operating system vulnerabilities
-	_, err = ds.writer(context.Background()).Exec(
-		`INSERT INTO operating_system_vulnerabilities(host_id,operating_system_id,cve) VALUES (?,?,?)`,
-		host.ID, 1, "cve-1",
-	)
 	require.NoError(t, err)
 
 	_, err = ds.writer(context.Background()).Exec(`INSERT INTO host_software_installed_paths (host_id, software_id, installed_path) VALUES (?, ?, ?)`, host.ID, 1, "some_path")
