@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240118135009, Down_20240118135009)
+	MigrationClient.AddMigration(Up_20240126020642, Down_20240126020642)
 }
 
-func Up_20240118135009(tx *sql.Tx) error {
+func Up_20240126020642(tx *sql.Tx) error {
 	createStmt := `
     CREATE TABLE IF NOT EXISTS mdm_configuration_profile_labels (
 			id                   INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -58,6 +58,6 @@ func Up_20240118135009(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240118135009(tx *sql.Tx) error {
+func Down_20240126020642(tx *sql.Tx) error {
 	return nil
 }
