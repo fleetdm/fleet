@@ -3649,7 +3649,7 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
 
-`GET /api/v1/fleet/hosts/:id/lock`
+`POST /api/v1/fleet/hosts/:id/lock`
 
 #### Parameters
 
@@ -3659,7 +3659,7 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 
 #### Example
 
-`GET /api/v1/fleet/hosts/123/lock`
+`POST /api/v1/fleet/hosts/123/lock`
 
 ##### Default response
 
@@ -3679,7 +3679,7 @@ _Available in Fleet Premium_
 
 Sends a command to unlock the specified Windows or Linux host. The host is unlocked once it comes online.
 
-`GET /api/v1/fleet/hosts/:id/unlock`
+`POST /api/v1/fleet/hosts/:id/unlock`
 
 #### Parameters
 
@@ -3689,7 +3689,7 @@ Sends a command to unlock the specified Windows or Linux host. The host is unloc
 
 #### Example
 
-`GET /api/v1/fleet/hosts/:id/unlock`
+`POST /api/v1/fleet/hosts/:id/unlock`
 
 ##### Default response
 
