@@ -26,15 +26,15 @@ describe 'fleetdm::preassign_profile' do
   it 'performs an API call to Fleet with the right parameters' do
     expect(fleet_client_mock)
       .to receive(:get_host_by_identifier)
-      .with(device_uuid)
+      .with(device_uuid, 'production')
       .and_return({ 'error' => '', 'body' => host_response })
     expect(fleet_client_mock)
       .to receive(:get_host_profiles)
-      .with(host_response['host']['id'])
+      .with(host_response['host']['id'], 'production')
       .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
     expect(fleet_client_mock)
       .to receive(:preassign_profile)
-      .with(run_identifier, device_uuid, template, group, ensure_profile)
+      .with(run_identifier, device_uuid, template, group, ensure_profile, 'production')
       .and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template, group, ensure_profile)
   end
@@ -42,16 +42,18 @@ describe 'fleetdm::preassign_profile' do
   it 'has default values for `group` and `ensure`' do
     expect(fleet_client_mock)
       .to receive(:get_host_by_identifier)
-      .with(device_uuid)
+      .with(device_uuid, 'production')
       .and_return({ 'error' => '', 'body' => host_response })
     expect(fleet_client_mock)
       .to receive(:get_host_profiles)
-      .with(host_response['host']['id'])
+      .with(host_response['host']['id'], 'production')
       .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
     expect(fleet_client_mock)
       .to receive(:preassign_profile)
-      .with(run_identifier, device_uuid, template, 'default', 'present')
+      .with(run_identifier, device_uuid, template, 'default', 'present', 'production')
       .and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template)
   end
+
+  #   TODO: add coverage for early exits, error handling, and resource_changed
 end

@@ -11,6 +11,7 @@ import InfoBanner from "components/InfoBanner/InfoBanner";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
 import CustomLink from "components/CustomLink";
+import SectionHeader from "components/SectionHeader";
 
 import { IAppConfigFormProps, IAppConfigFormErrors } from "../constants";
 
@@ -69,7 +70,7 @@ const Agents = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Agent options</h2>
+        <SectionHeader title="Agent options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Agent options configure the osquery agent. When you update agent

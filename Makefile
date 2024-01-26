@@ -130,7 +130,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 10m
+	golangci-lint run --skip-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 

@@ -6,6 +6,7 @@ import CustomLink from "components/CustomLink";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -121,7 +122,7 @@ const Sso = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Single sign-on options</h2>
+        <SectionHeader title="Single sign-on options" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <Checkbox
             onChange={handleInputChange}

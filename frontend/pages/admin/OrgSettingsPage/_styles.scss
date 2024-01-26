@@ -46,11 +46,6 @@
           margin-right: 18px;
         }
 
-        .smtp-header {
-          display: flex;
-          justify-content: space-between;
-        }
-
         .empty-table__container {
           margin: 96px 0 1.5rem;
         }
@@ -59,7 +54,6 @@
           font-size: 15px;
           font-weight: $bold;
           color: $core-fleet-black;
-          padding-left: 15px;
 
           em {
             font-style: normal;

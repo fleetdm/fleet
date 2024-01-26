@@ -12,6 +12,7 @@ import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio/Radio";
 import Slider from "components/forms/fields/Slider/Slider";
 import Button from "components/buttons/Button/Button";
+import SectionHeader from "components/SectionHeader";
 import validateUrl from "components/forms/validators/valid_url";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import EmptyTable from "components/EmptyTable/EmptyTable";
@@ -115,7 +116,7 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   if (!isPremiumTier) {
     return (
       <div className={baseClass}>
-        <h2>End user migration workflow</h2>
+        <SectionHeader title="End user migration workflow" />
         <PremiumFeatureMessage />
       </div>
     );
@@ -124,12 +125,16 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
   if (!config?.mdm.apple_bm_enabled_and_configured) {
     return (
       <div className={baseClass}>
-        <h2>End user migration workflow</h2>
+        <SectionHeader title="End user migration workflow" />
         <EmptyTable
           className={`${baseClass}__abm-connect-message`}
           header="Migration workflow for macOS hosts"
           info="Connect to Apple Business Manager to get started."
-          primaryButton={<Button onClick={onClickConnect}>Connect</Button>}
+          primaryButton={
+            <Button variant="brand" onClick={onClickConnect}>
+              Connect
+            </Button>
+          }
         />
       </div>
     );
@@ -137,18 +142,18 @@ const EndUserMigrationSection = ({ router }: IEndUserMigrationSectionProps) => {
 
   return (
     <div className={baseClass}>
-      <h2>End user migration workflow</h2>
-      <p>
-        Control the end user migration workflow for macOS hosts that
-        automatically enrolled to your old MDM solution.
-      </p>
-
-      <img
-        src={MdmMigrationPreview}
-        alt="end user migration preview"
-        className={`${baseClass}__migration-preview`}
-      />
+      <SectionHeader title="End user migration workflow" />
       <form>
+        <p>
+          Control the end user migration workflow for macOS hosts that
+          automatically enrolled to your old MDM solution.
+        </p>
+
+        <img
+          src={MdmMigrationPreview}
+          alt="end user migration preview"
+          className={`${baseClass}__migration-preview`}
+        />
         <Slider
           value={formData.isEnabled}
           onChange={toggleMigrationEnabled}
