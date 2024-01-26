@@ -43,7 +43,6 @@ const PlatformTabs = ({
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
               key={currentTeamId}
-              inAccordion
             />
           </TabPanel>
           <TabPanel>
@@ -52,7 +51,6 @@ const PlatformTabs = ({
               defaultDeadlineDays={defaultWindowsDeadlineDays}
               defaultGracePeriodDays={defaultWindowsGracePeriodDays}
               key={currentTeamId}
-              inAccordion
             />
           </TabPanel>
         </Tabs>
