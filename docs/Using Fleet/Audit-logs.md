@@ -853,13 +853,13 @@ This activity contains the following fields:
 
 ## enabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).
+Generated when a user turns on MDM features for all Windows hosts (servers excluded).
 
 This activity does not contain any detail fields.
 
 ## disabled_windows_mdm
 
-Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.
+Generated when a user turns off MDM features for all Windows hosts.
 
 This activity does not contain any detail fields.
 
