@@ -6,7 +6,7 @@ In Fleet you can enforce OS updates on your macOS and Windows hosts remotely.
 
 ## Enforce OS updates
 
-You can enforce OS updates in the Fleet UI, with the Fleet API, or with the command-line interface (CLI).
+You can enforce OS updates using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
@@ -17,8 +17,6 @@ Fleet UI:
 3. For Windows, select **Windows** and set a **Deadline** and **Grace period**.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#modify-team).
-
-fleetctl CLI: Run the `fleetctl apply` command using the `mdm.macos_updates` and `mdm.windows_updates` YAML configuration documented [here](https://fleetdm.com/docs/using-fleet/configuration-files#TODO).
 
 ## End user experience
 
