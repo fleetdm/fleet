@@ -252,7 +252,7 @@ const TeamManagementPage = (): JSX.Element => {
   const tableData = teams ? generateDataSet(teams) : [];
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         Create, customize, and remove teams from Fleet.
       </p>

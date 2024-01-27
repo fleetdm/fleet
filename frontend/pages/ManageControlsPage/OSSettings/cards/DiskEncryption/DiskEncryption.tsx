@@ -130,7 +130,7 @@ const DiskEncryption = ({
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
-                On
+                Turn on disk encryption
               </Checkbox>
               <p>
                 {createDescriptionText()}

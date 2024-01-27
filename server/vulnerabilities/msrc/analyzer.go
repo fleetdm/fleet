@@ -2,8 +2,13 @@ package msrc
 
 import (
 	"context"
+	"errors"
+	"fmt"
+	"strconv"
+	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
@@ -11,8 +16,7 @@ import (
 )
 
 const (
-	hostsBatchSize = 500
-	vulnBatchSize  = 500
+	vulnBatchSize = 500
 )
 
 func Analyze(
@@ -28,12 +32,13 @@ func Analyze(
 	}
 
 	// Find matching products inside the bulletin
-	osProduct := msrc.NewProductFromOS(os)
 	matchingPIDs := make(map[string]bool)
-	for pID, p := range bulletin.Products {
-		if p.Matches(osProduct) {
-			matchingPIDs[pID] = true
-		}
+	pID, err := bulletin.Products.GetMatchForOS(ctx, os)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "Analyzing MSRC vulnerabilities")
+	}
+	if pID != "" {
+		matchingPIDs[pID] = true
 	}
 
 	if len(matchingPIDs) == 0 {
@@ -43,62 +48,39 @@ func Analyze(
 	toInsert := make(map[string]fleet.OSVulnerability)
 	toDelete := make(map[string]fleet.OSVulnerability)
 
-	var offset int
-	for {
-		hIDs, err := ds.HostIDsByOSID(ctx, os.ID, offset, hostsBatchSize)
-		if err != nil {
-			return nil, err
-		}
+	// Run vulnerability detection for all hosts in this batch (hIDs)
+	// and store the results in 'found'.
+	var found []fleet.OSVulnerability
 
-		if len(hIDs) == 0 {
-			break
+	for cve, v := range bulletin.Vulnerabities {
+		// Check if this vulnerability targets the OS
+		if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
+			continue
 		}
-
-		offset += len(hIDs)
-
-		// Run vulnerability detection for all hosts in this batch (hIDs)
-		// and store the results in 'found'.
-		found := make(map[uint][]fleet.OSVulnerability, len(hIDs))
-		for _, hID := range hIDs {
-			updates, err := ds.ListWindowsUpdatesByHostID(ctx, hID)
-			if err != nil {
-				return nil, err
-			}
-
-			var vs []fleet.OSVulnerability
-			for cve, v := range bulletin.Vulnerabities {
-				// Check if this vulnerability targets the OS
-				if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
-					continue
-				}
-				if patched(os, bulletin, v, matchingPIDs, updates) {
-					continue
-				}
-				vs = append(vs, fleet.OSVulnerability{OSID: os.ID, HostID: hID, CVE: cve})
-			}
-			found[hID] = vs
+		// Check if the vulnerability is patched by referencing the OS version number
+		if patched(os, bulletin, v, matchingPIDs) {
+			continue
 		}
+		found = append(found, fleet.OSVulnerability{OSID: os.ID, CVE: cve})
+	}
 
-		// Fetch all stored vulnerabilities for the current batch
-		osVulns, err := ds.ListOSVulnerabilities(ctx, hIDs)
-		if err != nil {
-			return nil, err
-		}
-		existing := make(map[uint][]fleet.OSVulnerability)
-		for _, osv := range osVulns {
-			existing[osv.HostID] = append(existing[osv.HostID], osv)
-		}
+	// Fetch all stored vulnerabilities for the current batch
+	osVulns, err := ds.ListOSVulnerabilitiesByOS(ctx, os.ID)
+	if err != nil {
+		return nil, err
+	}
+	var existing []fleet.OSVulnerability
+	for _, osv := range osVulns {
+		existing = append(existing, osv)
+	}
 
-		// Compute what needs to be inserted/deleted for this batch
-		for _, hID := range hIDs {
-			insrt, del := utils.VulnsDelta(found[hID], existing[hID])
-			for _, i := range insrt {
-				toInsert[i.Key()] = i
-			}
-			for _, d := range del {
-				toDelete[d.Key()] = d
-			}
-		}
+	// Compute what needs to be inserted/deleted for this batch
+	insrt, del := utils.VulnsDelta(found, existing)
+	for _, i := range insrt {
+		toInsert[i.Key()] = i
+	}
+	for _, d := range del {
+		toDelete[d.Key()] = d
 	}
 
 	err = utils.BatchProcess(toDelete, func(v []fleet.OSVulnerability) error {
@@ -139,16 +121,7 @@ func patched(
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	matchingPIDs map[string]bool,
-	updates []fleet.WindowsUpdate,
 ) bool {
-	// check if any update directly remediates the vulnerability,
-	// this will be much faster than walking the forest of vendor fixes.
-	for _, u := range updates {
-		if v.RemediatedBy[u.KBID] {
-			return true
-		}
-	}
-
 	for KBID := range v.RemediatedBy {
 		fix := b.VendorFixes[KBID]
 
@@ -157,16 +130,19 @@ func patched(
 			continue
 		}
 
-		// Check if the kernel build already contains the fix
-		if utils.Rpmvercmp(os.KernelVersion, fix.FixedBuild) >= 0 {
-			return true
+		// An empty FixBuild is a bug in the MSRC feed, last
+		// seen around apr-2021.  Ignoring it to avoid false
+		// positive vulnerabilities.
+		if fix.FixedBuild == "" {
+			continue
 		}
 
-		// If not, walk the forest
-		for _, u := range updates {
-			if b.KBIDsConnected(KBID, u.KBID) {
-				return true
-			}
+		isGreater, err := winBuildVersionGreaterOrEqual(fix.FixedBuild, os.KernelVersion)
+		if err != nil {
+			continue
+		}
+		if isGreater {
+			return true
 		}
 	}
 
@@ -184,4 +160,46 @@ func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin,
 	}
 
 	return msrc.UnmarshalBulletin(latest)
+}
+
+func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
+	if feed == "" {
+		return false, errors.New("empty feed version")
+	}
+
+	feedBuild, feedParts, err := getBuildNumber(feed)
+	if err != nil {
+		return false, fmt.Errorf("invalid feed version: %w", err)
+	}
+
+	osBuild, osParts, err := getBuildNumber(os)
+	if err != nil {
+		return false, fmt.Errorf("invalid os version: %w", err)
+	}
+
+	for i := 0; i < 3; i++ {
+		if feedParts[i] != osParts[i] {
+			return false, fmt.Errorf("comparing different product versions: %s, %s", feed, os)
+		}
+	}
+
+	return osBuild >= feedBuild, nil
+}
+
+func getBuildNumber(version string) (int, []string, error) {
+	if version == "" {
+		return 0, nil, fmt.Errorf("empty version string %s", version)
+	}
+
+	parts := strings.Split(version, ".")
+	if len(parts) != 4 {
+		return 0, nil, fmt.Errorf("parts count mismatch %s", version)
+	}
+
+	build, err := strconv.Atoi(parts[3])
+	if err != nil {
+		return 0, nil, fmt.Errorf("unable to parse build number %s", version)
+	}
+
+	return build, parts, nil
 }

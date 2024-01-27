@@ -29,6 +29,8 @@ export interface ITableQueryData {
 interface IRowProps extends Row {
   original: {
     id?: number;
+    name_only?: string; // Required for onSelectSingleRow of SoftwareOSTable.tsx
+    version?: string; // Required for onSelectSingleRow of SoftwareOSTable.tsx
   };
 }
 

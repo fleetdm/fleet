@@ -57,6 +57,11 @@ export interface IMdmSummaryResponse {
 
 type ProfilePlatform = "darwin" | "windows";
 
+export interface IProfileLabel {
+  name: string;
+  broken: boolean;
+}
+
 export interface IMdmProfile {
   profile_uuid: string;
   team_id: number;
@@ -66,6 +71,7 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
+  labels?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";

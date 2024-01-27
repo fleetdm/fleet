@@ -80,8 +80,10 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         assigned to this team.
       </p>
       <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__form-table-content`}>
+        <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection currentTeamId={teamIdForApi} />
+        </div>
+        <div className={`${baseClass}__taget-container`}>
           <TargetSection
             currentTeamId={teamIdForApi}
             onSelectAccordionItem={handleSelectPlatform}

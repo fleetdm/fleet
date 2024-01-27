@@ -41,7 +41,7 @@ func translateLabelToID(ctx context.Context, ds fleet.Datastore, identifier stri
 	if err != nil {
 		return 0, err
 	}
-	return labelIDs[0], nil
+	return labelIDs[identifier], nil
 }
 
 func translateTeamToID(ctx context.Context, ds fleet.Datastore, identifier string) (uint, error) {
