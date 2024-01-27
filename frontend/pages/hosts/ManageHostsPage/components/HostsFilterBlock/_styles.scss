@@ -4,6 +4,12 @@
     align-items: center;
     margin-bottom: $pad-small;
     gap: $pad-small; // between multiple filter pills
+
+    .form-field {
+      // negate global .form-field {width: 100%} for use of Dropdown
+      // and other "form-fields" in the filter block
+      width: initial;
+    }
   }
 
   // NOTE: can probably be removed and placed anytime we have a dropdown. Need to

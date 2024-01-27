@@ -498,7 +498,6 @@ const HostsFilterBlock = ({
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
         case !!osSettingsStatus:
-          console.log("renderOsSettingsBlock");
           return renderOsSettingsBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();
