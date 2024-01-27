@@ -1,10 +1,10 @@
 # Custom OS settings
 
-In Fleet you can enforce custom settings on your macOS and Window hosts using configuration profiles.
+In Fleet you can enforce OS settings on your macOS and Window hosts using configuration profiles.
 
-## Enforce custom settings
+## Enforce OS settings
 
-You can enforce disk encryption in the Fleet UI, with Fleet API, or via a GitOps workflow ([coming soon](https://github.com/fleetdm/fleet-gitops/tree/main)).
+You can enforce OS settings using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 For macOS hosts, Fleet recommends the [iMazing Profile Creator](https://imazing.com/profile-editor) tool for creating and exporting macOS configuration profiles.
 
@@ -14,13 +14,13 @@ Fleet UI:
 
 1. In the Fleet UI, head to the **Controls > OS settings > Custom settings** page.
 
-2. Choose which team you want to add the configuration profile to by selecting the desired team in the teams dropdown in the upper left corner. Teams are available in Fleet Premium.
+2. Choose which team you want to add a configuration profile to by selecting the desired team in the teams dropdown in the upper left corner. Teams are available in Fleet Premium.
 
 3. Select **Upload** and choose your configuration profile.
 
 Fleet API: API documentation is [here](../REST%20API/rest-api.md#add-custom-setting-configuration-profile)
 
-### OS setting status
+### OS settings status
 
 In the Fleet UI, head to the **Controls > OS settings** tab.
 
