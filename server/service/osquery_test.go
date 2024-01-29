@@ -893,7 +893,7 @@ func TestSubmitResultLogsFail(t *testing.T) {
 	// Expect an error when unable to write to logging destination.
 	err = svc.SubmitResultLogs(ctx, results)
 	require.Error(t, err)
-	assert.Equal(t, err.(*osqueryError).Status(), http.StatusRequestEntityTooLarge)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
 
 }
 
