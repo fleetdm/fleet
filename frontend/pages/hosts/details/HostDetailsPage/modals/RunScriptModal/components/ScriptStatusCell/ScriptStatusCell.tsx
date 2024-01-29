@@ -1,10 +1,7 @@
 import React from "react";
 import { formatDistanceToNow } from "date-fns";
 
-import {
-  ILastExecution,
-  IScriptExecutionStatus,
-} from "services/entities/scripts";
+import { ILastExecution, IScriptExecutionStatus } from "interfaces/script";
 
 import StatusIndicatorWithIcon, {
   IndicatorStatus,
@@ -30,8 +27,7 @@ const STATUS_DISPLAY_CONFIG: Record<
   pending: {
     displayText: "Pending",
     iconStatus: "pendingPartial",
-    tooltip: () =>
-      "Script is running. To see if the script finished, refresh the page.",
+    tooltip: () => "Script is running or will run when the host comes online.",
   },
   error: {
     displayText: "Error",

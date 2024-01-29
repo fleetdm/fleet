@@ -23,6 +23,7 @@ import hostsAPI, {
   ILoadHostsResponse,
   ISortOption,
   MacSettingsStatusQueryParam,
+  HOSTS_QUERY_PARAMS,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostsCountQueryKey,
@@ -540,6 +541,10 @@ const ManageHostsPage = ({
         "software_id",
         "software_version_id",
         "software_title_id",
+        "bootstrap_package",
+        "macos_settings",
+        HOSTS_QUERY_PARAMS.OS_SETTINGS,
+        HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
       ]);
     }
 
