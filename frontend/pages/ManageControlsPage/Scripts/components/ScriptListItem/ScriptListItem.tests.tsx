@@ -2,7 +2,7 @@ import React from "react";
 
 import { render, screen } from "@testing-library/react";
 
-import { IScript } from "services/entities/scripts";
+import { IScript } from "interfaces/script";
 import ScriptListItem from "./ScriptListItem";
 
 describe("ScriptListItem", () => {

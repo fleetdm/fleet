@@ -210,7 +210,7 @@
 
     [purpose='edit-button'] {
       color: @core-vibrant-blue;
-      opacity: 0;
+
       font-size: 12px;
       position: absolute;
       right: 230px;
@@ -228,12 +228,8 @@
         color: @accent-white;
         text-decoration: none;
       }
-    } &:hover {
-      [purpose='edit-button'] {
-        opacity: 1;
-      }
-
     }
+
 
     [purpose='search'] {
 
@@ -283,6 +279,7 @@
         padding: 0;
         padding-top: 12px;
         padding-bottom: 12px;
+        cursor: pointer;
 
         &:focus {
             box-shadow: none;
@@ -972,7 +969,18 @@
     }
 
   }
-
+  @media(hover) {
+    [purpose='docs-template'] {
+      [purpose='edit-button'] {
+        opacity: 0;
+      }
+    }
+    [purpose='docs-template']:hover {
+      [purpose='edit-button'] {
+        opacity: 1;
+      }
+    }
+  }
 
   @import 'code-blocks.less'; // styles for code blocks and hljs
 

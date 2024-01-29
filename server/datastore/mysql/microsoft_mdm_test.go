@@ -1781,11 +1781,61 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	require.ErrorAs(t, err, &existsErr)
 
+	// create a profile with labels that don't exist
+	_, err = ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "fake-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+			Labels: []fleet.ConfigurationProfileLabel{{LabelName: "foo", LabelID: 1}},
+		})
+	require.NotNil(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+
+	// create a profile with a label that exists
+	profWithLabel, err := ds.NewMDMWindowsConfigProfile(
+		ctx,
+		fleet.MDMWindowsConfigProfile{
+			Name:   "with-labels",
+			TeamID: nil,
+			SyncML: []byte("<Replace></Replace>"),
+			Labels: []fleet.ConfigurationProfileLabel{{LabelName: label.Name, LabelID: label.ID}},
+		})
+	require.NoError(t, err)
+	require.NotEmpty(t, profWithLabel.ProfileUUID)
+
+	// get that profile with label
+	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, label.Name, prof.Labels[0].LabelName)
+	require.Equal(t, label.ID, prof.Labels[0].LabelID)
+	require.False(t, prof.Labels[0].Broken)
+
+	// break that profile by deleting the label
+	require.NoError(t, ds.DeleteLabel(ctx, label.Name))
+
+	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profWithLabel.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, label.Name, prof.Labels[0].LabelName)
+	require.Zero(t, prof.Labels[0].LabelID)
+	require.True(t, prof.Labels[0].Broken)
+
 	_, err = ds.GetMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
 	require.True(t, fleet.IsNotFound(err))
 
-	prof, err := ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
+	prof, err = ds.GetMDMWindowsConfigProfile(ctx, profA.ProfileUUID)
 	require.NoError(t, err)
 	require.Equal(t, profA.ProfileUUID, prof.ProfileUUID)
 	require.NotNil(t, prof.TeamID)
@@ -1794,6 +1844,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
 	require.NotZero(t, prof.UpdatedAt)
+	require.Nil(t, prof.Labels)
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
 	require.Error(t, err)
@@ -1976,8 +2027,8 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	applyAndExpect(nil, ptr.Uint(1), nil)
 }
 
-func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWindowsConfigProfile {
-	return &fleet.MDMWindowsConfigProfile{
+func windowsConfigProfileForTest(t *testing.T, name, locURI string, labels ...*fleet.Label) *fleet.MDMWindowsConfigProfile {
+	prof := &fleet.MDMWindowsConfigProfile{
 		Name: name,
 		SyncML: []byte(fmt.Sprintf(`
 			<Replace>
@@ -1989,4 +2040,10 @@ func windowsConfigProfileForTest(t *testing.T, name, locURI string) *fleet.MDMWi
 			</Replace>
 		`, locURI)),
 	}
+
+	for _, lbl := range labels {
+		prof.Labels = append(prof.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+	}
+
+	return prof
 }

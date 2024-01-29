@@ -279,34 +279,40 @@ func (c *Client) runAppConfigChecks(fn func(ac *fleet.EnrichedAppConfig) error) 
 	return fn(appCfg)
 }
 
-// getProfilesContents takes file paths and creates a map of profile contents
-// keyed by the name of the profile (the file name on Windows,
-// PayloadDisplayName on macOS)
-func getProfilesContents(baseDir string, paths []string) (map[string][]byte, error) {
-	files := resolveApplyRelativePaths(baseDir, paths)
-	fileContents := make(map[string][]byte, len(files))
-	for _, f := range files {
-		b, err := os.ReadFile(f)
+// getProfilesContents takes file paths and creates a slice of profile payloads
+// ready to batch-apply.
+func getProfilesContents(baseDir string, profiles []fleet.MDMProfileSpec) ([]fleet.MDMProfileBatchPayload, error) {
+	fileNameMap := make(map[string]struct{}, len(profiles))
+	result := make([]fleet.MDMProfileBatchPayload, 0, len(profiles))
+
+	for _, profile := range profiles {
+		filePath := resolveApplyRelativePath(baseDir, profile.Path)
+		fileContents, err := os.ReadFile(filePath)
 		if err != nil {
 			return nil, fmt.Errorf("applying fleet config: %w", err)
 		}
 
 		// by default, use the file name. macOS profiles use their PayloadDisplayName
-		name := strings.TrimSuffix(filepath.Base(f), filepath.Ext(f))
-		if mdm.GetRawProfilePlatform(b) == "darwin" {
-			mc, err := fleet.NewMDMAppleConfigProfile(b, nil)
+		name := strings.TrimSuffix(filepath.Base(filePath), filepath.Ext(filePath))
+		if mdm.GetRawProfilePlatform(fileContents) == "darwin" {
+			mc, err := fleet.NewMDMAppleConfigProfile(fileContents, nil)
 			if err != nil {
 				return nil, fmt.Errorf("applying fleet config: %w", err)
 			}
 			name = strings.TrimSpace(mc.Name)
 		}
-		if _, isDuplicate := fileContents[name]; isDuplicate {
+		if _, isDuplicate := fileNameMap[name]; isDuplicate {
 			return nil, errors.New("Couldn't edit windows_settings.custom_settings. More than one configuration profile have the same name (Windows .xml file name or macOS PayloadDisplayName).")
 		}
-		fileContents[name] = b
-	}
+		fileNameMap[name] = struct{}{}
+		result = append(result, fleet.MDMProfileBatchPayload{
+			Name:     name,
+			Contents: fileContents,
+			Labels:   profile.Labels,
+		})
 
-	return fileContents, nil
+	}
+	return result, nil
 }
 
 // ApplyGroup applies the given spec group to Fleet.
@@ -384,7 +390,14 @@ func (c *Client) ApplyGroup(
 		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
-		if len(allCustomSettings) > 0 {
+		// if there is no custom setting but the windows and mac settings are
+		// non-nil, this means that we want to clear the existing custom settings,
+		// so we still go on with calling the batch-apply endpoint.
+		//
+		// TODO(mna): shouldn't that be an || instead of && ? I.e. if there are no
+		// custom settings but windows is present and empty (but mac is absent),
+		// shouldn't that clear the windows ones?
+		if (windowsCustomSettings != nil && macosCustomSettings != nil) || len(allCustomSettings) > 0 {
 			fileContents, err := getProfilesContents(baseDir, allCustomSettings)
 			if err != nil {
 				return err
@@ -461,7 +474,7 @@ func (c *Client) ApplyGroup(
 		// that any non-existing file error is found before applying the specs.
 		tmMDMSettings := extractTmSpecsMDMCustomSettings(specs.Teams)
 
-		tmFileContents := make(map[string]map[string][]byte, len(tmMDMSettings))
+		tmFileContents := make(map[string][]fleet.MDMProfileBatchPayload, len(tmMDMSettings))
 		for k, paths := range tmMDMSettings {
 			fileContents, err := getProfilesContents(baseDir, paths)
 			if err != nil {
@@ -606,7 +619,7 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
+func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
 		return nil
@@ -615,7 +628,7 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok {
 		return nil
 	}
-	mos, ok := mmdm["macos_settings"].(map[string]interface{})
+	mos, ok := mmdm[platformKey].(map[string]interface{})
 	if !ok || mos == nil {
 		return nil
 	}
@@ -630,54 +643,46 @@ func extractAppCfgMacOSCustomSettings(appCfg interface{}) []string {
 	if !ok || csAny == nil {
 		// return a non-nil, empty slice instead, so the caller knows that the
 		// custom_settings key was actually provided.
-		return []string{}
+		return []fleet.MDMProfileSpec{}
 	}
 
-	csStrings := make([]string, 0, len(csAny))
+	csSpecs := make([]fleet.MDMProfileSpec, 0, len(csAny))
 	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
+		if m, ok := v.(map[string]interface{}); ok {
+			var profSpec fleet.MDMProfileSpec
+
+			// extract the Path field
+			if path, ok := m["path"].(string); ok {
+				profSpec.Path = path
+			}
+
+			// extract the Labels field, labels are cleared if not provided
+			if labels, ok := m["labels"].([]interface{}); ok {
+				for _, label := range labels {
+					if strLabel, ok := label.(string); ok {
+						profSpec.Labels = append(profSpec.Labels, strLabel)
+					}
+				}
+			}
+
+			if profSpec.Path != "" {
+				csSpecs = append(csSpecs, profSpec)
+			}
+		} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+			if m != "" {
+				csSpecs = append(csSpecs, fleet.MDMProfileSpec{Path: m})
+			}
 		}
 	}
-	return csStrings
+	return csSpecs
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []string {
-	asMap, ok := appCfg.(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mmdm, ok := asMap["mdm"].(map[string]interface{})
-	if !ok {
-		return nil
-	}
-	mos, ok := mmdm["windows_settings"].(map[string]interface{})
-	if !ok || mos == nil {
-		return nil
-	}
+func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "macos_settings")
+}
 
-	cs, ok := mos["custom_settings"]
-	if !ok {
-		// custom settings is not present
-		return nil
-	}
-
-	csAny, ok := cs.([]interface{})
-	if !ok || csAny == nil {
-		// return a non-nil, empty slice instead, so the caller knows that the
-		// custom_settings key was actually provided.
-		return []string{}
-	}
-
-	csStrings := make([]string, 0, len(csAny))
-	for _, v := range csAny {
-		s, _ := v.(string)
-		if s != "" {
-			csStrings = append(csStrings, s)
-		}
-	}
-	return csStrings
+func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
 func extractAppCfgScripts(appCfg interface{}) []string {
@@ -710,8 +715,8 @@ func extractAppCfgScripts(appCfg interface{}) []string {
 }
 
 // returns the custom macOS and Windows settings keyed by team name.
-func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]string {
-	var m map[string][]string
+func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fleet.MDMProfileSpec {
+	var m map[string][]fleet.MDMProfileSpec
 	for _, tm := range tmSpecs {
 		var spec struct {
 			Name string `json:"name"`
@@ -729,15 +734,15 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 			continue
 		}
 		if spec.Name != "" {
-			var macOSSettings []string
-			var windowsSettings []string
+			var macOSSettings []fleet.MDMProfileSpec
+			var windowsSettings []fleet.MDMProfileSpec
 
 			// to keep existing bahavior, if any of the custom
 			// settings is provided, make the map a non-nil map
 			if len(spec.MDM.MacOSSettings.CustomSettings) > 0 ||
 				len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
 				if m == nil {
-					m = make(map[string][]string)
+					m = make(map[string][]fleet.MDMProfileSpec)
 				}
 			}
 
@@ -749,7 +754,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 				if macOSSettings == nil {
 					// to be consistent with the AppConfig custom settings, set it to an
 					// empty slice if the provided custom settings are present but empty.
-					macOSSettings = []string{}
+					macOSSettings = []fleet.MDMProfileSpec{}
 				}
 			}
 			if len(spec.MDM.WindowsSettings.CustomSettings) > 0 {
@@ -760,10 +765,11 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]str
 				if windowsSettings == nil {
 					// to be consistent with the AppConfig custom settings, set it to an
 					// empty slice if the provided custom settings are present but empty.
-					windowsSettings = []string{}
+					windowsSettings = []fleet.MDMProfileSpec{}
 				}
 			}
 
+			// TODO: validate equal names here and API?
 			if macOSSettings != nil || windowsSettings != nil {
 				m[spec.Name] = append(macOSSettings, windowsSettings...)
 			}
