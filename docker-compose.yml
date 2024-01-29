@@ -25,6 +25,8 @@ services:
       MYSQL_DATABASE: fleet
       MYSQL_USER: fleet
       MYSQL_PASSWORD: insecure
+      # This is required by Percona XtraDB server.
+      CLUSTER_NAME: fleet
     ports:
       - "3306:3306"
 

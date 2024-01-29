@@ -15,6 +15,10 @@ export interface IModalProps {
   onEnter?: () => void;
   /**     default 650px, large 800px, xlarge 850px, auto auto-width */
   width?: ModalWidth;
+  /**    isHidden can be set true to hide the modal when opening another modal */
+  isHidden?: boolean;
+  /**    isLoading can be set true to enable targeting elements by loading state */
+  isLoading?: boolean;
   className?: string;
 }
 
@@ -24,6 +28,8 @@ const Modal = ({
   onExit,
   onEnter,
   width = "medium",
+  isHidden = false,
+  isLoading = false,
   className,
 }: IModalProps): JSX.Element => {
   const { hideFlash } = useContext(NotificationContext);
@@ -69,8 +75,16 @@ const Modal = ({
   );
 
   return (
-    <div className={`${baseClass}__background`}>
-      <div className={modalContainerClassName}>
+    <div
+      className={`${baseClass}__background ${
+        isHidden ? `${baseClass}__hidden` : ""
+      }`}
+    >
+      <div
+        className={`${modalContainerClassName} ${
+          isLoading ? `${className}__loading` : ""
+        }`}
+      >
         <div className={`${baseClass}__header`}>
           <span>{title}</span>
           <div className={`${baseClass}__ex`}>

@@ -186,15 +186,19 @@ func (t *TeamMDM) Copy() *TeamMDM {
 	// pointers/slices/maps).
 
 	if t.MacOSSettings.CustomSettings != nil {
-		clone.MacOSSettings.CustomSettings = make([]string, len(t.MacOSSettings.CustomSettings))
-		copy(clone.MacOSSettings.CustomSettings, t.MacOSSettings.CustomSettings)
+		clone.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(t.MacOSSettings.CustomSettings))
+		for i, mps := range t.MacOSSettings.CustomSettings {
+			clone.MacOSSettings.CustomSettings[i] = *mps.Copy()
+		}
 	}
 	if t.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
 		clone.MacOSSettings.DeprecatedEnableDiskEncryption = ptr.Bool(*t.MacOSSettings.DeprecatedEnableDiskEncryption)
 	}
 	if t.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(t.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, t.WindowsSettings.CustomSettings.Value)
+		windowsSettings := make([]MDMProfileSpec, len(t.WindowsSettings.CustomSettings.Value))
+		for i, mps := range t.WindowsSettings.CustomSettings.Value {
+			windowsSettings[i] = *mps.Copy()
+		}
 		clone.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 	return &clone

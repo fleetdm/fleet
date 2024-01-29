@@ -1,0 +1,2 @@
+- Added "Run script" action to host details page, which relocates functionality from the "Scripts"
+  tab into a new modal UI.

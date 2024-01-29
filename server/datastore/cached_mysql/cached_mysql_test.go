@@ -565,7 +565,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings:                 []string{"a", "b"},
+			CustomSettings:                 []fleet.MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 			DeprecatedEnableDiskEncryption: ptr.Bool(false),
 		},
 		MacOSSetup: fleet.MacOSSetup{
@@ -614,7 +614,7 @@ func TestCachedTeamMDMConfig(t *testing.T) {
 	require.False(t, mockedDS.TeamMDMConfigFuncInvoked)
 
 	// changing some deep value doesn't affect the stored value
-	mdmConfig.MacOSSettings.CustomSettings[0] = "c"
+	mdmConfig.MacOSSettings.CustomSettings[0] = fleet.MDMProfileSpec{Path: "c"}
 	require.NotEqual(t, testMDMConfig, *mdmConfig)
 
 	// saving a team updates config in cache
