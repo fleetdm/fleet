@@ -3662,19 +3662,11 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 
 `Status: 200`
 
-Requests to lock macOS hosts will also include the following response data:
-```json
-{
-  "host_id": 8,
-  "unlock_pin": 123456
-}
-```
-
 ### Unlock host
 
 _Available in Fleet Premium_
 
-Sends a command to unlock the specified Windows or Linux host. The host is unlocked once it comes online.
+Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
@@ -3691,6 +3683,15 @@ Sends a command to unlock the specified Windows or Linux host. The host is unloc
 ##### Default response
 
 `Status: 200`
+
+Requests to unlock macOS hosts will also include the following response data:
+
+```json
+{
+  "host_id": 8,
+  "unlock_pin": 123456
+}
+```
 
 
 ### Wipe host
