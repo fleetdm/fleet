@@ -148,7 +148,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 		// it did get marshalled, and then when unmarshalled it was set (but
 		// empty).
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -206,7 +206,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
 
@@ -227,7 +227,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -250,7 +250,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, listTmResp.Teams[0].Config.MDM)
 
@@ -1911,7 +1911,7 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			BootstrapPackage:    optjson.String{Set: true},
 		},
 		WindowsSettings: fleet.WindowsSettings{
-			CustomSettings: optjson.Slice[string]{Set: true, Value: []string{}},
+			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, getTmResp.Team.Config.MDM)
 
@@ -3132,6 +3132,88 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
 	}
+}
+
+func (s *integrationEnterpriseTestSuite) TestOSVersions() {
+	t := s.T()
+
+	testOS := fleet.OperatingSystem{Name: "Windows 11 Pro", Version: "10.0.22621.2861", Arch: "x86_64", KernelVersion: "10.0.22621.2861", Platform: "windows"}
+
+	hosts := s.createHosts(t)
+
+	var resp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
+	require.Len(t, resp.Hosts, len(hosts))
+
+	// set operating system information on a host
+	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
+	var osID uint
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		return sqlx.GetContext(context.Background(), q, &osID,
+			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
+	})
+	require.Greater(t, osID, uint(0))
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
+	require.Len(t, resp.Hosts, 1)
+
+	expected := resp.Hosts[0]
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	require.Len(t, resp.Hosts, 1)
+	require.Equal(t, expected, resp.Hosts[0])
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+
+	// insert OS Vulns
+	_, err := s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// insert CVE MEta
+	vulnMeta := []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Description:      "a long description of the cve",
+		},
+	}
+	require.NoError(t, s.ds.InsertCVEMeta(context.Background(), vulnMeta))
+
+	var osVersionsResp osVersionsResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
+	require.Equal(t, fmt.Sprintf("%s %s", testOS.Name, testOS.Version), osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, testOS.Name, osVersionsResp.OSVersions[0].NameOnly)
+	require.Equal(t, testOS.Version, osVersionsResp.OSVersions[0].Version)
+	require.Equal(t, testOS.Platform, osVersionsResp.OSVersions[0].Platform)
+	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 1)
+	require.Equal(t, "CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].CVE)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", osVersionsResp.OSVersions[0].Vulnerabilities[0].DetailsLink)
+	require.Equal(t, *vulnMeta[0].CVSSScore, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVSSScore)
+	require.Equal(t, *vulnMeta[0].EPSSProbability, **osVersionsResp.OSVersions[0].Vulnerabilities[0].EPSSProbability)
+	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
+	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
+	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
+
+	// return empty json if UpdateOSVersions cron hasn't run yet for new team
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hosts[0].ID}))
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, osVersionsResp.OSVersions, 0)
+
+	// return err if team_id is invalid
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
@@ -4916,8 +4998,8 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// create a saved script for no team
 	var newScriptResp createScriptResponse
-	body, headers := generateNewScriptMultipartRequest(t, nil,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers := generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, nil)
 	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err := json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -4949,50 +5031,50 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/%d", noTeamScriptID+999), nil, http.StatusNotFound, &getScriptResp, "alt", "media")
 
 	// file name is empty
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "no file headers for script")
 
 	// file name is not .sh
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"not_sh.txt", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"not_sh.txt", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Validation Failed: File type not supported. Only .sh and .ps1 file type is allowed.")
 
 	// file content is empty
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(``), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(``), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script contents must not be empty")
 
 	// file content is too large
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// invalid hashbang
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script2.sh", []byte(`#!/bin/python`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(`#!/bin/python`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Interpreter not supported.")
 
 	// script already exists with this name for this no-team
-	body, headers = generateNewScriptMultipartRequest(t, nil,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "A script with this name already exists")
 
 	// team id does not exist
-	body, headers = generateNewScriptMultipartRequest(t, ptr.Uint(123),
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {"123"}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusNotFound, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "The team does not exist.")
@@ -5002,8 +5084,8 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.NoError(t, err)
 
 	// create with existing name for this time for a team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "team"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "team"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5013,8 +5095,9 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	s.lastActivityMatches("added_script", fmt.Sprintf(`{"script_name": %q, "team_name": %q, "team_id": %d}`, "script1.sh", tm.Name, tm.ID), 0)
 
 	// create a windows script
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.ps1", []byte(`Write-Host "Hello, World!"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5042,15 +5125,17 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 	require.Equal(t, fmt.Sprintf("attachment;filename=\"%s %s\"", time.Now().Format(time.DateOnly), "script1.sh"), res.Header.Get("Content-Disposition"))
 
 	// script already exists with this name for this team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script1.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script1.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusConflict, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "A script with this name already exists")
 
 	// create with a different name for this team
-	body, headers = generateNewScriptMultipartRequest(t, &tm.ID,
-		"script2.sh", []byte(`echo "hello"`), s.token)
+	body, headers = generateNewScriptMultipartRequest(t,
+		"script2.sh", []byte(`echo "hello"`), s.token, map[string][]string{"team_id": {fmt.Sprintf("%d", tm.ID)}})
+
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 	err = json.NewDecoder(res.Body).Decode(&newScriptResp)
 	require.NoError(t, err)
@@ -5575,10 +5660,10 @@ VALUES
 
 // generates the body and headers part of a multipart request ready to be
 // used via s.DoRawWithHeaders to POST /api/_version_/fleet/scripts.
-func generateNewScriptMultipartRequest(t *testing.T, tmID *uint,
-	fileName string, fileContent []byte, token string,
+func generateNewScriptMultipartRequest(t *testing.T,
+	fileName string, fileContent []byte, token string, extraFields map[string][]string,
 ) (*bytes.Buffer, map[string]string) {
-	return generateMultipartRequest(t, tmID, "script", fileName, fileContent, token)
+	return generateMultipartRequest(t, "script", fileName, fileContent, token, extraFields)
 }
 
 func (s *integrationEnterpriseTestSuite) TestAppConfigScripts() {
@@ -6373,4 +6458,27 @@ func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uin
 	}
 
 	return prof.ProfileUUID
+}
+
+func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...string) []*fleet.Host {
+	var hosts []*fleet.Host
+	if len(platforms) == 0 {
+		platforms = []string{"debian", "rhel", "linux", "windows", "darwin"}
+	}
+	for i, platform := range platforms {
+		host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%s%d", t.Name(), i)),
+			UUID:            uuid.New().String(),
+			Hostname:        fmt.Sprintf("%sfoo.local%d", t.Name(), i),
+			Platform:        platform,
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, host)
+	}
+	return hosts
 }

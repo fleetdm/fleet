@@ -3,8 +3,6 @@ import { rest } from "msw";
 import createMockActivity from "__mocks__/activityMock";
 import { baseUrl } from "test/test-utils";
 
-import { ActivityType } from "interfaces/activity";
-
 export const defaultActivityHandler = rest.get(
   baseUrl("/activities"),
   (req, res, context) => {

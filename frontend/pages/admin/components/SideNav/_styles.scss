@@ -19,11 +19,5 @@
 
   &__card-container {
     width: 100%;
-
-    // Global style max width of all content to 754px
-    > * {
-      width: 100%;
-      max-width: 754px;
-    }
   }
 }

@@ -65,14 +65,12 @@ interface IMacOSTargetFormProps {
   currentTeamId: number;
   defaultMinOsVersion: string;
   defaultDeadline: string;
-  inAccordion?: boolean;
 }
 
 const MacOSTargetForm = ({
   currentTeamId,
   defaultMinOsVersion,
   defaultDeadline,
-  inAccordion = false,
 }: IMacOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -83,10 +81,6 @@ const MacOSTargetForm = ({
     string | undefined
   >();
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
-
-  const classNames = classnames(baseClass, {
-    [`${baseClass}__accordion-form`]: inAccordion,
-  });
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -123,7 +117,7 @@ const MacOSTargetForm = ({
   };
 
   return (
-    <form className={classNames} onSubmit={handleSubmit}>
+    <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
         tooltip="The end user sees the window until their macOS is at or above this version."
