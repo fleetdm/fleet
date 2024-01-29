@@ -4415,27 +4415,14 @@ WHERE
 		}
 	}
 
-	// filter counts by platform
-	if platform != nil {
-		var filtered []fleet.OSVersion
-		for _, os := range counts {
-			if *platform == os.Platform {
-				filtered = append(filtered, os)
-			}
+	// filter by platform, name, and version
+	var filtered []fleet.OSVersion
+	for _, os := range counts {
+		if (platform == nil || *platform == os.Platform) && (name == nil || version == nil || (*name == os.NameOnly && *version == os.Version)) {
+			filtered = append(filtered, os)
 		}
-		counts = filtered
 	}
-
-	// filter by name and version
-	if name != nil && version != nil {
-		var filtered []fleet.OSVersion
-		for _, os := range counts {
-			if *name == os.NameOnly && *version == os.Version {
-				filtered = append(filtered, os)
-			}
-		}
-		counts = filtered
-	}
+	counts = filtered
 
 	// aggregate counts by name and version
 	byNameVers := make(map[string]fleet.OSVersion)
