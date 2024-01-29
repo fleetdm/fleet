@@ -512,7 +512,7 @@ module.exports.routes = {
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
   'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
-  'GET /learn-more-about/custom-os-settings': 'https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings'
+  'GET /learn-more-about/custom-os-settings': 'https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings',
 
   // Sitemap
   // =============================================================================================================
