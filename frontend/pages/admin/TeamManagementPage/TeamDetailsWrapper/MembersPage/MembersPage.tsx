@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter, Link } from "react-router";
+import { Link } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -9,6 +9,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 import { IApiError } from "interfaces/errors";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
@@ -39,17 +40,7 @@ import {
 const baseClass = "members";
 const noMembersClass = "no-members";
 
-interface IMembersPageProps {
-  location: {
-    pathname: string;
-    search: string;
-    hash?: string;
-    query: { team_id?: string };
-  };
-  router: InjectedRouter;
-}
-
-const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
+const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
     AppContext

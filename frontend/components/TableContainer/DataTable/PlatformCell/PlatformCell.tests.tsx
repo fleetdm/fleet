@@ -1,4 +1,4 @@
-import React, { Children } from "react";
+import React from "react";
 import { render, screen } from "@testing-library/react";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 

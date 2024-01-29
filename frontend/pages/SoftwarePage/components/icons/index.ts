@@ -1,5 +1,5 @@
 import AcrobatReader from "./AcrobatReader";
-import Chrome from "./Chrome";
+import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
 import Firefox from "./Firefox";
@@ -18,7 +18,7 @@ import Zoom from "./Zoom";
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
-  "google chrome": Chrome,
+  "google chrome": ChromeApp,
   "microsoft excel": Excel,
   firefox: Firefox,
   package: Package,

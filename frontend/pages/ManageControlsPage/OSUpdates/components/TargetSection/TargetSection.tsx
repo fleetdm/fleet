@@ -15,7 +15,7 @@ import SectionHeader from "components/SectionHeader";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
-import PlatformsAccordion from "../PlatformsAccordion";
+import PlatformTabs from "../PlatformTabs";
 import { OSUpdatesSupportedPlatform } from "../../OSUpdates";
 
 const baseClass = "os-updates-target-section";
@@ -73,7 +73,7 @@ const TargetSection = ({
 
   // We make the call at this component as multiple children components need
   // this data.
-  const { data: teamData, isLoading: isLoadingTeam, isError } = useQuery<
+  const { data: teamData, isLoading: isLoadingTeam } = useQuery<
     ILoadTeamResponse,
     Error,
     ITeamConfig
@@ -117,7 +117,7 @@ const TargetSection = ({
   const renderTargetForms = () => {
     if (isMacMdmEnabled && isWindowsMdmEnabled) {
       return (
-        <PlatformsAccordion
+        <PlatformTabs
           currentTeamId={currentTeamId}
           defaultMacOSVersion={defaultMacOSVersion}
           defaultMacOSDeadline={defaultMacOSDeadline}

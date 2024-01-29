@@ -72,7 +72,7 @@ const PackQueriesTable = ({
   const tableData = generateDataSet(getQueries());
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       {scheduledQueries?.length ? (
         <TableContainer
           columnConfigs={tableHeaders}

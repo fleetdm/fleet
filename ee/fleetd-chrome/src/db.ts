@@ -76,6 +76,7 @@ export default class VirtualDatabase {
   }
 
   async query(sql: string): Promise<ChromeResponse> {
+    this.warnings = null; // clear warnings
     let rows = [];
     await this.sqlite3.exec(this.db, sql, (row, columns) => {
       // map each row to object

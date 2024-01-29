@@ -1,7 +1,15 @@
 const API_VERSION = "latest";
 
 export default {
+  // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
+  HOST_PAST_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities`;
+  },
+  HOST_UPCOMING_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
+  },
+
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
@@ -81,7 +89,11 @@ export default {
     `/${API_VERSION}/fleet/mdm/hosts/${id}/encryption_key`,
 
   ME: `/${API_VERSION}/fleet/me`,
+
+  // OS Version endpoints
   OS_VERSIONS: `/${API_VERSION}/fleet/os_versions`,
+  OS_VERSION: (id: number) => `/${API_VERSION}/fleet/os_versions/${id}`,
+
   OSQUERY_OPTIONS: `/${API_VERSION}/fleet/spec/osquery_options`,
   PACKS: `/${API_VERSION}/fleet/packs`,
   PERFORM_REQUIRED_PASSWORD_RESET: `/${API_VERSION}/fleet/perform_required_password_reset`,
