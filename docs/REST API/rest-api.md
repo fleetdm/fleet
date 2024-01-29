@@ -5079,9 +5079,6 @@ Content-Length: <length>
 Body: <blob>
 ```
 
-
-
-
 ---
 
 ## Policies
