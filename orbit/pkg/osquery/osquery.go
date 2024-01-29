@@ -111,7 +111,7 @@ func WithDataPath(path string) Option {
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
+			"--pidfile="+filepath.Join(path, constant.OsqueryPidfile),
 			"--database_path="+filepath.Join(path, "osquery.db"),
 			"--extensions_socket="+r.ExtensionSocketPath(),
 		)
@@ -128,7 +128,7 @@ func WithDataPathAndExtensionPathPostfix(path string, extensionPathPostfix strin
 		}
 
 		r.cmd.Args = append(r.cmd.Args,
-			"--pidfile="+filepath.Join(path, "osquery.pid"),
+			"--pidfile="+filepath.Join(path, constant.OsqueryPidfile),
 			"--database_path="+filepath.Join(path, "osquery.db"),
 			"--extensions_socket="+r.ExtensionSocketPath()+extensionPathPostfix,
 		)
