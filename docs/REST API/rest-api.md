@@ -3477,7 +3477,7 @@ Retrieves the aggregated host OS versions information.
       "name_only": "Microsoft Windows 11 Pro 23H2",
       "version": "10.0.22621.1234",
       "platform": "windows",
-      "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:10.0.20348.1234:*:*:*:*:*:*:*",
+      "generated_cpes": [],
       "vulnerabilities": [
         {
           "cve": "CVE-2022-30190",
@@ -3508,7 +3508,7 @@ Retrieves the aggregated host OS versions information.
   "name_only": "CentOS",
   "version": "7.9.2009",
   "platform": "rhel",
-  "generated_cpe": "",
+  "generated_cpes": [],
   "vulnerabilities": []
 }
 ```
@@ -3539,7 +3539,7 @@ Retrieves information about the specified OS version.
     "name_only": "Microsoft Windows 11 Pro 23H2",
     "version": "10.0.22621.1234",
     "platform": "windows",
-    "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:10.0.20348.1234:*:*:*:*:*:*:*",
+    "generated_cpes": [],
     "vulnerabilities": [
       {
         "cve": "CVE-2022-30190",
@@ -3556,7 +3556,7 @@ Retrieves information about the specified OS version.
 }
 ```
 
-`generated_cpe` and `vulnerabilities` are currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
 
 ```json
 {
@@ -3566,7 +3566,7 @@ Retrieves information about the specified OS version.
   "name_only": "CentOS",
   "version": "7.9.2009",
   "platform": "rhel",
-  "generated_cpe": "",
+  "generated_cpes": [],
   "vulnerabilities": []
 }
 ```
