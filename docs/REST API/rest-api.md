@@ -4191,7 +4191,6 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 - [Delete an EULA file](#delete-an-eula-file)
 - [Download an EULA file](#download-an-eula-file)
 
-
 ### Add custom macOS setting (configuration profile)
 
 Add a configuration profile to enforce custom settings on macOS hosts.
