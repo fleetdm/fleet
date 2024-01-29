@@ -477,7 +477,10 @@ func setupStderr() {
 	}
 	defer stderrFile.Close()
 
-	stderrFile.Write([]byte(time.Now().UTC().Format("2006-01-02T15-04-05") + "\n"))
+	if _, err := stderrFile.Write([]byte(time.Now().UTC().Format("2006-01-02T15-04-05") + "\n")); err != nil {
+		log.Error().Err(err).Msg("write to stderr file")
+	}
+
 	// We need to use this method to properly capture golang's panic stderr output.
 	// Just setting os.Stderr to a file doesn't work (Go's runtime is probably using os.Stderr
 	// very early).
@@ -525,30 +528,4 @@ func logDir() (string, error) {
 	}
 
 	return dir, nil
-}
-
-type iconManager struct {
-	theme theme
-}
-
-func newIconManager(theme theme) *iconManager {
-	m := &iconManager{
-		theme: theme,
-	}
-	m.UpdateTheme(theme)
-	return m
-}
-
-func (m *iconManager) UpdateTheme(theme theme) {
-	m.theme = theme
-	switch theme {
-	case themeDark:
-		systray.SetIcon(iconDark)
-	case themeLight:
-		systray.SetIcon(iconLight)
-	case themeUnknown:
-		log.Debug().Msg("theme unknown, using dark theme")
-	default:
-		log.Error().Str("theme", string(theme)).Msg("tried to set invalid theme")
-	}
 }
