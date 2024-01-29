@@ -2932,7 +2932,6 @@ Flags the host details, labels and policies to be refetched the next time the ho
 `Status: 200`
 
 
-
 ### Transfer hosts to a team
 
 _Available in Fleet Premium_
