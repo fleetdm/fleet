@@ -32,8 +32,7 @@ const StatusMessageRunning = () => (
   <div className={`${baseClass}__status-message`}>
     <p>
       <Icon name="pending-outline" />
-      Script is running. To see if the script finished, close this modal and
-      open it again.
+      Script is running or will run when the host comes online.
     </p>
   </div>
 );

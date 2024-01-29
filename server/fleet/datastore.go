@@ -537,6 +537,9 @@ type Datastore interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -1213,18 +1216,19 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// SetHostScriptExecutionResult stores the result of a host script execution.
-	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// SetHostScriptExecutionResult stores the result of a host script execution
+	// and returns the updated host script result record. Note that it does not
+	// fail if the script execution request does not exist, in this case it will
+	// return nil, nil.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (*HostScriptResult, error)
 	// GetHostScriptExecutionResult returns the result of a host script
 	// execution. It returns the host script results even if no results have been
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script
-	// executions, which are those that have yet to record a result. Entries
-	// older than the ignoreOlder duration are ignored, considered too old to be
-	// pending.
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+	// executions, which are those that have yet to record a result.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)

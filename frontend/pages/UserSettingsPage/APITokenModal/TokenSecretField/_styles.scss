@@ -1,17 +1,17 @@
 .secret-field {
-  &__secret-input {
-    margin-bottom: 8px;
-
-    .form-field__label {
-      position: relative;
-      font-size: $x-small;
-      font-weight: $bold;
-      margin-top: $pad-small;
-      width: 100%;
-      height: 0;
-      min-height: 0;
+  &__secret {
+    display: flex;
+    align-items: center;
+    .buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: flex-end;
+      position: absolute;
+      left: 466px;
+      min-width: 130px;
     }
-
+  }
+  &__secret-input {
     .input-field {
       width: 100%;
       padding-right: 16%;
@@ -26,42 +26,17 @@
     }
   }
 
-  &__secret-copy-icon {
+  &__copy-secret-icon {
     color: $core-vibrant-blue;
-    margin-left: $pad-small;
-    margin-right: $pad-small;
   }
 
-  .copy-message {
+  &__copy-message {
     font-weight: $regular;
     vertical-align: top;
     background-color: $ui-light-grey;
     border: solid 1px #e2e4ea;
     border-radius: 10px;
     padding: 2px 6px;
-  }
-
-  .buttons {
-    display: flex;
-    align-items: center;
-    position: absolute;
-    right: 16px;
-    top: 12px;
-    height: 16px;
-
-    span {
-      font-weight: $regular;
-    }
-
-    a {
-      display: flex;
-      align-items: center;
-    }
-
-    img {
-      width: 16px;
-      height: 16px;
-    }
   }
 
   &__secret-download-icon {
