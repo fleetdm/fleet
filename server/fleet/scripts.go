@@ -237,7 +237,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
+	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000
