@@ -1820,7 +1820,8 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Get host OS versions](#get-host-os-versions)
+- [List host OS versions](#list-host-os-versions)
+- [Get host OS version](#get-host-os-version)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 
@@ -3428,7 +3429,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Get host OS versions
+### List host OS versions
 
 Retrieves the aggregated host OS versions information.
 
@@ -3458,6 +3459,7 @@ Retrieves the aggregated host OS versions information.
   "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
+      "os_version_id": 123,
       "hosts_count": 21,
       "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
       "name_only": "Microsoft Windows 11 Pro 23H2",
@@ -3489,6 +3491,64 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpe": "",
+  "vulnerabilities": []
+}
+```
+
+### Get host OS version
+
+Retrieves information about the specified OS version.
+
+`GET /api/v1/fleet/os_versions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The OS version's ID. |
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "os_version": {
+    "id": 123,
+    "hosts_count": 21,
+    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "version": "10.0.22621.1234",
+    "platform": "windows",
+    "generated_cpe": "cpe:2.3:o:microsoft:windows_server_2022:10.0.20348.1234:*:*:*:*:*:*:*",
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2022-30190",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",// Available in Fleet Premium
+        "cvss_score": 7.8,// Available in Fleet Premium
+        "epss_probability": 0.9729,// Available in Fleet Premium
+        "cisa_known_exploit": false,// Available in Fleet Premium
+        "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+        "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+        "resolved_in_version": ""// Available in Fleet Premium
+      }
+    ]
+  }
+}
+```
+
+`generated_cpe` and `vulnerabilities` are currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "id": 321,
   "hosts_count": 1,
   "name": "CentOS Linux 7.9.2009",
   "name_only": "CentOS",
