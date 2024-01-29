@@ -8,7 +8,6 @@ import (
 )
 
 func main() {
-
 	f, err := os.Create("test.log")
 	if err != nil {
 		fmt.Println("Error creating file:", err)
@@ -25,7 +24,7 @@ func main() {
 
 	if os.Getenv("UNDO_PANICLOG") != "" {
 		// demonstrates undoing the stderr redirect
-		undo()
+		undo() //nolint:errcheck
 	}
 
 	panic("this should end up in the file instead of the console")

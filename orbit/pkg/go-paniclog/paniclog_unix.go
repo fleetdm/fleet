@@ -1,5 +1,6 @@
 // Log the panic under unix to the log file
 
+//go:build !windows && !solaris && !plan9
 // +build !windows,!solaris,!plan9
 
 package paniclog
@@ -12,7 +13,6 @@ import (
 )
 
 func redirectStderr(f *os.File) (UndoFunction, error) {
-
 	stderrFd := int(os.Stderr.Fd())
 	oldfd, err := unix.Dup(stderrFd)
 	if err != nil {

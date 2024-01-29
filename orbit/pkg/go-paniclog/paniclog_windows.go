@@ -4,6 +4,7 @@
 //
 // https://play.golang.org/p/kLtct7lSUg
 
+//go:build windows
 // +build windows
 
 package paniclog
@@ -54,7 +55,6 @@ func setStdHandle(stdhandle int32, handle syscall.Handle) error {
 }
 
 func redirectStderr(f *os.File) (UndoFunction, error) {
-
 	stderrFd, err := getStdHandle(syscall.STD_ERROR_HANDLE)
 	if err != nil {
 		return nil, errors.New("Failed to redirect stderr to file: " + err.Error())
