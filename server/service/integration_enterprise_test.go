@@ -5418,9 +5418,9 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output, sync_request)
 VALUES
-	(%s ?,?,?,?,?,?)`
+	(%s ?,?,?,?,?,?, 1)`
 
 		args := []interface{}{}
 		if script.ID == 0 {
