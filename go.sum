@@ -86,6 +86,8 @@ dario.cat/mergo v1.0.0/go.mod h1:uNxQE+84aUszobStD9th8a29P2fMDhsBdgRYvZOxGmk=
 dmitri.shuralyov.com/gpu/mtl v0.0.0-20190408044501-666a987793e9/go.mod h1:H6x//7gZCb22OMCxBHrMx7a5I7Hp++hsVxbQ4BYO7hU=
 fyne.io/systray v1.10.0 h1:Yr1D9Lxeiw3+vSuZWPlaHC8BMjIHZXJKkek706AfYQk=
 fyne.io/systray v1.10.0/go.mod h1:oM2AQqGJ1AMo4nNqZFYU8xYygSBZkW2hmdJ7n4yjedE=
+fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d h1:NjHwOOuOgGswUOPzDlsEDJOqKdjOjwL8Vi1mj9qx9+o=
+fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d/go.mod h1:RVwqP9nYMo7h5zViCBHri2FgjXF7H2cub7MAq4NSoLs=
 github.com/AbGuthrie/goquery/v2 v2.0.1 h1:h0tIhmeRroyqYjT9zxXPXOrheNp1xqNTV+XFWuDI+eA=
 github.com/AbGuthrie/goquery/v2 v2.0.1/go.mod h1:xpDLF4kUr+TRFXogclRa7Zzc8bMAB/fYm1zG/XX1WOA=
 github.com/AlekSi/pointer v1.2.0 h1:glcy/gc4h8HnG2Z3ZECSzZ1IX1x2JxRVuDzaJwQE0+w=
@@ -1207,6 +1209,8 @@ github.com/valyala/fasthttp v1.40.0/go.mod h1:t/G+3rLek+CyY9bnIE+YlMRddxVAAGjhxn
 github.com/valyala/tcplisten v1.0.0/go.mod h1:T0xQ8SeCZGxckz9qRXTfG43PvQ/mcWh7FwZEA7Ioqkc=
 github.com/vartanbeno/go-reddit/v2 v2.0.0 h1:fxYMqx5lhbmJ3yYRN1nnQC/gecRB3xpUS2BbG7GLpsk=
 github.com/vartanbeno/go-reddit/v2 v2.0.0/go.mod h1:758/S10hwZSLm43NPtwoNQdZFSg3sjB5745Mwjb0ANI=
+github.com/virtuald/go-paniclog v0.0.0-20190812204905-43a7fa316459 h1:x9pIfbdIjnw+Ylb2vE27Gtqb7BDmfR+nLcJwvbJh98U=
+github.com/virtuald/go-paniclog v0.0.0-20190812204905-43a7fa316459/go.mod h1:nFvuG3SWu3VWqobG3cX8nt57wXU0OOFapeCs/8axIuM=
 github.com/vmihailenco/msgpack v3.3.3+incompatible/go.mod h1:fy3FlTQTDXWkZ7Bh6AcGMlsjHatGryHQYUTf1ShIgkk=
 github.com/xanzy/go-gitlab v0.50.3 h1:M7ncgNhCN4jaFNyXxarJhCLa9Qi6fdmCxFFhMTQPZiY=
 github.com/xanzy/go-gitlab v0.50.3/go.mod h1:Q+hQhV508bDPoBijv7YjK/Lvlb4PhVhJdKqXVQrUoAE=

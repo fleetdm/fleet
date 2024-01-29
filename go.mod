@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
-	fyne.io/systray v1.10.0
+	fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
@@ -295,6 +295,7 @@ require (
 	github.com/trivago/tgo v1.0.7 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.0 // indirect
+	github.com/virtuald/go-paniclog v0.0.0-20190812204905-43a7fa316459 // indirect
 	github.com/xanzy/go-gitlab v0.50.3 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
