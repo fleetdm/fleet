@@ -29,7 +29,7 @@ module.exports = {
     });
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Anderson','Grzelak','Fohs','Shaklovitz','Waisman','Arpaia','Gomez','Shields','Majumdar','Elshaer','Yousafzai','Botelho','Zaffery','Larkin','Ravazzolo','Whetstone'];
+    let testimonialOrderForThisPage = ['Zaffery','Grzelak','Waisman','Larkin','Anderson','Gomez','Fohs','Shaklovitz','Arpaia','Shields','Majumdar','Elshaer','Yousafzai','Ravazzolo','Whetstone','Botelho'];
     testimonialsForScrollableTweets.sort((a, b)=>{
       if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName.split(' ')[1]) === -1){
         return 1;

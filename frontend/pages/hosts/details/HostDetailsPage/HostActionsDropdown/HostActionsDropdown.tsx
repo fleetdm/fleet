@@ -45,14 +45,18 @@ const HostActionsDropdown = ({
     currentUser,
     hostTeamId
   );
+  const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
+  const isGlobalObserver = permissions.isGlobalObserver(currentUser);
 
   const options = generateHostActionOptions({
     hostPlatform,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalObserver,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollemntStatus ?? ""

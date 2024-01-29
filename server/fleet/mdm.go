@@ -1,7 +1,9 @@
 package fleet
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"time"
@@ -117,6 +119,10 @@ type ExpectedMDMProfile struct {
 	EarliestInstallDate time.Time `db:"earliest_install_date"`
 	// RawProfile contains the raw profile contents
 	RawProfile []byte `db:"raw_profile"`
+	// CountProfileLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountProfileLabels uint `db:"count_profile_labels"`
+	// CountHostLabels is used to enable queries that filter based on profile <-> label mappings.
+	CountHostLabels uint `db:"count_host_labels"`
 }
 
 // IsWithinGracePeriod returns true if the host is within the grace period for the profile.
@@ -351,14 +357,23 @@ func (m MDMConfigProfileAuthz) AuthzType() string {
 // MDMConfigProfilePayload is the platform-agnostic struct returned by
 // endpoints that return MDM configuration profiles (get/list profiles).
 type MDMConfigProfilePayload struct {
-	ProfileUUID string    `json:"profile_uuid" db:"profile_uuid"`
-	TeamID      *uint     `json:"team_id" db:"team_id"` // null for no-team
-	Name        string    `json:"name" db:"name"`
-	Platform    string    `json:"platform" db:"platform"`               // "windows" or "darwin"
-	Identifier  string    `json:"identifier,omitempty" db:"identifier"` // only set for macOS
-	Checksum    []byte    `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
-	CreatedAt   time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	ProfileUUID string                      `json:"profile_uuid" db:"profile_uuid"`
+	TeamID      *uint                       `json:"team_id" db:"team_id"` // null for no-team
+	Name        string                      `json:"name" db:"name"`
+	Platform    string                      `json:"platform" db:"platform"`               // "windows" or "darwin"
+	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
+	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
+	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time                   `json:"updated_at" db:"updated_at"`
+	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
+}
+
+// MDMProfileBatchPayload represents the payload to batch-set the profiles for
+// a team or no-team.
+type MDMProfileBatchPayload struct {
+	Name     string   `json:"name,omitempty"`
+	Contents []byte   `json:"contents,omitempty"`
+	Labels   []string `json:"labels,omitempty"`
 }
 
 func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConfigProfilePayload {
@@ -373,6 +388,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Platform:    "windows",
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
 }
 
@@ -390,5 +406,108 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Checksum:    cp.Checksum,
 		CreatedAt:   cp.CreatedAt,
 		UpdatedAt:   cp.UpdatedAt,
+		Labels:      cp.Labels,
 	}
+}
+
+// MDMProfileSpec represents the spec used to define configuration
+// profiles via yaml files.
+type MDMProfileSpec struct {
+	Path   string   `json:"path,omitempty"`
+	Labels []string `json:"labels,omitempty"`
+}
+
+// UnmarshalJSON implements the json.Unmarshaler interface to add backwards
+// compatibility to previous ways to define profile specs.
+func (p *MDMProfileSpec) UnmarshalJSON(data []byte) error {
+	if len(data) == 0 {
+		return nil
+	}
+
+	if lookAhead := bytes.TrimSpace(data); len(lookAhead) > 0 && lookAhead[0] == '"' {
+		var backwardsCompat string
+		if err := json.Unmarshal(data, &backwardsCompat); err != nil {
+			return fmt.Errorf("unmarshal profile spec. Error using old format: %w", err)
+		}
+		p.Path = backwardsCompat
+		return nil
+	}
+
+	// use an alias type to avoid recursively calling this function forever.
+	type Alias MDMProfileSpec
+	aliasData := struct {
+		*Alias
+	}{
+		Alias: (*Alias)(p),
+	}
+	if err := json.Unmarshal(data, &aliasData); err != nil {
+		return fmt.Errorf("unmarshal profile spec. Error using new format: %w", err)
+	}
+	return nil
+}
+
+func (p *MDMProfileSpec) Clone() (Cloner, error) {
+	return p.Copy(), nil
+}
+
+func (p *MDMProfileSpec) Copy() *MDMProfileSpec {
+	if p == nil {
+		return nil
+	}
+
+	var clone MDMProfileSpec
+	clone = *p
+
+	if len(p.Labels) > 0 {
+		clone.Labels = make([]string, len(p.Labels))
+		copy(clone.Labels, p.Labels)
+	}
+
+	return &clone
+}
+
+func labelCountMap(labels []string) map[string]int {
+	counts := make(map[string]int)
+	for _, label := range labels {
+		counts[label]++
+	}
+	return counts
+}
+
+// MDMProfileSpecsMatch match checks if two slices contain the same spec
+// elements, regardless of order.
+func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
+	if len(a) != len(b) {
+		return false
+	}
+
+	pathLabelCounts := make(map[string]map[string]int)
+	for _, v := range a {
+		pathLabelCounts[v.Path] = labelCountMap(v.Labels)
+	}
+
+	for _, v := range b {
+		labels, ok := pathLabelCounts[v.Path]
+		if !ok {
+			return false
+		}
+
+		bLabelCounts := labelCountMap(v.Labels)
+		for label, count := range bLabelCounts {
+			if labels[label] != count {
+				return false
+			}
+			labels[label] -= count
+		}
+
+		for _, count := range labels {
+			if count != 0 {
+				return false
+			}
+		}
+
+		delete(pathLabelCounts, v.Path)
+	}
+
+	return len(pathLabelCounts) == 0
 }
