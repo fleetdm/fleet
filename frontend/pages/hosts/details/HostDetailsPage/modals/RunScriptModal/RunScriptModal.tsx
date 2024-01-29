@@ -142,7 +142,7 @@ const RunScriptModal = ({
           {!isLoading && !isError && tableData && tableData.length === 0 && (
             <EmptyTable
               header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
+              info="Upload scripts to change configuration and remediate issues on this host."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (
