@@ -2355,9 +2355,10 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
               mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
           VALUES %s
           ON DUPLICATE KEY UPDATE
+            uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
-            checksum = UNHEX(MD5(VALUES(mobileconfig))),
-            uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): keep timestamp if no changes`, strings.TrimSuffix(sb.String(), ","))
+            checksum = VALUES(checksum)
+`, strings.TrimSuffix(sb.String(), ","))
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "upsert mdm config profiles")

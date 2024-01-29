@@ -1213,7 +1213,6 @@ func listMDMWindowsProfilesToInstallDB(
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
-	// TODO(mna): same question here
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
