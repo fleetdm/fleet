@@ -959,7 +959,7 @@ func expectAppleProfiles(
 		gotp.ProfileID = 0
 		gotp.ProfileUUID = ""
 		gotp.CreatedAt = time.Time{}
-		gotp.UpdatedAt = time.Time{}
+		gotp.UploadedAt = time.Time{}
 	}
 	// order is not guaranteed
 	require.ElementsMatch(t, want, got)
@@ -3611,22 +3611,22 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		{
 			Identifier:  cp1.Identifier,
 			DisplayName: cp1.Name,
-			InstallDate: storedByIdentifier[cp1.Identifier].UpdatedAt.Add(-1 * time.Hour),
+			InstallDate: storedByIdentifier[cp1.Identifier].UploadedAt.Add(-1 * time.Hour),
 		},
 		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
-			InstallDate: storedByIdentifier[cp2.Identifier].UpdatedAt.Add(-1 * time.Hour),
+			InstallDate: storedByIdentifier[cp2.Identifier].UploadedAt.Add(-1 * time.Hour),
 		},
 		{
 			Identifier:  cp3.Identifier,
 			DisplayName: cp3.Name,
-			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt.Add(-1 * time.Hour),
+			InstallDate: storedByIdentifier[cp3.Identifier].UploadedAt.Add(-1 * time.Hour),
 		},
 		{
 			Identifier:  cp4.Identifier,
 			DisplayName: cp4.Name,
-			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt.Add(-1 * time.Hour),
+			InstallDate: storedByIdentifier[cp4.Identifier].UploadedAt.Add(-1 * time.Hour),
 		},
 	})))
 	checkHostMDMProfileStatuses()
@@ -3637,17 +3637,17 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
-			InstallDate: storedByIdentifier[cp2.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp2.Identifier].UploadedAt,
 		},
 		{
 			Identifier:  cp3.Identifier,
 			DisplayName: cp3.Name,
-			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp3.Identifier].UploadedAt,
 		},
 		{
 			Identifier:  cp4.Identifier,
 			DisplayName: cp4.Name,
-			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp4.Identifier].UploadedAt,
 		},
 	})))
 	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryVerified
@@ -3659,25 +3659,25 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
-			InstallDate: storedByIdentifier[cp2.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp2.Identifier].UploadedAt,
 		},
 		{
 			Identifier:  cp3.Identifier,
 			DisplayName: cp3.Name,
-			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp3.Identifier].UploadedAt,
 		},
 		{
 			Identifier:  cp4.Identifier,
 			DisplayName: cp4.Name,
-			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
+			InstallDate: storedByIdentifier[cp4.Identifier].UploadedAt,
 		},
 	})))
 	checkHostMDMProfileStatuses()
 
-	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
+	// simulate expired grace period by setting uploaded_at timestamp of profiles back by 24 hours
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
-			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?, ?)`,
+			`UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid IN(?, ?, ?, ?)`,
 			time.Now().Add(-24*time.Hour),
 			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID, cp4.ProfileUUID,
 		)
@@ -4368,9 +4368,9 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		return cp
 	}
 
-	setProfileUpdatedAt := func(t *testing.T, cp *fleet.MDMAppleConfigProfile, ua time.Time) {
+	setProfileUploadedAt := func(t *testing.T, cp *fleet.MDMAppleConfigProfile, ua time.Time) {
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
-			_, err := tx.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid = ?`, ua, cp.ProfileUUID)
+			_, err := tx.ExecContext(ctx, `UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE profile_uuid = ?`, ua, cp.ProfileUUID)
 			return err
 		})
 	}
@@ -4452,7 +4452,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			initializeProfile(t, h, cp, tc.initialStatus, 0)
 
 			// within grace period
-			setProfileUpdatedAt(t, cp, twoMinutesAgo)
+			setProfileUploadedAt(t, cp, twoMinutesAgo)
 			require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 			require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // if missing within grace period, no change
 
@@ -4460,7 +4460,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			initializeProfile(t, h, cp, tc.initialStatus, 0)
 
 			// outside grace period
-			setProfileUpdatedAt(t, cp, twoHoursAgo)
+			setProfileUploadedAt(t, cp, twoHoursAgo)
 			require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 			if tc.expectedStatus == fleet.MDMDeliveryFailed {
 				// grace period expired, first failure gets retried so status should be pending and empty detail
@@ -4528,7 +4528,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// within grace period
-				setProfileUpdatedAt(t, cp, twoMinutesAgo)
+				setProfileUploadedAt(t, cp, twoMinutesAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.initialStatus, "")) // outdated profiles are treated similar to missing profiles so status doesn't change if within grace period
 
@@ -4536,7 +4536,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// outside grace period
-				setProfileUpdatedAt(t, cp, twoHoursAgo)
+				setProfileUploadedAt(t, cp, twoHoursAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
@@ -4591,7 +4591,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// within grace period
-				setProfileUpdatedAt(t, cp, twoMinutesAgo)
+				setProfileUploadedAt(t, cp, twoMinutesAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
@@ -4599,7 +4599,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// outside grace period
-				setProfileUpdatedAt(t, cp, twoHoursAgo)
+				setProfileUploadedAt(t, cp, twoHoursAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
@@ -4659,7 +4659,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// within grace period
-				setProfileUpdatedAt(t, cp, twoMinutesAgo)
+				setProfileUploadedAt(t, cp, twoMinutesAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // if found within grace period, verifying status can become verified so check expected status
 
@@ -4667,7 +4667,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 				initializeProfile(t, h, cp, tc.initialStatus, 1)
 
 				// outside grace period
-				setProfileUpdatedAt(t, cp, twoHoursAgo)
+				setProfileUploadedAt(t, cp, twoHoursAgo)
 				require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 				require.NoError(t, checkHostStatus(t, h, tc.expectedStatus, tc.expectedDetail)) // grace period expired, check expected status
 			})
@@ -4702,7 +4702,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		initializeProfile(t, h, stored0, initialStatus, 1)
 
 		// within grace period
-		setProfileUpdatedAt(t, stored0, twoMinutesAgo) // host is out of date but still within grace period
+		setProfileUploadedAt(t, stored0, twoMinutesAgo) // host is out of date but still within grace period
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 		require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryVerifying, "")) // no change
 
@@ -4710,7 +4710,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		initializeProfile(t, h, stored0, initialStatus, 1)
 
 		// outside grace period
-		setProfileUpdatedAt(t, stored0, twoHoursAgo) // host is out of date and grace period has passed
+		setProfileUploadedAt(t, stored0, twoHoursAgo) // host is out of date and grace period has passed
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 		require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryFailed, string(fleet.HostMDMProfileDetailFailedWasVerifying))) // set to failed
 
@@ -4722,8 +4722,8 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 		stored1, err := ds.NewMDMAppleConfigProfile(ctx, *cp)
 		require.NoError(t, err)
 
-		setProfileUpdatedAt(t, stored0, twoHoursAgo)                  // host would be out of date based on this copy of the profile record
-		setProfileUpdatedAt(t, stored1, twoDaysAgo.Add(-1*time.Hour)) // BUT this record now establishes the earliest install date
+		setProfileUploadedAt(t, stored0, twoHoursAgo)                  // host would be out of date based on this copy of the profile record
+		setProfileUploadedAt(t, stored1, twoDaysAgo.Add(-1*time.Hour)) // BUT this record now establishes the earliest install date
 
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, h, profilesByIdentifier(reportedProfiles)))
 		require.NoError(t, checkHostStatus(t, h, fleet.MDMDeliveryVerified, "")) // set to verified based on earliest install date

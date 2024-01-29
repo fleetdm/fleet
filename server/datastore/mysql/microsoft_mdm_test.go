@@ -1843,7 +1843,7 @@ func testMDMWindowsConfigProfiles(t *testing.T, ds *Datastore) {
 	require.Equal(t, "a", prof.Name)
 	require.Equal(t, "<Replace></Replace>", string(prof.SyncML))
 	require.NotZero(t, prof.CreatedAt)
-	require.NotZero(t, prof.UpdatedAt)
+	require.NotZero(t, prof.UploadedAt)
 	require.Nil(t, prof.Labels)
 
 	err = ds.DeleteMDMWindowsConfigProfile(ctx, "not-valid")
@@ -1946,7 +1946,7 @@ func expectWindowsProfiles(
 		}
 		gotp.ProfileUUID = ""
 		gotp.CreatedAt = time.Time{}
-		gotp.UpdatedAt = time.Time{}
+		gotp.UploadedAt = time.Time{}
 	}
 	// order is not guaranteed
 	require.ElementsMatch(t, want, got)

@@ -686,7 +686,7 @@ SELECT
 	name,
 	syncml,
 	created_at,
-	updated_at
+	uploaded_at
 FROM
 	mdm_windows_configuration_profiles
 WHERE
@@ -1459,8 +1459,8 @@ func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
-(SELECT ?, ?, ?, ? FROM DUAL WHERE
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
+(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	)
@@ -1520,14 +1520,15 @@ func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp 
 	profileUUID := uuid.New().String()
 	stmt := `
 INSERT INTO
-	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
-(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
+(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	)
 )
 ON DUPLICATE KEY UPDATE
-	syncml = VALUES(syncml)
+	syncml = VALUES(syncml),
+	uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): do not update if no changes
 `
 
 	var teamID uint
@@ -1597,14 +1598,15 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
-    profile_uuid, team_id, name, syncml
+    profile_uuid, team_id, name, syncml, uploaded_at
   )
 VALUES
 	-- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ? )
+  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
   name = VALUES(name),
-  syncml = VALUES(syncml)
+  syncml = VALUES(syncml),
+	uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): do not update if no changes
 `
 
 	// use a profile team id of 0 if no-team
