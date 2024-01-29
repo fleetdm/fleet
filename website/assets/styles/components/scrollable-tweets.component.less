@@ -25,17 +25,41 @@
     -ms-overflow-style: none;
   }
 
-  [purpose='video-link'] {
-    cursor: pointer;
-    color: @core-vibrant-blue;
-  }
 
   [purpose='tweet-card'] {
-    img {
-      max-height: 38px;
+    [purpose='logo'] {
+      img {
+        max-height: 32px;
+      }
+      min-height: 0;
+      margin-bottom: 24px;
     }
-    max-width: 367px;
-    min-width: 367px;
+    [purpose='quote'] {
+      margin-bottom: 24px;
+    }
+    [purpose='quote-author-info'] {
+      [purpose='job-title'] {
+        font-size: 12px !important;//lesshint-disable-line importantRule,duplicateProperty
+        line-height: 18px !important;//lesshint-disable-line importantRule,duplicateProperty
+      }
+      [purpose='name'] {
+        color: @core-fleet-black !important;//lesshint-disable-line importantRule,duplicateProperty
+      }
+      [purpose='profile-picture'] {
+        margin-right: 16px;
+        img {
+          height: 48px;
+          width: 48px;
+        }
+      }
+    }
+    [purpose='video-link'] {
+      cursor: pointer;
+      color: @core-vibrant-blue;
+    }
+    height: fit-content;
+    max-width: 360px;
+    min-width: 360px;
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -47,8 +71,12 @@
     padding: 40px;
     border: 1px solid @core-vibrant-blue-15;
     box-sizing: border-box;
-    box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
     border-radius: 16px;
+    &:hover {
+      text-decoration: none;
+      pointer: cursor;
+      box-shadow: 0px 4px 16px rgba(0, 0, 0, 0.1);
+    }
   }
 
   [purpose='page-indictator-container'] {

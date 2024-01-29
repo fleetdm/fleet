@@ -201,6 +201,19 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 	s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusOK)
 }
 
+func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
+	params := fleet.UserPayload{
+		Name:  ptr.String("user_invalid_email"),
+		Email: ptr.String("test@example.com"),
+		// This is 73 characters long
+		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), resp, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+}
+
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
 	t := s.T()
 
@@ -1166,8 +1179,8 @@ func (s *integrationTestSuite) TestHostsCount() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
 
 	label := &fleet.Label{
 		Name:  t.Name() + "foo",
@@ -1328,8 +1341,8 @@ func (s *integrationTestSuite) TestListHosts() {
 	hosts := s.createHosts(t, "darwin", "darwin", "darwin")
 
 	// set disk space information for some hosts
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0)) // low disk
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0)) // not low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[0].ID, 10.0, 2.0, 500.0))  // low disk
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hosts[1].ID, 40.0, 4.0, 1000.0)) // not low disk
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
@@ -2001,8 +2014,8 @@ func (s *integrationTestSuite) TestGetHostSummary() {
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{hosts[0].ID}))
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hosts[0].ID), nil, http.StatusOK, &getHostResp)
@@ -2560,11 +2573,12 @@ func (s *integrationTestSuite) TestHostDetailsPolicies() {
 	hd := r.Host.HostDetail
 	policies := *hd.Policies
 	require.Len(t, policies, 2)
-	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[0].PolicyData))
-	require.Equal(t, policies[0].Response, "pass")
+	// Policies that did not run are listed before passing policies
+	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[0].PolicyData))
+	require.Equal(t, policies[0].Response, "") // policy didn't "run"
 
-	require.True(t, reflect.DeepEqual(tpResp.Policy.PolicyData, policies[1].PolicyData))
-	require.Equal(t, policies[1].Response, "") // policy didn't "run"
+	require.True(t, reflect.DeepEqual(gpResp.Policy.PolicyData, policies[1].PolicyData))
+	require.Equal(t, policies[1].Response, "pass")
 
 	// Try to create a global policy with an existing name.
 	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusConflict, &gpResp)
@@ -3690,6 +3704,136 @@ func (s *integrationTestSuite) TestLabels() {
 	for _, lbl := range hostSummaryResp.BuiltinLabels {
 		assert.Equal(t, fleet.LabelTypeBuiltIn, lbl.LabelType)
 	}
+}
+
+// Sanity test to make sure fleet/labels/<all>/hosts and fleet/hosts return the same thing.
+func (s *integrationTestSuite) TestListHostsByLabel() {
+	t := s.T()
+
+	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	require.NoError(t, err)
+	require.Len(t, lblIDs, 1)
+	labelID := lblIDs["All Hosts"]
+
+	hosts := s.createHosts(t, "darwin")
+	host := hosts[0]
+
+	// Update label
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, (SELECT id FROM labels WHERE name = 'All Hosts' AND label_type = 1))",
+				host.ID,
+			)
+			return err
+		},
+	)
+
+	// set disk space information
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), host.ID, 10.0, 2.0, 500.0)) // low disk
+
+	// Update host fields
+	host.Uptime = 30 * time.Second
+	host.RefetchRequested = true
+	host.OSVersion = "macOS 14.2"
+	host.Build = "abc"
+	host.PlatformLike = "darwin"
+	host.CodeName = "sky"
+	host.Memory = 1000
+	host.CPUType = "arm64"
+	host.CPUSubtype = "ARM64e"
+	host.CPUBrand = "Apple M2 Pro"
+	host.CPUPhysicalCores = 12
+	host.CPULogicalCores = 14
+	host.HardwareVendor = "Apple Inc."
+	host.HardwareModel = "Mac14,10"
+	host.HardwareVersion = "23"
+	host.HardwareSerial = "ABC123"
+	host.ComputerName = "MBP"
+	host.PublicIP = "1.1.1.1"
+	host.PrimaryIP = "10.10.10.10"
+	host.PrimaryMac = "11:22:33"
+	host.DistributedInterval = 10
+	host.ConfigTLSRefresh = 9
+	host.OsqueryVersion = "5.10"
+	err = s.ds.UpdateHost(context.Background(), host)
+	require.NoError(t, err)
+
+	// Add team
+	team, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			Name: uuid.New().String(),
+		},
+	)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID}))
+
+	// Add pack
+	_, err = s.ds.NewPack(
+		context.Background(), &fleet.Pack{
+			Name: t.Name(),
+			Hosts: []fleet.Target{
+				{
+					Type:     fleet.TargetHost,
+					TargetID: hosts[0].ID,
+				},
+			},
+		},
+	)
+	require.NoError(t, err)
+
+	// Add policy
+	qr, err := s.ds.NewQuery(
+		context.Background(), &fleet.Query{
+			Name:           t.Name(),
+			Description:    "Some description",
+			Query:          "select * from osquery;",
+			ObserverCanRun: true,
+			Logging:        fleet.LoggingSnapshot,
+		},
+	)
+	require.NoError(t, err)
+
+	gpParams := globalPolicyRequest{
+		QueryID:    &qr.ID,
+		Resolution: "some global resolution",
+	}
+	gpResp := globalPolicyResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/policies", gpParams, http.StatusOK, &gpResp)
+	require.NotNil(t, gpResp.Policy)
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{gpResp.Policy.ID: ptr.Bool(false)}, time.Now(), false),
+	)
+
+	// Add MDM info
+	require.NoError(
+		t,
+		s.ds.SetOrUpdateMDMData(
+			context.Background(), host.ID, false, true, "https://simplemdm.com", false, fleet.WellKnownMDMSimpleMDM, "",
+		),
+	)
+
+	// Add device mapping
+	require.NoError(
+		t, s.ds.ReplaceHostDeviceMapping(
+			context.Background(), host.ID, []*fleet.HostDeviceMapping{
+				{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+				{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+			}, fleet.DeviceMappingGoogleChromeProfiles,
+		),
+	)
+
+	// Now do the actual API calls that we will compare.
+	var hostsResp, labelsResp listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &hostsResp, "device_mapping", "true")
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/labels/%d/hosts", labelID), nil, http.StatusOK, &labelsResp, "device_mapping", "true")
+
+	// Converting to formatted JSON for easier diffs
+	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
+	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
+	assert.Equal(t, string(hostsJson), string(labelsJson))
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -5188,41 +5332,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
 
-	// run a script
-	var runResp runScriptResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
-
-	// run a script sync
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
-
-	// get script result
-	var scriptResultResp getScriptResultResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
-
-	// create a saved script
-	body, headers := generateNewScriptMultipartRequest(t, nil,
-		"myscript.sh", []byte(`echo "hello"`), s.token)
-	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
-
-	// delete a saved script
-	var delScriptResp deleteScriptResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &delScriptResp)
-
-	// list saved scripts
-	var listScriptsResp listScriptsResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusPaymentRequired, &listScriptsResp, "per_page", "10")
-
-	// get a saved script
-	var getScriptResp getScriptResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &getScriptResp)
-
-	// get host script details
-	var getHostScriptDetailsResp getHostScriptDetailsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusPaymentRequired, &getHostScriptDetailsResp)
-
-	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
-
 	// software titles
 	// a normal request works fine
 	var resp listSoftwareTitlesResponse
@@ -5240,6 +5349,48 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
 		"team_id", "1",
 	)
+}
+
+func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
+	t := s.T()
+
+	// this is just checking that the endpoints do not fail with "no license", the actual tests
+	// for scripts endpoints are in the enterprise integrations tests.
+
+	// run a script
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+
+	// run a script sync
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusNotFound, &scriptResultResp)
+
+	// create a saved script
+	body, headers := generateNewScriptMultipartRequest(t,
+		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// delete a saved script
+	var delScriptResp deleteScriptResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)
+
+	// list saved scripts
+	var listScriptsResp listScriptsResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listScriptsResp, "per_page", "10")
+
+	// get a saved script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &getScriptResp)
+
+	// get host script details
+	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
+
+	// batch set scripts
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusNoContent)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -6016,9 +6167,9 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	// no search criteria
 	var searchResp searchTargetsResponse
@@ -6027,6 +6178,11 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
+
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
@@ -6058,8 +6214,8 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	hosts := s.createHosts(t)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	// no search criteria
 	var searchResp searchHostsResponse
@@ -6101,6 +6257,22 @@ func (s *integrationTestSuite) TestSearchHosts() {
 	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "foo.local0"}, http.StatusOK, &searchResp)
 	require.Len(t, searchResp.Hosts, 1)
 	require.Greater(t, searchResp.Hosts[0].SoftwareUpdatedAt, searchResp.Hosts[0].CreatedAt)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(db sqlx.ExtContext) error {
+		_, err := db.ExecContext(
+			context.Background(),
+			`INSERT INTO host_emails (host_id, email, source) VALUES (?, ?, ?)`,
+			hosts[0].ID, "a@b.c", "src1")
+
+		return err
+	})
+
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "a@b.c"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 1)
+
+	// search for non-existent email, shouldn't get anything back
+	s.DoJSON("POST", "/api/latest/fleet/hosts/search", searchHostsRequest{MatchQuery: "not@found.com"}, http.StatusOK, &searchResp)
+	require.Len(t, searchResp.Hosts, 0)
 }
 
 func (s *integrationTestSuite) TestCountTargets() {
@@ -6112,12 +6284,12 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	for i := range hosts {
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -6139,6 +6311,10 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 	// all hosts label selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
@@ -6773,7 +6949,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
-	customLabelID := lids[0]
+	customLabelID := lids[t.Name()]
 
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
@@ -6789,8 +6965,8 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	require.NoError(t, err)
 
 	// set disk space information for hosts [0] and [1]
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0))
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[0].ID, 1.0, 2.0, 500.0))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(ctx, hosts[1].ID, 3.0, 4.0, 1000.0))
 
 	// create software for host [0]
 	software := []fleet.Software{
@@ -6831,28 +7007,33 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows[0], 49)        // total number of cols
+	assert.Len(t, rows[0], 50)         // total number of cols
 
 	const (
-		idCol       = 3
-		issuesCol   = 41
-		gigsDiskCol = 39
-		pctDiskCol  = 40
+		idCol        = 3
+		issuesCol    = 42
+		gigsDiskCol  = 39
+		pctDiskCol   = 40
+		gigsTotalCol = 41
 	)
 
 	// find the row for hosts[1], it should have issues=1 (1 failing policy) and the expected disk space
 	for _, row := range rows[1:] {
 		if row[idCol] == fmt.Sprint(hosts[1].ID) {
-			require.Equal(t, "1", row[issuesCol], row)
-			require.Equal(t, "3", row[gigsDiskCol], row)
-			require.Equal(t, "4", row[pctDiskCol], row)
+			assert.Equal(t, "1", row[issuesCol], row)
+			assert.Equal(t, "3", row[gigsDiskCol], row)
+			assert.Equal(t, "4", row[pctDiskCol], row)
+			assert.Equal(t, "1000", row[gigsTotalCol], row)
 		} else {
-			require.Equal(t, "0", row[issuesCol], row)
+			assert.Equal(t, "0", row[issuesCol], row)
 		}
 	}
 
 	// valid format, some columns
-	res = s.DoRaw("GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv", "columns", "hostname", "gigs_disk_space_available", "percent_disk_space_available")
+	res = s.DoRaw(
+		"GET", "/api/latest/fleet/hosts/report", nil, http.StatusOK, "format", "csv",
+		"columns", "hostname,gigs_disk_space_available,percent_disk_space_available,gigs_total_disk_space",
+	)
 	rows, err = csv.NewReader(res.Body).ReadAll()
 	res.Body.Close()
 	require.NoError(t, err)
@@ -7113,7 +7294,7 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 
 	// before any disk encryption is received, all hosts report NULL (even if
 	// some have disk space information, i.e. an entry exists in host_disks).
-	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6))
+	require.NoError(t, s.ds.SetOrUpdateHostDisksSpace(context.Background(), hostWin.ID, 44.5, 55.6, 90.0))
 
 	var getHostResp getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", hostWin.ID), nil, http.StatusOK, &getHostResp)
@@ -7185,41 +7366,133 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
-	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+	testOSes := []fleet.OperatingSystem{
+		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
+	}
 
-	hosts := s.createHosts(t)
+	var platforms []string
+	for _, os := range testOSes {
+		platforms = append(platforms, os.Platform)
+	}
+
+	hosts := s.createHosts(t, platforms...)
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, len(hosts))
 
 	// set operating system information on a host
-	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
-	var osID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &osID,
-			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
-			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
-	})
-	require.Greater(t, osID, uint(0))
+	for i, os := range testOSes {
+		require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[i].ID, os))
+	}
+
+	// get OS versions
+	osv, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	require.Len(t, osv, 6) // includes fooOS from another test
+
+	osvMap := make(map[string]fleet.OperatingSystem)
+	for _, os := range osv {
+		key := fmt.Sprintf("%s %s %s", os.Name, os.Version, os.Arch)
+		osvMap[key] = os
+	}
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
-	require.Len(t, resp.Hosts, 1)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOSes[1].Name, "os_version", testOSes[1].Version)
+	require.Len(t, resp.Hosts, 2)
 
 	expected := resp.Hosts[0]
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
-	require.Len(t, resp.Hosts, 1)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].ID))
+	require.Len(t, resp.Hosts, 2)
 	require.Equal(t, expected, resp.Hosts[0])
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 
+	// insert Vuln for Win x64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 64bit"].ID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// insert duplicate Vuln for Win ARM64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// insert different Vuln for Win ARM64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		CVE:  "CVE-2021-5678",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
-	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
+	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
+
+	// Default sort is by hosts count, descending
+	require.Equal(t, fleet.OSVersion{
+		HostsCount: 4,
+		Name:       "Windows 11 Pro 21H2 10.0.22000.2",
+		NameOnly:   "Windows 11 Pro 21H2",
+		Version:    "10.0.22000.2",
+		Platform:   "windows",
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:         "CVE-2021-1234",
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			},
+			{
+				CVE:         "CVE-2021-5678", // vulns are aggregated by OS name and version
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
+			},
+		},
+	}, osVersionsResp.OSVersions[0])
+
+	// name without version
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_name", "Windows 11 Pro 21H2")
+
+	// version without name
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_version", "10.0.22000.1")
+
+	// invalid order key
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "order_key", "nosuchkey")
+
+	// ascending order by hosts count
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "hosts_count", "order_direction", "asc")
+	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[0].Name)
+
+	// test pagination
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "0", "per_page", "2")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.True(t, osVersionsResp.Meta.HasNextResults)
+	require.False(t, osVersionsResp.Meta.HasPreviousResults)
+
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.False(t, osVersionsResp.Meta.HasNextResults)
+	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
@@ -7338,9 +7611,9 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
-	// the scripts orbit endpoints are premium-only
-	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
-	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
+	// the scripts orbit endpoints are accessible without license
+	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusNotFound)
+	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
@@ -8565,7 +8838,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows1[0], 49)        // total number of cols
+	assert.Len(t, rows1[0], 50)         // total number of cols
 
 	var (
 		idIdx     int
@@ -8592,7 +8865,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	require.Len(t, rows2[0], 49)        // total number of cols
+	assert.Len(t, rows2[0], 50)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
@@ -9329,4 +9602,247 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Empty(t, resp.HostHealth.VulnerableSoftware)
 	assert.Empty(t, resp.HostHealth.FailingPolicies)
 	assert.Nil(t, resp.HostHealth.TeamID)
+}
+
+func (s *integrationTestSuite) TestHostDeviceToken() {
+	t := s.T()
+	type response struct {
+		Err string `json:"error"`
+	}
+
+	orbitHost := createOrbitEnrolledHost(t, "windows", "device_token", s.ds)
+
+	// Write empty token
+	body := setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusBadRequest, &response{})
+
+	// Write bad node key
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    "",
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusUnauthorized, &response{})
+
+	// Write a good token.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Try to write the token again for a different host.
+	// First write a valid token.
+	orbitHost2 := createOrbitEnrolledHost(t, "darwin", "device_token2", s.ds)
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token2",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusOK, &response{})
+
+	// Now write a duplicate token, which will result in a conflict with the first host.
+	body = setOrUpdateDeviceTokenRequest{
+		OrbitNodeKey:    *orbitHost2.OrbitNodeKey,
+		DeviceAuthToken: "token",
+	}
+	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
+}
+
+func (s *integrationTestSuite) TestHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+	user := s.users["admin1@example.com"]
+	getDetails := func(a *fleet.Activity) fleet.ActivityTypeRanScript {
+		var details fleet.ActivityTypeRanScript
+		err := json.Unmarshal([]byte(*a.Details), &details)
+		require.NoError(t, err)
+
+		return details
+	}
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+	savedScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "saved.sh",
+		ScriptContents: "echo 'hello world'",
+	})
+	require.NoError(t, err)
+
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	execID1 := runResp.ExecutionID
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo 'hello world'", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, user.Email, *listResp.Activities[0].ActorEmail)
+	require.Equal(t, user.Name, *listResp.Activities[0].ActorFullName)
+	require.Equal(t, user.GravatarURL, *listResp.Activities[0].ActorGravatar)
+	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
+	d := getDetails(listResp.Activities[0])
+	require.Equal(t, execID1, d.ScriptExecutionID)
+	require.Equal(t, savedScript.Name, d.ScriptName)
+	require.Equal(t, host.DisplayName(), d.HostDisplayName)
+	require.Equal(t, host.ID, d.HostID)
+	require.Equal(t, true, d.Async)
+
+	// sleep to have the created_at timestamps differ
+	time.Sleep(time.Second)
+
+	// Execute another script in order to test query params
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'foobar'"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	execID2 := runResp.ExecutionID
+
+	result, err = s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo 'foobar'", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp, "page", "0", "per_page", "1")
+
+	require.Len(t, listResp.Activities, 1)
+	d = getDetails(listResp.Activities[0])
+
+	require.Equal(t, execID2, d.ScriptExecutionID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp, "page", "1", "per_page", "1")
+
+	require.Len(t, listResp.Activities, 1)
+	d = getDetails(listResp.Activities[0])
+	require.Equal(t, execID1, d.ScriptExecutionID)
+}
+
+func (s *integrationTestSuite) TestListHostUpcomingActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	// there is already a datastore-layer test that verifies that correct values
+	// are returned for users, saved scripts, etc. so this is more focused on
+	// verifying that the service layer passes the proper options and the
+	// rendering of the response.
+
+	host1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A"})
+	require.NoError(t, err)
+	h1A := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "B"})
+	require.NoError(t, err)
+	h1B := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "C"})
+	require.NoError(t, err)
+	h1C := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D"})
+	require.NoError(t, err)
+	h1D := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "E"})
+	require.NoError(t, err)
+	h1E := hsr.ExecutionID
+
+	cases := []struct {
+		queries   []string // alternate query name and value
+		wantExecs []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			wantExecs: []string{h1A, h1B, h1C, h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			wantExecs: []string{h1A, h1B},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "1"},
+			wantExecs: []string{h1C, h1D},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "2"},
+			wantExecs: []string{h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			wantExecs: []string{h1A, h1B, h1C},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "1"},
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "2"},
+			wantExecs: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%#v", c.queries), func(t *testing.T) {
+			var listResp listActivitiesResponse
+			queryArgs := c.queries
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
+
+			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
+			require.Equal(t, c.wantMeta, listResp.Meta)
+
+			var gotExecs []string
+			if len(listResp.Activities) > 0 {
+				gotExecs = make([]string, len(listResp.Activities))
+				for i, a := range listResp.Activities {
+					require.Zero(t, a.ID)
+					require.NotEmpty(t, a.UUID)
+					require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), a.Type)
+
+					var details map[string]any
+					require.NotNil(t, a.Details)
+					require.NoError(t, json.Unmarshal(*a.Details, &details))
+					gotExecs[i] = details["script_execution_id"].(string)
+				}
+			}
+			require.Equal(t, c.wantExecs, gotExecs)
+		})
+	}
 }

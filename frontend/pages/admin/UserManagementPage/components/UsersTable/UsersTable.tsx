@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import memoize from "memoize-one";
 
 import paths from "router/paths";
 import { IApiError } from "interfaces/errors";
@@ -219,6 +218,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
             });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
@@ -250,6 +255,12 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           ) {
             setCreateUserErrors({
               password: "Password must meet the criteria below",
+            });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
             });
           } else {
             renderFlash("error", "Could not create user. Please try again.");

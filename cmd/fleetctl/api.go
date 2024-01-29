@@ -15,8 +15,8 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/fleetdm/fleet/v4/server/version"
 	kithttp "github.com/go-kit/kit/transport/http"
-	"github.com/kolide/kit/version"
 	"github.com/urfave/cli/v2"
 )
 

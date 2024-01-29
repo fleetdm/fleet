@@ -23,6 +23,7 @@ export default {
   DASHBOARD_CHROME: `${URL_PREFIX}/dashboard/chrome`,
 
   // Admin pages
+  ADMIN_SETTINGS: `${URL_PREFIX}/settings`,
   ADMIN_USERS: `${URL_PREFIX}/settings/users`,
   ADMIN_INTEGRATIONS: `${URL_PREFIX}/settings/integrations`,
   ADMIN_INTEGRATIONS_TICKET_DESTINATIONS: `${URL_PREFIX}/settings/integrations/ticket-destinations`,
@@ -44,13 +45,18 @@ export default {
   ADMIN_ORGANIZATION_FLEET_DESKTOP: `${URL_PREFIX}/settings/organization/fleet-desktop`,
 
   // Software pages
+  SOFTWARE: `${URL_PREFIX}/software`,
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
+  },
+  SOFTWARE_OS_DETAILS: (name: string, version: string): string => {
+    return `${URL_PREFIX}/software/os/details?name=${name}&version=${version}`;
   },
 
   EDIT_PACK: (packId: number): string => {
@@ -115,7 +121,7 @@ export default {
   },
   HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
-  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+  DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
@@ -134,6 +140,12 @@ export default {
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
+  },
+  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },

@@ -20,6 +20,8 @@ import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
+
+import { IActivityDetails } from "interfaces/activity";
 import {
   IHost,
   IDeviceMappingResponse,
@@ -53,13 +55,16 @@ import {
 import permissions from "utilities/permissions";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import activitiesAPI, {
+  IActivitiesResponse,
+} from "services/entities/activities";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
+import ActivityCard from "../cards/Activity";
 import AgentOptionsCard from "../cards/AgentOptions";
 import LabelsCard from "../cards/Labels";
 import MunkiIssuesCard from "../cards/MunkiIssues";
-import ScriptsCard from "../cards/Scripts";
 import SoftwareCard from "../cards/Software";
 import UsersCard from "../cards/Users";
 import PoliciesCard from "../cards/Policies";
@@ -74,9 +79,11 @@ import DiskEncryptionKeyModal from "./modals/DiskEncryptionKeyModal";
 import HostActionDropdown from "./HostActionsDropdown/HostActionsDropdown";
 import OSSettingsModal from "../OSSettingsModal";
 import BootstrapPackageModal from "./modals/BootstrapPackageModal";
+import RunScriptModal from "./modals/RunScriptModal";
 import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
+import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 
 const baseClass = "host-details";
 
@@ -111,6 +118,8 @@ interface IHostDetailsSubNavItem {
   pathname: string;
 }
 
+const DEFAULT_ACTIVITY_PAGE_SIZE = 8;
+
 const HostDetailsPage = ({
   route,
   router,
@@ -139,6 +148,7 @@ const HostDetailsPage = ({
   const [showDeleteHostModal, setShowDeleteHostModal] = useState(false);
   const [showTransferHostModal, setShowTransferHostModal] = useState(false);
   const [showSelectQueryModal, setShowSelectQueryModal] = useState(false);
+  const [showRunScriptModal, setShowRunScriptModal] = useState(false);
   const [showPolicyDetailsModal, setPolicyDetailsModal] = useState(false);
   const [showOSSettingsModal, setShowOSSettingsModal] = useState(false);
   const [showUnenrollMdmModal, setShowUnenrollMdmModal] = useState(false);
@@ -146,7 +156,7 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
-  const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
+  const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
   );
@@ -154,15 +164,17 @@ const HostDetailsPage = ({
   const [refetchStartTime, setRefetchStartTime] = useState<number | null>(null);
   const [showRefetchSpinner, setShowRefetchSpinner] = useState(false);
   const [schedule, setSchedule] = useState<IQueryStats[]>();
-  const [packsState, setPacksState] = useState<IPackStats[]>();
+  const [packsState, setPackState] = useState<IPackStats[]>();
   const [hostSoftware, setHostSoftware] = useState<ISoftware[]>([]);
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
 
-  // used to track the current script execution id we want to show in the show
-  // details modal.
-  const scriptExecutionId = useRef<string | null>(null);
+  // activity states
+  const [activeActivityTab, setActiveActivityTab] = useState<
+    "past" | "upcoming"
+  >("past");
+  const [activityPage, setActivityPage] = useState(0);
 
   const { data: fleetQueries, error: fleetQueriesError } = useQuery<
     IListQueriesResponse,
@@ -327,6 +339,80 @@ const HostDetailsPage = ({
     }
   );
 
+  // get activities data. This is at the host details level because we want to
+  // wait to show the host details page until we have the activities data.
+  const {
+    data: pastActivities,
+    isFetching: pastActivitiesIsFetching,
+    isLoading: pastActivitiesIsLoading,
+    isError: pastActivitiesIsError,
+    refetch: refetchPastActivities,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+      activeTab: "past" | "upcoming";
+    }>
+  >(
+    [
+      {
+        scope: "past-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        activeTab: activeActivityTab,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostPastActivities(hostIdFromURL, page, perPage);
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 2000,
+    }
+  );
+
+  const {
+    data: upcomingActivities,
+    isFetching: upcomingActivitiesIsFetching,
+    isLoading: upcomingActivitiesIsLoading,
+    isError: upcomingActivitiesIsError,
+    refetch: refetchUpcomingActivities,
+  } = useQuery<
+    IActivitiesResponse,
+    Error,
+    IActivitiesResponse,
+    Array<{
+      scope: string;
+      pageIndex: number;
+      perPage: number;
+      activeTab: "past" | "upcoming";
+    }>
+  >(
+    [
+      {
+        scope: "upcoming-activities",
+        pageIndex: activityPage,
+        perPage: DEFAULT_ACTIVITY_PAGE_SIZE,
+        activeTab: activeActivityTab,
+      },
+    ],
+    ({ queryKey: [{ pageIndex: page, perPage }] }) => {
+      return activitiesAPI.getHostUpcomingActivities(
+        hostIdFromURL,
+        page,
+        perPage
+      );
+    },
+    {
+      keepPreviousData: true,
+      staleTime: 2000,
+    }
+  );
+
   const featuresConfig = host?.team_id
     ? teams?.find((t) => t.id === host.team_id)?.features
     : config?.features;
@@ -345,23 +431,12 @@ const HostDetailsPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `Host ${hostTab()} details ${
-      host?.display_name ? `| ${host?.display_name} |` : "|"
-    } ${DOCUMENT_TITLE_SUFFIX}`;
+    if (host?.display_name) {
+      // e.g., Rachel's Macbook Pro | Hosts | Fleet
+      document.title = `${host?.display_name} | Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Hosts | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, host]);
 
   // Used for back to software pathname
@@ -482,6 +557,23 @@ const HostDetailsPage = ({
     }
   };
 
+  const onChangeActivityTab = (tabIndex: number) => {
+    setActiveActivityTab(tabIndex === 0 ? "past" : "upcoming");
+    setActivityPage(0);
+  };
+
+  const onShowActivityDetails = useCallback(
+    ({ type, details }: IShowActivityDetailsData) => {
+      switch (type) {
+        case "ran_script":
+          setScriptDetailsId(details?.script_execution_id || "");
+          break;
+        default: // do nothing
+      }
+    },
+    []
+  );
+
   const onLabelClick = (label: ILabel) => {
     return label.name === "All Hosts"
       ? router.push(PATHS.MANAGE_HOSTS)
@@ -503,15 +595,9 @@ const HostDetailsPage = ({
     );
   };
 
-  const onCancelScriptDetailsModal = () => {
-    setShowScriptDetailsModal(false);
-    scriptExecutionId.current = null;
-  };
-
-  const onShowScriptDetails = (executionId: string) => {
-    scriptExecutionId.current = executionId;
-    setShowScriptDetailsModal(true);
-  };
+  const onCancelScriptDetailsModal = useCallback(() => {
+    setScriptDetailsId("");
+  }, [setScriptDetailsId]);
 
   const onTransferHostSubmit = async (team: ITeam) => {
     setIsUpdatingHost(true);
@@ -545,6 +631,12 @@ const HostDetailsPage = ({
     []
   );
 
+  const onCloseRunScriptModal = useCallback(() => {
+    setShowRunScriptModal(false);
+    refetchPastActivities();
+    refetchUpcomingActivities();
+  }, [refetchPastActivities, refetchUpcomingActivities]);
+
   const onSelectHostAction = (action: string) => {
     switch (action) {
       case "transfer":
@@ -562,7 +654,10 @@ const HostDetailsPage = ({
       case "delete":
         setShowDeleteHostModal(true);
         break;
-      default:
+      case "runScript":
+        setShowRunScriptModal(true);
+        break;
+      default: // do nothing
     }
   };
 
@@ -584,7 +679,12 @@ const HostDetailsPage = ({
     );
   };
 
-  if (!host || isLoadingHost) {
+  if (
+    !host ||
+    isLoadingHost ||
+    pastActivitiesIsLoading ||
+    upcomingActivitiesIsLoading
+  ) {
     return <Spinner />;
   }
   const failingPoliciesCount = host?.issues.failing_policies_count || 0;
@@ -594,11 +694,6 @@ const HostDetailsPage = ({
       name: "Details",
       title: "details",
       pathname: PATHS.HOST_DETAILS(hostIdFromURL),
-    },
-    {
-      name: "Scripts",
-      title: "scripts",
-      pathname: PATHS.HOST_SCRIPTS(hostIdFromURL),
     },
     {
       name: "Software",
@@ -624,26 +719,15 @@ const HostDetailsPage = ({
     },
   ];
 
-  // we want the scripts tabs on the list for only mac and windows hosts and premium tier atm.
-  // We filter it out for other platforms and non premium.
-  // TODO: improve this code. We can pull the tab list component out
-  // into its own component later.
-
-  const showScripts =
-    ["darwin", "windows"].includes(host?.platform ?? "") && isPremiumTier;
-  const filteredSubNavTabs = showScripts
-    ? hostDetailsSubNav
-    : hostDetailsSubNav.filter((navItem) => navItem.title !== "scripts");
-
   const getTabIndex = (path: string): number => {
-    return filteredSubNavTabs.findIndex((navItem) => {
+    return hostDetailsSubNav.findIndex((navItem) => {
       // tab stays highlighted for paths that ends with same pathname
       return path.endsWith(navItem.pathname);
     });
   };
 
   const navigateToNav = (i: number): void => {
-    const navPath = filteredSubNavTabs[i].pathname;
+    const navPath = hostDetailsSubNav[i].pathname;
     router.push(navPath);
   };
 
@@ -669,8 +753,6 @@ const HostDetailsPage = ({
     details: host?.mdm.macos_setup?.details,
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
-
-  const page = (location.query.page && parseInt(location.query.page, 10)) || 0;
 
   return (
     <MainContent className={baseClass}>
@@ -702,36 +784,56 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
         />
-        <TabsWrapper>
+        <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
             selectedIndex={getTabIndex(location.pathname)}
             onSelect={(i) => navigateToNav(i)}
           >
             <TabList>
-              {filteredSubNavTabs.map((navItem) => {
+              {hostDetailsSubNav.map((navItem) => {
                 // Bolding text when the tab is active causes a layout shift
                 // so we add a hidden pseudo element with the same text string
                 return <Tab key={navItem.title}>{navItem.name}</Tab>;
               })}
             </TabList>
-            <TabPanel>
+            <TabPanel className={`${baseClass}__details-panel`}>
               <AboutCard
                 aboutData={aboutData}
                 deviceMapping={deviceMapping}
                 munki={macadmins?.munki}
                 mdm={mdm}
               />
-              <div className="col-2">
-                <AgentOptionsCard
-                  osqueryData={osqueryData}
-                  wrapFleetHelper={wrapFleetHelper}
-                  isChromeOS={host?.platform === "chrome"}
-                />
-                <LabelsCard
-                  labels={host?.labels || []}
-                  onLabelClick={onLabelClick}
-                />
-              </div>
+              <ActivityCard
+                activeTab={activeActivityTab}
+                activities={
+                  activeActivityTab === "past"
+                    ? pastActivities
+                    : upcomingActivities
+                }
+                isLoading={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsFetching
+                    : upcomingActivitiesIsFetching
+                }
+                isError={
+                  activeActivityTab === "past"
+                    ? pastActivitiesIsError
+                    : upcomingActivitiesIsError
+                }
+                onChangeTab={onChangeActivityTab}
+                onNextPage={() => setActivityPage(activityPage + 1)}
+                onPreviousPage={() => setActivityPage(activityPage - 1)}
+                onShowDetails={onShowActivityDetails}
+              />
+              <AgentOptionsCard
+                osqueryData={osqueryData}
+                wrapFleetHelper={wrapFleetHelper}
+                isChromeOS={host?.platform === "chrome"}
+              />
+              <LabelsCard
+                labels={host?.labels || []}
+                onLabelClick={onLabelClick}
+              />
               <UsersCard
                 users={host?.users || []}
                 usersState={usersState}
@@ -740,14 +842,6 @@ const HostDetailsPage = ({
                 hostUsersEnabled={featuresConfig?.enable_host_users}
               />
             </TabPanel>
-            {showScripts && (
-              <TabPanel>
-                <ScriptsCard
-                  {...{ currentUser, host, page, router }}
-                  onShowDetails={onShowScriptDetails}
-                />
-              </TabPanel>
-            )}
             <TabPanel>
               <SoftwareCard
                 isLoading={isLoadingHost}
@@ -760,7 +854,7 @@ const HostDetailsPage = ({
                 pathname={pathname}
                 pathPrefix={PATHS.HOST_SOFTWARE(host?.id || 0)}
               />
-              {host?.platform === "darwin" && macadmins && (
+              {host?.platform === "darwin" && macadmins?.munki?.version && (
                 <MunkiIssuesCard
                   isLoading={isLoadingHost}
                   munkiIssues={macadmins.munki_issues}
@@ -810,6 +904,15 @@ const HostDetailsPage = ({
             hostsTeamId={host?.team_id}
           />
         )}
+        {showRunScriptModal && (
+          <RunScriptModal
+            host={host}
+            currentUser={currentUser}
+            scriptDetailsId={scriptDetailsId}
+            setScriptDetailsId={setScriptDetailsId}
+            onClose={onCloseRunScriptModal}
+          />
+        )}
         {!!host && showTransferHostModal && (
           <TransferHostModal
             onCancel={() => setShowTransferHostModal(false)}
@@ -853,9 +956,9 @@ const HostDetailsPage = ({
               onClose={() => setShowBootstrapPackageModal(false)}
             />
           )}
-        {showScriptDetailsModal && scriptExecutionId.current && (
+        {!!scriptDetailsId && (
           <ScriptDetailsModal
-            scriptExecutionId={scriptExecutionId.current}
+            scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
           />
         )}

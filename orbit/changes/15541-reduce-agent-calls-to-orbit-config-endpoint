@@ -1,1 +1,0 @@
-Reducing the number of fleetd calls to fleet/orbit/config endpoint by caching the config for 3 seconds.

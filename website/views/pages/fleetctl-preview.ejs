@@ -28,21 +28,10 @@
       <p>Install the <code>fleetctl</code> command line tool and start the Fleet preview experience:</p>
       <div purpose="terminal-commands">
         <p class="text-muted"># Install the Fleet command-line tool</p>
-        <p>sudo npm install -g fleetctl</p>
+        <p>npm install -global fleetctl</p>
         <p class="text-muted"># Run a local demo of the Fleet server</p>
-        <p>sudo fleetctl preview</p>
+        <p>fleetctl preview</p>
       </div>
-
-      <p class="mb-0"><img alt="A small circle with an 'I' inside of it"
-          style="width: 16px; display: inline; margin-right: 8px; margin-bottom: 3px"
-          src="/images/info-16x16@2x.png"><code>sudo</code> can be omitted on many Node/Docker installations.</p>
-      <p class="mb-0"><img alt="A small circle with an 'I' inside of it"
-          style="width: 16px; display: inline; margin-right: 8px; margin-bottom: 3px"
-          src="/images/info-16x16@2x.png">M1 macOS users must have <a href="https://support.apple.com/en-us/HT211861" target="_blank">Rosetta</a> installed in order to
-          run Fleet preview.</p>
-      <p class="mb-0"><img alt="A small circle with an 'I' inside of it"
-          style="width: 16px; display: inline; margin-right: 8px; margin-bottom: 3px"
-          src="/images/info-16x16@2x.png">Windows users should omit <code>sudo</code> and run the commands in <code>Cmd</code>/<code>PowerShell</code> as administrators.</p>
     </div>
     <div style="padding-top: 60px;">
       <h2 class="mb-3">3. Log in to Fleet</h2>
@@ -65,7 +54,7 @@
         </a>
         <a @click="clickOpenChatWidget()"
           class="d-flex flex-fill btn btn-md btn-outline-secondary justify-content-center align-items-center mt-3 mt-md-0 mr-0">
-          Talk to an expert
+          Show me
         </a>
       </div>
     </div>

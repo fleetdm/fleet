@@ -1,6 +1,3 @@
-import React from "react";
-import { Meta, StoryObj } from "@storybook/react";
-
 import InputField from ".";
 
 const meta = {

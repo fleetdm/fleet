@@ -33,5 +33,9 @@ columns:
     type: text
     required: false
     description: The Update Framework update channel used for the Fleet Desktop executable.
+  - name: uptime
+    type: bigint
+    required: false
+    description: Uptime of the orbit process in seconds.
 notes: This table is not a core osquery table. It is included as part of [Fleetd](https://fleetdm.com/docs/using-fleet/orbit), the osquery manager from Fleet. Fleetd can be built with [fleetctl](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
 evented: false

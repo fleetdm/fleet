@@ -1,0 +1,1 @@
+ALTER TABLE enrollments ADD COLUMN last_seen_at TIMESTAMP NOT NULL;

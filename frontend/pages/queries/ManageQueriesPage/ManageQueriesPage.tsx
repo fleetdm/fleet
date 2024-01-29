@@ -35,7 +35,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import RevealButton from "components/buttons/RevealButton";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
+import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
 const baseClass = "manage-queries-page";
@@ -90,7 +90,6 @@ const ManageQueriesPage = ({
     filteredQueriesPath,
     isPremiumTier,
     isSandboxMode,
-    isGlobalObserver,
     config,
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
@@ -417,7 +416,7 @@ const ManageQueriesPage = ({
           />
         )}
         {showManageAutomationsModal && (
-          <ManageAutomationsModal
+          <ManageQueryAutomationsModal
             isUpdatingAutomations={isUpdatingAutomations}
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
@@ -461,7 +460,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    Add query
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 </>
               )}

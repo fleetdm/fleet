@@ -106,4 +106,5 @@ export interface IActivityDetails {
   deadline_days?: number;
   grace_period_days?: number;
   stats?: IScheduledQueryStats;
+  host_id?: number;
 }

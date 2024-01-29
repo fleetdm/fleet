@@ -15,7 +15,7 @@
 
 Departmental pages are for reference, not philosophy.  For philosophy, use "Communications" (for all fleeties), "Leadership" (for managers), "Product groups" (for core product and website contributors), and "Why this way?" (for key decisions).
 
-Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  they always follow the structure below.
+Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  They always follow the structure below.
 
 Changes to departmental pages can be merged when the change results in a page consistent with this structure.
 
@@ -27,11 +27,11 @@ Biggest learning is that we federated carte blanche edit permissions a bit too e
 For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
 It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
-The audience for the “Communications” page is every fleetie.
+The audience for the “Communications” page is every Fleetie.
 
 The audience for the “Leadership” page is every manager.
 
-The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first)
+The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
 This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
 
 

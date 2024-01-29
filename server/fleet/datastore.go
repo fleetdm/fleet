@@ -189,8 +189,8 @@ type Datastore interface {
 
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
-	// LabelIDsByName Retrieve the IDs associated with the given labels
-	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
+	// LabelIDsByName retrieves the IDs associated with the given label names
+	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -416,6 +416,10 @@ type Datastore interface {
 	ResultCountForQuery(ctx context.Context, queryID uint) (int, error)
 	ResultCountForQueryAndHost(ctx context.Context, queryID, hostID uint) (int, error)
 	OverwriteQueryResultRows(ctx context.Context, rows []*ScheduledQueryResultRow) error
+	// CleanupDiscardedQueryResults deletes all query results for queries with DiscardData enabled.
+	// Used in cleanups_then_aggregation cron to cleanup rows that were inserted immediately
+	// after DiscardData was set to true due to query caching.
+	CleanupDiscardedQueryResults(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// TeamStore
@@ -507,6 +511,9 @@ type Datastore interface {
 
 	// ListOperationsSystems returns all operating systems (id, name, version)
 	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
+	// ListOperatingSystemsForPlatform returns all operating systems for the given platform.
+	// Supported values for platform are: "darwin" and "windows"
+	ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]OperatingSystem, error)
 	// UpdateHostOperatingSystem updates the `host_operating_system` table
 	// for the given host ID with the ID of the operating system associated
 	// with the given name, version, arch, and kernel version in the
@@ -530,6 +537,9 @@ type Datastore interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -738,7 +748,7 @@ type Datastore interface {
 	// SetOrUpdateHostEmailsFromMdmIdpAccounts sets or updates the host emails associated with the provided
 	// host based on the MDM IdP account information associated with the provided fleet enrollment reference.
 	SetOrUpdateHostEmailsFromMdmIdpAccounts(ctx context.Context, hostID uint, fleetEnrollmentRef string) error
-	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable float64) error
+	SetOrUpdateHostDisksSpace(ctx context.Context, hostID uint, gigsAvailable, percentAvailable, gigsTotal float64) error
 	SetOrUpdateHostDisksEncryption(ctx context.Context, hostID uint, encrypted bool) error
 	// SetOrUpdateHostDiskEncryptionKey sets the base64, encrypted key for
 	// a host
@@ -818,9 +828,17 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
-	ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]OSVulnerability, error)
+	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
+	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
+	InsertOSVulnerability(ctx context.Context, vuln OSVulnerability, source VulnerabilitySource) (bool, error)
+	// DeleteOutOfDateVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
+	// the updated_at timestamp is older than the provided duration
+	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
@@ -1198,18 +1216,19 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// SetHostScriptExecutionResult stores the result of a host script execution.
-	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// SetHostScriptExecutionResult stores the result of a host script execution
+	// and returns the updated host script result record. Note that it does not
+	// fail if the script execution request does not exist, in this case it will
+	// return nil, nil.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (*HostScriptResult, error)
 	// GetHostScriptExecutionResult returns the result of a host script
 	// execution. It returns the host script results even if no results have been
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script
-	// executions, which are those that have yet to record a result. Entries
-	// older than the ignoreOlder duration are ignored, considered too old to be
-	// pending.
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+	// executions, which are those that have yet to record a result.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)

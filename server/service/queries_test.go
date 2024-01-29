@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -682,4 +684,33 @@ func TestQueryReportIsClipped(t *testing.T) {
 	isClipped, err = svc.QueryReportIsClipped(viewerCtx, 1)
 	require.NoError(t, err)
 	require.True(t, isClipped)
+}
+
+func TestQueryReportReturnsNilIfDiscardDataIsTrue(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	viewerCtx := viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{
+		ID:         1,
+		GlobalRole: ptr.String(fleet.RoleAdmin),
+	}})
+
+	ds.QueryFunc = func(ctx context.Context, queryID uint) (*fleet.Query, error) {
+		return &fleet.Query{
+			DiscardData: true,
+		}, nil
+	}
+	ds.QueryResultRowsFunc = func(ctx context.Context, queryID uint, opts fleet.TeamFilter) ([]*fleet.ScheduledQueryResultRow, error) {
+		return []*fleet.ScheduledQueryResultRow{
+			{
+				QueryID:     1,
+				HostID:      1,
+				Data:        ptr.RawMessage(json.RawMessage(`{"foo": "bar"}`)),
+				LastFetched: time.Now(),
+			},
+		}, nil
+	}
+
+	results, err := svc.GetQueryReportResults(viewerCtx, 1)
+	require.NoError(t, err)
+	require.Nil(t, results)
 }

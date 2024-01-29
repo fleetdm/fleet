@@ -28,7 +28,7 @@
 
     p {
       font-size: $small;
-      margin: 0 0 8px;
+      margin: 0;
     }
 
     &--admin {
@@ -182,11 +182,6 @@
     .button {
       width: 160px;
       margin-top: $pad-xxlarge;
-    }
-
-    .registration-fields {
-      box-sizing: border-box;
-      width: 100%;
     }
   }
 }

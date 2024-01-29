@@ -10,6 +10,7 @@ github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	EnableAnalytics	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DebugHostIDs	[]uint
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	DeferredSaveHost	bool
 github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	QueryReportsDisabled	bool
+github.com/fleetdm/fleet/v4/server/fleet/ServerSettings	ScriptsDisabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	SMTPSettings	*fleet.SMTPSettings
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPEnabled	bool
 github.com/fleetdm/fleet/v4/server/fleet/SMTPSettings	SMTPConfigured	bool
@@ -101,7 +102,9 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Int	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Int	Value	int
 github.com/fleetdm/fleet/v4/server/fleet/WindowsUpdates	GracePeriodDays	optjson.Int
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSettings	fleet.MacOSSettings
-github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]string
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	CustomSettings	[]fleet.MDMProfileSpec
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSettings	DeprecatedEnableDiskEncryption	*bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
@@ -119,10 +122,13 @@ github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/MDM	WindowsSettings	fleet.WindowsSettings
-github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[string]
+github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Value	[]fleet.MDMProfileSpec
+github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Set	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Valid	bool
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[string]	Value	[]string
-github.com/fleetdm/fleet/v4/server/fleet/AppConfig	Scripts	optjson.Slice[string]
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	strictDecoding	bool
 github.com/fleetdm/fleet/v4/server/fleet/AppConfig	didUnmarshalLegacySettings	[]string

@@ -23,7 +23,9 @@ const TurnOnMacOSMdm = ({ onClickTurnOn }: ITurnOnMacOSMdmProps) => {
           install software on your macOS hosts.
         </p>
       </div>
-      <Button onClick={onClickTurnOn}>Connect APNS</Button>
+      <Button variant="brand" onClick={onClickTurnOn}>
+        Connect APNS
+      </Button>
     </div>
   );
 };

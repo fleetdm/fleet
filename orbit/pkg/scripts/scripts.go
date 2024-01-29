@@ -9,15 +9,13 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
-
-const scriptExecTimeout = 30 * time.Second
 
 // Client defines the methods required for the API requests to the server. The
 // fleet.OrbitClient type satisfies this interface.
@@ -60,34 +58,26 @@ func (r *Runner) Run(execIDs []string) error {
 			continue
 		}
 
-		if err := r.runOne(execID); err != nil {
+		script, err := r.Client.GetHostScript(execID)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("get host script: %w", err))
+			// Stop here since we want to preserve the order in which scripts are queued.
+			break
+		}
+
+		if err := r.runOne(script); err != nil {
 			errs = append(errs, err)
 		}
 	}
 
 	if len(errs) > 0 {
-		// NOTE: when we upgrade to Go1.20, we can use errors.Join, but for now we
-		// just concatenate the error messages in a single error that will be logged
-		// by orbit.
-		var sb strings.Builder
-		for i, e := range errs {
-			if i > 0 {
-				sb.WriteString("\n")
-			}
-			sb.WriteString(e.Error())
-		}
-		return errors.New(sb.String())
+		return errors.Join(errs...)
 	}
 	return nil
 }
 
-func (r *Runner) runOne(execID string) (finalErr error) {
+func (r *Runner) runOne(script *fleet.HostScriptResult) (finalErr error) {
 	const maxOutputRuneLen = 10000
-
-	script, err := r.Client.GetHostScript(execID)
-	if err != nil {
-		return fmt.Errorf("get host script: %w", err)
-	}
 
 	if script.ExitCode != nil {
 		// already a result stored for this execution, skip, it shouldn't be sent
@@ -95,7 +85,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return nil
 	}
 
-	runDir, err := r.createRunDir(execID)
+	runDir, err := r.createRunDir(script.ExecutionID)
 	if err != nil {
 		return fmt.Errorf("create run directory: %w", err)
 	}
@@ -124,7 +114,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 		return fmt.Errorf("write script file: %w", err)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), scriptExecTimeout)
+	ctx, cancel := context.WithTimeout(context.Background(), scripts.MaxHostExecutionTime)
 	defer cancel()
 
 	execCmdFn := r.execCmdFn
@@ -148,7 +138,7 @@ func (r *Runner) runOne(execID string) (finalErr error) {
 	}
 
 	err = r.Client.SaveHostScriptResult(&fleet.HostScriptResultPayload{
-		ExecutionID: execID,
+		ExecutionID: script.ExecutionID,
 		Output:      string(output),
 		Runtime:     int(duration.Seconds()),
 		ExitCode:    exitCode,

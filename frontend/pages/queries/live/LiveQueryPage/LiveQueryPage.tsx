@@ -44,6 +44,7 @@ const RunQueryPage = ({
   const handlePageError = useErrorHandler();
   const { config } = useContext(AppContext);
   const {
+    editingExistingQuery,
     selectedQueryTargets,
     setSelectedQueryTargets,
     selectedQueryTargetsByType,
@@ -88,7 +89,7 @@ const RunQueryPage = ({
     Error,
     ISchedulableQuery
   >(["query", queryId], () => queryAPI.load(queryId as number), {
-    enabled: !!queryId,
+    enabled: !!queryId && !editingExistingQuery,
     refetchOnWindowFocus: false,
     select: (data) => data.query,
     onSuccess: (returnedQuery) => {
@@ -138,9 +139,12 @@ const RunQueryPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const queryNameCopy = storedQuery?.name ? `${storedQuery?.name} | ` : "";
-    // e.g., Run live query | Discover TLS certificates | Fleet for osquery
-    document.title = `Run live query | ${queryNameCopy}${DOCUMENT_TITLE_SUFFIX}`;
+    // e.g., Run Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `Run ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedQuery?.name]);
 
   const goToQueryEditor = useCallback(

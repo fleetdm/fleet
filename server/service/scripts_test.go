@@ -50,12 +50,8 @@ func TestHostRunScript(t *testing.T) {
 	ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 		return &fleet.HostScriptResult{HostID: request.HostID, ScriptContents: request.ScriptContents, ExecutionID: "abc"}, nil
 	}
-	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+	ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 		return nil, nil
-	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
-		return nil
 	}
 	ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
 		return &fleet.Script{ID: id}, nil
@@ -63,6 +59,7 @@ func TestHostRunScript(t *testing.T) {
 	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
 		return []byte("echo"), nil
 	}
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hostID, scriptID uint) ([]*uint, error) { return nil, nil }
 
 	t.Run("authorization checks", func(t *testing.T) {
 		testCases := []struct {

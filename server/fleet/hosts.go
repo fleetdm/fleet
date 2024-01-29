@@ -281,6 +281,7 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
+	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -1117,6 +1118,8 @@ type OSVersions struct {
 }
 
 type OSVersion struct {
+	// ID is the unique id of the operating system.
+	ID uint `json:"id,omitempty"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1129,8 +1132,12 @@ type OSVersion struct {
 	Version string `json:"version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
-	// ID is the unique id of the operating system.
-	ID uint `json:"os_id,omitempty"`
+	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
+	// It is currently only generated for Operating Systems scanned for vulnerabilities
+	// in NVD (macOS only)
+	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
+	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
@@ -1151,6 +1158,7 @@ type HostMDMCheckinInfo struct {
 	DisplayName        string `json:"display_name" db:"display_name"`
 	TeamID             uint   `json:"team_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 }
 
 type HostDiskEncryptionKey struct {
