@@ -7398,7 +7398,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// get OS versions
 	osv, err := s.ds.ListOperatingSystems(context.Background())
 	require.NoError(t, err)
-	require.Len(t, osv, 6) // includes fooOS from another test
 
 	osvMap := make(map[string]fleet.OperatingSystem)
 	for _, os := range osv {
@@ -7462,6 +7461,12 @@ func (s *integrationTestSuite) TestOSVersions() {
 			},
 		},
 	}, osVersionsResp.OSVersions[0])
+
+	// name and version filters
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
 
 	// name without version
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_name", "Windows 11 Pro 21H2")
