@@ -1824,7 +1824,7 @@ None.
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
-- [Get host's past activity](#get-hosts-past-activity) 
+- [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 
 ### On the different timestamps in the host data structure
@@ -3700,7 +3700,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activites/past`
+`GET /api/v1/fleet/hosts/12/activities/past`
 
 ##### Default response
 
@@ -3722,6 +3722,7 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
       },
     },
     {
@@ -3737,15 +3738,20 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
       },
     },
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
 ### Get host's upcoming activity
 
-`GET /api/v1/fleet/hosts/:id/activites/upcoming`
+`GET /api/v1/fleet/hosts/:id/activities/upcoming`
 
 #### Parameters
 
@@ -3757,7 +3763,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activites/upcoming`
+`GET /api/v1/fleet/hosts/12/activities/upcoming`
 
 ##### Default response
 
@@ -3768,7 +3774,7 @@ Retrieves a list of the configuration profiles assigned to a host.
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
-      "id": 3,
+      "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
       "actor_full_name": "Marko",
       "actor_id": 1,
       "actor_gravatar": "",
@@ -3779,11 +3785,12 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "set-timezones.sh",
         "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
       },
     },
     {
       "created_at": "2021-07-27T13:25:21Z",
-      "id": 4,
+      "uuid": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
       "actor_full_name": "Rachael",
       "actor_id": 1,
       "actor_gravatar": "",
@@ -3794,9 +3801,14 @@ Retrieves a list of the configuration profiles assigned to a host.
         "host_display_name": "Steve's MacBook Pro",
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
       },
     },
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -5702,7 +5714,7 @@ Team policies work the same as policies, but at the team level.
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -7026,9 +7038,9 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-Run a script on a host. 
+Run a script on a host.
 
-The script will be added to the host's list of upcoming activities. 
+The script will be added to the host's list of upcoming activities.
 
 The new script will run after other activities finish. Failure of one activity won't cancel other activities.
 
