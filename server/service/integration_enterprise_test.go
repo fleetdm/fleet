@@ -6481,6 +6481,10 @@ func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uin
 		require.Contains(t, string(prof.SyncML), fmt.Sprintf(`<Data>%d</Data>`, wantSettings.GracePeriodDays.Value))
 	}
 
+	if len(prof.ProfileUUID) > 0 {
+		require.Equal(t, byte('w'), prof.ProfileUUID[0])
+	}
+
 	return prof.ProfileUUID
 }
 
