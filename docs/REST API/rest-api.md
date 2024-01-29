@@ -2445,7 +2445,7 @@ Returns the information of the specified host.
       "server_url": null,
       "locked": false,
       "wiped": false,
-      "actions_suspended": false
+      "actions_suspended": false,
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2656,7 +2656,7 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "server_url": null,
       "locked": false,
       "wiped": false,
-      "actions_suspended": false
+      "actions_suspended": false,
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
