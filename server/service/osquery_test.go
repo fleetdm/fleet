@@ -845,7 +845,7 @@ type failingLogger struct {
 }
 
 func (n *failingLogger) Write(context.Context, []json.RawMessage) error {
-	return fmt.Errorf("some error")
+	return errors.New("some error")
 }
 
 func TestSubmitResultLogsFail(t *testing.T) {
