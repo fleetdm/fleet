@@ -132,6 +132,8 @@ func encodeError(ctx context.Context, err error, w http.ResponseWriter) {
 		if e.NodeInvalid() {
 			w.WriteHeader(http.StatusUnauthorized)
 			errMap["node_invalid"] = true
+		} else if e.statusCode != 0 {
+			w.WriteHeader(e.statusCode)
 		} else {
 			// TODO: osqueryError is not always the result of an internal error on
 			// our side, it is also used to represent a client error (invalid data,
