@@ -1867,7 +1867,8 @@ the `software` table.
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -1885,10 +1886,13 @@ the `software` table.
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
 
+> `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
+
+If `software_title_id` is specified, an additional top-level key `"software_title"` is returned with the software title object corresponding to the `software_title_id`. See [List software](#list-software) response payload for details about this object.
+
+If `software_version_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_version_id`. See [List software versions](#list-software-versions) response payload for details about this object.
 
 If `additional_info_filters` is not specified, no `additional` information will be returned.
-
-If `software_id` is specified, an additional top-level key `"software"` is returned with the software object corresponding to the `software_id`. See [List all software](#list-all-software) response payload for details about this object.
 
 If `mdm_id` is specified, an additional top-level key `"mobile_device_management_solution"` is returned with the information corresponding to the `mdm_id`.
 
@@ -2082,8 +2086,9 @@ Response payload with the `munki_issue_id` filter provided:
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
+| software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
+| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                            |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
@@ -2260,6 +2265,7 @@ Returns the information of the specified host.
         "name": "osquery",
         "version": "4.5.1",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null,
         "installed_paths": ["/usr/lib/some-path-1"]
@@ -2269,6 +2275,7 @@ Returns the information of the specified host.
         "name": "tar",
         "version": "1.30",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2277,6 +2284,7 @@ Returns the information of the specified host.
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -2502,6 +2510,7 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
           "name": "Automat",
           "version": "0.8.0",
           "source": "python_packages",
+          "browser": "",
           "generated_cpe": "",
           "vulnerabilities": null,
           "installed_paths": ["/usr/lib/some_path/"]
@@ -2710,6 +2719,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "osquery",
         "version": "4.5.1",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2718,6 +2728,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "tar",
         "version": "1.30",
         "source": "rpm_packages",
+        "browser": "",
         "generated_cpe": "",
         "vulnerabilities": null
       },
@@ -2726,6 +2737,7 @@ This is the API route used by the **My device** page in Fleet desktop to display
         "name": "SomeApp.app",
         "version": "1.0",
         "source": "apps",
+        "browser": "",
         "bundle_identifier": "com.some.app",
         "last_opened_at": "2021-08-18T21:14:00Z",
         "generated_cpe": "",
@@ -3523,7 +3535,8 @@ requested by a web browser.
 | team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
-| software_id             | integer | query | The ID of the software to filter hosts by.                                                                                                                                                                                                                                                                                                  |
+| software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
+| software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
 | os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
@@ -7221,12 +7234,125 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ## Software
 
-- [List all software](#list-all-software)
-- [Count software](#count-software)
+- [List software](#list-software)
+- [List software versions](#list-software-versions)
+- [Get software](#get-software)
+- [Get software version](#get-software-version)
 
-### List all software
+### List software
 
-`GET /api/v1/fleet/software`
+Get a list of all software.
+
+`GET /api/v1/fleet/software/titles`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                |
+| ----------------------- | ------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are `name` and `hosts_count`. Default is `hosts_count` (descending).      |
+| order_direction         | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`.                                              |
+| query                   | string  | query | Search query keywords. Searchable fields include `title` and `cve`.                                                                                             |
+| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                             |
+| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities. Default is `false`.                                                                                    |
+
+#### Example
+
+`GET /api/v1/fleet/software/titles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2022-01-01 12:32:00",
+  "count": 2,
+  "software_titles": [
+    {
+      "id": 12,
+      "name": "Firefox.app",
+      "versions_count": 3,
+      "source": "apps",
+      "browser": "",
+      "hosts_count": 48,
+      "versions": [ 
+        {
+          "id": 123,
+          "version": "1.12",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        }, 
+        {
+          "id": 124, 
+          "version": "3.4",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        },
+        {
+          "id": 12
+          "version": "1.13",
+          "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+        }
+      ]  
+    },
+    {
+      "id": 22,
+      "name": "Google Chrome.app",
+      "versions_count": 5,
+      "source": "apps",
+      "browser": "",
+      "hosts_count": 345,
+      "versions": [
+        {
+          "id": 331,
+          "version": "118.1",
+          "vulnerabilities": ["CVE-2023-1234"]
+        },
+        {
+          "id": 332,
+          "version": "119.0",
+          "vulnerabilities": ["CVE-2023-9876", "CVE-2023-2367"]
+        },
+        {
+          "id": 334,
+          "version": "119.4",
+          "vulnerabilities": ["CVE-2023-1133", "CVE-2023-2224"]
+        },
+        {
+          "id": 348,
+          "version": "121.5",
+          "vulnerabilities": ["CVE-2023-0987", "CVE-2023-5673", "CVE-2023-1334"]
+        },
+      ]
+    },
+    {
+      "id": 32,
+      "name": "1Password – Password Manager",
+      "versions_count": 1,
+      "source": "chrome_extensions",
+      "browser": "chrome",
+      "hosts_count": 345,
+      "versions": [
+        {
+          "id": 4242,
+          "version": "2.3.7",
+          "vulnerabilities": []
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### List software versions
+
+Get a list of all software versions.
+
+`GET /api/v1/fleet/software/versions`
 
 #### Parameters
 
@@ -7242,7 +7368,7 @@ Deletes the session specified by ID. When the user associated with the session n
 
 #### Example
 
-`GET /api/v1/fleet/software`
+`GET /api/v1/fleet/software/versions`
 
 ##### Default response
 
@@ -7251,12 +7377,14 @@ Deletes the session specified by ID. When the user associated with the session n
 ```json
 {
     "counts_updated_at": "2022-01-01 12:32:00",
+    "count": 1,
     "software": [
       {
         "id": 1,
         "name": "glibc",
         "version": "2.12",
         "source": "rpm_packages",
+        "browser": "",
         "release": "1.212.el6",
         "vendor": "CentOS",
         "arch": "x86_64",
@@ -7278,33 +7406,37 @@ Deletes the session specified by ID. When the user associated with the session n
       {
         "id": 2,
         "name": "1Password – Password Manager",
-        "version": "2.3.7",
+        "version": "2.10.0",
         "source": "chrome_extensions",
-        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
         "browser": "chrome",
-        "generated_cpe": "cpe:2.3:a:1password:1password:2.3.7:*:*:*:*:chrome:*:*",
-        "vulnerabilities": null,
-        "hosts_count": 2
+        "extension_id": "aeblfdkhhhdcdjpifhhbdiojplfjncoa",
+        "generated_cpe": "cpe:2.3:a:1password:1password:2.19.0:*:*:*:*:chrome:*:*",
+        "hosts_count": 345,
+        "vulnerabilities": null
       }
-    ]
+    ],
+    "meta": {
+      "has_next_results": false,
+      "has_previous_results": false
+    }
 }
 ```
 
-### Count software
+### Get software
 
-`GET /api/v1/fleet/software/count`
+Returns information about the specified software. By default, `versions` are sorted in descending order by the `hosts_count` field.
+
+`GET /api/v1/fleet/software/titles/:id`
 
 #### Parameters
 
-| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
-| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| query                   | string  | query | Search query keywords. Searchable fields include `name`, `version`, and `cve`.                                                                                                                                                                                                                                                               |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the software to only include the software installed on the hosts that are assigned to the specified team.                                                                                                                                                                                              |
-| vulnerable              | bool    | query | If true or 1, only list software that has detected vulnerabilities.                                                                                                                                                                                                                                                                         |
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software title's ID. |
 
 #### Example
 
-`GET /api/v1/fleet/software/count`
+`GET /api/v1/fleet/software/titles/12`
 
 ##### Default response
 
@@ -7312,9 +7444,90 @@ Deletes the session specified by ID. When the user associated with the session n
 
 ```json
 {
-  "count": 43
+  "software_title": {
+    "id": 12,
+    "name": "Firefox.app",
+    "source": "apps",
+    "browser": "",
+    "hosts_count": 48,
+    "versions": [ 
+      {
+        "id": 123,
+        "version": "117.0",
+        "vulnerabilities": ["CVE-2023-1234"],
+        "hosts_count": 37
+      },
+      {
+        "id": 124,
+        "version": "116.0",
+        "vulnerabilities": ["CVE-2023-4321"],
+        "hosts_count": 7
+      },
+      {
+        "id": 127,
+        "version": "115.5",
+        "vulnerabilities": ["CVE-2023-7654"],
+        "hosts_count": 4
+      }
+    ]  
+  }
 }
 ```
+
+### Get software version
+
+Returns information about the specified software version.
+
+`GET /api/v1/fleet/software/versions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The software version's ID. |
+
+#### Example
+
+`GET /api/v1/fleet/software/versions/12`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software": {
+    "id": 425224,
+    "name": "Firefox.app",
+    "version": "117.0",
+    "bundle_identifier": "org.mozilla.firefox",
+    "source": "apps",
+    "browser": "",
+    "generated_cpe": "cpe:2.3:a:mozilla:firefox:117.0:*:*:*:*:macos:*:*",
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2023-4863",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-4863",
+        "cvss_score": 8.8,
+        "epss_probability": 0.4101,
+        "cisa_known_exploit": true,
+        "cve_published": "2023-09-12T15:15:00Z",
+        "resolved_in_version": ""
+      },
+      {
+        "cve": "CVE-2023-5169",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2023-5169",
+        "cvss_score": 6.5,
+        "epss_probability": 0.00073,
+        "cisa_known_exploit": false,
+        "cve_published": "2023-09-27T15:19:00Z",
+        "resolved_in_version": "118"
+      }
+    ]
+  }
+}
+```
+
 ---
 
 ## Targets
