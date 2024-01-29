@@ -1203,13 +1203,13 @@ INSERT INTO
     profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at
   )
 VALUES
-	-- see https://stackoverflow.com/a/51393124/1094941
+  -- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
+  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  checksum = VALUES(checksum),
   name = VALUES(name),
-  mobileconfig = VALUES(mobileconfig),
-  checksum = UNHEX(MD5(VALUES(mobileconfig))),
-	uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): keep timestamp if no changes
+  mobileconfig = VALUES(mobileconfig)
 `
 
 	// use a profile team id of 0 if no-team

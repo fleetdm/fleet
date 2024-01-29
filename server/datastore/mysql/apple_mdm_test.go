@@ -948,6 +948,12 @@ func expectAppleProfiles(
 		return sqlx.SelectContext(ctx, q, &got, `SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ?`, tmID)
 	})
 
+	// create map of expected profiles keyed by identifier
+	wantMap := make(map[string]*fleet.MDMAppleConfigProfile, len(want))
+	for _, cp := range want {
+		wantMap[cp.Identifier] = cp
+	}
+
 	// compare only the fields we care about, and build the resulting map of
 	// profile identifier as key to profile UUID as value
 	m := make(map[string]string)
@@ -956,10 +962,26 @@ func expectAppleProfiles(
 		if gotp.TeamID != nil && *gotp.TeamID == 0 {
 			gotp.TeamID = nil
 		}
+
+		// ProfileID is non-zero (auto-increment), but otherwise we don't care
+		// about it for test assertions.
+		require.NotZero(t, gotp.ProfileID)
 		gotp.ProfileID = 0
+
+		// ProfileUUID is non-empty and starts with "a", but otherwise we don't
+		// care about it for test assertions.
+		require.NotEmpty(t, gotp.ProfileUUID)
+		require.True(t, strings.HasPrefix(gotp.ProfileUUID, "a"))
 		gotp.ProfileUUID = ""
+
 		gotp.CreatedAt = time.Time{}
-		gotp.UploadedAt = time.Time{}
+
+		// if an expected uploaded_at timestamp is provided for this profile, keep
+		// its value, otherwise clear it as we don't care about asserting its
+		// value.
+		if wantp := wantMap[gotp.Identifier]; wantp == nil || wantp.UploadedAt.IsZero() {
+			gotp.UploadedAt = time.Time{}
+		}
 	}
 	// order is not guaranteed
 	require.ElementsMatch(t, want, got)
@@ -967,15 +989,32 @@ func expectAppleProfiles(
 }
 
 func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 	applyAndExpect := func(newSet []*fleet.MDMAppleConfigProfile, tmID *uint, want []*fleet.MDMAppleConfigProfile) map[string]string {
-		ctx := context.Background()
 		err := ds.BatchSetMDMAppleProfiles(ctx, tmID, newSet)
 		require.NoError(t, err)
 		return expectAppleProfiles(t, ds, tmID, want)
 	}
+	getProfileByTeamAndIdentifier := func(tmID *uint, identifier string) *fleet.MDMAppleConfigProfile {
+		var prof fleet.MDMAppleConfigProfile
+		var teamID uint
+		if tmID != nil {
+			teamID = *tmID
+		}
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &prof,
+				`SELECT * FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`,
+				teamID, identifier)
+		})
+		return &prof
+	}
 
 	withTeamID := func(p *fleet.MDMAppleConfigProfile, tmID uint) *fleet.MDMAppleConfigProfile {
 		p.TeamID = &tmID
+		return p
+	}
+	withUploadedAt := func(p *fleet.MDMAppleConfigProfile, ua time.Time) *fleet.MDMAppleConfigProfile {
+		p.UploadedAt = ua
 		return p
 	}
 
@@ -988,6 +1027,7 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
 		withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1),
 	})
+	profTm1I1 := getProfileByTeamAndIdentifier(ptr.Uint(1), "I1")
 
 	// apply single profile set for no-team
 	mNoTm := applyAndExpect([]*fleet.MDMAppleConfigProfile{
@@ -995,25 +1035,36 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 	}, nil, []*fleet.MDMAppleConfigProfile{
 		configProfileForTest(t, "N1", "I1", "b"),
 	})
+	profNoTmI1 := getProfileByTeamAndIdentifier(nil, "I1")
+
+	// wait a second to ensure timestamps in the DB change
+	time.Sleep(time.Second)
 
 	// apply new profile set for tm1
 	mTm1b := applyAndExpect([]*fleet.MDMAppleConfigProfile{
 		configProfileForTest(t, "N1", "I1", "a"), // unchanged
 		configProfileForTest(t, "N2", "I2", "b"),
 	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
-		withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1),
+		withUploadedAt(withTeamID(configProfileForTest(t, "N1", "I1", "a"), 1), profTm1I1.UploadedAt),
 		withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1),
 	})
 	// identifier for N1-I1 is unchanged
 	require.Equal(t, mTm1["I1"], mTm1b["I1"])
+	profTm1I2 := getProfileByTeamAndIdentifier(ptr.Uint(1), "I2")
 
 	// apply edited (by name only) profile set for no-team
 	mNoTmb := applyAndExpect([]*fleet.MDMAppleConfigProfile{
 		configProfileForTest(t, "N2", "I1", "b"),
 	}, nil, []*fleet.MDMAppleConfigProfile{
-		configProfileForTest(t, "N2", "I1", "b"),
+		configProfileForTest(t, "N2", "I1", "b"), // name change implies uploaded_at change
 	})
 	require.Equal(t, mNoTm["I1"], mNoTmb["I1"])
+
+	profNoTmI1b := getProfileByTeamAndIdentifier(nil, "I1")
+	require.False(t, profNoTmI1.UploadedAt.Equal(profNoTmI1b.UploadedAt))
+
+	// wait a second to ensure timestamps in the DB change
+	time.Sleep(time.Second)
 
 	// apply edited profile (by content only), unchanged profile and new profile
 	// for tm1
@@ -1023,13 +1074,17 @@ func testBatchSetMDMAppleProfiles(t *testing.T, ds *Datastore) {
 		configProfileForTest(t, "N3", "I3", "c"), // new
 	}, ptr.Uint(1), []*fleet.MDMAppleConfigProfile{
 		withTeamID(configProfileForTest(t, "N1", "I1", "z"), 1),
-		withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1),
+		withUploadedAt(withTeamID(configProfileForTest(t, "N2", "I2", "b"), 1), profTm1I2.UploadedAt),
 		withTeamID(configProfileForTest(t, "N3", "I3", "c"), 1),
 	})
 	// identifier for N1-I1 is unchanged
 	require.Equal(t, mTm1b["I1"], mTm1c["I1"])
 	// identifier for N2-I2 is unchanged
 	require.Equal(t, mTm1b["I2"], mTm1c["I2"])
+
+	profTm1I1c := getProfileByTeamAndIdentifier(ptr.Uint(1), "I1")
+	// uploaded-at was modified because the content changed
+	require.False(t, profTm1I1.UploadedAt.Equal(profTm1I1c.UploadedAt))
 
 	// apply only new profiles to no-team
 	applyAndExpect([]*fleet.MDMAppleConfigProfile{
@@ -1099,7 +1154,7 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 
 func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
-	cp, err := fleet.NewMDMAppleConfigProfile(configProfileBytesForTest(name, identifier, uuid), nil)
+	cp, err := fleet.NewMDMAppleConfigProfile(prof, nil)
 	require.NoError(t, err)
 	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
