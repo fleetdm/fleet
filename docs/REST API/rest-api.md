@@ -3499,7 +3499,7 @@ Retrieves the aggregated host OS versions information.
 }
 ```
 
-`generated_cpe` and `vulnerabilities` are currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
 
 ```json
 {
@@ -3532,6 +3532,7 @@ Retrieves information about the specified OS version.
 
 ```json
 {
+  "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_version": {
     "id": 123,
     "hosts_count": 21,
