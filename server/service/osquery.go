@@ -948,6 +948,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
 	var hostWithoutPolicies bool
+	havePassingQuery := false
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
 		// policy_updated_at column.
@@ -959,6 +960,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 		// osquery docs say any nonzero (string) value for status indicates a query error
 		status, ok := statuses[query]
 		failed := ok && status != fleet.StatusOK
+		havePassingQuery = havePassingQuery || !failed
 		if failed && messages[query] != "" && !noSuchTableRegexp.MatchString(messages[query]) {
 			ll := level.Debug(svc.logger)
 			// We'd like to log these as error for troubleshooting and improving of distributed queries.
@@ -986,7 +988,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 		return ctxerr.Wrap(ctx, err, "getting app config")
 	}
 
-	if len(labelResults) > 0 {
+	// If all queries failed, we do not want to update labels because the "All Hosts" label must always pass, and we should not be deleting it.
+	if havePassingQuery && len(labelResults) > 0 {
 		if err := svc.task.RecordLabelQueryExecutions(ctx, host, labelResults, svc.clock.Now(), ac.ServerSettings.DeferredSaveHost); err != nil {
 			logging.WithErr(ctx, err)
 		}

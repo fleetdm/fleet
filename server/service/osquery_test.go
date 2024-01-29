@@ -1396,6 +1396,28 @@ func TestLabelQueries(t *testing.T) {
 	require.Len(t, queries, 1) // fleet_no_policies_wildcard query
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
+
+	mockClock.AddTime(1 * time.Second)
+	gotResults = nil
+
+	// Record a query execution where all queries failed -- labels should not be updated
+	err = svc.SubmitDistributedQueryResults(
+		ctx,
+		map[string][]map[string]string{
+			hostLabelQueryPrefix + "2": {{"col1": "val1"}},
+			hostLabelQueryPrefix + "3": {},
+		},
+		map[string]fleet.OsqueryStatus{
+			hostLabelQueryPrefix + "2": 1,
+			hostLabelQueryPrefix + "3": 1,
+		},
+		map[string]string{},
+		map[string]*fleet.Stats{},
+	)
+	require.NoError(t, err)
+	assert.Len(t, gotResults, 0)
+	assert.NotEqual(t, mockClock.Now(), gotTime)
+
 }
 
 func TestDetailQueriesWithEmptyStrings(t *testing.T) {
