@@ -1516,7 +1516,7 @@ INSERT INTO
 }
 
 func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-	profileUUID := uuid.New().String()
+	profileUUID := "w" + uuid.New().String()
 	stmt := `
 INSERT INTO
 	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
@@ -1526,8 +1526,8 @@ INSERT INTO
 	)
 )
 ON DUPLICATE KEY UPDATE
-	syncml = VALUES(syncml),
-	uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): do not update if no changes
+	uploaded_at = IF(syncml = VALUES(syncml), uploaded_at, CURRENT_TIMESTAMP()),
+	syncml = VALUES(syncml)
 `
 
 	var teamID uint
@@ -1603,9 +1603,9 @@ VALUES
 	-- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
-  syncml = VALUES(syncml),
-	uploaded_at = CURRENT_TIMESTAMP() -- TODO(mna): do not update if no changes
+  syncml = VALUES(syncml)
 `
 
 	// use a profile team id of 0 if no-team
