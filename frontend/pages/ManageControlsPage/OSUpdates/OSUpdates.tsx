@@ -85,6 +85,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         </div>
         <div className={`${baseClass}__taget-container`}>
           <TargetSection
+            key={teamIdForApi} // we need to re-render this component when the team id changes.
             currentTeamId={teamIdForApi}
             onSelectAccordionItem={handleSelectPlatform}
           />
