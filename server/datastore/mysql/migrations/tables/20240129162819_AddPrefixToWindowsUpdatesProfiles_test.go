@@ -43,7 +43,7 @@ func TestUp_20240129162819(t *testing.T) {
 
 	stmt = `SELECT profile_uuid FROM host_mdm_windows_profiles;`
 	hostRows, err := db.Query(stmt)
-	require.NoError(t, rows.Err())
+	require.NoError(t, hostRows.Err())
 	require.NoError(t, err)
 	defer hostRows.Close()
 
