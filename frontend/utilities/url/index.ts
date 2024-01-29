@@ -16,6 +16,7 @@ type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
 interface IMutuallyInclusiveHostParams {
+  label?: string;
   teamId?: number;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   osSettings?: MdmProfileStatus;
@@ -76,18 +77,27 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
 };
 
 export const reconcileMutuallyInclusiveHostParams = ({
+  label,
   teamId,
   macSettingsStatus,
   osSettings,
 }: IMutuallyInclusiveHostParams) => {
-  // ensure macos_settings filter is always applied in
-  // conjuction with a team_id, 0 (no teams) by default
   const reconciled: Record<string, unknown> = { team_id: teamId };
+
+  if (label) {
+    // if label is present, include team_id in the query but exclude others
+    return reconciled;
+  }
+
   if (macSettingsStatus) {
+    // ensure macos_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled.macos_settings = macSettingsStatus;
     reconciled.team_id = teamId ?? 0;
   }
   if (osSettings) {
+    // ensure os_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }

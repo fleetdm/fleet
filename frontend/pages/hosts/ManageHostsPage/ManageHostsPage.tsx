@@ -23,7 +23,6 @@ import hostsAPI, {
   ILoadHostsResponse,
   ISortOption,
   MacSettingsStatusQueryParam,
-  HOSTS_QUERY_PARAMS,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostsCountQueryKey,
@@ -91,6 +90,7 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
+  MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -531,21 +531,13 @@ const ManageHostsPage = ({
 
     const isDeselectingLabel = newLabelId && newLabelId === selectedLabel?.id;
 
-    // Non-status labels are not compatible with policies or software filters
-    // so omit policies and software params from next location
     let newQueryParams = queryParams;
     if (slug) {
-      newQueryParams = omit(newQueryParams, [
-        "policy_id",
-        "policy_response",
-        "software_id",
-        "software_version_id",
-        "software_title_id",
-        "bootstrap_package",
-        "macos_settings",
-        HOSTS_QUERY_PARAMS.OS_SETTINGS,
-        HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
-      ]);
+      // some filters are incompatible with non-status labels so omit those params from next location
+      newQueryParams = omit(
+        newQueryParams,
+        MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS
+      );
     }
 
     router.replace(
