@@ -1600,10 +1600,10 @@ INSERT INTO
     profile_uuid, team_id, name, syncml, uploaded_at
   )
 VALUES
-	-- see https://stackoverflow.com/a/51393124/1094941
+  -- see https://stackoverflow.com/a/51393124/1094941
   ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
-	uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
   syncml = VALUES(syncml)
 `
