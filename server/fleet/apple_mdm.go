@@ -82,6 +82,15 @@ func (m MDMAppleEnrollmentProfile) AuthzType() string {
 	return "mdm_apple_enrollment_profile"
 }
 
+// MDMAppleManualEnrollmentProfile is used for authorization checks to get the standard Fleet manual
+// enrollment profile. The actual data is returned as raw bytes.
+type MDMAppleManualEnrollmentProfile struct{}
+
+// AuthzType implements authz.AuthzTyper
+func (m MDMAppleManualEnrollmentProfile) AuthzType() string {
+	return "mdm_apple_manual_enrollment_profile"
+}
+
 // MDMAppleDEPKeyPair contains the DEP public key certificate and private key pair. Both are PEM encoded.
 type MDMAppleDEPKeyPair struct {
 	PublicKey  []byte `json:"public_key"`

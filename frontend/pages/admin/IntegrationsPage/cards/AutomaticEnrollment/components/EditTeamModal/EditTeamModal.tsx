@@ -67,11 +67,8 @@ const EditTeamModal = ({
             onChange={setSelectedTeam}
             value={selectedTeam}
             label="Team"
+            helpText="macOS hosts will be added to this team when they're first unboxed."
           />
-          <p>
-            macOS hosts will be added to this team when they&apos;re first
-            unboxed.
-          </p>
         </div>
         <div className="modal-cta-wrap">
           <Button type="submit" variant="brand" isLoading={isLoading}>

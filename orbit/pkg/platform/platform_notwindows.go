@@ -47,7 +47,7 @@ func SignalProcessBeforeTerminate(processName string) error {
 		return errors.New("processName should not be empty")
 	}
 
-	if err := KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
+	if err := killProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
 		return fmt.Errorf("There was an error kill target process %s: %w", processName, err)
 	}
 

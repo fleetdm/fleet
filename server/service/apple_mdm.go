@@ -2160,6 +2160,30 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/manual_enrollment_profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getManualEnrollmentProfileRequest struct{}
+
+func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+
+	// Using this type to keep code DRY as it already has all the functionality we need.
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 

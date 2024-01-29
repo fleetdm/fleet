@@ -9,7 +9,7 @@ const ORDER_KEY = "created_at";
 const ORDER_DIRECTION = "desc";
 
 export interface IActivitiesResponse {
-  activities: IActivity[];
+  activities: IActivity[] | null;
   meta: {
     has_next_results: boolean;
     has_previous_results: boolean;
@@ -33,6 +33,44 @@ export default {
     const queryString = buildQueryStringFromParams(queryParams);
 
     const path = `${ACTIVITIES}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
+
+  getHostPastActivities: (
+    id: number,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IActivitiesResponse> => {
+    const { HOST_PAST_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+
+    const path = `${HOST_PAST_ACTIVITIES(id)}?${queryString}`;
+
+    return sendRequest("GET", path);
+  },
+
+  getHostUpcomingActivities: (
+    id: number,
+    page = DEFAULT_PAGE,
+    perPage = DEFAULT_PAGE_SIZE
+  ): Promise<IActivitiesResponse> => {
+    const { HOST_UPCOMING_ACTIVITIES } = endpoints;
+
+    const queryParams = {
+      page,
+      per_page: perPage,
+    };
+
+    const queryString = buildQueryStringFromParams(queryParams);
+
+    const path = `${HOST_UPCOMING_ACTIVITIES(id)}?${queryString}`;
 
     return sendRequest("GET", path);
   },

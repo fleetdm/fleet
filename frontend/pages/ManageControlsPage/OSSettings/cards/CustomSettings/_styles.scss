@@ -102,6 +102,11 @@
       }
     }
 
+    &__upload-button {
+      margin-top: 8px;
+      padding: 0;
+    }
+
     &__file-chooser {
       display: flex;
       flex-direction: column;
@@ -116,6 +121,9 @@
         display: flex;
         justify-content: center;
         gap: $pad-small;
+        cursor: pointer;
+        height: 38px;
+        align-items: center;
       }
     }
 

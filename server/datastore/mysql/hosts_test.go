@@ -6087,6 +6087,14 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
+	// filter by operating system that has multiple versions
+	expected = []fleet.OSVersion{
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+	}
+	osVersions, err = ds.OSVersions(ctx, nil, nil, ptr.String("macOS"), ptr.String("12.3.0"))
+	require.NoError(t, err)
+	require.Equal(t, expected, osVersions.OSVersions)
+
 	// team 1
 	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
 	require.NoError(t, err)
@@ -6338,6 +6346,16 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
           VALUES (?, uuid(), uuid())
 	`, host.UUID)
+	require.NoError(t, err)
+
+	err = ds.NewActivity( // automatically creates the host_activities entry
+		context.Background(),
+		user1,
+		fleet.ActivityTypeRanScript{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

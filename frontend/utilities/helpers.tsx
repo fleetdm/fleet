@@ -480,6 +480,16 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
+export const formatScriptNameForActivityItem = (name: string | undefined) => {
+  return name ? (
+    <>
+      the <b>{name}</b> script
+    </>
+  ) : (
+    "a script"
+  );
+};
+
 export const generateRole = (
   teams: ITeam[],
   globalRole: UserRole | null
@@ -876,6 +886,7 @@ export default {
   formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
+  formatScriptNameForActivityItem,
   formatGlobalScheduledQueryForClient,
   formatGlobalScheduledQueryForServer,
   formatTeamScheduledQueryForClient,
