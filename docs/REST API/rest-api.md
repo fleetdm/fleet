@@ -7530,6 +7530,66 @@ Returns information about the specified software version.
 }
 ```
 
+## Vulnerabilities
+
+## Software
+
+- [List vulnerabilities](#list-vulnerabilities)
+- [Get vulnerability](#get-vulnerability)
+
+### List vulnerabilities
+
+Retrieves a list of all CVEs affecting software and/or OS versions.
+
+`GET /api/v1/fleet/vulnerabilities`
+
+| Name                | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters only include vulnerabilities affecting the specified team.  |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-30190",
+      "created_at": "2022-06-01T00:15:00Z",
+      "host_count": 1234,
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+      "cvss_score": 7.8,// Available in Fleet Premium
+      "epss_probability": 0.9729,// Available in Fleet Premium
+      "cisa_known_exploit": false,// Available in Fleet Premium
+      "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+      "resolved_in_version": ""// Available in Fleet Premium
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+
+### Get vulnerability
+
+Retrieve details about a CVE and its affected software and OS versions.
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
+
+> **TODO**
+
+
+
 ---
 
 ## Targets
