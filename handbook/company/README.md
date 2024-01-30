@@ -125,7 +125,7 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/ceo), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/leadership#ceo-flaws), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
