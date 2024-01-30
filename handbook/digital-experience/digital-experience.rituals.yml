@@ -1,6 +1,15 @@
 # https://github.com/fleetdm/fleet/pull/13084
 
-
+- 
+  task: "Check osquery Slack invitation"
+  startedOn: "2023-11-10" 
+  frequency: "Monthly"
+  description: "Check the osquery Slack invitation that is linked to from Fleet and the Fleet website to make sure it is valid."
+  moreInfoUrl: "https://fleetdm.com/slack"
+  dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
+    repo: fleet
 - 
   task: "Prepare for CEO office minutes"
   startedOn: "2023-12-18"
