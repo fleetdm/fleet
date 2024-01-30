@@ -3802,7 +3802,23 @@ Retrieves a list of the configuration profiles assigned to a host.
         "script_name": "",
         "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
         "async": false
-      },
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:32:21Z",
+      "uuid": "601e04cf-73a3-401a-8fd1-1f2c4baf2824",
+      "actor_full_name": "Noah",
+      "actor_id": 3,
+      "actor_gravatar": "",
+      "actor_email": "noah@example.com",
+      "type": "created_macos_profile",
+      "details": {
+        "profile_name": "Custom settings 1",
+        "profile_identifier": "com.my.profile",
+        "profile_uuid": "a95af590-8892-4ed7-843f-56e80be920eb"
+        "team_id": 123,
+        "team_name": "Workstations"
+      }
     },
   ],
   "meta": {
