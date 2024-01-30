@@ -136,7 +136,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list,3)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
