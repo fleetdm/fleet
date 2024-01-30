@@ -1,27 +1,23 @@
-# CEO 
-This page details processes specific to working with Mike McNeil, co-founder and Chief Executive Officer of Fleet, and the 🦿 CEO support team.
-
+# Digital Experience 
+This page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department.
 
 ## Team
 | Role                            | Contributor(s)
 |:--------------------------------|:----------------------------------------------------------------------|
-| CEO                             | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
-| Apprentice to the CEO           | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
-
+| Head of Design                  | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
+| Software Engineer               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
+| _Apprentice to the CEO_         | [Sam Pfluger](https://www.linkedin.com/in/sampfluger88/) _([@sampfluger88](https://github.com/sampfluger88))_
 
 ## Contact us
-- To **get to know the CEO**, read about [the CEO's flaws](https://www.fleetdm.com/handbook/company/leadership#ceo-flaws).
-- To **ask a question** or **make a request** of the CEO or Apprentice, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________) and a [team member](#team) will get back to you within one business day (if urgent, mention the Apprentice in Slack).
-  - Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can view the [🐈‍⬛#g-ceo kanban board](https://app.zenhub.com/workspaces/-g-ceo-645b0eab68a4d40c0795ff61/board?sprints=none) (confidential) for this team, including pending tasks and requests.
+
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Request%3A+_______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#g-digital-experience]([https://fleetdm.slack.com/archives/C030A767HQV](https://fleetdm.slack.com/archives/C058S8PFSK0)) Slack channel.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-sales-64fbb46c65f9ff003a1530a8/board?sprints=none) for this department, including pending tasks and the status of new requests.
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
+
+> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [#g-website group](https://fleetdm.com/handbook/company/development-groups#website-group).  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/development-groups#current-product-groups), and not by `#g-website`._
 
 ## Responsibilities
-Ultimately, the CEO is responsible for the success or failure of the company.
-
-- The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting), and various internal tools like Zapier.
-- The Apprentice to the CEO is the DRI for the framework behind Fleet's remote work culture, including the handbook, issue templates, key spreadsheets, project management processes, and other [decisions about how to work](https://fleetdm.com/handbook/company/why-this-way).
-
-> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)
+The Digital Experience department is directly responsible for the framework behind Fleet's remote work culture including fleetdm.com, handbook structure and content design, internal automations and intergrations, key spreadsheets, and project management processes.
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
@@ -32,7 +28,6 @@ From time to time, you will need to schedule an interview between a candidate an
 3. Set the Google Calendar description of the calendar event to: `Agenda: URL_FOR_NEW_COPY_OF_FINAL_INTERVIEW_DOC`
 
 ### Program the CEO to do something
-
 1. If necessary or if unsure, immediately direct message the CEO on Slack to clarify priority level, timing, and level of effort.  (For example, whether to schedule 30m or 60m to complete in full, or 30m planning as an iterative step.)
 2. If there is not room on the calendar to schedule this soon enough with both Mike and Sam as needed (erring on the side of sooner), then either immediately direct message the CEO with a backup plan, or if it can obviously wait, then discuss at the next roundup.
 3. Create a calendar event with a Zoom meeting for the CEO and Apprentice.  Keep the title short.  For the description, keep it very brief and use this template:
@@ -296,4 +291,4 @@ Please see [handbook/company/why-this-way/why-not-mention-the-ceo-in-slack-threa
 
 
 <meta name="maintainedBy" value="Sampfluger88">
-<meta name="title" value="🐈‍⬛ CEO">
+<meta name="title" value="🌐 Digital Experience">
