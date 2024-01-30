@@ -215,7 +215,7 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	}
 
 	respNew := s.Do("POST", "/api/latest/fleet/users/admin", &newUPars, http.StatusBadRequest)
-	assertBodyContains(s.T(), respNew, "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+	assertBodyContains(s.T(), respNew, "Password is over the 72 character limit. If the password is under 72 characters, please check the auth_salt_key_size in your Fleet server config.")
 
 	// test admin-required password reset
 
@@ -238,7 +238,7 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	reqResetPars := performRequiredPasswordResetRequest{Password: "password123#password123#password123#password123#password123#password123##", ID: u.ID}
 
 	respReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &reqResetPars, http.StatusBadRequest)
-	assertBodyContains(s.T(), respReset, "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+	assertBodyContains(s.T(), respReset, "Password is over the 72 character limit. If the password is under 72 characters, please check the auth_salt_key_size in your Fleet server config.")
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {

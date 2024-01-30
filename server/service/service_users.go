@@ -44,7 +44,7 @@ func (svc *Service) NewUser(ctx context.Context, p fleet.UserPayload) (*fleet.Us
 	user, err := p.User(svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
-			return nil, ctxerr.Wrap(ctx, badRequestErr("Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.", err))
+			return nil, ctxerr.Wrap(ctx, badRequestErr("Password is over the 72 character limit. If the password is under 72 characters, please check the auth_salt_key_size in your Fleet server config.", err))
 		}
 		return nil, err
 	}
