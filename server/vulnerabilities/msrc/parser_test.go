@@ -1154,7 +1154,7 @@ func TestParser(t *testing.T) {
 
 				for KBID, fix := range vF {
 					sut := bulletin.VendorFixes[KBID]
-					require.Equal(t, fix.FixedBuild, sut.FixedBuild, pName, KBID)
+					require.Equal(t, fix.FixedBuild, sut.FixedBuilds[0], pName, KBID)
 					require.Equal(t, fix.ProductIDs, sut.ProductIDs, pName, KBID)
 					// We want to check that either both are nil or that both are not nil
 					require.False(t, (fix.Supersedes == nil || sut.Supersedes == nil) && !(fix.Supersedes == nil || sut.Supersedes == nil), pName, KBID)

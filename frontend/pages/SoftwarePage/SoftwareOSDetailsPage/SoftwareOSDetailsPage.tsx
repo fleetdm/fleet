@@ -100,7 +100,7 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
             os_name: osVersionDetails.name_only,
             os_version: osVersionDetails.version,
           }}
-          name={osVersionDetails.name}
+          name={osVersionDetails.platform}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__vulnerabilities-section`}>
