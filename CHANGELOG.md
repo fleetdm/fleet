@@ -56,9 +56,6 @@
   - Fixed a bug where the UUID for Windows updates profiles was missing the `"w"` prefix.
   - Fixed a UI bug on the controls page in team targeting forms.
 
-* **Additional Updates**:
-
-
 ## Fleet 4.43.3 (Jan 23, 2024)
 
 ### Bug fixes
