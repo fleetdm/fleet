@@ -54,7 +54,7 @@ func main() {
 func keyFilterCommand() *cli.Command {
 	var (
 		filter string
-		url    string
+		tufURL string
 	)
 	return &cli.Command{
 		Name:  "key-filter",
@@ -64,7 +64,7 @@ func keyFilterCommand() *cli.Command {
 - To filter Fleet Desktop items on 1.3.*, stable and edge that run on macOS use -filter="desktop/*.*/macos/(1.3.*|stable|edge)"
 `,
 		Flags: []cli.Flag{
-			urlFlag(&url),
+			urlFlag(&tufURL),
 			&cli.StringFlag{
 				Name:        "filter",
 				EnvVars:     []string{"VALUE"},
@@ -74,7 +74,7 @@ func keyFilterCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			res, err := http.Get(url)
+			res, err := http.Get(tufURL) //nolint
 			if err != nil {
 				return err
 			}
@@ -185,14 +185,14 @@ func channelVersionCommand() *cli.Command {
 	}
 	var (
 		channel    string
-		url        string
+		tufURL     string
 		components cli.StringSlice
 	)
 	return &cli.Command{
 		Name:  "channel-version",
 		Usage: "Fetch display the version of components on a channel (JSON output)",
 		Flags: []cli.Flag{
-			urlFlag(&url),
+			urlFlag(&tufURL),
 			&cli.StringFlag{
 				Name:        "channel",
 				EnvVars:     []string{"CHANNEL"},
@@ -209,7 +209,7 @@ func channelVersionCommand() *cli.Command {
 			},
 		},
 		Action: func(c *cli.Context) error {
-			res, err := http.Get(url)
+			res, err := http.Get(tufURL) //nolint
 			if err != nil {
 				return err
 			}
