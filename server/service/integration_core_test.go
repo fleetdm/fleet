@@ -7472,7 +7472,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 
 	// get OS version by id
 	var osVersionResp getOSVersionResponse
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/4", nil, http.StatusOK, &osVersionResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
 	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
 
 	// invalid id
