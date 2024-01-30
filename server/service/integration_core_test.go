@@ -7419,7 +7419,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", 2))
 	require.Equal(t, 2, countResp.Count)
 
-
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 
