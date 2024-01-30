@@ -9,7 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240129162819(t *testing.T) {
+func TestUp_20240130162819(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	prof1UUID := "w" + uuid.NewString()

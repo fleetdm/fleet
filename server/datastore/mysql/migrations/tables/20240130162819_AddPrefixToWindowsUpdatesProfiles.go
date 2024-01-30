@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240129162819, Down_20240129162819)
+	MigrationClient.AddMigration(Up_20240130162819, Down_20240130162819)
 }
 
-func Up_20240129162819(tx *sql.Tx) error {
+func Up_20240130162819(tx *sql.Tx) error {
 	stmt := `
 		UPDATE
 			mdm_windows_configuration_profiles mwcp
@@ -40,6 +40,6 @@ func Up_20240129162819(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240129162819(tx *sql.Tx) error {
+func Down_20240130162819(tx *sql.Tx) error {
 	return nil
 }
