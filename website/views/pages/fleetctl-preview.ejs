@@ -27,8 +27,11 @@
       <h2 class="pt-3 mb-3">2. Run Fleet</h2>
       <p>Install the <code>fleetctl</code> command line tool and start the Fleet preview experience:</p>
       <div purpose="terminal-commands">
-        <p class="text-muted"># Install the Fleet command-line tool</p>
-        <p>npm install -global fleetctl</p>
+        <p class="text-muted"># Install the Fleet command-line tool (windows)</p>
+        <p>curl -o install-fleet.bat https://fleetdm.com/resources/install-fleet.bat</p>
+        <p>./install-fleet.bat</p>
+        <p class="text-muted"># Install the Fleet command-line tool (macOS & Linux)</p>
+        <p>curl -sSL https://fleetdm.com/resources/install-fleet.sh | bash</p>
         <p class="text-muted"># Run a local demo of the Fleet server</p>
         <p>fleetctl preview</p>
       </div>
