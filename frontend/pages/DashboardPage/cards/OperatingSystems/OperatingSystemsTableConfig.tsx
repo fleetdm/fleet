@@ -77,8 +77,6 @@ const generateDefaultTableHeaders = (
       }
 
       const { name, name_only, version } = cellProps.row.original;
-      console.log("cellProps.row.original", cellProps.row.original);
-      console.log("name_only, version", name_only, version);
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
         e.stopPropagation();
@@ -92,7 +90,7 @@ const generateDefaultTableHeaders = (
           customOnClick={onClickSoftware}
           value={
             <>
-              <SoftwareIcon name={name} />
+              <SoftwareIcon name={cellProps.row.original.platform} />
               <span className="software-name">{name}</span>
             </>
           }
