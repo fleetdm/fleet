@@ -90,7 +90,7 @@ const generateDefaultTableHeaders = (
           customOnClick={onClickSoftware}
           value={
             <>
-              <SoftwareIcon name={name} />
+              <SoftwareIcon name={cellProps.row.original.platform} />
               <span className="software-name">{name}</span>
             </>
           }
