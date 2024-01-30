@@ -514,8 +514,7 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Remotely enforce OS settings
-  documentationUrl: https://fleetdm.com/learn-more-about/custom-os-settings
-  tier: Free
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
