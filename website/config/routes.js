@@ -510,9 +510,9 @@ module.exports.routes = {
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
-  'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
+  'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
+  'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
-  'GET /learn-more-about/custom-os-settings': 'https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings',
 
   // Sitemap
   // =============================================================================================================
