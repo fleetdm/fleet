@@ -35,6 +35,7 @@ const TooltipTruncatedTextCell = ({
         className={"data-table__tooltip-truncated-text"}
         data-tip
         data-for={tooltipId}
+        data-tip-disable={isDefaultValue}
       >
         <span
           className={`data-table__tooltip-truncated-text--cell ${

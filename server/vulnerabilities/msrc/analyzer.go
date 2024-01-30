@@ -138,10 +138,8 @@ func patched(
 		}
 
 		isGreater, err := winBuildVersionGreaterOrEqual(fix.FixedBuild, os.KernelVersion)
-		if err != nil {
-			continue
-		}
-		if isGreater {
+		// Return true on errors to prevent false positives
+		if err != nil || isGreater {
 			return true
 		}
 	}

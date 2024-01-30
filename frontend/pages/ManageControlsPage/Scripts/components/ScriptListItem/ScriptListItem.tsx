@@ -3,7 +3,8 @@ import { format, formatDistanceToNow } from "date-fns";
 import FileSaver from "file-saver";
 
 import { NotificationContext } from "context/notification";
-import scriptAPI, { IScript } from "services/entities/scripts";
+import scriptAPI from "services/entities/scripts";
+import { IScript } from "interfaces/script";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
@@ -27,6 +28,7 @@ const getFileRenderDetails = (
     case "py":
       return { graphicName: "file-py", platform: null };
     case "sh":
+      // TODO: what about .sh files that are for linux?
       return { graphicName: "file-sh", platform: "macOS" };
     case "ps1":
       return { graphicName: "file-ps1", platform: "Windows" };
