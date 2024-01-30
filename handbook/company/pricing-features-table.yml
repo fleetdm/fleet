@@ -564,11 +564,7 @@
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
-<<<<<<< HEAD
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
-=======
-  documentationUrl: https://fleetdm.com/learn-more-about/os-updates
->>>>>>> a1ca2c4a26536b04fe65bfa974223da589b09be3
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management,Vulnerability management]
