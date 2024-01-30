@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240129115133, Down_20240129115133)
+	MigrationClient.AddMigration(Up_20240130115133, Down_20240130115133)
 }
 
-func Up_20240129115133(tx *sql.Tx) error {
+func Up_20240130115133(tx *sql.Tx) error {
 	stmt := `
 		ALTER TABLE operating_systems
 		ADD COLUMN os_version_id INT UNSIGNED DEFAULT NULL
@@ -57,6 +57,6 @@ func Up_20240129115133(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240129115133(tx *sql.Tx) error {
+func Down_20240130115133(tx *sql.Tx) error {
 	return nil
 }
