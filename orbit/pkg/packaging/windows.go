@@ -450,6 +450,9 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 		return fmt.Errorf("could not download %s: %w", urlPath, err)
 	}
 	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("could not download %s: received http status code %s", urlPath, resp.Status)
+	}
 	_, err = io.Copy(zipFile, resp.Body)
 	if err != nil {
 		return fmt.Errorf("could not write %s: %w", zipFile.Name(), err)
