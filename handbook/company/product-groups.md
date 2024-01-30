@@ -388,7 +388,7 @@ QA has reproduced the issue successfully. It should now be transferred to engine
 
 Remove the “reproduce” label, add the following labels: 
 
-1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-website`).
+1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-digital-experience`).
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates to the EM that it is a new bug. 
 3. The `:release` label will place the bug on the team's release board. 
