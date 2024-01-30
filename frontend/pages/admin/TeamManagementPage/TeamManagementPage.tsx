@@ -40,7 +40,6 @@ const TeamManagementPage = (): JSX.Element => {
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
-  // const [searchString, setSearchString] = useState(""); // TODO: Confirm whether table search is expected. As previously implemented, the commented code was not being used.
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -98,23 +97,6 @@ const TeamManagementPage = (): JSX.Element => {
       setBackendValidators,
     ]
   );
-
-  // // TODO: Confirm whether table search is expected. As previously implemented, the commented code
-  // // was not being used.
-  // const onQueryChange = useCallback(
-  //   (queryData) => {
-  //     if (teams) {
-  //       setSearchString(queryData.searchQuery);
-  //       const { pageIndex, pageSize, searchQuery } = queryData;
-  //       teamsAPI.loadAll({
-  //         page: pageIndex,
-  //         perPage: pageSize,
-  //         globalFilter: searchQuery,
-  //       });
-  //     }
-  //   },
-  //   [setSearchString]
-  // );
 
   const onCreateSubmit = useCallback(
     (formData: ITeamFormData) => {
@@ -263,16 +245,13 @@ const TeamManagementPage = (): JSX.Element => {
             isLoading={isFetchingTeams}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}
-            inputPlaceHolder={"Search"}
             actionButton={{
               name: "create team",
               buttonText: "Create team",
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
-              // hideButton: teams && teams.length === 0 && searchString === "",
               hideButton: teams && teams.length === 0,
             }}
-            // onQueryChange={onQueryChange}
             resultsTitle={"teams"}
             emptyComponent={() => (
               <EmptyTeamsTable
@@ -282,7 +261,6 @@ const TeamManagementPage = (): JSX.Element => {
             )}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            // searchable={teams && teams.length > 0 && searchString !== ""}
             isClientSidePagination
           />
         )}
