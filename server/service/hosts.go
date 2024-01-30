@@ -1891,7 +1891,9 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		return nil, nil, err
 	}
 
-	svc.populateOSVersionDetails(ctx, osVersion, includeCVSS)
+	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		return nil, nil, err
+	}
 
 	return osVersion, updateTime, nil
 }
