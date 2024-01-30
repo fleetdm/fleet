@@ -25,7 +25,7 @@ func listOperatingSystemsDB(ctx context.Context, tx sqlx.QueryerContext) ([]flee
 func (ds *Datastore) ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
 	var oses []fleet.OperatingSystem
 	sqlStatement := `
-		SELECT id, name, version, arch, kernel_version, platform, display_version
+		SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id
 		FROM operating_systems
 		WHERE platform = ?
 	`
@@ -125,7 +125,7 @@ func nextOSVersionID(ctx context.Context, tx sqlx.ExtContext) (uint, error) {
 // If found, it returns the record including the associated ID.
 func getOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostOS fleet.OperatingSystem) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
-	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ? AND display_version = ?"
+	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ? AND display_version = ?"
 	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostOS.Name, hostOS.Version, hostOS.Arch, hostOS.KernelVersion, hostOS.Platform, hostOS.DisplayVersion); err != nil {
 		return nil, err
 	}
@@ -170,7 +170,7 @@ func getIDHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID 
 // of the `host_operating_system` table.
 func getHostOperatingSystemDB(ctx context.Context, tx sqlx.ExtContext, hostID uint) (*fleet.OperatingSystem, error) {
 	var os fleet.OperatingSystem
-	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version FROM operating_systems WHERE id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
+	stmt := "SELECT id, name, version, arch, kernel_version, platform, display_version, os_version_id FROM operating_systems WHERE id = (SELECT os_id FROM host_operating_system WHERE host_id = ?)"
 	if err := sqlx.GetContext(ctx, tx, &os, stmt, hostID); err != nil {
 		return nil, err
 	}

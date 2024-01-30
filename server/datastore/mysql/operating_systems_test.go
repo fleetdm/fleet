@@ -34,7 +34,7 @@ func TestListOperatingSystems(t *testing.T) {
 		osByID[os.ID] = os
 	}
 	for _, os := range osByID {
-		require.Equal(t, os, seedByID[os.ID])
+		require.Equal(t, seedByID[os.ID], os)
 	}
 }
 
@@ -425,6 +425,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			KernelVersion:  "10.0.22000.795",
 			Platform:       "windows",
 			DisplayVersion: "21H2",
+			OSVersionID:    1,
 		},
 		{
 			Name:          "macOS",
@@ -432,6 +433,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "21.4.0",
 			Platform:      "darwin",
+			OSVersionID:   2,
 		},
 		{
 			Name:          "Ubuntu",
@@ -439,6 +441,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "ubuntu",
+			OSVersionID:   3,
 		},
 		{
 			Name:          "Debian GNU/Linux",
@@ -446,6 +449,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "debian",
+			OSVersionID:   4,
 		},
 		{
 			Name:          "CentOS Linux",
@@ -453,6 +457,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "rhel",
+			OSVersionID:   5,
 		},
 	}
 	storedById := make(map[uint]fleet.OperatingSystem)
