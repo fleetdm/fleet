@@ -44,6 +44,9 @@ func main() {
 	eBulletins, err := ghAPI.MSRCBulletins(ctx)
 	panicif(err)
 
+	// TODO: Remove this once we have transitioned to FixedBuilds. This forces us to refresh all data.
+	eBulletins = make(map[io.MetadataFileName]string)
+
 	var bulletins []*parsed.SecurityBulletin
 	if len(eBulletins) == 0 {
 		fmt.Println("None found, backfilling...")
