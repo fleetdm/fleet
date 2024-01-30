@@ -1120,6 +1120,8 @@ type OSVersions struct {
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1138,8 +1140,6 @@ type OSVersion struct {
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
-	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
-	OSVersionID uint `json:"os_version_id"`
 }
 
 type HostDetailOptions struct {
