@@ -87,9 +87,25 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
 	storedOS, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
+
+	// insert a host with a different architecture os
+	testHostID2 := uint(43)
+	testOSarm := testOS
+	testOSarm.Arch = "arm64"
+	err = ds.UpdateHostOperatingSystem(ctx, testHostID2, testOSarm)
+	require.NoError(t, err)
+	list, err = ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	// os version id is the same for both architectures
+	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
+	require.Equal(t, true, isSameOS(t, testOSarm, list[1]))
+	require.Equal(t, uint(1), list[1].OSVersionID)
 
 	// new version creates a new os record
 	testNewVersion := testOS
@@ -98,18 +114,19 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
+	require.Equal(t, uint(2), list[2].OSVersionID) // new version has new os version id
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testNewVersion, *storedOS))
 
 	// new host with existing os
-	testNewHostID := uint(43)
+	testNewHostID := uint(44)
 	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
@@ -119,7 +136,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list,3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))

@@ -1138,6 +1138,8 @@ type OSVersion struct {
 	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
 	// Vulnerabilities are the vulnerabilities associated with the operating system.
 	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 }
 
 type HostDetailOptions struct {

@@ -4432,7 +4432,7 @@ WHERE
 		val, ok := byNameVers[key]
 		if !ok {
 			// omit os id
-			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount}
+			byNameVers[key] = fleet.OSVersion{Name: os.Name, NameOnly: os.NameOnly, Version: os.Version, Platform: os.Platform, HostsCount: os.HostsCount, OSVersionID: os.OSVersionID}
 		} else {
 			newVal := val
 			newVal.HostsCount += os.HostsCount
@@ -4462,7 +4462,8 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 		os.id,
 		os.name,
 		os.version,
-		os.platform
+		os.platform,
+		os.os_version_id
 	FROM hosts h
 	JOIN host_operating_system hos ON h.id = hos.host_id
 	JOIN operating_systems os ON hos.os_id = os.id
@@ -4470,12 +4471,13 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 	`
 
 	var rows []struct {
-		HostsCount int    `db:"hosts_count"`
-		Name       string `db:"name"`
-		Version    string `db:"version"`
-		Platform   string `db:"platform"`
-		ID         uint   `db:"id"`
-		TeamID     *uint  `db:"team_id"`
+		HostsCount  int    `db:"hosts_count"`
+		Name        string `db:"name"`
+		Version     string `db:"version"`
+		Platform    string `db:"platform"`
+		ID          uint   `db:"id"`
+		TeamID      *uint  `db:"team_id"`
+		OSVersionID uint   `db:"os_version_id"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, selectStmt); err != nil {
 		return ctxerr.Wrap(ctx, err, "update os versions")
@@ -4489,12 +4491,13 @@ func (ds *Datastore) UpdateOSVersions(ctx context.Context) error {
 
 	for _, r := range rows {
 		os := fleet.OSVersion{
-			HostsCount: r.HostsCount,
-			Name:       fmt.Sprintf("%s %s", r.Name, r.Version),
-			NameOnly:   r.Name,
-			Version:    r.Version,
-			Platform:   r.Platform,
-			ID:         r.ID,
+			HostsCount:  r.HostsCount,
+			Name:        fmt.Sprintf("%s %s", r.Name, r.Version),
+			NameOnly:    r.Name,
+			Version:     r.Version,
+			Platform:    r.Platform,
+			ID:          r.ID,
+			OSVersionID: r.OSVersionID,
 		}
 		// increment global stats
 		if _, ok := globalStats[os.ID]; !ok {
