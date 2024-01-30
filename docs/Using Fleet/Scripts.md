@@ -36,7 +36,7 @@ Fleet UI:
 
 > Currently, you can only run scripts on macOS and Windows hosts in the Fleet UI. To run a script on a Linux host, use the Fleet API or fleetctl CLI.
 
-Fleet API: API documentation is [here](../REST%20API/rest-api.md#run-script)
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 
 fleetctl CLI:
 

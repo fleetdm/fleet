@@ -36,29 +36,29 @@ const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
     return false;
   };
 
-  const renderLabel = () => {
+  const renderCopyShowButtons = () => {
     return (
-      <span className={`${baseClass}`}>
-        <span className="buttons">
-          {copyMessage && (
-            <span className="copy-message">{`${copyMessage} `}</span>
-          )}
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__secret-copy-icon`}
-            onClick={onCopySecret}
-          >
-            <Icon name="copy" />
-          </Button>
-          <a
-            href="#showSecret"
-            onClick={onToggleSecret}
-            className={`${baseClass}__show-secret`}
-          >
-            <Icon name="eye" />
-          </a>
-        </span>
-      </span>
+      <div className="buttons">
+        {copyMessage && (
+          <span
+            className={`${baseClass}__copy-message`}
+          >{`${copyMessage} `}</span>
+        )}
+        <Button
+          variant="unstyled"
+          className={`${baseClass}__copy-secret-icon`}
+          onClick={onCopySecret}
+        >
+          <Icon name="copy" />
+        </Button>
+        <Button
+          variant="unstyled"
+          className={`${baseClass}__show-secret-icon`}
+          onClick={onToggleSecret}
+        >
+          <Icon name="eye" />
+        </Button>
+      </div>
     );
   };
 
@@ -68,10 +68,10 @@ const SecretField = ({ secret }: ISecretFieldProps): JSX.Element | null => {
         disabled
         inputWrapperClass={`${baseClass}__secret-input`}
         name="secret-field"
-        label={renderLabel()}
         type={showSecret ? "text" : "password"}
         value={secret}
       />
+      {renderCopyShowButtons()}
     </div>
   );
 };
