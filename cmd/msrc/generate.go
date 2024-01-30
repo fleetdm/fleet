@@ -41,11 +41,12 @@ func main() {
 	msrcAPI := msrc.NewMSRCClient(httpC, inPath, msrc.MSRCBaseURL)
 
 	fmt.Println("Downloading existing bulletins...")
-	eBulletins, err := ghAPI.MSRCBulletins(ctx)
+	// TODO: Remove this once we have transitioned to FixedBuilds. This forces us to refresh all data.
+	/*eBulletins*/
+	_, err = ghAPI.MSRCBulletins(ctx)
 	panicif(err)
 
-	// TODO: Remove this once we have transitioned to FixedBuilds. This forces us to refresh all data.
-	eBulletins = make(map[io.MetadataFileName]string)
+	eBulletins := make(map[io.MetadataFileName]string)
 
 	var bulletins []*parsed.SecurityBulletin
 	if len(eBulletins) == 0 {
