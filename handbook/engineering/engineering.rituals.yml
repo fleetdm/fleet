@@ -92,7 +92,7 @@
   moreInfoUrl: "https://fleetdm.com/slack"
   dri: "eashaw"
   autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-website" ] # label to be applied to issue
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
     repo: fleet
 
 
