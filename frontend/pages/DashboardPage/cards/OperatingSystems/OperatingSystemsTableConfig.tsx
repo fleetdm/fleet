@@ -76,19 +76,17 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, name_only, version } = cellProps.row.original;
-      console.log("cellProps.row.original", cellProps.row.original);
-      console.log("name_only, version", name_only, version);
+      const { name, os_version_id } = cellProps.row.original;
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
         e.stopPropagation();
 
-        router?.push(PATHS.SOFTWARE_OS_DETAILS(name_only, version));
+        router?.push(PATHS.SOFTWARE_OS_DETAILS(os_version_id));
       };
 
       return (
         <LinkCell
-          path={PATHS.SOFTWARE_OS_DETAILS(name_only, version)}
+          path={PATHS.SOFTWARE_OS_DETAILS(os_version_id)}
           customOnClick={onClickSoftware}
           value={
             <>
