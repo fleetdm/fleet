@@ -139,10 +139,10 @@ const RunScriptModal = ({
         <div className={`${baseClass}__modal-content`}>
           {isLoading && <Spinner />}
           {!isLoading && isError && <DataError />}
-          {!isLoading && !isError && tableData && tableData.length === 0 && (
+          {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
               header="No scripts are available for this host"
-              info="Upload scripts to change configuration and remediate issues on this host."
+              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (
