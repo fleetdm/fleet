@@ -280,7 +280,7 @@ It's not enough to just "delete" a recording of a meeting in Gong.  Instead, use
   - 12:30 PM CT _(/beginning of "reserved block")_
   - 6:30 PM CT _(/after last meeting, before roundup / Japan calls)_
 
-<rituals :rituals="rituals['handbook/company/ceo.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/digital-experience/digital-experience.rituals.yml']"></rituals>
 
 
 #### Stubs
