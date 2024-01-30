@@ -1566,7 +1566,8 @@ ON DUPLICATE KEY UPDATE
 // it will be in the insert/upsert stage, "delete" for deletion, "select" to
 // load existing ones, "reselect" to reload existing ones after insert, and
 // "labels" to simulate an error in batch setting the profile label
-// associations.
+// associations. "inselect", "inreselect", "indelete", etc. can also be used to
+// fail the sqlx.In before the corresponding statement.
 //
 //	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
 var testBatchSetMDMWindowsProfilesErr string
@@ -1640,7 +1641,10 @@ ON DUPLICATE KEY UPDATE
 	if len(incomingNames) > 0 {
 		// load existing profiles that match the incoming profiles by name
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil {
+		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "inselect") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+			}
 			return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "select") {
@@ -1667,7 +1671,10 @@ ON DUPLICATE KEY UPDATE
 	// delete the obsolete profiles (all those that are not in keepNames)
 	if len(keepNames) > 0 {
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
-		if err != nil {
+		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "indelete") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+			}
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
 		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "delete") {
@@ -1704,7 +1711,10 @@ ON DUPLICATE KEY UPDATE
 		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil {
+		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "inreselect") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+			}
 			return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "reselect") {

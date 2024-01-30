@@ -1172,11 +1172,12 @@ func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, p
 }
 
 // set this in tests to simulate an error at various stages in the
-// batchSetMDMAppleProfilesDB execution: if the string starts with "insert",
-// it will be in the insert/upsert stage, "delete" for deletion, "select" to
-// load existing ones, "reselect" to reload existing ones after insert, and
-// "labels" to simulate an error in batch setting the profile label
-// associations.
+// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
+// will be in the insert/upsert stage, "delete" for deletion, "select" to load
+// existing ones, "reselect" to reload existing ones after insert, and "labels"
+// to simulate an error in batch setting the profile label associations.
+// "inselect", "inreselect", "indelete", etc. can also be used to fail the
+// sqlx.In before the corresponding statement.
 //
 //	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
 var testBatchSetMDMAppleProfilesErr string
@@ -1244,7 +1245,10 @@ ON DUPLICATE KEY UPDATE
 	if len(incomingIdents) > 0 {
 		// load existing profiles that match the incoming profiles by identifiers
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-		if err != nil {
+		if err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "inselect") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMAppleProfilesErr)
+			}
 			return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "select") {
@@ -1276,7 +1280,10 @@ ON DUPLICATE KEY UPDATE
 	)
 	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
 	stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
-	if err != nil {
+	if err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "indelete") {
+		if err == nil {
+			err = errors.New(testBatchSetMDMAppleProfilesErr)
+		}
 		return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 	}
 	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "delete") {
@@ -1305,7 +1312,10 @@ ON DUPLICATE KEY UPDATE
 		var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-		if err != nil {
+		if err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "inreselect") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMAppleProfilesErr)
+			}
 			return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
 		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "reselect") {

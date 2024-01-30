@@ -3039,11 +3039,17 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 		{"delete:c", "", "batch set windows profiles: delete obsolete profiles: delete:c"},
 		{"reselect:d", "", "batch set windows profiles: load newly inserted profiles: reselect:d"},
 		{"labels:e", "", "batch set windows profiles: inserting windows profile label associations: labels:e"},
+		{"inselect:k", "", "batch set windows profiles: build query to load existing profiles: inselect:k"},
+		{"indelete:l", "", "batch set windows profiles: build statement to delete obsolete profiles: indelete:l"},
+		{"inreselect:m", "", "batch set windows profiles: build query to load newly inserted profiles: inreselect:m"},
 		{"", "select:f", "batch set apple profiles: load existing profiles: select:f"},
 		{"", "insert:g", ": insert:g"},
 		{"", "delete:h", "batch set apple profiles: delete obsolete profiles: delete:h"},
 		{"", "reselect:i", "batch set apple profiles: load newly inserted profiles: reselect:i"},
 		{"", "labels:j", "batch set apple profiles: inserting apple profile label associations: labels:j"},
+		{"", "inselect:n", "batch set apple profiles: build query to load existing profiles: inselect:n"},
+		{"", "indelete:o", "batch set apple profiles: build statement to delete obsolete profiles: indelete:o"},
+		{"", "inreselect:p", "batch set apple profiles: build query to load newly inserted profiles: inreselect:p"},
 	}
 	for _, c := range cases {
 		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
