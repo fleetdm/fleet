@@ -1517,7 +1517,7 @@ INSERT INTO
 }
 
 func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-	profileUUID := uuid.New().String()
+	profileUUID := "w" + uuid.New().String()
 	stmt := `
 INSERT INTO
 	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
