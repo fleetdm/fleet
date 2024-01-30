@@ -1,6 +1,13 @@
 # Leadership
 
-## CEO flaws
+## CEO 
+Ultimately, the CEO is responsible for the success or failure of the company.
+
+- The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)
+
+### CEO flaws
 [Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
 
 - I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
