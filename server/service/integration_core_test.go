@@ -7411,12 +7411,12 @@ func (s *integrationTestSuite) TestOSVersions() {
 
 	expected := hosts[1].Hostname
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_version_id", fmt.Sprintf("%d", 2))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
 	require.Len(t, resp.Hosts, 2)
 	require.Equal(t, expected, resp.Hosts[0].Hostname)
 
 	countResp := countHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", 2))
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
 	require.Equal(t, 2, countResp.Count)
 
 	// generate aggregated stats
@@ -7454,7 +7454,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 		NameOnly:    "Windows 11 Pro 21H2",
 		Version:     "10.0.22000.2",
 		Platform:    "windows",
-		OSVersionID: 4,
+		OSVersionID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "CVE-2021-1234",
