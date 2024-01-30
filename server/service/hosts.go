@@ -1809,31 +1809,9 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, err
 	}
 
-	for i, os := range osVersions.OSVersions {
-
-		// populate OSVersion.GeneratedCPEs
-		if os.Platform == "darwin" {
-			osVersions.OSVersions[i].GeneratedCPEs = []string{
-				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", os.Version),
-				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", os.Version),
-			}
-		}
-
-		// populate OSVersion.Vulnerabilities
-		vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, os.NameOnly, os.Version, includeCVSS)
-		if err != nil {
+	for i := range osVersions.OSVersions {
+		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
 			return nil, count, nil, err
-		}
-
-		osVersions.OSVersions[i].Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-		for _, vuln := range vulns {
-			switch os.Platform {
-			case "darwin":
-				vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
-			case "windows":
-				vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
-			}
-			osVersions.OSVersions[i].Vulnerabilities = append(osVersions.OSVersions[i].Vulnerabilities, vuln)
 		}
 	}
 
@@ -1913,7 +1891,14 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		return nil, nil, err
 	}
 
-	// populate OSVersion.GeneratedCPEs
+	svc.populateOSVersionDetails(ctx, osVersion, includeCVSS)
+
+	return osVersion, updateTime, nil
+}
+
+// PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+	// Populate GeneratedCPEs
 	if osVersion.Platform == "darwin" {
 		osVersion.GeneratedCPEs = []string{
 			fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osVersion.Version),
@@ -1921,10 +1906,10 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		}
 	}
 
-	// populate OSVersion.Vulnerabilities
+	// Populate Vulnerabilities
 	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
 	if err != nil {
-		return nil, nil, err
+		return err
 	}
 
 	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
@@ -1937,8 +1922,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		}
 		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
 	}
-
-	return osVersion, updateTime, nil
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
