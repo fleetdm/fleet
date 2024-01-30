@@ -1,5 +1,5 @@
 ---
-name: 🌐 Digital Experience request
+name: 🌐 Website request
 about: Propose a new feature or enhancement to fleetdm.com.
 title: 'Request: __________________________'
 labels: '#g-digital-experience'
