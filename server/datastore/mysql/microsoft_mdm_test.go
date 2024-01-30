@@ -1958,7 +1958,7 @@ func testBatchSetMDMWindowsProfiles(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	applyAndExpect := func(newSet []*fleet.MDMWindowsConfigProfile, tmID *uint, want []*fleet.MDMWindowsConfigProfile) map[string]string {
-		err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 			return ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, newSet)
 		})
 		require.NoError(t, err)

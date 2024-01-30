@@ -1166,11 +1166,22 @@ func (ds *Datastore) GetNanoMDMEnrollment(ctx context.Context, id string) (*flee
 }
 
 func (ds *Datastore) BatchSetMDMAppleProfiles(ctx context.Context, tmID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		return ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, profiles)
 	})
 }
 
+// set this in tests to simulate an error at various stages in the
+// batchSetMDMAppleProfilesDB execution: if the string starts with "insert",
+// it will be in the insert/upsert stage, "delete" for deletion, "select" to
+// load existing ones, "reselect" to reload existing ones after insert, and
+// "labels" to simulate an error in batch setting the profile label
+// associations.
+//
+//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
+var testBatchSetMDMAppleProfilesErr string
+
+// batchSetMDMAppleProfilesDB must be called from inside a transaction.
 func (ds *Datastore) batchSetMDMAppleProfilesDB(
 	ctx context.Context,
 	tx sqlx.ExtContext,
@@ -1228,90 +1239,103 @@ ON DUPLICATE KEY UPDATE
 		incomingProfs[p.Identifier] = p
 	}
 
-	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var existingProfiles []*fleet.MDMAppleConfigProfile
+	var existingProfiles []*fleet.MDMAppleConfigProfile
 
-		if len(incomingIdents) > 0 {
-			// load existing profiles that match the incoming profiles by identifiers
-			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "load existing profiles")
-			}
-		}
-
-		// figure out if we need to delete any profiles
-		keepIdents := make([]string, 0, len(incomingIdents))
-		for _, p := range existingProfiles {
-			if newP := incomingProfs[p.Identifier]; newP != nil {
-				keepIdents = append(keepIdents, p.Identifier)
-			}
-		}
-
-		// profiles that are managed and delivered by Fleet
-		fleetIdents := []string{}
-		for ident := range mobileconfig.FleetPayloadIdentifiers() {
-			fleetIdents = append(fleetIdents, ident)
-		}
-
-		var (
-			stmt string
-			args []interface{}
-			err  error
-		)
-		// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
-		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
+	if len(incomingIdents) > 0 {
+		// load existing profiles that match the incoming profiles by identifiers
+		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+			return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "select") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMAppleProfilesErr)
+			}
+			return ctxerr.Wrap(ctx, err, "load existing profiles")
+		}
+	}
+
+	// figure out if we need to delete any profiles
+	keepIdents := make([]string, 0, len(incomingIdents))
+	for _, p := range existingProfiles {
+		if newP := incomingProfs[p.Identifier]; newP != nil {
+			keepIdents = append(keepIdents, p.Identifier)
+		}
+	}
+
+	// profiles that are managed and delivered by Fleet
+	fleetIdents := []string{}
+	for ident := range mobileconfig.FleetPayloadIdentifiers() {
+		fleetIdents = append(fleetIdents, ident)
+	}
+
+	var (
+		stmt string
+		args []interface{}
+		err  error
+	)
+	// delete the obsolete profiles (all those that are not in keepIdents or delivered by Fleet)
+	stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, append(keepIdents, fleetIdents...))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+	}
+	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "delete") {
+		if err == nil {
+			err = errors.New(testBatchSetMDMAppleProfilesErr)
+		}
+		return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+	}
+
+	// insert the new profiles and the ones that have changed
+	for _, p := range incomingProfs {
+		if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "insert") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMAppleProfilesErr)
+			}
+			return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
+		}
+	}
+
+	// build a list of labels so the associations can be batch-set all at once
+	// TODO: with minor changes this chunk of code could be shared
+	// between macOS and Windows, but at the time of this
+	// implementation we're under tight time constraints.
+	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	if len(incomingIdents) > 0 {
+		var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
+		// load current profiles (again) that match the incoming profiles by name to grab their uuids
+		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "reselect") {
+			if err == nil {
+				err = errors.New(testBatchSetMDMAppleProfilesErr)
+			}
+			return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
 		}
 
-		// insert the new profiles and the ones that have changed
-		for _, p := range incomingProfs {
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Identifier, p.Name, p.Mobileconfig); err != nil {
-				return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", p.Identifier)
+		for _, newlyInsertedProf := range newlyInsertedProfs {
+			incomingProf, ok := incomingProfs[newlyInsertedProf.Identifier]
+			if !ok {
+				return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
+			}
+
+			for _, label := range incomingProf.Labels {
+				label.ProfileUUID = newlyInsertedProf.ProfileUUID
+				incomingLabels = append(incomingLabels, label)
 			}
 		}
+	}
 
-		// build a list of labels so the associations can be batch-set all at once
-		// TODO: with minor changes this chunk of code could be shared
-		// between macOS and Windows, but at the time of this
-		// implementation we're under tight time constraints.
-		incomingLabels := []fleet.ConfigurationProfileLabel{}
-		if len(incomingIdents) > 0 {
-			var newlyInsertedProfs []*fleet.MDMAppleConfigProfile
-			// load current profiles (again) that match the incoming profiles by name to grab their uuids
-			stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingIdents)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
-			}
-			if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
-			}
-
-			for _, newlyInsertedProf := range newlyInsertedProfs {
-				incomingProf, ok := incomingProfs[newlyInsertedProf.Identifier]
-				if !ok {
-					return ctxerr.Wrapf(ctx, err, "profile %q is in the database but was not incoming", newlyInsertedProf.Identifier)
-				}
-
-				for _, label := range incomingProf.Labels {
-					label.ProfileUUID = newlyInsertedProf.ProfileUUID
-					incomingLabels = append(incomingLabels, label)
-				}
-			}
+	// insert label associations
+	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil || strings.HasPrefix(testBatchSetMDMAppleProfilesErr, "labels") {
+		if err == nil {
+			err = errors.New(testBatchSetMDMAppleProfilesErr)
 		}
-
-		// insert label associations
-		if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "darwin"); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
-		}
-		return nil
-	})
+		return ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
+	}
+	return nil
 }
 
 func (ds *Datastore) BulkDeleteMDMAppleHostsConfigProfiles(ctx context.Context, profs []*fleet.MDMAppleProfilePayload) error {
