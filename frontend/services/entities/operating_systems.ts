@@ -71,9 +71,9 @@ export const getOSVersions = ({
 };
 
 const getOSVersion = (os_version_id: number): Promise<IOSVersionResponse> => {
-  const { OS_VERSIONS } = endpoints;
+  const { OS_VERSION } = endpoints;
 
-  return sendRequest("GET", OS_VERSIONS, os_version_id);
+  return sendRequest("GET", OS_VERSION(os_version_id));
 };
 
 export default {
