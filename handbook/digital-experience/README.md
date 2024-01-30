@@ -17,7 +17,7 @@ This page details processes specific to working [with](#contact-us) and [within]
 > _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [#g-website group](https://fleetdm.com/handbook/company/development-groups#website-group).  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/development-groups#current-product-groups), and not by `#g-website`._
 
 ## Responsibilities
-The Digital Experience department is directly responsible for the framework behind Fleet's remote work culture including fleetdm.com, handbook structure and content design, internal automations and integrations, key spreadsheets, and project management processes.
+The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
