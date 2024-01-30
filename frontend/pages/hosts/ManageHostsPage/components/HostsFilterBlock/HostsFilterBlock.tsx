@@ -200,326 +200,326 @@ const HostsFilterBlock = ({
         />
       );
     }
+  };
 
-    // NOTE: good example of filter dropdown with pill
-    const renderPoliciesFilterBlock = () => (
+  // NOTE: good example of filter dropdown with pill
+  const renderPoliciesFilterBlock = () => (
+    <>
+      <PoliciesFilter
+        policyResponse={policyResponse}
+        onChange={onChangePoliciesFilter}
+      />
+      <FilterPill
+        icon="policy"
+        label={policy?.name ?? "..."}
+        onClear={() => handleClearFilter(["policy_id", "policy_response"])}
+        className={`${baseClass}__policies-filter-pill`}
+      />
+    </>
+  );
+
+  const renderMacSettingsStatusFilterBlock = () => {
+    const label = "macOS settings";
+    return (
       <>
-        <PoliciesFilter
-          policyResponse={policyResponse}
-          onChange={onChangePoliciesFilter}
+        <Dropdown
+          value={macSettingsStatus}
+          className={`${baseClass}__macsettings-dropdown`}
+          options={OS_SETTINGS_FILTER_OPTIONS}
+          onChange={onChangeMacSettingsFilter}
         />
         <FilterPill
-          icon="policy"
-          label={policy?.name ?? "..."}
-          onClear={() => handleClearFilter(["policy_id", "policy_response"])}
-          className={`${baseClass}__policies-filter-pill`}
+          label={label}
+          onClear={() => handleClearFilter(["macos_settings"])}
         />
       </>
     );
+  };
 
-    const renderMacSettingsStatusFilterBlock = () => {
-      const label = "macOS settings";
-      return (
-        <>
-          <Dropdown
-            value={macSettingsStatus}
-            className={`${baseClass}__macsettings-dropdown`}
-            options={OS_SETTINGS_FILTER_OPTIONS}
-            onChange={onChangeMacSettingsFilter}
-          />
-          <FilterPill
-            label={label}
-            onClear={() => handleClearFilter(["macos_settings"])}
-          />
-        </>
-      );
-    };
+  const renderSoftwareFilterBlock = () => {
+    if (!softwareDetails) return null;
 
-    const renderSoftwareFilterBlock = () => {
-      if (!softwareDetails) return null;
+    const { name, version } = softwareDetails;
+    let label = name;
+    if (version) {
+      label += ` ${version}`;
+    }
+    label = label.trim() || "Unknown software";
 
-      const { name, version } = softwareDetails;
-      let label = name;
-      if (version) {
-        label += ` ${version}`;
-      }
-      label = label.trim() || "Unknown software";
+    // const TooltipDescription = (
+    //   <span>
+    //     Hosts with {name || "Unknown software"},
+    //     <br />
+    //     {version || "version unknown"} installed
+    //   </span>
+    // );
 
-      // const TooltipDescription = (
-      //   <span>
-      //     Hosts with {name || "Unknown software"},
-      //     <br />
-      //     {version || "version unknown"} installed
-      //   </span>
-      // );
-
-      return (
-        <FilterPill
-          label={label}
-          onClear={() =>
-            handleClearFilter([
-              "software_id",
-              "software_version_id",
-              "software_title_id",
-            ])
-          }
-          // tooltipDescription={TooltipDescription}
-        />
-      );
-    };
-
-    const renderMDMSolutionFilterBlock = () => {
-      if (!mdmSolutionDetails) return null;
-
-      const { name, server_url } = mdmSolutionDetails;
-      const label = name ? `${name} ${server_url}` : `${server_url}`;
-
-      const TooltipDescription = (
-        <span>
-          Host enrolled
-          {name !== "Unknown" && ` to ${name}`}
-          <br /> at {server_url}
-        </span>
-      );
-
-      return (
-        <FilterPill
-          label={label}
-          tooltipDescription={TooltipDescription}
-          onClear={() => handleClearFilter(["mdm_id"])}
-        />
-      );
-    };
-
-    const renderMDMEnrollmentFilterBlock = () => {
-      if (!mdmEnrollmentStatus) return null;
-
-      const label = `MDM status: ${
-        invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
-      }`;
-
-      // More narrow tooltip than other MDM tooltip
-      const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
-        automatic: (
-          <span>
-            MDM was turned on <br />
-            automatically using Apple <br />
-            Automated Device <br />
-            Enrollment (DEP), <br />
-            Windows Autopilot, or <br />
-            Windows Azure AD Join. <br />
-            Administrators can block <br />
-            device users from turning
-            <br /> MDM off.
-          </span>
-        ),
-        manual: (
-          <span>
-            MDM was turned on <br />
-            manually. Device users <br />
-            can turn MDM off.
-          </span>
-        ),
-        unenrolled: (
-          <span>
-            Hosts with MDM off <br />
-            don&apos;t receive macOS <br />
-            settings and macOS <br />
-            update encouragement.
-          </span>
-        ),
-        pending: (
-          <span>
-            Hosts ordered using Apple <br />
-            Business Manager (ABM). <br />
-            They will automatically enroll <br />
-            to Fleet and turn on MDM <br />
-            when they&apos;re unboxed.
-          </span>
-        ),
-      };
-
-      return (
-        <FilterPill
-          label={label}
-          tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
-          onClear={() => handleClearFilter(["mdm_enrollment_status"])}
-        />
-      );
-    };
-
-    const renderMunkiIssueFilterBlock = () => {
-      if (munkiIssueDetails) {
-        return (
-          <FilterPill
-            label={munkiIssueDetails.name}
-            tooltipDescription={
-              <span>
-                Hosts that reported this Munki issue <br />
-                the last time Munki ran on each host.
-              </span>
-            }
-            onClear={() => handleClearFilter(["munki_issue_id"])}
-          />
-        );
-      }
-      return null;
-    };
-
-    const renderLowDiskSpaceFilterBlock = () => {
-      const TooltipDescription = (
-        <span>
-          Hosts that have {lowDiskSpaceHosts} GB or less <br />
-          disk space available.
-        </span>
-      );
-
-      return (
-        <FilterPill
-          label="Low disk space"
-          tooltipDescription={TooltipDescription}
-          premiumFeatureTooltipDelayHide={1000}
-          onClear={() => handleClearFilter(["low_disk_space"])}
-          isSandboxMode={isSandboxMode}
-          sandboxPremiumOnlyIcon
-        />
-      );
-    };
-
-    const renderOsSettingsBlock = () => {
-      const label = "OS settings";
-      return (
-        <>
-          <Dropdown
-            value={osSettingsStatus}
-            className={`${baseClass}__os_settings-dropdown`}
-            options={OS_SETTINGS_FILTER_OPTIONS}
-            onChange={onChangeOsSettingsFilter}
-          />
-          <FilterPill
-            label={label}
-            onClear={() => handleClearFilter([HOSTS_QUERY_PARAMS.OS_SETTINGS])}
-          />
-        </>
-      );
-    };
-
-    const renderDiskEncryptionStatusBlock = () => {
-      if (!diskEncryptionStatus) return null;
-
-      return (
-        <>
-          <DiskEncryptionStatusFilter
-            diskEncryptionStatus={diskEncryptionStatus}
-            onChange={onChangeDiskEncryptionStatusFilter}
-          />
-          <FilterPill
-            label="OS settings: Disk encryption"
-            onClear={() =>
-              handleClearFilter([HOSTS_QUERY_PARAMS.DISK_ENCRYPTION])
-            }
-          />
-        </>
-      );
-    };
-
-    const renderBootstrapPackageStatusBlock = () => {
-      if (!bootstrapPackageStatus) return null;
-
-      return (
-        <>
-          <BootstrapPackageStatusFilter
-            bootstrapPackageStatus={bootstrapPackageStatus}
-            onChange={onChangeBootstrapPackageStatusFilter}
-          />
-          <FilterPill
-            label="macOS settings: bootstrap package"
-            onClear={() => handleClearFilter(["bootstrap_package"])}
-          />
-        </>
-      );
-    };
-
-    const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
-
-    if (
-      showSelectedLabel ||
-      policyId ||
-      macSettingsStatus ||
-      softwareId ||
-      softwareTitleId ||
-      softwareVersionId ||
-      mdmId ||
-      mdmEnrollmentStatus ||
-      lowDiskSpaceHosts ||
-      osVersionId ||
-      (osName && osVersion) ||
-      munkiIssueId ||
-      osSettingsStatus ||
-      diskEncryptionStatus ||
-      bootstrapPackageStatus
-    ) {
-      const renderFilterPill = () => {
-        switch (true) {
-          // backend allows for pill combos (label + low disk space) OR
-          // (label + mdm solution) OR (label + mdm enrollment status)
-          case showSelectedLabel && !!lowDiskSpaceHosts:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
-              </>
-            );
-          case showSelectedLabel && !!mdmId:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
-              </>
-            );
-
-          case showSelectedLabel && !!mdmEnrollmentStatus:
-            return (
-              <>
-                {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
-              </>
-            );
-          case showSelectedLabel:
-            return renderLabelFilterPill();
-          case !!policyId:
-            return renderPoliciesFilterBlock();
-          case !!macSettingsStatus:
-            return renderMacSettingsStatusFilterBlock();
-          case !!softwareId || !!softwareVersionId || !!softwareTitleId:
-            return renderSoftwareFilterBlock();
-          case !!mdmId:
-            return renderMDMSolutionFilterBlock();
-          case !!mdmEnrollmentStatus:
-            return renderMDMEnrollmentFilterBlock();
-          case !!osVersionId || (!!osName && !!osVersion):
-            return renderOSFilterBlock();
-          case !!munkiIssueId:
-            return renderMunkiIssueFilterBlock();
-          case !!lowDiskSpaceHosts:
-            return renderLowDiskSpaceFilterBlock();
-          case !!osSettingsStatus:
-            return renderOsSettingsBlock();
-          case !!diskEncryptionStatus:
-            return renderDiskEncryptionStatusBlock();
-          case !!bootstrapPackageStatus:
-            return renderBootstrapPackageStatusBlock();
-          default:
-            return null;
+    return (
+      <FilterPill
+        label={label}
+        onClear={() =>
+          handleClearFilter([
+            "software_id",
+            "software_version_id",
+            "software_title_id",
+          ])
         }
-      };
+        // tooltipDescription={TooltipDescription}
+      />
+    );
+  };
 
+  const renderMDMSolutionFilterBlock = () => {
+    if (!mdmSolutionDetails) return null;
+
+    const { name, server_url } = mdmSolutionDetails;
+    const label = name ? `${name} ${server_url}` : `${server_url}`;
+
+    const TooltipDescription = (
+      <span>
+        Host enrolled
+        {name !== "Unknown" && ` to ${name}`}
+        <br /> at {server_url}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={() => handleClearFilter(["mdm_id"])}
+      />
+    );
+  };
+
+  const renderMDMEnrollmentFilterBlock = () => {
+    if (!mdmEnrollmentStatus) return null;
+
+    const label = `MDM status: ${
+      invert(MDM_ENROLLMENT_STATUS)[mdmEnrollmentStatus]
+    }`;
+
+    // More narrow tooltip than other MDM tooltip
+    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
+      automatic: (
+        <span>
+          MDM was turned on <br />
+          automatically using Apple <br />
+          Automated Device <br />
+          Enrollment (DEP), <br />
+          Windows Autopilot, or <br />
+          Windows Azure AD Join. <br />
+          Administrators can block <br />
+          device users from turning
+          <br /> MDM off.
+        </span>
+      ),
+      manual: (
+        <span>
+          MDM was turned on <br />
+          manually. Device users <br />
+          can turn MDM off.
+        </span>
+      ),
+      unenrolled: (
+        <span>
+          Hosts with MDM off <br />
+          don&apos;t receive macOS <br />
+          settings and macOS <br />
+          update encouragement.
+        </span>
+      ),
+      pending: (
+        <span>
+          Hosts ordered using Apple <br />
+          Business Manager (ABM). <br />
+          They will automatically enroll <br />
+          to Fleet and turn on MDM <br />
+          when they&apos;re unboxed.
+        </span>
+      ),
+    };
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={MDM_STATUS_PILL_TOOLTIP[mdmEnrollmentStatus]}
+        onClear={() => handleClearFilter(["mdm_enrollment_status"])}
+      />
+    );
+  };
+
+  const renderMunkiIssueFilterBlock = () => {
+    if (munkiIssueDetails) {
       return (
-        <div className={`${baseClass}__labels-active-filter-wrap`}>
-          {renderFilterPill()}
-        </div>
+        <FilterPill
+          label={munkiIssueDetails.name}
+          tooltipDescription={
+            <span>
+              Hosts that reported this Munki issue <br />
+              the last time Munki ran on each host.
+            </span>
+          }
+          onClear={() => handleClearFilter(["munki_issue_id"])}
+        />
       );
     }
-
     return null;
   };
+
+  const renderLowDiskSpaceFilterBlock = () => {
+    const TooltipDescription = (
+      <span>
+        Hosts that have {lowDiskSpaceHosts} GB or less <br />
+        disk space available.
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label="Low disk space"
+        tooltipDescription={TooltipDescription}
+        premiumFeatureTooltipDelayHide={1000}
+        onClear={() => handleClearFilter(["low_disk_space"])}
+        isSandboxMode={isSandboxMode}
+        sandboxPremiumOnlyIcon
+      />
+    );
+  };
+
+  const renderOsSettingsBlock = () => {
+    const label = "OS settings";
+    return (
+      <>
+        <Dropdown
+          value={osSettingsStatus}
+          className={`${baseClass}__os_settings-dropdown`}
+          options={OS_SETTINGS_FILTER_OPTIONS}
+          onChange={onChangeOsSettingsFilter}
+        />
+        <FilterPill
+          label={label}
+          onClear={() => handleClearFilter([HOSTS_QUERY_PARAMS.OS_SETTINGS])}
+        />
+      </>
+    );
+  };
+
+  const renderDiskEncryptionStatusBlock = () => {
+    if (!diskEncryptionStatus) return null;
+
+    return (
+      <>
+        <DiskEncryptionStatusFilter
+          diskEncryptionStatus={diskEncryptionStatus}
+          onChange={onChangeDiskEncryptionStatusFilter}
+        />
+        <FilterPill
+          label="OS settings: Disk encryption"
+          onClear={() =>
+            handleClearFilter([HOSTS_QUERY_PARAMS.DISK_ENCRYPTION])
+          }
+        />
+      </>
+    );
+  };
+
+  const renderBootstrapPackageStatusBlock = () => {
+    if (!bootstrapPackageStatus) return null;
+
+    return (
+      <>
+        <BootstrapPackageStatusFilter
+          bootstrapPackageStatus={bootstrapPackageStatus}
+          onChange={onChangeBootstrapPackageStatusFilter}
+        />
+        <FilterPill
+          label="macOS settings: bootstrap package"
+          onClear={() => handleClearFilter(["bootstrap_package"])}
+        />
+      </>
+    );
+  };
+
+  const showSelectedLabel = selectedLabel && selectedLabel.type !== "all";
+
+  if (
+    showSelectedLabel ||
+    policyId ||
+    macSettingsStatus ||
+    softwareId ||
+    softwareTitleId ||
+    softwareVersionId ||
+    mdmId ||
+    mdmEnrollmentStatus ||
+    lowDiskSpaceHosts ||
+    osVersionId ||
+    (osName && osVersion) ||
+    munkiIssueId ||
+    osSettingsStatus ||
+    diskEncryptionStatus ||
+    bootstrapPackageStatus
+  ) {
+    const renderFilterPill = () => {
+      switch (true) {
+        // backend allows for pill combos (label + low disk space) OR
+        // (label + mdm solution) OR (label + mdm enrollment status)
+        case showSelectedLabel && !!lowDiskSpaceHosts:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderLowDiskSpaceFilterBlock()}
+            </>
+          );
+        case showSelectedLabel && !!mdmId:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderMDMSolutionFilterBlock()}
+            </>
+          );
+
+        case showSelectedLabel && !!mdmEnrollmentStatus:
+          return (
+            <>
+              {renderLabelFilterPill()} {renderMDMEnrollmentFilterBlock()}
+            </>
+          );
+        case showSelectedLabel:
+          return renderLabelFilterPill();
+        case !!policyId:
+          return renderPoliciesFilterBlock();
+        case !!macSettingsStatus:
+          return renderMacSettingsStatusFilterBlock();
+        case !!softwareId || !!softwareVersionId || !!softwareTitleId:
+          return renderSoftwareFilterBlock();
+        case !!mdmId:
+          return renderMDMSolutionFilterBlock();
+        case !!mdmEnrollmentStatus:
+          return renderMDMEnrollmentFilterBlock();
+        case !!osVersionId || (!!osName && !!osVersion):
+          return renderOSFilterBlock();
+        case !!munkiIssueId:
+          return renderMunkiIssueFilterBlock();
+        case !!lowDiskSpaceHosts:
+          return renderLowDiskSpaceFilterBlock();
+        case !!osSettingsStatus:
+          return renderOsSettingsBlock();
+        case !!diskEncryptionStatus:
+          return renderDiskEncryptionStatusBlock();
+        case !!bootstrapPackageStatus:
+          return renderBootstrapPackageStatusBlock();
+        default:
+          return null;
+      }
+    };
+
+    return (
+      <div className={`${baseClass}__labels-active-filter-wrap`}>
+        {renderFilterPill()}
+      </div>
+    );
+  }
+
+  return null;
 };
 
 export default HostsFilterBlock;
