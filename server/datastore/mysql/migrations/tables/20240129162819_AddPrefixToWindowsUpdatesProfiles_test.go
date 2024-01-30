@@ -18,7 +18,7 @@ func TestUp_20240129162819(t *testing.T) {
 	updateProfUpdatedAt := time.Now().UTC().AddDate(0, 0, -3).Truncate(time.Second)
 
 	profStmt := `
-		INSERT INTO mdm_windows_configuration_profiles VALUES
+		INSERT INTO mdm_windows_configuration_profiles (team_id, name, syncml, created_at, updated_at, profile_uuid) VALUES
 			(0,'prof1','<Replace></Replace>','2023-11-03 20:32:32',?,?),
 			(0,'updateProf','<Replace></Replace>','2023-11-03 21:32:32',?,?);
 	`
