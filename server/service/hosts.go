@@ -1895,7 +1895,7 @@ func (r getOSVersionResponse) error() error { return r.Err }
 func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getOSVersionRequest)
 
-	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID)
+	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
@@ -1903,7 +1903,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
-func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
@@ -1922,7 +1922,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint) (*fl
 	}
 
 	// populate OSVersion.Vulnerabilities
-	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, false)
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
 	if err != nil {
 		return nil, nil, err
 	}

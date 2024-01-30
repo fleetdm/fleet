@@ -7444,7 +7444,7 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
 
 	// Default sort is by hosts count, descending
-	require.Equal(t, fleet.OSVersion{
+	expectedVersion := fleet.OSVersion{
 		HostsCount:  4,
 		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
 		NameOnly:    "Windows 11 Pro 21H2",
@@ -7461,7 +7461,18 @@ func (s *integrationTestSuite) TestOSVersions() {
 				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
 			},
 		},
-	}, osVersionsResp.OSVersions[0])
+	}
+
+	// Default sort is by hosts count, descending
+	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+
+	// get OS version by id
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/4", nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+
+	// invalid id
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
