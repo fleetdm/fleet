@@ -18,6 +18,8 @@ import (
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-sql-driver/mysql"
@@ -25,8 +27,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/micromdm/nanodep/godep"
 	"github.com/micromdm/nanodep/tokenpki"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -39,6 +39,7 @@ func TestMDMApple(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestNewMDMAppleConfigProfileDuplicateName", testNewMDMAppleConfigProfileDuplicateName},
+		{"TestNewMDMAppleConfigProfileLabels", testNewMDMAppleConfigProfileLabels},
 		{"TestNewMDMAppleConfigProfileDuplicateIdentifier", testNewMDMAppleConfigProfileDuplicateIdentifier},
 		{"TestDeleteMDMAppleConfigProfile", testDeleteMDMAppleConfigProfile},
 		{"TestDeleteMDMAppleConfigProfileByTeamAndIdentifier", testDeleteMDMAppleConfigProfileByTeamAndIdentifier},
@@ -138,6 +139,38 @@ func testNewMDMAppleConfigProfileDuplicateName(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &existsErr)
 }
 
+func testNewMDMAppleConfigProfileLabels(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	dummyMC := mobileconfig.Mobileconfig([]byte("DummyTestMobileconfigBytes"))
+	cp := fleet.MDMAppleConfigProfile{
+		Name:         "DummyTestName",
+		Identifier:   "DummyTestIdentifier",
+		Mobileconfig: dummyMC,
+		TeamID:       nil,
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: "foo", LabelID: 1},
+		},
+	}
+	_, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NotNil(t, err)
+	require.True(t, fleet.IsForeignKey(err))
+
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+	cp.Labels = []fleet.ConfigurationProfileLabel{
+		{LabelName: label.Name, LabelID: label.ID},
+	}
+	prof, err := ds.NewMDMAppleConfigProfile(ctx, cp)
+	require.NoError(t, err)
+	require.NotEmpty(t, prof.ProfileUUID)
+}
+
 func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	initialCP := storeDummyConfigProfileForTest(t, ds)
@@ -163,9 +196,46 @@ func testNewMDMAppleConfigProfileDuplicateIdentifier(t *testing.T, ds *Datastore
 	storedCP, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, newCP.ProfileID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
 	storedCP, err = ds.GetMDMAppleConfigProfile(ctx, newCP.ProfileUUID)
 	require.NoError(t, err)
 	checkConfigProfile(t, *newCP, *storedCP)
+	require.Nil(t, storedCP.Labels)
+
+	// create a label-based profile
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "lbl", Query: "select 1"})
+	require.NoError(t, err)
+
+	labelCP := fleet.MDMAppleConfigProfile{
+		Name:         "label-based",
+		Identifier:   "label-based",
+		Mobileconfig: mobileconfig.Mobileconfig([]byte("LabelTestMobileconfigBytes")),
+		Labels: []fleet.ConfigurationProfileLabel{
+			{LabelName: lbl.Name, LabelID: lbl.ID},
+		},
+	}
+	labelProf, err := ds.NewMDMAppleConfigProfile(ctx, labelCP)
+	require.NoError(t, err)
+
+	// get it back from both the deprecated ID and the uuid methods, labels are
+	// only included in the uuid one
+	prof, err := ds.GetMDMAppleConfigProfileByDeprecatedID(ctx, labelProf.ProfileID)
+	require.NoError(t, err)
+	require.Nil(t, prof.Labels)
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.False(t, prof.Labels[0].Broken)
+
+	// break the profile by deleting the label
+	require.NoError(t, ds.DeleteLabel(ctx, lbl.Name))
+
+	prof, err = ds.GetMDMAppleConfigProfile(ctx, labelProf.ProfileUUID)
+	require.NoError(t, err)
+	require.Len(t, prof.Labels, 1)
+	require.Equal(t, lbl.Name, prof.Labels[0].LabelName)
+	require.True(t, prof.Labels[0].Broken)
 }
 
 func generateCP(name string, identifier string, teamID uint) *fleet.MDMAppleConfigProfile {
@@ -1027,12 +1097,17 @@ func configProfileBytesForTest(name, identifier, uuid string) []byte {
 `, name, identifier, uuid))
 }
 
-func configProfileForTest(t *testing.T, name, identifier, uuid string) *fleet.MDMAppleConfigProfile {
+func configProfileForTest(t *testing.T, name, identifier, uuid string, labels ...*fleet.Label) *fleet.MDMAppleConfigProfile {
 	prof := configProfileBytesForTest(name, identifier, uuid)
 	cp, err := fleet.NewMDMAppleConfigProfile(configProfileBytesForTest(name, identifier, uuid), nil)
 	require.NoError(t, err)
 	sum := md5.Sum(prof) // nolint:gosec // used only to hash for efficient comparisons
 	cp.Checksum = sum[:]
+
+	for _, lbl := range labels {
+		cp.Labels = append(cp.Labels, fleet.ConfigurationProfileLabel{LabelName: lbl.Name, LabelID: lbl.ID})
+	}
+
 	return cp
 }
 
@@ -3464,11 +3539,13 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	cp3, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "name3", "cp3", "uuid3"))
 	require.NoError(t, err)
+	cp4, err := ds.NewMDMAppleConfigProfile(ctx, *configProfileForTest(t, "name4", "cp4", "uuid4"))
+	require.NoError(t, err)
 
 	// list config profiles for no team
 	cps, err := ds.ListMDMAppleConfigProfiles(ctx, nil)
 	require.NoError(t, err)
-	require.Len(t, cps, 3)
+	require.Len(t, cps, 4)
 	storedByIdentifier := make(map[string]*fleet.MDMAppleConfigProfile)
 	for _, cp := range cps {
 		storedByIdentifier[cp.Identifier] = cp
@@ -3484,6 +3561,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			cp1.Identifier: fleet.MDMDeliveryPending,
 			cp2.Identifier: fleet.MDMDeliveryVerifying,
 			cp3.Identifier: fleet.MDMDeliveryVerified,
+			cp4.Identifier: fleet.MDMDeliveryPending,
 		}
 	}
 
@@ -3497,12 +3575,12 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		for _, h := range hosts {
 			gotProfs, err := ds.GetHostMDMAppleProfiles(ctx, h.UUID)
 			require.NoError(t, err)
-			require.Len(t, gotProfs, 3)
+			require.Len(t, gotProfs, 4)
 			for _, p := range gotProfs {
 				s, ok := expectedHostMDMStatus[h.ID][p.Identifier]
 				require.True(t, ok)
 				require.NotNil(t, p.Status)
-				require.Equal(t, s, *p.Status)
+				require.Equalf(t, s, *p.Status, "profile identifier %s", p.Identifier)
 			}
 		}
 	}
@@ -3520,21 +3598,11 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp1.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, ctx, ds, t)
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp2.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
 	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp3.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	upsertHostCPs(hosts, []*fleet.MDMAppleConfigProfile{storedByIdentifier[cp4.Identifier]}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryPending, ctx, ds, t)
 	checkHostMDMProfileStatuses()
 
 	// statuses don't change during the grace period if profiles are missing (i.e. not installed)
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{}))
-	checkHostMDMProfileStatuses()
-
-	// only "verifying" status can change to "verified" so status of cp1 doesn't change (it
-	// remains "pending")
-	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[0], map[string]*fleet.HostMacOSProfile{
-		cp1.Identifier: {
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: time.Now(),
-		},
-	}))
 	checkHostMDMProfileStatuses()
 
 	// if install date is before the updated at timestamp of the profile, statuses don't change
@@ -3555,17 +3623,17 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt.Add(-1 * time.Hour),
 		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt.Add(-1 * time.Hour),
+		},
 	})))
 	checkHostMDMProfileStatuses()
 
-	// if install date is on or after the updated at timestamp of the profile, "verifying" status
-	// changes to "verified"
+	// if install date is on or after the updated at timestamp of the profile, "verifying" or "pending" status
+	// changes to "verified". Any "pending" profiles not reported are not changed
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
-		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: storedByIdentifier[cp1.Identifier].UpdatedAt,
-		},
 		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
@@ -3576,18 +3644,19 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
 		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
+		},
 	})))
 	expectedHostMDMStatus[hosts[2].ID][cp2.Identifier] = fleet.MDMDeliveryVerified
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryVerified
 	checkHostMDMProfileStatuses()
 
 	// repeated call doesn't change statuses
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
-			Identifier:  cp1.Identifier,
-			DisplayName: cp1.Name,
-			InstallDate: storedByIdentifier[cp1.Identifier].UpdatedAt,
-		},
-		{
 			Identifier:  cp2.Identifier,
 			DisplayName: cp2.Name,
 			InstallDate: storedByIdentifier[cp2.Identifier].UpdatedAt,
@@ -3596,6 +3665,11 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			Identifier:  cp3.Identifier,
 			DisplayName: cp3.Name,
 			InstallDate: storedByIdentifier[cp3.Identifier].UpdatedAt,
+		},
+		{
+			Identifier:  cp4.Identifier,
+			DisplayName: cp4.Name,
+			InstallDate: storedByIdentifier[cp4.Identifier].UpdatedAt,
 		},
 	})))
 	checkHostMDMProfileStatuses()
@@ -3603,9 +3677,9 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 	// simulate expired grace period by setting updated_at timestamp of profiles back by 24 hours
 	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 		_, err := tx.ExecContext(ctx,
-			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?)`,
+			`UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE profile_uuid IN(?, ?, ?, ?)`,
 			time.Now().Add(-24*time.Hour),
-			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID,
+			cp1.ProfileUUID, cp2.ProfileUUID, cp3.ProfileUUID, cp4.ProfileUUID,
 		)
 		return err
 	})
@@ -3623,11 +3697,14 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 			InstallDate: time.Now(),
 		},
 	})))
-	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending // first retry for cp3
+	expectedHostMDMStatus[hosts[2].ID][cp1.Identifier] = fleet.MDMDeliveryVerified //cp1 can go from pending to verified
+	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryPending  // first retry for cp3
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryPending  // first retry for cp4
 	checkHostMDMProfileStatuses()
 	// simulate retry command acknowledged by setting status to "verifying"
 	adHocSetVerifying(hosts[2].UUID, cp3.Identifier)
-	// report osquery results again with cp3 still missing
+	adHocSetVerifying(hosts[2].UUID, cp4.Identifier)
+	// report osquery results again with cp3 and cp4 still missing
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, ds, hosts[2], profilesByIdentifier([]*fleet.HostMacOSProfile{
 		{
 			Identifier:  cp1.Identifier,
@@ -3641,6 +3718,7 @@ func testSetVerifiedMacOSProfiles(t *testing.T, ds *Datastore) {
 		},
 	})))
 	expectedHostMDMStatus[hosts[2].ID][cp3.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp3 to fail
+	expectedHostMDMStatus[hosts[2].ID][cp4.Identifier] = fleet.MDMDeliveryFailed // still missing after retry so expect cp4 to fail
 	checkHostMDMProfileStatuses()
 
 	// after the grace period and one retry attempt, status changes to "failed" if a profile is outdated (i.e. installed
@@ -4471,7 +4549,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			{
 				name:           "PendingThenFoundExpected",
 				initialStatus:  fleet.MDMDeliveryPending,
-				expectedStatus: fleet.MDMDeliveryPending, // no change
+				expectedStatus: fleet.MDMDeliveryVerified, // pending can go to verified if found
 				expectedDetail: "",
 			},
 			{
@@ -4534,7 +4612,7 @@ func TestMDMAppleProfileVerification(t *testing.T) {
 			{
 				name:           "PendingThenFoundExpectedAndUnexpected",
 				initialStatus:  fleet.MDMDeliveryPending,
-				expectedStatus: fleet.MDMDeliveryPending, // no change
+				expectedStatus: fleet.MDMDeliveryVerified, // profile can go from pending to verified
 				expectedDetail: "",
 			},
 			{

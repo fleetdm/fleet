@@ -294,23 +294,7 @@ const DeviceUserPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `My device ${hostTab()} details | ${
-      host?.display_name || "Unknown host"
-    } | ${DOCUMENT_TITLE_SUFFIX}`;
+    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   const renderActionButtons = () => {
@@ -375,11 +359,11 @@ const DeviceUserPage = ({
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
 
     return (
-      <div className="fleet-desktop-wrapper">
+      <div className="core-wrapper">
         {isLoadingHost ? (
           <Spinner />
         ) : (
-          <div className={`${baseClass} body-wrap`}>
+          <div className={`${baseClass} main-content`}>
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
@@ -421,7 +405,7 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper>
+            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}

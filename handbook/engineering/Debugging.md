@@ -134,7 +134,7 @@ allow us to see more details as to what's happening in the communication with Fl
 the logs and other configurations.
 
 If you are running Fleetd, you should add `--debug` to the command-line options. This will get debug logs for Fleetd and 
-also for osquery automatically. Check the [Fleetd Docs](https://fleetdm.com/docs/using-fleet/fleetd#logs) 
+also for osquery automatically. Check the [fleetd docs](https://fleetdm.com/docs/using-fleet/enroll-hosts#finding-fleetd-logs) 
 for more details as to where to find Fleetd-specific logs.
 
 If you're having issues with memory leaks or failures in the orbit process, then you can create a profile dump.

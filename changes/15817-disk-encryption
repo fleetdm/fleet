@@ -1,1 +1,0 @@
-* Fix a bug that didn't allow to enable team disk encryption if macOS MDM was not configured.

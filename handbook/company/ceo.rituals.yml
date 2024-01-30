@@ -17,6 +17,7 @@
   dri: "sampfluger88" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-ceo" ] # label to be applied to issue
+    repo: "confidential" # The GitHub repo that issues will be created in
 -
   task: "Process the CEO's inbox"
   startedOn: "2023-07-29"

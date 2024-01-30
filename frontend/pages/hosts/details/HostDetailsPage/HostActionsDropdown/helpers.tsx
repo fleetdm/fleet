@@ -2,6 +2,7 @@ import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { SCRIPT_SUPPORTED_PLATFORMS } from "interfaces/script";
 
 const DEFAULT_OPTIONS = [
   {
@@ -13,6 +14,11 @@ const DEFAULT_OPTIONS = [
   {
     label: "Query",
     value: "query",
+    disabled: false,
+  },
+  {
+    label: "Run script",
+    value: "runScript",
     disabled: false,
   },
   {
@@ -38,8 +44,10 @@ interface IHostActionConfigOptions {
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
   isGlobalMaintainer: boolean;
+  isGlobalObserver: boolean;
   isTeamAdmin: boolean;
   isTeamMaintainer: boolean;
+  isTeamObserver: boolean;
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isFleetMdm: boolean;
@@ -87,6 +95,28 @@ const canShowDiskEncryption = (config: IHostActionConfigOptions) => {
   return isPremiumTier && doesStoreEncryptionKey;
 };
 
+const canRunScript = ({
+  hostPlatform,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+}: IHostActionConfigOptions) => {
+  return (
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver) &&
+    // TODO: revisit this approach to white-list supported platforms (which
+    // would require a more robust approach to identifying linux flavors)
+    !!SCRIPT_SUPPORTED_PLATFORMS.find((p) => p === hostPlatform)
+  );
+};
+
 const filterOutOptions = (
   options: IDropdownOption[],
   config: IHostActionConfigOptions
@@ -106,6 +136,15 @@ const filterOutOptions = (
   if (!canDeleteHost(config)) {
     options = options.filter((option) => option.value !== "delete");
   }
+
+  if (!canRunScript(config)) {
+    options = options.filter((option) => option.value !== "runScript");
+  }
+
+  // TODO: refactor to filter in one pass using predefined filters specified for each of the
+  // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options. For
+  // example, "Query" is implicitly included by default because there is no equivalent `canQuery`
+  // filter being applied here. This is a bit confusing since
 
   return options;
 };

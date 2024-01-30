@@ -808,6 +808,13 @@ allow {
   action == write
 }
 
+# Any logged in user can read the manual enrollment profile data.
+allow {
+	object.type == "mdm_apple_manual_enrollment_profile"
+	not is_null(subject)
+	action == read
+}
+
 ##
 # Cron schedules
 ##

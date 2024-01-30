@@ -1,24 +1,29 @@
+import Linux from "components/icons/Linux";
 import AcrobatReader from "./AcrobatReader";
-import Chrome from "./Chrome";
+import ChromeApp from "./ChromeApp";
 import Excel from "./Excel";
 import Extension from "./Extension";
 import Firefox from "./Firefox";
 import MacApp from "./MacApp";
+import MacOS from "./MacOS";
 import Package from "./Package";
 import Safari from "./Safari";
 import Slack from "./Slack";
 import Teams from "./Teams";
 import VisualStudioCode from "./VisualStudioCode";
 import WindowsApp from "./WindowsApp";
+import WindowsOS from "./WindowsOS";
 import Word from "./Word";
 import Zoom from "./Zoom";
+import ChromeOS from "./ChromeOS";
+import LinuxOS from "./LinuxOS";
 
 // SOFTWARE_NAME_TO_ICON_MAP list "special" applications that have a defined
 // icon for them, keys refer to application names, and are intended to be fuzzy
 // matched in the application logic.
 export const SOFTWARE_NAME_TO_ICON_MAP = {
   "adobe acrobat reader": AcrobatReader,
-  "google chrome": Chrome,
+  "google chrome": ChromeApp,
   "microsoft excel": Excel,
   firefox: Firefox,
   package: Package,
@@ -28,6 +33,10 @@ export const SOFTWARE_NAME_TO_ICON_MAP = {
   "visual studio code": VisualStudioCode,
   "microsoft word": Word,
   zoom: Zoom,
+  darwin: MacOS,
+  windows: WindowsOS,
+  chrome: ChromeOS,
+  linux: LinuxOS,
 } as const;
 
 // SOFTWARE_SOURCE_TO_ICON_MAP maps different software sources to a defined

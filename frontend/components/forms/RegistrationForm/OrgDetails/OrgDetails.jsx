@@ -41,22 +41,20 @@ class OrgDetails extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
-        <div className="registration-fields">
-          <InputField
-            {...fields.org_name}
-            label="Organization name"
-            tabIndex={tabIndex}
-            ref={(input) => {
-              this.firstInput = input;
-            }}
-          />
-          <InputField
-            {...fields.org_logo_url}
-            label="Organization logo URL (optional)"
-            tabIndex={tabIndex}
-            hint="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
-          />
-        </div>
+        <InputField
+          {...fields.org_name}
+          label="Organization name"
+          tabIndex={tabIndex}
+          ref={(input) => {
+            this.firstInput = input;
+          }}
+        />
+        <InputField
+          {...fields.org_logo_url}
+          label="Organization logo URL (optional)"
+          tabIndex={tabIndex}
+          helpText="Personalize Fleet with your brand.  For best results, use a square image at least 150px wide, like https://fleetdm.com/logo.png."
+        />
         <Button
           type="submit"
           tabIndex={tabIndex}

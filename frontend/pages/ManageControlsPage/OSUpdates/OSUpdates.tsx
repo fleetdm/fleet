@@ -50,6 +50,15 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     setSelectedPlatform(getSelectedPlatform(config));
   }, [config]);
 
+  // Not premium shows premium message
+  if (!isPremiumTier) {
+    return (
+      <PremiumFeatureMessage
+        className={`${baseClass}__premium-feature-message`}
+      />
+    );
+  }
+
   if (config === null || teamIdForApi === undefined) return null;
 
   // mdm is not enabled for mac or windows.
@@ -58,15 +67,6 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     !config.mdm.windows_enabled_and_configured
   ) {
     return <TurnOnMdmMessage router={router} />;
-  }
-
-  // Not premium shows premium message
-  if (!isPremiumTier) {
-    return (
-      <PremiumFeatureMessage
-        className={`${baseClass}__premium-feature-message`}
-      />
-    );
   }
 
   const handleSelectPlatform = (platform: OSUpdatesSupportedPlatform) => {
@@ -80,9 +80,12 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         assigned to this team.
       </p>
       <div className={`${baseClass}__content`}>
-        <div className={`${baseClass}__form-table-content`}>
+        <div className={`${baseClass}__current-version-container`}>
           <CurrentVersionSection currentTeamId={teamIdForApi} />
+        </div>
+        <div className={`${baseClass}__taget-container`}>
           <TargetSection
+            key={teamIdForApi} // we need to re-render this component when the team id changes.
             currentTeamId={teamIdForApi}
             onSelectAccordionItem={handleSelectPlatform}
           />

@@ -1,4 +1,4 @@
-import React, { FormEvent, useState, useContext, useEffect } from "react";
+import React, { FormEvent, useState, useContext } from "react";
 
 import { AppContext } from "context/app";
 
@@ -173,10 +173,13 @@ const RequestCSRModal = ({ onCancel }: IRequestCSRModalProps): JSX.Element => {
               parseTarget
               value={email}
               error={emailError}
+              helpText={
+                <>
+                  Apple Inc. requires a work email (ex.
+                  name@your-organization.com).
+                </>
+              }
             />
-            <p>
-              Apple Inc. requires a work email (ex. name@your-organization.com).
-            </p>
           </div>
           <InputField
             name="orgName"

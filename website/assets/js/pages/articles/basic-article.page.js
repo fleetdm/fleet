@@ -20,6 +20,11 @@ parasails.registerPage('basic-article', {
     if(this.articleHasSubtitle.length > 0 && this.articleHasSubtitle[0].innerText) {
       this.articleSubtitle = this.articleHasSubtitle[0].innerText;
     }
+    // Set counters for items in ordered lists to be the value of their "start" attribute.
+    document.querySelectorAll('ol[start]').forEach((ol)=> {
+      let startValue = parseInt(ol.getAttribute('start'), 10) - 1;
+      ol.style.counterReset = 'custom-counter ' + startValue;
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

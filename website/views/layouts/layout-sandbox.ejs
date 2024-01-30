@@ -18,9 +18,9 @@
     <meta name="twitter:site" content="https://fleetdm.com" />
     <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'  %>" />
     <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
-    <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-white-square-1200x1200@2x.png' %>" />
     <%// Meta tags for other social previews %>
-    <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-square@2x.png' %>" />
+    <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
     <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
     <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
     <% /* Script tags should normally be included further down the page- but any
@@ -183,17 +183,18 @@
                 <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
                 <div class="d-block">
                   <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                    <a href="/announcements">Announcements</a>
-                    <a href="/securing">Security</a>
-                    <a href="/engineering">Engineering</a>
-                    <a href="/podcasts">Podcasts</a>
-                    <a href="/reports/state-of-device-management">Reports</a>
+                    <span>ARTICLES</span>
+                    <a class="pl-3" href="/announcements">Announcements</a>
+                    <a class="pl-3" href="/securing">Security</a>
+                    <a class="pl-3" href="/engineering">Engineering</a>
+                    <a class="pl-3" href="/podcasts">Podcasts</a>
+                    <a class="pl-3" href="/reports/state-of-device-management">Reports</a>
+                    <span>CONTRIBUTE</span>
+                    <a class="pl-3" href="/slack" target="_blank">Join the conversation</a>
+                    <a class="pl-3" href="/contribute">Contribute to Fleet</a>
                     <span>RESOURCES</span>
-                    <a href="/slack" target="_blank">Join the conversation</a>
-                    <a href="/contribute">Contribute to Fleet</a>
-                    <span>RESOURCES</span>
-                    <a href="/handbook">Handbook</a>
-                    <a href="/logos">Logos & artwork</a>
+                    <a class="pl-3" href="/handbook">Handbook</a>
+                    <a class="pl-3" href="/logos">Logos & artwork</a>
                   </div>
                 </div>
                 <hr>
@@ -233,6 +234,7 @@
               <div purpose="dropdown-button" class="btn-group">
                 <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
                 <div purpose="header-dropdown" class="dropdown-menu">
+                  <span class="muted dropdown-header">ARTICLES</span>
                   <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
                   <a class="dropdown-item mb-1" href="/securing">Security</a>
                   <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
@@ -269,7 +271,7 @@
           <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
             <div class="d-flex">
-              © 2023 Fleet Device Management Inc.
+              © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
               <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
             </div>
           </div>
@@ -323,6 +325,7 @@
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
+    <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
@@ -341,6 +344,7 @@
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/dashboard/welcome.page.js"></script>
+    <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
     <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
@@ -349,7 +353,6 @@
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
-    <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
