@@ -1879,6 +1879,68 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 	return slice[start:end], metaData
 }
 
+type getOSVersionRequest struct {
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getOSVersionResponse struct {
+	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
+	OSVersion       *fleet.OSVersion `json:"os_version"`
+	Err             error            `json:"error,omitempty"`
+}
+
+func (r getOSVersionResponse) error() error { return r.Err }
+
+func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOSVersionRequest)
+
+	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID)
+	if err != nil {
+		return getOSVersionResponse{Err: err}, nil
+	}
+
+	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
+}
+
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// populate OSVersion.GeneratedCPEs
+	if osVersion.Platform == "darwin" {
+		osVersion.GeneratedCPEs = []string{
+			fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osVersion.Version),
+			fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osVersion.Version),
+		}
+	}
+
+	// populate OSVersion.Vulnerabilities
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, false)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	for _, vuln := range vulns {
+		switch osVersion.Platform {
+		case "darwin":
+			vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+		case "windows":
+			vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+		}
+		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+	}
+
+	return osVersion, updateTime, nil
+}
+
 ////////////////////////////////////////////////////////////////////////////////
 // Encryption Key
 ////////////////////////////////////////////////////////////////////////////////

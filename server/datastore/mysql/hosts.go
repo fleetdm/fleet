@@ -4361,6 +4361,68 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	return nil
 }
 
+func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+	selectStmt := `
+	SELECT
+		json_value,
+		updated_at
+	FROM aggregated_stats
+	WHERE
+		id = ? AND
+		global_stats = ? AND
+		type = ?
+	`
+	var row struct {
+		JSONValue *json.RawMessage `db:"json_value"`
+		UpdatedAt time.Time        `db:"updated_at"`
+	}
+
+	id := uint(0)
+	globalStats := true
+	if teamID != nil {
+		id = *teamID
+		globalStats = false
+	}
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, selectStmt, id, globalStats, aggregatedStatsTypeOSVersions)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, notFound("OSVersions"))
+		}
+		return nil, nil, err
+	}
+
+	var counts []fleet.OSVersion
+	if row.JSONValue != nil {
+		if err := json.Unmarshal(*row.JSONValue, &counts); err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err)
+		}
+	}
+
+	// filter by os version id
+	var filtered []fleet.OSVersion
+	for _, os := range counts {
+		if os.OSVersionID == osVersionID {
+			filtered = append(filtered, os)
+		}
+	}
+
+	// aggregate counts by name and version
+	var count int
+	for _, os := range filtered {
+		count += os.HostsCount
+	}
+
+	return &fleet.OSVersion{
+		HostsCount:  count,
+		OSVersionID: osVersionID,
+		Name:        filtered[0].Name,
+		NameOnly:    filtered[0].NameOnly,
+		Version:     filtered[0].Version,
+		Platform:    filtered[0].Platform,
+	}, &row.UpdatedAt, nil
+}
+
 // OSVersions gets the aggregated os version host counts. Records with the same name and version are combined into one count (e.g.,
 // counts for the same macOS version on x86_64 and arm64 architectures are counted together.
 // Results can be filtered using the following optional criteria: team id, platform, or name and
