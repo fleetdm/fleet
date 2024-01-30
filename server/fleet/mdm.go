@@ -364,7 +364,7 @@ type MDMConfigProfilePayload struct {
 	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
 	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
-	UploadedAt  time.Time                   `json:"updated_at" db:"uploaded_at"` // TODO: should we change the JSON rendering?
+	UploadedAt  time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
 }
 

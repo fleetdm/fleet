@@ -37,7 +37,7 @@ type MDMWindowsConfigProfile struct {
 	SyncML      []byte                      `db:"syncml" json:"-"`
 	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
 	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
-	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // TODO: should we update the JSON rendering?
+	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid
