@@ -54,7 +54,7 @@ func Up_20240129115133(tx *sql.Tx) error {
 		}
 	}
 
-	return nil	
+	return nil
 }
 
 func Down_20240129115133(tx *sql.Tx) error {
