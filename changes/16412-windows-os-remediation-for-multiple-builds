@@ -1,1 +1,0 @@
-Fixed Windows OS false negative when a remediation applies to multiple OS builds.
