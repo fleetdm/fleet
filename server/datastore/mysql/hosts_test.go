@@ -6092,6 +6092,10 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, expected, osVersions.OSVersions)
 
+	osVersion, _, err := ds.OSVersion(ctx, 3, nil)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
+
 	// team 1
 	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
 	require.NoError(t, err)
@@ -6101,6 +6105,14 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		{HostsCount: 2, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 5, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
 
 	// team 2
 	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
@@ -6112,11 +6124,23 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
+
+	osVersion, _, err = ds.OSVersion(ctx, 3, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
+
 	// team 3 (no hosts assigned to team)
 	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team3.ID)
+	require.Error(t, err)
+	require.Nil(t, osVersion)
 
 	// non-existent team
 	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)

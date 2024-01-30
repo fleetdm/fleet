@@ -4407,11 +4407,17 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *ui
 		}
 	}
 
+	if len(filtered) == 0 {
+		return nil, nil, ctxerr.Wrap(ctx, notFound("OSVersion"))
+	}
+
 	// aggregate counts by name and version
 	var count int
 	for _, os := range filtered {
 		count += os.HostsCount
 	}
+
+	
 
 	return &fleet.OSVersion{
 		HostsCount:  count,
