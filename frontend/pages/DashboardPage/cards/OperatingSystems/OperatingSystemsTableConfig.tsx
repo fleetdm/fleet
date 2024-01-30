@@ -129,7 +129,7 @@ const generateDefaultTableHeaders = (
     disableSortBy: false,
     accessor: "hosts_count",
     Cell: (cellProps: INumberCellProps): JSX.Element => {
-      const { hosts_count, name_only, version } = cellProps.row.original;
+      const { hosts_count, os_version_id } = cellProps.row.original;
       return (
         <span className="hosts-cell__wrapper">
           <span className="hosts-cell__count">
@@ -138,8 +138,7 @@ const generateDefaultTableHeaders = (
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                os_name: name_only,
-                os_version: version,
+                os_version_id,
                 team_id: teamId,
               }}
               className="os-hosts-link"

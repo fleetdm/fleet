@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { Params } from "react-router/lib/Router";
+import { RouteComponentProps } from "react-router/lib/Router";
 
 import osVersionsAPI, {
   IOSVersionResponse,
@@ -38,14 +38,19 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   );
 };
 
-interface ISoftwareOSDetailsPageProps {
-  params: Params;
+interface ISoftwareOSDetailsRouteParams {
+  id: string;
 }
 
+type ISoftwareOSDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareOSDetailsRouteParams
+>;
+
 const SoftwareOSDetailsPage = ({
-  params: { os_version_id },
+  routeParams,
 }: ISoftwareOSDetailsPageProps) => {
-  const osVersionIdFromURL = parseInt(os_version_id, 10);
+  const osVersionIdFromURL = parseInt(routeParams.id, 10);
 
   const { data: osVersionDetails, isLoading, isError } = useQuery<
     IOSVersionResponse,
@@ -55,6 +60,7 @@ const SoftwareOSDetailsPage = ({
     ["osVersionDetails", osVersionIdFromURL],
     () => osVersionsAPI.getOSVersion(osVersionIdFromURL),
     {
+      enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
     }
   );
