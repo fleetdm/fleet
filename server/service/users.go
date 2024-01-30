@@ -872,10 +872,7 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 	user.AdminForcedPasswordReset = false
 	err := svc.setNewPassword(ctx, user, password)
 	if err != nil {
-		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
-			return nil, ctxerr.Wrap(ctx, badRequestErr("Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.", err))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "setting new password")
+		return nil, err
 	}
 	// Sessions should already have been cleared when the reset was
 	// required
@@ -889,14 +886,17 @@ func (svc *Service) PerformRequiredPasswordReset(ctx context.Context, password s
 func (svc *Service) setNewPassword(ctx context.Context, user *fleet.User, password string) error {
 	err := user.SetPassword(password, svc.config.Auth.SaltKeySize, svc.config.Auth.BcryptCost)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "setting new password")
+		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
+			return ctxerr.Wrap(ctx, badRequestErr("Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.", err))
+		}
+		return ctxerr.Wrap(ctx, err, "Setting new password")
 	}
 	if user.SSOEnabled {
-		return ctxerr.New(ctx, "set password for single sign on user not allowed")
+		return ctxerr.New(ctx, "Set password for single sign on user not allowed")
 	}
 	err = svc.saveUser(ctx, user)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "saving changed password")
+		return ctxerr.Wrap(ctx, err, "Saving changed password")
 	}
 
 	return nil
