@@ -12,9 +12,10 @@ func init() {
 func Up_20240129162819(tx *sql.Tx) error {
 	stmt := `
 		UPDATE
-			mdm_windows_configuration_profiles
+			mdm_windows_configuration_profiles mwcp
 		SET
-			profile_uuid = CONCAT("w", profile_uuid)
+			profile_uuid = CONCAT("w", mwcp.profile_uuid),
+			updated_at = mwcp.updated_at  
 		WHERE
 			profile_uuid NOT LIKE "w%";
 	`
