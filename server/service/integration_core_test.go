@@ -203,12 +203,13 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	t := s.T()
-	// test creating a new user
+
+	// test when creating a new user
 
 	newUPars := fleet.UserPayload{
 		Name:  ptr.String("user_invalid_email"),
 		Email: ptr.String("test@example.com"),
-		// This is 73 characters long
+		// // This is 73 characters long
 		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
@@ -217,20 +218,24 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	assertBodyContains(s.T(), respNew, "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
 
 	// test admin-required password reset
-	// create new user
+
+	// // create new user
 	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
 	params := fleet.UserPayload{
-		Name:       ptr.String("Justin Atest"),
-		Email:      ptr.String("just@test.com"),
-		Password:   ptr.String(test.GoodPassword),
+		Name:       ptr.String("Justin A Test"),
+		Email:      ptr.String("justin@test.com"),
+		Password:   ptr.String(userRawPwd),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	assert.NotZero(t, createResp.User.ID)
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
+	u := *createResp.User
 
-	// try to reset their password
-	reqResetPars := svc.requirePasswordResetRequest{Password: ptr.String("password123#password123#password123#password123#password123#password123##"), ID: ptr.Uint(12)}
+	// // try to reset password as the new user with a password that is too long
+	s.token = s.getTestToken(u.Email, userRawPwd)
+	reqResetPars := performRequiredPasswordResetRequest{Password: "password123#password123#password123#password123#password123#password123##", ID: u.ID}
 
 	respReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &reqResetPars, http.StatusBadRequest)
 	assertBodyContains(s.T(), respReset, "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
