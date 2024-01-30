@@ -58,7 +58,7 @@ interface IHostsFilterBlockProps {
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
-    osId?: any;
+    osVersionId?: any;
     osName?: any;
     osVersion?: any;
     munkiIssueId?: number;
@@ -101,7 +101,7 @@ const HostsFilterBlock = ({
     mdmId,
     mdmEnrollmentStatus,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     munkiIssueId,
@@ -159,9 +159,12 @@ const HostsFilterBlock = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!osId && !(osName && osVersion)) return null;
+    if (!osVersionId && !(osName && osVersion)) return null;
 
     let os: IOperatingSystemVersion | undefined;
+       if (osVersionId) {
+      os = osVersions?.find((v) => v.os_version_id === osVersionId);
+    } else if (osName && osVersion) {
     if (osName && osVersion) {
       const name: string = osName;
       const vers: string = osVersion;
@@ -449,7 +452,7 @@ const HostsFilterBlock = ({
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
-    osId ||
+    osVersionId ||
     (osName && osVersion) ||
     munkiIssueId ||
     osSettingsStatus ||
@@ -491,7 +494,7 @@ const HostsFilterBlock = ({
           return renderMDMSolutionFilterBlock();
         case !!mdmEnrollmentStatus:
           return renderMDMEnrollmentFilterBlock();
-        case !!osId || (!!osName && !!osVersion):
+        case !!osVersionId || (!!osName && !!osVersion):
           return renderOSFilterBlock();
         case !!munkiIssueId:
           return renderMunkiIssueFilterBlock();

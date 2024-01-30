@@ -1,8 +1,9 @@
 import React from "react";
 import { useQuery } from "react-query";
+import { Params } from "react-router/lib/Router";
 
 import osVersionsAPI, {
-  IOSVersionsResponse,
+  IOSVersionResponse,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
@@ -38,22 +39,23 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
 };
 
 interface ISoftwareOSDetailsPageProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: { query: { name: string; version: string } }; // no type in react-router v3
+  params: Params;
 }
 
-const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
-  const name = location.query.name;
-  const osVersion = location.query.version;
+const SoftwareOSDetailsPage = ({
+  params: { os_version_id },
+}: ISoftwareOSDetailsPageProps) => {
+  const osVersionIdFromURL = parseInt(os_version_id, 10);
+
   const { data: osVersionDetails, isLoading, isError } = useQuery<
-    IOSVersionsResponse,
+    IOSVersionResponse,
     Error,
     IOperatingSystemVersion
   >(
-    ["osVersionDetails", name, osVersion],
-    () => osVersionsAPI.getOSVersion({ os_name: name, os_version: osVersion }),
+    ["osVersionDetails", osVersionIdFromURL],
+    () => osVersionsAPI.getOSVersion(osVersionIdFromURL),
     {
-      select: (res) => res.os_versions[0],
+      select: (data) => data.os_version,
     }
   );
 
