@@ -7532,7 +7532,6 @@ Returns information about the specified software version.
 
 ## Vulnerabilities
 
-## Software
 
 - [List vulnerabilities](#list-vulnerabilities)
 - [Get vulnerability](#get-vulnerability)
