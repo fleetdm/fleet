@@ -227,7 +227,7 @@ const routes = (
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/details" component={SoftwareOSDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
