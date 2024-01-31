@@ -146,24 +146,23 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - The change is now actioned, notify the team member and close the issue.
 
 ### Prepare salary benchmarking information
-- Use the relevant template in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
-- Copy the template and input at the end of the document.
-- Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) or [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
-- Complete benchmarking using [Pave](https://www.pave.com/) (login details in 1Password).
+- Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
+- Copy the template text and paste at the end of the document.
+- Fill in details as required, pulling from [🧑‍🚀 Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) as required.
+- Use the teammate's information to benchmark in [Pave](https://www.pave.com/) (login details in 1Password). You can pattern match from previous benchmarking entries, and include all company assumtions. Add the direct link to the Pave benchmark.
 
 ### Update a team member's compensation
-When [changes in compensation for team members](https://fleetdm.com/handbook/company/communications#compensation-changes) is required, the following steps are taken:
-- On the first Friday of the month, post in the [#help-classified](https://fleetdm.slack.com/archives/C01CSUCLURL) channel with the list of team members due for compensation review.
-- Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and stores it in the team member's [personnel file](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link),
+To [change a team member's compensation](https://fleetdm.com/handbook/company/communications#compensation-changes), follow these steps:
+- Create a copy of the ["Values assessment" template](https://docs.google.com/spreadsheets/d/1P5TyRV2v-YN0aR_X8vd8GksKcr3uHfUDdshqpVzamV8/edit?usp=drive_link) and move it to the team member's [personnel folder in Google Drive](https://drive.google.com/drive/folders/1UL7o3BzkTKnpvIS4hm_RtbOilSABo3oG?usp=drive_link).
 - Share the values assessment document with the manager and ask them to perform the values assessment.
-- Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and meet with manager or head of department about level of job skill in relation to compensation benchmarking levels.
-- Schedule time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking.
-- During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
-- Post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
-- Communicate the decision to the teammate's people manager, who will then communicate to their teammate.
+- Once the values assessment is complete, [prepare salary benchmarking information](#prepare-salary-benchmarking-information) and set a meeting between the manager, head of department, and Head of Business Operations about level of job skill in relation to compensation benchmarking levels.
+- Schedule a new calendar event for the Head of Business Operations with the founders over an existing founders' 1:1 to discuss if an adjustment needs to be made to team member's compensation to align with benchmarking. During the 1:1 call, founders review values assessment, benchmarking for role and geography, and decide if there will be an adjustment.
+- Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
+- Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
 - Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
 - Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) with the new compensation information, and move previous compensation to the "Notes" column. Update the "Last compensation change" column with the effective date from payroll platform.
-- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+
+> If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
 
 ### Process monthly accounting
