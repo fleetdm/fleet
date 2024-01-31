@@ -516,6 +516,7 @@
 - industryName: Remotely enforce OS settings
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
+  tier: Free
   waysToUse:
     - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
