@@ -12,14 +12,12 @@ POLICIES_ENDPOINT="/api/latest/fleet/policies"
 
 def main(n: int):
   token, server_url = os.environ.get("TOKEN"), os.environ.get("SERVER_URL")
-  print(token, server_url, "\n")
   if not token or not server_url:
     raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
   for i in range(n):
       name='Policy ' + ''.join(random.choices(string.ascii_lowercase, k=5))
       critical=random.choice(["true", "false"])
       data = f'{{"name": "{name}", "query": "SELECT 1 FROM osquery_info;", "description": "Selects 1", "resolution": "Resolution steps", "platform": "{random.choice(["windows", "linux", "darwin"])}", "critical": {critical}}}'
-      print(data + "\n") 
       process = subprocess.Popen(
         ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}{POLICIES_ENDPOINT}", "-d", f"{data}", "--insecure"], stdout=subprocess.PIPE
       )
