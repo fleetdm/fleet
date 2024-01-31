@@ -769,8 +769,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
-- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](#modify-enroll-secrets-for-a-team)
+- [Get team enroll secrets](#get-team-enroll-secrets)
+- [Modify team enroll secrets](#modify-team-enroll-secrets)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -1390,7 +1390,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get enroll secrets for a team
+### Get team enroll secrets
 
 Returns the valid team enroll secrets.
 
@@ -1421,7 +1421,7 @@ None.
 ```
 
 
-### Modify enroll secrets for a team
+### Modify team enroll secrets
 
 Replaces all existing team enroll secrets.
 
