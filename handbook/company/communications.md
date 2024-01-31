@@ -537,7 +537,7 @@ Variable compensation (i.e. commission) is reviewed and submitted for processing
 We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
 
 ### Compensation changes
-Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
 
 ### Relocating
 When Fleeties relocate, there are vendors that need to be notified of the change. 
