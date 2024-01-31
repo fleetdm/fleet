@@ -8,20 +8,12 @@
     font-weight: $bold;
   }
 
-  &__email-hint {
+  &__email-help-text {
     display: block;
   }
 
-  &__button-wrap {
+  .button-wrap {
     width: 100%;
-    margin-top: $pad-xxlarge;
-    display: flex;
     justify-content: flex-end;
-
-    .button {
-      &:last-child {
-        margin-left: $pad-medium;
-      }
-    }
   }
 }

@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import classnames from "classnames";
 
 import Button from "components/buttons/Button";
 // @ts-ignore
@@ -7,6 +6,7 @@ import InputField from "components/forms/fields/InputField";
 // @ts-ignore
 import OrgLogoIcon from "components/icons/OrgLogoIcon";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -89,13 +89,11 @@ const Info = ({
     handleSubmit(formDataToSubmit);
   };
 
-  const classNames = classnames(baseClass, cardClass);
-
   return (
-    <form className={classNames} onSubmit={onFormSubmit} autoComplete="off">
-      <div className={`${baseClass}__section org-info`}>
-        <h2>Organization info</h2>
-        <div className={`${baseClass}__inputs`}>
+    <div className={baseClass}>
+      <div className={`${baseClass}__section ${cardClass}`}>
+        <SectionHeader title="Organization info" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Organization name"
             onChange={handleInputChange}
@@ -158,18 +156,18 @@ const Info = ({
               />
             </div>
           </div>
-        </div>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

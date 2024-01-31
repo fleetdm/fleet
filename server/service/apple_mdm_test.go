@@ -23,6 +23,8 @@ import (
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
@@ -31,8 +33,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanomdm/mdm"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	"github.com/stretchr/testify/require"
 )
 
@@ -251,6 +251,24 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	// information. The user must configure fleet with the new key pair and restart the server.
 	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
 	require.NoError(t, err)
+
+	// Should work for all user types
+	for _, user := range []*fleet.User{
+		test.UserAdmin,
+		test.UserMaintainer,
+		test.UserObserver,
+		test.UserObserverPlus,
+		test.UserTeamAdminTeam1,
+		test.UserTeamGitOpsTeam1,
+		test.UserGitOps,
+		test.UserTeamMaintainerTeam1,
+		test.UserTeamObserverTeam1,
+		test.UserTeamObserverPlusTeam1,
+	} {
+		usrctx := test.UserContext(ctx, user)
+		_, err = svc.GetMDMManualEnrollmentProfile(usrctx)
+		require.NoError(t, err)
+	}
 
 	// Must be device-authenticated, should fail
 	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
@@ -593,11 +611,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes))
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes))
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -659,7 +677,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	require.Equal(t, "Bar", cp.Identifier)

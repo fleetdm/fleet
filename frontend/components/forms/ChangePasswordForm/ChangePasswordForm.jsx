@@ -40,9 +40,7 @@ class ChangePasswordForm extends Component {
           {...fields.new_password}
           label="New password"
           type="password"
-          hint={[
-            "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-          ]}
+          helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
         />
         <InputField
           {...fields.new_password_confirmation}

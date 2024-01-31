@@ -2,7 +2,6 @@
   &__secret {
     display: flex;
     align-items: center;
-    margin-bottom: $pad-medium;
   }
 
   .form-field {
@@ -32,8 +31,6 @@
   }
 
   &__copy-message {
-    position: absolute;
-    right: 65px;
     background-color: $ui-light-grey;
     border: solid 1px #e2e4ea;
     border-radius: 10px;
@@ -45,17 +42,11 @@
     align-items: center;
     position: absolute;
     right: 4px;
-    top: 12px;
+    top: 18px;
     height: 16px;
 
     span {
       font-weight: $regular;
-    }
-  }
-
-  &--multiple-secrets {
-    .form-field__label {
-      margin-top: 0;
     }
   }
 

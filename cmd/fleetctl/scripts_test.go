@@ -16,13 +16,16 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierPremium,
+	_, ds := runServerWithMockedDS(t,
+		&service.TestServerOpts{
+			License: &fleet.LicenseInfo{
+				Tier: fleet.TierPremium,
+			},
 		},
-		// increase the default timeout to 90 seconds to match the production server
-		HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
-	})
+		&service.TestServerOpts{
+			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
+		},
+	)
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -39,9 +42,8 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
-		return nil
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
 
 	generateValidPath := func() string {
@@ -170,7 +172,7 @@ Oh no!
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-2),
 				Output:   "",
-				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
+				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
 Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.
@@ -205,6 +207,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 		//	scriptPath:   generateValidPath,
 		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
 		//},
+		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
@@ -224,7 +227,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, maxAge time.Duration) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
@@ -244,6 +247,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 				HostID:         req.HostID,
 				ScriptContents: req.ScriptContents,
 			}, nil
+		}
+		if c.name == "disabled scripts globally" {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
+			}
 		}
 	}
 

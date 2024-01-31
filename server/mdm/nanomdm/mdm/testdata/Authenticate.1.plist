@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>BuildVersion</key>
+	<string>13G36</string>
+	<key>MessageType</key>
+	<string>Authenticate</string>
+	<key>OSVersion</key>
+	<string>9.3.5</string>
+	<key>ProductName</key>
+	<string>iPad2,5</string>
+	<key>SerialNumber</key>
+	<string>F5JM992LF193</string>
+	<key>Topic</key>
+	<string>com.apple.mgmt.External.e0bd1eac-1f17-4c8e-8a63-dd17d3dd35d9</string>
+	<key>UDID</key>
+	<string>663b07bb783e9ade1dae4fbb92ea12afc0ce5b69</string>
+</dict>
+</plist>

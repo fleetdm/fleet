@@ -130,7 +130,7 @@ lint-js:
 	yarn lint
 
 lint-go:
-	golangci-lint run --skip-dirs ./node_modules --timeout 10m
+	golangci-lint run --skip-dirs ./node_modules --timeout 15m
 
 lint: lint-go lint-js
 
@@ -173,7 +173,6 @@ generate-dev: .prefix
 	NODE_ENV=development yarn run webpack --progress --watch
 
 generate-mock: .prefix
-	go install github.com/fleetdm/mockimpl@ecbb3041eabfc9e046a3f2e414e32c28254b75b2
 	go generate github.com/fleetdm/fleet/v4/server/mock github.com/fleetdm/fleet/v4/server/mock/mockresult github.com/fleetdm/fleet/v4/server/service/mock
 
 generate-doc: .prefix

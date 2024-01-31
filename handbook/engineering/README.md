@@ -11,7 +11,7 @@ This handbook page details processes specific to working [with](#team) and [with
 
 ## Contact us
 - Any community member can [**file a 🦟 "Bug report"**](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
-  - Any Fleet team member can view the 🪲 ["Bugs" kanban board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) including the status on all reported bugs.
+  - Any Fleet team member can view the [Endpoint ops](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), or [Website](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board) kanban boards including the status on all reported bugs.
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
 
 ## Responsibilities
@@ -260,9 +260,9 @@ Steps to renew the certificate:
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
 ### Preform an incident postmortem
-At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any documentation or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
+At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any process, documentation, or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
-At Fleet, we do postmortem meetings for every production incident, whether it's a customer's environment or on fleetdm.com.
+At Fleet, we do postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
 - **Postmortem documentation**
 Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation.

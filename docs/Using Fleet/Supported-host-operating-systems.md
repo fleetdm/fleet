@@ -6,7 +6,7 @@ Fleet supports the following operating system versions on hosts.
 
 | OS      | Supported version(s)                    |
 | :------ | :-------------------------------------  |
-| MacOS   | 12 (Monterey) and higher                |
+| macOS   | 12 (Monterey) and higher                |
 | Windows | 10 (Pro and Enterprise) and higher      |
 | Linux   | CentOS 7.1+,  Ubuntu 16.04+, Fedora 38+ |
 | ChromeOS | 112.0.5615.134+                        |
@@ -29,6 +29,7 @@ If you aren't sure what version of `glibc` your distribution is using, [DistroWa
 
 > Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome set to the default browser for Fleet Desktop.
 
+> The `fleetctl package` command is not supported on DISA-STIG distribution.
 
 <meta name="pageOrderInSection" value="1200">
 <meta name="description" value="This page contains information about operating systems that are compatible with the osquery agent.">

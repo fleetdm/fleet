@@ -288,7 +288,7 @@ func TestTeamMDMCopy(t *testing.T) {
 	t.Run("copy MacOSSettings", func(t *testing.T) {
 		tm := &TeamMDM{
 			MacOSSettings: MacOSSettings{
-				CustomSettings:                 []string{"a", "b"},
+				CustomSettings:                 []MDMProfileSpec{{Path: "a"}, {Path: "b"}},
 				DeprecatedEnableDiskEncryption: ptr.Bool(false),
 			},
 		}

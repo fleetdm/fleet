@@ -11,6 +11,7 @@
   dri: "alexmitchelliii" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-sales" ] # label to be applied to issue
+    repo: "confidential"
 -
   task: "Review rep activity"
   startedOn: "2023-09-18"

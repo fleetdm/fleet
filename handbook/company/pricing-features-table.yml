@@ -8,9 +8,9 @@
   documentationUrl: https://fleetdm.com/docs/using-fleet/automations#automations
   screenshotSrc:
   tier: Free
-  productCategories: [Endpoint operations]
-  pricingTableCategories: [Endpoint operations]
-  usualDepartment: Security
+  productCategories: [Device management,Endpoint operations]
+  pricingTableCategories: [Device management,Endpoint operations]
+  usualDepartment: IT
   dri: mikermcneil
   demos:
     - description: A large tech company used the Fleet API to block access to corporate apps for outdated operating system versions with certain "celebrity" vulnerabilities.
@@ -187,7 +187,7 @@
 #  ╔╦╗╔═╗╦  ╦ ╦╔═╗╦═╗╔═╗  ╔╦╗╔═╗╔╦╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔  ┌─╦ ╦╔═╗╦═╗╔═╗─┐
 #  ║║║╠═╣║  ║║║╠═╣╠╦╝║╣    ║║║╣  ║ ║╣ ║   ║ ║║ ║║║║  │ ╚╦╝╠═╣╠╦╝╠═╣ │
 #  ╩ ╩╩ ╩╩═╝╚╩╝╩ ╩╩╚═╚═╝  ═╩╝╚═╝ ╩ ╚═╝╚═╝ ╩ ╩╚═╝╝╚╝  └─ ╩ ╩ ╩╩╚═╩ ╩─┘
-- industryName: Malware detection (YARA)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes (either via live query or in the data lake to compare threat intel feed)
+- industryName: Malware detection (YARA/custom IoCs)  # TODO: consider: technically more than YARA, consider generalizing this and including the concept of comparing known binary hashes and other IoCs (either via live query or in the data lake to compare threat intel feed)
   friendlyName: Scan files for malware signatures
   description: Report and trigger automations when malware or other unexpected files are detected on a host using YARA signatures.
   documentationUrl: https://fleetdm.com/tables/yara
@@ -195,7 +195,7 @@
   dri: mikermcneil
   usualDepartment: Security
   productCategories: [Endpoint operations,Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
+  pricingTableCategories: [Endpoint operations,Vulnerability management]
   buzzwords: [YARA scanning,Cyber Threat Intelligence (CTI),Indicators of compromise (IOCs),Antivirus (AV),Endpoint protection platform (EPP),Endpoint detection and response (EDR),Malware detection,Signature-based malware detection,Malware scanning,Malware analysis,Anomaly detection]
   demos:
     - description: A top media company used Fleet policies with YARA rules to continuously scan host filesystems for malware signatures provided by internal and external threat intelligence teams.
@@ -289,7 +289,7 @@
 - industryName: Agent auto-update
   friendlyName: Keep agents and extensions up to date
   descrption: Keep agents and extensions up to date by loading code from Fleet's free update registry.
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -302,7 +302,7 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   waysToUse:
     - description: Build scripts for Ansible deployments
       moreInfoUrl: https://www.youtube.com/watch?v=qflUfLQCnwY&list=PL6-FgoWOoK2YUR4ADGsxTSL3onb-GzCnM&index=4
@@ -315,7 +315,7 @@
 #  ╚═╝╩ ╩ ╩ ╚═╝╩ ╩  ╩╝╚╝╚═╝ ╩ ╩ ╩╩═╝╩═╝╩ ╩ ╩ ╩╚═╝╝╚╝
 - industryName: Batch installation (Chef, Ansible, Puppet, MDM)
   friendlyName: Install agents over the air
-  documentationUrl: https://fleetdm.com/docs/using-fleet/fleetd
+  documentationUrl: https://fleetdm.com/docs/using-fleet/enroll-hosts
   tier: Free
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
@@ -730,11 +730,15 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
-- industryName: Detect vulnerable software #TODO: find a better industryName and make this the friendly name. Maybe separate out export.
-  tier: Free
-  usualDepartment: Security
+#   ╦═╗╦╔═╗╦╔═   ╔╗ ╔═╗╔═╗╔═╗╔╦╗  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔╗╔╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
+#   ╠╦╝║╚═╗╠╩╗───╠╩╗╠═╣╚═╗║╣  ║║  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ║║║╠═╣║║║╠═╣║ ╦║╣ ║║║║╣ ║║║ ║ 
+#   ╩╚═╩╚═╝╩ ╩   ╚═╝╩ ╩╚═╝╚═╝═╩╝   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╩ ╩╩ ╩╝╚╝╩ ╩╚═╝╚═╝╩ ╩╚═╝╝╚╝ ╩
+- industryName: Risk-based vulnerability management
+  friendlyName: Detect vulnerable software
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
+  usualDepartment: Security
+  tier: Free
   demos:
     - description: A top gaming company wanted to replace Qualys for infrastructure vulnerability detection.
       quote: So we have some stuff today through Qualys, but it's just not very good. A lot of it is...it's just really noisy.  I'm trying to find out specifically, actually what packages are installed where, and then the ability to live query them.
@@ -742,6 +746,53 @@
   waysToUse:
     - description: Email relevant, actually-installed vulnerabilities to responsible teams so they can fix them.
       moreInfoUrl: https://docs.google.com/document/d/1oeCmT077o_5nxzLhnxs7kcg_4Qn1Pn1F5zx10nQOAp8/edit
+#  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
+#  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
+#   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
+- industryName: OT/ICS compliance and cyber risk visibility 
+  friendlyName: Vulnerability dashboard
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  usualDepartment: Security
+  tier: Premium
+  demos:
+    - description: 
+      moreInfoUrl: 
+  waysToUse:
+    - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
+#  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
+#  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝  ╚═╗║  ║ ║╠╦╝║╣ ╚═╗  ───  ║╣ ╠═╝╚═╗╚═╗  ╠═╣║║║ ║║  ║  ╚╗╔╝╚═╗╚═╗
+#   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ╚═╝╚═╝╚═╝╩╚═╚═╝╚═╝       ╚═╝╩  ╚═╝╚═╝  ╩ ╩╝╚╝═╩╝  ╚═╝ ╚╝ ╚═╝╚═╝
+- industryName: Vulnerability scores (EPSS and CVSS) 
+  tier: Premium
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  buzzwords: [Risk scores,Cyber risk,Risk reduction,Security operations effectiveness,Peer benchmarking,Security program effectiveness,Risk-based exposure scoring,Threat context,Cyber exposure,Exposure quantification and benchmarking,Optimize security investments,Vulnerability assessment]
+  demos:
+    - description: Fleet enables a more modern, threat-first prioritization approach to vulnerability management.
+      quote: In reality, across our inventory of devices, it's unlikely to ever be exploited. I'd rather do that legwork on my team and then go and ask and prioritize work on these infrastructure teams that are already busy with things that could or could not be vulnerable. Being able to be more exact allows us to go to these teams less, which saves everybody time.
+      moreInfoUrl: https://www.youtube.com/watch?v=G5Ry_vQPaYc&t=131s
+  waysToUse:
+    - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
+    - description: An Introduction to EPSS, The Exploit Prediction Scoring System
+    - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
+    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable. 
+#  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
+#  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
+#  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
+- industryName: CISA KEVs (known exploited vulnerabilities) 
+  tier: Premium
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  demos:
+    - description: 
+      moreInfoUrl:
+  waysToUse:
+    - description: Help teams work on vulnerabilities that have actually been exploited (CISA KEVs) or have a high probability of being exploited (EPSS), or whatever is important in your environment.
+    - description: Use CISA KEVs for vulnerability management
+    - moreInfoUrl: https://www.youtube.com/watch?v=Z3mw2oxssYk
 - industryName: Query performance monitoring
   tier: Free
   productCategories: [Endpoint operations]
@@ -760,35 +811,12 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Free
-- industryName: Vulnerability dashboard
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-  usualDepartment: Security
-  tier: Premium
-  comingSoonOn: 2024-03-31
-  waysToUse:
-    - description: Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
 - industryName: Policy scoring
   friendlyName: Mark policies as critical
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
-- industryName: Vulnerability scores (EPSS and CVSS) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
-  tier: Premium
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-- industryName: CISA KEVs (known exploited vulnerabilities) #TODO: Incorporate this perspective: https://github.com/fleetdm/confidential/issues/4120#issuecomment-1802350614
-  tier: Premium
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
-- industryName: Patched version #Can be determined using description from National Vulnerability Database (NVD). Description tells you which versions are affected.
-  tier: Premium
-  usualDepartment: Security
-  productCategories: [Vulnerability management]
-  pricingTableCategories: [Vulnerability management]
 - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
   tier: Free
   usualDepartment: Security

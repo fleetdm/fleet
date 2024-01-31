@@ -1,2 +1,0 @@
-- Fix a bug where the host details > software > munki issues section was sometimes displayed when
-  Munki was not in use

@@ -219,7 +219,7 @@ class SelectTargetsDropdown extends Component {
     });
 
     return (
-      <div className={baseClass}>
+      <div className={`${baseClass} form-field`}>
         {renderLabel()}
         <Input
           className={inputClasses}

@@ -81,13 +81,12 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
+- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. 
 
 What happens during expedited drafting?
-1. Everyone on the product and engineering teams know that a drafted change was brought back
-   to drafting and prioritized.
-2. Drafts are updated to cover edge cases or reduce functionality.
-3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back to the engineering team to continue the development task.
-
+1. Everyone in the product group knows that a user story is going through expedited drafting.
+2. Drafts are updated or finished.
+3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the engineering sprint or are estimated.
 
 ### Correctly prioritize a bug
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
@@ -213,9 +212,9 @@ Directly Responsible Individuals (DRI) engage in the ritual(s) below at the freq
 | Pre-sprint prioritization          | Sprintly (Monday)        | The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the "Stories dropped" product KPI.                                                                                                                                                              | Noah Talerman            |
 | Bug round-up   | Mid-sprint | Head of Product Design will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Noah Talerman |
 | Churned bug review                            | Mid-sprint     | The Head of Product Design meets with the Head of Product Development to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                    | Churned bug clean-up | Mid-sprint  | Following the churned bug review, Head of Product Design completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Noah Talerman |                                                                 | Noah Talerman            |
-| Stand-up (#g-website)           | Daily (Monday - Thursday) | The website product team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
-| Prioritization session (#g-website) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
-| Design review (#g-website)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
+| Stand-up (#g-digital-experience)           | Daily (Monday - Thursday) | The Digital Experience team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
+| Prioritization session (#g-digital-experience) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
+| Design review (#g-digital-experience)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
 | PMMs R Us                     | Weekly (Sunday)         | The CEO meets with the Head of Design to discuss product marketing strategies. | Mike Thomas |
 
                                                             |

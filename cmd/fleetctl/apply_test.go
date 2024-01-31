@@ -261,7 +261,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileCfgPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 	}
 
@@ -302,7 +302,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
-			CustomSettings: []string{mobileCfgPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -375,7 +375,7 @@ spec:
 			GracePeriodDays: optjson.Int{Set: true},
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{},
+			CustomSettings: []fleet.MDMProfileSpec{},
 		},
 	}
 
@@ -1094,7 +1094,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -1136,7 +1136,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -1176,7 +1176,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1215,7 +1215,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1251,7 +1251,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1672,9 +1672,6 @@ func TestApplyMacosSetup(t *testing.T) {
 	}
 
 	emptyMacosSetup := writeTmpJSON(t, map[string]any{})
-	invalidWebURLMacosSetup := writeTmpJSON(t, map[string]any{
-		"configuration_web_url": "https://example.com",
-	})
 	invalidURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"url": "https://example.com",
 	})
@@ -1981,27 +1978,13 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig with invalid key #1
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidWebURLMacosSetup))
-		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
-		// apply appconfig with invalid key #3
+		// apply appconfig with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
-		// apply teams with invalid key #1
-		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidWebURLMacosSetup, "", invalidWebURLMacosSetup))
-		ds.SaveTeamFuncInvoked = false
-		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include configuration_web_url.")
-		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-
-		// apply teams with invalid key #3
+		// apply teams with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")

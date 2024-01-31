@@ -20,11 +20,11 @@ import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
-import SecretField from "components/EnrollSecrets/SecretField";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
+import SecretField from "./APITokenModal/TokenSecretField/SecretField";
 import UserSidePanel from "./UserSidePanel";
 
 const baseClass = "user-settings";
@@ -139,17 +139,12 @@ const UserSettingsPage = ({
 
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
-        <>
-          <div className={`${baseClass}__confirm-update`}>
-            To update your email you must confirm your password.
-          </div>
-          <ChangeEmailForm
-            formData={updatedUser}
-            handleSubmit={emailSubmit}
-            onCancel={onToggleEmailModal}
-            serverErrors={errors}
-          />
-        </>
+        <ChangeEmailForm
+          formData={updatedUser}
+          handleSubmit={emailSubmit}
+          onCancel={onToggleEmailModal}
+          serverErrors={errors}
+        />
       </Modal>
     );
   };
@@ -175,6 +170,7 @@ const UserSettingsPage = ({
       return false;
     }
 
+    // TODO - move to its own component
     return (
       <Modal
         title="Get API token"

@@ -1,0 +1,13 @@
+.empty-feed {
+  margin-top: $pad-xxlarge;
+
+  p {
+    font-size: $x-small;
+    margin: $pad-medium 0;
+  }
+
+  &__title {
+    font-weight: $bold;
+    font-size: $small;
+  }
+}

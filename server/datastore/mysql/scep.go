@@ -12,7 +12,7 @@ import (
 	"math/big"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/micromdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/micromdm/scep/v2/depot"
 )
 
