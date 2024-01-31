@@ -58,9 +58,9 @@ interface IHostsFilterBlockProps {
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
-    osVersionId?: any;
-    osName?: any;
-    osVersion?: any;
+    osVersionId?: string;
+    osName?: string;
+    osVersion?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: { name: string; version?: string } | null;
@@ -159,47 +159,48 @@ const HostsFilterBlock = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!osVersionId && !(osName && osVersion)) return null;
-
     let os: IOperatingSystemVersion | undefined;
     if (osVersionId) {
-      os = osVersions?.find((v) => v.os_version_id === osVersionId);
+      os = osVersions?.find(
+        (v) => v.os_version_id === parseInt(osVersionId, 10)
+      );
     } else if (osName && osVersion) {
-      if (osName && osVersion) {
-        const name: string = osName;
-        const vers: string = osVersion;
+      const name: string = osName;
+      const vers: string = osVersion;
 
-        os = osVersions?.find(
-          ({ name_only, version }) =>
-            name_only.toLowerCase() === name.toLowerCase() &&
-            version.toLowerCase() === vers.toLowerCase()
-        );
-      }
-      if (!os) return null;
-
-      const { name, name_only, version } = os;
-      // TODO: Move formatOperatingSystemDisplayName into utils file
-      const label = formatOperatingSystemDisplayName(
-        name_only || version
-          ? `${name_only || ""} ${version || ""}`
-          : `${name || ""}`
-      );
-      const TooltipDescription = (
-        <span>
-          Hosts with {formatOperatingSystemDisplayName(name_only || name)},
-          <br />
-          {version && `${version} installed`}
-        </span>
-      );
-
-      return (
-        <FilterPill
-          label={label}
-          tooltipDescription={TooltipDescription}
-          onClear={() => handleClearFilter(["os_id", "os_name", "os_version"])}
-        />
+      os = osVersions?.find(
+        ({ name_only, version }) =>
+          name_only.toLowerCase() === name.toLowerCase() &&
+          version.toLowerCase() === vers.toLowerCase()
       );
     }
+
+    if (!os) return null;
+
+    const { name, name_only, version } = os;
+    // TODO: Move formatOperatingSystemDisplayName into utils file
+    const label = formatOperatingSystemDisplayName(
+      name_only || version
+        ? `${name_only || ""} ${version || ""}`
+        : `${name || ""}`
+    );
+    const TooltipDescription = (
+      <span>
+        Hosts with {formatOperatingSystemDisplayName(name_only || name)},
+        <br />
+        {version && `${version} installed`}
+      </span>
+    );
+
+    return (
+      <FilterPill
+        label={label}
+        tooltipDescription={TooltipDescription}
+        onClear={() =>
+          handleClearFilter(["os_version_id", "os_name", "os_version"])
+        }
+      />
+    );
   };
 
   // NOTE: good example of filter dropdown with pill
