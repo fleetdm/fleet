@@ -238,11 +238,11 @@ const ManagePolicyAutomationsModal = ({
         );
 
         // Concatenate with array of policies enabled on the page
-        const allEnabledPolices = enabledPoliciesOnOtherPages.concat(
+        const allEnabledPolicies = enabledPoliciesOnOtherPages.concat(
           newPolicyIds
         );
 
-        return allEnabledPolices;
+        return allEnabledPolicies;
       }
 
       return [];
