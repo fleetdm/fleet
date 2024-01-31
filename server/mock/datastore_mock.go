@@ -340,9 +340,9 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
 
-type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error)
+type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error)
 
-type SoftwareTitleByIDFunc func(ctx context.Context, id uint) (*fleet.SoftwareTitle, error)
+type SoftwareTitleByIDFunc func(ctx context.Context, id uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error)
 
 type ListSoftwareForVulnDetectionFunc func(ctx context.Context, hostID uint) ([]fleet.Software, error)
 
@@ -3109,18 +3109,18 @@ func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntg
 	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
 }
 
-func (s *DataStore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+func (s *DataStore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	s.mu.Lock()
 	s.ListSoftwareTitlesFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListSoftwareTitlesFunc(ctx, opt)
+	return s.ListSoftwareTitlesFunc(ctx, opt, tmFilter)
 }
 
-func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
+func (s *DataStore) SoftwareTitleByID(ctx context.Context, id uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
 	s.mu.Lock()
 	s.SoftwareTitleByIDFuncInvoked = true
 	s.mu.Unlock()
-	return s.SoftwareTitleByIDFunc(ctx, id)
+	return s.SoftwareTitleByIDFunc(ctx, id, tmFilter)
 }
 
 func (s *DataStore) ListSoftwareForVulnDetection(ctx context.Context, hostID uint) ([]fleet.Software, error) {

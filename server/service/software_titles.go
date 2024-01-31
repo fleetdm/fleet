@@ -4,8 +4,11 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -76,7 +79,15 @@ func (svc *Service) ListSoftwareTitles(
 	// cursor-based pagination is not supported for software titles
 	opt.ListOptions.After = ""
 
-	titles, count, meta, err := svc.ds.ListSoftwareTitles(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, 0, nil, fleet.ErrNoContext
+	}
+
+	titles, count, meta, err := svc.ds.ListSoftwareTitles(ctx, opt, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 	if err != nil {
 		return nil, 0, nil, err
 	}
@@ -117,8 +128,26 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.Soft
 		return nil, err
 	}
 
-	software, err := svc.ds.SoftwareTitleByID(ctx, id)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	// get software by id including team_id data from software_title_host_counts
+	software, err := svc.ds.SoftwareTitleByID(ctx, id, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 	if err != nil {
+		if fleet.IsNotFound((err)) {
+			// here we use a global admin as filter because we want to check if the software exists
+			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+			software, err = svc.ds.SoftwareTitleByID(ctx, id, filter)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			}
+			return nil, authz.ForbiddenWithInternal("policy disallows request", vc.User, nil, nil)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
 

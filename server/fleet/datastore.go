@@ -449,8 +449,8 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
-	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
-	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
+	SoftwareTitleByID(ctx context.Context, id uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
