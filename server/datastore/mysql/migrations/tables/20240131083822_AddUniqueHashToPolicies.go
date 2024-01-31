@@ -14,10 +14,8 @@ func Up_20240131083822(tx *sql.Tx) error {
 	// see https://dev.mysql.com/doc/refman/8.0/en/encryption-functions.html
 	// We store it using UNHEX(MD5(<the string value to hash>)).
 	//
-	// We use md5 even though it is insecure because it is used only to
-	// deduplicate policies entries, not for any security purpose (i.e. a
-	// maliciously-crafted collision would not cause serions issues), and we already use it
-	// for configuration profiles so instead of using different hashing
+	// We use md5 for consistency as we already use it in the software table and
+	// for configuration profiles. So instead of using different hashing
 	// algorithms, we'll stick to md5.
 	//
 	// This approach closely matches the one used in the software table.
