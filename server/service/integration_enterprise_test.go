@@ -3205,6 +3205,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
 
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", 1), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
+
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)

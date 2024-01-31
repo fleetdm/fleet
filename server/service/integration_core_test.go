@@ -7367,16 +7367,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
 	testOSes := []fleet.OperatingSystem{
-		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
+		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},                             // os_version_id=1
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
 	}
 
 	var platforms []string
@@ -7409,11 +7409,15 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOSes[1].Name, "os_version", testOSes[1].Version)
 	require.Len(t, resp.Hosts, 2)
 
-	expected := resp.Hosts[0]
+	expected := hosts[1].Hostname
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
 	require.Len(t, resp.Hosts, 2)
-	require.Equal(t, expected, resp.Hosts[0])
+	require.Equal(t, expected, resp.Hosts[0].Hostname)
+
+	countResp := countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
+	require.Equal(t, 2, countResp.Count)
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
@@ -7444,12 +7448,13 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
 
 	// Default sort is by hosts count, descending
-	require.Equal(t, fleet.OSVersion{
-		HostsCount: 4,
-		Name:       "Windows 11 Pro 21H2 10.0.22000.2",
-		NameOnly:   "Windows 11 Pro 21H2",
-		Version:    "10.0.22000.2",
-		Platform:   "windows",
+	expectedVersion := fleet.OSVersion{
+		HostsCount:  4,
+		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
+		NameOnly:    "Windows 11 Pro 21H2",
+		Version:     "10.0.22000.2",
+		Platform:    "windows",
+		OSVersionID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "CVE-2021-1234",
@@ -7460,7 +7465,18 @@ func (s *integrationTestSuite) TestOSVersions() {
 				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
 			},
 		},
-	}, osVersionsResp.OSVersions[0])
+	}
+
+	// Default sort is by hosts count, descending
+	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+
+	// get OS version by id
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+
+	// invalid id
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
