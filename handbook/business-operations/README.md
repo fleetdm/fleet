@@ -160,7 +160,7 @@ To [change a team member's compensation](https://fleetdm.com/handbook/company/co
 - Head of Business Operations will post in slack to `#help-classified` with the decision on compensation changes and effective date, if any.
 - Communicate via Slack DM the decision to the teammate's people manager, who will then communicate to their teammate.
 - Update the respective payroll platform (Gusto or Plane) by navigating to the personnel page, selecting salary field, and updating with an effective date that makes the next payroll.
-- Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) with the new compensation information, and move previous compensation to the "Notes" column. Update the "Last compensation change" column with the effective date from payroll platform.
+- Update the [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc) by copying existing OTE to the bottom of the "Notes" cell, updating the OTE column with the new compensation information, and updating the "Last compensation change" column with the effective date from payroll platform.
 
 > If the company decides on an additional equity grant as part of a compensation change, note the previous equity and new situation in detail in the "Notes" column of the equity plan. Update the "Grant started?" column to "todo" which adds it to the queue for the next time grants are processed (quarterly).
 
