@@ -129,12 +129,7 @@ If the consultant is international, you will also provide:
 - Country of residence
 - Consultant's date of birth
 
-#### Updating a consultant's fee
- - Direct message Mike McNeil with hourly rate change information.
- - After CEO approval, Mike McNeil will issue a new contractor agreement with the updated fee via DocuSign.
-
-<!-- TODO: Update to direct to new BizOps process, and ensure there is clarity between what is "CEO task" and what is "BizOps task"
--->
+> To update a consultant's fee, [send a slack DM to Joanne Stableford](https://fleetdm.com/handbook/business-operations#contact-us) with the consultant's name and proposed new rate.
 
 ### Advisor
 
