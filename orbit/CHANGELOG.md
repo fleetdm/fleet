@@ -1,5 +1,9 @@
 ## Orbit 1.21.0 (Jan 30, 2024)
 
+* For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.
+
+* For Windows hosts, fleetd now stores and retrieves enroll secret from Windows Credential Manager.
+
 * Orbit will now kill pre-existing osqueryd processes during startup.
 
 * Updated Windows Powershell evocation to run scripts in MTA mode to provide access to MDM configuration.
