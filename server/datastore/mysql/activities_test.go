@@ -370,63 +370,54 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 		hostID    uint
 		wantExecs []string
 		wantMeta  *fleet.PaginationMetadata
-		wantCount uint
 	}{
 		{
 			opts:      fleet.ListOptions{PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1A, h1B},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 2},
 			hostID:    h1.ID,
 			wantExecs: []string{h1E},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 3},
 			hostID:    h1.ID,
 			wantExecs: []string{h1A, h1B, h1C},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 1, PerPage: 3},
 			hostID:    h1.ID,
 			wantExecs: []string{h1D, h1E},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{Page: 2, PerPage: 3},
 			hostID:    h1.ID,
 			wantExecs: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
-			wantCount: 5,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true, TotalResults: 5},
 		},
 		{
 			opts:      fleet.ListOptions{PerPage: 3},
 			hostID:    h2.ID,
 			wantExecs: []string{h2A},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			wantCount: 1,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 1},
 		},
 		{
 			opts:      fleet.ListOptions{},
 			hostID:    h3.ID,
 			wantExecs: []string{},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
-			wantCount: 0,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false, TotalResults: 0},
 		},
 	}
 	for _, c := range cases {
@@ -465,11 +456,6 @@ func testListHostUpcomingActivities(t *testing.T, ds *Datastore) {
 					require.Nil(t, a.ActorEmail, "result %d", i)
 				}
 			}
-
-			// confirm counts are correct
-			count, err := ds.CountHostUpcomingActivities(ctx, c.hostID)
-			require.NoError(t, err)
-			require.Equal(t, c.wantCount, count)
 		})
 	}
 }

@@ -67,37 +67,29 @@ func (r listHostUpcomingActivitiesResponse) error() error { return r.Err }
 
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
-	count, acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
+	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
 		return listHostUpcomingActivitiesResponse{Err: err}, nil
 	}
 
-	return listHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: count}, nil
+	return listHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: meta.TotalResults}, nil
 }
 
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
 // specified host.
-func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) (uint, []*fleet.Activity, *fleet.PaginationMetadata, error) {
+func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 	// First ensure the user has access to list hosts, then check the specific
 	// host once team_id is loaded.
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
-		return 0, nil, nil, err
+		return nil, nil, err
 	}
 	host, err := svc.ds.HostLite(ctx, hostID)
 	if err != nil {
-		return 0, nil, nil, ctxerr.Wrap(ctx, err, "get host")
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host")
 	}
 	// Authorize again with team loaded now that we have team_id
 	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
-		return 0, nil, nil, err
-	}
-
-	count, err := svc.ds.CountHostUpcomingActivities(ctx, hostID)
-	if err != nil {
-		return 0, nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
-	}
-	if count == 0 {
-		return 0, []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
+		return nil, nil, err
 	}
 
 	// cursor-based pagination is not supported for upcoming activities
@@ -110,12 +102,7 @@ func (svc *Service) ListHostUpcomingActivities(ctx context.Context, hostID uint,
 	// always include metadata
 	opt.IncludeMetadata = true
 
-	acts, meta, err := svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
-	if err != nil {
-		return 0, nil, nil, ctxerr.Wrap(ctx, err, "list upcoming activities")
-	}
-
-	return count, acts, meta, nil
+	return svc.ds.ListHostUpcomingActivities(ctx, hostID, opt)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
