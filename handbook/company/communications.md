@@ -540,8 +540,7 @@ We're happy you've ventured a trip around the sun with Fleet- let's celebrate! T
 Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
 
 ### Relocating
-When Fleeties relocate, there are vendors that need to be notified of the change. 
-Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#contact-us) by following the directions listed in the relevant issue template ("Moving").
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#contact-us) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
