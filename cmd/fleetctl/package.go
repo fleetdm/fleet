@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
@@ -289,8 +288,9 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
-				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+				return errors.New(
+					`Could not use local WiX to generate an osquery installer. This option is only available on Windows and macOS.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
@@ -340,25 +340,8 @@ func packageCommand() *cli.Command {
 				zlog.Logger = zerolog.Nop()
 			}
 
-			const maxAttempts = 9 // see #5732
-			var (
-				attempts int
-				path     string
-				err      error
-			)
-			for attempts < maxAttempts {
-				attempts++
-
-				if attempts > 1 {
-					fmt.Printf("Generating your osquery installer [attempt %d/%d]...\n\n", attempts, maxAttempts)
-				} else {
-					fmt.Println("Generating your osquery installer...")
-				}
-				path, err = buildFunc(opt)
-				if err == nil || !shouldRetry(c.String("type"), opt, err) {
-					break
-				}
-			}
+			fmt.Println("Generating your osquery installer...")
+			path, err := buildFunc(opt)
 			if err != nil {
 				return err
 			}
@@ -376,25 +359,6 @@ To add other devices to Fleet, distribute this installer using Chef, Ansible, Ja
 			}
 			return nil
 		},
-	}
-}
-
-func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
-	if pkgType != "msi" || runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
-		return false
-	}
-
-	// building an MSI on macos M1, check if the error is one that should be retried
-	errStr := err.Error()
-	switch {
-	case strings.Contains(errStr, "package root files: heat failed"):
-		return true
-	case strings.Contains(errStr, "build package: candle failed"):
-		return true
-	case strings.Contains(errStr, "build package: light failed"):
-		return true
-	default:
-		return false
 	}
 }
 
