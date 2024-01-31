@@ -94,7 +94,7 @@ Consultants:
 
 Consultants [track time using the company's tools](#tracking-hours) and sign [Fleet's consulting agreement](#sending-a-consulting-agreement).
 
-To hire a consultant, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant%3A+_____________) to the business operations team.
+To hire a consultant, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the business operations team.
 
 #### Who ISN'T a consultant?
 
@@ -114,22 +114,21 @@ Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 
-To send a consulting agreement, you will need to [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant%3A+_____________) to the business operations team. They will then peform the steps needed to bring aboard a new consultant.
+To send a consulting agreement, you will need to [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the business operations team. They will then peform the steps needed to bring aboard a new consultant.
 
 You will be asked to provide the following details:
 - Consultant's name (or business name)
 - Consultant's email
 - Term of service (default is 1 month, 10hrs/week)
-- What will they be doing
 - Who will be managing the output (approving hours) for the consultant
-- Consultant's fee (if no rate conversation has happened, BizOps will help negotiate)
+- Consultant's fee (always ask for their hourly rate)
 - Any specific tools the consultant will need
 
 If the consultant is international, you will also provide:
 - Country of residence
 - Consultant's date of birth
 
-> To update a consultant's fee, [send a slack DM to Joanne Stableford](https://fleetdm.com/handbook/business-operations#contact-us) with the consultant's name and proposed new rate.
+> To update a consultant's fee, [submit an issue to BizOps](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
 ### Advisor
 
