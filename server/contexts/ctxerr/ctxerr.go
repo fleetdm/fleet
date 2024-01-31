@@ -16,13 +16,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"go.elastic.co/apm/v2"
 )
 
 type key int
@@ -62,6 +62,14 @@ func (e *FleetError) Unwrap() error {
 // Stack returns a call stack for the error
 func (e *FleetError) Stack() []string {
 	return e.stack.List()
+}
+
+// StackTrace implements the runtimeStackTracer interface understood by the
+// elastic APM package to reuse already-captured stack traces.
+// https://github.com/elastic/apm-agent-go/blob/main/stacktrace/errors.go#L45-L47
+func (e *FleetError) StackTrace() *runtime.Frames {
+	st := e.stack.(stack) // outside of tests, e.stack is always a stack type
+	return runtime.CallersFrames(st)
 }
 
 // LogFields implements fleet.ErrWithLogFields, so attached error data can be
@@ -156,7 +164,7 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 
 	// As a final step, report error to APM.
 	// This is safe to to even if APM is not enabled.
-	apm.CaptureError(ctx, cause).Send()
+	//apm.CaptureError(ctx, cause).Send()
 	return &FleetError{msg, stack, cause, edata}
 }
 
