@@ -47,7 +47,7 @@ interface IDataColumn {
   sortType?: string;
 }
 
-export interface IMembersTableData {
+export interface IUsersTableData {
   name: string;
   email: string;
   role: UserRole;
@@ -81,7 +81,7 @@ const generateColumnConfigs = (
               {apiOnlyUser && (
                 <>
                   <span
-                    className="members__api-only-user"
+                    className="users__api-only-user"
                     data-tip
                     data-for={`api-only-tooltip-${cellProps.row.original.id}`}
                   >
@@ -208,10 +208,10 @@ const generateRole = (teamId: number, teams: ITeam[]): UserRole => {
   return stringUtils.capitalizeRole(role);
 };
 
-const enhanceMembersData = (
+const enhanceUsersData = (
   teamId: number,
   users: IUser[]
-): IMembersTableData[] => {
+): IUsersTableData[] => {
   return Object.values(users).map((user) => {
     return {
       name: user.name,
@@ -227,11 +227,8 @@ const enhanceMembersData = (
   });
 };
 
-const generateDataSet = (
-  teamId: number,
-  users: IUser[]
-): IMembersTableData[] => {
-  return [...enhanceMembersData(teamId, users)];
+const generateDataSet = (teamId: number, users: IUser[]): IUsersTableData[] => {
+  return [...enhanceUsersData(teamId, users)];
 };
 
 export { generateColumnConfigs, generateDataSet };
