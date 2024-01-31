@@ -396,6 +396,8 @@ type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOption
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
 
+type CountHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint) (uint, error)
+
 type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
@@ -1371,6 +1373,9 @@ type DataStore struct {
 
 	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
 	MarkActivitiesAsStreamedFuncInvoked bool
+
+	CountHostUpcomingActivitiesFunc        CountHostUpcomingActivitiesFunc
+	CountHostUpcomingActivitiesFuncInvoked bool
 
 	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
 	ListHostUpcomingActivitiesFuncInvoked bool
@@ -3308,6 +3313,13 @@ func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []
 	s.MarkActivitiesAsStreamedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
+}
+
+func (s *DataStore) CountHostUpcomingActivities(ctx context.Context, hostID uint) (uint, error) {
+	s.mu.Lock()
+	s.CountHostUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountHostUpcomingActivitiesFunc(ctx, hostID)
 }
 
 func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {

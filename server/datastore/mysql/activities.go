@@ -184,7 +184,17 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 	return nil
 }
 
+func (ds *Datastore) CountHostUpcomingActivities(ctx context.Context, hostID uint) (uint, error) {
+	const stmt = `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND exit_code IS NULL`
+	var count uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, stmt, hostID); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count upcoming activities")
+	}
+	return count, nil
+}
+
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	// NOTE: Be sure to update CountHostUpcomingActivities if this query changes.
 	const listStmt = `
 		SELECT
 			hsr.execution_id as uuid,

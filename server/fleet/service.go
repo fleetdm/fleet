@@ -538,8 +538,9 @@ type Service interface {
 
 	// ListHostUpcomingActivities lists the upcoming activities for the specified
 	// host. Those are activities that are queued or scheduled to run on the host
-	// but haven't run yet.
-	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
+	// activities.
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) (uint, []*Activity, *PaginationMetadata, error)
 
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)

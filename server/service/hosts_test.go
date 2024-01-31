@@ -588,6 +588,9 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
+	ds.CountHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint) (uint, error) {
+		return 0, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -687,7 +690,7 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
-			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
+			_, _, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, err = svc.GetHost(ctx, 2, opts)
@@ -699,7 +702,7 @@ func TestHostAuth(t *testing.T) {
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
-			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
+			_, _, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
