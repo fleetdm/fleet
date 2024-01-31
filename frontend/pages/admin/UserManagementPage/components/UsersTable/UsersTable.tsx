@@ -1,7 +1,6 @@
 import React, { useState, useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
-import memoize from "memoize-one";
 
 import paths from "router/paths";
 import { IApiError } from "interfaces/errors";

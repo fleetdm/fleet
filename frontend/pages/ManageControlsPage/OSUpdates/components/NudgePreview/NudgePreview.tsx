@@ -15,7 +15,7 @@ interface INudgeDescriptionProps {
 const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
   return platform === "darwin" ? (
     <>
-      <h2>End user experience on macOS</h2>
+      <h3>End user experience on macOS</h3>
       <p>
         When a minimum version is saved, the end user sees the below window
         until their macOS version is at or above the minimum version.
@@ -29,7 +29,7 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
     </>
   ) : (
     <>
-      <h2>End user experience on Windows</h2>
+      <h3>End user experience on Windows</h3>
       <p>
         When a Windows host becomes aware of a new update, end users are able to
         defer restarts. Automatic restarts happen before 8am and after 5pm (end

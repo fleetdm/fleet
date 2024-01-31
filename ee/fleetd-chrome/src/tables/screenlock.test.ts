@@ -14,7 +14,7 @@ describe("screenlock", () => {
           grace_period: "600",
         },
       ],
-      warnings: undefined,
+      warnings: null,
     });
   });
 });

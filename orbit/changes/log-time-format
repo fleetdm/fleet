@@ -1,1 +1,0 @@
-* Fixed a log timestamp to print the right duration value when a fleet update has exceeded the maximum number of retries.

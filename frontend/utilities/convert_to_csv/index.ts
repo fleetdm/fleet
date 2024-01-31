@@ -1,6 +1,3 @@
-import { ICampaignError } from "interfaces/campaign";
-import { Row, Column } from "react-table";
-
 const defaultFieldSortFunc = (fields: string[]) => fields;
 
 interface ConvertToCSV {

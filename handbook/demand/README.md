@@ -15,13 +15,13 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing,%23g-ceo&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 ## Responsibilities
 The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 ### Begin or modify an advertising campaign
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-website)"](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
 
 To propose an ad, or a change to an ad:
 1. Add your change for review to the "Design review" agenda and attend the next scheduled website design review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
@@ -89,7 +89,7 @@ There are many times in which community members, customers, and contributors are
 - If yes, follow the steps of creating a magic link in Postal to send.
 
 ### Run a new ad or change an existing ad
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-website), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
+Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
 1. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.

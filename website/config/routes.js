@@ -249,7 +249,7 @@ module.exports.routes = {
   },
 
   'GET /device-management': {
-    action: 'view-fleet-mdm',
+    action: 'view-device-management',
     locals: {
       pageTitleForMeta: 'Device management (MDM) | Fleet',
       pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
@@ -379,13 +379,13 @@ module.exports.routes = {
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
   'GET /handbook/community': '/handbook/marketing#community',
-  'GET /handbook/digital-experience': '/handbook/marketing#digital-experience',
   'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing/article-formatting-guide',
   'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
   'GET /handbook/digital-experience/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
-  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/ceo': '/handbook/digital-experience',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
   'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',

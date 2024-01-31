@@ -19,7 +19,7 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
 | [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 74       |
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 52       |
-| [Website](#website-group)                               | Make the website wonderful.                             | 13       |
+
 
 \* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
@@ -52,21 +52,6 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
-
-### Website group
-The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
-
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [#g-website group](https://fleetdm.com/handbook/company/development-groups#website-group).  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/development-groups#current-product-groups), and not by `#g-website`._
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Designer                          | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Engineering Manager               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Quality Assurance                 | Mike Thomas
-| Product Manager                   | Mike Thomas
-| Developer                         | Eric Shaw
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C058S8PFSK0), [kanban release board](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-website) for this product group is `#g-website`.
 
 ## Making changes
 Fleet's highest product ambition is to create experiences that users want.
@@ -403,7 +388,7 @@ QA has reproduced the issue successfully. It should now be transferred to engine
 
 Remove the “reproduce” label, add the following labels: 
 
-1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-website`).
+1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-digital-experience`).
 3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
 2. The `:incoming` label indicates to the EM that it is a new bug. 
 3. The `:release` label will place the bug on the team's release board. 
@@ -651,7 +636,7 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Discuss implementation details
 
 ### Design reviews
-Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).
+Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/digital-experience#calendar-audit).
 
 The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.

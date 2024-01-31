@@ -61,7 +61,7 @@ const EditColumnsModal = ({
 
   return (
     <Modal title="Edit columns" onExit={onCancelColumns} className={baseClass}>
-      <>
+      <div className="form">
         <p>Choose which columns you see:</p>
         <div className={`${baseClass}__column-headers`}>
           {columnItems.map((column) => {
@@ -90,7 +90,7 @@ const EditColumnsModal = ({
             Cancel
           </Button>
         </div>
-      </>
+      </div>
     </Modal>
   );
 };
