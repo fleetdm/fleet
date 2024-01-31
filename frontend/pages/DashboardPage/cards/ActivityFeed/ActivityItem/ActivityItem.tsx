@@ -5,6 +5,7 @@ import { formatDistanceToNowStrict } from "date-fns";
 import { ActivityType, IActivity, IActivityDetails } from "interfaces/activity";
 import {
   addGravatarUrlToResource,
+  formatScriptNameForActivityItem,
   getPerformanceImpactDescription,
   internationalTimeFormat,
 } from "utilities/helpers";
@@ -610,20 +611,26 @@ const TAGGED_TEMPLATES = {
   disabledWindowsMdm: (activity: IActivity) => {
     return <> told Fleet to turn off Windows MDM features.</>;
   },
+  // TODO: Combine ranScript template with host details page templates
+  // frontend/pages/hosts/details/cards/Activity/PastActivity/PastActivity.tsx and
+  // frontend/pages/hosts/details/cards/Activity/UpcomingActivity/UpcomingActivity.tsx
   ranScript: (
     activity: IActivity,
     onDetailsClick?: (type: ActivityType, details: IActivityDetails) => void
   ) => {
+    const { script_name, host_display_name, script_execution_id } =
+      activity.details || {};
     return (
       <>
         {" "}
-        ran a script on {activity.details?.host_display_name}.{" "}
+        ran {formatScriptNameForActivityItem(script_name)} on{" "}
+        {host_display_name}.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
           onClick={() =>
             onDetailsClick?.(ActivityType.RanScript, {
-              script_execution_id: activity.details?.script_execution_id,
+              script_execution_id,
             })
           }
         >
