@@ -1,2 +1,0 @@
-- Updated script running logic to stop running scripts if the script content can't be fetched from
-Fleet, which will preserve the order in which the scripts are queued.

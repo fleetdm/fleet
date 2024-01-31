@@ -179,7 +179,8 @@ func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
 
 	for i := 0; i < 3; i++ {
 		if feedParts[i] != osParts[i] {
-			return false, fmt.Errorf("comparing different product versions: %s, %s", feed, os)
+			// comparing different product versions
+			return false, nil
 		}
 	}
 

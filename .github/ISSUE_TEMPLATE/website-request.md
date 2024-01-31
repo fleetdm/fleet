@@ -1,8 +1,8 @@
 ---
-name: 🕸️ Website request
+name: 🌐 Website request
 about: Propose a new feature or enhancement to fleetdm.com.
 title: 'Request: __________________________'
-labels: '#g-website'
+labels: '#g-digital-experience'
 assignees: ''
 
 ---
