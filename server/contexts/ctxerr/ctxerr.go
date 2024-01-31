@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"go.elastic.co/apm/v2"
 )
 
 type key int
@@ -161,10 +162,6 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 	}
 
 	edata := encodeData(ctx, data, !isFleetError)
-
-	// As a final step, report error to APM.
-	// This is safe to to even if APM is not enabled.
-	//apm.CaptureError(ctx, cause).Send()
 	return &FleetError{msg, stack, cause, edata}
 }
 
@@ -282,7 +279,8 @@ func fromContext(ctx context.Context) handler {
 }
 
 // Handle handles err by passing it to the registered error handler,
-// deduplicating it and storing it for a configured duration.
+// deduplicating it and storing it for a configured duration. It also takes
+// care of sending it to the configured APM, if any.
 func Handle(ctx context.Context, err error) {
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
@@ -290,6 +288,14 @@ func Handle(ctx context.Context, err error) {
 	if !errors.As(err, &ferr) {
 		err = Wrap(ctx, err, "missing FleetError in chain")
 	}
+
+	cause := err
+	if ferr := FleetCause(err); ferr != nil {
+		// use the FleetCause error so we send the most relevant stacktrace to APM
+		// (the one from the initial New/Wrap call).
+		cause = ferr
+	}
+	apm.CaptureError(ctx, cause).Send()
 
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)
