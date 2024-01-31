@@ -3771,6 +3771,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ```json
 {
+  "count": 2,
   "activities": [
     {
       "created_at": "2023-07-27T14:35:08Z",
