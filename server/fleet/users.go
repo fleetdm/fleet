@@ -403,6 +403,7 @@ func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte
 	if err != nil {
 		return nil, "", err
 	}
+	salt = salt[:keySize]
 
 	withSalt := []byte(fmt.Sprintf("%s%s", plaintext, salt))
 	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
