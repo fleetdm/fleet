@@ -44,7 +44,7 @@ module.exports = {
     },
     badRequest: {
       responseType: 'badRequest',
-      description: "Invalid MDM migration request."
+      description: 'Invalid MDM migration request.'
     }
   },
 
