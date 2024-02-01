@@ -79,7 +79,7 @@ This approach complements the original packaging method, allowing you to choose 
 We encourage you to explore this alternative method in your environment and see how it aligns with your operational workflows. If you have any questions, insights, or experiences to share, feel free to join our community [Fleet Slack channels](https://fleetdm.com/support). Your feedback helps us improve and fosters a collaborative space where ideas and solutions can flourish.
 
 
-<meta name="articleTitle" value="Windows MDM setup">
+<meta name="articleTitle" value="Config-less fleetd agent deployment">
 <meta name="authorFullName" value="Noah Talerman">
 <meta name="authorGitHubUsername" value="noahtalerman">
 <meta name="category" value="guides">
