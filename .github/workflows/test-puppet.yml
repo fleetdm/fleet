@@ -38,17 +38,17 @@ jobs:
 
     - name: Install Ruby Gems
       working-directory: ./ee/tools/puppet/fleetdm/
-      run: pdk bundle install
+      run: /opt/puppetlabs/pdk/bin/pdk bundle install
 
     - name: Run Tests
       working-directory: ./ee/tools/puppet/fleetdm/
-      run: pdk test unit
+      run: /opt/puppetlabs/pdk/bin/pdk test unit
 
     - name: Run Rubocop
       working-directory: ./ee/tools/puppet/fleetdm/
-      run: pdk bundle exec rubocop
+      run: /opt/puppetlabs/pdk/bin/pdk bundle exec rubocop
 
     - name: Run Linter
       working-directory: ./ee/tools/puppet/fleetdm/
-      run: pdk bundle exec puppet-lint .
+      run: /opt/puppetlabs/pdk/bin/pdk bundle exec puppet-lint .
       
