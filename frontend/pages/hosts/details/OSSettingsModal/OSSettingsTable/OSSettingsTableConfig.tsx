@@ -85,13 +85,24 @@ const tableHeaders: IDataColumn[] = [
     accessor: "detail",
     Cell: (cellProps: ICellProps): JSX.Element => {
       const profile = cellProps.row.original;
+
+      const value =
+        (profile.status === "failed" && profile.detail) ||
+        DEFAULT_EMPTY_CELL_VALUE;
+
+      const generateTooltip = () => {
+        if (cellProps.row.original.platform !== "windows") {
+          return value;
+        }
+
+        profile.detail.split(":");
+      };
+
       return (
         <TooltipTruncatedTextCell
           tooltipBreakOnWord
-          value={
-            (profile.status === "failed" && profile.detail) ||
-            DEFAULT_EMPTY_CELL_VALUE
-          }
+          tooltip="test"
+          value={value}
         />
       );
     },
