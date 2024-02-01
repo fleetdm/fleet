@@ -832,3 +832,113 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 	}
 	return m
 }
+
+// DoGitOps applies the GitOps config to Fleet.
+func (c *Client) DoGitOps(
+	ctx context.Context,
+	config *spec.GitOps,
+	baseDir string,
+	logf func(format string, args ...interface{}),
+	dryRun bool,
+) error {
+	logFn := func(format string, args ...interface{}) {
+		if logf != nil {
+			logf(format, args...)
+		}
+	}
+
+	err := c.doGitOpsPolicies(config, logFn, dryRun)
+	if err != nil {
+		return err
+	}
+	err = c.doGitOpsQueries(config, logFn, dryRun)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *Client) doGitOpsPolicies(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	// Get the ids and names of current policies to figure out which ones to delete
+	policies, err := c.GetPolicies(nil)
+	if err != nil {
+		return fmt.Errorf("error getting current policies: %w", err)
+	}
+	if len(config.Policies) > 0 {
+		numPolicies := len(config.Policies)
+		logFn("[+] syncing %d policies\n", numPolicies)
+		if !dryRun {
+			// Note: We are reusing the spec flow here for adding/updating policies, instead of creating a new flow for GitOps.
+			if err := c.ApplyPolicies(config.Policies); err != nil {
+				return fmt.Errorf("error applying policies: %w", err)
+			}
+			logFn("[+] synced %d policies\n", numPolicies)
+		}
+	}
+	var policiesToDelete []uint
+	for _, oldItem := range policies {
+		found := false
+		for _, newItem := range config.Policies {
+			if oldItem.Name == newItem.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			policiesToDelete = append(policiesToDelete, oldItem.ID)
+			fmt.Printf("[-] deleting policy %s\n", oldItem.Name)
+		}
+	}
+	if len(policiesToDelete) > 0 {
+		logFn("[-] deleting %d policies\n", len(policiesToDelete))
+		if !dryRun {
+			if err := c.DeletePolicies(nil, policiesToDelete); err != nil {
+				return fmt.Errorf("error deleting policies: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (c *Client) doGitOpsQueries(config *spec.GitOps, logFn func(format string, args ...interface{}), dryRun bool) error {
+	// Get the ids and names of current queries to figure out which ones to delete
+	queries, err := c.GetQueries(nil, nil)
+	if err != nil {
+		return fmt.Errorf("error getting current queries: %w", err)
+	}
+	if len(config.Queries) > 0 {
+		numQueries := len(config.Queries)
+		logFn("[+] syncing %d queries\n", numQueries)
+		if !dryRun {
+			// Note: We are reusing the spec flow here for adding/updating queries, instead of creating a new flow for GitOps.
+			if err := c.ApplyQueries(config.Queries); err != nil {
+				return fmt.Errorf("error applying queries: %w", err)
+			}
+			logFn("[+] synced %d queries\n", numQueries)
+		}
+	}
+	var queriesToDelete []uint
+	for _, oldQuery := range queries {
+		found := false
+		for _, newQuery := range config.Queries {
+			if oldQuery.Name == newQuery.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			queriesToDelete = append(queriesToDelete, oldQuery.ID)
+			fmt.Printf("[-] deleting query %s\n", oldQuery.Name)
+		}
+	}
+	if len(queriesToDelete) > 0 {
+		logFn("[-] deleting %d queries\n", len(queriesToDelete))
+		if !dryRun {
+			if err := c.DeleteQueries(queriesToDelete); err != nil {
+				return fmt.Errorf("error deleting queries: %w", err)
+			}
+		}
+	}
+	return nil
+}
