@@ -240,7 +240,7 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 
 	expected := vulnsUpdate
 	expected.Source = fleet.MSRCSource
-	
+
 	list1, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)
 	require.NoError(t, err)
 	require.Len(t, list1, 1)
