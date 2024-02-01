@@ -1,5 +1,13 @@
 # 🛩️ Product groups
+This page covers what all contributors (fleeties or not) need to know in order to contribute changes to [the core product](https://fleetdm.com/docs).
+
+## Background
+
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
+
+> Fleet's 🚀 Engineering and 🦢 Product Design departments also have [their own dedicated handbook pages](https://fleetdm.com/handbook/company#org-chart).
+> - Use departmental pages for keeping track of specific, rote responsibilities and recurring rituals designed to be read and used only by people in those departments.
+> - Use this "Product groups" page to write down philosophy, best practices, and everything else.
 
 ## Product roadmap
 Fleet team members can read [Fleet's high-level product goals and planned releases for the current quarter and the next quarter](https://docs.google.com/document/d/11XEb__EJoGQJE9hXwaLrN45_5_k1NCi-zlJKH-OlKKk/edit#heading=h.33k3ii7z7ubc) (confidential Google Doc).
