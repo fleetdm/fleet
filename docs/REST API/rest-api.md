@@ -4094,7 +4094,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
-- [Download custom OS setting (configuration profile)](#download-custom-os-setting-configuration-profile)
+- [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
