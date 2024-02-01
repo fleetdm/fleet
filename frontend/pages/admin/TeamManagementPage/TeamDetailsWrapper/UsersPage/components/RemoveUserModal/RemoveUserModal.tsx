@@ -34,7 +34,7 @@ const RemoveUserModal = ({
           <span className={`${baseClass}__team-name`}>{teamName}</span>.
         </p>
         <p>
-          If {userName} is not a member of any other team, they will lose access
+          If {userName} is not assigned to any other team, they will lose access
           to Fleet.
         </p>
         <div className="modal-cta-wrap">
