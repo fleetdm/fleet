@@ -90,7 +90,10 @@ const RunScriptModal = ({
               host_id: host.id,
               script_id: script.script_id,
             });
-            renderFlash("success", "Script successfully queued for execution");
+            renderFlash(
+              "success",
+              "Script is running or will run when the host comes online."
+            );
             refetchHostScripts();
           } catch (e) {
             const error = e as AxiosResponse<IApiError>;
