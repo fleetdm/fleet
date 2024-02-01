@@ -45,6 +45,8 @@ It is sometimes necessary to delay the release to allow time to complete partial
 2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
 
+To have a final clean release test that doesn't get interrupted with more QA requirements the final 24 hours of the freeze will be a "Deep Freeze" where even bugs and doc changes should be held back to allow QA uniterrupted testing. The only exception is a `~release-blocker` or `~unreleased-bug` fix which would then push the release out another day.
+
 ### Confirm latest versions of dependencies
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
 
