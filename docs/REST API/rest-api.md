@@ -3285,16 +3285,6 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
       ]
     }
   ],
-  "mobile_device_management_solution_names": [
-    {
-      "name": "Fleet",
-      "hosts_count": 160
-    },
-    {
-      "name": "Intune",
-      "hosts_count": 12
-    }
-  ]
 }
 ```
 
