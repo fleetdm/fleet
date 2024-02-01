@@ -197,6 +197,11 @@ func main() {
 			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
 			EnvVars: []string{"ORBIT_DISABLE_KEYSTORE"},
 		},
+		&cli.StringFlag{
+			Name:    "osquery-db",
+			Usage:   "Sets a custom osquery database directory",
+			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -588,7 +593,12 @@ func main() {
 			log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
 		}
 
-		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		osqueryDB := filepath.Join(c.String("root-dir"), "osquery.db")
+		if odb := c.String("osquery-db"); odb != "" {
+			osqueryDB = odb
+		}
+
+		osqueryHostInfo, err := getHostInfo(osquerydPath, osqueryDB)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
@@ -614,11 +624,16 @@ func main() {
 		}
 
 		var (
-			options              []osquery.Option
+			options []osquery.Option
+			// optionsAfterFlagfile is populated with options that will be set after the '--flagfile' argument
+			// to not allow users to change their values on their flagfiles.
 			optionsAfterFlagfile []osquery.Option
 		)
-		options = append(options, osquery.WithDataPath(c.String("root-dir")))
+		options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
+		optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
+			[]string{"--database_path", osqueryDB},
+		))
 
 		if logFile != nil {
 			// If set, redirect osqueryd's stderr to the logFile.

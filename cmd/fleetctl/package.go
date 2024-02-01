@@ -240,6 +240,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_DISABLE_KEYSTORE"},
 				Destination: &opt.DisableKeystore,
 			},
+			&cli.StringFlag{
+				Name:        "osquery-db",
+				Usage:       "Sets a custom osquery database directory (requires orbit >= v1.22.0)",
+				EnvVars:     []string{"FLEETCTL_OSQUERY_DB"},
+				Destination: &opt.OsqueryDB,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
