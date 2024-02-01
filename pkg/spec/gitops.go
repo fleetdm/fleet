@@ -45,7 +45,7 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 		if teamOk || teamSettingsOk {
 			errors = append(errors, "'org_settings' cannot be used with 'name' or 'team_settings'")
 		}
-	} else if teamOk && teamSettingsOk {
+		// } else if teamOk && teamSettingsOk {
 	} else {
 		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' must be present")
 	}
@@ -82,6 +82,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			errors = append(errors, fmt.Sprintf("failed to unmarshal policies: %v", err))
 		} else {
 			for _, item := range policies {
+				item := item
 				if item.Path == nil {
 					result.Policies = append(result.Policies, &item.PolicySpec)
 				} else {
@@ -94,6 +95,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 							errors = append(errors, fmt.Sprintf("failed to unmarshal policies file %s: %v", *item.Path, err))
 						} else {
 							for _, pp := range pathPolicies {
+								pp := pp
 								if pp != nil {
 									if pp.Path != nil {
 										errors = append(
@@ -138,22 +140,26 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		if err := yaml.Unmarshal(queriesRaw, &queries); err != nil {
 			errors = append(errors, fmt.Sprintf("failed to unmarshal queries: %v", err))
 		} else {
-			for _, q := range queries {
-				if q.Path == nil {
-					result.Queries = append(result.Queries, &q.QuerySpec)
+			for _, item := range queries {
+				item := item
+				if item.Path == nil {
+					result.Queries = append(result.Queries, &item.QuerySpec)
 				} else {
-					fileBytes, err := os.ReadFile(path.Join(baseDir, *q.Path))
+					fileBytes, err := os.ReadFile(path.Join(baseDir, *item.Path))
 					if err != nil {
-						errors = append(errors, fmt.Sprintf("failed to read queries file %s: %v", *q.Path, err))
+						errors = append(errors, fmt.Sprintf("failed to read queries file %s: %v", *item.Path, err))
 					} else {
 						var pathQueries []*Query
 						if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-							errors = append(errors, fmt.Sprintf("failed to unmarshal queries file %s: %v", *q.Path, err))
+							errors = append(errors, fmt.Sprintf("failed to unmarshal queries file %s: %v", *item.Path, err))
 						} else {
 							for _, pq := range pathQueries {
+								pq := pq
 								if pq != nil {
 									if pq.Path != nil {
-										errors = append(errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pq.Path, *q.Path))
+										errors = append(
+											errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+										)
 									} else {
 										result.Queries = append(result.Queries, &pq.QuerySpec)
 									}
