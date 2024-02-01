@@ -1,6 +1,5 @@
 import React from "react";
 
-import { formatFloatAsPercentage } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { ISoftwareVulnerability } from "interfaces/software";
 
@@ -10,6 +9,7 @@ import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
 
 interface IHeaderProps {
   column: {
@@ -96,9 +96,6 @@ const generateTableConfig = (
               <>
                 The worst case impact across different environments (CVSS base
                 score).
-                <br />
-                This data is reported by the National Vulnerability Database
-                (NVD).
               </>
             }
           >
@@ -128,8 +125,9 @@ const generateTableConfig = (
           <TooltipWrapper
             tipContent={
               <>
-                The worst case impact across different environments (CVSS base
-                score).
+                The probability that this vulnerability will be exploited in the
+                next 30 days (EPSS probability. This data is reported by
+                FIRST.org.
               </>
             }
           >
@@ -146,41 +144,12 @@ const generateTableConfig = (
           </>
         );
       },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell formatter={formatFloatAsPercentage} value={value} />
-      ),
-    },
-    {
-      title: "Known exploit",
-      accessor: "cisa_known_exploit",
-      disableSortBy: false,
-      sortType: "boolean",
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The vulnerability has been actively exploited in the wild. This
-                data is reported by the Cybersecurity and Infrustructure
-                Security Agency (CISA).
-              </>
-            }
-          >
-            Known exploit
-          </TooltipWrapper>
-        );
-        return (
-          <>
-            <HeaderCell
-              value={titleWithToolTip}
-              isSortedDesc={headerProps.column.isSortedDesc}
-            />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
-          </>
-        );
-      },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell value={value ? "Yes" : "No"} />
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <ProbabilityOfExploitCell
+          probabilityOfExploit={cellProps.row.original.epss_probability}
+          cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
+          rowId={cellProps.row.original.cve}
+        />
       ),
     },
     {
@@ -204,6 +173,31 @@ const generateTableConfig = (
           <>
             <HeaderCell
               value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+          </>
+        );
+      },
+      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => {
+        const valString = typeof value === "number" ? value.toString() : value;
+        return (
+          <TextCell
+            value={valString ? { timeString: valString } : undefined}
+            formatter={valString ? HumanTimeDiffWithDateTip : undefined}
+          />
+        );
+      },
+    },
+    {
+      title: "Detected",
+      accessor: "created_at",
+      disableSortBy: false,
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        return (
+          <>
+            <HeaderCell
+              value="Detected"
               isSortedDesc={headerProps.column.isSortedDesc}
             />
             {isSandboxMode && <PremiumFeatureIconWithTooltip />}
