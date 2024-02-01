@@ -484,7 +484,6 @@
     padding: 0px 0px 0px 80px;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
     align-self: stretch;
     border-radius: 24px;
     border: 2px solid #E2E4EA;
@@ -500,6 +499,7 @@
       }
     }
     [purpose='endpoints-images'] {
+      margin-left: 24px;
       overflow: hidden;
       max-width: 410px;
       width: 50%;
@@ -1063,7 +1063,7 @@
         padding-left: 40px;
         padding-right: 40px;
         margin-top: 0px;
-        margin-bottom: auto;
+        margin-bottom: 40px;
       }
       [purpose='endpoints-images'] {
         width: 110%;
@@ -1071,6 +1071,7 @@
         align-items: center;
         display: flex;
         flex-direction: column;
+        margin-left: 0px;
         [purpose='endpoint-images-row'] {
           min-height: 80px;
           [purpose='endpoint-image-box'] {
@@ -1332,9 +1333,6 @@
       }
     }
     [purpose='endpoints-banner'] {
-      [purpose='endpoint-banner-text'] {
-        margin-bottom: 40px;
-      }
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
           min-height: 60px;
