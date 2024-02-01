@@ -3263,20 +3263,26 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
     {
       "id": 1,
       "name": "Fleet",
-      "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
-      "hosts_count": 128
+      "servers": [
+        {
+          "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+          "hosts_count": 82
+        },
+        {
+          "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+          "hosts_count": 24
+        }
+      ]
     },
     {
       "id": 2,
-      "name": "Fleet",
-      "server_url": "https://example.fleetdm.com/api/mdm/microsoft/discovery",
-      "hosts_count": 32
-    },
-    {
-      "id": 3,
       "name": "Intune",
-      "server_url": "https://example.microsoft.com/microsoft/discovery",
-      "hosts_count": 12
+      "servers": [
+        {
+          "server_url": "https://example.fleetdm.com/mdm/apple/mdm",
+          "hosts_count": 7
+        }
+      ]
     }
   ],
   "mobile_device_management_solution_names": [
