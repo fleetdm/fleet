@@ -15,8 +15,8 @@ import (
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id) VALUES (?, ?, ?, '', ?)`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id FROM host_script_results WHERE id = ?`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
+		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -25,6 +25,8 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 		execID,
 		request.ScriptContents,
 		request.ScriptID,
+		request.UserID,
+		request.SyncRequest,
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "new host script execution request")
@@ -38,7 +40,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 	return &script, nil
 }
 
-func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	const updStmt = `
   UPDATE host_script_results SET
     output = ?,
@@ -60,19 +62,29 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
 	}
 
-	if _, err := ds.writer(ctx).ExecContext(ctx, updStmt,
+	res, err := ds.writer(ctx).ExecContext(ctx, updStmt,
 		output,
 		result.Runtime,
 		result.ExitCode,
 		result.HostID,
 		result.ExecutionID,
-	); err != nil {
-		return ctxerr.Wrap(ctx, err, "update host script result")
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "update host script result")
 	}
-	return nil
+
+	var hsr *fleet.HostScriptResult
+	if n, _ := res.RowsAffected(); n > 0 {
+		// it did update, so return the updated result
+		hsr, err = ds.getHostScriptExecutionResultDB(ctx, ds.writer(ctx), result.ExecutionID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load updated host script result")
+		}
+	}
+	return hsr, nil
 }
 
-func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 	const listStmt = `
   SELECT
     id,
@@ -84,18 +96,41 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_script_results
   WHERE
     host_id = ? AND
-    exit_code IS NULL AND
-    created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)`
+    exit_code IS NULL
+  ORDER BY
+    created_at ASC`
 
 	var results []*fleet.HostScriptResult
-	seconds := int(ignoreOlder.Seconds())
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "list pending host script results")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
+	}
+	return results, nil
+}
+
+func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+	const getStmt = `
+		SELECT 
+		  1 
+		FROM
+		  host_script_results
+		WHERE
+		  host_id = ? AND
+		  script_id = ? AND
+		  exit_code IS NULL
+	`
+
+	var results []*uint
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, getStmt, hostID, scriptID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "is execution pending for host")
 	}
 	return results, nil
 }
 
 func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
+	return ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), execID)
+}
+
+func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
 	const getStmt = `
   SELECT
     id,
@@ -106,14 +141,16 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
     output,
     runtime,
     exit_code,
-    created_at
+    created_at,
+    user_id,
+    sync_request
   FROM
     host_script_results
   WHERE
     execution_id = ?`
 
 	var result fleet.HostScriptResult
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &result, getStmt, execID); err != nil {
+	if err := sqlx.GetContext(ctx, q, &result, getStmt, execID); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("HostScriptResult").WithName(execID))
 		}
@@ -243,10 +280,19 @@ WHERE
 	return scripts, metaData, nil
 }
 
-func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
+func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
 	var globalOrTeamID uint
 	if teamID != nil {
 		globalOrTeamID = *teamID
+	}
+
+	var extension string
+	switch hostPlatform {
+	case "darwin":
+		extension = `%.sh`
+		break
+	case "windows":
+		extension = `%.ps1`
 	}
 
 	type row struct {
@@ -271,7 +317,7 @@ FROM
 	LEFT JOIN (
 		SELECT
 			id,
-			host_id,		
+			host_id,
 			script_id,
 			execution_id,
 			created_at,
@@ -295,9 +341,16 @@ FROM
 	ON s.id = hsr.script_id
 WHERE
 	(hsr.host_id IS NULL OR hsr.host_id = ?)
-	AND s.global_or_team_id = ?`
+	AND s.global_or_team_id = ?
+	`
 
 	args := []any{hostID, hostID, hostID, globalOrTeamID}
+	if len(extension) > 0 {
+		args = append(args, extension)
+		sql += `
+		AND s.name LIKE ?
+		`
+	}
 	stmt, args := appendListOptionsWithCursorToSQL(sql, args, &opt)
 
 	var rows []*row
@@ -424,5 +477,4 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
-
 }

@@ -9,7 +9,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftware } from "interfaces/software";
+import { ISoftwareTitle, ISoftware } from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -25,7 +25,8 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware;
+  software: ISoftware | undefined;
+  software_title: ISoftwareTitle | undefined;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
@@ -55,11 +56,13 @@ export interface ILoadHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   munkiIssueId?: number;
@@ -82,6 +85,8 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -177,6 +182,8 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const softwareTitleId = options?.softwareTitleId;
+    const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -209,6 +216,8 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osSettings,
         diskEncryptionStatus,
@@ -234,12 +243,14 @@ export default {
     policyResponse = "passing",
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     device_mapping,
@@ -273,8 +284,10 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         diskEncryptionStatus,

@@ -1,8 +1,16 @@
 .nudge-preview {
+  box-sizing: border-box;
   background-color: $ui-off-white;
   border-radius: $border-radius;
   border: 1px solid $ui-fleet-black-10;
   padding: $pad-xxlarge;
+  flex-grow: 1;
+
+  h3 {
+    font-size: $small;
+    margin: 0;
+    font-weight: normal;
+  }
 
   &__preview-img {
     margin-top: $pad-xxlarge;

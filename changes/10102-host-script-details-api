@@ -1,1 +1,0 @@
-- Added `GET /hosts/{id}/scripts` endpoint to retrieve status details of saved scripts applicable to a host.

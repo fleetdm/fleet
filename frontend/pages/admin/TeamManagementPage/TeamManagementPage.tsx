@@ -219,7 +219,7 @@ const TeamManagementPage = (): JSX.Element => {
 
   const emptyState = () => {
     const emptyTeams: IEmptyTableProps = {
-      iconName: "empty-teams",
+      graphicName: "empty-teams",
       header: "Set up team permissions",
       info:
         "Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts.",
@@ -252,7 +252,7 @@ const TeamManagementPage = (): JSX.Element => {
   const tableData = teams ? generateDataSet(teams) : [];
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       <p className={`${baseClass}__page-description`}>
         Create, customize, and remove teams from Fleet.
       </p>
@@ -270,7 +270,7 @@ const TeamManagementPage = (): JSX.Element => {
           <TableDataError />
         ) : (
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={tableData}
             isLoading={isFetchingTeams}
             defaultSortHeader={"name"}
@@ -287,7 +287,7 @@ const TeamManagementPage = (): JSX.Element => {
             resultsTitle={"teams"}
             emptyComponent={() =>
               EmptyTable({
-                iconName: "empty-teams",
+                graphicName: "empty-teams",
                 header: emptyState().header,
                 info: emptyState().info,
                 additionalInfo: emptyState().additionalInfo,

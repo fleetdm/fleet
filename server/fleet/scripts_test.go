@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 
 	"github.com/stretchr/testify/require"
@@ -37,7 +38,7 @@ func TestScriptValidate(t *testing.T) {
 				Name:           "test.txt",
 				ScriptContents: "valid",
 			},
-			wantErr: errors.New("The file should be a .sh file."),
+			wantErr: errors.New("File type not supported. Only .sh and .ps1 file type is allowed."),
 		},
 		{
 			name: "invalid script content",
@@ -99,6 +100,64 @@ func TestValidateHostScriptContents(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			err := ValidateHostScriptContents(tt.script)
 			require.Equal(t, tt.wantErr, err)
+		})
+	}
+}
+
+func TestHostTimeout(t *testing.T) {
+	now := time.Now()
+	tests := []struct {
+		name              string
+		hostScriptResult  HostScriptResult
+		waitForResultTime time.Duration
+		expectedResult    bool
+	}{
+		{
+			name: "sync exitcode nil timeout passed",
+			hostScriptResult: HostScriptResult{
+				SyncRequest: true,
+				ExitCode:    nil,
+				CreatedAt:   now.Add(-10 * time.Minute),
+			},
+			waitForResultTime: 5 * time.Minute,
+			expectedResult:    true,
+		},
+		{
+			name: "sync exitcode nil timeout not passed",
+			hostScriptResult: HostScriptResult{
+				SyncRequest: true,
+				ExitCode:    nil,
+				CreatedAt:   now.Add(-3 * time.Minute),
+			},
+			waitForResultTime: 5 * time.Minute,
+			expectedResult:    false,
+		},
+		{
+			name: "sync exitcode set",
+			hostScriptResult: HostScriptResult{
+				SyncRequest: true,
+				ExitCode:    new(int64),
+				CreatedAt:   now.Add(-10 * time.Minute),
+			},
+			waitForResultTime: 5 * time.Minute,
+			expectedResult:    false,
+		},
+		{
+			name: "async exitcode nil",
+			hostScriptResult: HostScriptResult{
+				SyncRequest: false,
+				ExitCode:    nil,
+				CreatedAt:   now.Add(-10 * time.Minute),
+			},
+			waitForResultTime: 5 * time.Minute,
+			expectedResult:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := tt.hostScriptResult.HostTimeout(tt.waitForResultTime)
+			require.Equal(t, tt.expectedResult, result)
 		})
 	}
 }

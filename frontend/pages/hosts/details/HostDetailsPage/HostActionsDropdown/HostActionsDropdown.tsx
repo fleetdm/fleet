@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 
 import { MdmEnrollmentStatus } from "interfaces/mdm";
+import permissions from "utilities/permissions";
 import { AppContext } from "context/app";
 
 // @ts-ignore
@@ -10,36 +11,52 @@ import { generateHostActionOptions } from "./helpers";
 const baseClass = "host-actions-dropdown";
 
 interface IHostActionsDropdownProps {
+  hostTeamId: number | null;
   hostStatus: string;
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
   doesStoreEncryptionKey?: boolean;
   mdmName?: string;
+  hostPlatform?: string;
   onSelect: (value: string) => void;
 }
 
 const HostActionsDropdown = ({
-  onSelect,
+  hostTeamId,
   hostStatus,
   hostMdmEnrollemntStatus,
   doesStoreEncryptionKey,
   mdmName,
+  hostPlatform = "",
+  onSelect,
 }: IHostActionsDropdownProps) => {
   const {
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
     isMdmEnabledAndConfigured = false,
-    isTeamAdmin = false,
-    isTeamMaintainer = false,
     isSandboxMode = false,
+    currentUser,
   } = useContext(AppContext);
 
+  if (!currentUser) return null;
+
+  const isTeamAdmin = permissions.isTeamAdmin(currentUser, hostTeamId);
+  const isTeamMaintainer = permissions.isTeamMaintainer(
+    currentUser,
+    hostTeamId
+  );
+  const isTeamObserver = permissions.isTeamObserver(currentUser, hostTeamId);
+  const isGlobalObserver = permissions.isGlobalObserver(currentUser);
+
   const options = generateHostActionOptions({
+    hostPlatform,
     isPremiumTier,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isGlobalObserver,
     isTeamAdmin,
     isTeamMaintainer,
+    isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollemntStatus ?? ""

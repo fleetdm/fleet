@@ -20,12 +20,15 @@ import TabsWrapper from "components/TabsWrapper";
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryResultsHeading from "components/queries/queryResults/QueryResultsHeading";
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
+import InfoBanner from "components/InfoBanner";
+import CustomLink from "components/CustomLink";
 
-import generateResultsTableHeaders from "./QueryResultsTableConfig";
+import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
 interface IQueryResultsProps {
   campaign: ICampaign;
   isQueryFinished: boolean;
+  isQueryClipped: boolean;
   queryName?: string;
   onRunQuery: () => void;
   onStopQuery: (evt: React.MouseEvent<HTMLButtonElement>) => void;
@@ -44,6 +47,7 @@ const NAV_TITLES = {
 const QueryResults = ({
   campaign,
   isQueryFinished,
+  isQueryClipped,
   queryName,
   onRunQuery,
   onStopQuery,
@@ -60,8 +64,10 @@ const QueryResults = ({
   const [showQueryModal, setShowQueryModal] = useState(false);
   const [filteredResults, setFilteredResults] = useState<Row[]>([]);
   const [filteredErrors, setFilteredErrors] = useState<Row[]>([]);
-  const [tableHeaders, setTableHeaders] = useState<Column[]>([]);
-  const [errorTableHeaders, setErrorTableHeaders] = useState<Column[]>([]);
+  const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
+    []
+  );
+  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
@@ -85,24 +91,26 @@ const QueryResults = ({
 
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
-      const generatedTableHeaders = generateResultsTableHeaders(queryResults);
+      const newResultsColumnConfigs = generateColumnConfigsFromRows(
+        queryResults
+      );
       // Update tableHeaders if new headers are found
-      if (generatedTableHeaders !== tableHeaders) {
-        setTableHeaders(generatedTableHeaders);
+      if (newResultsColumnConfigs !== resultsColumnConfigs) {
+        setResultsColumnConfigs(newResultsColumnConfigs);
       }
     }
   }, [queryResults]); // Cannot use tableHeaders as it will cause infinite loop with setTableHeaders
 
   useEffect(() => {
-    if (errorTableHeaders?.length === 0 && !!errors?.length) {
-      setErrorTableHeaders(generateResultsTableHeaders(errors));
+    if (errorColumnConfigs?.length === 0 && !!errors?.length) {
+      setErrorColumnConfigs(generateColumnConfigsFromRows(errors));
 
-      if (errorTableHeaders && errorTableHeaders.length > 0) {
-        const generatedErrorTableHeaders = generateResultsTableHeaders(errors);
+      if (errorColumnConfigs && errorColumnConfigs.length > 0) {
+        const newErrorColumnConfigs = generateColumnConfigsFromRows(errors);
 
         // Update errorTableHeaders if new headers are found
-        if (generatedErrorTableHeaders !== tableHeaders) {
-          setErrorTableHeaders(generatedErrorTableHeaders);
+        if (newErrorColumnConfigs !== resultsColumnConfigs) {
+          setErrorColumnConfigs(newErrorColumnConfigs);
         }
       }
     }
@@ -114,7 +122,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredResults,
         generateCSVFilename(`${queryName || CSV_TITLE} - Results`),
-        tableHeaders
+        resultsColumnConfigs
       )
     );
   };
@@ -126,7 +134,7 @@ const QueryResults = ({
       generateCSVQueryResults(
         filteredErrors,
         generateCSVFilename(`${queryName || CSV_TITLE} - Errors`),
-        errorTableHeaders
+        errorColumnConfigs
       )
     );
   };
@@ -190,7 +198,10 @@ const QueryResults = ({
     return (
       <div className={`${baseClass}__results-table-container`}>
         <TableContainer
-          columns={tableType === "results" ? tableHeaders : errorTableHeaders}
+          defaultSortHeader="host_display_name"
+          columnConfigs={
+            tableType === "results" ? resultsColumnConfigs : errorColumnConfigs
+          }
           data={tableData || []}
           emptyComponent={renderNoResults}
           isLoading={false}
@@ -212,7 +223,8 @@ const QueryResults = ({
   const renderResultsTab = () => {
     // TODO - clean up these conditions
     const hasNoResultsYet =
-      !isQueryFinished && (!queryResults?.length || tableHeaders === null);
+      !isQueryFinished &&
+      (!queryResults?.length || resultsColumnConfigs === null);
     const finishedWithNoResults = isQueryFinished && !queryResults?.length;
 
     if (hasNoResultsYet) {
@@ -242,6 +254,24 @@ const QueryResults = ({
         onClickRunAgain={onRunAgain}
         onClickStop={onStopQuery}
       />
+      {isQueryClipped && (
+        <InfoBanner
+          color="yellow"
+          cta={
+            <CustomLink
+              url="https://www.fleetdm.com/support"
+              text="Get help"
+              newTab
+            />
+          }
+        >
+          <div>
+            <b>Results clipped.</b> A sample of this query&apos;s results and
+            errors is included below. Please target fewer hosts at once to build
+            a full set of results.
+          </div>
+        </InfoBanner>
+      )}
       <TabsWrapper>
         <Tabs selectedIndex={navTabIndex} onSelect={(i) => setNavTabIndex(i)}>
           <TabList>
@@ -249,7 +279,9 @@ const QueryResults = ({
             <Tab disabled={!errors?.length}>
               <span>
                 {errors?.length > 0 && (
-                  <span className="count">{errors.length}</span>
+                  <span className="count">
+                    {errors.length.toLocaleString()}
+                  </span>
                 )}
                 {NAV_TITLES.ERRORS}
               </span>

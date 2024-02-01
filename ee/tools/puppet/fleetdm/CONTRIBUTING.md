@@ -79,7 +79,11 @@ The only thing left to do is to add the `fleetdm/fleetdm` module to your server.
 
 ## Development cheatsheet
 
-To trigger a puppet run using the same machine as the server and client:
+Add your environment info to `ee/tools/puppet/fleetdm/data/common.yaml`.
+
+Ensure that the computer you are using for development has MDM turned on in your Fleet instance.
+
+From the `ee/tools/puppet/fleetdm` directory, trigger a puppet run using the same machine as the server and client:
 
 ```
 puppet apply --debug --test --modulepath="$(pwd)/.." --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
@@ -90,6 +94,12 @@ To trigger a puppet run to a remote server use:
 ```
 puppet agent --server puppet --serverport 8140 -t --debug
 ``` 
+
+Install pdk bundle dependencies required for linting, formatting, and testing:
+
+```
+pdk bundle install
+```
 
 To lint/fix Puppet (`.pp`) files, use:
 

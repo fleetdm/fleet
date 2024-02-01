@@ -20,11 +20,11 @@ import Modal from "components/Modal";
 // @ts-ignore
 import UserSettingsForm from "components/forms/UserSettingsForm";
 import InfoBanner from "components/InfoBanner";
-import SecretField from "components/EnrollSecrets/SecretField";
 import MainContent from "components/MainContent";
 import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
+import SecretField from "./APITokenModal/TokenSecretField/SecretField";
 import UserSidePanel from "./UserSidePanel";
 
 const baseClass = "user-settings";
@@ -139,17 +139,12 @@ const UserSettingsPage = ({
 
     return (
       <Modal title="Confirm email update" onExit={onToggleEmailModal}>
-        <>
-          <div className={`${baseClass}__confirm-update`}>
-            To update your email you must confirm your password.
-          </div>
-          <ChangeEmailForm
-            formData={updatedUser}
-            handleSubmit={emailSubmit}
-            onCancel={onToggleEmailModal}
-            serverErrors={errors}
-          />
-        </>
+        <ChangeEmailForm
+          formData={updatedUser}
+          handleSubmit={emailSubmit}
+          onCancel={onToggleEmailModal}
+          serverErrors={errors}
+        />
       </Modal>
     );
   };
@@ -175,6 +170,7 @@ const UserSettingsPage = ({
       return false;
     }
 
+    // TODO - move to its own component
     return (
       <Modal
         title="Get API token"
@@ -187,7 +183,7 @@ const UserSettingsPage = ({
               <strong>This token expires.</strong> If you want an API key for a
               permanent integration, create an&nbsp;
               <CustomLink
-                url="https://fleetdm.com/docs/using-fleet/fleetctl-cli#using-fleetctl-with-an-api-only-user?utm_medium=fleetui&utm_campaign=get-api-token"
+                url="https://fleetdm.com/docs/using-fleet/fleetctl-cli?utm_medium=fleetui&utm_campaign=get-api-token#using-fleetctl-with-an-api-only-user"
                 text="API-only user"
                 newTab
               />
@@ -201,7 +197,7 @@ const UserSettingsPage = ({
             This token is intended for SSO users to authenticate in the fleetctl
             CLI. It expires based on the{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/deploying/configuration#session-duration?utm_medium=fleetui&utm_campaign=get-api-token"
+              url="https://fleetdm.com/docs/deploying/configuration?utm_medium=fleetui&utm_campaign=get-api-token#session-duration"
               text="session duration configuration"
               newTab
             />

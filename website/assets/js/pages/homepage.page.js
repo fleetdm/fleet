@@ -4,7 +4,7 @@ parasails.registerPage('homepage', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     modal: undefined,
-    selectedCategory: 'endpoint-ops'
+    selectedCategory: 'device-management'
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -14,14 +14,13 @@ parasails.registerPage('homepage', {
     //…
   },
   mounted: async function(){
-
+    //…
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-
 
     clickOpenChatWidget: function() {
       if(window.HubSpotConversations && window.HubSpotConversations.widget){
@@ -35,6 +34,7 @@ parasails.registerPage('homepage', {
 
     closeModal: function() {
       this.modal = undefined;
-    }
+    },
+
   }
 });

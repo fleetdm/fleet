@@ -7,8 +7,8 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net/url"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -27,7 +27,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/data"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/fleetdm/goose"
+	"github.com/fleetdm/fleet/v4/server/goose"
+	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
@@ -35,7 +36,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
-	nanomdm_mysql "github.com/micromdm/nanomdm/storage/mysql"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -81,6 +81,11 @@ type Datastore struct {
 	stmtCacheMu sync.Mutex
 	// stmtCache holds statements for queries.
 	stmtCache map[string]*sqlx.Stmt
+
+	// for tests, set to override the default batch size.
+	testDeleteMDMProfilesBatchSize int
+	// for tests, set to override the default batch size.
+	testUpsertMDMDesiredProfilesBatchSize int
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -101,8 +106,12 @@ func (ds *Datastore) writer(ctx context.Context) *sqlx.DB {
 
 // loadOrPrepareStmt will load a statement from the statements cache.
 // If not available, it will attempt to prepare (create) it.
-//
 // Returns nil if it failed to prepare a statement.
+//
+// IMPORTANT: Adding prepare statements consumes MySQL server resources, and is limited by MySQL max_prepared_stmt_count
+// system variable. This method may create 1 prepare statement for EACH database connection. Customers must be notified
+// to update their MySQL configurations when additional prepare statements are added.
+// For more detail, see: https://github.com/fleetdm/fleet/issues/15476
 func (ds *Datastore) loadOrPrepareStmt(ctx context.Context, query string) *sqlx.Stmt {
 	// the cache is only available on the replica
 	if ctxdb.IsPrimaryRequired(ctx) {
@@ -487,7 +496,7 @@ func checkConfig(conf *config.MysqlConfig) error {
 	// Check if file exists on disk
 	// If file exists read contents
 	if conf.PasswordPath != "" {
-		fileContents, err := ioutil.ReadFile(conf.PasswordPath)
+		fileContents, err := os.ReadFile(conf.PasswordPath)
 		if err != nil {
 			return err
 		}
@@ -782,12 +791,18 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 	if perPage == 0 {
 		perPage = defaultSelectLimit
 	}
-	ds = ds.Limit(perPage)
 
 	offset := perPage * opts.Page
 	if offset > 0 {
 		ds = ds.Offset(offset)
 	}
+
+	if opts.IncludeMetadata {
+		perPage++
+	}
+
+	ds = ds.Limit(perPage)
+
 	return ds
 }
 
@@ -796,9 +811,8 @@ func appendLimitOffsetToSelect(ds *goqu.SelectDataset, opts fleet.ListOptions) *
 //
 // NOTE: this method will mutate the options argument if no explicit PerPage
 // option is set (a default value will be provided) or if the cursor approach is used.
-func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) string {
-	sql, _ = appendListOptionsWithCursorToSQL(sql, nil, opts)
-	return sql
+func appendListOptionsToSQL(sql string, opts *fleet.ListOptions) (string, []interface{}) {
+	return appendListOptionsWithCursorToSQL(sql, nil, opts)
 }
 
 // Appends the list options SQL to the passed in SQL string. This appended
@@ -1092,18 +1106,6 @@ func searchLikePattern(sql string, params []interface{}, match string, replacer 
 	return sql, params
 }
 
-// very loosely checks that a string looks like an email:
-// has no spaces, a single @ character, a part before the @,
-// a part after the @, the part after has at least one dot
-// with something after the dot. I don't think this is perfectly
-// correct as the email format allows any chars including spaces
-// when inside double quotes, but this is an edge case that is
-// unlikely to matter much in practice. Another option that would
-// definitely not cut out any valid address is to just check for
-// the presence of @, which is arguably the most important check
-// in this.
-var rxLooseEmail = regexp.MustCompile(`^[^\s@]+@[^\s@\.]+\..+$`)
-
 /*
 This regex matches any occurrence of a character from the ASCII character set followed by one or more characters that are not from the ASCII character set.
 The first part `[[:ascii:]]` matches any character that is within the ASCII range (0 to 127 in the ASCII table),
@@ -1116,13 +1118,15 @@ var (
 	nonacsiiReplace = regexp.MustCompile(`[^[:ascii:]]`)
 )
 
+// hostSearchLike searches hosts based on the given columns plus searching in hosts_emails. Note:
+// the host from the `hosts` table must be aliased to `h` in `sql`.
 func hostSearchLike(sql string, params []interface{}, match string, columns ...string) (string, []interface{}, bool) {
 	var matchesEmail bool
 	base, args := searchLike(sql, params, match, columns...)
 
 	// special-case for hosts: if match looks like an email address, add searching
 	// in host_emails table as an option, in addition to the provided columns.
-	if rxLooseEmail.MatchString(match) {
+	if fleet.IsLooseEmail(match) {
 		matchesEmail = true
 		// remove the closing paren and add the email condition to the list
 		base = strings.TrimSuffix(base, ")") + " OR (" + ` EXISTS (SELECT 1 FROM host_emails he WHERE he.host_id = h.id AND he.email LIKE ?)))`

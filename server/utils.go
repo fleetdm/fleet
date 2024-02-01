@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -58,7 +58,7 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
 	}
 
@@ -144,4 +144,19 @@ func GetTemplate(templatePath string, templateName string) (*template.Template, 
 func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
 	us := strings.TrimRight(s, string(base64.StdPadding))
 	return base64.RawStdEncoding.DecodeString(us)
+}
+
+// RemoveDuplicatesFromSlice returns a slice with all the duplicates removed from the input slice.
+func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
+	// We are using the allKeys map as a set here
+	allKeys := make(map[T]struct{})
+	var list []T
+
+	for _, i := range slice {
+		if _, exists := allKeys[i]; !exists {
+			allKeys[i] = struct{}{}
+			list = append(list, i)
+		}
+	}
+	return list
 }

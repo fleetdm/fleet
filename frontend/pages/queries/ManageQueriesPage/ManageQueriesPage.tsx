@@ -13,7 +13,7 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-import { performanceIndicator } from "utilities/helpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
@@ -35,7 +35,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import RevealButton from "components/buttons/RevealButton";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
+import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
 const baseClass = "manage-queries-page";
@@ -50,6 +50,9 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       team_id?: string;
+      inherited_order_key?: string;
+      inherited_order_direction?: "asc" | "desc";
+      inherited_page?: string;
     };
     search: string;
   };
@@ -64,7 +67,7 @@ const getPlatforms = (queryString: string): SupportedPlatform[] => {
 const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
-    performance: performanceIndicator(
+    performance: getPerformanceImpactDescription(
       pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
     platforms: getPlatforms(q.query),
@@ -76,7 +79,6 @@ const ManageQueriesPage = ({
   location,
 }: IManageQueriesPageProps): JSX.Element => {
   const queryParams = location.query;
-
   const {
     isGlobalAdmin,
     isTeamAdmin,
@@ -93,7 +95,6 @@ const ManageQueriesPage = ({
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
     QueryContext
   );
-
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -135,9 +136,9 @@ const ManageQueriesPage = ({
   >(
     [{ scope: "queries", teamId: teamIdForApi }],
     ({ queryKey: [{ teamId }] }) =>
-      queriesAPI.loadAll(teamId).then(({ queries }) => {
-        return queries.map(enhanceQuery);
-      }),
+      queriesAPI
+        .loadAll(teamId)
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
@@ -159,9 +160,9 @@ const ManageQueriesPage = ({
   >(
     [{ scope: "queries", teamId: API_ALL_TEAMS_ID }],
     ({ queryKey: [{ teamId }] }) =>
-      queriesAPI.loadAll(teamId).then(({ queries }) => {
-        return queries.map(enhanceQuery);
-      }),
+      queriesAPI
+        .loadAll(teamId)
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk && isAnyTeamSelected,
@@ -311,8 +312,12 @@ const ManageQueriesPage = ({
           inheritedQueryCount === 1 ? "y" : "ies"
         }`}
         caretPosition={"before"}
-        tooltipHtml={
-          'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+        tooltipContent={
+          <>
+            Queries from the &quot;All teams&quot;
+            <br />
+            schedule run on this team&apos;s hosts.
+          </>
         }
         onClick={() => {
           setShowInheritedQueries(!showInheritedQueries);
@@ -340,6 +345,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
         isInherited
+        currentTeamId={currentTeamId}
       />
     );
   };
@@ -410,7 +416,7 @@ const ManageQueriesPage = ({
           />
         )}
         {showManageAutomationsModal && (
-          <ManageAutomationsModal
+          <ManageQueryAutomationsModal
             isUpdatingAutomations={isUpdatingAutomations}
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
@@ -454,7 +460,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    Add query
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 </>
               )}

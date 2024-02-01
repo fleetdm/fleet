@@ -395,11 +395,17 @@ const SelectTargets = ({
 
     return (
       <>
-        <span>{total}</span>&nbsp;host{total > 1 ? `s` : ``} targeted&nbsp; (
-        {onlinePercentage()}
+        <b>{total.toLocaleString()}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
+        targeted&nbsp; ({onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
-          tipContent={`Hosts are online if they<br /> have recently checked <br />into Fleet.`}
+          tipContent={
+            <>
+              Hosts are online if they <br />
+              have recently checked <br />
+              into Fleet.
+            </>
+          }
         >
           online
         </TooltipWrapper>
@@ -410,7 +416,7 @@ const SelectTargets = ({
 
   if (isLoadingLabels || (isPremiumTier && isLoadingTeams)) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
@@ -421,7 +427,7 @@ const SelectTargets = ({
 
   if (errorLabels || errorTeams) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <PageError />
       </div>

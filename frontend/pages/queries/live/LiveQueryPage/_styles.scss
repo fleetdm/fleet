@@ -1,7 +1,4 @@
 .run-query-page {
-  .body-wrap {
-    min-width: 0;
-  }
   &__results {
     display: flex;
     flex-grow: 1;
@@ -80,10 +77,6 @@
     font-size: $x-small;
     display: flex;
     align-items: center;
-
-    span {
-      font-weight: $bold;
-    }
 
     .icon-tooltip {
       margin-left: $pad-small;

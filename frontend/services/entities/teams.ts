@@ -41,10 +41,18 @@ export interface IUpdateTeamFormData {
   webhook_settings: Partial<ITeamWebhookSettings>;
   integrations: IIntegrations;
   mdm: {
-    macos_updates: {
+    macos_updates?: {
       minimum_version: string;
       deadline: string;
     };
+    windows_updates?: {
+      deadline_days: number;
+      grace_period_days: number;
+    };
+  };
+  host_expiry_settings: {
+    host_expiry_enabled: boolean;
+    host_expiry_window: number; // days
   };
 }
 
@@ -87,7 +95,13 @@ export default {
     return sendRequest("GET", path);
   },
   update: (
-    { name, webhook_settings, integrations, mdm }: Partial<IUpdateTeamFormData>,
+    {
+      name,
+      webhook_settings,
+      integrations,
+      mdm,
+      host_expiry_settings,
+    }: Partial<IUpdateTeamFormData>,
     teamId?: number
   ): Promise<ITeamConfig> => {
     if (typeof teamId === "undefined") {
@@ -118,6 +132,9 @@ export default {
     }
     if (mdm) {
       requestBody.mdm = mdm;
+    }
+    if (host_expiry_settings) {
+      requestBody.host_expiry_settings = host_expiry_settings;
     }
 
     return sendRequest("PATCH", path, requestBody);

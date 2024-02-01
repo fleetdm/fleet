@@ -8,7 +8,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -110,7 +110,7 @@ func GetSignedAPNSCSR(client *http.Client, csr *x509.CertificateRequest) error {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		b, _ := ioutil.ReadAll(resp.Body)
+		b, _ := io.ReadAll(resp.Body)
 		return FleetWebsiteError{Status: resp.StatusCode, message: string(b)}
 	}
 	return nil

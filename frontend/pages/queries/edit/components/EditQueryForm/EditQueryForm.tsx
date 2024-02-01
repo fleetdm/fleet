@@ -150,6 +150,7 @@ const EditQueryForm = ({
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
     setLastEditedQueryDiscardData,
+    setEditingExistingQuery,
   } = useContext(QueryContext);
 
   const {
@@ -161,10 +162,12 @@ const EditQueryForm = ({
     isGlobalMaintainer,
     isObserverPlus,
     isAnyTeamObserverPlus,
+    config,
   } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const savedQueryMode = !!queryIdForEdit;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
   const [errors, setErrors] = useState<{ [key: string]: any }>({}); // string | null | undefined or boolean | undefined
   // NOTE: SaveQueryModal is only being used to create a new query in this component.
   // It's easy to confuse with other names like promptSaveQuery, promptSaveAsNewQuery, etc.,
@@ -328,7 +331,12 @@ const EditQueryForm = ({
         })
         .then((response: { query: ISchedulableQuery }) => {
           setIsSaveAsNewLoading(false);
-          router.push(PATHS.EDIT_QUERY(response.query.id));
+          router.push(
+            PATHS.QUERY_DETAILS(
+              response.query.id,
+              response.query.team_id ?? undefined
+            )
+          );
           renderFlash("success", `Successfully added query.`);
         })
         .catch((createError: { data: IApiError }) => {
@@ -584,21 +592,37 @@ const EditQueryForm = ({
       {(lastEditedQueryObserverCanRun ||
         isObserverPlus ||
         isAnyTeamObserverPlus) && (
-        <div
-          className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-        >
-          <Button
-            className={`${baseClass}__run`}
-            variant="blue-green"
-            onClick={() => {
-              router.push(
-                PATHS.LIVE_QUERY(queryIdForEdit) +
-                  TAGGED_TEMPLATES.queryByHostRoute(hostId)
-              );
-            }}
+        <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
+          <div
+            data-tip
+            data-for="live-query-button"
+            // Tooltip shows when live queries are globally disabled
+            data-tip-disable={!disabledLiveQuery}
           >
-            Live query
-          </Button>
+            <Button
+              className={`${baseClass}__run`}
+              variant="blue-green"
+              onClick={() => {
+                router.push(
+                  PATHS.LIVE_QUERY(queryIdForEdit) +
+                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                );
+              }}
+              disabled={disabledLiveQuery}
+            >
+              Live query
+            </Button>
+          </div>
+          <ReactTooltip
+            className={`live-query-button-tooltip`}
+            place="top"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id="live-query-button"
+            data-html
+          >
+            Live queries are disabled in organization settings
+          </ReactTooltip>
         </div>
       )}
     </form>
@@ -657,7 +681,7 @@ const EditQueryForm = ({
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangeQuery}
             handleSubmit={
               confirmChanges ? toggleConfirmSaveChangesModal : promptSaveQuery
@@ -669,35 +693,26 @@ const EditQueryForm = ({
             {renderPlatformCompatibility()}
           </span>
           {savedQueryMode && (
-            <div className={`${baseClass}__edit-options`}>
-              <div className={`${baseClass}__frequency`}>
-                <Dropdown
-                  searchable={false}
-                  options={frequencyOptions}
-                  onChange={onChangeSelectFrequency}
-                  placeholder={"Every day"}
-                  value={lastEditedQueryFrequency}
-                  label={"Frequency"}
-                  wrapperClassName={`${baseClass}__form-field form-field--frequency`}
-                />
-                <div className="help-text">
-                  This is how often your query collects data.
-                </div>
-              </div>
-              <div className={"form-field-with-help-text"}>
-                <Checkbox
-                  value={lastEditedQueryObserverCanRun}
-                  onChange={(value: boolean) =>
-                    setLastEditedQueryObserverCanRun(value)
-                  }
-                >
-                  Observers can run
-                </Checkbox>
-                <div className="help-text">
-                  Users with the observer role will be able to run this query on
-                  hosts where they have access.
-                </div>
-              </div>
+            <>
+              <Dropdown
+                searchable={false}
+                options={frequencyOptions}
+                onChange={onChangeSelectFrequency}
+                placeholder={"Every day"}
+                value={lastEditedQueryFrequency}
+                label={"Frequency"}
+                wrapperClassName={`${baseClass}__form-field form-field--frequency`}
+                helpText="This is how often your query collects data."
+              />
+              <Checkbox
+                value={lastEditedQueryObserverCanRun}
+                onChange={(value: boolean) =>
+                  setLastEditedQueryObserverCanRun(value)
+                }
+                helpText="Users with the observer role will be able to run this query on hosts where they have access."
+              >
+                Observers can run
+              </Checkbox>
               <RevealButton
                 isShowing={showAdvancedOptions}
                 className={"advanced-options-toggle"}
@@ -707,7 +722,7 @@ const EditQueryForm = ({
                 onClick={toggleAdvancedOptions}
               />
               {showAdvancedOptions && (
-                <div className={`${baseClass}__advanced-options`}>
+                <>
                   <Dropdown
                     options={SCHEDULE_PLATFORM_DROPDOWN_OPTIONS}
                     placeholder="Select"
@@ -716,11 +731,8 @@ const EditQueryForm = ({
                     value={lastEditedQueryPlatforms}
                     multi
                     wrapperClassName={`${baseClass}__form-field form-field--platform`}
+                    helpText="By default, your query collects data on all compatible platforms."
                   />
-                  <div className="help-text">
-                    By default, your query collects data on all compatible
-                    platforms.
-                  </div>
                   <Dropdown
                     options={MIN_OSQUERY_VERSION_OPTIONS}
                     onChange={onChangeMinOsqueryVersionOptions}
@@ -745,14 +757,12 @@ const EditQueryForm = ({
                       queryReportsDisabled={queryReportsDisabled}
                     />
                   )}
-                </div>
+                </>
               )}
-            </div>
+            </>
           )}
           {renderLiveQueryWarning()}
-          <div
-            className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
-          >
+          <div className={`button-wrap ${baseClass}__button-wrap--new-query`}>
             {(hasSavePermissions || isAnyTeamMaintainerOrTeamAdmin) && (
               <>
                 {savedQueryMode && (
@@ -806,18 +816,37 @@ const EditQueryForm = ({
                 </div>
               </>
             )}
-            <Button
-              className={`${baseClass}__run`}
-              variant="blue-green"
-              onClick={() => {
-                router.push(
-                  PATHS.LIVE_QUERY(queryIdForEdit) +
-                    TAGGED_TEMPLATES.queryByHostRoute(hostId)
-                );
-              }}
+            <div
+              data-tip
+              data-for="live-query-button"
+              // Tooltip shows when live queries are globally disabled
+              data-tip-disable={!disabledLiveQuery}
             >
-              Live query
-            </Button>
+              <Button
+                className={`${baseClass}__run`}
+                variant="blue-green"
+                onClick={() => {
+                  setEditingExistingQuery(true); // Persists edited query data through live query flow
+                  router.push(
+                    PATHS.LIVE_QUERY(queryIdForEdit) +
+                      TAGGED_TEMPLATES.queryByHostRoute(hostId)
+                  );
+                }}
+                disabled={disabledLiveQuery}
+              >
+                Live query
+              </Button>
+            </div>
+            <ReactTooltip
+              className={`live-query-button-tooltip`}
+              place="top"
+              effect="solid"
+              backgroundColor={COLORS["tooltip-bg"]}
+              id="live-query-button"
+              data-html
+            >
+              Live queries are disabled in organization settings
+            </ReactTooltip>
           </div>
         </form>
         {showSaveQueryModal && (

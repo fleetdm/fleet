@@ -1,6 +1,6 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter, Link } from "react-router";
+import { Link } from "react-router";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
@@ -9,6 +9,7 @@ import { IEmptyTableProps } from "interfaces/empty_table";
 import { IApiError } from "interfaces/errors";
 import { INewMembersBody, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
+import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
 import usersAPI from "services/entities/users";
 import inviteAPI from "services/entities/invites";
@@ -31,7 +32,7 @@ import AddMemberModal from "./components/AddMemberModal";
 import RemoveMemberModal from "./components/RemoveMemberModal";
 
 import {
-  generateTableHeaders,
+  generateColumnConfigs,
   generateDataSet,
   IMembersTableData,
 } from "./MembersPageTableConfig";
@@ -39,17 +40,7 @@ import {
 const baseClass = "members";
 const noMembersClass = "no-members";
 
-interface IMembersPageProps {
-  location: {
-    pathname: string;
-    search: string;
-    hash?: string;
-    query: { team_id?: string };
-  };
-  router: InjectedRouter;
-}
-
-const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
+const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
     AppContext
@@ -286,6 +277,12 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
             setCreateUserErrors({
               email: "A user with this email address has already been invited",
             });
+          } else if (
+            userErrors.data.errors?.[0].reason.includes("password too long")
+          ) {
+            setCreateUserErrors({
+              password: "Password is over the character limit.",
+            });
           } else {
             renderFlash("error", "Could not create user. Please try again.");
           }
@@ -374,13 +371,13 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
 
   const emptyState = () => {
     const emptyMembers: IEmptyTableProps = {
-      iconName: "empty-members",
+      graphicName: "empty-members",
       header: "This team doesn't have any members yet.",
       info:
         "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
     };
     if (searchString !== "") {
-      delete emptyMembers.iconName;
+      delete emptyMembers.graphicName;
       emptyMembers.header = "We couldn’t find any members.";
       emptyMembers.info =
         "Expecting to see members? Try again in a few seconds as the system catches up.";
@@ -412,7 +409,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
     return <Spinner />;
   }
 
-  const tableHeaders = generateTableHeaders(onActionSelection);
+  const columnConfigs = generateColumnConfigs(onActionSelection);
 
   return (
     <div className={baseClass}>
@@ -431,7 +428,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
       ) : (
         <TableContainer
           resultsTitle={"members"}
-          columns={tableHeaders}
+          columnConfigs={columnConfigs}
           data={members || []}
           isLoading={isLoadingMembers}
           defaultSortHeader={"name"}
@@ -449,7 +446,7 @@ const MembersPage = ({ location, router }: IMembersPageProps): JSX.Element => {
           inputPlaceHolder={"Search"}
           emptyComponent={() =>
             EmptyTable({
-              iconName: emptyState().iconName,
+              graphicName: emptyState().graphicName,
               header: emptyState().header,
               info: emptyState().info,
               primaryButton: emptyState().primaryButton,

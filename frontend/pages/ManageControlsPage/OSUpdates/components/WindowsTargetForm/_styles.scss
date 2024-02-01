@@ -1,0 +1,10 @@
+.windows-target-form {
+  input {
+    background-color: $core-white;
+  }
+
+  &__accordion-form {
+     padding: $pad-large;
+    background-color: $ui-fleet-blue-10;
+  }
+}

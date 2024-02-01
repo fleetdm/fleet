@@ -149,7 +149,7 @@ const OperatingSystems = ({
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
   const tableHeaders = useMemo(
-    () => generateTableHeaders(includeNameColumn, currentTeamId),
+    () => generateTableHeaders(currentTeamId, undefined, { includeName: true }),
     [includeNameColumn, currentTeamId]
   );
 
@@ -170,7 +170,7 @@ const OperatingSystems = ({
           <TableDataError card />
         ) : (
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={osInfo?.os_versions || []}
             isLoading={isFetching}
             defaultSortHeader={DEFAULT_SORT_HEADER}

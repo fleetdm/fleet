@@ -20,13 +20,13 @@
         <h1>{{articleCategory}}</h1>
         <div class="d-flex flex-sm-row flex-column justify-content-between">
           <p>{{categoryDescription}}</p>
-          <a purpose="rss-button" class="px-0 px-sm-2 pt-sm-1" :href="'/rss/'+category" target="_blank"><span>Subscribe</span></a>
+          <a purpose="rss-button" class="px-0 px-sm-2 pt-sm-1" @click="clickCopyRssLink(category)" target="_blank"><span>Subscribe</span></a>
         </div>
       </div>
       <div purpose="articles" class="card-deck d-flex justify-content-center" v-if="selectedArticles.length > 0">
         <div purpose="article-card" class="card" v-for="article in selectedArticles">
           <a purpose="article-card-link" :href="article.url">
-            <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/press-kit/press-kit-fleet-logo-white-preview-600x336@2x.png']" alt="Article hero image">
+            <img style="width: 100%; height: auto;" :src="[article.meta.articleImageUrl ? article.meta.articleImageUrl : '/images/blog-fleet-logo-white-background-800x450@2x.png']" alt="Article hero image">
           </a>
           <div purpose="article-card-body" class="card-body d-flex flex-column">
             <p purpose="category-name" class="pb-2 mb-0">{{article.meta.category}}</p>

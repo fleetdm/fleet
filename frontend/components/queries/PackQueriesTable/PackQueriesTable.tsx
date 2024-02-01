@@ -72,10 +72,10 @@ const PackQueriesTable = ({
   const tableData = generateDataSet(getQueries());
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       {scheduledQueries?.length ? (
         <TableContainer
-          columns={tableHeaders}
+          columnConfigs={tableHeaders}
           data={tableData}
           isLoading={isLoadingPackQueries}
           defaultSortHeader={"name"}
@@ -100,7 +100,7 @@ const PackQueriesTable = ({
           primarySelectAction={{
             name: "remove query",
             buttonText: "Remove",
-            iconSvg: "ex",
+            iconSvg: "close",
             variant: "text-icon",
             onActionButtonClick: onRemovePackQueries,
           }}

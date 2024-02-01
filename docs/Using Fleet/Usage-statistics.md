@@ -1,9 +1,5 @@
 # Usage statistics
 
-```
-ℹ️  In Fleet 4.0, Usage statistics were introduced.
-```
-
 Fleet Device Management Inc. periodically collects information about your instance.
 
 ## What is included in usage statistics in Fleet?
@@ -24,7 +20,11 @@ Below is the JSON payload that is sent to Fleet Device Management Inc:
   "softwareInventoryEnabled": true,
   "vulnDetectionEnabled": true,
   "systemUsersEnabled": true,
-  "hostStatusWebhookEnabled": true,
+  "hostsStatusWebHookEnabled": true,
+  "mdmMacOsEnabled": true,
+  "hostExpiryEnabled": true,
+  "mdmWindowsEnabled": false,
+  "liveQueryDisabled": false,
   "numWeeklyActiveUsers": 999,
   "numWeeklyPolicyViolationDaysActual": 999,
   "numWeeklyPolicyViolationDaysPossible": 999,
@@ -104,7 +104,9 @@ Statistics contain no personal information about any particular device or person
 
 For Fleet Free instances, usage statistics are anonymous. The "organization" property is reported as "unknown."
 
-Sending Usage statistics from your Fleet instance is optional and can be disabled.
+Sending Usage statistics from your Fleet Free instance is optional and can be disabled.
+
+Note: Usage statistics are not optional for Fleet Premium instances.
 
 ## Why should we enable usage statistics?
 

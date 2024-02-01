@@ -1,5 +1,6 @@
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
+import { IScheduledQueryStats } from "./scheduled_query_stats";
 import { ITeamSummary } from "./team";
 import { UserRole } from "./user";
 
@@ -12,6 +13,7 @@ export enum ActivityType {
   EditedPolicy = "edited_policy",
   CreatedSavedQuery = "created_saved_query",
   DeletedSavedQuery = "deleted_saved_query",
+  DeletedMultipleSavedQuery = "deleted_multiple_saved_query",
   EditedSavedQuery = "edited_saved_query",
   CreatedTeam = "created_team",
   DeletedTeam = "deleted_team",
@@ -37,6 +39,9 @@ export enum ActivityType {
   CreatedMacOSProfile = "created_macos_profile",
   DeletedMacOSProfile = "deleted_macos_profile",
   EditedMacOSProfile = "edited_macos_profile",
+  CreatedWindowsProfile = "created_windows_profile",
+  DeletedWindowsProfile = "deleted_windows_profile",
+  EditedWindowsProfile = "edited_windows_profile",
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
@@ -52,6 +57,7 @@ export enum ActivityType {
   AddedScript = "added_script",
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
+  EditedWindowsUpdates = "edited_windows_updates",
 }
 export interface IActivity {
   created_at: string;
@@ -71,6 +77,7 @@ export interface IActivityDetails {
   query_id?: number;
   query_name?: string;
   query_sql?: string;
+  query_ids?: number[];
   team_id?: number | null;
   team_name?: string | null;
   teams?: ITeamSummary[];
@@ -78,6 +85,7 @@ export interface IActivityDetails {
   specs?: IQuery[] | IPolicy[];
   global?: boolean;
   public_ip?: string;
+  user_id?: number;
   user_email?: string;
   email?: string;
   role?: UserRole;
@@ -95,4 +103,8 @@ export interface IActivityDetails {
   name?: string;
   script_execution_id?: string;
   script_name?: string;
+  deadline_days?: number;
+  grace_period_days?: number;
+  stats?: IScheduledQueryStats;
+  host_id?: number;
 }

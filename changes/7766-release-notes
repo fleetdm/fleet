@@ -1,8 +1,0 @@
-* Fleet now stores results of scheduled queries:
-  - Fleet will store up to 1000 results for each scheduled query.
-  NOTE: If the number of results for a scheduled query is below 1000, then the results will continuously get updated every time the hosts send results to Fleet.
-  - A new `server_settings.query_reports_disabled` field was added to the global configuration to disable this feature.
-  - A new API endpoint was added to get the stored results of a query: `GET /api/_version_/fleet/queries/{id}/report`.
-  - A new field `discard_data` has been added to API queries endpoints to allow disabling reports for a query (default `false`). If using yaml files to apply queries, you will need to explicitly add `discard_data: true` to disable storing results in Fleet for scheduled queries.
-  - Queries with `discard_data` set to `false` will be scheduled to run on hosts, even if `automations_enabled` is set to `false`, and their results will be processed and stored in Fleet. Because of this change, Fleet now does more validation on osquery result logs that are ingested and will error on unknown message formats.
-

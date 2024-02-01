@@ -13,6 +13,7 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -105,16 +106,12 @@ const DiskEncryption = ({
       return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
     }
 
-    const isWindowsFeatureFlagEnabled = config?.mdm_enabled ?? false;
-    const dynamicText = isWindowsFeatureFlagEnabled
-      ? " and “BitLocker” on Windows"
-      : "";
-    return `Also known as “FileVault” on macOS${dynamicText}. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+    return `Also known as “FileVault” on macOS and “BitLocker” on Windows. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
   };
 
   return (
     <div className={baseClass}>
-      <h2>Disk encryption</h2>
+      <SectionHeader title="Disk encryption" />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
           className={`${baseClass}__premium-feature-message`}
@@ -133,7 +130,7 @@ const DiskEncryption = ({
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
-                On
+                Turn on disk encryption
               </Checkbox>
               <p>
                 {createDescriptionText()}

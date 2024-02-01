@@ -23,6 +23,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -32,10 +36,6 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	nanodep_storage "github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
-	nanomdm_push "github.com/micromdm/nanomdm/push"
-	nanomdm_storage "github.com/micromdm/nanomdm/storage"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -290,6 +290,7 @@ type TestServerOpts struct {
 	APNSTopic           string
 	ProfileMatcher      fleet.ProfileMatcher
 	EnableCachedDS      bool
+	NoCacheDatastore    bool
 }
 
 func RunServerForTestsWithDS(t *testing.T, ds fleet.Datastore, opts ...*TestServerOpts) (map[string]fleet.User, *httptest.Server) {
@@ -630,8 +631,19 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"POST", "/api/latest/fleet/device/%s/migrate_mdm", true, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/preassign", false, true},
 		{"POST", "/api/latest/fleet/mdm/apple/profiles/match", false, true},
+		{"POST", "/api/latest/fleet/mdm/commands/run", false, false},
+		{"GET", "/api/latest/fleet/mdm/commandresults", false, false},
+		{"GET", "/api/latest/fleet/mdm/commands", false, false},
 		{"POST", "/api/fleet/orbit/disk_encryption_key", false, false},
 		{"GET", "/api/latest/fleet/mdm/disk_encryption/summary", false, true},
+		{"GET", "/api/latest/fleet/mdm/profiles/1", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/profiles/1", false, false},
+		// TODO: this endpoint accepts multipart/form data that gets
+		// parsed before the MDM check, we need to refactor this
+		// function to return more information to the caller, or find a
+		// better way to test these endpoints.
+		//{"POST", "/api/latest/fleet/mdm/profiles", false, false},
+		{"GET", "/api/latest/fleet/mdm/profiles", false, false},
 	}
 }
 

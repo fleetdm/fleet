@@ -44,12 +44,12 @@ const QueryFrequencyIndicator = ({
   const frequencyIcon = () => {
     if (frequency === 0) {
       return checked ? (
-        <Icon size="small" name="warning" />
+        <Icon size="medium" name="warning" />
       ) : (
-        <Icon size="small" name="clock" color="ui-fleet-black-33" />
+        <Icon size="medium" name="clock" color="ui-fleet-black-33" />
       );
     }
-    return <Icon size="small" name="clock" />;
+    return <Icon size="medium" name="clock" />;
   };
 
   return (

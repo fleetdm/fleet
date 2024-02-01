@@ -19,7 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { LIVE_POLICY_STEPS } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -55,6 +55,7 @@ const PolicyPage = ({
     isGlobalAdmin,
     isGlobalMaintainer,
     isAnyTeamMaintainerOrTeamAdmin,
+    config,
   } = useContext(AppContext);
   const {
     lastEditedQueryBody,
@@ -77,6 +78,7 @@ const PolicyPage = ({
     isTeamMaintainer,
     isTeamObserver,
     teamIdForApi,
+    isObserverPlus,
   } = useTeamIdParam({
     location,
     router,
@@ -204,8 +206,12 @@ const PolicyPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Policy details | Antivirus healthy (Linux) | Fleet for osquery
-    document.title = `Policy details | ${storedPolicy?.name} | Fleet for osquery`;
+    // e.g., Antivirus healthy (Linux) | Policies | Fleet
+    if (storedPolicy?.name) {
+      document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedPolicy?.name]);
 
   useEffect(() => {
@@ -225,7 +231,7 @@ const PolicyPage = ({
   };
 
   const renderLiveQueryWarning = (): JSX.Element | null => {
-    if (isLiveQueryRunnable) {
+    if (isLiveQueryRunnable || config?.server_settings.live_query_disabled) {
       return null;
     }
 
@@ -257,6 +263,7 @@ const PolicyPage = ({
       isTeamAdmin,
       isTeamMaintainer,
       isTeamObserver,
+      isObserverPlus,
       storedPolicyError,
       createPolicy,
       onOsqueryTableSelect,

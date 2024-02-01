@@ -8,6 +8,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/cryptoinfotable"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firefox_preferences"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sntp_request"
 	"github.com/macadmins/osquery-extension/tables/chromeuserprofiles"
 	"github.com/macadmins/osquery-extension/tables/fileline"
@@ -32,7 +34,7 @@ type Runner struct {
 type Extension interface {
 	// Name returns the name of the table.
 	Name() string
-	// Column returns the definition of the table columns.
+	// Columns returns the definition of the table columns.
 	Columns() []table.ColumnDefinition
 	// GenerateFunc generates results for a query.
 	GenerateFunc(ctx context.Context, queryContext table.QueryContext) ([]map[string]string, error)
@@ -40,6 +42,9 @@ type Extension interface {
 
 // Opt allows configuring a Runner.
 type Opt func(*Runner)
+
+// Logger for osquery tables
+var osqueryLogger *Logger
 
 // WithExtension registers the given Extension on the Runner.
 func WithExtension(t Extension) Opt {
@@ -60,6 +65,8 @@ func NewRunner(socket string, opts ...Opt) *Runner {
 // Execute creates an osquery extension manager server and registers osquery plugins.
 func (r *Runner) Execute() error {
 	log.Debug().Msg("start osquery extension")
+
+	osqueryLogger = NewOsqueryLogger()
 
 	if err := waitExtensionSocket(r.socket, 1*time.Minute); err != nil {
 		return err
@@ -87,6 +94,7 @@ func (r *Runner) Execute() error {
 
 		select {
 		case <-ticker.C:
+			log.Error().Err(err).Msg("NewExtensionManagerServer failed")
 		case <-ctx.Done():
 			ticker.Stop()
 			return ctx.Err()
@@ -123,13 +131,16 @@ func OrbitDefaultTables() []osquery.OsqueryPlugin {
 
 		// Orbit extensions.
 		table.NewPlugin("sntp_request", sntp_request.Columns(), sntp_request.GenerateFunc),
+
+		firefox_preferences.TablePlugin(osqueryLogger),
+		cryptoinfotable.TablePlugin(osqueryLogger),
 	}
 	return plugins
 }
 
 // Interrupt shuts down the osquery manager server.
 func (r *Runner) Interrupt(err error) {
-	log.Debug().Err(err).Msg("interrupt osquery extension")
+	log.Error().Err(err).Msg("interrupt osquery extension")
 	if cancel := r.getCancel(); cancel != nil {
 		cancel()
 	}

@@ -16,7 +16,7 @@
     grid-row-end: 3;
   }
 
-  &__details {
+  &__details-wrapper {
     grid-column-start: 3;
     grid-row-start: 1;
     grid-row-end: 3;
@@ -29,7 +29,7 @@
       padding-right: $pad-xsmall;
     }
 
-    p {
+    .activity-details {
       margin: 0;
       line-height: 16px;
     }
@@ -40,13 +40,13 @@
     overflow-wrap: anywhere;
   }
 
+  &__details-content {
+    margin-right: $pad-xsmall;
+  }
+
   &__details-bottomline {
     font-size: $xx-small;
     color: $ui-fleet-black-25;
-  }
-
-  &__show-query-link {
-    margin-left: $pad-xsmall;
   }
 
   &__show-query-icon {

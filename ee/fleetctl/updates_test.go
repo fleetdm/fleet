@@ -9,7 +9,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -148,7 +147,7 @@ func getRoots(t *testing.T, tmpDir string) string {
 	require.NoError(t, runUpdatesCommand("roots", "--path", tmpDir))
 	require.NoError(t, w.Close())
 
-	out, err := ioutil.ReadAll(r)
+	out, err := io.ReadAll(r)
 	require.NoError(t, err)
 
 	// Check output contains the root.json

@@ -23,6 +23,7 @@ import hostsAPI, {
   ILoadHostsResponse,
   ISortOption,
   MacSettingsStatusQueryParam,
+  HOSTS_QUERY_PARAMS,
 } from "services/entities/hosts";
 import hostCountAPI, {
   IHostsCountQueryKey,
@@ -219,6 +220,14 @@ const ManageHostsPage = ({
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
       : undefined;
+  const softwareVersionId =
+    queryParams?.software_version_id !== undefined
+      ? parseInt(queryParams.software_version_id, 10)
+      : undefined;
+  const softwareTitleId =
+    queryParams?.software_title_id !== undefined
+      ? parseInt(queryParams.software_title_id, 10)
+      : undefined;
   const status = isAcceptableStatus(queryParams?.status)
     ? queryParams?.status
     : undefined;
@@ -227,7 +236,11 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const {
+    os_version_id: osVersionId,
+    os_name: osName,
+    os_version: osVersion,
+  } = queryParams;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams.munki_issue_id, 10)
@@ -333,7 +346,7 @@ const ManageHostsPage = ({
   >([{ scope: "os_versions" }], () => getOSVersions(), {
     enabled:
       isRouteOk &&
-      (!!queryParams?.os_id ||
+      (!!queryParams?.os_version_id ||
         (!!queryParams?.os_name && !!queryParams?.os_version)),
     keepPreviousData: true,
     select: (data) => data.os_versions,
@@ -360,12 +373,14 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
@@ -400,12 +415,14 @@ const ManageHostsPage = ({
         policyId,
         policyResponse,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         status,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         osSettings: osSettingsStatus,
@@ -491,7 +508,13 @@ const ManageHostsPage = ({
 
   // TODO: cleanup this effect
   useEffect(() => {
-    if (location.search.includes("software_id")) {
+    if (
+      location.search.match(
+        /software_id|software_version_id|software_title_id/gi
+      )
+    ) {
+      // regex matches any of "software_id", "software_version_id", or "software_title_id"
+      // so we don't set the filtered hosts path in those cases
       return;
     }
     const path = location.pathname + location.search;
@@ -520,6 +543,12 @@ const ManageHostsPage = ({
         "policy_id",
         "policy_response",
         "software_id",
+        "software_version_id",
+        "software_title_id",
+        "bootstrap_package",
+        "macos_settings",
+        HOSTS_QUERY_PARAMS.OS_SETTINGS,
+        HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
       ]);
     }
 
@@ -729,10 +758,18 @@ const ManageHostsPage = ({
 
       let sort = sortBy;
       if (sortHeader) {
+        let direction = sortDirection;
+        if (sortHeader === "last_restarted_at") {
+          if (sortDirection === "asc") {
+            direction = "desc";
+          } else {
+            direction = "asc";
+          }
+        }
         sort = [
           {
             key: sortHeader,
-            direction: sortDirection || DEFAULT_SORT_DIRECTION,
+            direction: direction || DEFAULT_SORT_DIRECTION,
           },
         ];
       } else if (!sortBy.length) {
@@ -775,6 +812,10 @@ const ManageHostsPage = ({
         newQueryParams.macos_settings = macSettingsStatus;
       } else if (softwareId) {
         newQueryParams.software_id = softwareId;
+      } else if (softwareVersionId) {
+        newQueryParams.software_version_id = softwareVersionId;
+      } else if (softwareTitleId) {
+        newQueryParams.software_title_id = softwareTitleId;
       } else if (mdmId) {
         newQueryParams.mdm_id = mdmId;
       } else if (mdmEnrollmentStatus) {
@@ -787,8 +828,8 @@ const ManageHostsPage = ({
       } else if (lowDiskSpaceHosts && isPremiumTier) {
         // Premium feature only
         newQueryParams.low_disk_space = lowDiskSpaceHosts;
-      } else if (osId || (osName && osVersion)) {
-        newQueryParams.os_id = osId;
+      } else if (osVersionId || (osName && osVersion)) {
+        newQueryParams.os_version_id = osVersionId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       } else if (osSettingsStatus) {
@@ -820,13 +861,15 @@ const ManageHostsPage = ({
       policyResponse,
       macSettingsStatus,
       softwareId,
+      softwareVersionId,
+      softwareTitleId,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
       missingHosts,
       lowDiskSpaceHosts,
       isPremiumTier,
-      osId,
+      osVersionId,
       osName,
       osVersion,
       page,
@@ -1179,6 +1222,7 @@ const ManageHostsPage = ({
       onSubmit={onDeleteHostSubmit}
       onCancel={toggleDeleteHostModal}
       isAllMatchingHostsSelected={isAllMatchingHostsSelected}
+      hostsCount={hostsCount}
       isUpdating={isUpdatingHosts}
     />
   );
@@ -1235,12 +1279,14 @@ const ManageHostsPage = ({
       policyResponse,
       macSettingsStatus,
       softwareId,
+      softwareTitleId,
+      softwareVersionId,
       status,
       mdmId,
       mdmEnrollmentStatus,
       munkiIssueId,
       lowDiskSpaceHosts,
-      os_id: osId,
+      os_version_id: osVersionId,
       os_name: osName,
       os_version: osVersion,
       visibleColumns,
@@ -1357,19 +1403,19 @@ const ManageHostsPage = ({
     if (maybeEmptyHosts) {
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
-          iconName: "empty-hosts",
-          header: "Devices will show up here once they’re added to Fleet.",
+          graphicName: "empty-hosts",
+          header: "Hosts will show up here once they’re added to Fleet.",
           info:
-            "Expecting to see devices? Try again in a few seconds as the system catches up.",
+            "Expecting to see hosts? Try again in a few seconds as the system catches up.",
         };
         if (includesFilterQueryParam) {
-          delete emptyHosts.iconName;
+          delete emptyHosts.graphicName;
           emptyHosts.header = "No hosts match the current criteria";
           emptyHosts.info =
             "Expecting to see new hosts? Try again in a few seconds as the system catches up.";
         } else if (canEnrollHosts) {
-          emptyHosts.header = "Add your devices to Fleet";
-          emptyHosts.info = "Generate an installer to add your own devices.";
+          emptyHosts.header = "Add your hosts to Fleet";
+          emptyHosts.info = "Generate an installer to add your own hosts.";
           emptyHosts.primaryButton = (
             <Button variant="brand" onClick={toggleAddHostsModal} type="button">
               Add hosts
@@ -1382,7 +1428,7 @@ const ManageHostsPage = ({
       return (
         <>
           {EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             additionalInfo: emptyState().additionalInfo,
@@ -1411,12 +1457,6 @@ const ManageHostsPage = ({
         isOnlyObserver || (!isOnGlobalTeam && !isTeamMaintainerOrTeamAdmin),
     });
 
-    // Update last column
-    tableColumns.forEach((dataColumn) => {
-      dataColumn.isLastColumn = false;
-    });
-    tableColumns[tableColumns.length - 1].isLastColumn = true;
-
     const emptyState = () => {
       const emptyHosts: IEmptyTableProps = {
         header: "No hosts match the current criteria",
@@ -1435,7 +1475,7 @@ const ManageHostsPage = ({
     return (
       <TableContainer
         resultsTitle="hosts"
-        columns={tableColumns}
+        columnConfigs={tableColumns}
         data={hostsData?.hosts || []}
         isLoading={isLoadingHosts || isLoadingHostsCount || isLoadingPolicy}
         manualSortBy
@@ -1554,16 +1594,19 @@ const ManageHostsPage = ({
               policy,
               macSettingsStatus,
               softwareId,
+              softwareTitleId,
+              softwareVersionId,
               mdmId,
               mdmEnrollmentStatus,
               lowDiskSpaceHosts,
-              osId,
+              osVersionId,
               osName,
               osVersion,
               osVersions,
               munkiIssueId,
               munkiIssueDetails: hostsData?.munki_issue || null,
-              softwareDetails: hostsData?.software || null,
+              softwareDetails:
+                hostsData?.software || hostsData?.software_title || null,
               mdmSolutionDetails:
                 hostsData?.mobile_device_management_solution || null,
               osSettingsStatus,

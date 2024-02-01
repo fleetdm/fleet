@@ -47,14 +47,15 @@ func SignalProcessBeforeTerminate(processName string) error {
 		return errors.New("processName should not be empty")
 	}
 
-	if err := KillProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
+	if err := killProcessByName(constant.DesktopAppExecName); err != nil && !errors.Is(err, ErrProcessNotFound) {
 		return fmt.Errorf("There was an error kill target process %s: %w", processName, err)
 	}
 
 	return nil
 }
 
-// GetProcessByName gets a single process object by its name
+// GetProcessByName gets a single running process object by its name.
+// Returns ErrProcessNotFound if the process was not found running.
 func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {
 		return nil, errors.New("process name should not be empty")

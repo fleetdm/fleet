@@ -1,1 +1,0 @@
-* Fixed a bug in the bulk-set of MDM Apple profiles where too many placeholders could end up being used in SQL statements.

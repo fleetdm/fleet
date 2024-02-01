@@ -27,10 +27,12 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 
 	// create some mappings and MDM/Munki data
 	require.NoError(t, s.ds.ReplaceHostDeviceMapping(context.Background(), hosts[0].ID, []*fleet.HostDeviceMapping{
-		{HostID: hosts[0].ID, Email: "a@b.c", Source: "google_chrome_profiles"},
-		{HostID: hosts[0].ID, Email: "b@b.c", Source: "google_chrome_profiles"},
-	}))
-	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, ""))
+		{HostID: hosts[0].ID, Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{HostID: hosts[0].ID, Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+	}, fleet.DeviceMappingGoogleChromeProfiles))
+	_, err = s.ds.SetOrUpdateCustomHostDeviceMapping(context.Background(), hosts[0].ID, "c@b.c", fleet.DeviceMappingCustomInstaller)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(context.Background(), hosts[0].ID, false, true, "url", false, "", ""))
 	require.NoError(t, s.ds.SetOrUpdateMunkiInfo(context.Background(), hosts[0].ID, "1.3.0", nil, nil))
 	// create a battery for hosts[0]
 	require.NoError(t, s.ds.ReplaceHostBatteries(context.Background(), hosts[0].ID, []*fleet.HostBattery{
@@ -107,7 +109,12 @@ func (s *integrationTestSuite) TestDeviceAuthenticatedEndpoints() {
 	require.NoError(t, json.NewDecoder(res.Body).Decode(&listDMResp))
 	require.NoError(t, res.Body.Close())
 	require.Equal(t, hosts[0].ID, listDMResp.HostID)
-	require.Len(t, listDMResp.DeviceMapping, 2)
+	require.Len(t, listDMResp.DeviceMapping, 3)
+	require.ElementsMatch(t, listDMResp.DeviceMapping, []*fleet.HostDeviceMapping{
+		{Email: "a@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "b@b.c", Source: fleet.DeviceMappingGoogleChromeProfiles},
+		{Email: "c@b.c", Source: fleet.DeviceMappingCustomReplacement},
+	})
 	devDMs := listDMResp.DeviceMapping
 
 	// compare response with standard list device mapping API for that same host

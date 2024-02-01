@@ -2,6 +2,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter, Params } from "react-router/lib/Router";
 import { useErrorHandler } from "react-error-boundary";
+import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 
 import PATHS from "router/paths";
 import { AppContext } from "context/app";
@@ -15,6 +17,11 @@ import { IQueryReport } from "interfaces/query_report";
 
 import queryAPI from "services/entities/queries";
 import queryReportAPI, { ISortOption } from "services/entities/query_report";
+import {
+  isGlobalObserver,
+  isTeamObserver,
+} from "utilities/permissions/permissions";
+import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 import Spinner from "components/Spinner/Spinner";
 import Button from "components/buttons/Button";
@@ -49,12 +56,17 @@ const baseClass = "query-details-page";
 
 const QueryDetailsPage = ({
   router,
-  params: { id: paramsQueryId, team_id: paramsTeamId },
+  params: { id: paramsQueryId },
   location,
 }: IQueryDetailsPageProps): JSX.Element => {
   const queryId = parseInt(paramsQueryId, 10);
+  if (isNaN(queryId)) {
+    router.push(PATHS.MANAGE_QUERIES);
+  }
   const queryParams = location.query;
-  const teamId = parseInt(paramsTeamId, 10);
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
+    : undefined;
 
   // Functions to avoid race conditions
   const serverSortBy: ISortOption[] = (() => {
@@ -68,6 +80,7 @@ const QueryDetailsPage = ({
 
   const handlePageError = useErrorHandler();
   const {
+    currentUser,
     isGlobalAdmin,
     isGlobalMaintainer,
     isTeamMaintainerOrTeamAdmin,
@@ -95,9 +108,6 @@ const QueryDetailsPage = ({
     setLastEditedQueryPlatforms,
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
-
-  // Title that shows up on browser tabs (e.g., Query details | Discover TLS certificates | Fleet for osquery)
-  document.title = `Query details | ${lastEditedQueryName} | Fleet for osquery`;
 
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
@@ -164,10 +174,21 @@ const QueryDetailsPage = ({
     }
   }, [storedQuery]);
 
+  // Updates title that shows up on browser tabs
+  useEffect(() => {
+    // e.g., Discover TLS certificates | Queries | Fleet
+    if (storedQuery?.name) {
+      document.title = `${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
+  }, [location.pathname, storedQuery?.name]);
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
     (queryReport?.results?.length ?? 0) >= QUERY_REPORT_RESULTS_LIMIT;
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
 
   const renderHeader = () => {
     const canEditQuery =
@@ -198,7 +219,7 @@ const QueryDetailsPage = ({
                 {canEditQuery && (
                   <Button
                     onClick={() => {
-                      queryId && router.push(PATHS.EDIT_QUERY(queryId));
+                      queryId && router.push(PATHS.EDIT_QUERY(queryId, teamId));
                     }}
                     className={`${baseClass}__manage-automations button`}
                     variant="brand"
@@ -211,17 +232,35 @@ const QueryDetailsPage = ({
                   isAnyTeamObserverPlus ||
                   canEditQuery) && (
                   <div
-                    className={`${baseClass}__button-wrap ${baseClass}__button-wrap--new-query`}
+                    className={`button-wrap ${baseClass}__button-wrap--new-query`}
                   >
-                    <Button
-                      className={`${baseClass}__run`}
-                      variant="blue-green"
-                      onClick={() => {
-                        queryId && router.push(PATHS.LIVE_QUERY(queryId));
-                      }}
+                    <div
+                      data-tip
+                      data-for="live-query-button"
+                      // Tooltip shows when live queries are globally disabled
+                      data-tip-disable={!disabledLiveQuery}
                     >
-                      Live query
-                    </Button>
+                      <Button
+                        className={`${baseClass}__run`}
+                        variant="blue-green"
+                        onClick={() => {
+                          queryId && router.push(PATHS.LIVE_QUERY(queryId));
+                        }}
+                        disabled={disabledLiveQuery}
+                      >
+                        Live query
+                      </Button>
+                    </div>
+                    <ReactTooltip
+                      className="live-query-button-tooltip"
+                      place="top"
+                      effect="solid"
+                      backgroundColor={COLORS["tooltip-bg"]}
+                      id="live-query-button"
+                      data-html
+                    >
+                      Live queries are disabled in organization settings
+                    </ReactTooltip>
                   </div>
                 )}
               </div>
@@ -231,8 +270,15 @@ const QueryDetailsPage = ({
             <div className={`${baseClass}__settings`}>
               <div className={`${baseClass}__automations`}>
                 <TooltipWrapper
-                  // TODO - change to JSX after tooltip refactor
-                  tipContent={`Query automations let you send data to your log <br />destination on a schedule. When automations are <b>on</b>, <br />data is sent according to a query’s frequency.`}
+                  tipContent={
+                    <>
+                      Query automations let you send data to your log <br />
+                      destination on a schedule. When automations are <b>
+                        on
+                      </b>, <br />
+                      data is sent according to a query&apos;s frequency.
+                    </>
+                  }
                 >
                   Automations:
                 </TooltipWrapper>
@@ -267,8 +313,15 @@ const QueryDetailsPage = ({
     >
       <div>
         <b>Report clipped.</b> A sample of this query&apos;s results is included
-        below. You can still use query automations to complete this report in
-        your log destination.
+        below.
+        {
+          // Exclude below message for global and team observers/observer+s
+          !(
+            (currentUser && isGlobalObserver(currentUser)) ||
+            isTeamObserver(currentUser, teamId ?? null)
+          ) &&
+            " You can still use query automations to complete this report in your log destination."
+        }
       </div>
     </InfoBanner>
   );
@@ -290,7 +343,7 @@ const QueryDetailsPage = ({
     }
 
     // Empty state with varying messages explaining why there's no results
-    if (emptyCache) {
+    if (emptyCache || lastEditedQueryDiscardData) {
       return (
         <NoResults
           queryInterval={storedQuery?.interval}
@@ -302,7 +355,7 @@ const QueryDetailsPage = ({
         />
       );
     }
-    return <QueryReport queryReport={queryReport} isClipped={isClipped} />;
+    return <QueryReport {...{ queryReport, isClipped }} />;
   };
 
   return (

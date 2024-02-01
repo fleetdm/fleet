@@ -6,9 +6,14 @@ spec:
     features:
       enable_host_users: true
       enable_software_inventory: true
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
     mdm:
       enable_disk_encryption: false
       macos_settings:
+        custom_settings: null
+      windows_settings:
         custom_settings: null
       macos_setup:
         bootstrap_package: %s
@@ -17,6 +22,9 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
     scripts: null
     name: tm1
 ---
@@ -27,9 +35,14 @@ spec:
     features:
       enable_host_users: false
       enable_software_inventory: false
+    host_expiry_settings:
+      host_expiry_enabled: false
+      host_expiry_window: 0
     mdm:
       enable_disk_encryption: false
       macos_settings:
+        custom_settings: null
+      windows_settings:
         custom_settings: null
       macos_setup:
         bootstrap_package: %s
@@ -37,5 +50,8 @@ spec:
       macos_updates:
         deadline: null
         minimum_version: null
+      windows_updates:
+        deadline_days: null
+        grace_period_days: null
     scripts: null
     name: tm2

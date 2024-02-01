@@ -5,14 +5,14 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"runtime"
-	"strings"
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
 	"github.com/skratchdot/open-golang/open"
@@ -220,6 +220,26 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_ENABLE_SCRIPTS"},
 				Destination: &opt.EnableScripts,
 			},
+			&cli.StringFlag{
+				Name:        "host-identifier",
+				Usage:       "Sets the host identifier that orbit and osquery will use when enrolling to Fleet. Options: 'uuid' and 'instance' (requires Fleet >= v4.42.0)",
+				Value:       "uuid",
+				EnvVars:     []string{"FLEETCTL_HOST_IDENTIFIER"},
+				Destination: &opt.HostIdentifier,
+			},
+			&cli.StringFlag{
+				Name:        "end-user-email",
+				Hidden:      true, // experimental feature, we don't want to show it for now
+				Usage:       "Sets the email address of the user associated with the host when enrolling to Fleet. (requires Fleet >= v4.43.0)",
+				EnvVars:     []string{"FLEETCTL_END_USER_EMAIL"},
+				Destination: &opt.EndUserEmail,
+			},
+			&cli.BoolFlag{
+				Name:        "disable-keystore",
+				Usage:       "Disables the use of the keychain on macOS and Credentials Manager on Windows",
+				EnvVars:     []string{"FLEETCTL_DISABLE_KEYSTORE"},
+				Destination: &opt.DisableKeystore,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -234,6 +254,10 @@ func packageCommand() *cli.Command {
 
 			if opt.Insecure && opt.UpdateTLSServerCertificate != "" {
 				return errors.New("--insecure and --update-tls-certificate may not be provided together")
+			}
+
+			if opt.HostIdentifier != "uuid" && opt.HostIdentifier != "instance" {
+				return fmt.Errorf("--host-identifier=%s is not supported, currently supported values are 'uuid' and 'instance'", opt.HostIdentifier)
 			}
 
 			// Perform checks on the provided fleet client certificate and key.
@@ -264,9 +288,19 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
-				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+				return errors.New(
+					`Could not use local WiX to generate an osquery installer. This option is only available on Windows and macOS.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
+			}
+
+			if opt.EndUserEmail != "" && c.String("type") != "msi" {
+				return errors.New("Can only set --end-user-email when building an MSI package.")
+			}
+			if opt.EndUserEmail != "" {
+				if !fleet.IsLooseEmail(opt.EndUserEmail) {
+					return errors.New("Invalid email address specified for --end-user-email.")
+				}
 			}
 
 			if opt.FleetCertificate != "" {
@@ -306,25 +340,8 @@ func packageCommand() *cli.Command {
 				zlog.Logger = zerolog.Nop()
 			}
 
-			const maxAttempts = 9 // see #5732
-			var (
-				attempts int
-				path     string
-				err      error
-			)
-			for attempts < maxAttempts {
-				attempts++
-
-				if attempts > 1 {
-					fmt.Printf("Generating your osquery installer [attempt %d/%d]...\n\n", attempts, maxAttempts)
-				} else {
-					fmt.Println("Generating your osquery installer...")
-				}
-				path, err = buildFunc(opt)
-				if err == nil || !shouldRetry(c.String("type"), opt, err) {
-					break
-				}
-			}
+			fmt.Println("Generating your osquery installer...")
+			path, err := buildFunc(opt)
 			if err != nil {
 				return err
 			}
@@ -345,27 +362,8 @@ To add other devices to Fleet, distribute this installer using Chef, Ansible, Ja
 	}
 }
 
-func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
-	if pkgType != "msi" || runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
-		return false
-	}
-
-	// building an MSI on macos M1, check if the error is one that should be retried
-	errStr := err.Error()
-	switch {
-	case strings.Contains(errStr, "package root files: heat failed"):
-		return true
-	case strings.Contains(errStr, "build package: candle failed"):
-		return true
-	case strings.Contains(errStr, "build package: light failed"):
-		return true
-	default:
-		return false
-	}
-}
-
 func checkPEMCertificate(path string) error {
-	cert, err := ioutil.ReadFile(path)
+	cert, err := os.ReadFile(path)
 	if err != nil {
 		return err
 	}

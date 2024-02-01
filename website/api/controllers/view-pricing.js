@@ -25,26 +25,31 @@ module.exports = {
     if(!_.isObject(sails.config.builtStaticContent) || !_.isArray(sails.config.builtStaticContent.pricingTable)) {
       throw {badConfig: 'builtStaticContent.pricingTable'};
     }
-    let pricingTable = sails.config.builtStaticContent.pricingTable;
+    let pricingTableFeatures = sails.config.builtStaticContent.pricingTable;
 
-    // Create a filtered version of the pricing table array that does not have the "Device management" category that will be used for the security-focused pricing table.
-    let pricingTableForSecurity = pricingTable.filter((category)=>{
-      return category.categoryName !== 'Device management';
+    let pricingTable = [];
+
+    let pricingTableCategories = ['Support', 'Deployment', 'Integrations','Device management', 'Endpoint operations', 'Vulnerability management'];
+    for(let category of pricingTableCategories) {
+      // Get all the features in that have a pricingTableFeatures array that contains this category.
+      let featuresInThisCategory = _.filter(pricingTableFeatures, (feature)=>{
+        return _.contains(feature.pricingTableCategories, category);
+      });
+      // Build a dictionary containing the category name, and all features in the category, sorting premium features to the bottom of the list.
+      let allFeaturesInThisCategory = {
+        categoryName: category,
+        features: _.sortBy(featuresInThisCategory, (feature)=>{
+          return feature.tier !== 'Free';
+        })
+      };
+      // Add the dictionaries to the arrays that we'll use to build the features table.
+      pricingTable.push(allFeaturesInThisCategory);
+    }
+
+    let pricingTableForSecurity = _.filter(pricingTable, (category)=>{
+      return category.categoryName !== 'Device management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
     });
-
-    // Create an array used to sort the pricing table for secuirty focused buyers
-    // To change the order of the pricing table for the security focused buyers, rearrange the values in the array below.
-    // Note: The category names must match existing categories in the pricing-features-table.yml file.
-    let categoryOrderForSecurityPricingTable = [
-      'Security and compliance',
-      'Monitoring',
-      'Inventory management',
-      'Collaboration',
-      'Support',
-      'Data outputs',
-      'Deployment'
-    ];
-
+    let categoryOrderForSecurityPricingTable = ['Support', 'Deployment', 'Integrations', 'Endpoint operations', 'Vulnerability management'];
     // Sort the security-focused pricing table from the order of the elements in the categoryOrderForSecurityPricingTable array.
     pricingTableForSecurity.sort((a, b)=>{
       // If there is a category that is not in the list above, sort it to the end of the list.
@@ -56,10 +61,28 @@ module.exports = {
       return categoryOrderForSecurityPricingTable.indexOf(a.categoryName) - categoryOrderForSecurityPricingTable.indexOf(b.categoryName);
     });
 
+
+    let pricingTableForIt = _.filter(pricingTable, (category)=>{
+      return category.categoryName !== 'Vulnerability management' && (category.usualDepartment === 'Security' || category.usualDepartment === undefined);
+    });
+    let categoryOrderForITPricingTable = ['Device management', 'Support', 'Deployment', 'Integrations', 'Endpoint operations'];
+    // Sort the IT-focused pricing table from the order of the elements in the categoryOrderForITPricingTable array.
+    pricingTableForIt.sort((a, b)=>{
+      // If there is a category that is not in the list above, sort it to the end of the list.
+      if(categoryOrderForITPricingTable.indexOf(a.categoryName) === -1){
+        return 1;
+      } else if(categoryOrderForITPricingTable.indexOf(b.categoryName) === -1) {
+        return -1;
+      }
+      return categoryOrderForITPricingTable.indexOf(a.categoryName) - categoryOrderForITPricingTable.indexOf(b.categoryName);
+    });
+
+
     // Respond with view.
     return {
       pricingTable,
       pricingTableForSecurity,
+      pricingTableForIt
     };
 
   }

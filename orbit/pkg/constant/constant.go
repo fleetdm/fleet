@@ -49,4 +49,7 @@ const (
 	UpdateTLSClientKeyFileName = "update_client.key"
 	// SilenceEnrollLogErrorEnvVer is an environment variable name for disabling enroll log errors
 	SilenceEnrollLogErrorEnvVar = "FLEETD_SILENCE_ENROLL_ERROR"
+	// ServerOverridesFileName is the name of the file in the root directory
+	// that specifies the override configuration fetched from the server.
+	ServerOverridesFileName = "server-overrides.json"
 )

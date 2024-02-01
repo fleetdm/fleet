@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -18,4 +19,14 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	opts.IncludeCVEScores = true
 	opts.IncludePolicies = true
 	return svc.Service.HostByIdentifier(ctx, identifier, opts)
+}
+
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	// reuse OSVersions, but include premium options
+	return svc.Service.OSVersions(ctx, teamID, platform, name, version, opts, true)
+}
+
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+	// reuse OSVersion, but include premium options
+	return svc.Service.OSVersion(ctx, osID, teamID, true)
 }

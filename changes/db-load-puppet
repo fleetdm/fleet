@@ -1,1 +1,0 @@
-* Fixed an issue causing high database loads in Puppet match endpoint

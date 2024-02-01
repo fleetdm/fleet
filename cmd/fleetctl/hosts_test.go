@@ -42,7 +42,7 @@ func TestHostsTransferByHosts(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 
@@ -80,9 +80,9 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
-		return []uint{uint(11)}, nil
+		return map[string]uint{"label1": uint(11)}, nil
 	}
 
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -98,7 +98,7 @@ func TestHostsTransferByLabel(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 
@@ -136,9 +136,9 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
-		return []uint{uint(11)}, nil
+		return map[string]uint{"label1": uint(11)}, nil
 	}
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -153,7 +153,7 @@ func TestHostsTransferByStatus(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 
@@ -192,9 +192,9 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return &fleet.Team{ID: 99, Name: "team1"}, nil
 	}
 
-	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) ([]uint, error) {
+	ds.LabelIDsByNameFunc = func(ctx context.Context, labels []string) (map[string]uint, error) {
 		require.Equal(t, []string{"label1"}, labels)
-		return []uint{uint(11)}, nil
+		return map[string]uint{"label1": uint(11)}, nil
 	}
 
 	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
@@ -210,7 +210,7 @@ func TestHostsTransferByStatusAndSearchQuery(t *testing.T) {
 		return nil
 	}
 
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
 		return nil
 	}
 

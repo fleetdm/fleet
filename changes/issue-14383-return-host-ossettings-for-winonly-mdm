@@ -1,1 +1,0 @@
-* Fixed a bug where the OS settings information with disk encryption status of Windows hosts was not returned when only the Windows MDM was enabled (and not the macOS one).

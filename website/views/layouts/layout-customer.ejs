@@ -164,7 +164,7 @@
           <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
             <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
             <div class="d-flex">
-              © 2023 Fleet Device Management Inc.
+              © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
               <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
             </div>
           </div>
@@ -218,6 +218,7 @@
     <script src="/js/components/js-timestamp.component.js"></script>
     <script src="/js/components/modal.component.js"></script>
     <script src="/js/components/open-positions.component.js"></script>
+    <script src="/js/components/parallax-city.component.js"></script>
     <script src="/js/components/rituals.component.js"></script>
     <script src="/js/components/scrollable-tweets.component.js"></script>
     <script src="/js/components/stripe-card-element.component.js"></script>
@@ -231,20 +232,20 @@
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
-    <script src="/js/pages/compliance.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
     <script src="/js/pages/customers/new-license.page.js"></script>
     <script src="/js/pages/dashboard/welcome.page.js"></script>
+    <script src="/js/pages/device-management.page.js"></script>
     <script src="/js/pages/docs/basic-documentation.page.js"></script>
+    <script src="/js/pages/endpoint-ops.page.js"></script>
     <script src="/js/pages/entrance/confirmed-email.page.js"></script>
     <script src="/js/pages/entrance/forgot-password.page.js"></script>
     <script src="/js/pages/entrance/login.page.js"></script>
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
-    <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
@@ -255,10 +256,8 @@
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
-    <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
-    <script src="/js/pages/osquery-management.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -267,6 +266,8 @@
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
+    <script src="/js/pages/try-fleet/explore-data.page.js"></script>
+    <script src="/js/pages/try-fleet/query-report.page.js"></script>
     <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>

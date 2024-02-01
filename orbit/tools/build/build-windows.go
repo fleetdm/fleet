@@ -8,7 +8,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -186,7 +185,7 @@ func writeManifestXML(vParts []string, orbitPath string) (string, error) {
 		return "", fmt.Errorf("parsing manifest.xml template: %w", err)
 	}
 
-	if err := ioutil.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
+	if err := os.WriteFile(filePath, contents.Bytes(), constant.DefaultFileMode); err != nil {
 		return "", fmt.Errorf("writing manifest.xml file: %w", err)
 	}
 

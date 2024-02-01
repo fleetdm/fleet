@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -51,7 +51,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
 	}
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestBodyBytes, err := ioutil.ReadAll(r.Body)
+		requestBodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
@@ -123,6 +123,7 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
         "failing_host_count": 0,
+        "host_count_updated_at": null,
 		"critical": true
     },
     "hosts": [
@@ -165,7 +166,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	webhookCalled := false
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		webhookCalled = true
-		requestBodyBytes, err := ioutil.ReadAll(r.Body)
+		requestBodyBytes, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}
@@ -307,6 +308,7 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "updated_at": "0001-01-01T00:00:00Z",
         "passing_host_count": 0,
         "failing_host_count": 0,
+        "host_count_updated_at": null,
 		"critical": false
     },
     "hosts": [
@@ -341,7 +343,7 @@ func TestSendBatchedPOSTs(t *testing.T) {
 	allHosts := []uint{}
 	requestCount := 0
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		b, err := ioutil.ReadAll(r.Body)
+		b, err := io.ReadAll(r.Body)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
 		}

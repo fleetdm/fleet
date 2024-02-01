@@ -55,23 +55,17 @@ func newVulnerabilitiesSchedule(
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
-	s := schedule.New(
-		ctx, name, instanceID, interval, ds, ds,
-		schedule.WithLogger(vulnerabilitiesLogger),
-		schedule.WithJob(
-			"cron_vulnerabilities",
-			func(ctx context.Context) error {
-				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-			},
-		),
-		schedule.WithJob(
-			"cron_sync_host_software",
-			func(ctx context.Context) error {
-				return ds.SyncHostsSoftware(ctx, time.Now())
-			},
-		),
-	)
+
+	var options []schedule.Option
+
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+
+	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	for _, fn := range vulnFuncs {
+		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
+	}
+
+	s := schedule.New(ctx, name, instanceID, interval, ds, ds, options...)
 
 	return s, nil
 }
@@ -281,6 +275,7 @@ func checkWinVulnerabilities(
 				"msg", "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
+				"display version", o.DisplayVersion,
 				"elapsed", elapsed,
 				"found new", len(r))
 			results = append(results, r...)
@@ -781,6 +776,12 @@ func newCleanupsAndAggregationSchedule(
 			},
 		),
 		schedule.WithJob(
+			"policy_aggregated_stats",
+			func(ctx context.Context) error {
+				return ds.UpdateHostPolicyCounts(ctx)
+			},
+		),
+		schedule.WithJob(
 			"aggregated_munki_and_mdm",
 			func(ctx context.Context) error {
 				return ds.GenerateAggregatedMunkiAndMDM(ctx)
@@ -816,6 +817,10 @@ func newCleanupsAndAggregationSchedule(
 				}
 			}
 
+			if err = ds.CleanupDiscardedQueryResults(ctx); err != nil {
+				return err
+			}
+
 			return nil
 		}),
 	)
@@ -830,7 +835,7 @@ func verifyDiskEncryptionKeys(
 	config *config.FleetConfig,
 ) error {
 	if !config.MDM.IsAppleSCEPSet() {
-		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 
@@ -898,7 +903,9 @@ func trySendStatistics(ctx context.Context, ds fleet.Datastore, frequency time.D
 	if err != nil {
 		return err
 	}
-	if !ac.ServerSettings.EnableAnalytics {
+
+	// If the license is Premium, we should always send usage statisics.
+	if !ac.ServerSettings.EnableAnalytics && !license.IsPremium(ctx) {
 		return nil
 	}
 
@@ -946,7 +953,7 @@ func newAppleMDMDEPProfileAssigner(
 	return s, nil
 }
 
-func newMDMAppleProfileManager(
+func newMDMProfileManager(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
@@ -965,8 +972,11 @@ func newMDMAppleProfileManager(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		schedule.WithLogger(logger),
-		schedule.WithJob("manage_profiles", func(ctx context.Context) error {
-			return service.ReconcileProfiles(ctx, ds, commander, logger)
+		schedule.WithJob("manage_apple_profiles", func(ctx context.Context) error {
+			return service.ReconcileAppleProfiles(ctx, ds, commander, logger)
+		}),
+		schedule.WithJob("manage_windows_profiles", func(ctx context.Context) error {
+			return service.ReconcileWindowsProfiles(ctx, ds, logger)
 		}),
 	)
 

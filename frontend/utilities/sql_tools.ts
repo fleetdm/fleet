@@ -1,7 +1,7 @@
 // @ts-ignore
 import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
-import { osqueryTables } from "utilities/osquery_tables";
+import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
@@ -11,16 +11,6 @@ import {
 
 type IAstNode = Record<string | number | symbol, unknown>;
 
-interface ISqlTableNode {
-  name: string;
-}
-
-interface ISqlCteNode {
-  target: {
-    name: string;
-  };
-}
-
 // TODO: Research if there are any preexisting types for osquery schema
 // TODO: Is it ever possible that osquery_tables.json would be missing name or platforms?
 interface IOsqueryTable {
@@ -28,10 +18,10 @@ interface IOsqueryTable {
   platforms: OsqueryPlatform[];
 }
 
-type IPlatformDictionay = Record<string, OsqueryPlatform[]>;
+type IPlatformDictionary = Record<string, OsqueryPlatform[]>;
 
-const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsqueryTable[]).reduce(
-  (dictionary: IPlatformDictionay, osqueryTable) => {
+const platformsByTableDictionary: IPlatformDictionary = (osqueryTablesAvailable as IOsqueryTable[]).reduce(
+  (dictionary: IPlatformDictionary, osqueryTable) => {
     dictionary[osqueryTable.name] = osqueryTable.platforms;
     return dictionary;
   },
@@ -91,19 +81,28 @@ export const parseSqlTables = (
   const cteTables: string[] = [];
 
   const _callback = (node: IAstNode) => {
-    if (node) {
-      if (
-        (node.variant === "common" || node.variant === "recursive") &&
-        node.format === "table" &&
-        node.type === "expression"
-      ) {
-        const targetName = ((node as unknown) as ISqlCteNode).target.name;
-        cteTables.push(targetName);
-      } else if (node.variant === "table") {
-        const tableName = ((node as unknown) as ISqlTableNode).name;
-        results.push(tableName);
-      }
+    if (!node) {
+      return;
     }
+
+    if (
+      (node.variant === "common" || node.variant === "recursive") &&
+      node.format === "table" &&
+      node.type === "expression"
+    ) {
+      const targetName = node.target && (node.target as IAstNode).name;
+      targetName &&
+        typeof targetName === "string" &&
+        cteTables.push(targetName);
+      return;
+    }
+
+    node.variant === "table" &&
+      // ignore table-valued functions (see, e.g., https://www.sqlite.org/json1.html#jeach)
+      node.type !== "function" &&
+      node.name &&
+      typeof node.name === "string" &&
+      results.push(node.name);
   };
 
   try {
@@ -151,6 +150,7 @@ export const checkPlatformCompatibility = (
 ): { platforms: SupportedPlatform[] | null; error: Error | null } => {
   let sqlTables: string[] | undefined;
   try {
+    // get tables from str
     sqlTables = parseSqlTables(sqlString, includeCteTables);
   } catch (err) {
     return { platforms: null, error: new Error(`${err}`) };
@@ -166,6 +166,7 @@ export const checkPlatformCompatibility = (
   }
 
   try {
+    // use tables to get platforms
     const platforms = filterCompatiblePlatforms(sqlTables);
     return { platforms, error: null };
   } catch (err) {
