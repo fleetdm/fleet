@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
@@ -51,17 +52,17 @@ func Analyze(
 	// Run vulnerability detection for all hosts in this batch (hIDs)
 	// and store the results in 'found'.
 	var found []fleet.OSVulnerability
-
 	for cve, v := range bulletin.Vulnerabities {
 		// Check if this vulnerability targets the OS
 		if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 			continue
 		}
 		// Check if the vulnerability is patched by referencing the OS version number
-		if patched(os, bulletin, v, matchingPIDs) {
+		isPatched, resolvedInVersion := isVulnPatched(os, bulletin, v, matchingPIDs)
+		if isPatched {
 			continue
 		}
-		found = append(found, fleet.OSVulnerability{OSID: os.ID, CVE: cve})
+		found = append(found, fleet.OSVulnerability{OSID: os.ID, CVE: cve, Source: fleet.MSRCSource, ResolvedInVersion: ptr.String(resolvedInVersion)})
 	}
 
 	// Fetch all stored vulnerabilities for the current batch
@@ -116,12 +117,12 @@ func Analyze(
 
 // patched returns true if the vulnerability (v) is patched by the any of the provided Windows
 // updates.
-func patched(
+func isVulnPatched(
 	os fleet.OperatingSystem,
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	matchingPIDs map[string]bool,
-) bool {
+) (bool, string) {
 	for KBID := range v.RemediatedBy {
 		fix := b.VendorFixes[KBID]
 
@@ -139,14 +140,13 @@ func patched(
 			}
 
 			isGreater, err := winBuildVersionGreaterOrEqual(build, os.KernelVersion)
-			// Return true on errors to prevent false positives
-			if err != nil || isGreater {
-				return true
+			if err == nil && !isGreater {
+				return false, build
 			}
 		}
 	}
 
-	return false
+	return true, ""
 }
 
 // loadBulletin loads the most recent bulletin for the given os
@@ -180,7 +180,7 @@ func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
 	for i := 0; i < 3; i++ {
 		if feedParts[i] != osParts[i] {
 			// comparing different product versions
-			return false, nil
+			return true, fmt.Errorf("different product versions: %s vs %s", feed, os)
 		}
 	}
 
