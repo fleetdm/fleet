@@ -841,13 +841,24 @@ func (c *Client) DoGitOps(
 	logf func(format string, args ...interface{}),
 	dryRun bool,
 ) error {
+	var err error
 	logFn := func(format string, args ...interface{}) {
 		if logf != nil {
 			logf(format, args...)
 		}
 	}
+	fmt.Printf("Agent options: %v\n", string(*config.AgentOptions))
+	group := spec.Group{
+		AppConfig: map[string]interface{}{
+			"agent_options": config.AgentOptions,
+		},
+	}
+	err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
+	if err != nil {
+		return err
+	}
 
-	err := c.doGitOpsPolicies(config, logFn, dryRun)
+	err = c.doGitOpsPolicies(config, logFn, dryRun)
 	if err != nil {
 		return err
 	}

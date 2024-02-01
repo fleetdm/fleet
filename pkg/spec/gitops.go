@@ -7,23 +7,28 @@ import (
 	"github.com/ghodss/yaml"
 	"os"
 	"path"
+	"unicode"
 )
 
-type Policy struct {
+type BaseItem struct {
 	Path *string `json:"path"`
+}
+
+type Policy struct {
+	BaseItem
 	fleet.PolicySpec
 }
 
 type Query struct {
-	Path *string `json:"path"`
+	BaseItem
 	fleet.QuerySpec
 }
 
 type GitOps struct {
-	IsTeam   bool
-	TeamName string
-	Policies []*fleet.PolicySpec
-	Queries  []*fleet.QuerySpec
+	TeamName     *string
+	AgentOptions *json.RawMessage
+	Policies     []*fleet.PolicySpec
+	Queries      []*fleet.QuerySpec
 }
 
 // GitOpsFromBytes parses a GitOps yaml file.
@@ -51,14 +56,8 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	}
 
 	// Validate the required top level options
-	_, ok := top["agent_options"]
-	if !ok {
-		errors = append(errors, "'agent_options' is required")
-	}
-	_, ok = top["controls"]
-	if !ok {
-		errors = append(errors, "'controls' is required")
-	}
+	errors = parseControls(top, result, baseDir, errors)
+	errors = parseAgentOptions(top, result, baseDir, errors)
 	errors = parsePolicies(top, result, baseDir, errors)
 	errors = parseQueries(top, result, baseDir, errors)
 	if len(errors) > 0 {
@@ -70,6 +69,60 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	}
 
 	return result, nil
+}
+
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+	agentOptionsRaw, ok := top["agent_options"]
+	if !ok {
+		errors = append(errors, "'agent_options' is required")
+	} else {
+		var agentOptionsTop BaseItem
+		fmt.Printf("agentOptionsRaw: %v\n", string(agentOptionsRaw))
+		if err := yaml.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
+			errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
+		} else {
+			fmt.Printf("agentOptionsTop: %+v\n", agentOptionsTop)
+			if agentOptionsTop.Path == nil {
+				result.AgentOptions = &agentOptionsRaw
+			} else {
+				fileBytes, err := os.ReadFile(path.Join(baseDir, *agentOptionsTop.Path))
+				if err != nil {
+					errors = append(errors, fmt.Sprintf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
+				} else {
+					var pathAgentOptions BaseItem
+					if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
+						errors = append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err))
+					} else {
+						if pathAgentOptions.Path != nil {
+							errors = append(
+								errors,
+								fmt.Sprintf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
+							)
+						} else {
+							var raw json.RawMessage
+							if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+								errors = append(
+									errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+								)
+							} else {
+								result.AgentOptions = &raw
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	return errors
+}
+
+func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+	_, ok := top["controls"]
+	if !ok {
+		errors = append(errors, "'controls' is required")
+	}
+	// TODO: parse controls
+	return errors
 }
 
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
@@ -112,8 +165,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 			// Make sure team name is correct
 			for _, item := range result.Policies {
-				if result.IsTeam {
-					item.Team = result.TeamName
+				if result.TeamName != nil {
+					item.Team = *result.TeamName
 				} else {
 					item.Team = ""
 				}
@@ -169,12 +222,16 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 					}
 				}
 			}
-			// Make sure team name is correct
 			for _, q := range result.Queries {
-				if result.IsTeam {
-					q.TeamName = result.TeamName
+				// Make sure team name is correct
+				if result.TeamName != nil {
+					q.TeamName = *result.TeamName
 				} else {
 					q.TeamName = ""
+				}
+				// Don't use non-ASCII
+				if !isASCII(q.Name) {
+					errors = append(errors, fmt.Sprintf("query name must be ASCII: %s", q.Name))
 				}
 			}
 			duplicates := getDuplicateNames(
@@ -207,4 +264,13 @@ func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []s
 		}
 	}
 	return duplicates
+}
+
+func isASCII(s string) bool {
+	for _, c := range s {
+		if c > unicode.MaxASCII {
+			return false
+		}
+	}
+	return true
 }
