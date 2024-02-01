@@ -27,6 +27,7 @@ type Query struct {
 type GitOps struct {
 	TeamName     *string
 	AgentOptions *json.RawMessage
+	OrgSettings  map[string]interface{}
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
 }
@@ -42,15 +43,25 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	var errors []string
 	result := &GitOps{}
 
+	// TODO: Check if any additional unknown top-level fields are present. If so, return an error.
+
 	// Figure out if this is an org or team settings file
-	_, teamOk := top["name"]
+	team, teamOk := top["name"]
 	_, teamSettingsOk := top["team_settings"]
-	_, orgOk := top["org_settings"]
+	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
 		if teamOk || teamSettingsOk {
 			errors = append(errors, "'org_settings' cannot be used with 'name' or 'team_settings'")
+		} else {
+			errors = parseOrgSettings(orgSettingsRaw, result, baseDir, errors)
 		}
-		// } else if teamOk && teamSettingsOk {
+	} else if teamOk && teamSettingsOk {
+		teamName := string(team)
+		if !isASCII(teamName) {
+			errors = append(errors, fmt.Sprintf("team name must be in ASCII: %s", teamName))
+		} else {
+			result.TeamName = &teamName
+		}
 	} else {
 		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' must be present")
 	}
@@ -71,17 +82,56 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	return result, nil
 }
 
+func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+	var orgSettingsTop BaseItem
+	if err := yaml.Unmarshal(raw, &orgSettingsTop); err != nil {
+		errors = append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
+	} else {
+		noError := true
+		if orgSettingsTop.Path == nil {
+			result.AgentOptions = &raw
+		} else {
+			fileBytes, err := os.ReadFile(path.Join(baseDir, *orgSettingsTop.Path))
+			if err != nil {
+				noError = false
+				errors = append(errors, fmt.Sprintf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
+			} else {
+				var pathOrgSettings BaseItem
+				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
+					noError = false
+					errors = append(errors, fmt.Sprintf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err))
+				} else {
+					if pathOrgSettings.Path != nil {
+						noError = false
+						errors = append(
+							errors,
+							fmt.Sprintf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
+						)
+					} else {
+						raw = fileBytes
+					}
+				}
+			}
+		}
+		if noError {
+			if err = yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
+				errors = append(errors, fmt.Sprintf("failed to unmarshal org settings: %v", err))
+			}
+			// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
+		}
+	}
+	return errors
+}
+
 func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	agentOptionsRaw, ok := top["agent_options"]
 	if !ok {
 		errors = append(errors, "'agent_options' is required")
 	} else {
 		var agentOptionsTop BaseItem
-		fmt.Printf("agentOptionsRaw: %v\n", string(agentOptionsRaw))
 		if err := yaml.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
 			errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
 		} else {
-			fmt.Printf("agentOptionsTop: %+v\n", agentOptionsTop)
 			if agentOptionsTop.Path == nil {
 				result.AgentOptions = &agentOptionsRaw
 			} else {
@@ -231,7 +281,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 				}
 				// Don't use non-ASCII
 				if !isASCII(q.Name) {
-					errors = append(errors, fmt.Sprintf("query name must be ASCII: %s", q.Name))
+					errors = append(errors, fmt.Sprintf("query name must be in ASCII: %s", q.Name))
 				}
 			}
 			duplicates := getDuplicateNames(

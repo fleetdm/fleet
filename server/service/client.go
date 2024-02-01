@@ -847,12 +847,10 @@ func (c *Client) DoGitOps(
 			logf(format, args...)
 		}
 	}
-	fmt.Printf("Agent options: %v\n", string(*config.AgentOptions))
 	group := spec.Group{
-		AppConfig: map[string]interface{}{
-			"agent_options": config.AgentOptions,
-		},
+		AppConfig: config.OrgSettings,
 	}
+	group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
 	err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return err
