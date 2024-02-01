@@ -86,39 +86,6 @@ const generateTableConfig = (
 
   const premiumHeaders: IDataColumn[] = [
     {
-      title: "Probability of exploit",
-      accessor: "epss_probability",
-      disableSortBy: false,
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The probability that this vulnerability will be exploited in the
-                next 30 days (EPSS probability).
-                <br />
-                This data is reported by FIRST.org.
-              </>
-            }
-          >
-            Probability of exploit
-          </TooltipWrapper>
-        );
-        return (
-          <>
-            <HeaderCell
-              value={titleWithToolTip}
-              isSortedDesc={headerProps.column.isSortedDesc}
-            />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
-          </>
-        );
-      },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell formatter={formatFloatAsPercentage} value={value} />
-      ),
-    },
-    {
       title: "Severity",
       accessor: "cvss_score",
       disableSortBy: false,
@@ -150,6 +117,37 @@ const generateTableConfig = (
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
         <TextCell formatter={formatSeverity} value={value} />
+      ),
+    },
+    {
+      title: "Probability of exploit",
+      accessor: "epss_probability",
+      disableSortBy: false,
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        const titleWithToolTip = (
+          <TooltipWrapper
+            tipContent={
+              <>
+                The worst case impact across different environments (CVSS base
+                score).
+              </>
+            }
+          >
+            Probability of exploit
+          </TooltipWrapper>
+        );
+        return (
+          <>
+            <HeaderCell
+              value={titleWithToolTip}
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+          </>
+        );
+      },
+      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
+        <TextCell formatter={formatFloatAsPercentage} value={value} />
       ),
     },
     {
