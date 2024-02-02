@@ -9,7 +9,7 @@ spec:
   ports:
     - name: proxy-tls
       port: 443
-      targetPort: 443
+      targetPort: 8443
       protocol: TCP
     - name: proxy-http
       port: 80
