@@ -11,6 +11,7 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
+import { AppContext } from "context/app";
 
 const baseClass = "windows-target-form";
 
@@ -58,7 +59,19 @@ const validateForm = (formData: IWindowsTargetFormData) => {
   return errors;
 };
 
-const createMdmConfigData = (deadlineDays: string, gracePeriodDays: string) => {
+interface IWindowsMdmConfigData {
+  mdm: {
+    windows_updates: {
+      deadline_days: number;
+      grace_period_days: number;
+    };
+  };
+}
+
+const createMdmConfigData = (
+  deadlineDays: string,
+  gracePeriodDays: string
+): IWindowsMdmConfigData => {
   return {
     mdm: {
       windows_updates: {
@@ -82,6 +95,7 @@ const WindowsTargetForm = ({
   defaultGracePeriodDays,
   inAccordion = false,
 }: IWindowsTargetFormProps) => {
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isSaving, setIsSaving] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState(
@@ -101,6 +115,11 @@ const WindowsTargetForm = ({
     [`${baseClass}__accordion-form`]: inAccordion,
   });
 
+  const updateNoTeamConfig = async (updateData: IWindowsMdmConfigData) => {
+    const updatedConfig = await configAPI.update(updateData);
+    setConfig(updatedConfig);
+  };
+
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validateForm({
@@ -116,7 +135,7 @@ const WindowsTargetForm = ({
       const updateData = createMdmConfigData(deadlineDays, gracePeriodDays);
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? await configAPI.update(updateData)
+          ? await updateNoTeamConfig(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash(
           "success",

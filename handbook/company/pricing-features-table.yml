@@ -777,7 +777,7 @@
     - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
     - description: An Introduction to EPSS, The Exploit Prediction Scoring System
     - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
-    - description: By extracting metadata from the National Vulnerability Database (NVD), we can determine which version of software is no longer vulnerable. 
+    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable. 
 #  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
 #  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
 #  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝

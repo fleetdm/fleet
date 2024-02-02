@@ -12,6 +12,7 @@ on:
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
       - 'server/authz/policy.rego'
+      - 'docker-compose.yml'
   pull_request:
     paths:
       - '**.go'
@@ -19,6 +20,7 @@ on:
       - 'go.sum'
       - '.github/workflows/test-go.yaml'
       - 'server/authz/policy.rego'
+      - 'docker-compose.yml'
   workflow_dispatch: # Manual
   schedule:
     - cron: '0 4 * * *'

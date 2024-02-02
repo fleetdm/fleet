@@ -11,6 +11,7 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
+import { AppContext } from "context/app";
 
 const baseClass = "mac-os-target-form";
 
@@ -50,7 +51,19 @@ const validateForm = (formData: IMacOSTargetFormData) => {
   return errors;
 };
 
-const createMdmConfigData = (minOsVersion: string, deadline: string) => {
+interface IMacMdmConfigData {
+  mdm: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+  };
+}
+
+const createMdmConfigData = (
+  minOsVersion: string,
+  deadline: string
+): IMacMdmConfigData => {
   return {
     mdm: {
       macos_updates: {
@@ -65,15 +78,14 @@ interface IMacOSTargetFormProps {
   currentTeamId: number;
   defaultMinOsVersion: string;
   defaultDeadline: string;
-  inAccordion?: boolean;
 }
 
 const MacOSTargetForm = ({
   currentTeamId,
   defaultMinOsVersion,
   defaultDeadline,
-  inAccordion = false,
 }: IMacOSTargetFormProps) => {
+  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
   const [isSaving, setIsSaving] = useState(false);
@@ -84,9 +96,10 @@ const MacOSTargetForm = ({
   >();
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
-  const classNames = classnames(baseClass, {
-    [`${baseClass}__accordion-form`]: inAccordion,
-  });
+  const updateNoTeamConfig = async (updateData: IMacMdmConfigData) => {
+    const updatedConfig = await configAPI.update(updateData);
+    setConfig(updatedConfig);
+  };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -103,7 +116,7 @@ const MacOSTargetForm = ({
       const updateData = createMdmConfigData(minOsVersion, deadline);
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? await configAPI.update(updateData)
+          ? await updateNoTeamConfig(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash("success", "Successfully updated minimum version!");
       } catch {
@@ -123,7 +136,7 @@ const MacOSTargetForm = ({
   };
 
   return (
-    <form className={classNames} onSubmit={handleSubmit}>
+    <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Minimum version"
         tooltip="The end user sees the window until their macOS is at or above this version."

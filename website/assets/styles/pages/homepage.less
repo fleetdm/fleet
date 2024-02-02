@@ -158,7 +158,7 @@
     }
     &:first-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-nick-fohs-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-nick-fohs-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -167,7 +167,7 @@
     }
     &:last-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-austin-anderson-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-austin-anderson-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -227,37 +227,66 @@
     h2 {
       font-weight: 800;
       font-size: 32px;
-      line-height: 48px;
       margin-bottom: 24px;
     }
     p {
       font-weight: 400;
       font-size: 16px;
-      line-height: 24px;
     }
   }
 
   [purpose='platform-block'] {
     margin-bottom: 120px;
-    h3 {
-      font-weight: 800;
-      font-size: 24px;
-      line-height: 32px;
-    }
-    p {
-      margin-bottom: 40px;
-      color: #515774;
-      font-size: 16px;
-      line-height: 24px;
-    }
     max-width: 1080px;
   }
-  [purpose='category-image'] {
-    margin-left: 60px;
-    padding-right: 40px;
+  [purpose='category-text-block'] {
+    max-width: 468px;
+    h4 {
+      font-size: 16px;
+    }
+    h3 {
+      font-size: 32px;
+      margin-bottom: 32px;
+    }
+    p {
+      margin-bottom: 32px;
+    }
+  }
+  [purpose='endpoint-ops-image'] {
+    max-width: 380px;
     img {
-      width: auto;
-      height: 293px;
+      display: flex;
+      width: 380px;
+      height: 380px;
+      padding: 20px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+  }
+  [purpose='device-management-image'] {
+    max-width: 380px;
+    img {
+      display: flex;
+      width: 380px;
+      height: 380px;
+      padding: 50px 10px;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+  }
+  [purpose='vuln-management-image'] {
+    max-width: 380px;
+    img {
+      display: flex;
+      width: 380px;
+      height: 380px;
+      padding: 20px 36px 20px 35px;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
     }
   }
   [purpose='category-button'] {
@@ -280,18 +309,8 @@
       white-space: nowrap;
     }
   }
-  [purpose='category-text-block'] {
-    max-width: 428px;
-    padding-left: 40px;
-  }
 
-  [purpose='category-image'] {
-    img {
-      width: auto;
-      height: 293px;
-    }
-    transition: transform 0.3s, right 0.3s, left 0.3s, bottom 0.3s;
-  }
+
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
   }
@@ -334,7 +353,7 @@
     }
   }
   [purpose='animated-arrow-button-red'], [purpose='animated-arrow-button-red-no-transform'] {
-    display: inline;
+    display: flex;
     padding-right: 34px;
     cursor: pointer;
     position: relative;
@@ -422,6 +441,7 @@
       }
     }
     a {
+      display: flex;
       text-decoration: none;
     }
 
@@ -431,9 +451,9 @@
       }
       cursor: pointer;
       width: 222px;
-      height: 169px;
+      height: 180px;
       display: flex;
-      padding: 24px;
+      padding: 24px 16px;
       align-items: flex-start;
       flex-direction: column;
       border-radius: 8px;
@@ -463,7 +483,6 @@
     padding: 0px 0px 0px 80px;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
     align-self: stretch;
     border-radius: 24px;
     border: 2px solid #E2E4EA;
@@ -479,6 +498,7 @@
       }
     }
     [purpose='endpoints-images'] {
+      margin-left: 24px;
       overflow: hidden;
       max-width: 410px;
       width: 50%;
@@ -597,11 +617,6 @@
         margin-right: auto;
         margin-left: auto;
       }
-    }
-
-    [purpose='category-text-block'] {
-      max-width: 468px;
-      padding-right: 0px;
     }
   }
   //  ██╗      ██████╗
@@ -772,21 +787,27 @@
       }
     }
     [purpose='category-text-block'] {
-      width: 100%;
-      max-width: 100%;
-      margin-right: 0px;
-      margin-bottom: 40px;
-      padding-left: 0px;
-      text-align: center;
+      max-width: 410px;
     }
-    [purpose='category-image'] {
-      width: 100%;
-      height: auto;
-      margin-left: 0px;
-      padding-right: 0px;
+    [purpose='endpoint-ops-image'] {
+      margin-right: 24px;
       img {
-        margin-left: auto;
-        margin-right: auto;
+        height: auto;
+        width: 100%;
+      }
+    }
+    [purpose='device-management-image'] {
+      margin-left: 24px;
+      img {
+        height: auto;
+        width: 100%;
+      }
+    }
+    [purpose='vuln-management-image'] {
+      margin-left: 24px;
+      img {
+        height: auto;
+        width: 100%;
       }
     }
     [purpose='category-button'] {
@@ -962,21 +983,36 @@
         width: 100%;
       }
     }
-    [purpose='platform-left-text-block'] {
-      max-width: 100%;
-      margin-right: 0px;
-      margin-bottom: 80px;
+    [purpose='category-text-block'] {
+      max-width: 480px;
     }
-    [purpose='platform-right-text-block'] {
-      max-width: 100%;
-      margin-left: 0px;
-      margin-bottom: 80px;
+    [purpose='endpoint-ops-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
+        height: auto;
+      }
     }
-    [purpose='platform-small-text-block'] {
-      max-width: 100%;
-      min-width: unset;
-      margin-right: 0px;
-      margin-bottom: 80px;
+    [purpose='device-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
+        height: auto;
+      }
+    }
+    [purpose='vuln-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      padding-left: 30px;
+      img {
+        width: 100%;
+        height: auto;
+      }
     }
     [purpose='platform-image'] {
       width: 100%;
@@ -1060,7 +1096,7 @@
         padding-left: 40px;
         padding-right: 40px;
         margin-top: 0px;
-        margin-bottom: auto;
+        margin-bottom: 40px;
       }
       [purpose='endpoints-images'] {
         width: 110%;
@@ -1068,7 +1104,9 @@
         align-items: center;
         display: flex;
         flex-direction: column;
+        margin-left: 0px;
         [purpose='endpoint-images-row'] {
+          min-height: 80px;
           [purpose='endpoint-image-box'] {
             display: flex;
             width: 80px;
@@ -1200,18 +1238,47 @@
     [purpose='testimonials'] {
       margin-bottom: 40px;
     }
-
-    [purpose='category-switch'] {
-      margin-top: 40px;
+    [purpose='testimonial'] {
+      flex-direction: column;
+      padding: 16px;
+      padding-bottom: 32px;
+      [purpose='testimonial-text'] {
+        margin-left: 0px;
+      }
+      [purpose='testimonial-video'] {
+        width: 100%;
+        height: 228px;
+        margin-bottom: 24px;
+        img {
+          height: 90px;
+          width: auto;
+        }
+      }
     }
-
-    [purpose='category-image'] {
-      width: 100%;
-      height: auto;
+    [purpose='vuln-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
       img {
-        max-height: 293px;
-        max-width: 100%;
-        width: auto;
+        width: 100%;
+        height: auto;
+      }
+    }
+    [purpose='endpoint-ops-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
+        height: auto;
+      }
+    }
+    [purpose='device-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
         height: auto;
       }
     }
@@ -1318,6 +1385,7 @@
     [purpose='endpoints-banner'] {
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 60px;
           margin-bottom: 12px;
           [purpose='endpoint-image-box'] {
             width: 60px;
@@ -1407,8 +1475,12 @@
       }
     }
     [purpose='endpoints-banner'] {
+      [purpose='endpoint-banner-text'] {
+        margin-bottom: 32px;
+      }
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 54.427px;
           margin-bottom: 12px;
           [purpose='endpoint-image-box'] {
             width: 54.427px;

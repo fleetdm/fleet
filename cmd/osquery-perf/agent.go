@@ -1306,19 +1306,20 @@ func (a *agent) runLiveQuery(query string) (results []map[string]string, status 
 	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
 		return []map[string]string{}, &ss, nil, nil
 	}
-	return []map[string]string{{
-			"admindir":   "/var/lib/dpkg",
-			"arch":       "amd64",
-			"maintainer": "foobar",
-			"name":       "netconf",
-			"priority":   "optional",
-			"revision":   "",
-			"section":    "default",
-			"size":       "112594",
-			"source":     "",
-			"status":     "install ok installed",
-			"version":    "20230224000000",
-		},
+	return []map[string]string{
+			{
+				"admindir":   "/var/lib/dpkg",
+				"arch":       "amd64",
+				"maintainer": "foobar",
+				"name":       "netconf",
+				"priority":   "optional",
+				"revision":   "",
+				"section":    "default",
+				"size":       "112594",
+				"source":     "",
+				"status":     "install ok installed",
+				"version":    "20230224000000",
+			},
 		}, &ss, nil, &fleet.Stats{
 			WallTimeMs: uint64(rand.Intn(1000) * 1000),
 			UserTime:   uint64(rand.Intn(1000)),
@@ -1584,9 +1585,12 @@ func results(num int, hostUUID string) string {
 
 func main() {
 	validTemplateNames := map[string]bool{
-		"mac10.14.6.tmpl":   true,
-		"windows_11.tmpl":   true,
-		"ubuntu_22.04.tmpl": true,
+		"macos_13.6.2.tmpl":         true,
+		"macos_14.1.2.tmpl":         true,
+		"windows_11.tmpl":           true,
+		"windows_11_22H2_2861.tmpl": true,
+		"windows_11_22H2_3007.tmpl": true,
+		"ubuntu_22.04.tmpl":         true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -1626,8 +1630,8 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
-		// `-os_templates=windows_11.tmpl:3,mac10.14.6.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
+		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
 		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")

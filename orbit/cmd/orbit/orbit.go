@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -573,6 +574,18 @@ func main() {
 			return nil
 		}); err != nil {
 			return fmt.Errorf("cleanup old files: %w", err)
+		}
+
+		// Kill any pre-existing instances of osqueryd (otherwise getHostInfo will fail
+		// because of osqueryd's lock over its database).
+		//
+		// This can happen for instance when orbit is killed via the Windows Task Manager
+		// (there's no SIGTERM on Windows) and the osqueryd child processes are left orphaned.
+		killedProcesses, err := platform.KillAllProcessByName("osqueryd")
+		if err != nil {
+			log.Error().Err(err).Msg("failed to kill pre-existing instances of osqueryd")
+		} else if len(killedProcesses) > 0 {
+			log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
 		}
 
 		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
@@ -1424,14 +1437,23 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		"--json", systemQuery,
 	}
 	log.Debug().Str("query", systemQuery).Msg("running single query")
-	out, err := exec.Command(osqueryPath, args...).Output()
-	if err != nil {
-		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
+	cmd := exec.Command(osqueryPath, args...)
+	var (
+		osquerydStdout bytes.Buffer
+		osquerydStderr bytes.Buffer
+	)
+	cmd.Stdout = &osquerydStdout
+	cmd.Stderr = &osquerydStderr
+	if err := cmd.Run(); err != nil {
+		log.Error().Str(
+			"output", string(osquerydStdout.Bytes()),
+		).Str(
+			"stderr", string(osquerydStderr.Bytes()),
+		).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo
-	err = json.Unmarshal(out, &info)
-	if err != nil {
+	if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
 		return nil, err
 	}
 	if len(info) != 1 {
