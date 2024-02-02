@@ -42,6 +42,7 @@ module.exports = {
 
 
   fn: async function (inputs) {
+
     // Create a database record for these usage statistics.
     await HistoricalUsageSnapshot.create(Object.assign({}, inputs));
 
