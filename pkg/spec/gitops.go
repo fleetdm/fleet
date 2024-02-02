@@ -169,11 +169,10 @@ func parseSecrets(result *GitOps, errors []string) []string {
 					errors, "each item in 'org_settings.secrets' must have a 'secret' key containing an ASCII string value",
 				)
 				break
-			} else {
-				result.OrgSettings["secrets"] = append(
-					result.OrgSettings["secrets"].([]*fleet.EnrollSecret), &fleet.EnrollSecret{Secret: secret},
-				)
 			}
+			result.OrgSettings["secrets"] = append(
+				result.OrgSettings["secrets"].([]*fleet.EnrollSecret), &fleet.EnrollSecret{Secret: secret},
+			)
 		}
 	}
 	return errors
