@@ -9803,7 +9803,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	// modify the timestamp h1D to simulate an script that has
 	// been pending for a long time
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
 		return err
 	})
 
@@ -9813,32 +9813,32 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			wantExecs: []string{h1A, h1B, h1C, h1D, h1E},
+			wantExecs: []string{h1B, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2"},
-			wantExecs: []string{h1A, h1B},
+			wantExecs: []string{h1B, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "1"},
-			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "2"},
-			wantExecs: []string{h1E},
+			wantExecs: nil,
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "3"},
-			wantExecs: []string{h1A, h1B, h1C},
+			wantExecs: []string{h1B, h1C, h1D},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "3", "page", "1"},
-			wantExecs: []string{h1D, h1E},
+			wantExecs: []string{h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{

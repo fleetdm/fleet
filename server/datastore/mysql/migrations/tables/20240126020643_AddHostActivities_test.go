@@ -38,14 +38,14 @@ func TestUp_20240126020643(t *testing.T) {
 	}
 
 	var sr scriptResults
-	err := db.Get(&sr, `SELECT created_at, updated_at, exit_code FROM host_script_results WHERE id = ?`, hsr1)
+	err := db.Get(&sr, `SELECT created_at, updated_at, sync_request FROM host_script_results WHERE id = ?`, hsr1)
 	require.NoError(t, err)
 	assert.Equal(t, minutesAgo, sr.CreatedAt)
 	assert.Equal(t, minutesAgo, sr.UpdatedAt)
 	assert.True(t, sr.SyncRequest)
 
 	sr = scriptResults{}
-	err = db.Get(&sr, `SELECT created_at, updated_at, exit_code FROM host_script_results WHERE id = ?`, hsr2)
+	err = db.Get(&sr, `SELECT created_at, updated_at, sync_request FROM host_script_results WHERE id = ?`, hsr2)
 	require.NoError(t, err)
 	assert.Equal(t, minutesAgo, sr.CreatedAt)
 	assert.Equal(t, minutesAgo, sr.UpdatedAt)
