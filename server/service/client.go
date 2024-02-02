@@ -866,6 +866,14 @@ func (c *Client) DoGitOps(
 	mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
 	mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
 
+	// Add scripts
+	scripts := make([]interface{}, len(config.Controls.Scripts))
+	for i, script := range config.Controls.Scripts {
+		scripts[i] = *script.Path
+	}
+	group.AppConfig.(map[string]interface{})["scripts"] = scripts
+
+	// Apply org settings, scripts, enroll secrets, and controls
 	err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return err
