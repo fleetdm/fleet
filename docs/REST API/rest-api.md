@@ -7861,7 +7861,7 @@ _Available in Fleet Premium_
 | id               | integer | path | **Required.** The desired team's ID.         |
 | users            | string  | body | Array of users to add.                       |
 | &nbsp;&nbsp;id   | integer | body | The id of the user.                          |
-| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. |
+| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
 
 #### Example
 
