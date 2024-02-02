@@ -24,7 +24,7 @@ module.exports = {
 
     // Filter out development premium licenses and loadtests.
     let filteredStatistics = _.filter(usageStatisticsReportedInTheLastWeek, (report)=>{
-      return !_.contains(['Fleet Sandbox', 'fleet-loadtest', 'development only', 'Dev license (expired)', ''], report.organization);
+      return !_.contains(['Fleet Sandbox', 'fleet-loadtest', 'development-only', 'Dev license (expired)', ''], report.organization);
     });
 
     let statisticsReportedByFleetInstance = _.groupBy(filteredStatistics, 'anonymousIdentifier');
@@ -43,6 +43,8 @@ module.exports = {
     // Group reports by organization name.
     let reportsByOrgName = _.groupBy(latestPremiumUsageStatistics, 'organization');
     for(let org in reportsByOrgName) {
+      let uniqueIdsReportedByThisOrg = _.uniq(_.pluck(reportsByOrgName[org], 'anonymousIdentifier'));
+      console.log(org, reportsByOrgName[org].length+' report(s) in the past 7 days ('+uniqueIdsReportedByThisOrg.length+' unique ids reported by this org)');
       // Sort the results for this array by the createdAt value. This makes sure we're always sending the most recent results.
       let reportsForThisOrg = _.sortByOrder(reportsByOrgName[org], 'createdAt', 'desc');
       let lastReportForThisOrg = reportsForThisOrg[0];
@@ -67,6 +69,150 @@ module.exports = {
       };
       metricsToReport.push(hostCountMetricForThisOrg);
     }
+    // Build aggregated metrics for JSON attrributes
+    let combinedHostsEnrolledByOperatingSystem = {};
+    // Get an array of the last reported hostsEnrolledByOperatingSystem values.
+    let allHostsEnrolledByOsValues = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOperatingSystem');
+    for(let hostsEnrolled of allHostsEnrolledByOsValues) {
+      // iterate though the array of values and combine the results into the combinedHostsEnrolledByOperatingSystem object.
+      _.merge(combinedHostsEnrolledByOperatingSystem, hostsEnrolled, (valueFromAgregateObject, valueFromHostsEnrolled) => {
+        // make sure both values are arrays.
+        if(Array.isArray(valueFromAgregateObject) && Array.isArray(valueFromHostsEnrolled)) {
+          let mergedValues = [];
+          for(let version in valueFromHostsEnrolled){
+            let osVersion = valueFromHostsEnrolled[version];
+            let osVersionFromCombinedObject = _.find(valueFromAgregateObject, {version: osVersion.version});
+            if(osVersionFromCombinedObject){
+              mergedValues.push({
+                version: osVersion.version,
+                numEnrolled: osVersion.numEnrolled + osVersionFromCombinedObject.numEnrolled
+              });
+            } else {
+              mergedValues.push(osVersion);
+            }
+          }
+
+          return mergedValues;
+        }
+        // return objValue.map((obj) => {
+        //   let matchingSrcObject = srcValue.find((srcObj) => srcObj.version === obj.version);
+        //   if (matchingSrcObject) {
+        //     return { version: obj.version, numEnrolled: obj.numEnrolled + matchingSrcObject.numEnrolled };
+        //   } else {
+        //     return obj;
+        //   }
+        // }).concat(srcValue.filter((srcObj) => !objValue.find((obj) => obj.version === srcObj.version)));
+      });
+      console.log(combinedHostsEnrolledByOperatingSystem);
+    }
+    for(let operatingSystem in combinedHostsEnrolledByOperatingSystem) {
+      // For every object in the array, we'll send a metric to track host count for each operating system version.
+      for(let osVersion of combinedHostsEnrolledByOperatingSystem[operatingSystem]) {
+        // Only continue if the object in the array has a numEnrolled and version value.
+        if(osVersion.numEnrolled && osVersion.version !== '') {
+          let metricToAdd = {
+            metric: 'usage_statistics_v2.host_count_by_os_version',
+            type: 3,
+            points: [{timestamp: timestampForTheseMetrics, value:osVersion.numEnrolled}],
+            resources: [{name: operatingSystem, type: 'os_type'}],
+            tags: [`os_version_name:${osVersion.version}`],
+          };
+          // Add the custom metric to the array of metrics to send to Datadog.
+          metricsToReport.push(metricToAdd);
+        }//ﬁ
+      }//∞
+    }//∞
+
+    let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOsqueryVersion');
+    // Merge the JSON values
+    let combinedHostsEnrolledByOsqueryVersion = [];
+    let flattenedHostsEnrolledByOsqueryVersions = _.flatten(allHostsEnrolledByOsqueryVersion);
+    let groupedHostsEnrolledValuesByOsqueryVersion = _.groupBy(flattenedHostsEnrolledByOsqueryVersions, 'osqueryVersion');
+    for(let osqueryVersion in groupedHostsEnrolledValuesByOsqueryVersion) {
+      combinedHostsEnrolledByOsqueryVersion.push({
+        osqueryVersion: osqueryVersion,
+        numHosts: _.sum(groupedHostsEnrolledValuesByOsqueryVersion[osqueryVersion], (version)=>{return version.numHosts;})
+      });
+    }
+
+    for(let version of combinedHostsEnrolledByOsqueryVersion) {
+      if(version.osqueryVersion === ''){
+        let metricToAdd = {
+          metric: 'usage_statistics_v2.host_count_by_osquery_version',
+          type: 3,
+          points: [{timestamp: timestampForTheseMetrics, value:version.numHosts}],
+          tags: [`osquery_version:${version.osqueryVersion}`],
+        };
+        // Add the custom metric to the array of metrics to send to Datadog.
+        metricsToReport.push(metricToAdd);
+      }
+    }//∞
+
+
+    let combinedHostsEnrolledByOrbitVersion = [];
+    let allHostsEnrolledByOrbitVersion = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOrbitVersion');
+    let flattenedHostsEnrolledByOrbitVersions = _.flatten(allHostsEnrolledByOrbitVersion);
+    let groupedHostsEnrolledValuesByOrbitVersion = _.groupBy(flattenedHostsEnrolledByOrbitVersions, 'orbitVersion');
+    for(let orbitVersion in groupedHostsEnrolledValuesByOrbitVersion) {
+      combinedHostsEnrolledByOrbitVersion.push({
+        orbitVersion: orbitVersion,
+        numHosts: _.sum(groupedHostsEnrolledValuesByOrbitVersion[orbitVersion], (version)=>{return version.numHosts;})
+      });
+    }
+    for(let version of combinedHostsEnrolledByOrbitVersion) {
+      if(version.orbitVersion !== '') {
+        let metricToAdd = {
+          metric: 'usage_statistics_v2.host_count_by_orbit_version',
+          type: 3,
+          points: [{timestamp: timestampForTheseMetrics, value:version.numHosts}],
+          tags: [`orbit_version:${version.orbitVersion}`],
+        };
+        // Add the custom metric to the array of metrics to send to Datadog.
+        metricsToReport.push(metricToAdd);
+      }
+    }//∞
+
+    // Merge the arrays of JSON storedErrors
+    let allStoredErrors = _.pluck(latestStatisticsForEachInstance, 'storedErrors');
+    let flattenedStoredErrors = _.flatten(allStoredErrors);
+    let groupedStoredErrorsByLocation = _.groupBy(flattenedStoredErrors, 'loc');
+    let combinedStoredErrors = [];
+    for(let location in groupedStoredErrorsByLocation) {
+      combinedStoredErrors.push({
+        location: groupedStoredErrorsByLocation[location][0].loc,
+        count: _.sum(groupedStoredErrorsByLocation[location], (location)=>{return location.count;}),
+        numberOfInstancesReportingThisError: groupedStoredErrorsByLocation[location].length
+      });
+    }
+    for(let error of combinedStoredErrors) {
+      console.log(error.loc);
+      // Create a new array of tags for this error
+      let errorTags = [];
+      let errorLocation = 1;
+      // Create a tag for each error location
+      for(let location of error.loc) { // iterate throught the location array of this error
+        // Add the error's location as a custom tag (SNAKE_CASED)
+        errorTags.push(`error_location_${errorLocation}:${location.replace(/\s/gi, '_')}`);
+        errorLocation++;
+      }
+      // Add a metric with the combined error count for each unique error location
+      metricsToReport.push({
+        metric: 'usage_statistics_v2.stored_errors_counts',
+        type: 3,
+        points: [{timestamp: timestampForTheseMetrics, value: error.count}],
+        tags: errorTags,
+      });
+      // Add a metric to report how many different instances reported errors with the same location.
+      metricsToReport.push({
+        metric: 'usage_statistics_v2.stored_errors_statistics',
+        type: 3,
+        points: [{timestamp: timestampForTheseMetrics, value: error.numberOfInstancesReportingThisError}],
+        tags: errorTags,
+      });
+    }//∞
+
+
+
     // Build a metric for each Fleet version reported.
     let statisticsByReportedFleetVersion = _.groupBy(latestStatisticsForEachInstance, 'fleetVersion');
     for(let version in statisticsByReportedFleetVersion){
@@ -291,20 +437,21 @@ module.exports = {
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToReport, 500);// Note: 500 stringified JSON metrics is ~410 kb.
     for(let chunkOfMetrics of chunkedMetrics) {
-      await sails.helpers.http.post.with({
-        url: 'https://api.us5.datadoghq.com/api/v2/series',
-        data: {
-          series: chunkOfMetrics,
-        },
-        headers: {
-          'DD-API-KEY': sails.config.custom.datadogApiKey,
-          'Content-Type': 'application/json',
-        }
-      }).intercept((err)=>{
-        // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
-        // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
-        return new Error(`When the send-metrics-to-datadog script sent a request to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
-      });
+      // await sails.helpers.http.post.with({
+      //   url: 'https://api.us5.datadoghq.com/api/v2/series',
+      //   data: {
+      //     series: chunkOfMetrics,
+      //   },
+      //   headers: {
+      //     'DD-API-KEY': sails.config.custom.datadogApiKey,
+      //     'Content-Type': 'application/json',
+      //   }
+      // }).intercept((err)=>{
+      //   // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
+      //   // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
+      //   return new Error(`When the send-metrics-to-datadog script sent a request to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
+      // });
+      // console.log(chunkOfMetrics);
     }//∞
     sails.log(`Aggregated metrics for ${numberOfInstancesToReport} Fleet instances from the past week sent to Datadog.`);
   }
