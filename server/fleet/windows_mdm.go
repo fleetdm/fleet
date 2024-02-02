@@ -93,7 +93,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 		// no processing instructions allowed (<?target inst?>)
 		// see #16316 for details
 		case xml.ProcInst:
-			return fmt.Errorf("The file should include valid XML: processing instructions are not allowed.")
+			return errors.New("The file should include valid XML: processing instructions are not allowed.")
 
 		case xml.StartElement:
 			switch t.Name.Local {
