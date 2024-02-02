@@ -3,14 +3,15 @@ import React from "react";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { ISoftwareVulnerability } from "interfaces/software";
 
+import paths from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 interface IHeaderProps {
   column: {
@@ -73,14 +74,17 @@ const generateTableConfig = (
       accessor: "cve",
       disableSortBy: true,
       Header: "Vulnerability",
-      Cell: ({ cell: { value }, row }: ITextCellProps) => {
-        return (
-          <CustomLink
-            url={row.original.details_link}
-            text={value.toString()}
-            newTab
-          />
-        );
+      Cell: (cellProps: ICellProps) => {
+        if (cellProps.row.original.id) {
+          const cveId = cellProps.row.original.id.toString();
+          return (
+            <LinkCell
+              value={cellProps.row.original.cve}
+              path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveId)}
+            />
+          );
+        }
+        return <TextCell value={cellProps.row.original.cve} />;
       },
     },
   ];

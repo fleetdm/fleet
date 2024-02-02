@@ -59,6 +59,7 @@ export interface ISoftwareTitle {
 }
 
 export interface ISoftwareVulnerability {
+  id: number | null;
   cve: string;
   details_link: string;
   cvss_score?: number | null;
