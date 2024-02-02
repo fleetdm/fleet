@@ -10,6 +10,7 @@ import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
 
 interface IHeaderProps {
   column: {
@@ -123,11 +124,12 @@ const generateTableConfig = (
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
+            className="epss_probability"
             tipContent={
               <>
                 The probability that this vulnerability will be exploited in the
-                next 30 days (EPSS probability. This data is reported by
-                FIRST.org.
+                next 30 days (EPSS probability). <br />
+                This data is reported by FIRST.org.
               </>
             }
           >
@@ -204,13 +206,35 @@ const generateTableConfig = (
           </>
         );
       },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => {
-        const valString = typeof value === "number" ? value.toString() : value;
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const createdAt = cellProps.row.original.created_at || "";
+
         return (
           <TextCell
-            value={valString ? { timeString: valString } : undefined}
-            formatter={valString ? HumanTimeDiffWithDateTip : undefined}
+            value={{ timeString: createdAt }}
+            formatter={HumanTimeDiffWithDateTip}
           />
+        );
+      },
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  cve: cellProps.row.original.cve,
+                }}
+                className="vulnerabilities-link"
+                rowHover
+              />
+            )}
+          </>
         );
       },
     },

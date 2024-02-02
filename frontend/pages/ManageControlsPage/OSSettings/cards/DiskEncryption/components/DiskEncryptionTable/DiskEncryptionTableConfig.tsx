@@ -108,21 +108,32 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "windowsHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
-        <div className="disk-encryption-table__aggregate-table-data">
-          <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
-          <ViewAllHostsLink
-            className="view-hosts-link"
-            queryParams={{
-              [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: original.status.value,
-              team_id: original.teamId,
-            }}
-          />
-        </div>
+        <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
+      );
+    },
+  },
+  {
+    title: "",
+    Header: "",
+    accessor: "linkToFilteredHosts",
+    disableSortBy: true,
+    Cell: (cellProps: ICellProps) => {
+      return (
+        <>
+          {cellProps.row.original && (
+            <ViewAllHostsLink
+              className="view-hosts-link"
+              queryParams={{
+                [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]:
+                  cellProps.row.original.status.value,
+                team_id: cellProps.row.original.teamId,
+              }}
+              rowHover
+            />
+          )}
+        </>
       );
     },
   },
