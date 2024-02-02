@@ -39,3 +39,5 @@ $ fleetctl package --type=msi --end-user-email=foo@example.com --fleet-url=https
 ```
 
 Note: You need to build a different package per user email.
+
+<meta name="pageOrderInSection" value="1202">
