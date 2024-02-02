@@ -7572,6 +7572,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
       "resolved_in_version": ""// Available in Fleet Premium
     }
   ],
+  "count": 123,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
   "meta": {
     "has_next_results": false,
     "has_previous_results": false
