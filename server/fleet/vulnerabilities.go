@@ -155,3 +155,16 @@ func (opt VulnListOptions) HasValidSortColumn() bool {
 	}
 	return false
 }
+
+func (opt VulnListOptions) IsValidSortColumn() bool {
+	if opt.OrderKey == "" {
+		return true
+	}
+	for _, c := range opt.ValidSortColumns {
+		if c == opt.OrderKey {
+			return true
+		}
+	}
+	return false
+}
+

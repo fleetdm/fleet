@@ -12,13 +12,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var validSortColumns = []string{
-	"cve",
-	"host_count",
-	"host_count_updated_at",
-	"created_at",
-}
-
 func TestListVulnerabilities(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
