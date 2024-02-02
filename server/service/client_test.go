@@ -137,7 +137,7 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
-				got := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+				got := extractAppCfgMacOSCustomSettings(specs.AppConfig, "")
 				require.Equal(t, c.want, got)
 			}
 		})
@@ -271,7 +271,7 @@ spec:
 			specs, err := spec.GroupFromBytes([]byte(c.yaml))
 			require.NoError(t, err)
 			if specs.AppConfig != nil {
-				got := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+				got := extractAppCfgWindowsCustomSettings(specs.AppConfig, "")
 				require.Equal(t, c.want, got)
 			}
 		})
