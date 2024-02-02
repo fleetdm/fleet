@@ -26,8 +26,8 @@ export const createMockVulnerability = (
 };
 
 const DEFAULT_VULNERABILITIES_RESPONSE: IVulnerabilitiesResponse = {
-  count: 1, // Confirm this will be on API
-  counts_updated_at: "2024-02-01T00:00:00Z", // Confirm this will be on API
+  count: 1,
+  counts_updated_at: "2024-02-01T00:00:00Z",
   vulnerabilities: [createMockVulnerability()],
   meta: {
     has_next_results: true,
