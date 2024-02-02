@@ -599,6 +599,11 @@ type Service interface {
 	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities
+
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
 
 	NewTeamPolicy(ctx context.Context, teamID uint, p PolicyPayload) (*Policy, error)

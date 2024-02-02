@@ -533,6 +533,12 @@ type Datastore interface {
 	UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid string) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities Store
+
+	// ListVulnerabilities returns all vulnerabilities in the datastore.
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, error)
+
+	///////////////////////////////////////////////////////////////////////////////
 	// ActivitiesStore
 
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
