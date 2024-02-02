@@ -1,26 +1,24 @@
 # Provide end user email address w/o relying on end user
 
-In #15057 we introduced a feature intended for internal usage that allows to
-define the email under the "Used by" field in the host details page.
-
-Supported operating systems are macOS and Windows, and the method use to define
-the email varies.
+In issue #15057, we introduced a feature primarily intended for internal use
+that allows the specification of the email for the "Used by" field on the host
+details page. This feature supports macOS and Windows, but the method to define
+the email differs for each operating system.
 
 ### macOS via configuration profiles
 
 When `fleetd` starts in macOS, it'll check for the user email in the enrollment profile.
 
-The enrollment profile contains multiple `<dict>` elements, find the one with a
+The enrollment profile contains multiple `<dict>` elements. Locate the one with a
 `PayloadIdentifier` equal to `com.fleetdm.fleet.mdm.apple.mdm`, and add the
-following, replacing foo@example.com with your desired user email:
-
+following, replacing foo@example.com with the desired user email:
 
 ```xml
 <key>EndUserEmail</key>
 <string>foo@example.com</string>
 ```
 
-For example, this is how the specific bit of the payload might look like:
+For instance, the specific part of the payload might look like this:
 
 ```xml
 <key>PayloadIdentifier</key>
@@ -31,7 +29,8 @@ For example, this is how the specific bit of the payload might look like:
 
 ### Windows via custom installers
 
-For Windows, we built a hidden flag into `fleetctl` that allows you to define a custom user email.
+For Windows, we implemented a hidden flag in `fleetctl` that allows you to
+define a custom user email when a package is built.
 
 If provided, `fleetd` will report the user email to the fleet server when it starts.
 
@@ -39,4 +38,4 @@ If provided, `fleetd` will report the user email to the fleet server when it sta
 $ fleetctl package --type=msi --end-user-email=foo@example.com --fleet-url=https://test.example.com --enroll-secret=abc
 ```
 
-You'll need to build a different package per user email.
+Note: You need to build a different package per user email.
