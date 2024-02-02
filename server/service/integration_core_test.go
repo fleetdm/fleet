@@ -203,48 +203,75 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	t := s.T()
+	longPwError := "Password is over the 48-byte limit. If the password is under 48 bytes, please check the auth_salt_key_size in your Fleet server config."
 
 	// test when creating a new user
 
 	newUPars := fleet.UserPayload{
-		Name:  ptr.String("user_invalid_email"),
-		Email: ptr.String("test@example.com"),
+		Name:  ptr.String("Justin A Test"),
+		Email: ptr.String("justin@test.com"),
 		// // This is 73 characters long
 		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 
 	respNew := s.Do("POST", "/api/latest/fleet/users/admin", &newUPars, http.StatusUnprocessableEntity)
-	assertBodyContains(s.T(), respNew, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+
+	assertBodyContains(s.T(), respNew, longPwError)
 
 	// test admin-required password reset
 
-	// // create new user
 	var createResp createUserResponse
 	userRawPwd := test.GoodPassword
-	params := fleet.UserPayload{
+	newUParams := fleet.UserPayload{
 		Name:       ptr.String("Justin A Test"),
 		Email:      ptr.String("justin@test.com"),
 		Password:   ptr.String(userRawPwd),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
-	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", newUParams, http.StatusOK, &createResp)
+
 	assert.NotZero(t, createResp.User.ID)
 	assert.True(t, createResp.User.AdminForcedPasswordReset)
+
 	u := *createResp.User
-
-	// // try to reset password as the new user with a 49-character password (too long)
 	s.token = s.getTestToken(u.Email, userRawPwd)
-	badReqResetPars := performRequiredPasswordResetRequest{Password: "password123#password123#password123#password123#!", ID: u.ID}
+	// 52-byte password (too long)
+	longPw := "password123#password123#password123#password123#!!!!"
+	// 48-byte password (just right)
+	justRightPw := "password123#password123#password123#password123#"
 
+	badReqResetPars := performRequiredPasswordResetRequest{Password: longPw, ID: u.ID}
 	badRespReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &badReqResetPars, http.StatusUnprocessableEntity)
-	assertBodyContains(s.T(), badRespReset, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+	assertBodyContains(s.T(), badRespReset, longPwError)
 
-	// // try to reset password as the new user with a 48-character password (just right)
-	goodReqResetPars := performRequiredPasswordResetRequest{Password: "password123#password123#password123#password123#", ID: u.ID}
+	goodReqResetPars := performRequiredPasswordResetRequest{Password: justRightPw, ID: u.ID}
 
 	goodRespReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &goodReqResetPars, http.StatusOK)
 	assertBodyContains(s.T(), goodRespReset, "email")
+	// reset test token with updated password
+	s.token = s.getTestToken(u.Email, justRightPw)
+
+	// test voluntary change password
+
+	longPwParams := changePasswordRequest{
+		OldPassword: justRightPw,
+		NewPassword: longPw,
+	}
+	changePwPath := "/api/latest/fleet/change_password"
+
+	badRespChangePw := s.Do("POST", changePwPath, &longPwParams, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), badRespChangePw, longPwError)
+
+	// with updated salt length, should now allow 52-byte password from the user
+	t.Setenv("FLEET_AUTH_SA()LT_KEY_SIZE", "20")
+	t = s.T()
+	var goodRespChangePw modifyUserResponse
+	s.DoJSON("POST", changePwPath, &longPwParams, http.StatusOK, &goodRespChangePw)
+
+	assert.NotZero(t, goodRespChangePw.User.ID)
+	assert.Empty(t, goodRespChangePw.Err)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {

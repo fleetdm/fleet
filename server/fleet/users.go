@@ -409,7 +409,7 @@ func saltAndHashPassword(keySize int, plaintext string, cost int) (hashed []byte
 	hashed, err = bcrypt.GenerateFromPassword(withSalt, cost)
 	if err != nil {
 		if errors.Is(err, bcrypt.ErrPasswordTooLong) {
-			return nil, "", NewInvalidArgumentError("Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.", "password too long")
+			return nil, "", NewInvalidArgumentError("Password is over the 48-byte limit. If the password is under 48 bytes, please check the auth_salt_key_size in your Fleet server config.", "Password too long")
 		}
 		return nil, "", err
 	}
