@@ -102,43 +102,42 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	var orgSettingsTop BaseItem
 	if err := yaml.Unmarshal(raw, &orgSettingsTop); err != nil {
-		errors = append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
+		return append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
+	}
+	noError := true
+	if orgSettingsTop.Path == nil {
+		result.AgentOptions = &raw
 	} else {
-		noError := true
-		if orgSettingsTop.Path == nil {
-			result.AgentOptions = &raw
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
+		if err != nil {
+			noError = false
+			errors = append(errors, fmt.Sprintf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
 		} else {
-			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
-			if err != nil {
+			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+			var pathOrgSettings BaseItem
+			if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
 				noError = false
-				errors = append(errors, fmt.Sprintf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
+				errors = append(errors, fmt.Sprintf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err))
 			} else {
-				fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-				var pathOrgSettings BaseItem
-				if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
+				if pathOrgSettings.Path != nil {
 					noError = false
-					errors = append(errors, fmt.Sprintf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err))
+					errors = append(
+						errors,
+						fmt.Sprintf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
+					)
 				} else {
-					if pathOrgSettings.Path != nil {
-						noError = false
-						errors = append(
-							errors,
-							fmt.Sprintf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
-						)
-					} else {
-						raw = fileBytes
-					}
+					raw = fileBytes
 				}
 			}
 		}
-		if noError {
-			if err = yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
-				errors = append(errors, fmt.Sprintf("failed to unmarshal org settings: %v", err))
-			} else {
-				errors = parseSecrets(result, errors)
-			}
-			// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
+	}
+	if noError {
+		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
+			errors = append(errors, fmt.Sprintf("failed to unmarshal org settings: %v", err))
+		} else {
+			errors = parseSecrets(result, errors)
 		}
+		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
 	return errors
 }
@@ -147,34 +146,33 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 func parseSecrets(result *GitOps, errors []string) []string {
 	rawSecrets, ok := result.OrgSettings["secrets"]
 	if !ok {
-		errors = append(errors, "'org_settings.secrets' is required")
-	} else {
-		result.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
-		if rawSecrets != nil {
-			secrets, ok := rawSecrets.([]interface{})
-			if !ok {
-				errors = append(errors, "'org_settings.secrets' must be a list of secret items")
+		return append(errors, "'org_settings.secrets' is required")
+	}
+	result.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
+	if rawSecrets != nil {
+		secrets, ok := rawSecrets.([]interface{})
+		if !ok {
+			return append(errors, "'org_settings.secrets' must be a list of secret items")
+		}
+		for _, enrollSecret := range secrets {
+			var secret string
+			var secretInterface interface{}
+			secretMap, ok := enrollSecret.(map[string]interface{})
+			if ok {
+				secretInterface, ok = secretMap["secret"]
+			}
+			if ok {
+				secret, ok = secretInterface.(string)
+			}
+			if !ok || secret == "" {
+				errors = append(
+					errors, "each item in 'org_settings.secrets' must have a 'secret' key containing an ASCII string value",
+				)
+				break
 			} else {
-				for _, enrollSecret := range secrets {
-					var secret string
-					var secretInterface interface{}
-					secretMap, ok := enrollSecret.(map[string]interface{})
-					if ok {
-						secretInterface, ok = secretMap["secret"]
-					}
-					if ok {
-						secret, ok = secretInterface.(string)
-					}
-					if !ok || secret == "" {
-						errors = append(
-							errors, "each item in 'org_settings.secrets' must have a 'secret' key containing an ASCII string value",
-						)
-					} else {
-						result.OrgSettings["secrets"] = append(
-							result.OrgSettings["secrets"].([]*fleet.EnrollSecret), &fleet.EnrollSecret{Secret: secret},
-						)
-					}
-				}
+				result.OrgSettings["secrets"] = append(
+					result.OrgSettings["secrets"].([]*fleet.EnrollSecret), &fleet.EnrollSecret{Secret: secret},
+				)
 			}
 		}
 	}
@@ -184,42 +182,37 @@ func parseSecrets(result *GitOps, errors []string) []string {
 func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	agentOptionsRaw, ok := top["agent_options"]
 	if !ok {
-		errors = append(errors, "'agent_options' is required")
+		return append(errors, "'agent_options' is required")
+	}
+	var agentOptionsTop BaseItem
+	if err := yaml.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
+		errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
 	} else {
-		var agentOptionsTop BaseItem
-		if err := yaml.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
+		if agentOptionsTop.Path == nil {
+			result.AgentOptions = &agentOptionsRaw
 		} else {
-			if agentOptionsTop.Path == nil {
-				result.AgentOptions = &agentOptionsRaw
-			} else {
-				fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *agentOptionsTop.Path))
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
-				} else {
-					fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-					var pathAgentOptions BaseItem
-					if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
-						errors = append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err))
-					} else {
-						if pathAgentOptions.Path != nil {
-							errors = append(
-								errors,
-								fmt.Sprintf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
-							)
-						} else {
-							var raw json.RawMessage
-							if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
-								errors = append(
-									errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
-								)
-							} else {
-								result.AgentOptions = &raw
-							}
-						}
-					}
-				}
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *agentOptionsTop.Path))
+			if err != nil {
+				return append(errors, fmt.Sprintf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
 			}
+			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+			var pathAgentOptions BaseItem
+			if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
+				return append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err))
+			}
+			if pathAgentOptions.Path != nil {
+				return append(
+					errors,
+					fmt.Sprintf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
+				)
+			}
+			var raw json.RawMessage
+			if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+				return append(
+					errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+				)
+			}
+			result.AgentOptions = &raw
 		}
 	}
 	return errors
@@ -228,36 +221,31 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	controlsRaw, ok := top["controls"]
 	if !ok {
-		errors = append(errors, "'controls' is required")
+		return append(errors, "'controls' is required")
+	}
+	var controlsTop Controls
+	if err := yaml.Unmarshal(controlsRaw, &controlsTop); err != nil {
+		return append(errors, fmt.Sprintf("failed to unmarshal controls: %v", err))
+	}
+	if controlsTop.Path == nil {
+		result.Controls = controlsTop
 	} else {
-		var controlsTop Controls
-		if err := yaml.Unmarshal(controlsRaw, &controlsTop); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to unmarshal controls: %v", err))
-		} else {
-			if controlsTop.Path == nil {
-				result.Controls = controlsTop
-			} else {
-				fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
-				if err != nil {
-					errors = append(errors, fmt.Sprintf("failed to read controls file %s: %v", *controlsTop.Path, err))
-				} else {
-					fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-					var pathControls Controls
-					if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-						errors = append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *controlsTop.Path, err))
-					} else {
-						if pathControls.Path != nil {
-							errors = append(
-								errors,
-								fmt.Sprintf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
-							)
-						} else {
-							result.Controls = pathControls
-						}
-					}
-				}
-			}
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
+		if err != nil {
+			return append(errors, fmt.Sprintf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
+		fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+		var pathControls Controls
+		if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
+			return append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *controlsTop.Path, err))
+		}
+		if pathControls.Path != nil {
+			return append(
+				errors,
+				fmt.Sprintf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
+			)
+		}
+		result.Controls = pathControls
 	}
 	return errors
 }
@@ -265,59 +253,57 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	policiesRaw, ok := top["policies"]
 	if !ok {
-		errors = append(errors, "'policies' key is required")
-	} else {
-		var policies []Policy
-		if err := yaml.Unmarshal(policiesRaw, &policies); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to unmarshal policies: %v", err))
+		return append(errors, "'policies' key is required")
+	}
+	var policies []Policy
+	if err := yaml.Unmarshal(policiesRaw, &policies); err != nil {
+		return append(errors, fmt.Sprintf("failed to unmarshal policies: %v", err))
+	}
+	for _, item := range policies {
+		item := item
+		if item.Path == nil {
+			result.Policies = append(result.Policies, &item.PolicySpec)
 		} else {
-			for _, item := range policies {
-				item := item
-				if item.Path == nil {
-					result.Policies = append(result.Policies, &item.PolicySpec)
-				} else {
-					fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
-					if err != nil {
-						errors = append(errors, fmt.Sprintf("failed to read policies file %s: %v", *item.Path, err))
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("failed to read policies file %s: %v", *item.Path, err))
+				continue
+			}
+			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+			var pathPolicies []*Policy
+			if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
+				errors = append(errors, fmt.Sprintf("failed to unmarshal policies file %s: %v", *item.Path, err))
+				continue
+			}
+			for _, pp := range pathPolicies {
+				pp := pp
+				if pp != nil {
+					if pp.Path != nil {
+						errors = append(
+							errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
+						)
 					} else {
-						fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-						var pathPolicies []*Policy
-						if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-							errors = append(errors, fmt.Sprintf("failed to unmarshal policies file %s: %v", *item.Path, err))
-						} else {
-							for _, pp := range pathPolicies {
-								pp := pp
-								if pp != nil {
-									if pp.Path != nil {
-										errors = append(
-											errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
-										)
-									} else {
-										result.Policies = append(result.Policies, &pp.PolicySpec)
-									}
-								}
-							}
-						}
+						result.Policies = append(result.Policies, &pp.PolicySpec)
 					}
 				}
 			}
-			// Make sure team name is correct
-			for _, item := range result.Policies {
-				if result.TeamName != nil {
-					item.Team = *result.TeamName
-				} else {
-					item.Team = ""
-				}
-			}
-			duplicates := getDuplicateNames(
-				result.Policies, func(p *fleet.PolicySpec) string {
-					return p.Name
-				},
-			)
-			if len(duplicates) > 0 {
-				errors = append(errors, fmt.Sprintf("duplicate policy names: %v", duplicates))
-			}
 		}
+	}
+	// Make sure team name is correct
+	for _, item := range result.Policies {
+		if result.TeamName != nil {
+			item.Team = *result.TeamName
+		} else {
+			item.Team = ""
+		}
+	}
+	duplicates := getDuplicateNames(
+		result.Policies, func(p *fleet.PolicySpec) string {
+			return p.Name
+		},
+	)
+	if len(duplicates) > 0 {
+		errors = append(errors, fmt.Sprintf("duplicate policy names: %v", duplicates))
 	}
 	return errors
 }
@@ -325,63 +311,61 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	queriesRaw, ok := top["queries"]
 	if !ok {
-		errors = append(errors, "'queries' key is required")
-	} else {
-		var queries []Query
-		if err := yaml.Unmarshal(queriesRaw, &queries); err != nil {
-			errors = append(errors, fmt.Sprintf("failed to unmarshal queries: %v", err))
+		return append(errors, "'queries' key is required")
+	}
+	var queries []Query
+	if err := yaml.Unmarshal(queriesRaw, &queries); err != nil {
+		return append(errors, fmt.Sprintf("failed to unmarshal queries: %v", err))
+	}
+	for _, item := range queries {
+		item := item
+		if item.Path == nil {
+			result.Queries = append(result.Queries, &item.QuerySpec)
 		} else {
-			for _, item := range queries {
-				item := item
-				if item.Path == nil {
-					result.Queries = append(result.Queries, &item.QuerySpec)
-				} else {
-					fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
-					if err != nil {
-						errors = append(errors, fmt.Sprintf("failed to read queries file %s: %v", *item.Path, err))
+			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
+			if err != nil {
+				errors = append(errors, fmt.Sprintf("failed to read queries file %s: %v", *item.Path, err))
+				continue
+			}
+			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+			var pathQueries []*Query
+			if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
+				errors = append(errors, fmt.Sprintf("failed to unmarshal queries file %s: %v", *item.Path, err))
+				continue
+			}
+			for _, pq := range pathQueries {
+				pq := pq
+				if pq != nil {
+					if pq.Path != nil {
+						errors = append(
+							errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+						)
 					} else {
-						fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
-						var pathQueries []*Query
-						if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-							errors = append(errors, fmt.Sprintf("failed to unmarshal queries file %s: %v", *item.Path, err))
-						} else {
-							for _, pq := range pathQueries {
-								pq := pq
-								if pq != nil {
-									if pq.Path != nil {
-										errors = append(
-											errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
-										)
-									} else {
-										result.Queries = append(result.Queries, &pq.QuerySpec)
-									}
-								}
-							}
-						}
+						result.Queries = append(result.Queries, &pq.QuerySpec)
 					}
 				}
 			}
-			for _, q := range result.Queries {
-				// Make sure team name is correct
-				if result.TeamName != nil {
-					q.TeamName = *result.TeamName
-				} else {
-					q.TeamName = ""
-				}
-				// Don't use non-ASCII
-				if !isASCII(q.Name) {
-					errors = append(errors, fmt.Sprintf("query name must be in ASCII: %s", q.Name))
-				}
-			}
-			duplicates := getDuplicateNames(
-				result.Queries, func(q *fleet.QuerySpec) string {
-					return q.Name
-				},
-			)
-			if len(duplicates) > 0 {
-				errors = append(errors, fmt.Sprintf("duplicate query names: %v", duplicates))
-			}
 		}
+	}
+	for _, q := range result.Queries {
+		// Make sure team name is correct
+		if result.TeamName != nil {
+			q.TeamName = *result.TeamName
+		} else {
+			q.TeamName = ""
+		}
+		// Don't use non-ASCII
+		if !isASCII(q.Name) {
+			errors = append(errors, fmt.Sprintf("query name must be in ASCII: %s", q.Name))
+		}
+	}
+	duplicates := getDuplicateNames(
+		result.Queries, func(q *fleet.QuerySpec) string {
+			return q.Name
+		},
+	)
+	if len(duplicates) > 0 {
+		errors = append(errors, fmt.Sprintf("duplicate query names: %v", duplicates))
 	}
 	return errors
 }
