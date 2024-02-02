@@ -1,6 +1,8 @@
 import React from "react";
 import { RouteComponentProps } from "react-router";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
+import { useErrorHandler } from "react-error-boundary";
 
 import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import softwareAPI, {
@@ -13,8 +15,6 @@ import Spinner from "components/Spinner";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
-import { useErrorHandler } from "react-error-boundary";
-import { AxiosError } from "axios";
 
 const baseClass = "software-title-details-page";
 
