@@ -18,8 +18,9 @@ done
 echo "Fetching the latest version of fleetctl..."
 
 # Fetch the latest version number from the GitHub repository
-latest_version=$(curl -sSL $FLEETCTL_REPO_URL | grep '"version":' | sed -E 's/.*"version": "v?([^"]+)".*/\1/')
-latest_strippedVersion=${latest_version%-*}
+
+latest_strippedVersion=$(curl -s "https://registry.npmjs.org/fleetctl/latest" | grep -o '"version": *"[^"]*"' | cut -d'"' -f4)
+echo "Latest version: $latest_strippedVersion"
 
 # if [[ $latest_strippedVersion != v* ]]; then
 #   latest_strippedVersion="v$latest_strippedVersion"
@@ -31,7 +32,6 @@ version_gt() {
 
 # Determine OS and Architecture
 OS="$(uname -s)"
-ARCH="$(uname -m)"
 
 case "${OS}" in
     Linux*)     OS='linux';;
@@ -42,7 +42,7 @@ esac
 # Function to download and extract fleetctl
 download_and_extract() {
     echo "Downloading fleetctl ${latest_strippedVersion} for ${OS}..."
-    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 ${FLEETCTL_BINARY_NAME}_${latest_strippedVersion}_${OS}/${FLEETCTL_BINARY_NAME}
+    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 ${FLEETCTL_BINARY_NAME}_v${latest_strippedVersion}_${OS}/${FLEETCTL_BINARY_NAME}
 }
 
 # Function to check if fleetctl is already installed
@@ -60,7 +60,8 @@ check_installed_version() {
 mkdir -p ${FLEETCTL_INSTALL_DIR}
 
 # Construct download URL
-DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-${latest_strippedVersion}/${FLEETCTL_BINARY_NAME}_${latest_strippedVersion}_${OS}.tar.gz"
+# https://github.com/fleetdm/fleet/releases/download/fleet-v4.43.3/fleetctl_v4.43.3_macos.zip
+DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest_strippedVersion}/${FLEETCTL_BINARY_NAME}_v${latest_strippedVersion}_${OS}.tar.gz"
 
 
 if check_installed_version; then
