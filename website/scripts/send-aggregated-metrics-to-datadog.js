@@ -43,8 +43,6 @@ module.exports = {
     // Group reports by organization name.
     let reportsByOrgName = _.groupBy(latestPremiumUsageStatistics, 'organization');
     for(let org in reportsByOrgName) {
-      let uniqueIdsReportedByThisOrg = _.uniq(_.pluck(reportsByOrgName[org], 'anonymousIdentifier'));
-      console.log(org, reportsByOrgName[org].length+' report(s) in the past 7 days ('+uniqueIdsReportedByThisOrg.length+' unique ids reported by this org)');
       // Sort the results for this array by the createdAt value. This makes sure we're always sending the most recent results.
       let reportsForThisOrg = _.sortByOrder(reportsByOrgName[org], 'createdAt', 'desc');
       let lastReportForThisOrg = reportsForThisOrg[0];
@@ -70,40 +68,34 @@ module.exports = {
       metricsToReport.push(hostCountMetricForThisOrg);
     }
     // Build aggregated metrics for JSON attrributes
+    // Create an empty object to store combined host counts.
     let combinedHostsEnrolledByOperatingSystem = {};
     // Get an array of the last reported hostsEnrolledByOperatingSystem values.
     let allHostsEnrolledByOsValues = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOperatingSystem');
-    for(let hostsEnrolled of allHostsEnrolledByOsValues) {
-      // iterate though the array of values and combine the results into the combinedHostsEnrolledByOperatingSystem object.
-      _.merge(combinedHostsEnrolledByOperatingSystem, hostsEnrolled, (valueFromAgregateObject, valueFromHostsEnrolled) => {
-        // make sure both values are arrays.
-        if(Array.isArray(valueFromAgregateObject) && Array.isArray(valueFromHostsEnrolled)) {
-          let mergedValues = [];
-          for(let version in valueFromHostsEnrolled){
-            let osVersion = valueFromHostsEnrolled[version];
-            let osVersionFromCombinedObject = _.find(valueFromAgregateObject, {version: osVersion.version});
-            if(osVersionFromCombinedObject){
-              mergedValues.push({
-                version: osVersion.version,
-                numEnrolled: osVersion.numEnrolled + osVersionFromCombinedObject.numEnrolled
-              });
+    // Iterate through each reported value, and combine them.
+    for(let reportedHostCounts of allHostsEnrolledByOsValues) {
+      _.merge(combinedHostsEnrolledByOperatingSystem, reportedHostCounts, (combinedCountsForThisOperatingSystemType, countsForThisOperatingSystemType) => {
+        if(Array.isArray(combinedCountsForThisOperatingSystemType) && Array.isArray(countsForThisOperatingSystemType)){
+          let mergedArrayOfHostCounts = [];
+          // Iterate through the counts in the array we're combining with the aggregator object.
+          for (let versionInfo of countsForThisOperatingSystemType) {
+            let matchingVersionFromCombinedCounts = _.find(combinedCountsForThisOperatingSystemType, (osType) => osType.version === versionInfo.version);
+            if (matchingVersionFromCombinedCounts) {
+              mergedArrayOfHostCounts.push({ version: versionInfo.version, numEnrolled: versionInfo.numEnrolled + matchingVersionFromCombinedCounts.numEnrolled });
             } else {
-              mergedValues.push(osVersion);
+              mergedArrayOfHostCounts.push(versionInfo);
             }
           }
-
-          return mergedValues;
+          // Now add the hostCounts from the combined host counts.
+          for (let versionInfo of combinedCountsForThisOperatingSystemType) {
+            let versionOnlyExistsInCombinedCounts = !_.find(countsForThisOperatingSystemType, (osVersion)=>{ return osVersion.version === versionInfo.version;});
+            if (versionOnlyExistsInCombinedCounts) {
+              mergedArrayOfHostCounts.push(versionInfo);
+            }
+          }
+          return mergedArrayOfHostCounts;
         }
-        // return objValue.map((obj) => {
-        //   let matchingSrcObject = srcValue.find((srcObj) => srcObj.version === obj.version);
-        //   if (matchingSrcObject) {
-        //     return { version: obj.version, numEnrolled: obj.numEnrolled + matchingSrcObject.numEnrolled };
-        //   } else {
-        //     return obj;
-        //   }
-        // }).concat(srcValue.filter((srcObj) => !objValue.find((obj) => obj.version === srcObj.version)));
       });
-      console.log(combinedHostsEnrolledByOperatingSystem);
     }
     for(let operatingSystem in combinedHostsEnrolledByOperatingSystem) {
       // For every object in the array, we'll send a metric to track host count for each operating system version.
@@ -123,8 +115,8 @@ module.exports = {
       }//∞
     }//∞
 
+
     let allHostsEnrolledByOsqueryVersion = _.pluck(latestStatisticsForEachInstance, 'hostsEnrolledByOsqueryVersion');
-    // Merge the JSON values
     let combinedHostsEnrolledByOsqueryVersion = [];
     let flattenedHostsEnrolledByOsqueryVersions = _.flatten(allHostsEnrolledByOsqueryVersion);
     let groupedHostsEnrolledValuesByOsqueryVersion = _.groupBy(flattenedHostsEnrolledByOsqueryVersions, 'osqueryVersion');
@@ -185,12 +177,11 @@ module.exports = {
       });
     }
     for(let error of combinedStoredErrors) {
-      console.log(error.loc);
       // Create a new array of tags for this error
       let errorTags = [];
       let errorLocation = 1;
       // Create a tag for each error location
-      for(let location of error.loc) { // iterate throught the location array of this error
+      for(let location of error.location) { // iterate throught the location array of this error
         // Add the error's location as a custom tag (SNAKE_CASED)
         errorTags.push(`error_location_${errorLocation}:${location.replace(/\s/gi, '_')}`);
         errorLocation++;
@@ -210,7 +201,6 @@ module.exports = {
         tags: errorTags,
       });
     }//∞
-
 
 
     // Build a metric for each Fleet version reported.
@@ -437,21 +427,20 @@ module.exports = {
     // Break the metrics into smaller arrays to ensure we don't exceed Datadog's 512 kb request body limit.
     let chunkedMetrics = _.chunk(metricsToReport, 500);// Note: 500 stringified JSON metrics is ~410 kb.
     for(let chunkOfMetrics of chunkedMetrics) {
-      // await sails.helpers.http.post.with({
-      //   url: 'https://api.us5.datadoghq.com/api/v2/series',
-      //   data: {
-      //     series: chunkOfMetrics,
-      //   },
-      //   headers: {
-      //     'DD-API-KEY': sails.config.custom.datadogApiKey,
-      //     'Content-Type': 'application/json',
-      //   }
-      // }).intercept((err)=>{
-      //   // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
-      //   // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
-      //   return new Error(`When the send-metrics-to-datadog script sent a request to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
-      // });
-      // console.log(chunkOfMetrics);
+      await sails.helpers.http.post.with({
+        url: 'https://api.us5.datadoghq.com/api/v2/series',
+        data: {
+          series: chunkOfMetrics,
+        },
+        headers: {
+          'DD-API-KEY': sails.config.custom.datadogApiKey,
+          'Content-Type': 'application/json',
+        }
+      }).intercept((err)=>{
+        // If there was an error sending metrics to Datadog, we'll log the error in a warning, but we won't throw an error.
+        // This way, we'll still return a 200 status to the Fleet instance that sent usage analytics.
+        return new Error(`When the send-metrics-to-datadog script sent a request to send metrics to Datadog, an error occured. Raw error: ${require('util').inspect(err)}`);
+      });
     }//∞
     sails.log(`Aggregated metrics for ${numberOfInstancesToReport} Fleet instances from the past week sent to Datadog.`);
   }
