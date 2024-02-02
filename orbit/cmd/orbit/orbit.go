@@ -199,7 +199,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "osquery-db",
-			Usage:   "Sets a custom osquery database directory",
+			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
 			EnvVars: []string{"ORBIT_OSQUERY_DB"},
 		},
 	}
@@ -273,6 +273,10 @@ func main() {
 
 		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
+		}
+
+		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
+			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
 
 		enrollSecretPath := c.String("enroll-secret-path")

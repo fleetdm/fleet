@@ -242,7 +242,7 @@ func packageCommand() *cli.Command {
 			},
 			&cli.StringFlag{
 				Name:        "osquery-db",
-				Usage:       "Sets a custom osquery database directory (requires orbit >= v1.22.0)",
+				Usage:       "Sets a custom osquery database directory, it must be an absolute path (requires orbit >= v1.22.0)",
 				EnvVars:     []string{"FLEETCTL_OSQUERY_DB"},
 				Destination: &opt.OsqueryDB,
 			},
@@ -284,6 +284,10 @@ func packageCommand() *cli.Command {
 				if _, err := tls.LoadX509KeyPair(opt.UpdateTLSClientCertificate, opt.UpdateTLSClientKey); err != nil {
 					return fmt.Errorf("error loading update client certificate and key: %w", err)
 				}
+			}
+
+			if opt.OsqueryDB != "" && !filepath.IsAbs(opt.OsqueryDB) {
+				return fmt.Errorf("--osquery-db must be an absolute path: %q", opt.OsqueryDB)
 			}
 
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
