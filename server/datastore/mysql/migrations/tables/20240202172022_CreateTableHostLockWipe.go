@@ -23,6 +23,8 @@ func Up_20240202172022(tx *sql.Tx) error {
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("create table host_mdm_actions: %w", err)
 	}
+
+	return nil
 }
 
 func Down_20240202172022(tx *sql.Tx) error {
