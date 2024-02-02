@@ -55,7 +55,7 @@ When creating or editing a query in Fleet (either a live query, schedule, or pol
 
 This new feature allows users to see an indication of the performance impact of scheduled queries across all devices. This is useful for mitigating the potential risk of disruption to end-users when running queries.
 
-The level of performance impact is derived from [a query's `stats` object](https://fleetdm.com/docs/rest-api/rest-api#get-query), by totaling up `stats.system_time_p50` and `stats.user_time_p50`:
+The level of performance impact is derived from [a query's `stats` object](https://fleetdm.com/docs/rest-api/rest-api#get-query), by totaling up milliseconds `stats.system_time_p50` and `stats.user_time_p50`:
 
 + **Minimal:** less than 2000
 + **Considerable:** 2000-3999
