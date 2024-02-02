@@ -25,6 +25,7 @@
       height: 100%;
       will-change: transform;
       background-size: auto 100%;
+      transition: transform 1s;
     }
     [purpose='foreground-cloud-1'] {
       background-image: url('/images/parallax-cloud-city/1-cloud-7050x600@2x.png');
@@ -75,6 +76,72 @@
       z-index: 1;
     }
   }
+  [purpose='parallax-city-container'].scroll-up {
+    .parallax-layer {
+      animation-duration: 2s;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: 1;
+      animation-fill-mode: forwards;
+    }
+    [purpose='foreground-cloud-1'] {
+      animation-name: scrollUp120;
+    }
+    [purpose='foreground-cloud-2'] {
+      animation-name: scrollUp100;
+    }
+    [purpose='large-island'] {
+      animation-name: scrollUp60;
+    }
+    [purpose='background-cloud-1'] {
+      animation-name: scrollUp40;
+    }
+    [purpose='small-island-1'] {
+      animation-name: scrollUp40;
+    }
+    [purpose='small-island-2'] {
+      animation-name: scrollUp20;
+    }
+    [purpose='background-cloud-2'] {
+      animation-name: scrollUp28;
+    }
+    [purpose='background-cloud-3'] {
+      animation-name: scrollUp12;
+    }
+
+  }
+  [purpose='parallax-city-container'].scroll-down {
+    .parallax-layer {
+      animation-duration: 1s;
+      animation-timing-function: ease-in-out;
+      animation-iteration-count: 1;
+      animation-fill-mode: forwards;
+    }
+    [purpose='foreground-cloud-1'] {
+      animation-name: scrollDown120;
+    }
+    [purpose='foreground-cloud-2'] {
+      animation-name: scrollDown100;
+    }
+    [purpose='large-island'] {
+      animation-name: scrollDown60;
+    }
+    [purpose='background-cloud-1'] {
+      animation-name: scrollDown40;
+    }
+    [purpose='small-island-1'] {
+      animation-name: scrollDown40;
+    }
+    [purpose='small-island-2'] {
+      animation-name: scrollDown20;
+    }
+    [purpose='background-cloud-2'] {
+      animation-name: scrollDown28;
+    }
+    [purpose='background-cloud-3'] {
+      animation-name: scrollDown12;
+    }
+
+  }
   @media (max-width: 1399px) {
     [purpose='parallax-city-container'] {
       height: 500px;
@@ -108,3 +175,133 @@
     }
   }
 }
+
+@keyframes scrollUp12 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-12px);
+  }
+}
+
+@keyframes scrollUp28 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-28px);
+  }
+}
+
+@keyframes scrollUp20 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-20px);
+  }
+}
+
+@keyframes scrollUp40 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-40px);
+  }
+}
+
+@keyframes scrollUp60 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-60px);
+  }
+}
+
+@keyframes scrollUp100 {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-100px);
+  }
+}
+@keyframes scrollUp120 {
+  from {
+    transform: translateY(0);
+  }
+  to {
+    transform: translateY(-120px);
+  }
+}
+
+
+
+@keyframes scrollDown12 {
+  0% {
+    transform: translateY(-12px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollDown28 {
+  0% {
+    transform: translateY(-28px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollDown20 {
+  0% {
+    transform: translateY(-20px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollDown40 {
+  0% {
+    transform: translateY(-40px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollDown60 {
+  0% {
+    transform: translateY(-60px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+@keyframes scrollDown100 {
+  0% {
+    transform: translateY(-100px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+@keyframes scrollDown120 {
+  from {
+    transform: translateY(-120px);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+// $('div[purpose="parallax-city-container"]').addClass('animating');
+// $('div[purpose="parallax-city-container"]').removeClass('animating');
+
+
