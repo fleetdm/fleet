@@ -25,11 +25,10 @@ export interface IVulnerabilitiesResponse {
   count: number; // confirm since it's not on draft API
   counts_updated_at: string; // confirm since it's not on draft API
   vulnerabilities: IVulnerability[];
-  // Tim requested to remove meta since we're paginating on frontend
-  // meta: {
-  //   has_next_results: boolean;
-  //   has_previous_results: boolean;
-  // };
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
 }
 
 export interface IVulnerabilityResponse {
