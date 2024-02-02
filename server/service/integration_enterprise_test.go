@@ -4657,12 +4657,10 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	runSyncResp = runScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 
-	// reset the context since the current one has timed out
-	ctx = context.Background()
 	// modify the timestamp of the script to simulate an script that has
 	// been pending for a long time
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), runSyncResp.ExecutionID)
+		_, err := tx.ExecContext(context.Background(), "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), runSyncResp.ExecutionID)
 		return err
 	})
 
@@ -4676,7 +4674,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, scriptResultResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
 	// make the host "offline"
-	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	err = s.ds.MarkHostsSeen(context.Background(), []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 
 	// attempt to create a sync script execution request, fails because the host
