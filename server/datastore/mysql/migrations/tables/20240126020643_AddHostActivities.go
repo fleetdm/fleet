@@ -61,8 +61,7 @@ func Up_20240126020643(tx *sql.Tx) error {
                 sync_request = 1,
                 updated_at = hsr.updated_at
             WHERE
-                exit_code IS NULL
-                AND user_id IS NULL
+                user_id IS NULL
                 AND created_at < CURRENT_TIMESTAMP
 	`
 	if _, err := tx.Exec(setOldScriptsAsSyncStmt); err != nil {
