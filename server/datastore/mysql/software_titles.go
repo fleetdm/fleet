@@ -239,8 +239,6 @@ GROUP BY s.id`
 		extraSelect = "MAX(shc.hosts_count) AS hosts_count,"
 	}
 
-	fmt.Println(tmFilter)
-
 	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc"))
 
 	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs)

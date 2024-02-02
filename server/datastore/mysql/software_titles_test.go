@@ -429,6 +429,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
 
+	// Testing the global user
 	titles, count, _, err := ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}}, fleet.TeamFilter{
 		User:            user1,
 		IncludeObserver: true,
@@ -437,9 +438,10 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 	require.Equal(t, 2, count)
-	require.Equal(t, 2, titles[0].VersionsCount)
-	require.Equal(t, titles[1].VersionsCount, 1)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
+	require.Equal(t, uint(2), titles[1].VersionsCount)
 
+	// Testing the team 1 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team1.ID}, fleet.TeamFilter{
 		User:            user2,
 		IncludeObserver: true,
@@ -447,8 +449,9 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 1)
 	require.Equal(t, 1, count)
-	require.Equal(t, 1, titles[0].VersionsCount)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
 
+	// Testing the team 2 user
 	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
 		User:            user3,
 		IncludeObserver: true,
@@ -456,8 +459,8 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, titles, 2)
 	require.Equal(t, 2, count)
-	require.Equal(t, 1, titles[0].VersionsCount)
-	require.Equal(t, 1, titles[1].VersionsCount)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
+	require.Equal(t, uint(1), titles[1].VersionsCount)
 }
 
 func sortTitlesByName(titles []fleet.SoftwareTitle) {
