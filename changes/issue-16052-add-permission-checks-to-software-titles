@@ -1,0 +1,2 @@
+- add permission checksa to the GET software/titles/:id endpoint. Also update UI if the user does
+  not have permissions to see a software title.
