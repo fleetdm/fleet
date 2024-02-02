@@ -9784,7 +9784,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	})
 	require.NoError(t, err)
 
-	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A"})
+	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A", SyncRequest: true})
 	require.NoError(t, err)
 	h1A := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "B"})
@@ -9793,12 +9793,19 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "C"})
 	require.NoError(t, err)
 	h1C := hsr.ExecutionID
-	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D"})
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D", SyncRequest: true})
 	require.NoError(t, err)
 	h1D := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "E"})
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
+
+	// modify the timestamp h1D to simulate an script that has
+	// been pending for a long time
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		return err
+	})
 
 	cases := []struct {
 		queries   []string // alternate query name and value
