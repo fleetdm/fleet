@@ -60,6 +60,9 @@ func gitopsCommand() *cli.Command {
 			if err != nil {
 				return err
 			}
+			if flDryRun {
+				_, _ = fmt.Fprintf(c.App.Writer, "[!] dry run succeeded\n")
+			}
 			return nil
 		},
 	}

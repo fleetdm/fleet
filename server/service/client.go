@@ -386,8 +386,8 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
-		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
+		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig, baseDir)
+		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig, baseDir)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
 		// if there is no custom setting but the windows and mac settings are
@@ -460,7 +460,7 @@ func (c *Client) ApplyGroup(
 
 	if specs.EnrollSecret != nil {
 		if opts.DryRun {
-			logfn("[!] ignoring enroll secrets, dry run mode only supported for 'config' and 'team' specs\n")
+			logfn("[+] would've applied enroll secrets\n")
 		} else {
 			if err := c.ApplyEnrollSecretSpec(specs.EnrollSecret); err != nil {
 				return fmt.Errorf("applying enroll secrets: %w", err)
@@ -619,7 +619,7 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
+func extractAppCfgCustomSettings(appCfg interface{}, baseDir string, platformKey string) []fleet.MDMProfileSpec {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
 		return nil
@@ -652,8 +652,8 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 			var profSpec fleet.MDMProfileSpec
 
 			// extract the Path field
-			if path, ok := m["path"].(string); ok {
-				profSpec.Path = path
+			if path, ok := m["path"].(string); ok && path != "" {
+				profSpec.Path = resolveApplyRelativePath(baseDir, path)
 			}
 
 			// extract the Labels field, labels are cleared if not provided
@@ -677,12 +677,12 @@ func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet
 	return csSpecs
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
-	return extractAppCfgCustomSettings(appCfg, "macos_settings")
+func extractAppCfgMacOSCustomSettings(appCfg interface{}, baseDir string) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, baseDir, "macos_settings")
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
-	return extractAppCfgCustomSettings(appCfg, "windows_settings")
+func extractAppCfgWindowsCustomSettings(appCfg interface{}, baseDir string) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, baseDir, "windows_settings")
 }
 
 func extractAppCfgScripts(appCfg interface{}) []string {
@@ -848,9 +848,24 @@ func (c *Client) DoGitOps(
 		}
 	}
 	group := spec.Group{
-		AppConfig: config.OrgSettings,
+		AppConfig:    config.OrgSettings,
+		EnrollSecret: &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)},
 	}
 	group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
+	delete(config.OrgSettings, "secrets")
+	if _, ok := group.AppConfig.(map[string]interface{})["mdm"]; !ok {
+		group.AppConfig.(map[string]interface{})["mdm"] = map[string]interface{}{}
+	}
+	mdmAppConfig := group.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+	mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
+	mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+	mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+	mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
+	mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
+	mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+	mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+	mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+
 	err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
 	if err != nil {
 		return err
