@@ -81,12 +81,11 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	for {
 		tok, err := dec.Token()
 		if err != nil {
-			if err != nil {
-				if err != io.EOF {
-					return fmt.Errorf("The file should include valid XML: %w", err)
-				}
-				break
+			if err != io.EOF {
+				return fmt.Errorf("The file should include valid XML: %w", err)
 			}
+			// EOF means no more tokens to process
+			break
 		}
 
 		switch t := tok.(type) {

@@ -494,7 +494,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "The file should include valid XML",
 		},
 		{
-			name: "XML escaped with nested root element",
+			name: "XML with CDATA used to embed xml",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 				  <Replace>
@@ -513,7 +513,7 @@ func TestValidateUserProvided(t *testing.T) {
 			wantErr: "",
 		},
 		{
-			name: "XML with CDATA used to embed xml",
+			name: "XML escaped with nested root element",
 			profile: MDMWindowsConfigProfile{
 				SyncML: []byte(`
 				  <Replace>
