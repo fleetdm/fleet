@@ -102,8 +102,8 @@ func WithShell() func(*Runner) error {
 	}
 }
 
-// WithDataPath sets configures the dataPath in the *Runner and
-// and sets the --pidfile and --extensions_socket paths
+// WithDataPath configures the dataPath in the *Runner and
+// sets the --pidfile and --extensions_socket paths
 // to the osqueryd invocation.
 func WithDataPath(dataPath, extensionPathPostfix string) Option {
 	return func(r *Runner) error {

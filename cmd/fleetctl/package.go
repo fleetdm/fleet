@@ -8,10 +8,12 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 	"time"
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/pkg/filepath_windows"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -286,7 +288,7 @@ func packageCommand() *cli.Command {
 				}
 			}
 
-			if opt.OsqueryDB != "" && !filepath.IsAbs(opt.OsqueryDB) {
+			if opt.OsqueryDB != "" && !isAbsolutePath(opt.OsqueryDB, c.String("type")) {
 				return fmt.Errorf("--osquery-db must be an absolute path: %q", opt.OsqueryDB)
 			}
 
@@ -381,4 +383,14 @@ func checkPEMCertificate(path string) error {
 		return errors.New("invalid PEM file")
 	}
 	return nil
+}
+
+// isAbsolutePath returns whether a path is absolute.
+// It does not make use of filepath.IsAbs to support
+// checking Windows paths from Go code running in unix.
+func isAbsolutePath(path, pkgType string) bool {
+	if pkgType == "msi" {
+		return filepath_windows.IsAbs(path)
+	}
+	return strings.HasPrefix(path, "/") // this is the unix implementation of filepath.IsAbs
 }
