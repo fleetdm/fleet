@@ -49,6 +49,26 @@ func Up_20240126020643(tx *sql.Tx) error {
 		return errors.Wrap(err, "create host_activities table")
 	}
 
+	// Prior to this update, the database didn't differentiate between
+	// "async" and "sync" requests. With Fleet v4.44.0, all async requests
+	// will execute regardless of their pending duration. To avoid
+	// unintended execution of old requests upon server upgrade, these are
+	// now marked as "sync", reflecting their original 5-minute execution
+	// limit.
+	const setOldScriptsAsSyncStmt = `
+            UPDATE host_script_results hsr
+            SET
+                async_request = 1,
+                updated_at = hsr.updated_at
+            WHERE
+                exit_code IS NULL
+                AND user_id IS NULL
+                AND created_at < CURRENT_TIMESTAMP
+	`
+	if _, err := tx.Exec(setOldScriptsAsSyncStmt); err != nil {
+		return errors.Wrap(err, "set async_request = 1 for old scripts")
+	}
+
 	return nil
 }
 
