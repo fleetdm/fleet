@@ -7621,7 +7621,6 @@ Retrieve details about a vulnerability and its affected software and OS versions
   "os_versions" : [
     "os_version_id": 5,
     "host_count": 5,
-    "host_count_updated_at": "2024-02-01T20:00:27Z",
     "name": "Microsoft Windows 11 Enterprise 22H2 10.0.22621.2715",
     "name_only": "Microsoft Windows 11 Enterprise 22H2",
     "version": "10.0.22621.2715",
@@ -7635,7 +7634,6 @@ Retrieve details about a vulnerability and its affected software and OS versions
     "browser": "",
     "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
     "host_count": 50,
-    "host_count_updated_at": "2024-02-01T20:00:27Z"
   ]
 }
 ```
