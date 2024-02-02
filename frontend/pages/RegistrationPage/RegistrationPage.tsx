@@ -33,7 +33,9 @@ const RegistrationPage = ({ router }: IRegistrationPageProps) => {
   const { currentUser, setCurrentUser, setAvailableTeams } = useContext(
     AppContext
   );
+  // page tracks the currenntly viewed page
   const [page, setPage] = useState(1);
+  // pageProgress tracks the completed pages of the form
   const [pageProgress, setPageProgress] = useState(1);
   const [showSetupError, setShowSetupError] = useState(false);
 

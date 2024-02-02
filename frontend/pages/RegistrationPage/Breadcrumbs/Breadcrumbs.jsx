@@ -6,10 +6,12 @@ class Breadcrumbs extends Component {
   static propTypes = {
     onClick: PropTypes.func,
     pageProgress: PropTypes.number,
+    page: PropTypes.number,
   };
 
   static defaultProps = {
     pageProgress: 1,
+    page: 1,
   };
 
   onClick = (page) => {
@@ -24,7 +26,7 @@ class Breadcrumbs extends Component {
 
   render() {
     const { onClick } = this;
-    const { pageProgress } = this.props;
+    const { page, pageProgress } = this.props;
     const baseClass = "registration-breadcrumbs";
     const pageBaseClass = `${baseClass}__page`;
     const page1ClassName = classnames(
@@ -32,7 +34,7 @@ class Breadcrumbs extends Component {
       `${pageBaseClass}--1`,
       "button--unstyled",
       {
-        [`${pageBaseClass}--active`]: pageProgress === 1,
+        [`${pageBaseClass}--active`]: page === 1,
         [`${pageBaseClass}--complete`]: pageProgress > 1,
       }
     );
@@ -42,7 +44,7 @@ class Breadcrumbs extends Component {
       `${pageBaseClass}--2`,
       "button--unstyled",
       {
-        [`${pageBaseClass}--active`]: pageProgress === 2,
+        [`${pageBaseClass}--active`]: page === 2,
         [`${pageBaseClass}--complete`]: pageProgress > 2,
       }
     );
@@ -52,7 +54,7 @@ class Breadcrumbs extends Component {
       `${pageBaseClass}--3`,
       "button--unstyled",
       {
-        [`${pageBaseClass}--active`]: pageProgress === 3,
+        [`${pageBaseClass}--active`]: page === 3,
         [`${pageBaseClass}--complete`]: pageProgress > 3,
       }
     );
