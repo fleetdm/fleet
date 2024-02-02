@@ -7543,6 +7543,8 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 `GET /api/v1/fleet/vulnerabilities`
 
+#### Parameters
+
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
 | team_id             | integer | query | _Available in Fleet Premium_ Filters only include vulnerabilities affecting the specified team.  |
@@ -7585,10 +7587,25 @@ Retrieves a list of all CVEs affecting software and/or OS versions.
 
 ### Get vulnerability
 
-Retrieve details about a CVE and its affected software and OS versions.
+Retrieve details about a vulnerability and its affected software and OS versions.
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                     |
+| ---      | ---      | ---   | ---                                                                                             |
+| cve      | integer  | path | The cve get information about (including "cve-" prefix, case-insensitive).                       |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
+#### Example
+
+`GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
+
+##### Default response
+
+`Status: 200`
+
+```json
     {
       "cve": "CVE-2022-30190",
       "created_at": "2022-06-01T00:15:00Z",
@@ -7621,7 +7638,7 @@ Retrieve details about a CVE and its affected software and OS versions.
         "host_count_updated_at": "2024-02-01T20:00:27Z"
       ]
   }
-
+```
 
 
 ---
