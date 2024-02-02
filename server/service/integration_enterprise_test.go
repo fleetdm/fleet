@@ -4657,6 +4657,8 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	runSyncResp = runScriptSyncResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
 
+	// reset the context since the current one has timed out
+	ctx = context.Background()
 	// modify the timestamp of the script to simulate an script that has
 	// been pending for a long time
 	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
