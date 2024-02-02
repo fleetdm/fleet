@@ -91,12 +91,11 @@ org_settings:
 
 	// Dry run
 	t.Setenv("ORG_NAME", orgName)
-	stdOut := runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
 	assert.Equal(t, fleet.AppConfig{}, *savedAppConfig, "AppConfig should be empty")
 
 	// Real run
-	stdOut = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
-	t.Log(stdOut)
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
 	assert.Equal(t, orgName, savedAppConfig.OrgInfo.OrgName)
 	assert.Equal(t, fleetServerURL, savedAppConfig.ServerSettings.ServerURL)
 	assert.Empty(t, enrolledSecrets)
