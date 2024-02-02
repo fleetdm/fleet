@@ -22,8 +22,8 @@ export interface IGetVulnerabilitiesQueryKey
 }
 
 export interface IVulnerabilitiesResponse {
-  count: number; // confirm since it's not on draft API
-  counts_updated_at: string; // confirm since it's not on draft API
+  count: number;
+  counts_updated_at: string;
   vulnerabilities: IVulnerability[];
   meta: {
     has_next_results: boolean;
