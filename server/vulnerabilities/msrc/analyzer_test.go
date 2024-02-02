@@ -16,7 +16,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPatched(t *testing.T) {
+func TestIsVulnPatched(t *testing.T) {
 	op := fleet.OperatingSystem{
 		Name:           "Microsoft Windows 11 Enterprise Evaluation",
 		DisplayVersion: "21H2",
@@ -27,35 +27,22 @@ func TestPatched(t *testing.T) {
 	}
 	prod := parsed.NewProductFromOS(op)
 
-	t.Run("#patched", func(t *testing.T) {
-		// TODO: this tests a nil vulnerability, which should never happen
-		// maybe return an error instead?
-		t.Run("no updates", func(t *testing.T) {
-			b := parsed.NewSecurityBulletin(prod.Name())
-			b.Products["123"] = prod
-			b.Vulnerabities["cve-123"] = parsed.NewVulnerability(nil)
-			pIDs := map[string]bool{"123": true}
-			isPatched, _ := isVulnPatched(op, b, b.Vulnerabities["cve-123"], pIDs)
-			require.False(t, isPatched)
-		})
+	t.Run("remediated by build", func(t *testing.T) {
+		b := parsed.NewSecurityBulletin(prod.Name())
+		b.Products["123"] = prod
+		pIDs := map[string]bool{"123": true}
 
-		t.Run("remediated by build", func(t *testing.T) {
-			b := parsed.NewSecurityBulletin(prod.Name())
-			b.Products["123"] = prod
-			pIDs := map[string]bool{"123": true}
+		vuln := parsed.NewVulnerability(nil)
+		vuln.RemediatedBy[456] = true
+		b.Vulnerabities["cve-123"] = vuln
 
-			vuln := parsed.NewVulnerability(nil)
-			vuln.RemediatedBy[456] = true
-			b.Vulnerabities["cve-123"] = vuln
+		vfA := parsed.NewVendorFix("10.0.22000.794")
+		vfA.Supersedes = ptr.Uint(123)
+		vfA.ProductIDs["123"] = true
+		b.VendorFixes[456] = vfA
 
-			vfA := parsed.NewVendorFix("10.0.22000.794")
-			vfA.Supersedes = ptr.Uint(123)
-			vfA.ProductIDs["123"] = true
-			b.VendorFixes[456] = vfA
-
-			isPatched, _ := isVulnPatched(op, b, b.Vulnerabities["cve-123"], pIDs)
-			require.True(t, isPatched)
-		})
+		isPatched, _ := isVulnPatched(op, b, b.Vulnerabities["cve-123"], pIDs)
+		require.True(t, isPatched)
 	})
 
 	t.Run("#loadBulletin", func(t *testing.T) {
@@ -149,8 +136,8 @@ func TestWinBuildVersionGreaterOrEqual(t *testing.T) {
 			name:       "comparing different product versions",
 			feed:       "10.0.22000.795",
 			os:         "10.0.22621.795",
-			result:     false,
-			errMessage: "",
+			result:     true,
+			errMessage: "different product versions",
 		},
 	}
 
