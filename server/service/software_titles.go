@@ -142,7 +142,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.Soft
 		if fleet.IsNotFound((err)) {
 			// here we use a global admin as filter because we want to check if the software exists
 			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
-			software, err = svc.ds.SoftwareTitleByID(ctx, id, filter)
+			_, err = svc.ds.SoftwareTitleByID(ctx, id, filter)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
