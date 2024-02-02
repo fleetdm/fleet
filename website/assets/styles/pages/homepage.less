@@ -512,7 +512,15 @@
           margin-left: 40px;
         }
       }
+      [purpose='endpoint-empty-image-box'] {
+        background: rgba(0, 0, 0, 0.01);
+        border: 1px dashed #C5C7D1;
+      }
       [purpose='endpoint-image-box'] {
+        background: #FFF;
+        border: 1px solid #C5C7D1;
+      }
+      [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
         display: flex;
         width: 80px;
         height: 80px;
@@ -522,12 +530,6 @@
         align-items: center;
         flex-shrink: 0;
         border-radius: 12px;
-        border: 1px dashed #C5C7D1;
-        background: rgba(0, 0, 0, 0.01);
-        &:has(img) {
-          border: 1px solid #C5C7D1;
-          background: #FFF;
-        }
         margin-left: 8px;
         margin-right: 8px;
         img {
@@ -864,7 +866,7 @@
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -1107,7 +1109,7 @@
         margin-left: 0px;
         [purpose='endpoint-images-row'] {
           min-height: 80px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             display: flex;
             width: 80px;
             height: 80px;
@@ -1387,7 +1389,7 @@
         [purpose='endpoint-images-row'] {
           min-height: 60px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -1482,7 +1484,7 @@
         [purpose='endpoint-images-row'] {
           min-height: 54.427px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 54.427px;
             height: 54.427px;
             padding: 10.885px 6.803px 4.762px 6.803px;
