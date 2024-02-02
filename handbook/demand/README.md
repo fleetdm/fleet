@@ -63,6 +63,7 @@ To do this:
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
+<!---
 ### Send one-off swag
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Postal: Direct sends and "Magic links".
 
@@ -81,6 +82,7 @@ There are many times in which community members, customers, and contributors are
 - Choose the "Direct" tab and find an existing contact or create a new one.
 - To create a new contact, click the plus sign and fill out the name, email, and shipping address.
 - Select "Configure your item," continue to "Review," and "Confirm and Send."
+--->
 
 ### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
