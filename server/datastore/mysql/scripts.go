@@ -99,8 +99,10 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     host_id = ? AND
     exit_code IS NULL
     -- async requests + sync requests created within the given interval
-    AND sync_request = 0
-    OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
   ORDER BY
     created_at ASC`
 

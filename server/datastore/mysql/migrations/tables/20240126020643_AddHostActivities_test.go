@@ -30,11 +30,11 @@ func TestUp_20240126020643(t *testing.T) {
 
 	// async request is set to `true` for existing results
 	// existing host execution request's timestamp hasn't changed (despite
-	// added column, and modified async_request)
+	// added column, and modified sync_request)
 	type scriptResults struct {
-		CreatedAt    time.Time `db:"created_at"`
-		UpdatedAt    time.Time `db:"updated_at"`
-		AsyncRequest bool      `db:"async_request"`
+		CreatedAt   time.Time `db:"created_at"`
+		UpdatedAt   time.Time `db:"updated_at"`
+		SyncRequest bool      `db:"sync_request"`
 	}
 
 	var sr scriptResults
@@ -42,14 +42,14 @@ func TestUp_20240126020643(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, minutesAgo, sr.CreatedAt)
 	assert.Equal(t, minutesAgo, sr.UpdatedAt)
-	assert.True(t, sr.AsyncRequest)
+	assert.True(t, sr.SyncRequest)
 
 	sr = scriptResults{}
 	err = db.Get(&sr, `SELECT created_at, updated_at, exit_code FROM host_script_results WHERE id = ?`, hsr2)
 	require.NoError(t, err)
 	assert.Equal(t, minutesAgo, sr.CreatedAt)
 	assert.Equal(t, minutesAgo, sr.UpdatedAt)
-	assert.True(t, sr.AsyncRequest)
+	assert.True(t, sr.SyncRequest)
 
 	// create a new host execution request with user u1 and one with u2
 	hsr3 := execNoErrLastID(t, db, `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, user_id) VALUES (?, ?, ?, ?, ?)`, 1, uuid.NewString(), "echo 'hello'", "", u1)

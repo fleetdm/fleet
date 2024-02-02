@@ -58,7 +58,7 @@ func Up_20240126020643(tx *sql.Tx) error {
 	const setOldScriptsAsSyncStmt = `
             UPDATE host_script_results hsr
             SET
-                async_request = 1,
+                sync_request = 1,
                 updated_at = hsr.updated_at
             WHERE
                 exit_code IS NULL
@@ -66,7 +66,7 @@ func Up_20240126020643(tx *sql.Tx) error {
                 AND created_at < CURRENT_TIMESTAMP
 	`
 	if _, err := tx.Exec(setOldScriptsAsSyncStmt); err != nil {
-		return errors.Wrap(err, "set async_request = 1 for old scripts")
+		return errors.Wrap(err, "set sync_request = 1 for old scripts")
 	}
 
 	return nil
