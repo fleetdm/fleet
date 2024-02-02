@@ -4,7 +4,7 @@ locals {
   environment = [
     for k, v in merge(
       var.fleet_config.extra_environment_variables,
-      { FLEET_VULNERABILITIES_CURRENT_INSTANCE_CHECKS = "yes" }
+      { FLEET_VULNERABILITIES_DISABLE_SCHEDULE  = "false"}
       ) : {
       name  = k
       value = v
