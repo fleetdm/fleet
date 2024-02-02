@@ -10,13 +10,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var validSortColumns = []string{
-	"cve",
-	"host_count",
-	"host_count_updated_at",
-	"created_at",
-}
-
 func TestListVulnerabilities(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
@@ -36,7 +29,7 @@ func TestListVulnerabilities(t *testing.T) {
 	}
 
 	t.Run("no list options", func(t *testing.T) {
-		_, err := svc.ListVulnerabilities(ctx, fleet.VulnListOptions{}, validSortColumns)
+		_, err := svc.ListVulnerabilities(ctx, fleet.VulnListOptions{})
 		require.NoError(t, err)
 	})
 
@@ -44,16 +37,15 @@ func TestListVulnerabilities(t *testing.T) {
 		// invalid order key
 		opts := fleet.VulnListOptions{ListOptions: fleet.ListOptions{
 			OrderKey: "invalid",
-		}}
-		_, err := svc.ListVulnerabilities(ctx, opts, validSortColumns)
+		}, ValidSortColumns: freeColumns}
+
+		_, err := svc.ListVulnerabilities(ctx, opts)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid order key")
 
 		// valid order key
-		opts = fleet.VulnListOptions{ListOptions: fleet.ListOptions{
-			OrderKey: "cve",
-		}}
-		_, err = svc.ListVulnerabilities(ctx, opts, validSortColumns)
+		opts.OrderKey = "cve"
+		_, err = svc.ListVulnerabilities(ctx, opts)
 		require.NoError(t, err)
 	})
 }
