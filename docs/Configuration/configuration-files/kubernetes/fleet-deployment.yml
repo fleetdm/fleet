@@ -5,7 +5,7 @@ metadata:
   labels:
     app: fleet-webserver
 spec:
-  replicas: 1
+  replicas: 2
   selector:
     matchLabels:
       app: fleet-webserver
