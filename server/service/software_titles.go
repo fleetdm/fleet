@@ -146,7 +146,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.Soft
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
-			return nil, authz.ForbiddenWithInternal("policy disallows request", vc.User, nil, nil)
+			return nil, authz.ForbiddenWithInternal("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.", vc.User, nil, nil)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}
