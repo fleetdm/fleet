@@ -142,8 +142,8 @@ type VulnListOptions struct {
 	KnownExploit     bool
 }
 
-func (opt VulnListOptions) IsValidSortColumn() bool {
-	if opt.OrderKey == "" {
+func (opt VulnListOptions) HasValidSortColumn() bool {
+	if opt.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
 		return true
 	}
 	for _, c := range opt.ValidSortColumns {

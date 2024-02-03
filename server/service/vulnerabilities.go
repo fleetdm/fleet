@@ -6,7 +6,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
-var freeColumns = []string{
+var freeValidVulnSortColumns = []string{
 	"cve",
 	"host_count",
 	"host_count_updated_at",
@@ -14,7 +14,7 @@ var freeColumns = []string{
 }
 
 func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, error) {
-	if !opt.IsValidSortColumn() {
+	if !opt.HasValidSortColumn() {
 		return nil, badRequest("invalid order key")
 	}
 

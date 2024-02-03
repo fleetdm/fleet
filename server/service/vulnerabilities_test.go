@@ -37,7 +37,7 @@ func TestListVulnerabilities(t *testing.T) {
 		// invalid order key
 		opts := fleet.VulnListOptions{ListOptions: fleet.ListOptions{
 			OrderKey: "invalid",
-		}, ValidSortColumns: freeColumns}
+		}, ValidSortColumns: freeValidVulnSortColumns}
 
 		_, err := svc.ListVulnerabilities(ctx, opts)
 		require.Error(t, err)
