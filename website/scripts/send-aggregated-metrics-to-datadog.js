@@ -128,7 +128,7 @@ module.exports = {
     }
 
     for(let version of combinedHostsEnrolledByOsqueryVersion) {
-      if(version.osqueryVersion === ''){
+      if(version.osqueryVersion !== ''){
         let metricToAdd = {
           metric: 'usage_statistics_v2.host_count_by_osquery_version',
           type: 3,
