@@ -5,9 +5,16 @@
   description: "Drag next sprint's priorities to the top of the 'Not yet' column." # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
   moreInfoUrl: "https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible" #URL used to highlight "description:" test in table
   dri: "mikermcneil" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
+  autoIssue:   # « Enable automation of GitHub issues
     labels: [ "#g-demand" ] # label to be applied to issue
     repo: "confidential"
+-
+  task: "Settle event strategy"
+  startedOn: "2024-01-02"
+  frequency: "Quarterly (first Tuesday)"
+  description: "https://fleetdm.com/handbook/demand#settle-event-strategy"
+  moreInfoUrl: "https://fleetdm.com/handbook/demand#settle-event-strategy"
+  dri: "3kindsoffish"
 -
   task: "Optimize ads"
   startedOn: "2023-09-25"
