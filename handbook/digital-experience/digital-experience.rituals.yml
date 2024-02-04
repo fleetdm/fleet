@@ -21,7 +21,7 @@
   task: "Refresh event calendar"
   startedOn: "2023-12-31"
   frequency: "Quarterly"
-  description: "At the end of every quarter, the PR firm updates every event in the Event strategy workbook
+  description: "https://fleetdm.com/handbook/digital-experience#refresh-event-calendar"
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#refresh-event-calendar"
   dri: "sampfluger88"
 -
