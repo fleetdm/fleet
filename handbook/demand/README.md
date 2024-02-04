@@ -147,11 +147,6 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 - Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
 - Publish on social media
 
-Enrich a Lead
-
-
-
-
 
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
