@@ -29,6 +29,20 @@ To propose an ad, or a change to an ad:
 3. Execute the planned change.
 4. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
+### Settle event strategy
+The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+
+1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
+  - target buying situation of the audience
+  - who from Fleet will attend
+  - the training plan for Fleet attendees
+  - which talk proposal Fleet will submit
+  - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
+  - estimated budget, including sponsorship or airfare, and lodging for attendees
+2. Set up and attend a 30m meeting with the Head of Business Operations and CEO:
+  - First during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+  - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
+  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
