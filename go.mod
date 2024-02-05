@@ -327,3 +327,5 @@ require (
 replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
 
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20240111143358-4df608a81afd
+
+replace go.elastic.co/apm/v2 => /home/m/src/github.com/elastic/apm-agent-go

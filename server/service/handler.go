@@ -141,9 +141,11 @@ func MakeHandler(
 
 	r := mux.NewRouter()
 	if config.Logging.TracingEnabled {
+		fmt.Println(">>>>>> TRACING ENABLED", config.Logging.TracingType)
 		if config.Logging.TracingType == "opentelemetry" {
 			r.Use(otmiddleware.Middleware("fleet"))
 		} else {
+			fmt.Println(">>>>>> TRACING INSTRUMENTING WITH APMGORILLA")
 			apmgorilla.Instrument(r)
 		}
 	}

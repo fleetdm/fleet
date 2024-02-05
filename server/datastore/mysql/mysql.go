@@ -444,9 +444,11 @@ func init() {
 func newDB(conf *config.MysqlConfig, opts *dbOptions) (*sqlx.DB, error) {
 	driverName := "mysql"
 	if opts.tracingConfig != nil && opts.tracingConfig.TracingEnabled {
+		fmt.Println(">>>>>>> MYSQL TRACING ENABLED")
 		if opts.tracingConfig.TracingType == "opentelemetry" {
 			driverName = otelTracedDriverName
 		} else {
+			fmt.Println(">>>>>>> TRACING WITH APM/MYSQL")
 			driverName = "apm/mysql"
 		}
 	}
