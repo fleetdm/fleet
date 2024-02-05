@@ -15,4 +15,21 @@
     display: flex;
     gap: $pad-small;
   }
+
+  @media (max-width: $break-md-1) {
+    .linkToFilteredHosts__header {
+      width: 40px;
+    }
+    .view-all-hosts-link {
+      span {
+        display: none;
+      }
+    }
+    .epss_probability__cell {
+      display: none;
+    }
+    .cve_published__cell {
+      display: none;
+    }
+  }
 }
