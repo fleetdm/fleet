@@ -1,15 +1,23 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useState } from "react";
 import { InjectedRouter } from "react-router";
+import { useQuery } from "react-query";
 
-import { IConfig } from "interfaces/config";
 import { AppContext } from "context/app";
 
+import { IConfig } from "interfaces/config";
+import { ITeamConfig } from "interfaces/team";
+
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
+import Spinner from "components/Spinner";
 
 import NudgePreview from "./components/NudgePreview";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage/TurnOnMdmMessage";
 import CurrentVersionSection from "./components/CurrentVersionSection";
 import TargetSection from "./components/TargetSection";
+import { generateKey } from "./components/TargetSection/TargetSection";
 
 export type OSUpdatesSupportedPlatform = "darwin" | "windows";
 
@@ -34,21 +42,39 @@ interface IOSUpdates {
 }
 
 const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
-  const { config, isPremiumTier } = useContext(AppContext);
+  const { isPremiumTier, setConfig } = useContext(AppContext);
 
-  // the default platform is mac and we later update this value when we have
-  // done more checks.
   const [
-    selectedPlatform,
-    setSelectedPlatform,
-  ] = useState<OSUpdatesSupportedPlatform>("darwin");
+    selectedPlatformTab,
+    setSelectedPlatformTab,
+  ] = useState<OSUpdatesSupportedPlatform | null>(null);
 
-  // we have to use useEffect here as we need to update our selected platform
-  // state when the app config is updated. This is usually when we get the app
-  // config response from the server and it is no longer `null`.
-  useEffect(() => {
-    setSelectedPlatform(getSelectedPlatform(config));
-  }, [config]);
+  // FIXME: We're calling this endpoint twice on mount because it also gets called in App.tsx
+  // whenever the pathname changes. We should find a way to avoid this.
+  const {
+    data: config,
+    isLoading: isLoadingConfig,
+    isError: isErrorConfig,
+    refetch: refetchAppConfig,
+  } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
+    refetchOnWindowFocus: false,
+    onSuccess: (data) => setConfig(data), // update the app context with the fetched config
+  });
+
+  const {
+    data: teamConfig,
+    isLoading: isLoadingTeam,
+    isError: isErrorTeamConfig,
+    refetch: refetchTeamConfig,
+  } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
+    ["team-config", teamIdForApi],
+    () => teamsAPI.load(teamIdForApi),
+    {
+      refetchOnWindowFocus: false,
+      enabled: !!teamIdForApi,
+      select: (data) => data.team,
+    }
+  );
 
   // Not premium shows premium message
   if (!isPremiumTier) {
@@ -59,19 +85,28 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
     );
   }
 
+  // FIXME: Are these checks still necessary?
   if (config === null || teamIdForApi === undefined) return null;
+
+  // FIXME: We ought to display a spinner or some disabled state whenever refetching these queries
+  // too because a slow network can cause a disconnect between the form data and the actual data and
+  // we don't want the user to be editing the form data while fresh data is being fetched. We don't
+  // have a specified UX for this yet.
+  if (isLoadingConfig || isLoadingTeam) return <Spinner />;
+
+  // FIXME: Handle error states for app config and team config (need specifications for this).
 
   // mdm is not enabled for mac or windows.
   if (
-    !config.mdm.enabled_and_configured &&
-    !config.mdm.windows_enabled_and_configured
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
   ) {
     return <TurnOnMdmMessage router={router} />;
   }
 
-  const handleSelectPlatform = (platform: OSUpdatesSupportedPlatform) => {
-    setSelectedPlatform(platform);
-  };
+  // If the user has not selected a platform yet, we default to the platform that
+  // is enabled and configured.
+  const selectedPlatform = selectedPlatformTab || getSelectedPlatform(config);
 
   return (
     <div className={baseClass}>
@@ -85,9 +120,18 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
         </div>
         <div className={`${baseClass}__taget-container`}>
           <TargetSection
-            key={teamIdForApi} // we need to re-render this component when the team id changes.
+            key={generateKey({
+              currentTeamId: teamIdForApi,
+              appConfig: config,
+              teamConfig,
+            })} // FIXME: Find a better way to trigger re-rendering if these change (see FIXME above regarding refetching)
+            appConfig={config}
             currentTeamId={teamIdForApi}
-            onSelectAccordionItem={handleSelectPlatform}
+            selectedPlatform={selectedPlatform}
+            teamConfig={teamConfig}
+            onSelectPlatform={setSelectedPlatformTab}
+            refetchAppConfig={refetchAppConfig}
+            refetchTeamConfig={refetchTeamConfig}
           />
         </div>
         <div className={`${baseClass}__nudge-preview`}>
