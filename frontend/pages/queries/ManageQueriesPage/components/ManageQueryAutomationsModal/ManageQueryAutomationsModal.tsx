@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { omit } from "lodash";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -66,7 +65,7 @@ const ManageQueryAutomationsModal = ({
   logDestination,
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -130,8 +129,8 @@ const ManageQueryAutomationsModal = ({
                         name={name}
                         onChange={() => {
                           updateQueryItems(id);
-                          !isChecked &&
-                            setErrors((errs) => omit(errs, "queryItems"));
+                          // !isChecked &&
+                          //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
                       >
                         {name}
