@@ -386,8 +386,8 @@ func (c *Client) ApplyGroup(
 	}
 
 	if specs.AppConfig != nil {
-		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig, baseDir)
-		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig, baseDir)
+		windowsCustomSettings := extractAppCfgWindowsCustomSettings(specs.AppConfig)
+		macosCustomSettings := extractAppCfgMacOSCustomSettings(specs.AppConfig)
 		allCustomSettings := append(macosCustomSettings, windowsCustomSettings...)
 
 		// if there is no custom setting but the windows and mac settings are
@@ -402,7 +402,18 @@ func (c *Client) ApplyGroup(
 			if err != nil {
 				return err
 			}
-			if err := c.ApplyNoTeamProfiles(fileContents, opts); err != nil {
+			// Figure out if MDM should be enabled.
+			assumeEnabled := false
+			// This cast is safe because we've already checked AppConfig when extracting custom settings
+			mdmConfigMap, ok := specs.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+			if ok {
+				mdmEnabled, ok := mdmConfigMap["windows_enabled_and_configured"]
+				if ok {
+					assumeEnabled, ok = mdmEnabled.(bool)
+					assumeEnabled = ok && assumeEnabled
+				}
+			}
+			if err := c.ApplyNoTeamProfiles(fileContents, opts, assumeEnabled); err != nil {
 				return fmt.Errorf("applying custom settings: %w", err)
 			}
 		}
@@ -619,7 +630,7 @@ func resolveApplyRelativePaths(baseDir string, paths []string) []string {
 	return resolved
 }
 
-func extractAppCfgCustomSettings(appCfg interface{}, baseDir string, platformKey string) []fleet.MDMProfileSpec {
+func extractAppCfgCustomSettings(appCfg interface{}, platformKey string) []fleet.MDMProfileSpec {
 	asMap, ok := appCfg.(map[string]interface{})
 	if !ok {
 		return nil
@@ -652,8 +663,8 @@ func extractAppCfgCustomSettings(appCfg interface{}, baseDir string, platformKey
 			var profSpec fleet.MDMProfileSpec
 
 			// extract the Path field
-			if path, ok := m["path"].(string); ok && path != "" {
-				profSpec.Path = resolveApplyRelativePath(baseDir, path)
+			if path, ok := m["path"].(string); ok {
+				profSpec.Path = path
 			}
 
 			// extract the Labels field, labels are cleared if not provided
@@ -677,12 +688,12 @@ func extractAppCfgCustomSettings(appCfg interface{}, baseDir string, platformKey
 	return csSpecs
 }
 
-func extractAppCfgMacOSCustomSettings(appCfg interface{}, baseDir string) []fleet.MDMProfileSpec {
-	return extractAppCfgCustomSettings(appCfg, baseDir, "macos_settings")
+func extractAppCfgMacOSCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "macos_settings")
 }
 
-func extractAppCfgWindowsCustomSettings(appCfg interface{}, baseDir string) []fleet.MDMProfileSpec {
-	return extractAppCfgCustomSettings(appCfg, baseDir, "windows_settings")
+func extractAppCfgWindowsCustomSettings(appCfg interface{}) []fleet.MDMProfileSpec {
+	return extractAppCfgCustomSettings(appCfg, "windows_settings")
 }
 
 func extractAppCfgScripts(appCfg interface{}) []string {

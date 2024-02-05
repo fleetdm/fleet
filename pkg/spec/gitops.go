@@ -105,9 +105,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 		return append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
 	}
 	noError := true
-	if orgSettingsTop.Path == nil {
-		result.AgentOptions = &raw
-	} else {
+	if orgSettingsTop.Path != nil {
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
 		if err != nil {
 			noError = false
@@ -133,6 +131,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 	}
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
+			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 			errors = append(errors, fmt.Sprintf("failed to unmarshal org settings: %v", err))
 		} else {
 			errors = parseSecrets(result, errors)
@@ -207,6 +206,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 			}
 			var raw json.RawMessage
 			if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
+				// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
 				return append(
 					errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
 				)
@@ -236,7 +236,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 		var pathControls Controls
 		if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-			return append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *controlsTop.Path, err))
+			return append(errors, fmt.Sprintf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
 		}
 		if pathControls.Path != nil {
 			return append(
