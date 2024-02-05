@@ -1818,11 +1818,14 @@ None.
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
-- [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [Get host OS versions](#get-host-os-versions)
+- [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Get host's past activity](#get-hosts-past-activity)
+- [Get host's upcoming activity](#get-hosts-upcoming-activity)
 
 ### On the different timestamps in the host data structure
 
@@ -3290,13 +3293,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 ---
 
-### Get host's macadmin mobile device management (MDM) and Munki information
-
-Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-Currently supported only on macOS.
+### Get host's mobile device management (MDM) and Munki information
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -3515,6 +3512,65 @@ Retrieves the aggregated host OS versions information.
 }
 ```
 
+### Get host's scripts
+
+`GET /api/v1/fleet/hosts/:id/scripts`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
+```
+
 ### Get hosts report in CSV
 
 Returns the list of hosts corresponding to the search criteria in CSV format, ready for download when
@@ -3640,6 +3696,133 @@ Retrieves a list of the configuration profiles assigned to a host.
       "checksum": "dGVzdAo="
     }
   ]
+}
+```
+
+### Get host's past activity
+
+`GET /api/v1/fleet/hosts/:id/activites/past`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activities/past`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 2,
+      "actor_full_name": "Anna",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 1,
+      "actor_full_name": "Bob",
+      "actor_id": 2,
+      "actor_gravatar": "",
+      "actor_email": "bob@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
+      },
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's upcoming activity
+
+`GET /api/v1/fleet/hosts/:id/activities/upcoming`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activities/upcoming`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 2,
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      "actor_full_name": "Marko",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "marko@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "uuid": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      "actor_full_name": "Rachael",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "rachael@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
+      },
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
 
@@ -5566,7 +5749,7 @@ Team policies work the same as policies, but at the team level.
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -6881,6 +7064,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Run live script](#run-script)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
@@ -6889,9 +7073,76 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-_Available in Fleet Premium_
+Run a script on a host.
 
-Execute a script and see script results (5 minute timeout).
+The script will be added to the host's list of upcoming activities.
+
+The new script will run after other activities finish. Failure of one activity won't cancel other activities.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Get script result
+
+Gets the result of a script that was executed.
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| execution_id | string | path | **Required**. The execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/results/:execution_id`
+
+##### Default Response
+
+`Status: 2000`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20
+}
+```
+
+> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
 `POST /api/v1/fleet/scripts/run/sync`
 
@@ -6926,45 +7177,7 @@ Execute a script and see script results (5 minute timeout).
 }
 ```
 
-### Get script result
-
-_Available in Fleet Premium_
-
-Gets the result of a script that was executed.
-
-#### Parameters
-
-| Name         | Type   | In   | Description                                   |
-| ----         | ------ | ---- | --------------------------------------------  |
-| execution_id | string | path | **Required**. The execution id of the script. |
-
-#### Example
-
-`GET /api/v1/fleet/scripts/results/:execution_id`
-
-##### Default Response
-
-`Status: 2000`
-
-```json
-{
-  "script_contents": "echo 'hello'",
-  "exit_code": 0,
-  "output": "hello",
-  "message": "",
-  "hostname": "Test Host",
-  "host_timeout": false,
-  "host_id": 1,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "runtime": 20
-}
-```
-
-> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
-
 ### Upload a script
-
-_Available in Fleet Premium_
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -7016,8 +7229,6 @@ echo "hello"
 
 ### Delete a script
 
-_Available in Fleet Premium_
-
 Deletes an existing script.
 
 `DELETE /api/v1/fleet/scripts/:id`
@@ -7037,8 +7248,6 @@ Deletes an existing script.
 `Status: 204`
 
 ### List scripts
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts`
 
@@ -7084,8 +7293,6 @@ _Available in Fleet Premium_
 ```
 
 ### Get or download a script
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts/:id`
 
@@ -7134,68 +7341,6 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 ```
 echo "hello"
 ```
-
-### Get script details by host
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/hosts/:id/scripts`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/123/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scripts": [
-    {
-      "script_id": 3,
-      "name": "remove-zoom-artifacts.sh",
-      "last_execution": {
-        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "error"
-      }
-    },
-    {
-      "script_id": 5,
-      "name": "set-timezone.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "pending"
-      }
-    },
-    {
-      "script_id": 8,
-      "name": "uninstall-zoom.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "ran"
-      }
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-
-```
-
----
 
 ## Sessions
 
