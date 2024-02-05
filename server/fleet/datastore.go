@@ -845,6 +845,9 @@ type Datastore interface {
 	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
 	// NewMDMAppleConfigProfile creates and returns a new configuration profile.
