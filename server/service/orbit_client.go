@@ -258,6 +258,7 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 			}
 		},
 		retry.WithInterval(OrbitRetryInterval()),
+		retry.WithBackoff(OrbitRetryBackoff()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 	); err != nil {
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
@@ -366,6 +367,14 @@ func OrbitRetryInterval() time.Duration {
 		}
 	}
 	return constant.OrbitEnrollRetrySleep
+}
+
+func OrbitRetryBackoff() bool {
+	backoff := os.Getenv("FLEETD_ENROLL_BACKOFF")
+	if backoff != "" {
+	  return backoff
+	}
+	return constant.OrbitEnrollBackoff
 }
 
 // SetOrUpdateDiskEncryptionKey sends a request to the server to set or update the disk

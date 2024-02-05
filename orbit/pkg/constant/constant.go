@@ -23,6 +23,9 @@ const (
 	OrbitEnrollMaxRetries = 3
 	// OrbitEnrollRetrySleep is the time duration to sleep between retries
 	OrbitEnrollRetrySleep = 5 * time.Second
+	// OrbitEnrollBackoff enables or disables backoff enrollment.
+	// At the moment this just doubles on each backoff to a max of 5*OrbitEnrollRetrySleep
+	OrbitEnrollBackoff = true
 	// OsquerydName is the name of osqueryd binary
 	// We use osqueryd as name to properly identify the process when listing
 	// running processes/tasks.

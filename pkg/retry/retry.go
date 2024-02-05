@@ -7,6 +7,7 @@ import (
 
 type config struct {
 	interval    time.Duration
+	backoff     bool
 	maxAttempts int
 }
 
@@ -18,6 +19,14 @@ type Option func(*config)
 func WithInterval(i time.Duration) Option {
 	return func(c *config) {
 		c.interval = i
+	}
+}
+
+// WithBackoff allows to specify if backoff should be attempted
+// between retries.
+func WithBackoff(t bool) Option {
+	return func(c *config) {
+		c.backoff = t
 	}
 }
 
@@ -38,6 +47,7 @@ func WithMaxAttempts(a int) Option {
 func Do(fn func() error, opts ...Option) error {
 	cfg := &config{
 		interval: 30 * time.Second,
+		backoff: false
 	}
 	for _, opt := range opts {
 		opt(cfg)
@@ -45,10 +55,18 @@ func Do(fn func() error, opts ...Option) error {
 
 	attempts := 0
 	ticker := time.NewTicker(cfg.interval)
+	tickerMax := time.Duration(5*cfg.interval) * cfg.interval
 	defer ticker.Stop()
 
 	for {
 		attempts++
+		if cfg.backoff == true {
+			if (cfg.interval * time.Duration(attempts) <= tickerMax {
+				ticker = time.NewTicker(cfg.interval * time.Duration(attempts))
+			} else {
+				ticker = tickerMax
+			}
+		}
 		err := fn()
 		if err == nil {
 			return nil
