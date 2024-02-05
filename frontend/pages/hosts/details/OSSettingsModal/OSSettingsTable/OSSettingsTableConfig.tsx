@@ -7,6 +7,7 @@ import {
   // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
   IHostMdmProfile,
   MdmProfileStatus,
+  ProfilePlatform,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -53,6 +54,49 @@ interface IDataColumn {
   sortType?: string;
 }
 
+/**
+ * generates the formatted tooltip for the error column.
+ * the expected format of the error string is:
+ * "key1: value1, key2: value2, key3: value3"
+ */
+const generateFormattedTooltip = (detail: string) => {
+  const formattedText = detail.split(/[:,]+/).map((item, i, arr) => {
+    item.trim();
+    const key = `${item}-${i}`;
+    if (i % 2 === 0) {
+      return (
+        <>
+          <b key={key}>{item}: </b>
+        </>
+      );
+    }
+    return (
+      <span key={key}>
+        {item}
+        {/* dont include comma on the last item */}
+        {i === arr.length - 1 ? "" : ", "}
+      </span>
+    );
+  });
+
+  return <>{formattedText}</>;
+};
+
+/**
+ * generates the error tooltip for the error column. This will be formatted or
+ * unformatted.
+ */
+const generateErrorTooltip = (
+  cellValue: string,
+  platform: ProfilePlatform,
+  detail: string
+) => {
+  if (platform !== "windows") {
+    return cellValue;
+  }
+  return generateFormattedTooltip(detail);
+};
+
 const tableHeaders: IDataColumn[] = [
   {
     title: "Name",
@@ -90,18 +134,14 @@ const tableHeaders: IDataColumn[] = [
         (profile.status === "failed" && profile.detail) ||
         DEFAULT_EMPTY_CELL_VALUE;
 
-      const generateTooltip = () => {
-        if (cellProps.row.original.platform !== "windows") {
-          return value;
-        }
-
-        profile.detail.split(":");
-      };
-
       return (
         <TooltipTruncatedTextCell
           tooltipBreakOnWord
-          tooltip="test"
+          tooltip={generateErrorTooltip(
+            value,
+            cellProps.row.original.platform,
+            profile.detail
+          )}
           value={value}
         />
       );

@@ -1,10 +1,4 @@
-import React, {
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
@@ -21,7 +15,6 @@ import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
-import { IActivityDetails } from "interfaces/activity";
 import {
   IHost,
   IDeviceMappingResponse,
