@@ -288,8 +288,8 @@ const UserForm = ({
         {isPremiumTier && (
           <InfoBanner className={`${baseClass}__user-permissions-info`}>
             <p>
-              Global users can only be members of the top level team and can
-              manage or observe all users, entities, and settings in Fleet.
+              Global users can manage or observe all users, entities, and
+              settings in Fleet.
             </p>
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/permissions#user-permissions"
@@ -343,8 +343,8 @@ const UserForm = ({
             <>
               <InfoBanner className={`${baseClass}__user-permissions-info`}>
                 <p>
-                  Users can be members of multiple teams and can only manage or
-                  observe team-specific users, entities, and settings in Fleet.
+                  Users can manage or observe team-specific users, entities, and
+                  settings in Fleet.
                 </p>
                 <CustomLink
                   url="https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions"

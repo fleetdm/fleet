@@ -131,9 +131,9 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
 
-  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+  TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
