@@ -2,6 +2,8 @@ data "aws_region" "current" {}
 
 locals {
   environment = [
+    // specifically overriding disable schedule here because the output of this module sets this to true
+    // and then we pull in the output of fleet ecs module
     for k, v in merge(
       var.fleet_config.extra_environment_variables,
       { FLEET_VULNERABILITIES_DISABLE_SCHEDULE  = "false"}
