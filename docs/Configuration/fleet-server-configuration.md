@@ -758,7 +758,9 @@ How long invite tokens should be valid for.
 
 ##### app_enable_scheduled_query_stats
 
-Determines whether Fleet gets scheduled query statistics from hosts or not.
+Determines whether Fleet collects performance impact statistics for scheduled queries.
+
+If set to `false`, stats are still collected for live queries.
 
 - Default value: `true`
 - Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`

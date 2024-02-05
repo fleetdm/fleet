@@ -149,13 +149,17 @@
       align-items: center;
       justify-content: center;
       margin-bottom: 0px;
+      img {
+        height: 48px;
+        width: auto;
+      }
     }
     &:hover {
       box-shadow: 0px 4px 16px 0px #E2E4EA;
     }
     &:first-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-nick-fohs-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-nick-fohs-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -164,7 +168,7 @@
     }
     &:last-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-austin-anderson-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-austin-anderson-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -480,7 +484,6 @@
     padding: 0px 0px 0px 80px;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
     align-self: stretch;
     border-radius: 24px;
     border: 2px solid #E2E4EA;
@@ -496,6 +499,7 @@
       }
     }
     [purpose='endpoints-images'] {
+      margin-left: 24px;
       overflow: hidden;
       max-width: 410px;
       width: 50%;
@@ -509,7 +513,15 @@
           margin-left: 40px;
         }
       }
+      [purpose='endpoint-empty-image-box'] {
+        background: rgba(0, 0, 0, 0.01);
+        border: 1px dashed #C5C7D1;
+      }
       [purpose='endpoint-image-box'] {
+        background: #FFF;
+        border: 1px solid #C5C7D1;
+      }
+      [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
         display: flex;
         width: 80px;
         height: 80px;
@@ -519,12 +531,6 @@
         align-items: center;
         flex-shrink: 0;
         border-radius: 12px;
-        border: 1px dashed #C5C7D1;
-        background: rgba(0, 0, 0, 0.01);
-        &:has(img) {
-          border: 1px solid #C5C7D1;
-          background: #FFF;
-        }
         margin-left: 8px;
         margin-right: 8px;
         img {
@@ -849,6 +855,7 @@
       }
     }
 
+
     [purpose='endpoints-banner'] {
       max-height: 282px;
       padding-left: 40px;
@@ -862,7 +869,7 @@
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -1059,7 +1066,7 @@
         padding-left: 40px;
         padding-right: 40px;
         margin-top: 0px;
-        margin-bottom: auto;
+        margin-bottom: 40px;
       }
       [purpose='endpoints-images'] {
         width: 110%;
@@ -1067,8 +1074,10 @@
         align-items: center;
         display: flex;
         flex-direction: column;
+        margin-left: 0px;
         [purpose='endpoint-images-row'] {
-          [purpose='endpoint-image-box'] {
+          min-height: 80px;
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             display: flex;
             width: 80px;
             height: 80px;
@@ -1210,6 +1219,10 @@
         width: 100%;
         height: 228px;
         margin-bottom: 24px;
+        img {
+          height: 90px;
+          width: auto;
+        }
       }
     }
     [purpose='vuln-management-image'] {
@@ -1325,8 +1338,9 @@
     [purpose='endpoints-banner'] {
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 60px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -1414,10 +1428,14 @@
       }
     }
     [purpose='endpoints-banner'] {
+      [purpose='endpoint-banner-text'] {
+        margin-bottom: 32px;
+      }
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 54.427px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 54.427px;
             height: 54.427px;
             padding: 10.885px 6.803px 4.762px 6.803px;

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -212,9 +213,14 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 		WHERE
 			hsr.host_id = ? AND
 			hsr.exit_code IS NULL
+                        AND (
+                            hsr.sync_request = 0
+                            OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+                        )
 `
 
-	args := []any{fleet.ActivityTypeRanScript{}.ActivityName(), hostID}
+	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	args := []any{fleet.ActivityTypeRanScript{}.ActivityName(), hostID, seconds}
 	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
 
 	var activities []*fleet.Activity
