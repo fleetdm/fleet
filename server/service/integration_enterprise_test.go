@@ -3134,6 +3134,17 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Only Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "cvss_score", "order_direction", "asc")
+}
+
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	t := s.T()
 

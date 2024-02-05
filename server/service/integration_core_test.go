@@ -7363,6 +7363,17 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
+func (s *integrationTestSuite) TestListVulnerabilities() {
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Order Key is an invalid order key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "cvss_score", "order_direction", "asc")
+}
+
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
