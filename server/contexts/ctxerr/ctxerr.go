@@ -282,8 +282,6 @@ func fromContext(ctx context.Context) handler {
 // deduplicating it and storing it for a configured duration. It also takes
 // care of sending it to the configured APM, if any.
 func Handle(ctx context.Context, err error) {
-	fmt.Println(">>>>>> ctxerr.Handle called ", err)
-
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
 	var ferr *FleetError
