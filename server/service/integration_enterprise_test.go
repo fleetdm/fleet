@@ -4466,7 +4466,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
@@ -4483,7 +4483,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
 
 	// Disable scripts and verify that there are no Orbit notifs
 	acr := appConfigResponse{}
