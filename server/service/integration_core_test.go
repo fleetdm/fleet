@@ -265,13 +265,38 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	assertBodyContains(s.T(), badRespChangePw, longPwError)
 
 	// with updated salt length, should now allow 52-byte password from the user
-	t.Setenv("FLEET_AUTH_SA()LT_KEY_SIZE", "20")
-	t = s.T()
-	var goodRespChangePw modifyUserResponse
-	s.DoJSON("POST", changePwPath, &longPwParams, http.StatusOK, &goodRespChangePw)
+	fleetConfig := config.TestConfig()
+	fleetConfig.Auth.SaltKeySize = 20
+	_, server := RunServerForTestsWithDS(
+		t,
+		s.ds,
+		&TestServerOpts{
+			SkipCreateTestUsers: true,
+			//nolint:gosec // G112: server is just run for testing this explicit config.
+			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
+			EnableCachedDS:   true,
+			FleetConfig:      &fleetConfig,
+		},
+	)
+	t.Cleanup(func() {
+		server.Close()
+	})
 
-	assert.NotZero(t, goodRespChangePw.User.ID)
-	assert.Empty(t, goodRespChangePw.Err)
+	body, err := json.Marshal(longPwParams)
+	require.NoError(t, err)
+	req, err := http.NewRequest("POST", server.URL+changePwPath, bytes.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.token))
+	client := fleethttp.NewClient()
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var goodRespChangePw changePasswordResponse
+	responseBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &goodRespChangePw)
+	require.NoError(t, err)
+	assert.NoError(t, goodRespChangePw.Err)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
