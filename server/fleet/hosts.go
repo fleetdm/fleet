@@ -138,9 +138,10 @@ type HostListOptions struct {
 	// version.
 	SoftwareTitleIDFilter *uint
 
-	OSIDFilter      *uint
-	OSNameFilter    *string
-	OSVersionFilter *string
+	OSIDFilter        *uint
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -1120,6 +1121,8 @@ type OSVersions struct {
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",

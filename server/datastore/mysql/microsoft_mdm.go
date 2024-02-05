@@ -686,7 +686,7 @@ SELECT
 	name,
 	syncml,
 	created_at,
-	updated_at
+	uploaded_at
 FROM
 	mdm_windows_configuration_profiles
 WHERE
@@ -1213,7 +1213,6 @@ func listMDMWindowsProfilesToInstallDB(
 
 func (ds *Datastore) ListMDMWindowsProfilesToRemove(ctx context.Context) ([]*fleet.MDMWindowsProfilePayload, error) {
 	var result []*fleet.MDMWindowsProfilePayload
-	// TODO(mna): same question here
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 		result, err = listMDMWindowsProfilesToRemoveDB(ctx, tx, nil)
@@ -1459,8 +1458,8 @@ func (ds *Datastore) NewMDMWindowsConfigProfile(ctx context.Context, cp fleet.MD
 	profileUUID := "w" + uuid.New().String()
 	insertProfileStmt := `
 INSERT INTO
-    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
-(SELECT ?, ?, ?, ? FROM DUAL WHERE
+    mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
+(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	)
@@ -1517,16 +1516,17 @@ INSERT INTO
 }
 
 func (ds *Datastore) SetOrUpdateMDMWindowsConfigProfile(ctx context.Context, cp fleet.MDMWindowsConfigProfile) error {
-	profileUUID := uuid.New().String()
+	profileUUID := "w" + uuid.New().String()
 	stmt := `
 INSERT INTO
-	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml)
-(SELECT ?, ?, ?, ? FROM DUAL WHERE
+	mdm_windows_configuration_profiles (profile_uuid, team_id, name, syncml, uploaded_at)
+(SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
 	)
 )
 ON DUPLICATE KEY UPDATE
+	uploaded_at = IF(syncml = VALUES(syncml), uploaded_at, CURRENT_TIMESTAMP()),
 	syncml = VALUES(syncml)
 `
 
@@ -1609,12 +1609,13 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_windows_configuration_profiles (
-    profile_uuid, team_id, name, syncml
+    profile_uuid, team_id, name, syncml, uploaded_at
   )
 VALUES
-	-- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ? )
+  -- see https://stackoverflow.com/a/51393124/1094941
+  ( CONCAT('w', CONVERT(UUID() USING utf8mb4)), ?, ?, ?, CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
+  uploaded_at = IF(syncml = VALUES(syncml) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
   name = VALUES(name),
   syncml = VALUES(syncml)
 `

@@ -19,7 +19,7 @@
             <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
             <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
               <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">View source code</a>
+              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
             </div>
           </div>
         </div>
@@ -205,12 +205,12 @@
         <h2>Manage everything in one place</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">View source code</a>
+          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city :is-mobile="bowser.mobile"></parallax-city>
+  <parallax-city></parallax-city>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

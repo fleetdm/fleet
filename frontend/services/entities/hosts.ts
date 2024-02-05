@@ -62,7 +62,7 @@ export interface ILoadHostsOptions {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   munkiIssueId?: number;
@@ -250,7 +250,7 @@ export default {
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     device_mapping,
@@ -287,7 +287,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         diskEncryptionStatus,

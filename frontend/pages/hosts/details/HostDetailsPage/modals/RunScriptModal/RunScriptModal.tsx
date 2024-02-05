@@ -90,7 +90,10 @@ const RunScriptModal = ({
               host_id: host.id,
               script_id: script.script_id,
             });
-            renderFlash("success", "Script successfully queued for execution");
+            renderFlash(
+              "success",
+              "Script is running or will run when the host comes online."
+            );
             refetchHostScripts();
           } catch (e) {
             const error = e as AxiosResponse<IApiError>;
@@ -139,10 +142,10 @@ const RunScriptModal = ({
         <div className={`${baseClass}__modal-content`}>
           {isLoading && <Spinner />}
           {!isLoading && isError && <DataError />}
-          {!isLoading && !isError && tableData && tableData.length === 0 && (
+          {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
               header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
+              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (

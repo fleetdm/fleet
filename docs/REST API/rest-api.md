@@ -769,8 +769,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
-- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](#modify-enroll-secrets-for-a-team)
+- [Get team enroll secrets](#get-team-enroll-secrets)
+- [Modify team enroll secrets](#modify-team-enroll-secrets)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -1390,7 +1390,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get enroll secrets for a team
+### Get team enroll secrets
 
 Returns the valid team enroll secrets.
 
@@ -1421,7 +1421,7 @@ None.
 ```
 
 
-### Modify enroll secrets for a team
+### Modify team enroll secrets
 
 Replaces all existing team enroll secrets.
 
@@ -4094,7 +4094,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
-- [Download custom OS setting (configuration profile)](#download-custom-os-setting-configuration-profile)
+- [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
@@ -4120,7 +4120,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 ### Add custom OS setting (configuration profile)
 
-> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
@@ -4198,7 +4198,7 @@ of duplicate payload display name or duplicate payload identifier (macOS profile
 
 ### List custom OS settings (configuration profiles)
 
-> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get a list of the configuration profiles in Fleet.
 
@@ -4258,7 +4258,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ### Get or download custom OS setting (configuration profile)
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
+> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
 
 `GET /api/v1/fleet/mdm/profiles/:profile_uuid`
 
@@ -4334,7 +4334,7 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom OS setting (configuration profile)
 
-> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid`
 
@@ -4412,7 +4412,7 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 
 ### Get OS settings status
 
-> [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
@@ -4448,7 +4448,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 
 ### Run custom MDM command
 
-> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#run-custom-mdm-command).
+> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command).
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
 
@@ -4480,7 +4480,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get custom MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
 
 This endpoint returns the results for a specific custom MDM command.
 
@@ -4520,7 +4520,7 @@ This endpoint returns the results for a specific custom MDM command.
 
 ### List custom MDM commands
 
-> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
+> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
 
 This endpoint returns the list of custom MDM commands that have been executed.
 
@@ -8005,85 +8005,6 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
 | &nbsp;&nbsp;host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
 
-
-#### Example (add users to a team)
-
-`PATCH /api/v1/fleet/teams/1/users`
-
-##### Request body
-
-```json
-{
-  "user_ids": [1, 17, 22, 32]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "team": {
-    "name": "Workstations",
-    "id": 1,
-    "user_count": 4,
-    "host_count": 0,
-    "agent_options": {
-      "config": {
-        "options": {
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {},
-      "command_line_flags": {}
-    },
-    "webhook_settings": {
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      }
-    },
-    "mdm": {
-      "macos_updates": {
-        "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
-      },
-      "windows_updates": {
-        "deadline_days": 5,
-        "grace_period_days": 1
-      },
-      "macos_settings": {
-        "custom_settings": ["path/to/profile1.mobileconfig"],
-        "enable_disk_encryption": false
-      },
-      "windows_settings": {
-        "custom_settings": ["path/to/profile2.xml"],
-      },
-      "macos_setup": {
-        "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
-      }
-    }
-  }
-}
-```
-
 #### Example (transfer hosts to a team)
 
 `PATCH /api/v1/fleet/teams/1`
@@ -8136,6 +8057,138 @@ _Available in Fleet Premium_
         "host_batch_size": 0
       }
     }
+  }
+}
+```
+
+### Add users to a team
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/teams/:id/users`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                  |
+|------------------|---------|------|----------------------------------------------|
+| id               | integer | path | **Required.** The desired team's ID.         |
+| users            | string  | body | Array of users to add.                       |
+| &nbsp;&nbsp;id   | integer | body | The id of the user.                          |
+| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
+
+#### Example
+
+`PATCH /api/v1/fleet/teams/1/users`
+
+##### Request body
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "role": "admin"
+    },
+    {
+      "id": 17,
+      "role": "observer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team": {
+    "name": "Workstations",
+    "id": 1,
+    "user_count": 2,
+    "host_count": 0,
+    "agent_options": {
+      "config": {
+        "options": {
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
+      "macos_settings": {
+        "custom_settings": ["path/to/profile1.mobileconfig"],
+        "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "enable_end_user_authentication": false,
+        "macos_setup_assistant": "path/to/config.json"
+      }
+    },
+    "users": [
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 1,
+        "name": "Example User1",
+        "email": "user1@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "admin"
+      },
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 17,
+        "name": "Example User2",
+        "email": "user2@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "observer"
+      }
+    ]
   }
 }
 ```

@@ -727,10 +727,10 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		require.NoError(t, apple_mdm.VerifyHostMDMProfiles(ctx, s.ds, h, report))
 	}
 
-	setProfileUpdatedAt := func(t *testing.T, updatedAt time.Time, identifiers ...interface{}) {
+	setProfileUploadedAt := func(t *testing.T, uploadedAt time.Time, identifiers ...interface{}) {
 		bindVars := strings.TrimSuffix(strings.Repeat("?, ", len(identifiers)), ", ")
-		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET updated_at = ? WHERE identifier IN(%s)", bindVars)
-		args := append([]interface{}{updatedAt}, identifiers...)
+		stmt := fmt.Sprintf("UPDATE mdm_apple_configuration_profiles SET uploaded_at = ? WHERE identifier IN(%s)", bindVars)
+		args := append([]interface{}{uploadedAt}, identifiers...)
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
 			return err
@@ -740,7 +740,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 	t.Run("retry after verifying", func(t *testing.T) {
 		// upload test profiles then simulate expired grace period by setting updated_at timestamp of profiles back by 48 hours
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
+		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier)
 
 		// trigger initial profile sync and confirm that we received all profiles
 		s.awaitTriggerProfileSchedule(t)
@@ -811,7 +811,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		newProfile := mobileconfigForTest("N3", "I3")
 		testProfiles = append(testProfiles, newProfile)
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3")
+		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3")
 
 		// trigger a profile sync and confirm that the install profile command for I3 was sent and
 		// simulate a device error
@@ -853,7 +853,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		newProfile := mobileconfigForTest("N4", "I4")
 		testProfiles = append(testProfiles, newProfile)
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4")
+		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4")
 
 		// trigger a profile sync and confirm that the install profile command for I3 was sent and
 		// simulate a device error
@@ -889,7 +889,7 @@ func (s *integrationMDMTestSuite) TestAppleProfileRetries() {
 		testProfiles = append(testProfiles, newProfile)
 		hostProfsByIdent["I5"] = &fleet.HostMacOSProfile{Identifier: "I5", DisplayName: "N5", InstallDate: time.Now()}
 		s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
-		setProfileUpdatedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4", "I5")
+		setProfileUploadedAt(t, time.Now().Add(-48*time.Hour), "I1", "I2", mobileconfig.FleetdConfigPayloadIdentifier, "I3", "I4", "I5")
 
 		// trigger a profile sync and confirm that the install profile command for I3 was sent and
 		// simulate a device error
@@ -8849,13 +8849,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		var getResp getMDMConfigProfileResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/profiles/%s", prof.ProfileUUID), nil, http.StatusOK, &getResp)
 		require.NotZero(t, getResp.CreatedAt)
-		require.NotZero(t, getResp.UpdatedAt)
+		require.NotZero(t, getResp.UploadedAt)
 		if getResp.Platform == "darwin" {
 			require.Len(t, getResp.Checksum, 16)
 		} else {
 			require.Empty(t, getResp.Checksum)
 		}
-		getResp.CreatedAt, getResp.UpdatedAt = time.Time{}, time.Time{}
+		getResp.CreatedAt, getResp.UploadedAt = time.Time{}, time.Time{}
 		getResp.Checksum = nil
 		require.Equal(t, prof, *getResp.MDMConfigProfilePayload)
 
@@ -8903,7 +8903,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			mc := mcBytesForTest(p, p, uuid.New().String())
 			_, err := q.ExecContext(ctx,
-				"INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum, team_id) VALUES (?, ?, ?, ?, ?, ?)",
+				"INSERT INTO mdm_apple_configuration_profiles (profile_uuid, identifier, name, mobileconfig, checksum, team_id, uploaded_at) VALUES (?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP())",
 				uid, p, p, mc, "1234", 0)
 			return err
 		})
@@ -9010,11 +9010,11 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", nil, http.StatusOK, &listResp, "team_id", fmt.Sprint(tm2.ID))
 	require.Len(t, listResp.Profiles, 2)
 	require.NotZero(t, listResp.Profiles[0].CreatedAt)
-	require.NotZero(t, listResp.Profiles[0].UpdatedAt)
+	require.NotZero(t, listResp.Profiles[0].UploadedAt)
 	require.NotZero(t, listResp.Profiles[1].CreatedAt)
-	require.NotZero(t, listResp.Profiles[1].UpdatedAt)
-	listResp.Profiles[0].CreatedAt, listResp.Profiles[0].UpdatedAt = time.Time{}, time.Time{}
-	listResp.Profiles[1].CreatedAt, listResp.Profiles[1].UpdatedAt = time.Time{}, time.Time{}
+	require.NotZero(t, listResp.Profiles[1].UploadedAt)
+	listResp.Profiles[0].CreatedAt, listResp.Profiles[0].UploadedAt = time.Time{}, time.Time{}
+	listResp.Profiles[1].CreatedAt, listResp.Profiles[1].UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfF.ProfileUUID,
 		TeamID:      tm2ProfF.TeamID,
@@ -9039,7 +9039,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	// get the specific label-based profile returns the information
 	var getProfResp getMDMConfigProfileResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfG.ProfileUUID, nil, http.StatusOK, &getProfResp)
-	getProfResp.CreatedAt, getProfResp.UpdatedAt = time.Time{}, time.Time{}
+	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfG.ProfileUUID,
 		TeamID:      tm2ProfG.TeamID,
@@ -9055,7 +9055,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	// get the non label-based profile returns no labels
 	getProfResp = getMDMConfigProfileResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles/"+tm2ProfF.ProfileUUID, nil, http.StatusOK, &getProfResp)
-	getProfResp.CreatedAt, getProfResp.UpdatedAt = time.Time{}, time.Time{}
+	getProfResp.CreatedAt, getProfResp.UploadedAt = time.Time{}, time.Time{}
 	require.Equal(t, &fleet.MDMConfigProfilePayload{
 		ProfileUUID: tm2ProfF.ProfileUUID,
 		TeamID:      tm2ProfF.TeamID,

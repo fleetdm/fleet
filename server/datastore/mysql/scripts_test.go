@@ -151,6 +151,56 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	script, err = ds.GetHostScriptExecutionResult(ctx, createdScript.ExecutionID)
 	require.NoError(t, err)
 	require.Equal(t, expectedOutput, script.Output)
+
+	// create an async execution request
+	createdScript, err = ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         1,
+		ScriptContents: "echo 3",
+		UserID:         &u.ID,
+		SyncRequest:    false,
+	})
+	require.NoError(t, err)
+	require.NotZero(t, createdScript.ID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, uint(1), createdScript.HostID)
+	require.NotEmpty(t, createdScript.ExecutionID)
+	require.Equal(t, "echo 3", createdScript.ScriptContents)
+	require.Nil(t, createdScript.ExitCode)
+	require.Empty(t, createdScript.Output)
+	require.NotNil(t, createdScript.UserID)
+	require.Equal(t, u.ID, *createdScript.UserID)
+	require.False(t, createdScript.SyncRequest)
+
+	// the script execution is now listed as pending for this host
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript.ID, pending[0].ID)
+
+	// modify the timestamp of the script to simulate an script that has
+	// been pending for a long time
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE id = ?", time.Now().Add(-24*time.Hour), createdScript.ID)
+		return err
+	})
+
+	// the script execution still shows as pending
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	require.Equal(t, createdScript.ID, pending[0].ID)
+
+	// modify the script to be a sync script that has
+	// been pending for a long time
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET sync_request = 1 WHERE id = ?", createdScript.ID)
+		return err
+	})
+
+	// the script is not pending anymore
+	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Empty(t, pending, 0)
 }
 
 func testScripts(t *testing.T, ds *Datastore) {
