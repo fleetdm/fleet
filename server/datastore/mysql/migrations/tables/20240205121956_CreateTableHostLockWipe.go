@@ -10,6 +10,12 @@ func init() {
 }
 
 func Up_20240205121956(tx *sql.Tx) error {
+	// Adding a new table for this data as the existing `host_mdm` table is related more closely to
+	// enrollment logic.
+	// lock_ref and wipe_ref are the UUIDs of the actions taken to lock or wipe a host. These could
+	// point at MDM commands or script executions, depending on the host platform. suspended
+	// indicates whether or not further actions on this host are suspended (will be set to true
+	// while the wipe or lock action is pending, and set to false again once the action has completed).
 	stmt := `
 		CREATE TABLE host_mdm_actions (
 			host_id INT UNSIGNED NOT NULL,
