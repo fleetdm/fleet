@@ -317,11 +317,14 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 
 			started := make(chan struct{})
 			go func() {
-				close(started)
+				go func() {
+					// the first call will block in enroll/unenroll func
+					cfg, err := fetcher.GetConfig()
+					assertResult(cfg, err)
+				}()
 
-				// the first call will block in enroll/unenroll func
-				cfg, err := fetcher.GetConfig()
-				assertResult(cfg, err)
+				time.Sleep(100 * time.Millisecond)
+				close(started)
 			}()
 
 			<-started
