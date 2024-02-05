@@ -35,11 +35,11 @@ import RemoveUserModal from "./components/RemoveUserModal/RemoveUserModal";
 import {
   generateColumnConfigs,
   generateDataSet,
-  IUsersTableData,
+  ITeamUsersTableData,
 } from "./UsersPageTableConfig";
 
-const baseClass = "users";
-const noUsersClass = "no-users";
+const baseClass = "team-users";
+const noUsersClass = "no-team-users";
 
 const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
@@ -77,7 +77,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [userIds, setUserIds] = useState<number[]>([]);
 
   const toggleAddUserModal = useCallback(() => {
     setShowAddUserModal(!showAddUserModal);
@@ -94,20 +93,17 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   // API CALLS
 
   const {
-    data: users,
+    data: teamUsers,
     isLoading: isLoadingUsers,
     error: loadingUsersError,
     refetch: refetchUsers,
-  } = useQuery<IUser[], Error, IUsersTableData[]>(
+  } = useQuery<IUser[], Error, ITeamUsersTableData[]>(
     ["users", teamIdForApi, searchString],
     () =>
       usersAPI.loadAll({ teamId: teamIdForApi, globalFilter: searchString }),
     {
       enabled: isRouteOk && !!teamIdForApi,
       select: (data: IUser[]) => generateDataSet(teamIdForApi || 0, data), // Note: `enabled` condition ensures that teamIdForApi will be defined here but TypeScript can't infer type assertion
-      onSuccess: (data) => {
-        setUserIds(data.map((user) => user.id));
-      },
     }
   );
 
@@ -415,6 +411,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }
 
   const columnConfigs = generateColumnConfigs(onActionSelection);
+  const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
 
   return (
     <div className={baseClass}>
@@ -434,7 +431,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         <TableContainer
           resultsTitle={"users"}
           columnConfigs={columnConfigs}
-          data={users || []}
+          data={teamUsers || []}
           isLoading={isLoadingUsers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
