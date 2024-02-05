@@ -53,8 +53,9 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   // whenever the pathname changes. We should find a way to avoid this.
   const {
     data: config,
-    isLoading: isLoadingConfig,
     isError: isErrorConfig,
+    isFetching: isFetchingConfig,
+    isLoading: isLoadingConfig,
     refetch: refetchAppConfig,
   } = useQuery<IConfig, Error>(["config"], () => configAPI.loadAll(), {
     refetchOnWindowFocus: false,
@@ -63,8 +64,9 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
 
   const {
     data: teamConfig,
-    isLoading: isLoadingTeam,
     isError: isErrorTeamConfig,
+    isFetching: isFetchingTeamConfig,
+    isLoading: isLoadingTeam,
     refetch: refetchTeamConfig,
   } = useQuery<ILoadTeamResponse, Error, ITeamConfig>(
     ["team-config", teamIdForApi],
@@ -88,10 +90,6 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
   // FIXME: Are these checks still necessary?
   if (config === null || teamIdForApi === undefined) return null;
 
-  // FIXME: We ought to display a spinner or some disabled state whenever refetching these queries
-  // too because a slow network can cause a disconnect between the form data and the actual data and
-  // we don't want the user to be editing the form data while fresh data is being fetched. We don't
-  // have a specified UX for this yet.
   if (isLoadingConfig || isLoadingTeam) return <Spinner />;
 
   // FIXME: Handle error states for app config and team config (need specifications for this).
@@ -127,6 +125,7 @@ const OSUpdates = ({ router, teamIdForApi }: IOSUpdates) => {
             })} // FIXME: Find a better way to trigger re-rendering if these change (see FIXME above regarding refetching)
             appConfig={config}
             currentTeamId={teamIdForApi}
+            isFetching={isFetchingConfig || isFetchingTeamConfig}
             selectedPlatform={selectedPlatform}
             teamConfig={teamConfig}
             onSelectPlatform={setSelectedPlatformTab}

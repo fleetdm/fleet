@@ -4,6 +4,7 @@ import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import { IConfig } from "interfaces/config";
 
 import SectionHeader from "components/SectionHeader";
+import Spinner from "components/Spinner";
 
 import MacOSTargetForm from "../MacOSTargetForm";
 import WindowsTargetForm from "../WindowsTargetForm";
@@ -71,8 +72,9 @@ export const generateKey = (args: GetDefaultFnParams) => {
 interface ITargetSectionProps {
   appConfig: IConfig;
   currentTeamId: number;
-  teamConfig?: ITeamConfig;
+  isFetching: boolean;
   selectedPlatform: OSUpdatesSupportedPlatform;
+  teamConfig?: ITeamConfig;
   onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
   refetchAppConfig: () => void;
   refetchTeamConfig: () => void;
@@ -81,12 +83,17 @@ interface ITargetSectionProps {
 const TargetSection = ({
   appConfig,
   currentTeamId,
+  isFetching,
   selectedPlatform,
   teamConfig,
   onSelectPlatform,
   refetchAppConfig,
   refetchTeamConfig,
 }: ITargetSectionProps) => {
+  if (isFetching) {
+    return <Spinner />;
+  }
+
   const isMacMdmEnabled = appConfig.mdm.enabled_and_configured;
   const isWindowsMdmEnabled = appConfig.mdm.windows_enabled_and_configured;
 
