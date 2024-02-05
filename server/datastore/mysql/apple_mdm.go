@@ -26,8 +26,8 @@ func (ds *Datastore) NewMDMAppleConfigProfile(ctx context.Context, cp fleet.MDMA
 	profUUID := "a" + uuid.New().String()
 	stmt := `
 INSERT INTO
-    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
-(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)) FROM DUAL WHERE
+    mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
+(SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
 	)
@@ -116,7 +116,7 @@ SELECT
 	identifier,
 	mobileconfig,
 	created_at,
-	updated_at,
+	uploaded_at,
 	checksum
 FROM
 	mdm_apple_configuration_profiles
@@ -163,7 +163,7 @@ SELECT
 	mobileconfig,
 	checksum,
 	created_at,
-	updated_at
+	uploaded_at
 FROM
 	mdm_apple_configuration_profiles
 WHERE
@@ -1200,15 +1200,16 @@ WHERE
 	const insertNewOrEditedProfile = `
 INSERT INTO
   mdm_apple_configuration_profiles (
-    profile_uuid, team_id, identifier, name, mobileconfig, checksum
+    profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at
   )
 VALUES
-	-- see https://stackoverflow.com/a/51393124/1094941
-  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)) )
+  -- see https://stackoverflow.com/a/51393124/1094941
+  ( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP() )
 ON DUPLICATE KEY UPDATE
+  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  checksum = VALUES(checksum),
   name = VALUES(name),
-  mobileconfig = VALUES(mobileconfig),
-  checksum = UNHEX(MD5(VALUES(mobileconfig)))
+  mobileconfig = VALUES(mobileconfig)
 `
 
 	// use a profile team id of 0 if no-team
@@ -2346,16 +2347,18 @@ func (ds *Datastore) BulkUpsertMDMAppleConfigProfiles(ctx context.Context, paylo
 
 		args = append(args, teamID, cp.Identifier, cp.Name, cp.Mobileconfig)
 		// see https://stackoverflow.com/a/51393124/1094941
-		sb.WriteString("(CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig))),")
+		sb.WriteString("( CONCAT('a', CONVERT(uuid() USING utf8mb4)), ?, ?, ?, ?, UNHEX(MD5(mobileconfig)), CURRENT_TIMESTAMP() ),")
 	}
 
 	stmt := fmt.Sprintf(`
           INSERT INTO
-              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum)
+              mdm_apple_configuration_profiles (profile_uuid, team_id, identifier, name, mobileconfig, checksum, uploaded_at)
           VALUES %s
           ON DUPLICATE KEY UPDATE
+            uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
             mobileconfig = VALUES(mobileconfig),
-	    checksum = UNHEX(MD5(VALUES(mobileconfig)))`, strings.TrimSuffix(sb.String(), ","))
+            checksum = VALUES(checksum)
+`, strings.TrimSuffix(sb.String(), ","))
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, args...); err != nil {
 		return ctxerr.Wrapf(ctx, err, "upsert mdm config profiles")
@@ -2592,7 +2595,7 @@ SELECT
 	identifier,
 	mobileconfig,
 	created_at,
-	updated_at
+	uploaded_at
 FROM
 	mdm_apple_configuration_profiles
 WHERE
