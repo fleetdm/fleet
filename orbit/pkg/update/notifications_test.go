@@ -317,17 +317,16 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 
 			started := make(chan struct{})
 			go func() {
-				go func() {
-					// the first call will block in enroll/unenroll func
-					cfg, err := fetcher.GetConfig()
-					assertResult(cfg, err)
-				}()
-
-				time.Sleep(100 * time.Millisecond)
 				close(started)
+
+				// the first call will block in enroll/unenroll func
+				cfg, err := fetcher.GetConfig()
+				assertResult(cfg, err)
 			}()
 
 			<-started
+			// wait a little bit to ensure the first `fetcher.GetConfig` call runs first.
+			time.Sleep(100 * time.Millisecond)
 			// this call will happen while the first call is blocked in
 			// enroll/unenrollfn, so it won't call the API (won't be able to lock the
 			// mutex). However it will still complete successfully without being
