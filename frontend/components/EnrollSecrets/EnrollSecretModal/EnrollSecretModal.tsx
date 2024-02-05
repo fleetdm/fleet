@@ -51,7 +51,7 @@ const EnrollSecretModal = ({
     <Modal
       onExit={onReturnToApp}
       onEnter={onReturnToApp}
-      title={"Manage enroll secrets"}
+      title="Manage enroll secrets"
       className={baseClass}
     >
       <div className={`${baseClass} form`}>

@@ -446,17 +446,17 @@ const DataTable = ({
   return (
     <div className={baseClass}>
       {isLoading && (
-        <div className={"loading-overlay"}>
+        <div className="loading-overlay">
           <Spinner />
         </div>
       )}
-      <div className={"data-table data-table__wrapper"}>
+      <div className="data-table data-table__wrapper">
         <table className={tableStyles}>
           {Object.keys(selectedRowIds).length !== 0 && (
-            <thead className={"active-selection"}>
+            <thead className="active-selection">
               <tr {...headerGroups[0].getHeaderGroupProps()}>
                 <th
-                  className={"active-selection__checkbox"}
+                  className="active-selection__checkbox"
                   {...headerGroups[0].headers[0].getHeaderProps(
                     headerGroups[0].headers[0].getSortByToggleProps({
                       title: null,
@@ -465,29 +465,26 @@ const DataTable = ({
                 >
                   {headerGroups[0].headers[0].render("Header")}
                 </th>
-                <th className={"active-selection__container"}>
-                  <div className={"active-selection__inner"}>
+                <th className="active-selection__container">
+                  <div className="active-selection__inner">
                     {renderSelectedCount()}
-                    <div className={"active-selection__inner-left"}>
+                    <div className="active-selection__inner-left">
                       {secondarySelectActions && renderSecondarySelectActions()}
                     </div>
-                    <div className={"active-selection__inner-right"}>
+                    <div className="active-selection__inner-right">
                       {primarySelectAction && renderPrimarySelectAction()}
                     </div>
                     {toggleAllPagesSelected && renderAreAllSelected()}
                     {shouldRenderToggleAllPages && (
                       <Button
                         onClick={onToggleAllPagesClick}
-                        variant={"text-link"}
-                        className={"light-text"}
+                        variant="text-link"
+                        className="light-text"
                       >
                         <>Select all matching {resultsTitle}</>
                       </Button>
                     )}
-                    <Button
-                      onClick={onClearSelectionClick}
-                      variant={"text-link"}
-                    >
+                    <Button onClick={onClearSelectionClick} variant="text-link">
                       Clear selection
                     </Button>
                   </div>

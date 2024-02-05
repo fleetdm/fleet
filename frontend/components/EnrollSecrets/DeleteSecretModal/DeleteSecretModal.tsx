@@ -36,7 +36,7 @@ const DeleteSecretModal = ({
     <Modal
       onExit={toggleDeleteSecretModal}
       onEnter={onDeleteSecret}
-      title={"Delete secret"}
+      title="Delete secret"
       className={baseClass}
     >
       <div className={baseClass}>

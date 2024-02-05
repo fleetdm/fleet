@@ -32,7 +32,7 @@ const TooltipTruncatedTextCell = ({
   return (
     <div className={classNames}>
       <div
-        className={"data-table__tooltip-truncated-text"}
+        className="data-table__tooltip-truncated-text"
         data-tip
         data-for={tooltipId}
         data-tip-disable={isDefaultValue}
@@ -51,7 +51,7 @@ const TooltipTruncatedTextCell = ({
         backgroundColor={COLORS["tooltip-bg"]}
         id={tooltipId}
         data-html
-        className={"truncated-tooltip"} // responsive widths
+        className="truncated-tooltip" // responsive widths
         clickable
         delayHide={200} // need delay set to hover using clickable
       >
