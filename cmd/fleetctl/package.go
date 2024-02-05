@@ -364,7 +364,7 @@ Success! You generated fleetd at %s
 
 To add this device to Fleet, double-click to install fleetd.
 
-To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
+To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
 `, path)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck
