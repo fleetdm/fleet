@@ -3,7 +3,7 @@ name: Release fleetd-chrome beta
 on:
   pull_request:
     branches:
-      - master
+      - main
   push:
    tags:
      - 'fleetd-chrome-**-beta'
