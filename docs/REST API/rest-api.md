@@ -8005,85 +8005,6 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
 | &nbsp;&nbsp;host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
 
-
-#### Example (add users to a team)
-
-`PATCH /api/v1/fleet/teams/1/users`
-
-##### Request body
-
-```json
-{
-  "user_ids": [1, 17, 22, 32]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "team": {
-    "name": "Workstations",
-    "id": 1,
-    "user_count": 4,
-    "host_count": 0,
-    "agent_options": {
-      "config": {
-        "options": {
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {},
-      "command_line_flags": {}
-    },
-    "webhook_settings": {
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      }
-    },
-    "mdm": {
-      "macos_updates": {
-        "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
-      },
-      "windows_updates": {
-        "deadline_days": 5,
-        "grace_period_days": 1
-      },
-      "macos_settings": {
-        "custom_settings": ["path/to/profile1.mobileconfig"],
-        "enable_disk_encryption": false
-      },
-      "windows_settings": {
-        "custom_settings": ["path/to/profile2.xml"],
-      },
-      "macos_setup": {
-        "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
-      }
-    }
-  }
-}
-```
-
 #### Example (transfer hosts to a team)
 
 `PATCH /api/v1/fleet/teams/1`
@@ -8136,6 +8057,138 @@ _Available in Fleet Premium_
         "host_batch_size": 0
       }
     }
+  }
+}
+```
+
+### Add users to a team
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/teams/:id/users`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                  |
+|------------------|---------|------|----------------------------------------------|
+| id               | integer | path | **Required.** The desired team's ID.         |
+| users            | string  | body | Array of users to add.                       |
+| &nbsp;&nbsp;id   | integer | body | The id of the user.                          |
+| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
+
+#### Example
+
+`PATCH /api/v1/fleet/teams/1/users`
+
+##### Request body
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "role": "admin"
+    },
+    {
+      "id": 17,
+      "role": "observer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team": {
+    "name": "Workstations",
+    "id": 1,
+    "user_count": 2,
+    "host_count": 0,
+    "agent_options": {
+      "config": {
+        "options": {
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
+      "macos_settings": {
+        "custom_settings": ["path/to/profile1.mobileconfig"],
+        "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "enable_end_user_authentication": false,
+        "macos_setup_assistant": "path/to/config.json"
+      }
+    },
+    "users": [
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 1,
+        "name": "Example User1",
+        "email": "user1@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "admin"
+      },
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 17,
+        "name": "Example User2",
+        "email": "user2@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "observer"
+      }
+    ]
   }
 }
 ```
