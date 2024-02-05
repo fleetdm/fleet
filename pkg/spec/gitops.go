@@ -80,7 +80,7 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 			result.TeamName = &teamName
 		}
 	} else {
-		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' must be present")
+		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' is required")
 	}
 
 	// Validate the required top level options
