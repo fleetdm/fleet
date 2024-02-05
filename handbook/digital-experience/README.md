@@ -19,6 +19,13 @@ This page details processes specific to working [with](#contact-us) and [within]
 ## Responsibilities
 The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
+
+### Refresh event calendar
+Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
+1. Visit the latest website for each event.
+2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
 1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
