@@ -15,6 +15,7 @@ interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
   handleSubmit: (formData: any) => void; // TODO
   onCancel: () => void;
+  isShowingPreviewDataModal: boolean;
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
   automatedQueryIds: number[];
@@ -59,6 +60,7 @@ const ManageQueryAutomationsModal = ({
   automatedQueryIds,
   handleSubmit,
   onCancel,
+  isShowingPreviewDataModal,
   togglePreviewDataModal,
   availableQueries,
   logDestination,
@@ -105,6 +107,7 @@ const ManageQueryAutomationsModal = ({
       onExit={onCancel}
       className={baseClass}
       width="large"
+      isHidden={isShowingPreviewDataModal}
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
