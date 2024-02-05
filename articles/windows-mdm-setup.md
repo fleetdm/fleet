@@ -4,8 +4,6 @@
 
 ## Overview
 
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 Turning on Windows MDM features requires configuring Fleet with a certificate and key. This guide will walk you through how to upload these to Fleet and turn on Windows MDM.
 
 Automatic enrollment allows Windows workstations to automatically enroll to Fleet when they are first set up. Automatic enrollment requires Microsoft Azure Active Directory (aka Microsoft Entra). This guide will walk you through how to connect Azure AD to Fleet. 
@@ -40,16 +38,14 @@ Save the SCEP certificate and SCEP key. These are your certificate and key. You 
 
 ### Step 2: configure Fleet with your certificate and key
 
-1. In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
+In your Fleet server configuration, set the contents of the certificate and key in the following environment variables:
 
 > Note: Any environment variable that ends in `_BYTES` expects the file's actual content to be passed in, not a path to the file. If you want to pass in a file path, remove the `_BYTES` suffix from the environment variable.
 
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-cert-bytes)
 - [FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES](https://fleetdm.com/docs/deploying/configuration#mdm-windows-wstep-identity-key-bytes)
 
-2. Set the `FLEET_DEV_MDM_ENABLED` environment variable to `1`.
-
-3. Restart the Fleet server.
+Restart the Fleet server.
 
 ### Step 3: Turn on Windows MDM in Fleet
 

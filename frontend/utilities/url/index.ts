@@ -32,7 +32,7 @@ interface IMutuallyExclusiveHostParams {
   softwareId?: number;
   softwareVersionId?: number;
   softwareTitleId?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   osSettings?: MdmProfileStatus;
@@ -104,7 +104,7 @@ export const reconcileMutuallyExclusiveHostParams = ({
   softwareId,
   softwareVersionId,
   softwareTitleId,
-  osId,
+  osVersionId,
   osName,
   osVersion,
   osSettings,
@@ -141,8 +141,8 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { software_version_id: softwareVersionId };
     case !!softwareId:
       return { software_id: softwareId };
-    case !!osId:
-      return { os_id: osId };
+    case !!osVersionId:
+      return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:

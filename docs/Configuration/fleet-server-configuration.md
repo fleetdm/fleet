@@ -758,7 +758,9 @@ How long invite tokens should be valid for.
 
 ##### app_enable_scheduled_query_stats
 
-Determines whether Fleet gets scheduled query statistics from hosts or not.
+Determines whether Fleet collects performance impact statistics for scheduled queries.
+
+If set to `false`, stats are still collected for live queries.
 
 - Default value: `true`
 - Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
@@ -2871,7 +2873,6 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 ##### mdm.windows_wstep_identity_cert_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
@@ -2888,7 +2889,6 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
 
 ##### mdm.windows_wstep_identity_key_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""
