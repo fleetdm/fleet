@@ -93,7 +93,7 @@ export type ITeamConfig = ITeam & ITeamAutomationsConfig;
 /**
  * The shape of a new user to add to a team
  */
-export interface INewUser {
+export interface INewTeamUser {
   id: number;
   role: UserRole;
 }
@@ -102,7 +102,7 @@ export interface INewUser {
  * The shape of the body expected from the API when adding new users to teams
  */
 export interface INewTeamUsersBody {
-  users: INewUser[];
+  users: INewTeamUser[];
 }
 export interface IRemoveTeamUserBody {
   users: { id?: number }[];

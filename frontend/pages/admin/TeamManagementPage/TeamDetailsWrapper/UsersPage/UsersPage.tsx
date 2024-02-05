@@ -468,7 +468,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           disabledUsers={userIds}
           onCancel={toggleAddUserModal}
           onSubmit={onAddUserSubmit}
-          onCreateNewUser={toggleCreateUserModal}
+          onCreateNewTeamUser={toggleCreateUserModal}
         />
       ) : null}
       {showEditUserModal && (

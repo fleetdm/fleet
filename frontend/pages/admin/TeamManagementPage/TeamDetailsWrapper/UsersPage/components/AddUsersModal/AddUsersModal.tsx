@@ -1,6 +1,6 @@
 import React, { useCallback, useState } from "react";
 
-import { INewUser, INewTeamUsersBody, ITeam } from "interfaces/team";
+import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -14,14 +14,14 @@ interface IAddUsersModal {
   disabledUsers: number[];
   onCancel: () => void;
   onSubmit: (userIds: INewTeamUsersBody) => void;
-  onCreateNewUser: () => void;
+  onCreateNewTeamUser: () => void;
 }
 
 const AddUsersModal = ({
   disabledUsers,
   onCancel,
   onSubmit,
-  onCreateNewUser,
+  onCreateNewTeamUser,
   team,
 }: IAddUsersModal): JSX.Element => {
   const [selectedUsers, setSelectedUsers] = useState([]);
@@ -34,9 +34,11 @@ const AddUsersModal = ({
   );
 
   const onFormSubmit = useCallback(() => {
-    const newUsers: INewUser[] = selectedUsers.map((user: IDropdownOption) => {
-      return { id: user.value as number, role: "observer" };
-    });
+    const newUsers: INewTeamUser[] = selectedUsers.map(
+      (user: IDropdownOption) => {
+        return { id: user.value as number, role: "observer" };
+      }
+    );
     onSubmit({ users: newUsers });
   }, [selectedUsers, onSubmit]);
 
@@ -49,7 +51,7 @@ const AddUsersModal = ({
           </label>
           <AutocompleteDropdown
             team={team}
-            id={"user-autocomplete"}
+            id="user-autocomplete"
             resourceUrl={endpoints.USERS}
             onChange={onChangeDropdown}
             placeholder={"Search users by name"}
@@ -61,7 +63,7 @@ const AddUsersModal = ({
         <p>
           User not here?&nbsp;
           <Button
-            onClick={onCreateNewUser}
+            onClick={onCreateNewTeamUser}
             variant={"text-link"}
             className={"light-text"}
           >
