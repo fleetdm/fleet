@@ -50,7 +50,7 @@ const CurrentVersionSection = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data?.counts_updated_at}
-        whatToRetrieve={"operating systems"}
+        whatToRetrieve="operating systems"
       />
     );
   };

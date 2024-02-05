@@ -14,10 +14,10 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading={false}
         showUI={false} // tested
-        title={"Windows hosts"}
-        iconName={"windows"}
+        title="Windows hosts"
+        iconName="windows"
         circledIcon
-        tooltip={"Hosts on any Windows device"}
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -33,10 +33,10 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading // tested
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
+        title="Windows hosts"
+        iconName="windows"
         circledIcon
-        tooltip={"Hosts on any Windows device"}
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -53,10 +53,10 @@ describe("SummaryTile - component", () => {
         count={200} // tested
         isLoading={false}
         showUI
-        title={"Windows hosts"} // tested
-        iconName={"windows"} // tested
+        title="Windows hosts" // tested
+        iconName="windows" // tested
         circledIcon
-        tooltip={"Hosts on any Windows device"}
+        tooltip="Hosts on any Windows device"
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );
@@ -76,8 +76,8 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading={false}
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
+        title="Windows hosts"
+        iconName="windows"
         circledIcon
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
@@ -94,10 +94,10 @@ describe("SummaryTile - component", () => {
         count={200}
         isLoading={false}
         showUI
-        title={"Windows hosts"}
-        iconName={"windows"}
+        title="Windows hosts"
+        iconName="windows"
         circledIcon
-        tooltip={"Hosts on any Windows device"} // tested
+        tooltip="Hosts on any Windows device" // tested
         path={paths.MANAGE_HOSTS_LABEL(10)}
       />
     );

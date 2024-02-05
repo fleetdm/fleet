@@ -34,7 +34,7 @@ const RerunScriptModal = ({
   return (
     <Modal
       className={baseClass}
-      title={"Rerun Script"}
+      title="Rerun Script"
       onExit={onCancel}
       onEnter={() => onRerun(scriptId)}
     >

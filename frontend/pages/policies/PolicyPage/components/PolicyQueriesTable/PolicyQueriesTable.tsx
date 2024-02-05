@@ -43,8 +43,8 @@ const PoliciesTable = ({
         columnConfigs={generateTableHeaders()}
         data={generateDataSet(policyHostsList)}
         isLoading={isLoading}
-        defaultSortHeader={"query_results"}
-        defaultSortDirection={"asc"}
+        defaultSortHeader="query_results"
+        defaultSortDirection="asc"
         showMarkAllPages={false}
         isAllPagesSelected={false}
         isClientSidePagination

@@ -698,9 +698,9 @@ const EditQueryForm = ({
                 searchable={false}
                 options={frequencyOptions}
                 onChange={onChangeSelectFrequency}
-                placeholder={"Every day"}
+                placeholder="Every day"
                 value={lastEditedQueryFrequency}
-                label={"Frequency"}
+                label="Frequency"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
               />
@@ -715,10 +715,10 @@ const EditQueryForm = ({
               </Checkbox>
               <RevealButton
                 isShowing={showAdvancedOptions}
-                className={"advanced-options-toggle"}
-                hideText={"Hide advanced options"}
-                showText={"Show advanced options"}
-                caretPosition={"after"}
+                className="advanced-options-toggle"
+                hideText="Hide advanced options"
+                showText="Show advanced options"
+                caretPosition="after"
                 onClick={toggleAdvancedOptions}
               />
               {showAdvancedOptions && (

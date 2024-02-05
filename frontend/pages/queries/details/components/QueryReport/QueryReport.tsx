@@ -149,8 +149,8 @@ const QueryReport = ({
               <EmptyTable
                 className={baseClass}
                 graphicName="empty-software"
-                header={"Nothing to report yet"}
-                info={"This query has returned no data so far."}
+                header="Nothing to report yet"
+                info="This query has returned no data so far."
               />
             );
           }}

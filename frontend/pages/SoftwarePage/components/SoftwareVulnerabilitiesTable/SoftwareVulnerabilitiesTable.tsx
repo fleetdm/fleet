@@ -63,13 +63,13 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={tableHeaders}
         data={data}
         defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
-        defaultSortDirection={"desc"}
+        defaultSortDirection="desc"
         emptyComponent={() => <NoVulnsDetected itemName={itemName} />}
         isAllPagesSelected={false}
         isLoading={isLoading}
         isClientSidePagination
         pageSize={20}
-        resultsTitle={"vulnerabilities"}
+        resultsTitle="vulnerabilities"
         showMarkAllPages={false}
       />
     </div>

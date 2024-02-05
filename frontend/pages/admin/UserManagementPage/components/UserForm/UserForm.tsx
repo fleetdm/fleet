@@ -452,10 +452,7 @@ const UserForm = ({
                 <span className={`${baseClass}__sso-input sublabel-nosso`}>
                   This user previously signed in via SSO, which has been
                   globally disabled.{" "}
-                  <button
-                    className={"button--text-link"}
-                    onClick={onSsoDisable}
-                  >
+                  <button className="button--text-link" onClick={onSsoDisable}>
                     Add password instead
                     <Icon
                       name="chevron-right"

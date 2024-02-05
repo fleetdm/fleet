@@ -74,7 +74,7 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="No Munki issues detected"
@@ -101,7 +101,7 @@ const Munki = ({
                   isLoading={isMacAdminsFetching}
                   defaultSortHeader={DEFAULT_SORT_HEADER}
                   defaultSortDirection={DEFAULT_SORT_DIRECTION}
-                  resultsTitle={"Munki"}
+                  resultsTitle="Munki"
                   emptyComponent={() => (
                     <EmptyTable
                       header="Unable to detect Munki versions"

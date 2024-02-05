@@ -70,7 +70,7 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       return (
         <HeaderCell
-          value={"Hosts"}
+          value="Hosts"
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       );

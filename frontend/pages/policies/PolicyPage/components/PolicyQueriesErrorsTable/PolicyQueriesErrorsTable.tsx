@@ -43,8 +43,8 @@ const PoliciesTable = ({
         columnConfigs={generateTableHeaders()}
         data={generateDataSet(errorsList)}
         isLoading={isLoading}
-        defaultSortHeader={"name"}
-        defaultSortDirection={"asc"}
+        defaultSortHeader="name"
+        defaultSortDirection="asc"
         manualSortBy
         showMarkAllPages={false}
         isAllPagesSelected={false}

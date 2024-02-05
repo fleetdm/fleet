@@ -31,7 +31,7 @@ const TurnOnMdmMessage = ({ router }: ITurnOnMdmMessageProps) => {
   return (
     <EmptyTable
       header="Manage your hosts"
-      info={"Turn on MDM to change settings on your hosts."}
+      info="Turn on MDM to change settings on your hosts."
       primaryButton={renderConnectButton()}
     />
   );

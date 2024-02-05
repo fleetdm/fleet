@@ -282,7 +282,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             setSoftwareTitleDetail(
               <LastUpdatedText
                 lastUpdatedAt={data.counts_updated_at}
-                whatToRetrieve={"software"}
+                whatToRetrieve="software"
               />
             );
           setShowSoftwareCard(true);
@@ -344,7 +344,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         setMdmTitleDetail(
           <LastUpdatedText
             lastUpdatedAt={counts_updated_at}
-            whatToRetrieve={"MDM information"}
+            whatToRetrieve="MDM information"
           />
         );
         const statusData: IMdmStatusCardData[] = [
@@ -385,7 +385,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
       setMunkiTitleDetail(
         <LastUpdatedText
           lastUpdatedAt={counts_updated_at}
-          whatToRetrieve={"Munki"}
+          whatToRetrieve="Munki"
         />
       );
     },

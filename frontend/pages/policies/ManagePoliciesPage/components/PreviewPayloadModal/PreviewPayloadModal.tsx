@@ -64,7 +64,7 @@ const PreviewPayloadModal = ({
 
   return (
     <Modal
-      title={"Example payload"}
+      title="Example payload"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

@@ -37,7 +37,7 @@ const EditIntegrationModal = ({
   }, [backendValidators]);
 
   return (
-    <Modal title={"Edit integration"} onExit={onCancel} className={baseClass}>
+    <Modal title="Edit integration" onExit={onCancel} className={baseClass}>
       {testingConnection ? (
         <div className={`${baseClass}__testing-connection`}>
           <b>Testing connection</b>

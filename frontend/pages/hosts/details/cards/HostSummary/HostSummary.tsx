@@ -177,7 +177,7 @@ const HostSummary = ({
             Failing policies ({titleData.issues.failing_policies_count})
           </span>
         </ReactTooltip>
-        <span className={"info-flex__data__text"}>
+        <span className="info-flex__data__text">
           {titleData.issues.total_issues_count}
         </span>
       </span>

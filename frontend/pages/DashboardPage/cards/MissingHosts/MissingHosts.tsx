@@ -38,7 +38,7 @@ const MissingHosts = ({
   return (
     <div className={baseClass}>
       <SummaryTile
-        iconName={"missing-hosts"}
+        iconName="missing-hosts"
         count={missingCount}
         isLoading={isLoadingHosts}
         showUI={showHostsUI}

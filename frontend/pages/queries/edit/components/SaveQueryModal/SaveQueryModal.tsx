@@ -145,7 +145,7 @@ const SaveQueryModal = ({
   );
 
   return (
-    <Modal title={"Save query"} onExit={toggleSaveQueryModal}>
+    <Modal title="Save query" onExit={toggleSaveQueryModal}>
       <form
         onSubmit={onClickSaveQuery}
         className={baseClass}
@@ -176,7 +176,7 @@ const SaveQueryModal = ({
           onChange={(value: number) => {
             setSelectedFrequency(value);
           }}
-          placeholder={"Every hour"}
+          placeholder="Every hour"
           value={selectedFrequency}
           label="Frequency"
           wrapperClassName={`${baseClass}__form-field form-field--frequency`}
@@ -186,17 +186,17 @@ const SaveQueryModal = ({
           name="observerCanRun"
           onChange={setObserverCanRun}
           value={observerCanRun}
-          wrapperClassName={"observer-can-run-wrapper"}
+          wrapperClassName="observer-can-run-wrapper"
           helpText="Users with the Observer role will be able to run this query as a live query."
         >
           Observers can run
         </Checkbox>
         <RevealButton
           isShowing={showAdvancedOptions}
-          className={"advanced-options-toggle"}
-          hideText={"Hide advanced options"}
-          showText={"Show advanced options"}
-          caretPosition={"after"}
+          className="advanced-options-toggle"
+          hideText="Hide advanced options"
+          showText="Show advanced options"
+          caretPosition="after"
           onClick={toggleAdvancedOptions}
         />
         {showAdvancedOptions && (

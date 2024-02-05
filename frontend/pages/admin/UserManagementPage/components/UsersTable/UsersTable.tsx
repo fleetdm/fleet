@@ -483,7 +483,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
         onCancel={toggleCreateUserModal}
         onSubmit={onCreateUserSubmit}
         availableTeams={teams || []}
-        defaultGlobalRole={"observer"}
+        defaultGlobalRole="observer"
         defaultTeams={[]}
         isPremiumTier={isPremiumTier || false}
         smtpConfigured={config?.smtp_settings.configured || false}
@@ -557,9 +557,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           columnConfigs={tableHeaders}
           data={tableData}
           isLoading={loadingTableData}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search by name or email"}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search by name or email"
           actionButton={{
             name: "create user",
             buttonText: "Create user",

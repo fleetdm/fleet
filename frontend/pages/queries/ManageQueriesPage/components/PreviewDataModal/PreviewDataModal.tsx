@@ -35,7 +35,7 @@ const PreviewDataModal = ({
   };
 
   return (
-    <Modal title={"Example data"} onExit={onCancel} className={baseClass}>
+    <Modal title="Example data" onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__preview-modal`}>
         <p>
           <TooltipWrapper

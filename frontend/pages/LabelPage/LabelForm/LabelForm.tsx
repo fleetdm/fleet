@@ -265,7 +265,7 @@ const LabelForm = ({
           </p>
         </div>
       )}
-      <div className={"button-wrap"}>
+      <div className="button-wrap">
         <Button onClick={onCancel} variant="inverse">
           Cancel
         </Button>

@@ -305,7 +305,7 @@ const ManageQueriesPage = ({
         showText={`Show ${inheritedQueryCount} inherited quer${
           inheritedQueryCount === 1 ? "y" : "ies"
         }`}
-        caretPosition={"before"}
+        caretPosition="before"
         tooltipContent={
           <>
             Queries from the &quot;All teams&quot;
