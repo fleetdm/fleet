@@ -232,7 +232,7 @@ const generateTableConfig = (
             {cellProps.row.original && (
               <ViewAllHostsLink
                 queryParams={{
-                  cve: cellProps.row.original.cve,
+                  vulnerability: cellProps.row.original.cve,
                 }}
                 className="vulnerabilities-link"
                 rowHover

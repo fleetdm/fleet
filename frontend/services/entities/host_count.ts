@@ -50,6 +50,7 @@ export interface IHostCountLoadOptions {
   osName?: string;
   osVersion?: string;
   osSettings?: MdmProfileStatus;
+  vulnerability?: string;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
 }
@@ -77,6 +78,7 @@ export default {
     const osName = options?.osName;
     const osVersion = options?.osVersion;
     const osSettings = options?.osSettings;
+    const vulnerability = options?.vulnerability;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
@@ -102,6 +104,7 @@ export default {
         osVersionId,
         osVersion,
         osSettings,
+        vulnerability,
         diskEncryptionStatus,
         bootstrapPackageStatus,
       }),

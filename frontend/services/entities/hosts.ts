@@ -65,6 +65,7 @@ export interface ILoadHostsOptions {
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
@@ -95,6 +96,7 @@ export interface IExportHostsOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -254,6 +256,7 @@ export default {
     osVersionId,
     osName,
     osVersion,
+    vulnerability,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -292,6 +295,7 @@ export default {
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,

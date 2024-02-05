@@ -61,7 +61,7 @@ interface IHostsFilterBlockProps {
     osVersionId?: string;
     osName?: string;
     osVersion?: string;
-    cve?: string;
+    vulnerability?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: { name: string; version?: string } | null;
@@ -105,7 +105,7 @@ const HostsFilterBlock = ({
     osVersionId,
     osName,
     osVersion,
-    cve,
+    vulnerability,
     munkiIssueId,
     munkiIssueDetails,
     policyResponse,
@@ -205,11 +205,11 @@ const HostsFilterBlock = ({
     );
   };
 
-  const renderCVEFilterBlock = () => {
-    if (!cve) return null;
+  const renderVulnerabilityFilterBlock = () => {
+    if (!vulnerability) return null;
 
     // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(`${cve}`);
+    const label = formatOperatingSystemDisplayName(`${vulnerability}`);
     const TooltipDescription = (
       <span>Hosts affected by the specified CVE.</span>
     );
@@ -218,7 +218,7 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={TooltipDescription}
-        onClear={() => handleClearFilter(["cve"])}
+        onClear={() => handleClearFilter(["vulnerability"])}
       />
     );
   };
@@ -518,8 +518,8 @@ const HostsFilterBlock = ({
           return renderMDMEnrollmentFilterBlock();
         case !!osVersionId || (!!osName && !!osVersion):
           return renderOSFilterBlock();
-        case !!cve:
-          return renderCVEFilterBlock();
+        case !!vulnerability:
+          return renderVulnerabilityFilterBlock();
         case !!munkiIssueId:
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
