@@ -43,7 +43,7 @@ const AddUsersModal = ({
   }, [selectedUsers, onSubmit]);
 
   return (
-    <Modal onExit={onCancel} title={"Add users"} className={baseClass}>
+    <Modal onExit={onCancel} title="Add users" className={baseClass}>
       <form className={`${baseClass}__form`}>
         <div className="form-field">
           <label className="form-field__label" htmlFor="user-autocomplete">
@@ -54,7 +54,7 @@ const AddUsersModal = ({
             id="user-autocomplete"
             resourceUrl={endpoints.USERS}
             onChange={onChangeDropdown}
-            placeholder={"Search users by name"}
+            placeholder="Search users by name"
             disabledOptions={disabledUsers}
             value={selectedUsers}
             autoFocus
@@ -63,9 +63,15 @@ const AddUsersModal = ({
         <p>
           User not here?&nbsp;
           <Button
+<<<<<<< HEAD:frontend/pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/components/AddUsersModal/AddUsersModal.tsx
             onClick={onCreateNewTeamUser}
             variant={"text-link"}
             className={"light-text"}
+=======
+            onClick={onCreateNewMember}
+            variant="text-link"
+            className="light-text"
+>>>>>>> b88b0f52e (Final strings found):frontend/pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage/components/AddMemberModal/AddMemberModal.tsx
           >
             <>
               <strong>Create a user</strong>

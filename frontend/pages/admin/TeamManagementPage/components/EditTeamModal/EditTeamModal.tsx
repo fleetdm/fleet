@@ -47,7 +47,7 @@ const EditTeamModal = ({
   };
 
   return (
-    <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
+    <Modal title="Edit team" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}

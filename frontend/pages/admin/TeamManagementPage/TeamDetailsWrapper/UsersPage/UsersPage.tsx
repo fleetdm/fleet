@@ -393,12 +393,12 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         <TableDataError />
       ) : (
         <TableContainer
-          resultsTitle={"users"}
+          resultsTitle="users"
           columnConfigs={columnConfigs}
           data={teamUsers || []}
           isLoading={isLoadingUsers}
-          defaultSortHeader={"name"}
-          defaultSortDirection={"asc"}
+          defaultSortHeader="name"
+          defaultSortDirection="asc"
           actionButton={{
             name: isGlobalAdmin ? "add user" : "create user",
             buttonText: isGlobalAdmin ? "Add users" : "Create users",
@@ -409,7 +409,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
-          inputPlaceHolder={"Search"}
+          inputPlaceHolder="Search"
           emptyComponent={() => (
             <EmptyMembersTable
               className={noUsersClass}
@@ -462,7 +462,7 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           onCancel={toggleCreateUserModal}
           onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}
-          defaultTeamRole={"observer"}
+          defaultTeamRole="observer"
           defaultTeams={[
             { id: currentTeamDetails.id, name: "", role: "observer" },
           ]}

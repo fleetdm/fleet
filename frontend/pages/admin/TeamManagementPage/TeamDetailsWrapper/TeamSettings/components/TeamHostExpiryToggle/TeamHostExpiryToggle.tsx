@@ -26,7 +26,7 @@ const TeamHostExpiryToggle = ({
         hosts expire after {globalHostExpiryWindow} days.{" "}
         {!teamExpiryEnabled && (
           <Link
-            to={""}
+            to=""
             onClick={(e: React.MouseEvent) => {
               e.preventDefault();
               setTeamExpiryEnabled(true);
