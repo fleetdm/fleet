@@ -49,6 +49,25 @@ func Up_20240126020643(tx *sql.Tx) error {
 		return errors.Wrap(err, "create host_activities table")
 	}
 
+	// Force an exit_code for scripts that didn't run previous to this update.
+	// In previous releases, scripts were allowed to be queued only for 5
+	// minutes, since we're removing that restriction, any scripts with a
+	// null exit_code would be unexpectedly sent to the host unless we do
+	// this.
+	const setOldScriptsAsSyncStmt = `
+            UPDATE host_script_results hsr
+            SET
+                exit_code = -1,
+                updated_at = hsr.updated_at
+            WHERE
+	        exit_code IS NULL
+                AND user_id IS NULL
+                AND created_at < CURRENT_TIMESTAMP
+	`
+	if _, err := tx.Exec(setOldScriptsAsSyncStmt); err != nil {
+		return errors.Wrap(err, "set exit_code = -1 for old scripts")
+	}
+
 	return nil
 }
 

@@ -50,7 +50,7 @@ export default abstract class Table implements SQLiteModule {
 
   // This is replaced by wa-sqlite when SQLite is loaded up, but missing from the SQLiteModule
   // definition. We add it here to make Typescript happy.
-  handleAsync(f: () => Promise<number>): Promise<number> {
+  handleAsync(_: () => Promise<number>): number {
     throw new Error("should be replaced in build");
   }
 
@@ -61,37 +61,37 @@ export default abstract class Table implements SQLiteModule {
     appData: any, // Application data passed to `SQLiteAPI.create_module`.
     argv: Array<string>,
     pVTab: number,
-    pzString: { set: (arg0: string) => void }
-  ): number | Promise<number> {
+    pzErr: DataView,
+  ): number {
     // Register the table schema.
     const sql = `CREATE TABLE ${this.name} (${this.columns.join(",")})`;
-    pzString.set(sql);
+    this.sqlite3.declare_vtab(db, sql);
     return SQLite.SQLITE_OK;
   }
 
   xBestIndex(
     pVTab: number,
     indexInfo: SQLiteModuleIndexInfo
-  ): number | Promise<number> {
+  ): number {
     // In the future we might be able to use this for some tables to optimize queries.
     return SQLite.SQLITE_OK;
   }
 
-  xDisconnect(pVTab: number): number | Promise<number> {
+  xDisconnect(pVTab: number): number {
     return SQLite.SQLITE_OK;
   }
 
-  xDestroy(pVTab: number): number | Promise<number> {
+  xDestroy(pVTab: number): number {
     return SQLite.SQLITE_OK;
   }
 
-  xOpen(pVTab: number, pCursor: number): number | Promise<number> {
+  xOpen(pVTab: number, pCursor: number): number {
     // Initialize a new cursor state (called at the beginning of a query to the table).
     this.cursorStates.set(pCursor, new cursorState());
     return SQLite.SQLITE_OK;
   }
 
-  xClose(pCursor: number): number | Promise<number> {
+  xClose(pCursor: number): number {
     // Clean up the cursor state (called when the query completes). Important that we do this so
     // that the resources don't remain allocated after the query completes!
     this.cursorStates.delete(pCursor);
@@ -103,7 +103,7 @@ export default abstract class Table implements SQLiteModule {
     idxNum: number,
     idxStr: string | null,
     values: Array<number>
-  ): Promise<number> {
+  ): number {
     // Generate the actual query results here during this filter call. Store them in the cursor state
     // so that SQLite can request each row and column.
     return this.handleAsync(async () => {
@@ -130,14 +130,14 @@ export default abstract class Table implements SQLiteModule {
     });
   }
 
-  xNext(pCursor: number): number | Promise<number> {
+  xNext(pCursor: number): number {
     // Advance the row index for the cursor.
     const cursorState = this.cursorStates.get(pCursor);
     cursorState.rowIndex += 1;
     return SQLite.SQLITE_OK;
   }
 
-  xEof(pCursor: number): number | Promise<number> {
+  xEof(pCursor: number): number {
     // Check whether we've returned all rows (cursor index is beyond number of rows).
     const cursorState = this.cursorStates.get(pCursor);
     // Throw any error saved in the cursor state (because throwing in xFilter doesn't seem to work
@@ -152,7 +152,7 @@ export default abstract class Table implements SQLiteModule {
     pCursor: number,
     pContext: number,
     iCol: number
-  ): number | Promise<number> {
+  ): number {
     // Get the generated rows for this cursor.
     const cursorState = this.cursorStates.get(pCursor);
     // Get the current row.
@@ -167,11 +167,11 @@ export default abstract class Table implements SQLiteModule {
 
   xRowid(
     pCursor: number,
-    pRowid: { set: (arg0: number) => void }
-  ): number | Promise<number> {
+    pRowid: DataView,
+  ): number {
     // Get the current row index.
     const cursorState = this.cursorStates.get(pCursor);
-    pRowid.set(cursorState.rowIndex);
+    pRowid.setBigInt64(0, BigInt(cursorState.rowIndex));
     return SQLite.SQLITE_OK;
   }
 }

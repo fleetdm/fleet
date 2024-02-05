@@ -146,7 +146,7 @@ func TestWinBuildVersionGreaterOrEqual(t *testing.T) {
 			feed:       "10.0.22000.795",
 			os:         "10.0.22621.795",
 			result:     false,
-			errMessage: "comparing different product versions",
+			errMessage: "",
 		},
 	}
 

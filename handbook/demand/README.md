@@ -15,13 +15,13 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please use **issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
-> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%3Aproduct-marketing,%23g-ceo&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
+> To **make a request** related to **product marketing**, **press**, **brandfronts**, **pitchfronts**, **featurefronts**, **ideal customer profiles (ICPs)**, **personas**, or **targeting** [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-digital-experience&projects=&template=custom-request.md&title=Product%20marketing%20request%3A+_______________________) (If urgent, at-mention the [Head of Product Marketing](#team) in the [help-pmm-2023](https://fleetdm.slack.com/archives/C0600L1TTPY) Slack channel).
 
 ## Responsibilities
 The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
 ### Begin or modify an advertising campaign
-Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-website)"](https://app.zenhub.com/workspaces/g-website-6451748b4eb15200131d4bab/board?sprints=none).
+Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
 
 To propose an ad, or a change to an ad:
 1. Add your change for review to the "Design review" agenda and attend the next scheduled website design review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
@@ -29,6 +29,20 @@ To propose an ad, or a change to an ad:
 3. Execute the planned change.
 4. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
+### Settle event strategy
+The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
+
+1. Using the [event strategy workbook](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit#gid=1411322737), propose the events that Fleet will attend in the next 6 months, and the strategy for those events, including:
+  - target buying situation of the audience
+  - who from Fleet will attend
+  - the training plan for Fleet attendees
+  - which talk proposal Fleet will submit
+  - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
+  - estimated budget, including sponsorship or airfare, and lodging for attendees
+2. Set up and attend a 30m meeting with the Head of Business Operations and CEO:
+  - First during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+  - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
+  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
@@ -63,33 +77,22 @@ To do this:
 5. The results should only display one order. Any additional could be duplicate orders or those made in error.
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
-### Send one-off swag
-There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. We use [Postal](https://www.postal.com/) to fulfill these swag requests. Postal warehouses Fleet swag that is available to send directly. There are two main ways to send swag through Postal: Direct sends and "Magic links".
 
-**Magic links**: This is a great option to send when we only know the item we'd like to send and want the recipient to fill out their own contact information and shipping details. These links can be used by anyone who has access to the link, so only send to the desired recipient.
-
-- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
-- For approved items, hover over the item you want to send and click the chain icon.
-- Make sure order limit is 1
-- Personalize your magic link page with a customized header or message if you'd like.
-- Continue on to "Review" and "Create MagicLink"
-
-**Direct send**: This is a great option to send when we already have the name, address, and email address of the person we are sending an item to.
-
-- Log in to [Postal](https://app.postal.io/items/postals) and make sure "Approved items" is checked in the top left.
-- For approved items, hover over the item you want to send and click the paper airplane icon.
-- Choose the "Direct" tab and find an existing contact or create a new one.
-- To create a new contact, click the plus sign and fill out the name, email, and shipping address.
-- Select "Configure your item," continue to "Review," and "Confirm and Send."
+### Fufuill a swag request
+There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
+1. Check and communicate availability to the requestor.
+2. Use the appropriate shipping method that best serves the company.
+3. Attach tracking number to the issue and tag the requestor.
+4. Confirm delivery and close issue.
 
 ### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
-- If yes, follow the steps of creating a magic link in Postal to send.
+- If yes, follow the steps to fufuill a swag request.
 
 ### Run a new ad or change an existing ad
-Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-website), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
+Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
 1. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) adds a discussion item about the change to the [website design review agenda](https://docs.google.com/document/d/1Q73ublh9bcIL01JsY--gpZRd3KPT_KCX-F0RaorKJcM/edit)
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
@@ -157,6 +160,7 @@ Fleet invites guests to discuss the future of IT and security on the [ExpedITion
 - Log in to [Podbean](https://www.podbean.com/user-z61jYLi85TV2) to manage the podcast and click new episode.
 - Use the show notes to complete the Podbean description and [create a new article](https://github.com/fleetdm/fleet/tree/main/articles) on Fleet's website.
 - Publish on social media
+
 
 ## Rituals
 <rituals :rituals="rituals['handbook/demand/demand.rituals.yml']"></rituals>
