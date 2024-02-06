@@ -1051,13 +1051,13 @@ type Datastore interface {
 
 	// MDMGetEULAMetadata returns metadata information about the EULA
 	// filed stored in the database.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMGetEULABytes returns the bytes of the EULA file stored in
 	// the database. A token is required since this file is publicly
 	// accessible by anyone with the token.
-	MDMGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
 	// MDMInsertEULA inserts a new EULA in the database
-	MDMInsertEULA(ctx context.Context, eula *MDMAppleEULA) error
+	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
 	// MDMDeleteEULA deletes the EULA file from the database
 	MDMDeleteEULA(ctx context.Context, token string) error
 

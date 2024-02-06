@@ -446,7 +446,7 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 }
 
 func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -472,7 +472,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
-	eula := &fleet.MDMAppleEULA{
+	eula := &fleet.MDMEULA{
 		Name:  name,
 		Token: uuid.New().String(),
 		Bytes: bytes,
@@ -485,7 +485,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 	return nil
 }
 
-func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: this resource is authorized using the token provided in the
 	// request.
 	svc.authz.SkipAuthorization(ctx)
@@ -494,7 +494,7 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -505,8 +505,8 @@ func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
 	return nil
 }
 
-func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 

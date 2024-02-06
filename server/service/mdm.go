@@ -258,25 +258,25 @@ func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) 
 	}, nil
 }
 
-type createMDMAppleEULAResponse struct {
+type createMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r createMDMAppleEULAResponse) error() error { return r.Err }
+func (r createMDMEULAResponse) error() error { return r.Err }
 
 func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*createMDMEULARequest)
 	ff, err := req.EULA.Open()
 	if err != nil {
-		return createMDMAppleEULAResponse{Err: err}, nil
+		return createMDMEULAResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
 	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
-		return createMDMAppleEULAResponse{Err: err}, nil
+		return createMDMEULAResponse{Err: err}, nil
 	}
 
-	return createMDMAppleEULAResponse{}, nil
+	return createMDMEULAResponse{}, nil
 }
 
 func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
@@ -291,20 +291,20 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.Read
 // GET /mdm/setup/eula?token={token}
 ////////////////////////////////////////////////////////////////////////////////
 
-type getMDMAppleEULARequest struct {
+type getMDMEULARequest struct {
 	Token string `url:"token"`
 }
 
-type getMDMAppleEULAResponse struct {
+type getMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 
 	// fields used in hijackRender to build the response
-	eula *fleet.MDMAppleEULA
+	eula *fleet.MDMEULA
 }
 
-func (r getMDMAppleEULAResponse) error() error { return r.Err }
+func (r getMDMEULAResponse) error() error { return r.Err }
 
-func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -318,18 +318,18 @@ func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.Respon
 	}
 }
 
-func getMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getMDMAppleEULARequest)
+func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMEULARequest)
 
 	eula, err := svc.MDMGetEULABytes(ctx, req.Token)
 	if err != nil {
-		return getMDMAppleEULAResponse{Err: err}, nil
+		return getMDMEULAResponse{Err: err}, nil
 	}
 
-	return getMDMAppleEULAResponse{eula: eula}, nil
+	return getMDMEULAResponse{eula: eula}, nil
 }
 
-func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -343,23 +343,23 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 
 type getMDMEULAMetadataRequest struct{}
 
-type getMDMAppleEULAMetadataResponse struct {
-	*fleet.MDMAppleEULA
+type getMDMEULAMetadataResponse struct {
+	*fleet.MDMEULA
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleEULAMetadataResponse) error() error { return r.Err }
+func (r getMDMEULAMetadataResponse) error() error { return r.Err }
 
 func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	eula, err := svc.MDMGetEULAMetadata(ctx)
 	if err != nil {
-		return getMDMAppleEULAMetadataResponse{Err: err}, nil
+		return getMDMEULAMetadataResponse{Err: err}, nil
 	}
 
-	return getMDMAppleEULAMetadataResponse{MDMAppleEULA: eula}, nil
+	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
 }
 
-func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -375,18 +375,18 @@ type deleteMDMEULARequest struct {
 	Token string `url:"token"`
 }
 
-type deleteMDMAppleEULAResponse struct {
+type deleteMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleEULAResponse) error() error { return r.Err }
+func (r deleteMDMEULAResponse) error() error { return r.Err }
 
 func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteMDMEULARequest)
 	if err := svc.MDMDeleteEULA(ctx, req.Token); err != nil {
-		return deleteMDMAppleEULAResponse{Err: err}, nil
+		return deleteMDMEULAResponse{Err: err}, nil
 	}
-	return deleteMDMAppleEULAResponse{}, nil
+	return deleteMDMEULAResponse{}, nil
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {

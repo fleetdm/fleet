@@ -774,10 +774,10 @@ type Service interface {
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
-	MDMGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
 	// MDMGetEULAMetadata returns metadata about the EULA file that can
 	// be used by clients to display information.
-	MDMGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
 	// MDMCreateEULA adds a new EULA file.
 	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
 	// MDMAppleDelete EULA removes an EULA entry.

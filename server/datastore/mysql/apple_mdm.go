@@ -2663,65 +2663,6 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 	return err
 }
 
-func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-	// Currently, there can only be one EULA in the database, and we're
-	// hardcoding it's id to be 1 in order to enforce this restriction.
-	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
-	var eula fleet.MDMAppleEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get EULA metadata")
-	}
-	return &eula, nil
-}
-
-func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
-	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
-	var eula fleet.MDMAppleEULA
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get EULA bytes")
-	}
-	return &eula, nil
-}
-
-func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
-	// We're intentionally hardcoding the id to be 1 because we only want to
-	// allow one EULA.
-	stmt := `
-          INSERT INTO eulas (id, name, bytes, token)
-	  VALUES (1, ?, ?, ?)
-	`
-
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
-	if err != nil {
-		if isDuplicate(err) {
-			return ctxerr.Wrap(ctx, alreadyExists("MDMAppleEULA", eula.Token))
-		}
-		return ctxerr.Wrap(ctx, err, "create EULA")
-	}
-
-	return nil
-}
-
-func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
-	stmt := "DELETE FROM eulas WHERE token = ?"
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "delete EULA")
-	}
-
-	deleted, _ := res.RowsAffected()
-	if deleted != 1 {
-		return ctxerr.Wrap(ctx, notFound("MDMAppleEULA"))
-	}
-	return nil
-}
-
 func (ds *Datastore) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *fleet.MDMAppleSetupAssistant) (*fleet.MDMAppleSetupAssistant, error) {
 	const stmt = `
 		INSERT INTO

@@ -90,15 +90,15 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	return pkgURL.String(), nil
 }
 
-// MDMAppleEULA represents an EULA (End User License Agreement) file.
-type MDMAppleEULA struct {
+// MDMEULA represents an EULA (End User License Agreement) file.
+type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (e MDMAppleEULA) AuthzType() string {
+func (e MDMEULA) AuthzType() string {
 	return "mdm_apple"
 }
 

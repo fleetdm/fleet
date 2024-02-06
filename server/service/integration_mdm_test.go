@@ -5584,23 +5584,23 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	pdfName := "eula.pdf"
 
 	// trying to get metadata about an EULA that hasn't been uploaded yet is an error
-	metadataResp := getMDMAppleEULAMetadataResponse{}
+	metadataResp := getMDMEULAMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// trying to upload a file that is not a PDF fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 	// trying to upload an empty file fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 
 	// admin is able to upload a new EULA
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
 	// get EULA metadata
-	metadataResp = getMDMAppleEULAMetadataResponse{}
+	metadataResp = getMDMEULAMetadataResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/metadata", nil, http.StatusOK, &metadataResp)
-	require.NotEmpty(t, metadataResp.MDMAppleEULA.Token)
-	require.NotEmpty(t, metadataResp.MDMAppleEULA.CreatedAt)
-	require.Equal(t, pdfName, metadataResp.MDMAppleEULA.Name)
+	require.NotEmpty(t, metadataResp.MDMEULA.Token)
+	require.NotEmpty(t, metadataResp.MDMEULA.CreatedAt)
+	require.Equal(t, pdfName, metadataResp.MDMEULA.Name)
 	eulaToken := metadataResp.Token
 
 	// download EULA
@@ -5616,12 +5616,12 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
 
 	// trying to upload any EULA without deleting the previous one first results in an error
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
 
 	// delete EULA
-	var deleteResp deleteMDMAppleEULAResponse
+	var deleteResp deleteMDMEULAResponse
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
-	metadataResp = getMDMAppleEULAMetadataResponse{}
+	metadataResp = getMDMEULAMetadataResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
@@ -6384,7 +6384,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 }
 
 func (s *integrationMDMTestSuite) uploadEULA(
-	eula *fleet.MDMAppleEULA,
+	eula *fleet.MDMEULA,
 	expectedStatus int,
 	wantErr string,
 ) {
@@ -6826,7 +6826,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	pdfName := "eula.pdf"
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
 	res = s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
