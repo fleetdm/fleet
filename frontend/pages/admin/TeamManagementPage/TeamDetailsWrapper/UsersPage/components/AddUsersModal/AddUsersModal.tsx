@@ -1,69 +1,69 @@
 import React, { useCallback, useState } from "react";
 
-import { INewMember, INewMembersBody, ITeam } from "interfaces/team";
+import { INewTeamUser, INewTeamUsersBody, ITeam } from "interfaces/team";
 import endpoints from "utilities/endpoints";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage/components/AutocompleteDropdown";
+import AutocompleteDropdown from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/components/AutocompleteDropdown";
 import { IDropdownOption } from "interfaces/dropdownOption";
 
-const baseClass = "add-member-modal";
+const baseClass = "add-user-modal";
 
-interface IAddMemberModal {
+interface IAddUsersModal {
   team: ITeam;
-  disabledMembers: number[];
+  disabledUsers: number[];
   onCancel: () => void;
-  onSubmit: (userIds: INewMembersBody) => void;
-  onCreateNewMember: () => void;
+  onSubmit: (userIds: INewTeamUsersBody) => void;
+  onCreateNewTeamUser: () => void;
 }
 
-const AddMemberModal = ({
-  disabledMembers,
+const AddUsersModal = ({
+  disabledUsers,
   onCancel,
   onSubmit,
-  onCreateNewMember,
+  onCreateNewTeamUser,
   team,
-}: IAddMemberModal): JSX.Element => {
-  const [selectedMembers, setSelectedMembers] = useState([]);
+}: IAddUsersModal): JSX.Element => {
+  const [selectedUsers, setSelectedUsers] = useState([]);
 
   const onChangeDropdown = useCallback(
     (values) => {
-      setSelectedMembers(values);
+      setSelectedUsers(values);
     },
-    [setSelectedMembers]
+    [setSelectedUsers]
   );
 
   const onFormSubmit = useCallback(() => {
-    const newMembers: INewMember[] = selectedMembers.map(
-      (member: IDropdownOption) => {
-        return { id: member.value as number, role: "observer" };
+    const newUsers: INewTeamUser[] = selectedUsers.map(
+      (user: IDropdownOption) => {
+        return { id: user.value as number, role: "observer" };
       }
     );
-    onSubmit({ users: newMembers });
-  }, [selectedMembers, onSubmit]);
+    onSubmit({ users: newUsers });
+  }, [selectedUsers, onSubmit]);
 
   return (
-    <Modal onExit={onCancel} title={"Add members"} className={baseClass}>
+    <Modal onExit={onCancel} title={"Add users"} className={baseClass}>
       <form className={`${baseClass}__form`}>
         <div className="form-field">
-          <label className="form-field__label" htmlFor="member-autocomplete">
-            Add team members
+          <label className="form-field__label" htmlFor="user-autocomplete">
+            Grant users access to this team
           </label>
           <AutocompleteDropdown
             team={team}
-            id={"member-autocomplete"}
+            id="user-autocomplete"
             resourceUrl={endpoints.USERS}
             onChange={onChangeDropdown}
             placeholder={"Search users by name"}
-            disabledOptions={disabledMembers}
-            value={selectedMembers}
+            disabledOptions={disabledUsers}
+            value={selectedUsers}
             autoFocus
           />
         </div>
         <p>
           User not here?&nbsp;
           <Button
-            onClick={onCreateNewMember}
+            onClick={onCreateNewTeamUser}
             variant={"text-link"}
             className={"light-text"}
           >
@@ -74,12 +74,12 @@ const AddMemberModal = ({
         </p>
         <div className="modal-cta-wrap">
           <Button
-            disabled={selectedMembers.length === 0}
+            disabled={selectedUsers.length === 0}
             type="button"
             variant="brand"
             onClick={onFormSubmit}
           >
-            Add member
+            Add users
           </Button>
           <Button onClick={onCancel} variant="inverse">
             Cancel
@@ -90,4 +90,4 @@ const AddMemberModal = ({
   );
 };
 
-export default AddMemberModal;
+export default AddUsersModal;

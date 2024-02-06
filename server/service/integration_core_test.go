@@ -9784,7 +9784,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	})
 	require.NoError(t, err)
 
-	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A"})
+	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A", SyncRequest: true})
 	require.NoError(t, err)
 	h1A := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "B"})
@@ -9793,12 +9793,19 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "C"})
 	require.NoError(t, err)
 	h1C := hsr.ExecutionID
-	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D"})
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D", SyncRequest: true})
 	require.NoError(t, err)
 	h1D := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "E"})
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
+
+	// modify the timestamp h1D to simulate an script that has
+	// been pending for a long time
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		return err
+	})
 
 	cases := []struct {
 		queries   []string // alternate query name and value
@@ -9806,32 +9813,32 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			wantExecs: []string{h1A, h1B, h1C, h1D, h1E},
+			wantExecs: []string{h1B, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2"},
-			wantExecs: []string{h1A, h1B},
+			wantExecs: []string{h1B, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "1"},
-			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "2"},
-			wantExecs: []string{h1E},
+			wantExecs: nil,
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "3"},
-			wantExecs: []string{h1A, h1B, h1C},
+			wantExecs: []string{h1B, h1C, h1D},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "3", "page", "1"},
-			wantExecs: []string{h1D, h1E},
+			wantExecs: []string{h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{

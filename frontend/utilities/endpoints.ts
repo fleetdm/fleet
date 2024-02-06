@@ -133,7 +133,7 @@ export default {
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
   },
-  TEAMS_MEMBERS: (teamId: number): string => {
+  TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
