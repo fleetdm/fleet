@@ -10,6 +10,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 )
@@ -84,7 +85,11 @@ func getStoredVulnerabilities(
 	ds fleet.Datastore,
 	softwareID uint,
 ) ([]fleet.SoftwareVulnerability, error) {
-	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, softwareID, false, fleet.TeamFilter{
+		User: &fleet.User{
+			GlobalRole: ptr.String(fleet.RoleAdmin),
+		},
+	})
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,8 @@
 import React from "react";
 import { useQuery } from "react-query";
 import { RouteComponentProps } from "react-router";
+import { AxiosError } from "axios";
+import { useErrorHandler } from "react-error-boundary";
 
 import softwareAPI, {
   ISoftwareVersionResponse,
@@ -33,16 +35,24 @@ const SoftwareVersionDetailsPage = ({
   routeParams,
 }: ISoftwareTitleDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
+  const handlePageError = useErrorHandler();
 
   const {
     data: softwareVersion,
     isLoading: isSoftwareVersionLoading,
     isError: isSoftwareVersionError,
-  } = useQuery<ISoftwareVersionResponse, Error, ISoftwareVersion>(
+  } = useQuery<ISoftwareVersionResponse, AxiosError, ISoftwareVersion>(
     ["software-version", versionId],
     () => softwareAPI.getSoftwareVersion(versionId),
     {
       select: (data) => data.software,
+      retry: false,
+      refetchOnWindowFocus: false,
+      onError: (error) => {
+        if (error.status === 403) {
+          handlePageError({ status: 403 });
+        }
+      },
     }
   );
 

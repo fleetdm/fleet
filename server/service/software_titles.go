@@ -121,8 +121,6 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
-	// TODO: this is the autorization we do for GET /software, does it look right?
-	// checking with product here: https://github.com/fleetdm/fleet/issues/14674#issuecomment-1841395788
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
