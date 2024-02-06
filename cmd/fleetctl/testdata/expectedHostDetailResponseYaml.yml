@@ -32,10 +32,13 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    actions_suspended: false
     encryption_key_available: false
     enrollment_status: null
+    locked: false
     name: ""
     server_url: null
+    wiped: false
   memory: 0
   os_version: ""
   osquery_version: ""

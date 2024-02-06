@@ -42,10 +42,13 @@
 		"config_tls_refresh": 0,
 		"logger_tls_period": 0,
 		"mdm": {
+			"actions_suspended": false,
 			"encryption_key_available": false,
 			"enrollment_status": null,
+			"locked": false,
 			"name": "",
-			"server_url": null
+			"server_url": null,
+			"wiped": false
 		},
 		"team_id": null,
 		"pack_stats": null,
@@ -113,10 +116,13 @@
 		"config_tls_refresh": 0,
 		"logger_tls_period": 0,
 		"mdm": {
+			"actions_suspended": false,
 			"encryption_key_available": false,
 			"enrollment_status": null,
+			"locked": false,
 			"name": "",
-			"server_url": null
+			"server_url": null,
+			"wiped": false
 		},
 		"team_id": null,
 		"pack_stats": null,
