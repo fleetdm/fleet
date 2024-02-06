@@ -130,19 +130,19 @@ func patched(
 			continue
 		}
 
-		// An empty FixBuild is a bug in the MSRC feed, last
-		// seen around apr-2021.  Ignoring it to avoid false
-		// positive vulnerabilities.
-		if fix.FixedBuild == "" {
-			continue
-		}
+		for _, build := range fix.FixedBuilds {
+			// An empty FixBuild is a bug in the MSRC feed, last
+			// seen around apr-2021.  Ignoring it to avoid false
+			// positive vulnerabilities.
+			if build == "" {
+				continue
+			}
 
-		isGreater, err := winBuildVersionGreaterOrEqual(fix.FixedBuild, os.KernelVersion)
-		if err != nil {
-			continue
-		}
-		if isGreater {
-			return true
+			isGreater, err := winBuildVersionGreaterOrEqual(build, os.KernelVersion)
+			// Return true on errors to prevent false positives
+			if err != nil || isGreater {
+				return true
+			}
 		}
 	}
 
@@ -179,7 +179,8 @@ func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
 
 	for i := 0; i < 3; i++ {
 		if feedParts[i] != osParts[i] {
-			return false, fmt.Errorf("comparing different product versions: %s, %s", feed, os)
+			// comparing different product versions
+			return false, nil
 		}
 	}
 

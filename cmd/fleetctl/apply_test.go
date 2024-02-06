@@ -261,7 +261,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileCfgPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 	}
 
@@ -302,7 +302,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
-			CustomSettings: []string{mobileCfgPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -375,7 +375,7 @@ spec:
 			GracePeriodDays: optjson.Int{Set: true},
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{},
+			CustomSettings: []fleet.MDMProfileSpec{},
 		},
 	}
 
@@ -1094,7 +1094,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -1136,7 +1136,7 @@ spec:
 			GracePeriodDays: optjson.SetInt(0),
 		},
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		WindowsEnabledAndConfigured: true,
 	}, currentAppConfig.MDM)
@@ -1176,7 +1176,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1215,7 +1215,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1251,7 +1251,7 @@ spec:
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
 		MacOSSettings: fleet.MacOSSettings{
-			CustomSettings: []string{mobileConfigPath},
+			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileConfigPath}},
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),

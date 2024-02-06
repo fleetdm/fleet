@@ -16,11 +16,11 @@ Puppet::Functions.create_function(:"fleetdm::preassign_profile") do
     preassign_profile_response = { 'error' => '', 'resource_changed' => false }
 
     client = Puppet::Util::FleetClient.instance
-    env = closure_scope['server_facts']['environment']
+    env = closure_scope['environment']
     run_identifier = "#{closure_scope.catalog.catalog_uuid}-#{Puppet[:node_name_value]}"
 
     # initiate the pre-assignment process with fleet server
-    client_resp = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile, closure_scope['environment'])
+    client_resp = client.preassign_profile(run_identifier, host_uuid, template, group, ensure_profile, env)
     if check_error(client_resp)
       return handle_error("Error pre-assigning profile #{profile_identifier} (ensure #{ensure_profile})", client_resp['error'], template, preassign_profile_response)
     end

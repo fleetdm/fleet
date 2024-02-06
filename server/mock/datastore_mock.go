@@ -148,7 +148,7 @@ type ListUniqueHostsInLabelsFunc func(ctx context.Context, filter fleet.TeamFilt
 
 type SearchLabelsFunc func(ctx context.Context, filter fleet.TeamFilter, query string, omit ...uint) ([]*fleet.Label, error)
 
-type LabelIDsByNameFunc func(ctx context.Context, labels []string) ([]uint, error)
+type LabelIDsByNameFunc func(ctx context.Context, labels []string) (map[string]uint, error)
 
 type AsyncBatchInsertLabelMembershipFunc func(ctx context.Context, batch [][2]uint) error
 
@@ -239,6 +239,8 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error)
 
 type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
+
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
@@ -393,6 +395,12 @@ type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
 
 type MarkActivitiesAsStreamedFunc func(ctx context.Context, activityIDs []uint) error
+
+type ListHostUpcomingActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+
+type ListHostPastActivitiesFunc func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
+
+type IsExecutionPendingForHostFunc func(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
 
 type ShouldSendStatisticsFunc func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error)
 
@@ -776,11 +784,11 @@ type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles [
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
-type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) error
+type SetHostScriptExecutionResultFunc func(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error)
 
 type GetHostScriptExecutionResultFunc func(ctx context.Context, execID string) (*fleet.HostScriptResult, error)
 
-type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error)
+type ListPendingHostScriptExecutionsFunc func(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error)
 
 type NewScriptFunc func(ctx context.Context, script *fleet.Script) (*fleet.Script, error)
 
@@ -1130,6 +1138,9 @@ type DataStore struct {
 	OSVersionsFunc        OSVersionsFunc
 	OSVersionsFuncInvoked bool
 
+	OSVersionFunc        OSVersionFunc
+	OSVersionFuncInvoked bool
+
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
 
@@ -1360,6 +1371,15 @@ type DataStore struct {
 
 	MarkActivitiesAsStreamedFunc        MarkActivitiesAsStreamedFunc
 	MarkActivitiesAsStreamedFuncInvoked bool
+
+	ListHostUpcomingActivitiesFunc        ListHostUpcomingActivitiesFunc
+	ListHostUpcomingActivitiesFuncInvoked bool
+
+	ListHostPastActivitiesFunc        ListHostPastActivitiesFunc
+	ListHostPastActivitiesFuncInvoked bool
+
+	IsExecutionPendingForHostFunc        IsExecutionPendingForHostFunc
+	IsExecutionPendingForHostFuncInvoked bool
 
 	ShouldSendStatisticsFunc        ShouldSendStatisticsFunc
 	ShouldSendStatisticsFuncInvoked bool
@@ -2422,7 +2442,7 @@ func (s *DataStore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, q
 	return s.SearchLabelsFunc(ctx, filter, query, omit...)
 }
 
-func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
+func (s *DataStore) LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error) {
 	s.mu.Lock()
 	s.LabelIDsByNameFuncInvoked = true
 	s.mu.Unlock()
@@ -2742,6 +2762,13 @@ func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
+}
+
+func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+	s.mu.Lock()
+	s.OSVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.OSVersionFunc(ctx, osVersionID, teamID)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
@@ -3281,6 +3308,27 @@ func (s *DataStore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs []
 	s.MarkActivitiesAsStreamedFuncInvoked = true
 	s.mu.Unlock()
 	return s.MarkActivitiesAsStreamedFunc(ctx, activityIDs)
+}
+
+func (s *DataStore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostUpcomingActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostUpcomingActivitiesFunc(ctx, hostID, opt)
+}
+
+func (s *DataStore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	s.mu.Lock()
+	s.ListHostPastActivitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListHostPastActivitiesFunc(ctx, hostID, opt)
+}
+
+func (s *DataStore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
+	s.mu.Lock()
+	s.IsExecutionPendingForHostFuncInvoked = true
+	s.mu.Unlock()
+	return s.IsExecutionPendingForHostFunc(ctx, hostID, scriptID)
 }
 
 func (s *DataStore) ShouldSendStatistics(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
@@ -4620,7 +4668,7 @@ func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *
 	return s.NewHostScriptExecutionRequestFunc(ctx, request)
 }
 
-func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
+func (s *DataStore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.SetHostScriptExecutionResultFuncInvoked = true
 	s.mu.Unlock()
@@ -4634,11 +4682,11 @@ func (s *DataStore) GetHostScriptExecutionResult(ctx context.Context, execID str
 	return s.GetHostScriptExecutionResultFunc(ctx, execID)
 }
 
-func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*fleet.HostScriptResult, error) {
+func (s *DataStore) ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*fleet.HostScriptResult, error) {
 	s.mu.Lock()
 	s.ListPendingHostScriptExecutionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID, ignoreOlder)
+	return s.ListPendingHostScriptExecutionsFunc(ctx, hostID)
 }
 
 func (s *DataStore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {

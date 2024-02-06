@@ -2,7 +2,7 @@
 name: 💡  Feature request
 about: Propose a new feature or enhancement in Fleet.
 title: ''
-labels: '~feature fest'
+labels: '~feature fest,:product'
 assignees: ''
 
 ---

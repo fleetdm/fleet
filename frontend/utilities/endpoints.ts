@@ -1,7 +1,15 @@
 const API_VERSION = "latest";
 
 export default {
+  // activities
   ACTIVITIES: `/${API_VERSION}/fleet/activities`,
+  HOST_PAST_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities`;
+  },
+  HOST_UPCOMING_ACTIVITIES: (id: number): string => {
+    return `/${API_VERSION}/fleet/hosts/${id}/activities/upcoming`;
+  },
+
   CHANGE_PASSWORD: `/${API_VERSION}/fleet/change_password`,
   CONFIG: `/${API_VERSION}/fleet/config`,
   CONFIRM_EMAIL_CHANGE: (token: string): string => {
@@ -125,7 +133,7 @@ export default {
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
   },
-  TEAMS_MEMBERS: (teamId: number): string => {
+  TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {

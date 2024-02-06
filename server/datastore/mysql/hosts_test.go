@@ -5968,55 +5968,53 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	hosts := []*fleet.Host{
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.1.0",
+			OSVersion: "macOS 12.1.0", // os_version_id = 1
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.2.1",
+			OSVersion: "macOS 12.2.1", // os_version_id = 2
 			TeamID:    &team1.ID,
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.2.1",
+			OSVersion: "macOS 12.2.1", // os_version_id = 2
 			TeamID:    &team1.ID,
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.2.1",
+			OSVersion: "macOS 12.2.1", // os_version_id = 2
 			TeamID:    &team2.ID,
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.3.0",
+			OSVersion: "macOS 12.3.0", // os_version_id = 3
 			TeamID:    &team2.ID,
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.3.0",
+			OSVersion: "macOS 12.3.0", // os_version_id = 3
 			TeamID:    &team2.ID,
 		},
 		{
 			Platform:  "darwin",
-			OSVersion: "macOS 12.3.0",
+			OSVersion: "macOS 12.3.0", // os_version_id = 3
 			TeamID:    &team2.ID,
 		},
 		{
 			Platform:  "rhel",
-			OSVersion: "CentOS 8.0.0",
+			OSVersion: "CentOS 8.0.0", // os_version_id = 4
 		},
 		{
 			Platform:  "ubuntu",
-			OSVersion: "Ubuntu 20.4.0",
+			OSVersion: "Ubuntu 20.4.0", // os_version_id = 5
 			TeamID:    &team1.ID,
 		},
 		{
 			Platform:  "ubuntu",
-			OSVersion: "Ubuntu 20.4.0",
+			OSVersion: "Ubuntu 20.4.0", // os_version_id = 5
 			TeamID:    &team1.ID,
 		},
 	}
-
-	hostsByID := make(map[uint]*fleet.Host)
 
 	for i, host := range hosts {
 		host.DetailUpdatedAt = time.Now()
@@ -6028,15 +6026,14 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		host.UUID = strconv.Itoa(i)
 		host.Hostname = fmt.Sprintf("%d.localdomain", i)
 
-		h, err := ds.NewHost(context.Background(), host)
+		_, err := ds.NewHost(context.Background(), host)
 		require.NoError(t, err)
-		hostsByID[h.ID] = h
 	}
 
 	ctx := context.Background()
 
 	// add host operating system records
-	for _, h := range hostsByID {
+	for _, h := range hosts {
 		nv := strings.Split(h.OSVersion, " ")
 		err := ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{Name: nv[0], Version: nv[1], Platform: h.Platform, Arch: "x86_64"})
 		require.NoError(t, err)
@@ -6058,11 +6055,11 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 
 	require.True(t, time.Now().After(osVersions.CountsUpdatedAt))
 	expected := []fleet.OSVersion{
-		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
-		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel", OSVersionID: 4},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin", OSVersionID: 1},
+		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
@@ -6072,9 +6069,9 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin", OSVersionID: 1},
+		{HostsCount: 3, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
@@ -6083,35 +6080,67 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	// filter by operating system that has multiple versions
+	expected = []fleet.OSVersion{
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
+	}
+	osVersions, err = ds.OSVersions(ctx, nil, nil, ptr.String("macOS"), ptr.String("12.3.0"))
+	require.NoError(t, err)
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err := ds.OSVersion(ctx, 3, nil)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
 
 	// team 1
 	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
-		{HostsCount: 2, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
+		{HostsCount: 2, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 5, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team1.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
 
 	// team 2
 	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 1, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"},
-		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2},
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[0], osVersion)
+
+	osVersion, _, err = ds.OSVersion(ctx, 3, &team2.ID)
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
 
 	// team 3 (no hosts assigned to team)
 	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &team3.ID)
+	require.Error(t, err)
+	require.Nil(t, osVersion)
 
 	// non-existent team
 	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
@@ -6129,7 +6158,6 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 		Hostname:        fmt.Sprintf("%s.localdomain", "666"),
 	})
 	require.NoError(t, err)
-	hostsByID[h.ID] = h
 
 	err = ds.UpdateHostOperatingSystem(ctx, h.ID, fleet.OperatingSystem{
 		Name:     "macOS",
@@ -6152,11 +6180,11 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
-		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel"},
-		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu"},
-		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin"},
-		{HostsCount: 4, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin"}, // includes new arm64 host
-		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin"},
+		{HostsCount: 1, Name: "CentOS 8.0.0", NameOnly: "CentOS", Version: "8.0.0", Platform: "rhel", OSVersionID: 4},
+		{HostsCount: 2, Name: "Ubuntu 20.4.0", NameOnly: "Ubuntu", Version: "20.4.0", Platform: "ubuntu", OSVersionID: 5},
+		{HostsCount: 1, Name: "macOS 12.1.0", NameOnly: "macOS", Version: "12.1.0", Platform: "darwin", OSVersionID: 1},
+		{HostsCount: 4, Name: "macOS 12.2.1", NameOnly: "macOS", Version: "12.2.1", Platform: "darwin", OSVersionID: 2}, // includes new arm64 host
+		{HostsCount: 3, Name: "macOS 12.3.0", NameOnly: "macOS", Version: "12.3.0", Platform: "darwin", OSVersionID: 3},
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 }
@@ -6338,6 +6366,23 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           INSERT INTO host_mdm_windows_profiles (host_uuid, profile_uuid, command_uuid)
           VALUES (?, uuid(), uuid())
 	`, host.UUID)
+	require.NoError(t, err)
+
+	err = ds.NewActivity( // automatically creates the host_activities entry
+		context.Background(),
+		user1,
+		fleet.ActivityTypeRanScript{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	)
+	require.NoError(t, err)
+
+	// Update the host_mdm_actions table
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref, suspended)
+          VALUES (?, uuid(), uuid(), false)
+	`, host.ID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.

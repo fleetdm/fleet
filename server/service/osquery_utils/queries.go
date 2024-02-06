@@ -1267,6 +1267,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 		sanitizeSoftware(host, s, logger)
 
+		if shouldRemoveSoftware(host, s) {
+			continue
+		}
+
 		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
@@ -1392,6 +1396,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 			return
 		}
 	}
+}
+
+// shouldRemoveSoftware returns whether or not we should remove the given Software item from this
+// host's software list.
+func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
+	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
+	// host reporting that it has Notepad installed when this is just an app from the Windows VM
+	// under Parallels). We want to filter out those "applications" to avoid confusion.
+	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
 }
 
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
@@ -1761,7 +1775,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

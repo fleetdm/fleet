@@ -1,3 +1,4 @@
+import classnames from "classnames";
 import TooltipWrapper from "components/TooltipWrapper";
 import React from "react";
 
@@ -18,6 +19,8 @@ const AgentOptions = ({
   wrapFleetHelper,
   isChromeOS = false,
 }: IAgentOptionsProps): JSX.Element => {
+  const classNames = classnames(baseClass, "section", "osquery");
+
   let configTLSRefresh;
   let loggerTLSPeriod;
   let distributedInterval;
@@ -44,7 +47,7 @@ const AgentOptions = ({
   }
 
   return (
-    <div className={`${baseClass} section osquery col-50`}>
+    <div className={classNames}>
       {isChromeOS ? (
         <TooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
