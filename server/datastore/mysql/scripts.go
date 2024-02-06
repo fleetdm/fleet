@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/google/uuid"
@@ -97,11 +98,17 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
   WHERE
     host_id = ? AND
     exit_code IS NULL
+    -- async requests + sync requests created within the given interval
+    AND (
+      sync_request = 0
+      OR created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+    )
   ORDER BY
     created_at ASC`
 
 	var results []*fleet.HostScriptResult
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID); err != nil {
+	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, listStmt, hostID, seconds); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list pending host script executions")
 	}
 	return results, nil

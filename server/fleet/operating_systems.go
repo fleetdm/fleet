@@ -19,6 +19,8 @@ type OperatingSystem struct {
 	Platform string `json:"platform" db:"platform"`
 	// DisplayVersion is the display version of a Windows operating system, e.g. "22H2"
 	DisplayVersion string `json:"display_version" db:"display_version"`
+	// OSVersionID is a unique Name/Version combination for the operating system
+	OSVersionID uint `json:"os_version_id" db:"os_version_id"`
 }
 
 // IsWindows returns whether the OperatingSystem record references a Windows OS
