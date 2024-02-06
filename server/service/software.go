@@ -153,7 +153,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores 
 		return nil, fleet.ErrNoContext
 	}
 
-	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores, fleet.TeamFilter{
+	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores, &fleet.TeamFilter{
 		User:            vc.User,
 		IncludeObserver: true,
 	})
@@ -163,7 +163,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores 
 			// to check if the software version exists
 			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 
-			if _, err = svc.ds.SoftwareByID(ctx, id, includeCVEScores, filter); err != nil {
+			if _, err = svc.ds.SoftwareByID(ctx, id, includeCVEScores, &filter); err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
 			}
 

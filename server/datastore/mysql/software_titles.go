@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/jmoiron/sqlx"
 )
 
@@ -54,7 +55,6 @@ GROUP BY
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
-	tmFilter fleet.TeamFilter,
 ) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	if opt.ListOptions.After != "" {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("after", "not supported for software titles")
@@ -109,7 +109,21 @@ func (ds *Datastore) ListSoftwareTitles(
 	// the application logic. This is because we need to support MySQL 5.7
 	// and there's no good way to do an aggregation that builds a structure
 	// (like a JSON) object for nested arrays.
-	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(titleIDs, tmFilter, false)
+	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+		titleIDs,
+		fleet.TeamFilter{
+			TeamID: opt.TeamID,
+			// make up a user, this function only cares about
+			// returning software versions that belong to the
+			// specified opt.TeamID, and it shouldn't include any
+			// additional versions from other teams from which the
+			// calling user might belong to.
+			User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleAdmin),
+			},
+		},
+		false,
+	)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
 	}

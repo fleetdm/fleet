@@ -6326,8 +6326,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		{
 			Name:          "foo",
 			Source:        "homebrew",
-			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
-			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
+			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host in the team
+			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host in the team
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.1", Vulnerabilities: nil}, // NOTE: this only includes versions present in the team
 			},
