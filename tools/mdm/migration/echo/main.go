@@ -23,11 +23,11 @@ func main() {
 			detail = fmt.Sprintf("| BODY: %s", string(body))
 		}
 		log.Printf("%s %s %s\n", request.Method, request.URL.Path, detail)
+
+		time.Sleep(DELAY)
 		if _, err := writer.Write(nil); err != nil {
 			log.Printf("error writing response %s", err.Error())
 		}
-
-		time.Sleep(DELAY)
 	})
 
 	port := ":4648"
