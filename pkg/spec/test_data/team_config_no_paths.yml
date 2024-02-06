@@ -49,6 +49,11 @@ controls:
   windows_updates:
     deadline_days: null
     grace_period_days: null
+  macos_migration:
+    enable: false
+    mode: ""
+    webhook_url: ""
+  windows_enabled_and_configured: true
 queries:
   - name: Scheduled query stats
     description: Collect osquery performance stats directly from osquery

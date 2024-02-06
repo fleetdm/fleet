@@ -545,8 +545,14 @@ func (c *Client) ApplyGroup(
 
 		if len(tmFileContents) > 0 {
 			for tmName, profs := range tmFileContents {
-				if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
-					return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+				teamID, ok := teamIDsByName[tmName]
+				if opts.DryRun && (teamID == 0 || !ok) {
+					logfn("[+] would've applied MDM profiles for new team %s\n", tmName)
+				} else {
+					logfn("[+] applying MDM profiles for team %s\n", tmName)
+					if err := c.ApplyTeamProfiles(tmName, profs, opts); err != nil {
+						return nil, fmt.Errorf("applying custom settings for team %q: %w", tmName, err)
+					}
 				}
 			}
 		}
@@ -920,7 +926,7 @@ func (c *Client) DoGitOps(
 		teamID, ok := teamIDsByName[*config.TeamName]
 		if !ok || teamID == 0 {
 			if dryRun {
-				logFn("[+] would've created team %s and added any policies/queries\n", *config.TeamName)
+				logFn("[+] would've added any policies/queries to new team %s\n", *config.TeamName)
 				return nil
 			}
 			return fmt.Errorf("team %s not created", *config.TeamName)
