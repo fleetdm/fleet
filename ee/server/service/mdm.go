@@ -478,7 +478,7 @@ func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSee
 		Bytes: bytes,
 	}
 
-	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
+	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
@@ -490,7 +490,7 @@ func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.M
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMAppleGetEULABytes(ctx, token)
+	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
 func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
@@ -498,7 +498,7 @@ func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
 		return err
 	}
 
-	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
+	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
@@ -510,7 +510,7 @@ func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppl
 		return nil, err
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -771,7 +771,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}

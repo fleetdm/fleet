@@ -617,9 +617,12 @@ func mdmConfigurationRequiredEndpoints() []struct {
 		{"GET", "/api/latest/fleet/mdm/apple", false, false},
 		{"GET", apple_mdm.EnrollPath + "?token=test", false, false},
 		{"GET", apple_mdm.InstallerPath + "?token=test", false, false},
-		{"GET", "/api/latest/fleet/mdm/setup/eula/token", false, false},
+		{"GET", "/api/latest/fleet/mdm/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
 		{"DELETE", "/api/latest/fleet/mdm/setup/eula/token", false, false},
 		{"GET", "/api/latest/fleet/mdm/setup/eula/metadata", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/0982A979-B1C9-4BDF-B584-5A37D32A1172", false, false},
+		{"DELETE", "/api/latest/fleet/mdm/apple/setup/eula/token", false, false},
+		{"GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", false, false},
 		// TODO: this endpoint accepts multipart/form data that gets
 		// parsed before the MDM check, we need to refactor this
 		// function to return more information to the caller, or find a

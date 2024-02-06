@@ -3250,36 +3250,36 @@ func testMDMAppleEULA(t *testing.T, ds *Datastore) {
 		Bytes: []byte("contents"),
 	}
 
-	err := ds.MDMAppleInsertEULA(ctx, eula)
+	err := ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
 
 	var ae fleet.AlreadyExistsError
-	err = ds.MDMAppleInsertEULA(ctx, eula)
+	err = ds.MDMInsertEULA(ctx, eula)
 	require.ErrorAs(t, err, &ae)
 
-	gotEULA, err := ds.MDMAppleGetEULAMetadata(ctx)
+	gotEULA, err := ds.MDMGetEULAMetadata(ctx)
 	require.NoError(t, err)
 	require.NotEmpty(t, gotEULA.CreatedAt)
 	require.Equal(t, eula.Token, gotEULA.Token)
 	require.Equal(t, eula.Name, gotEULA.Name)
 
-	gotEULABytes, err := ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	gotEULABytes, err := ds.MDMGetEULABytes(ctx, eula.Token)
 	require.NoError(t, err)
 	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
 	require.Equal(t, eula.Name, gotEULABytes.Name)
 
-	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
 	require.NoError(t, err)
 
 	var nfe fleet.NotFoundError
-	_, err = ds.MDMAppleGetEULAMetadata(ctx)
+	_, err = ds.MDMGetEULAMetadata(ctx)
 	require.ErrorAs(t, err, &nfe)
-	_, err = ds.MDMAppleGetEULABytes(ctx, eula.Token)
+	_, err = ds.MDMGetEULABytes(ctx, eula.Token)
 	require.ErrorAs(t, err, &nfe)
-	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
 	require.ErrorAs(t, err, &nfe)
 
-	err = ds.MDMAppleInsertEULA(ctx, eula)
+	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
 }
 

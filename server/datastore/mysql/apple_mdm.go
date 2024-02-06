@@ -2663,7 +2663,7 @@ func bulkDeleteHostDiskEncryptionKeysDB(ctx context.Context, tx sqlx.ExtContext,
 	return err
 }
 
-func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
 	// Currently, there can only be one EULA in the database, and we're
 	// hardcoding it's id to be 1 in order to enforce this restriction.
 	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
@@ -2677,7 +2677,7 @@ func (ds *Datastore) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMApp
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
 	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
 	var eula fleet.MDMAppleEULA
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token); err != nil {
@@ -2689,7 +2689,7 @@ func (ds *Datastore) MDMAppleGetEULABytes(ctx context.Context, token string) (*f
 	return &eula, nil
 }
 
-func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMAppleEULA) error {
 	// We're intentionally hardcoding the id to be 1 because we only want to
 	// allow one EULA.
 	stmt := `
@@ -2708,7 +2708,7 @@ func (ds *Datastore) MDMAppleInsertEULA(ctx context.Context, eula *fleet.MDMAppl
 	return nil
 }
 
-func (ds *Datastore) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 	stmt := "DELETE FROM eulas WHERE token = ?"
 	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token)
 	if err != nil {
