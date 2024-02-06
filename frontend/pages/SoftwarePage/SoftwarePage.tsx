@@ -42,6 +42,10 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
     name: "OS",
     pathname: PATHS.SOFTWARE_OS,
   },
+  {
+    name: "Vulnerabilities",
+    pathname: PATHS.SOFTWARE_VULNERABILITIES,
+  },
 ];
 
 const getTabIndex = (path: string): number => {
