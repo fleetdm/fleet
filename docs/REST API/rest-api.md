@@ -4310,7 +4310,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`POST /api/v1/fleet/mdm/disk_encryption`
+`POST /api/v1/fleet/disk_encryption`
 
 ##### Default response
 
