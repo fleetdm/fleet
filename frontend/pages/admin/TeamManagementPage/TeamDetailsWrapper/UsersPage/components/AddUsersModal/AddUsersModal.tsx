@@ -63,15 +63,9 @@ const AddUsersModal = ({
         <p>
           User not here?&nbsp;
           <Button
-<<<<<<< HEAD:frontend/pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/components/AddUsersModal/AddUsersModal.tsx
             onClick={onCreateNewTeamUser}
-            variant={"text-link"}
-            className={"light-text"}
-=======
-            onClick={onCreateNewMember}
             variant="text-link"
             className="light-text"
->>>>>>> b88b0f52e (Final strings found):frontend/pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage/components/AddMemberModal/AddMemberModal.tsx
           >
             <>
               <strong>Create a user</strong>
