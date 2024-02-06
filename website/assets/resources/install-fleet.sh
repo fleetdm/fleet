@@ -2,8 +2,7 @@
 
 set -e
 
-FLEETCTL_INSTALL_DIR="./.fleetctl/"
-FLEETCTL_REPO_URL="https://raw.githubusercontent.com/fleetdm/fleet/main/tools/fleetctl-npm/package.json"
+FLEETCTL_INSTALL_DIR="${HOME}/.fleetctl/"
 FLEETCTL_BINARY_NAME="fleetctl"
 
 
@@ -17,20 +16,16 @@ done
 
 echo "Fetching the latest version of fleetctl..."
 
-# Fetch the latest version number from the GitHub repository
 
+# Fetch the latest version number from NPM
 latest_strippedVersion=$(curl -s "https://registry.npmjs.org/fleetctl/latest" | grep -o '"version": *"[^"]*"' | cut -d'"' -f4)
-echo "Latest version: $latest_strippedVersion"
-
-# if [[ $latest_strippedVersion != v* ]]; then
-#   latest_strippedVersion="v$latest_strippedVersion"
-# fi
+echo "Latest version available on NPM: $latest_strippedVersion"
 
 version_gt() {
   test "$(printf '%s\n' "$@" | sort -V | head -n 1)" != "$1";
 }
 
-# Determine OS and Architecture
+# Determine operating system (Linux or MacOS)
 OS="$(uname -s)"
 
 case "${OS}" in
@@ -39,17 +34,17 @@ case "${OS}" in
     *)          echo "Unsupported operating system: ${OS}"; exit 1;;
 esac
 
-# Function to download and extract fleetctl
+# Download the fleetctl binary and extract it into the install directory
 download_and_extract() {
     echo "Downloading fleetctl ${latest_strippedVersion} for ${OS}..."
-    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 ${FLEETCTL_BINARY_NAME}_v${latest_strippedVersion}_${OS}/${FLEETCTL_BINARY_NAME}
+    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 fleetctl_v${latest_strippedVersion}_${OS}/fleetctl
 }
 
-# Function to check if fleetctl is already installed
+# Check to see if the fleetctl binary exists in the script's install directory.
 check_installed_version() {
-    if [ -x "${FLEETCTL_INSTALL_DIR}/${FLEETCTL_BINARY_NAME}" ]; then
-        # Extract installed version and remove any 'v' prefix
-        installed_version=$("${FLEETCTL_INSTALL_DIR}/${FLEETCTL_BINARY_NAME}" -v | awk 'NR==1{print $NF}' | sed 's/^v//')
+    # If the fleetctl binary exists, we'll check the version of it using fleetctl -v.
+    if [ -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]; then
+        installed_version=$("${FLEETCTL_INSTALL_DIR}/fleetctl" -v | awk 'NR==1{print $NF}' | sed 's/^v//')
         echo "Installed version: ${installed_version}"
     else
         return 1
@@ -60,8 +55,8 @@ check_installed_version() {
 mkdir -p ${FLEETCTL_INSTALL_DIR}
 
 # Construct download URL
-# https://github.com/fleetdm/fleet/releases/download/fleet-v4.43.3/fleetctl_v4.43.3_macos.zip
-DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest_strippedVersion}/${FLEETCTL_BINARY_NAME}_v${latest_strippedVersion}_${OS}.tar.gz"
+# ex: https://github.com/fleetdm/fleet/releases/download/fleet-v4.43.3/fleetctl_v4.43.3_macos.zip
+DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest_strippedVersion}/fleetctl_v${latest_strippedVersion}_${OS}.tar.gz"
 
 
 if check_installed_version; then
@@ -71,13 +66,12 @@ if check_installed_version; then
 
         if [[ "$upgrade_choice" =~ ^[Yy](es)?$ ]]; then
             # Remove the old binary
-            rm -f "${FLEETCTL_INSTALL_DIR}/${FLEETCTL_BINARY_NAME}"
+            rm -f "${FLEETCTL_INSTALL_DIR}/fleetctl"
             echo "Removed the old version."
 
             # Download and install the new version
             download_and_extract
             echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-            detect_shell_type_and_update_profile
         else
             echo "Upgrade aborted. Keeping the current version."
         fi
@@ -85,44 +79,14 @@ if check_installed_version; then
         echo "You already have the latest version of fleetctl (${installed_version}) installed."
     fi
 else
-    # fleetctl is not present, so download and install it
+    # If there is no existing fleetctl binary, download the latest version and extract it.
     download_and_extract
     echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-    detect_shell_type_and_update_profile
 fi
 
 # Verify if the binary is executable
-if [[ ! -x "${FLEETCTL_INSTALL_DIR}/${FLEETCTL_BINARY_NAME}" ]]; then
+if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then
     echo "Failed to install or upgrade fleetctl. Please check your permissions or try again later."
     exit 1
 fi
 
-# Rest of your script...
-
-# Function to update the user's profile
-update_profile() {
-    local profile_file="$1"
-    local line_to_add="alias fleetctl=\"${FLEETCTL_INSTALL_DIR}/${FLEETCTL_BINARY_NAME}\""
-
-    if ! grep -q "${FLEETCTL_INSTALL_DIR}" "${profile_file}" ; then
-        echo "Updating ${profile_file} to include fleetctl in your PATH..."
-        echo "${line_to_add}" >> "${profile_file}"
-    else
-        echo "fleetctl installation path already in ${profile_file}"
-    fi
-}
-
-detect_shell_type_and_update_profile() {
-    # Detect the user's shell and update the corresponding profile file
-    case "${SHELL}" in
-        */bash)
-            update_profile "${HOME}/.bashrc"
-            ;;
-        */zsh)
-            update_profile "${HOME}/.zshrc"
-            ;;
-        *)
-            echo "Unsupported shell: ${SHELL}. Please manually add ${FLEETCTL_INSTALL_DIR} to your PATH."
-            ;;
-    esac
-}
