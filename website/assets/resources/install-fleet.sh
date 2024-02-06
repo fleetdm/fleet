@@ -62,26 +62,48 @@ DOWNLOAD_URL="https://github.com/fleetdm/fleet/releases/download/fleet-v${latest
 if check_installed_version; then
     if version_gt $latest_strippedVersion $installed_version; then
         # Prompt the user for an upgrade
-        read -p "A newer version of fleetctl ($latest_strippedVersion) is available. Do you want to upgrade? (y/n): " upgrade_choice
+        read -p "A newer version of fleetctl ($latest_strippedVersion) is available. Would you like to upgrade? (y/n): " upgrade_choice
 
         if [[ "$upgrade_choice" =~ ^[Yy](es)?$ ]]; then
+            # Remove the old binary
+            rm -f "${FLEETCTL_INSTALL_DIR}/fleetctl"
+            echo "Removing an older version of fleetctl."
+
+            # Download and install the new version
+            download_and_extract
+            echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
+            echo "It is reccommended that you add fleetctl to your terminal profile"
+            echo "e.g.,"
+            echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
+        else
+            echo "Upgrade aborted."
+        fi
+    else
+        # Prompt the user for an upgrade
+        read -p "You are alread yusing the latest version of fleetctl ($latest_strippedVersion) Would you like to reinstall it? (y/n): " reinstall_choice
+
+        if [[ "$reinstall_choice" =~ ^[Yy](es)?$ ]]; then
             # Remove the old binary
             rm -f "${FLEETCTL_INSTALL_DIR}/fleetctl"
             echo "Removed the old version."
 
             # Download and install the new version
             download_and_extract
-            echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
+            echo "fleetctl reinstalled successfully in ${FLEETCTL_INSTALL_DIR}"
+            echo "It is reccommended that you add fleetctl to your terminal profile"
+            echo "e.g.,"
+            echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
         else
-            echo "Upgrade aborted. Keeping the current version."
+            echo "Install aborted."
         fi
-    else
-        echo "You already have the latest version of fleetctl (${installed_version}) installed."
     fi
 else
     # If there is no existing fleetctl binary, download the latest version and extract it.
     download_and_extract
     echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
+    echo "It is reccommended that you add fleetctl to your terminal profile"
+    echo "e.g.,"
+    echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
 fi
 
 # Verify if the binary is executable
