@@ -29,12 +29,4 @@
     display: flex;
     gap: $pad-xxlarge;
   }
-
-  &__data-set {
-    font-size: $x-small;
-
-    dt {
-      font-weight: $bold;
-    }
-  }
 }
