@@ -55,6 +55,7 @@
   - Fixed a bug in `fleetctl` where `--context` and `--debug` flags were not allowed after certain commands.
   - Fixed a bug where the UUID for Windows updates profiles was missing the `"w"` prefix.
   - Fixed a UI bug on the controls page in team targeting forms.
+  - Fixed a bug where policy automations when saved were resetting automations on other pages.
 
 ## Fleet 4.43.3 (Jan 23, 2024)
 

@@ -3,26 +3,26 @@ import React from "react";
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 
-const baseClass = "remove-member-modal";
+const baseClass = "remove-user-modal";
 
 interface IDeleteTeamModalProps {
-  memberName: string;
+  userName: string;
   teamName: string;
-  isUpdatingMembers: boolean;
+  isUpdatingUsers: boolean;
   onSubmit: () => void;
   onCancel: () => void;
 }
 
-const RemoveMemberModal = ({
-  memberName,
+const RemoveUserModal = ({
+  userName,
   teamName,
-  isUpdatingMembers,
+  isUpdatingUsers,
   onSubmit,
   onCancel,
 }: IDeleteTeamModalProps): JSX.Element => {
   return (
     <Modal
-      title={"Remove team member"}
+      title={"Remove user"}
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
@@ -30,12 +30,12 @@ const RemoveMemberModal = ({
       <>
         <p>
           You are about to remove{" "}
-          <span className={`${baseClass}__name`}>{memberName}</span> from{" "}
+          <span className={`${baseClass}__name`}>{userName}</span> from{" "}
           <span className={`${baseClass}__team-name`}>{teamName}</span>.
         </p>
         <p>
-          If {memberName} is not a member of any other team, they will lose
-          access to Fleet.
+          If {userName} is not assigned to any other team, they will lose access
+          to Fleet.
         </p>
         <div className="modal-cta-wrap">
           <Button
@@ -43,7 +43,7 @@ const RemoveMemberModal = ({
             variant="alert"
             onClick={onSubmit}
             className="remove-loading"
-            isLoading={isUpdatingMembers}
+            isLoading={isUpdatingUsers}
           >
             Remove
           </Button>
@@ -56,4 +56,4 @@ const RemoveMemberModal = ({
   );
 };
 
-export default RemoveMemberModal;
+export default RemoveUserModal;

@@ -11,7 +11,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 
 
 ## Contact us
-- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-website&projects=&template=custom-request.md&title=Product%20request%C2%BB______________________) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
+- To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
   - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
 

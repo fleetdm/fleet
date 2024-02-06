@@ -147,7 +147,7 @@ const PolicyPage = ({
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId as number), // Note: Team members have access to policies through global API
+    () => globalPoliciesAPI.load(policyId as number), // Note: Team users have access to policies through global API
     {
       enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
       refetchOnWindowFocus: false,

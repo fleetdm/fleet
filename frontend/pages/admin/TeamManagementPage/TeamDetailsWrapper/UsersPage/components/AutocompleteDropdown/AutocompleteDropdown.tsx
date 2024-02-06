@@ -1,5 +1,5 @@
 /**
- * NOTE: for now this component is tied to the add member to team functionality
+ * NOTE: for now this component is tied to the add user to team functionality
  * When we need another autocomplete dropdown we should come back and refactor
  * this to be more generic.
  */
@@ -48,7 +48,7 @@ const generateOptionLabel = (user: IUser, team: ITeam): string => {
     const teamName = user.teams.find(
       (currentTeam) => currentTeam.id === team.id
     )?.name;
-    return `${user.name} - Already a member of ${teamName}`;
+    return `${user.name} - Already has access to ${teamName}`;
   }
 
   return user.name;

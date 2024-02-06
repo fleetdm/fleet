@@ -14,7 +14,10 @@ interface IPlatformTabsProps {
   defaultMacOSDeadline: string;
   defaultWindowsDeadlineDays: string;
   defaultWindowsGracePeriodDays: string;
-  onSelectAccordionItem: (platform: OSUpdatesSupportedPlatform) => void;
+  selectedPlatform: OSUpdatesSupportedPlatform;
+  onSelectPlatform: (platform: OSUpdatesSupportedPlatform) => void;
+  refetchAppConfig: () => void;
+  refetchTeamConfig: () => void;
 }
 
 const PlatformTabs = ({
@@ -23,14 +26,20 @@ const PlatformTabs = ({
   defaultMacOSVersion,
   defaultWindowsDeadlineDays,
   defaultWindowsGracePeriodDays,
-  onSelectAccordionItem,
+  selectedPlatform,
+  onSelectPlatform,
+  refetchAppConfig,
+  refetchTeamConfig,
 }: IPlatformTabsProps) => {
+  // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while a form is
+  // submitting.
   return (
     <div className={baseClass}>
       <TabsWrapper>
         <Tabs
+          defaultIndex={selectedPlatform === "darwin" ? 0 : 1}
           onSelect={(currentIndex) =>
-            onSelectAccordionItem(currentIndex === 0 ? "darwin" : "windows")
+            onSelectPlatform(currentIndex === 0 ? "darwin" : "windows")
           }
         >
           <TabList>
@@ -43,6 +52,8 @@ const PlatformTabs = ({
               defaultMinOsVersion={defaultMacOSVersion}
               defaultDeadline={defaultMacOSDeadline}
               key={currentTeamId}
+              refetchAppConfig={refetchAppConfig}
+              refetchTeamConfig={refetchTeamConfig}
             />
           </TabPanel>
           <TabPanel>
@@ -51,6 +62,8 @@ const PlatformTabs = ({
               defaultDeadlineDays={defaultWindowsDeadlineDays}
               defaultGracePeriodDays={defaultWindowsGracePeriodDays}
               key={currentTeamId}
+              refetchAppConfig={refetchAppConfig}
+              refetchTeamConfig={refetchTeamConfig}
             />
           </TabPanel>
         </Tabs>
