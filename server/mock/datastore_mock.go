@@ -240,6 +240,8 @@ type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolutio
 
 type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error)
+
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
 type CountHostsInTargetsFunc func(ctx context.Context, filter fleet.TeamFilter, targets fleet.HostTargets, now time.Time) (fleet.TargetMetrics, error)
@@ -1135,6 +1137,9 @@ type DataStore struct {
 
 	OSVersionsFunc        OSVersionsFunc
 	OSVersionsFuncInvoked bool
+
+	OSVersionFunc        OSVersionFunc
+	OSVersionFuncInvoked bool
 
 	UpdateOSVersionsFunc        UpdateOSVersionsFunc
 	UpdateOSVersionsFuncInvoked bool
@@ -2757,6 +2762,13 @@ func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *stri
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
 	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
+}
+
+func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+	s.mu.Lock()
+	s.OSVersionFuncInvoked = true
+	s.mu.Unlock()
+	return s.OSVersionFunc(ctx, osVersionID, teamID)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {

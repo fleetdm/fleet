@@ -227,9 +227,6 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// load the pending script executions for that host
 	if !appConfig.ServerSettings.ScriptsDisabled {
-		// it is important that the "ignoreOlder" parameter in this call is the
-		// same everywhere (which is here and in RunScript to check if there is
-		// already a pending script).
 		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 		if err != nil {
 			return fleet.OrbitConfig{}, err

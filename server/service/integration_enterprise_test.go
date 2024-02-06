@@ -3205,6 +3205,10 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
 
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", 1), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
+
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
@@ -4462,7 +4466,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
 
 	// an async script doesn't care about timeouts
 	now := time.Now()
@@ -4479,7 +4483,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Equal(t, "echo", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
 
 	// Disable scripts and verify that there are no Orbit notifs
 	acr := appConfigResponse{}
@@ -4649,8 +4653,28 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.False(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, "Scripts are disabled")
 
+	// create a sync execution request.
+	runSyncResp = runScriptSyncResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusRequestTimeout, &runSyncResp)
+
+	// modify the timestamp of the script to simulate an script that has
+	// been pending for a long time
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(context.Background(), "UPDATE host_script_results SET created_at = ? WHERE execution_id = ?", time.Now().Add(-24*time.Hour), runSyncResp.ExecutionID)
+		return err
+	})
+
+	// fetch the results for the timed-out script
+	scriptResultResp = getScriptResultResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/"+runSyncResp.ExecutionID, nil, http.StatusOK, &scriptResultResp)
+	require.Equal(t, host.ID, scriptResultResp.HostID)
+	require.Equal(t, "echo", scriptResultResp.ScriptContents)
+	require.Nil(t, scriptResultResp.ExitCode)
+	require.True(t, scriptResultResp.HostTimeout)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptHostTimeoutErrMsg)
+
 	// make the host "offline"
-	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now().Add(-time.Hour))
+	err = s.ds.MarkHostsSeen(context.Background(), []uint{host.ID}, time.Now().Add(-time.Hour))
 	require.NoError(t, err)
 
 	// attempt to create a sync script execution request, fails because the host
@@ -4660,7 +4684,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, fleet.RunScriptHostOfflineErrMsg)
 
 	// attempt to create an async script execution request, succeeds because script is added to queue.
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
+	s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -4725,7 +4749,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.Equal(t, "echo 'no team'", scriptResultResp.ScriptContents)
 	require.Nil(t, scriptResultResp.ExitCode)
 	require.False(t, scriptResultResp.HostTimeout)
-	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAlreadyRunningErrMsg)
+	require.Contains(t, scriptResultResp.Message, fleet.RunScriptAsyncScriptEnqueuedErrMsg)
 	require.NotNil(t, scriptResultResp.ScriptID)
 	require.Equal(t, savedNoTmScript.ID, *scriptResultResp.ScriptID)
 
@@ -6496,6 +6520,10 @@ func checkWindowsOSUpdatesProfile(t *testing.T, ds *mysql.Datastore, teamID *uin
 		require.NotEmpty(t, prof.ProfileUUID)
 		require.Contains(t, string(prof.SyncML), fmt.Sprintf(`<Data>%d</Data>`, wantSettings.DeadlineDays.Value))
 		require.Contains(t, string(prof.SyncML), fmt.Sprintf(`<Data>%d</Data>`, wantSettings.GracePeriodDays.Value))
+	}
+
+	if len(prof.ProfileUUID) > 0 {
+		require.Equal(t, byte('w'), prof.ProfileUUID[0])
 	}
 
 	return prof.ProfileUUID

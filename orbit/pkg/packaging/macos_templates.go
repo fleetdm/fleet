@@ -161,6 +161,10 @@ var macosLaunchdTemplate = template.Must(template.New("").Option("missingkey=err
 		<key>ORBIT_DISABLE_KEYSTORE</key>
 		<string>true</string>
 		{{- end }}
+		{{- if .OsqueryDB }}
+		<key>ORBIT_OSQUERY_DB</key>
+		<string>{{ .OsqueryDB }}</string>
+		{{- end }}
 	</dict>
 	<key>KeepAlive</key>
 	<true/>

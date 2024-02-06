@@ -302,6 +302,7 @@ type Datastore interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////

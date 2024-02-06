@@ -385,6 +385,8 @@ type Service interface {
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool) (*OSVersions, int, *PaginationMetadata, error)
+	// OSVersion returns an operating system and associated host counts
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -536,7 +538,8 @@ type Service interface {
 
 	// ListHostUpcomingActivities lists the upcoming activities for the specified
 	// host. Those are activities that are queued or scheduled to run on the host
-	// but haven't run yet.
+	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
+	// activities.
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
 	// ListHostPastActivities lists the activities that have already happened for the specified host.
