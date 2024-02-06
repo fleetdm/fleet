@@ -19,6 +19,7 @@ func TestVulnerabilities(t *testing.T) {
 	}{
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
+		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
 	}
 
 	for _, c := range cases {
@@ -152,7 +153,21 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 
 	list, _, err := ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
-	require.Len(t, list, 5)
+	require.Len(t, list, 6)
+
+	checkCounts := map[string]int{
+		"CVE-2020-1234": 20,
+		"CVE-2020-1235": 19,
+		"CVE-2020-1236": 18,
+		"CVE-2020-1238": 16,
+		"CVE-2020-1239": 15,
+		// No team host counts for CVE-2020-1240
+		"CVE-2020-1241": 14,
+	}
+
+	for _, vuln := range list {
+		require.Equal(t, checkCounts[vuln.CVE], int(vuln.HostCount), vuln.CVE)
+	}
 }
 
 func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithMetadata {
