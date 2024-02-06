@@ -203,7 +203,7 @@ func mdmLockCommand() *cli.Command {
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusForbidden {
-						return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
+						return errors.New("Permission denied. You don't have permission to unlock this host.")
 					}
 				}
 				return err
@@ -212,6 +212,10 @@ func mdmLockCommand() *cli.Command {
 			if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
 				host.MDM.Name != fleet.WellKnownMDMFleet {
 				return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
+			}
+
+			if err := client.MDMLockHost(hostIdent); err != nil {
+				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
 			fmt.Fprintf(c.App.Writer, `
