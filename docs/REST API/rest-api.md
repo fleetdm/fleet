@@ -4299,7 +4299,7 @@ solely on the response status code returned by this endpoint.
 
 _Available in Fleet Premium_
 
-`POST /api/v1/fleet/mdm/disk_encryption`
+`POST /api/v1/fleet/disk_encryption`
 
 #### Parameters
 
