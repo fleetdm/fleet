@@ -330,6 +330,9 @@ func (s HostLockWipeStatus) IsPendingWipe() bool {
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
+	// this state is regardless of pending unlock/wipe (it reports whether the
+	// host is locked *now*).
+
 	if s.HostFleetPlatform == "darwin" {
 		// locked if an MDM command was sent and succeeded
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
@@ -338,4 +341,10 @@ func (s HostLockWipeStatus) IsLocked() bool {
 	// locked if a script was sent and succeeded
 	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
 		*s.LockScript.ExitCode == 0
+}
+
+func (s HostLockWipeStatus) IsUnlocked() bool {
+	// this state is regardless of pending lock/unlock/wipe (it reports whether
+	// the host is unlocked *now*).
+	return !s.IsLocked()
 }
