@@ -25,6 +25,7 @@ func mdmCommand() *cli.Command {
 		},
 		Subcommands: []*cli.Command{
 			mdmRunCommand(),
+			mdmLockCommand(),
 		},
 	}
 }
@@ -159,6 +160,72 @@ Copy and run this command to see results:
 
 fleetctl get mdm-command-results --id=%v
 `, result.CommandUUID)
+
+			return nil
+		},
+	}
+}
+
+func mdmLockCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "lock",
+		Aliases: []string{"lock"},
+		Usage:   "Lock a host when it needs to be returned to your organization.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by identifier, that you want to lock.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
+			}
+
+			// print an error if MDM is not configured
+			if err := client.CheckAnyMDMEnabled(); err != nil {
+				return err
+			}
+
+			hostIdent := c.String("host")
+
+			if len(hostIdent) == 0 {
+				return errors.New("No host targeted. Please provide --host.")
+			}
+
+			host, err := client.HostByIdentifier(hostIdent)
+			if err != nil {
+				var nfe service.NotFoundErr
+				if errors.As(err, &nfe) {
+					return errors.New("The host doesn't exist. Please provide a valid host identifier.")
+				}
+
+				var sce kithttp.StatusCoder
+				if errors.As(err, &sce) {
+					if sce.StatusCode() == http.StatusForbidden {
+						return fmt.Errorf("You don't have permission to run an MDM command on one or more specified hosts: %w", err)
+					}
+				}
+				return err
+			}
+
+			if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
+				host.MDM.Name != fleet.WellKnownMDMFleet {
+				return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
+			}
+
+			fmt.Fprintf(c.App.Writer, `
+The host will lock when it comes online.  
+
+Copy and run this command to see lock status:
+
+fleetctl get host %s
+
+When you're ready to unlock the host, copy and run this command: 
+
+fleetctl mdm unlock --host=%s
+
+`, hostIdent, hostIdent)
 
 			return nil
 		},
