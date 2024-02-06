@@ -159,9 +159,8 @@ func isOSVulnerable(
 				continue
 			}
 
-			// skip if the product version number is different
+			// skip if the product version number does not match
 			// ie. 10.0.22000.X vs 10.0.22631.X
-			// this is a bug in the MSRC feed
 			if isProductVersionMismatch(feedParts, osParts) {
 				continue
 			}
