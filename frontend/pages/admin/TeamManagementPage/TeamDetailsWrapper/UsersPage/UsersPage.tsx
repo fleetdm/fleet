@@ -18,7 +18,6 @@ import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
@@ -26,9 +25,7 @@ import {
   NewUserType,
 } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
-// import AddMemberModal from "./components/AddMemberModal";
-// import RemoveMemberModal from "./components/RemoveMemberModal";
-import EmptyMembersTable from "./components/EmptyMembersTable";
+import EmptyMembersTable from "./components/EmptyUsersTable";
 import AddUsersModal from "./components/AddUsersModal/AddUsersModal";
 import RemoveUserModal from "./components/RemoveUserModal/RemoveUserModal";
 
@@ -373,46 +370,6 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     () => generateColumnConfigs(onActionSelection),
     [onActionSelection]
   );
-
-  // const emptyState = () => {
-  //   const emptyUsers: IEmptyTableProps = {
-  //     graphicName: "empty-users",
-  //     header: "No users on this team",
-  //     info: (
-  //       <>
-  //         <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still
-  //         access this team.
-  //       </>
-  //     ),
-  //   };
-  //   if (searchString !== "") {
-  //     delete emptyUsers.graphicName;
-  //     emptyUsers.header = "We couldn’t find any users.";
-  //     emptyUsers.info =
-  //       "Expecting to see users? Try again in a few seconds as the system catches up.";
-  //   } else if (isGlobalAdmin) {
-  //     emptyUsers.primaryButton = (
-  //       <Button
-  //         variant="brand"
-  //         className={`${noUsersClass}__create-button`}
-  //         onClick={toggleAddUserModal}
-  //       >
-  //         Add users
-  //       </Button>
-  //     );
-  //   } else if (isTeamAdmin) {
-  //     emptyUsers.primaryButton = (
-  //       <Button
-  //         variant="brand"
-  //         className={`${noUsersClass}__create-button`}
-  //         onClick={toggleCreateUserModal}
-  //       >
-  //         Create user
-  //       </Button>
-  //     );
-  //   }
-  //   return emptyUsers;
-  // };
 
   if (!isRouteOk) {
     return <Spinner />;
