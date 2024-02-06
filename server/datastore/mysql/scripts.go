@@ -116,8 +116,8 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 
 func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
 	const getStmt = `
-		SELECT 
-		  1 
+		SELECT
+		  1
 		FROM
 		  host_script_results
 		WHERE
@@ -484,4 +484,8 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	panic("unimplemented")
 }
