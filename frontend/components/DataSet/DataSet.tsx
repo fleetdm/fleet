@@ -3,7 +3,7 @@ import React from "react";
 const baseClass = "data-set";
 
 interface IDataSetProps {
-  title: string;
+  title: React.ReactNode;
   value: React.ReactNode;
 }
 
