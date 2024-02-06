@@ -9,6 +9,9 @@ metadata:
   name: fleet
   namespace: {{ .Release.Namespace }}
 spec:
+  {{- if .Values.gke.ingress.useGKEIngress }}
+  type: NodePort
+  {{- end }}
   selector:
     app: fleet
     chart: fleet
@@ -17,6 +20,8 @@ spec:
   ports:
   - name: fleet
     port: {{ .Values.fleet.listenPort }}
-  {{- if .Values.gke.ingress.useGKEIngress }}
-  type: NodePort
-  {{- end }}
+    {{- if .Values.gke.ingress.useGKEIngress }}
+    {{- if .Values.gke.ingress.nodePort }}
+    nodePort: {{ .Values.gke.ingress.nodePort }}
+    {{- end }}
+    {{- end }}
