@@ -927,4 +927,8 @@ type Service interface {
 	// BatchSetScripts replaces the scripts for a specified team or for
 	// hosts with no team.
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
+
+	// Script-based methods (at least for some platforms, MDM-based for others)
+	LockHost(ctx context.Context, hostID uint) error
+	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 }
