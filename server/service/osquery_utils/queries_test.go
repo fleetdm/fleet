@@ -1747,3 +1747,30 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		}
 	}
 }
+
+func TestShouldRemoveSoftware(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+		s    *fleet.Software
+		h    *fleet.Host
+	}{
+		{
+			name: "parallels windows software on MacOS host",
+			want: true,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.parallels.winapp.notepad", Name: "Notepad.app"},
+		},
+		{
+			name: "regular macos software",
+			want: false,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.apple.dock", Name: "Dock.app"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
+	}
+}

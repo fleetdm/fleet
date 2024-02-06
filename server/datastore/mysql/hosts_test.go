@@ -6378,6 +6378,13 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 	)
 	require.NoError(t, err)
 
+	// Update the host_mdm_actions table
+	_, err = ds.writer(context.Background()).Exec(`
+          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref, suspended)
+          VALUES (?, uuid(), uuid(), false)
+	`, host.ID)
+	require.NoError(t, err)
+
 	// Check there's an entry for the host in all the associated tables.
 	for _, hostRef := range hostRefs {
 		var ok bool
