@@ -7,8 +7,8 @@ import {
 const DEFAULT_VULNERABILITY: IVulnerability = {
   cve: "CVE-2022-30190",
   created_at: "2022-06-01T00:15:00Z",
-  host_count: 1234,
-  host_count_updated_at: "2023-12-20T15:23:57Z",
+  hosts_count: 1234,
+  hosts_count_updated_at: "2023-12-20T15:23:57Z",
   details_link: "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
   cvss_score: 7.8, // Available in Fleet Premium
   epss_probability: 0.9729, // Available in Fleet Premium
