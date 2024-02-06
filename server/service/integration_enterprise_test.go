@@ -6820,7 +6820,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 				// Get a global software version
 				var getSoftwareResp getSoftwareResponse
-				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
 
 				// Get a global software vesion using the deprecated endpoint
 				getSoftwareResp = getSoftwareResponse{}
