@@ -845,17 +845,21 @@ func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
 		return []*fleet.HostScriptDetail{{HostID: hostID, ScriptID: 1337, Name: "some-script.sh"}}, nil, nil
 	}
 
-	for _, tt := range []struct {
+	type testCase struct {
 		platform  string
 		supported bool
-	}{
+	}
+
+	testCases := []testCase{
 		{"darwin", true},
-		{"ubuntu", false},
-		{"centos", false},
-		{"rhel", false},
-		{"debian", false},
 		{"windows", true},
-	} {
+		// {"chrome", false}, // TODO: confirm expected behavior for chrome
+	}
+	for _, os := range fleet.HostLinuxOSs {
+		testCases = append(testCases, testCase{os, true})
+	}
+
+	for _, tt := range testCases {
 		t.Run(tt.platform, func(t *testing.T) {
 			ds.GetHostScriptDetailsFuncInvoked = false
 			ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
