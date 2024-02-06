@@ -867,6 +867,8 @@ func (c *Client) DoGitOps(
 	for i, script := range config.Controls.Scripts {
 		scripts[i] = *script.Path
 	}
+	var mdmAppConfig map[string]interface{}
+	var team map[string]interface{}
 	if config.TeamName == nil {
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
@@ -875,18 +877,12 @@ func (c *Client) DoGitOps(
 		if _, ok := group.AppConfig.(map[string]interface{})["mdm"]; !ok {
 			group.AppConfig.(map[string]interface{})["mdm"] = map[string]interface{}{}
 		}
-		mdmAppConfig := group.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
-		mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
-		mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
-		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+		mdmAppConfig = group.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
 		mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
-		mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
-		mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
 		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
-		mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 	} else {
-		team := map[string]interface{}{}
+		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
 		team["agent_options"] = config.AgentOptions
 		if hostExpirySettings, ok := config.TeamSettings["host_expiry_settings"]; ok {
@@ -898,27 +894,16 @@ func (c *Client) DoGitOps(
 		team["scripts"] = scripts
 		team["secrets"] = config.TeamSettings["secrets"]
 		team["mdm"] = map[string]interface{}{}
-		if macOSSettings, ok := config.TeamSettings["macos_settings"]; ok {
-			team["mdm"].(map[string]interface{})["macos_settings"] = macOSSettings
-		}
-		if windowsSettings, ok := config.TeamSettings["windows_settings"]; ok {
-			team["mdm"].(map[string]interface{})["windows_settings"] = windowsSettings
-		}
-		if macOSSetup, ok := config.TeamSettings["macos_setup"]; ok {
-			team["mdm"].(map[string]interface{})["macos_setup"] = macOSSetup
-		}
-		if macOSMigration, ok := config.TeamSettings["macos_migration"]; ok {
-			team["mdm"].(map[string]interface{})["macos_migration"] = macOSMigration
-		}
-		if windowsUpdates, ok := config.TeamSettings["windows_updates"]; ok {
-			team["mdm"].(map[string]interface{})["windows_updates"] = windowsUpdates
-		}
-		if windowsEnabledAndConfigured, ok := config.TeamSettings["windows_enabled_and_configured"]; ok {
-			team["mdm"].(map[string]interface{})["windows_enabled_and_configured"] = windowsEnabledAndConfigured
-		}
-		if enableDiskEncryption, ok := config.TeamSettings["enable_disk_encryption"]; ok {
-			team["mdm"].(map[string]interface{})["enable_disk_encryption"] = enableDiskEncryption
-		}
+		mdmAppConfig = team["mdm"].(map[string]interface{})
+	}
+	// Common controls settings between org and team settings
+	mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
+	mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
+	mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+	mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
+	mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+	mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+	if config.TeamName != nil {
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
 			return fmt.Errorf("error marshalling team spec: %w", err)

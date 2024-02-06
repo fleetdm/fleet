@@ -29,16 +29,37 @@ org_settings:
 `,
 }
 
+var teamLevelOptions = map[string]string{
+	"controls":      "controls:",
+	"queries":       "queries:",
+	"policies":      "policies:",
+	"agent_options": "agent_options:",
+	"name":          "name: TeamName",
+	"team_settings": `
+team_settings:
+  secrets:
+`,
+}
+
 func TestValidGitOpsYaml(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		filePath string
+		isTeam   bool
 	}{
 		"global_config_no_paths": {
 			filePath: "test_data/global_config_no_paths.yml",
 		},
 		"global_config_with_paths": {
 			filePath: "test_data/global_config.yml",
+		},
+		"team_config_no_paths": {
+			filePath: "test_data/team_config_no_paths.yml",
+			isTeam:   true,
+		},
+		"team_config_with_paths": {
+			filePath: "test_data/team_config.yml",
+			isTeam:   true,
 		},
 	}
 
@@ -53,29 +74,43 @@ func TestValidGitOpsYaml(t *testing.T) {
 				gitops, err := GitOpsFromBytes(dat, "./test_data")
 				require.NoError(t, err)
 
-				// Check org settings
-				serverSettings, ok := gitops.OrgSettings["server_settings"]
-				assert.True(t, ok, "server_settings not found")
-				assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
-				assert.Contains(t, gitops.OrgSettings, "org_info")
-				assert.Contains(t, gitops.OrgSettings, "smtp_settings")
-				assert.Contains(t, gitops.OrgSettings, "sso_settings")
-				assert.Contains(t, gitops.OrgSettings, "integrations")
-				assert.Contains(t, gitops.OrgSettings, "mdm")
-				assert.Contains(t, gitops.OrgSettings, "webhook_settings")
-				assert.Contains(t, gitops.OrgSettings, "fleet_desktop")
-				assert.Contains(t, gitops.OrgSettings, "host_expiry_settings")
-				assert.Contains(t, gitops.OrgSettings, "features")
-				assert.Contains(t, gitops.OrgSettings, "vulnerability_settings")
-				assert.Contains(t, gitops.OrgSettings, "secrets")
-				secrets, ok := gitops.OrgSettings["secrets"]
-				assert.True(t, ok, "secrets not found")
-				require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
-				assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
-				assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+				if test.isTeam {
+					// Check team settings
+					assert.Equal(t, "Team1", *gitops.TeamName)
+					assert.Contains(t, gitops.TeamSettings, "webhook_settings")
+					assert.Contains(t, gitops.TeamSettings, "host_expiry_settings")
+					assert.Contains(t, gitops.TeamSettings, "features")
+					assert.Contains(t, gitops.TeamSettings, "secrets")
+					secrets, ok := gitops.TeamSettings["secrets"]
+					assert.True(t, ok, "secrets not found")
+					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
+					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
+					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+				} else {
+					// Check org settings
+					serverSettings, ok := gitops.OrgSettings["server_settings"]
+					assert.True(t, ok, "server_settings not found")
+					assert.Equal(t, "https://fleet.example.com", serverSettings.(map[string]interface{})["server_url"])
+					assert.Contains(t, gitops.OrgSettings, "org_info")
+					assert.Contains(t, gitops.OrgSettings, "smtp_settings")
+					assert.Contains(t, gitops.OrgSettings, "sso_settings")
+					assert.Contains(t, gitops.OrgSettings, "integrations")
+					assert.Contains(t, gitops.OrgSettings, "mdm")
+					assert.Contains(t, gitops.OrgSettings, "webhook_settings")
+					assert.Contains(t, gitops.OrgSettings, "fleet_desktop")
+					assert.Contains(t, gitops.OrgSettings, "host_expiry_settings")
+					assert.Contains(t, gitops.OrgSettings, "features")
+					assert.Contains(t, gitops.OrgSettings, "vulnerability_settings")
+					assert.Contains(t, gitops.OrgSettings, "secrets")
+					secrets, ok := gitops.OrgSettings["secrets"]
+					assert.True(t, ok, "secrets not found")
+					require.Len(t, secrets.([]*fleet.EnrollSecret), 2)
+					assert.Equal(t, "SampleSecret123", secrets.([]*fleet.EnrollSecret)[0].Secret)
+					assert.Equal(t, "ABC", secrets.([]*fleet.EnrollSecret)[1].Secret)
+				}
 
 				// Check controls
-				_, ok = gitops.Controls.MacOSSettings.(map[string]interface{})
+				_, ok := gitops.Controls.MacOSSettings.(map[string]interface{})
 				assert.True(t, ok, "macos_settings not found")
 				_, ok = gitops.Controls.WindowsSettings.(map[string]interface{})
 				assert.True(t, ok, "windows_settings not found")
@@ -117,7 +152,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 
 func TestDuplicatePolicyNames(t *testing.T) {
 	t.Parallel()
-	config := getBaseConfig([]string{"policies"})
+	config := getGlobalConfig([]string{"policies"})
 	config += `
 policies:
   - name: My policy
@@ -133,7 +168,7 @@ policies:
 
 func TestDuplicateQueryNames(t *testing.T) {
 	t.Parallel()
-	config := getBaseConfig([]string{"queries"})
+	config := getGlobalConfig([]string{"queries"})
 	config += `
 queries:
 - name: orbit_info
@@ -159,7 +194,7 @@ queries:
 
 func TestUnicodeQueryNames(t *testing.T) {
 	t.Parallel()
-	config := getBaseConfig([]string{"queries"})
+	config := getGlobalConfig([]string{"queries"})
 	config += `
 queries:
 - name: 😊 orbit_info
@@ -175,103 +210,208 @@ queries:
 	assert.ErrorContains(t, err, "query name must be in ASCII")
 }
 
+func TestUnicodeTeamName(t *testing.T) {
+	t.Parallel()
+	config := getTeamConfig([]string{"name"})
+	config += `name: 😊 TeamName`
+	_, err := GitOpsFromBytes([]byte(config), "")
+	assert.ErrorContains(t, err, "team name must be in ASCII")
+}
+
+func TestMixingGlobalAndTeamConfig(t *testing.T) {
+	t.Parallel()
+
+	// Mixing org_settings and team name
+	config := getGlobalConfig(nil)
+	config += "name: TeamName\n"
+	_, err := GitOpsFromBytes([]byte(config), "")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+
+	// Mixing org_settings and team_settings
+	config = getGlobalConfig(nil)
+	config += "team_settings:\n  secrets: []\n"
+	_, err = GitOpsFromBytes([]byte(config), "")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+
+	// Mixing org_settings and team name and team_settings
+	config = getGlobalConfig(nil)
+	config += "name: TeamName\n"
+	config += "team_settings:\n  secrets: []\n"
+	_, err = GitOpsFromBytes([]byte(config), "")
+	assert.ErrorContains(t, err, "'org_settings' cannot be used with 'name' or 'team_settings'")
+
+}
+
 func TestInvalidGitOpsYaml(t *testing.T) {
 	t.Parallel()
+
+	// Bad YAML
 	_, err := GitOpsFromBytes([]byte("bad:\nbad"), "")
 	assert.ErrorContains(t, err, "failed to unmarshal")
 
-	// Invalid org_settings
-	config := getBaseConfig([]string{"org_settings"})
-	config += "org_settings:\n  path: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal org_settings")
+	for _, name := range []string{"global", "team"} {
+		t.Run(
+			name, func(t *testing.T) {
+				isTeam := name == "team"
+				getConfig := getGlobalConfig
+				if isTeam {
+					getConfig = getTeamConfig
+				}
 
-	// Invalid org_settings in a separate file
-	tmpFile, err := os.CreateTemp(t.TempDir(), "*org_settings.yml")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString("[2]")
-	require.NoError(t, err)
-	config = getBaseConfig([]string{"org_settings"})
-	config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal org settings file")
+				if isTeam {
+					// Invalid top level key
+					config := getConfig(nil)
+					config += "unknown_key:\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "unknown top-level field")
 
-	// Invalid secrets 1
-	config = getBaseConfig([]string{"org_settings"})
-	config += "org_settings:\n  secrets: bad\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "must be a list of secret items")
+					// Invalid team name
+					config = getConfig([]string{"name"})
+					config += "name: [2]\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "failed to unmarshal name")
 
-	// Invalid secrets 2
-	config = getBaseConfig([]string{"org_settings"})
-	config += "org_settings:\n  secrets: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "must have a 'secret' key")
+					// Missing team name
+					config = getConfig([]string{"name"})
+					config += "name:\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "'name' is required")
 
-	// Invalid agent_options
-	config = getBaseConfig([]string{"agent_options"})
-	config += "agent_options:\n  path: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal agent_options")
+					// Invalid team_settings
+					config = getConfig([]string{"team_settings"})
+					config += "team_settings:\n  path: [2]\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "failed to unmarshal team_settings")
 
-	// Invalid org_settings in a separate file
-	tmpFile, err = os.CreateTemp(t.TempDir(), "*agent_options.yml")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString("[2]")
-	require.NoError(t, err)
-	config = getBaseConfig([]string{"agent_options"})
-	config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal agent options file")
+					// Invalid team_settings in a separate file
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*team_settings.yml")
+					require.NoError(t, err)
+					_, err = tmpFile.WriteString("[2]")
+					require.NoError(t, err)
+					config = getConfig([]string{"team_settings"})
+					config += fmt.Sprintf("%s:\n  path: %s\n", "team_settings", tmpFile.Name())
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "failed to unmarshal team settings file")
 
-	// Invalid controls
-	config = getBaseConfig([]string{"controls"})
-	config += "controls:\n  path: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal controls")
+					// Invalid secrets 1
+					config = getConfig([]string{"team_settings"})
+					config += "team_settings:\n  secrets: bad\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "must be a list of secret items")
 
-	// Invalid controls in a separate file
-	tmpFile, err = os.CreateTemp(t.TempDir(), "*controls.yml")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString("[2]")
-	require.NoError(t, err)
-	config = getBaseConfig([]string{"controls"})
-	config += fmt.Sprintf("%s:\n  path: %s\n", "controls", tmpFile.Name())
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal controls file")
+					// Invalid secrets 2
+					config = getConfig([]string{"team_settings"})
+					config += "team_settings:\n  secrets: [2]\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "must have a 'secret' key")
 
-	// Invalid policies
-	config = getBaseConfig([]string{"policies"})
-	config += "policies:\n  path: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal policies")
+					// Missing secrets
+					config = getConfig([]string{"team_settings"})
+					config += "team_settings:\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "'team_settings.secrets' is required")
+				} else {
+					// Invalid org_settings
+					config := getConfig([]string{"org_settings"})
+					config += "org_settings:\n  path: [2]\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "failed to unmarshal org_settings")
 
-	// Invalid policies in a separate file
-	tmpFile, err = os.CreateTemp(t.TempDir(), "*policies.yml")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString("[2]")
-	require.NoError(t, err)
-	config = getBaseConfig([]string{"policies"})
-	config += fmt.Sprintf("%s:\n  - path: %s\n", "policies", tmpFile.Name())
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal policies file")
+					// Invalid org_settings in a separate file
+					tmpFile, err := os.CreateTemp(t.TempDir(), "*org_settings.yml")
+					require.NoError(t, err)
+					_, err = tmpFile.WriteString("[2]")
+					require.NoError(t, err)
+					config = getConfig([]string{"org_settings"})
+					config += fmt.Sprintf("%s:\n  path: %s\n", "org_settings", tmpFile.Name())
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "failed to unmarshal org settings file")
 
-	// Invalid queries
-	config = getBaseConfig([]string{"queries"})
-	config += "queries:\n  path: [2]\n"
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal queries")
+					// Invalid secrets 1
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: bad\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "must be a list of secret items")
 
-	// Invalid policies in a separate file
-	tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
-	require.NoError(t, err)
-	_, err = tmpFile.WriteString("[2]")
-	require.NoError(t, err)
-	config = getBaseConfig([]string{"queries"})
-	config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
-	_, err = GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "failed to unmarshal queries file")
+					// Invalid secrets 2
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n  secrets: [2]\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "must have a 'secret' key")
 
+					// Missing secrets
+					config = getConfig([]string{"org_settings"})
+					config += "org_settings:\n"
+					_, err = GitOpsFromBytes([]byte(config), "")
+					assert.ErrorContains(t, err, "'org_settings.secrets' is required")
+				}
+
+				// Invalid agent_options
+				config := getConfig([]string{"agent_options"})
+				config += "agent_options:\n  path: [2]\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal agent_options")
+
+				// Invalid agent_options in a separate file
+				tmpFile, err := os.CreateTemp(t.TempDir(), "*agent_options.yml")
+				require.NoError(t, err)
+				_, err = tmpFile.WriteString("[2]")
+				require.NoError(t, err)
+				config = getConfig([]string{"agent_options"})
+				config += fmt.Sprintf("%s:\n  path: %s\n", "agent_options", tmpFile.Name())
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal agent options file")
+
+				// Invalid controls
+				config = getConfig([]string{"controls"})
+				config += "controls:\n  path: [2]\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal controls")
+
+				// Invalid controls in a separate file
+				tmpFile, err = os.CreateTemp(t.TempDir(), "*controls.yml")
+				require.NoError(t, err)
+				_, err = tmpFile.WriteString("[2]")
+				require.NoError(t, err)
+				config = getConfig([]string{"controls"})
+				config += fmt.Sprintf("%s:\n  path: %s\n", "controls", tmpFile.Name())
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal controls file")
+
+				// Invalid policies
+				config = getConfig([]string{"policies"})
+				config += "policies:\n  path: [2]\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal policies")
+
+				// Invalid policies in a separate file
+				tmpFile, err = os.CreateTemp(t.TempDir(), "*policies.yml")
+				require.NoError(t, err)
+				_, err = tmpFile.WriteString("[2]")
+				require.NoError(t, err)
+				config = getConfig([]string{"policies"})
+				config += fmt.Sprintf("%s:\n  - path: %s\n", "policies", tmpFile.Name())
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal policies file")
+
+				// Invalid queries
+				config = getConfig([]string{"queries"})
+				config += "queries:\n  path: [2]\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal queries")
+
+				// Invalid policies in a separate file
+				tmpFile, err = os.CreateTemp(t.TempDir(), "*queries.yml")
+				require.NoError(t, err)
+				_, err = tmpFile.WriteString("[2]")
+				require.NoError(t, err)
+				config = getConfig([]string{"queries"})
+				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "failed to unmarshal queries file")
+			},
+		)
+	}
 }
 
 func TestTopLevelGitOpsValidation(t *testing.T) {
@@ -279,10 +419,16 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 	tests := map[string]struct {
 		optsToExclude []string
 		shouldPass    bool
+		isTeam        bool
 	}{
 		"all_present_global": {
 			optsToExclude: []string{},
 			shouldPass:    true,
+		},
+		"all_present_team": {
+			optsToExclude: []string{},
+			shouldPass:    true,
+			isTeam:        true,
 		},
 		"missing_all": {
 			optsToExclude: []string{"controls", "queries", "policies", "agent_options", "org_settings"},
@@ -302,11 +448,24 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 		"missing_org_settings": {
 			optsToExclude: []string{"org_settings"},
 		},
+		"missing_name": {
+			optsToExclude: []string{"name"},
+			isTeam:        true,
+		},
+		"missing_team_settings": {
+			optsToExclude: []string{"team_settings"},
+			isTeam:        true,
+		},
 	}
 	for name, test := range tests {
 		t.Run(
 			name, func(t *testing.T) {
-				config := getBaseConfig(test.optsToExclude)
+				var config string
+				if test.isTeam {
+					config = getTeamConfig(test.optsToExclude)
+				} else {
+					config = getGlobalConfig(test.optsToExclude)
+				}
 				_, err := GitOpsFromBytes([]byte(config), "")
 				if test.shouldPass {
 					assert.NoError(t, err)
@@ -322,10 +481,16 @@ func TestGitOpsPaths(t *testing.T) {
 	t.Parallel()
 	tests := map[string]struct {
 		isArray    bool
+		isTeam     bool
 		goodConfig string
 	}{
 		"org_settings": {
 			isArray:    false,
+			goodConfig: "secrets: []\n",
+		},
+		"team_settings": {
+			isArray:    false,
+			isTeam:     true,
 			goodConfig: "secrets: []\n",
 		},
 		"controls": {
@@ -353,12 +518,17 @@ func TestGitOpsPaths(t *testing.T) {
 			name, func(t *testing.T) {
 				t.Parallel()
 
+				getConfig := getGlobalConfig
+				if test.isTeam {
+					getConfig = getTeamConfig
+				}
+
 				// Test an absolute top level path
 				tmpFile, err := os.CreateTemp(t.TempDir(), "*good.yml")
 				require.NoError(t, err)
 				_, err = tmpFile.WriteString(test.goodConfig)
 				require.NoError(t, err)
-				config := getBaseConfig([]string{name})
+				config := getConfig([]string{name})
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: %s\n", name, tmpFile.Name())
 				} else {
@@ -368,7 +538,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Test a relative top level path
-				config = getBaseConfig([]string{name})
+				config = getConfig([]string{name})
 				dir, file := filepath.Split(tmpFile.Name())
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: ./%s\n", name, file)
@@ -379,7 +549,7 @@ func TestGitOpsPaths(t *testing.T) {
 				assert.NoError(t, err)
 
 				// Test a bad path
-				config = getBaseConfig([]string{name})
+				config = getConfig([]string{name})
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: ./%s\n", name, "doesNotExist.yml")
 				} else {
@@ -393,7 +563,7 @@ func TestGitOpsPaths(t *testing.T) {
 				require.NoError(t, err)
 				_, err = tmpFileBad.WriteString("bad:\nbad")
 				require.NoError(t, err)
-				config = getBaseConfig([]string{name})
+				config = getConfig([]string{name})
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: %s\n", name, tmpFileBad.Name())
 				} else {
@@ -411,7 +581,7 @@ func TestGitOpsPaths(t *testing.T) {
 					_, err = tmpFileBad.WriteString(fmt.Sprintf("path: %s\n", tmpFile.Name()))
 				}
 				require.NoError(t, err)
-				config = getBaseConfig([]string{name})
+				config = getConfig([]string{name})
 				dir, file = filepath.Split(tmpFileBad.Name())
 				if test.isArray {
 					config += fmt.Sprintf("%s:\n  - path: ./%s\n", name, file)
@@ -425,9 +595,17 @@ func TestGitOpsPaths(t *testing.T) {
 	}
 }
 
-func getBaseConfig(optsToExclude []string) string {
+func getGlobalConfig(optsToExclude []string) string {
+	return getBaseConfig(topLevelOptions, optsToExclude)
+}
+
+func getTeamConfig(optsToExclude []string) string {
+	return getBaseConfig(teamLevelOptions, optsToExclude)
+}
+
+func getBaseConfig(options map[string]string, optsToExclude []string) string {
 	var config string
-	for key, value := range topLevelOptions {
+	for key, value := range options {
 		if !slices.Contains(optsToExclude, key) {
 			config += value + "\n"
 		}

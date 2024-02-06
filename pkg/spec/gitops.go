@@ -107,6 +107,9 @@ func parseName(raw json.RawMessage, result *GitOps, errors []string) []string {
 	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal name: %v", err))
 	}
+	if result.TeamName == nil || *result.TeamName == "" {
+		return append(errors, "team 'name' is required")
+	}
 	if !isASCII(*result.TeamName) {
 		errors = append(errors, fmt.Sprintf("team name must be in ASCII: %s", *result.TeamName))
 	}
