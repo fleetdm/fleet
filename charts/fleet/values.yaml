@@ -191,6 +191,7 @@ gke:
   # The GKE Ingress requires a few changes that other ingress controllers don't
   ingress:
     useManagedCertificate: false
+    useGKEIngress: false
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
 
