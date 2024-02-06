@@ -192,6 +192,8 @@ gke:
   ingress:
     useManagedCertificate: false
     useGKEIngress: false
+    # 0 to allow the nodeport to be automatically selected, otherwise allowed range (30000-32767)
+    nodePort: 0
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
 
