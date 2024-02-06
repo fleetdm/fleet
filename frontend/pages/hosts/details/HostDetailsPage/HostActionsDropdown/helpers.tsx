@@ -71,6 +71,7 @@ interface IHostActionConfigOptions {
   isSandboxMode: boolean;
   isLocking: boolean;
   isWiping: boolean;
+  isUnlocking: boolean;
   isLocked: boolean;
   isWiped: boolean;
 }
@@ -286,6 +287,7 @@ const setOptionsAsDisabled = (
     isSandboxMode,
     isLocking,
     isWiping,
+    isUnlocking,
     isLocked,
     isWiped,
   }: IHostActionConfigOptions
@@ -318,6 +320,18 @@ const setOptionsAsDisabled = (
           option.value === "lock" ||
           option.value === "wipe"
       )
+    );
+  }
+  if (isLocked || isWiped) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter(
+        (option) => option.value === "query" || option.value === "mdmOff"
+      )
+    );
+  }
+  if (isUnlocking) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "unlock")
     );
   }
 

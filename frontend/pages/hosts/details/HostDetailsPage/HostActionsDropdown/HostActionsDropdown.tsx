@@ -68,7 +68,8 @@ const HostActionsDropdown = ({
     // TODO: get these values
     isLocking: false,
     isWiping: false,
-    isLocked: true,
+    isUnlocking: false,
+    isLocked: false,
     isWiped: false,
   });
 
