@@ -7,7 +7,7 @@ import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { IApiError } from "interfaces/errors";
-import { INewMembersBody, ITeam } from "interfaces/team";
+import { INewTeamUsersBody, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
 import PATHS from "router/paths";
@@ -21,6 +21,7 @@ import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
+import CustomLink from "components/CustomLink";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
@@ -28,19 +29,19 @@ import {
   NewUserType,
 } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
-import AddMemberModal from "./components/AddMemberModal";
-import RemoveMemberModal from "./components/RemoveMemberModal";
+import AddUsersModal from "./components/AddUsersModal/AddUsersModal";
+import RemoveUserModal from "./components/RemoveUserModal/RemoveUserModal";
 
 import {
   generateColumnConfigs,
   generateDataSet,
-  IMembersTableData,
-} from "./MembersPageTableConfig";
+  ITeamUsersTableData,
+} from "./UsersPageTableConfig";
 
-const baseClass = "members";
-const noMembersClass = "no-members";
+const baseClass = "team-users";
+const noUsersClass = "no-team-users";
 
-const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
+const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { config, currentUser, isGlobalAdmin, isPremiumTier } = useContext(
     AppContext
@@ -63,11 +64,11 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const sesConfigured = config?.email?.backend === "ses" || false;
   const canUseSso = config?.sso_settings?.enable_sso || false;
 
-  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
-  const [showRemoveMemberModal, setShowRemoveMemberModal] = useState(false);
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [showRemoveUserModal, setShowRemoveUserModal] = useState(false);
   const [showEditUserModal, setShowEditUserModal] = useState(false);
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
-  const [isUpdatingMembers, setIsUpdatingMembers] = useState(false);
+  const [isUpdatingUsers, setIsUpdatingUsers] = useState(false);
   const [userEditing, setUserEditing] = useState<IUser>();
   const [searchString, setSearchString] = useState("");
   const [createUserErrors, setCreateUserErrors] = useState<IUserFormErrors>(
@@ -76,37 +77,33 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const [editUserErrors, setEditUserErrors] = useState<IUserFormErrors>(
     DEFAULT_CREATE_USER_ERRORS
   );
-  const [memberIds, setMemberIds] = useState<number[]>([]);
 
   const toggleAddUserModal = useCallback(() => {
-    setShowAddMemberModal(!showAddMemberModal);
-  }, [showAddMemberModal, setShowAddMemberModal]);
+    setShowAddUserModal(!showAddUserModal);
+  }, [showAddUserModal, setShowAddUserModal]);
 
-  const toggleRemoveMemberModal = useCallback(
+  const toggleRemoveUserModal = useCallback(
     (user?: IUser) => {
-      setShowRemoveMemberModal(!showRemoveMemberModal);
+      setShowRemoveUserModal(!showRemoveUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
     },
-    [showRemoveMemberModal, setShowRemoveMemberModal, setUserEditing]
+    [showRemoveUserModal, setShowRemoveUserModal, setUserEditing]
   );
 
   // API CALLS
 
   const {
-    data: members,
-    isLoading: isLoadingMembers,
-    error: loadingMembersError,
+    data: teamUsers,
+    isLoading: isLoadingUsers,
+    error: loadingUsersError,
     refetch: refetchUsers,
-  } = useQuery<IUser[], Error, IMembersTableData[]>(
+  } = useQuery<IUser[], Error, ITeamUsersTableData[]>(
     ["users", teamIdForApi, searchString],
     () =>
       usersAPI.loadAll({ teamId: teamIdForApi, globalFilter: searchString }),
     {
       enabled: isRouteOk && !!teamIdForApi,
       select: (data: IUser[]) => generateDataSet(teamIdForApi || 0, data), // Note: `enabled` condition ensures that teamIdForApi will be defined here but TypeScript can't infer type assertion
-      onSuccess: (data) => {
-        setMemberIds(data.map((member) => member.id));
-      },
     }
   );
 
@@ -130,7 +127,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
 
   // TOGGLE MODALS
 
-  const toggleEditMemberModal = useCallback(
+  const toggleEditUserModal = useCallback(
     (user?: IUser) => {
       setShowEditUserModal(!showEditUserModal);
       user ? setUserEditing(user) : setUserEditing(undefined);
@@ -139,22 +136,22 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     [showEditUserModal, setShowEditUserModal, setUserEditing]
   );
 
-  const toggleCreateMemberModal = useCallback(() => {
+  const toggleCreateUserModal = useCallback(() => {
     setShowCreateUserModal(!showCreateUserModal);
-    setShowAddMemberModal(false);
-  }, [showCreateUserModal, setShowCreateUserModal, setShowAddMemberModal]);
+    setShowAddUserModal(false);
+  }, [showCreateUserModal, setShowCreateUserModal, setShowAddUserModal]);
 
   // FUNCTIONS
 
-  const onRemoveMemberSubmit = useCallback(() => {
+  const onRemoveUserSubmit = useCallback(() => {
     const removedUsers = { users: [{ id: userEditing?.id }] };
-    setIsUpdatingMembers(true);
+    setIsUpdatingUsers(true);
     teamsAPI
-      .removeMembers(teamIdForApi, removedUsers)
+      .removeUsers(teamIdForApi, removedUsers)
       .then(() => {
         renderFlash(
           "success",
-          `Successfully removed ${userEditing?.name || "member"}`
+          `Successfully removed ${userEditing?.name || "user"}`
         );
         // If user removes self from team, redirect to home
         if (currentUser && currentUser.id === removedUsers.users[0].id) {
@@ -162,11 +159,11 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         }
       })
       .catch(() =>
-        renderFlash("error", "Unable to remove members. Please try again.")
+        renderFlash("error", "Unable to remove users. Please try again.")
       )
       .finally(() => {
-        setIsUpdatingMembers(false);
-        toggleRemoveMemberModal();
+        setIsUpdatingUsers(false);
+        toggleRemoveUserModal();
         refetchUsers();
       });
   }, [
@@ -175,25 +172,25 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     teamIdForApi,
     renderFlash,
     currentUser,
-    toggleRemoveMemberModal,
+    toggleRemoveUserModal,
     refetchUsers,
   ]);
 
-  const onAddMemberSubmit = useCallback(
-    (newMembers: INewMembersBody) => {
+  const onAddUserSubmit = useCallback(
+    (newUsers: INewTeamUsersBody) => {
       teamsAPI
-        .addMembers(currentTeamDetails?.id, newMembers)
+        .addUsers(currentTeamDetails?.id, newUsers)
         .then(() => {
-          const count = newMembers.users.length;
+          const count = newUsers.users.length;
           renderFlash(
             "success",
-            `${count} ${
-              count === 1 ? "member" : "members"
-            } successfully added to ${currentTeamDetails?.name}.`
+            `${count} ${count === 1 ? "user" : "users"} successfully added to ${
+              currentTeamDetails?.name
+            }.`
           );
         })
         .catch(() =>
-          renderFlash("error", "Could not add members. Please try again.")
+          renderFlash("error", "Could not add users. Please try again.")
         )
         .finally(() => {
           toggleAddUserModal();
@@ -209,8 +206,8 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     ]
   );
 
-  const onCreateMemberSubmit = (formData: IFormData) => {
-    setIsUpdatingMembers(true);
+  const onCreateUserSubmit = (formData: IFormData) => {
+    setIsUpdatingUsers(true);
 
     if (formData.newUserType === NewUserType.AdminInvited) {
       const requestData = {
@@ -228,7 +225,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             `An invitation email was sent from ${config?.smtp_settings.sender_address} to ${formData.email}.`
           );
           refetchUsers();
-          toggleCreateMemberModal();
+          toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
           if (
@@ -251,7 +248,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsUpdatingMembers(false);
+          setIsUpdatingUsers(false);
         });
     } else {
       const requestData = {
@@ -264,7 +261,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
         .then(() => {
           renderFlash("success", `Successfully created ${requestData.name}.`);
           refetchUsers();
-          toggleCreateMemberModal();
+          toggleCreateUserModal();
         })
         .catch((userErrors: { data: IApiError }) => {
           if (userErrors.data.errors?.[0].reason.includes("Duplicate")) {
@@ -288,19 +285,19 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           }
         })
         .finally(() => {
-          setIsUpdatingMembers(false);
+          setIsUpdatingUsers(false);
         });
     }
   };
 
-  const onEditMemberSubmit = useCallback(
+  const onEditUserSubmit = useCallback(
     (formData: IFormData) => {
       const updatedAttrs: IUpdateUserFormData = userManagementHelpers.generateUpdateData(
         userEditing as IUser,
         formData
       );
 
-      setIsUpdatingMembers(true);
+      setIsUpdatingUsers(true);
 
       const userName = userEditing?.name;
 
@@ -310,7 +307,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           .then(() => {
             renderFlash(
               "success",
-              `Successfully edited ${userName || "member"}.`
+              `Successfully edited ${userName || "user"}.`
             );
 
             if (
@@ -329,7 +326,7 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             } else {
               refetchUsers();
             }
-            toggleEditMemberModal();
+            toggleEditUserModal();
           })
           .catch((userErrors: { data: IApiError }) => {
             if (userErrors.data.errors[0].reason.includes("already exists")) {
@@ -339,19 +336,19 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${userName || "member"}. Please try again.`
+                `Could not edit ${userName || "user"}. Please try again.`
               );
             }
           })
           .finally(() => {
-            setIsUpdatingMembers(false);
+            setIsUpdatingUsers(false);
           });
     },
     [
       userEditing,
       renderFlash,
       currentUser,
-      toggleEditMemberModal,
+      toggleEditUserModal,
       teamIdForApi,
       refetchUsers,
     ]
@@ -360,49 +357,53 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   const onActionSelection = (action: string, user: IUser): void => {
     switch (action) {
       case "edit":
-        toggleEditMemberModal(user);
+        toggleEditUserModal(user);
         break;
       case "remove":
-        toggleRemoveMemberModal(user);
+        toggleRemoveUserModal(user);
         break;
       default:
     }
   };
 
   const emptyState = () => {
-    const emptyMembers: IEmptyTableProps = {
-      graphicName: "empty-members",
-      header: "This team doesn't have any members yet.",
-      info:
-        "Expecting to see new team members listed here? Try again in a few seconds as the system catches up.",
+    const emptyUsers: IEmptyTableProps = {
+      graphicName: "empty-users",
+      header: "No users on this team",
+      info: (
+        <>
+          <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still
+          access this team.
+        </>
+      ),
     };
     if (searchString !== "") {
-      delete emptyMembers.graphicName;
-      emptyMembers.header = "We couldn’t find any members.";
-      emptyMembers.info =
-        "Expecting to see members? Try again in a few seconds as the system catches up.";
+      delete emptyUsers.graphicName;
+      emptyUsers.header = "We couldn’t find any users.";
+      emptyUsers.info =
+        "Expecting to see users? Try again in a few seconds as the system catches up.";
     } else if (isGlobalAdmin) {
-      emptyMembers.primaryButton = (
+      emptyUsers.primaryButton = (
         <Button
           variant="brand"
-          className={`${noMembersClass}__create-button`}
+          className={`${noUsersClass}__create-button`}
           onClick={toggleAddUserModal}
         >
-          Add member
+          Add users
         </Button>
       );
     } else if (isTeamAdmin) {
-      emptyMembers.primaryButton = (
+      emptyUsers.primaryButton = (
         <Button
           variant="brand"
-          className={`${noMembersClass}__create-button`}
-          onClick={toggleCreateMemberModal}
+          className={`${noUsersClass}__create-button`}
+          onClick={toggleCreateUserModal}
         >
           Create user
         </Button>
       );
     }
-    return emptyMembers;
+    return emptyUsers;
   };
 
   if (!isRouteOk) {
@@ -410,37 +411,38 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
   }
 
   const columnConfigs = generateColumnConfigs(onActionSelection);
+  const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
 
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__page-description`}>
-        Users can either be a member of team(s) or a global user.{" "}
+        Manage users with access to this team.{" "}
         {isGlobalAdmin && (
           <Link to={PATHS.ADMIN_USERS}>
             Manage users with global access here
           </Link>
         )}
       </p>
-      {loadingMembersError ||
+      {loadingUsersError ||
       loadingTeamsError ||
-      (!currentTeamDetails && !isLoadingTeams && !isLoadingMembers) ? (
+      (!currentTeamDetails && !isLoadingTeams && !isLoadingUsers) ? (
         <TableDataError />
       ) : (
         <TableContainer
-          resultsTitle={"members"}
+          resultsTitle={"users"}
           columnConfigs={columnConfigs}
-          data={members || []}
-          isLoading={isLoadingMembers}
+          data={teamUsers || []}
+          isLoading={isLoadingUsers}
           defaultSortHeader={"name"}
           defaultSortDirection={"asc"}
           actionButton={{
-            name: isGlobalAdmin ? "add member" : "create user",
-            buttonText: isGlobalAdmin ? "Add member" : "Create user",
+            name: isGlobalAdmin ? "add user" : "create user",
+            buttonText: isGlobalAdmin ? "Add users" : "Create users",
             variant: "brand",
             onActionButtonClick: isGlobalAdmin
               ? toggleAddUserModal
-              : toggleCreateMemberModal,
-            hideButton: memberIds.length === 0 && searchString === "",
+              : toggleCreateUserModal,
+            hideButton: userIds.length === 0 && searchString === "",
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
@@ -454,23 +456,23 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           }
           showMarkAllPages={false}
           isAllPagesSelected={false}
-          searchable={memberIds.length > 0 || searchString !== ""}
+          searchable={userIds.length > 0 || searchString !== ""}
         />
       )}
-      {showAddMemberModal && currentTeamDetails ? (
-        <AddMemberModal
+      {showAddUserModal && currentTeamDetails ? (
+        <AddUsersModal
           team={currentTeamDetails}
-          disabledMembers={memberIds}
+          disabledUsers={userIds}
           onCancel={toggleAddUserModal}
-          onSubmit={onAddMemberSubmit}
-          onCreateNewMember={toggleCreateMemberModal}
+          onSubmit={onAddUserSubmit}
+          onCreateNewTeamUser={toggleCreateUserModal}
         />
       ) : null}
       {showEditUserModal && (
         <EditUserModal
           editUserErrors={editUserErrors}
-          onCancel={toggleEditMemberModal}
-          onSubmit={onEditMemberSubmit}
+          onCancel={toggleEditUserModal}
+          onSubmit={onEditUserSubmit}
           defaultName={userEditing?.name}
           defaultEmail={userEditing?.email}
           defaultGlobalRole={userEditing?.global_role || null}
@@ -484,15 +486,15 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           isSsoEnabled={userEditing?.sso_enabled}
           isModifiedByGlobalAdmin={isGlobalAdmin}
           currentTeam={currentTeamDetails}
-          isUpdatingUsers={isUpdatingMembers}
+          isUpdatingUsers={isUpdatingUsers}
           isApiOnly={userEditing?.api_only || false}
         />
       )}
       {showCreateUserModal && currentTeamDetails && (
         <CreateUserModal
           createUserErrors={createUserErrors}
-          onCancel={toggleCreateMemberModal}
-          onSubmit={onCreateMemberSubmit}
+          onCancel={toggleCreateUserModal}
+          onSubmit={onCreateUserSubmit}
           defaultGlobalRole={null}
           defaultTeamRole={"observer"}
           defaultTeams={[
@@ -505,20 +507,20 @@ const MembersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           canUseSso={canUseSso}
           currentTeam={currentTeamDetails}
           isModifiedByGlobalAdmin={isGlobalAdmin}
-          isUpdatingUsers={isUpdatingMembers}
+          isUpdatingUsers={isUpdatingUsers}
         />
       )}
-      {showRemoveMemberModal && currentTeamDetails && (
-        <RemoveMemberModal
-          memberName={userEditing?.name || ""}
+      {showRemoveUserModal && currentTeamDetails && (
+        <RemoveUserModal
+          userName={userEditing?.name || ""}
           teamName={currentTeamDetails.name}
-          isUpdatingMembers={isUpdatingMembers}
-          onCancel={toggleRemoveMemberModal}
-          onSubmit={onRemoveMemberSubmit}
+          isUpdatingUsers={isUpdatingUsers}
+          onCancel={toggleRemoveUserModal}
+          onSubmit={onRemoveUserSubmit}
         />
       )}
     </div>
   );
 };
 
-export default MembersPage;
+export default UsersPage;

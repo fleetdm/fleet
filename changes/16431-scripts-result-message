@@ -1,0 +1,1 @@
+- Fixes issue where an inaccurate message was returned after running an async (queued) script.
