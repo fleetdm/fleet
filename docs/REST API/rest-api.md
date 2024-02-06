@@ -7619,21 +7619,25 @@ Retrieve details about a vulnerability and its affected software and OS versions
   "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
   "resolved_in_version": "", // Available in Fleet Premium
   "os_versions" : [
-    "os_version_id": 5,
-    "host_count": 5,
-    "name": "Microsoft Windows 11 Enterprise 22H2 10.0.22621.2715",
-    "name_only": "Microsoft Windows 11 Enterprise 22H2",
-    "version": "10.0.22621.2715",
-    "platform": "windows"
+    {
+      "os_version_id": 5,
+      "host_count": 5,
+      "name": "Microsoft Windows 11 Enterprise 22H2 10.0.22621.2715",
+      "name_only": "Microsoft Windows 11 Enterprise 22H2",
+      "version": "10.0.22621.2715",
+      "platform": "windows"
+    }
   ],
   "software": [
-    "id": 2363,
-    "name": "Docker Desktop",
-    "version": "4.9.1",
-    "source": "programs",
-    "browser": "",
-    "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-    "host_count": 50,
+    {
+      "id": 2363,
+      "name": "Docker Desktop",
+      "version": "4.9.1",
+      "source": "programs",
+      "browser": "",
+      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+      "host_count": 50
+    }
   ]
 }
 ```
