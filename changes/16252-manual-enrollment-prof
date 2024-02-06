@@ -1,2 +1,0 @@
-- Adds a new endpoint `GET /api/v1/fleet/mdm/manual_enrollment_profile` that returns the Apple MDM manual
-  enrollment profile for the organization.

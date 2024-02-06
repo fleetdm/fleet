@@ -1,3 +1,0 @@
-Teams can configure their own host expiry setting. If global host expiry is enabled, teams cannot disable host expiry, but they can set a longer (or shorter) expiry time (in days).
-- Added `host_expiry_settings` to team spec, which can be used via fleetctl apply.
-- Added `host_expiry_settings` to PATH /fleet/teams/:id endpoint.

@@ -62,7 +62,7 @@ export interface ILoadHostsOptions {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   munkiIssueId?: number;
@@ -204,6 +204,7 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -250,7 +251,7 @@ export default {
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     device_mapping,
@@ -272,6 +273,7 @@ export default {
       order_direction: sortParams.order_direction,
       status,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -287,7 +289,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         diskEncryptionStatus,

@@ -88,7 +88,7 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
@@ -116,7 +116,7 @@ SELECT
 	identifier,
 	checksum,
 	created_at,
-	updated_at
+	uploaded_at
 FROM (
 	SELECT
 		profile_uuid,
@@ -126,7 +126,7 @@ FROM (
 		identifier,
 		checksum,
 		created_at,
-		updated_at
+		uploaded_at
 	FROM
 		mdm_apple_configuration_profiles
 	WHERE
@@ -143,7 +143,7 @@ FROM (
 		'' as identifier,
 		'' as checksum,
 		created_at,
-		updated_at
+		uploaded_at
 	FROM
 		mdm_windows_configuration_profiles
 	WHERE
@@ -589,7 +589,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 SELECT
 	name,
 	syncml AS raw_profile,
-	mwcp.updated_at AS earliest_install_date,
+	mwcp.uploaded_at AS earliest_install_date,
 	0 AS count_profile_labels,
 	0 AS count_host_labels
 FROM
@@ -607,7 +607,7 @@ WHERE
 	SELECT
 		name,
 		syncml AS raw_profile,
-		mwcp.updated_at AS earliest_install_date,
+		mwcp.uploaded_at AS earliest_install_date,
 		COUNT(*) AS count_profile_labels,
 		COUNT(lm.label_id) AS count_host_labels
 	FROM
@@ -622,7 +622,7 @@ WHERE
 	HAVING
 		count_profile_labels > 0
 		AND count_host_labels = count_profile_labels
-    
+
   `
 
 	var profiles []*fleet.ExpectedMDMProfile
@@ -652,7 +652,7 @@ FROM
 	JOIN (
 		SELECT
 			checksum,
-			min(updated_at) AS earliest_install_date
+			min(uploaded_at) AS earliest_install_date
 		FROM
 			mdm_apple_configuration_profiles
 		GROUP BY
@@ -678,7 +678,7 @@ WHERE
 		JOIN (
 			SELECT
 				checksum,
-				min(updated_at) AS earliest_install_date
+				min(uploaded_at) AS earliest_install_date
 			FROM
 				mdm_apple_configuration_profiles
 			GROUP BY

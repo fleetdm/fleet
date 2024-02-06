@@ -34,7 +34,10 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Description = q.Description
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
 		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
 	)
 	switch {
@@ -50,6 +53,18 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		return nil, ctxerr.Wrap(ctx, err, "getting last id after inserting policy")
 	}
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
+}
+
+func policiesChecksumComputedColumn() string {
+	// concatenate with separator \x00
+	return ` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				COALESCE(team_id, ''),
+				name
+			)
+		)
+	) `
 }
 
 func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
@@ -520,7 +535,10 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Description = q.Description
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
 		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical)
 	switch {
 	case err == nil:
@@ -567,7 +585,8 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query := `
+		query := fmt.Sprintf(
+			`
 		INSERT INTO policies (
 			name,
 			query,
@@ -576,8 +595,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution,
 			team_id,
 			platforms,
-			critical
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?)
+			critical,
+			checksum
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			name = VALUES(name),
 			query = VALUES(query),
@@ -586,7 +606,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
 			critical = VALUES(critical)
-		`
+		`, policiesChecksumComputedColumn(),
+		)
 		for _, spec := range specs {
 
 			// Validate that the team is not being changed
