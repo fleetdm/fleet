@@ -285,3 +285,57 @@ type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
 }
+
+type HostLockWipeStatus struct {
+	// HostFleetPlatform is the fleet-normalized platform of the host, i.e. the
+	// result of host.FleetPlatform().
+	HostFleetPlatform string
+
+	// macOS hosts use an MDM command to lock
+	LockMDMCommand       *MDMCommand
+	LockMDMCommandResult *MDMCommandResult
+
+	// windows and linux hosts use a script to lock
+	LockScript *HostScriptResult
+
+	// macOS hosts must manually unlock using a secret PIN
+	UnlockPIN string
+	// windows and linux hosts use a script to unlock
+	UnlockScript *HostScriptResult
+
+	// TODO: add wipe status when implementing the Wipe story.
+}
+
+func (s HostLockWipeStatus) IsPendingLock() bool {
+	if s.HostFleetPlatform == "darwin" {
+		// pending lock if an MDM command is queued but no result received yet
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
+	}
+	// pending lock if script execution request is queued but no result yet
+	return s.LockScript != nil && s.LockScript.ExitCode == nil
+}
+
+func (s HostLockWipeStatus) IsPendingUnlock() bool {
+	if s.HostFleetPlatform == "darwin" {
+		// pending unlock if a PIN is set
+		return s.UnlockPIN != ""
+	}
+	// pending unlock if script execution request is queued but no result yet
+	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
+}
+
+func (s HostLockWipeStatus) IsPendingWipe() bool {
+	// TODO(mna): implement when addressing Wipe story, for now wipe is never pending
+	return false
+}
+
+func (s HostLockWipeStatus) IsLocked() bool {
+	if s.HostFleetPlatform == "darwin" {
+		// locked if an MDM command was sent and succeeded
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	}
+	// locked if a script was sent and succeeded
+	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
+		*s.LockScript.ExitCode == 0
+}
