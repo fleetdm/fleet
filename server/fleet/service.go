@@ -769,19 +769,19 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// MDMGetEULABytes returns the contents of the EULA that matches
 	// the given token.
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
-	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
+	MDMGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
 	// MDMAppleGetEULABytes returns metadata about the EULA file that can
 	// be used by clients to display information.
-	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
-	// MDMAppleCreateEULA adds a new EULA file.
-	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	MDMGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
+	// MDMCreateEULA adds a new EULA file.
+	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMAppleDeleteEULA(ctx context.Context, token string) error
+	MDMDeleteEULA(ctx context.Context, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
