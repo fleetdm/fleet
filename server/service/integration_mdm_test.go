@@ -5761,6 +5761,8 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	require.NotNil(t, h.RefetchCriticalQueriesUntil)
 	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
 
+	require.NoError(t, s.ds.UpdateHostRefetchCriticalQueriesUntil(context.Background(), h.ID, nil))
+
 	// bad token
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)
 	require.False(t, webhookCalled)
