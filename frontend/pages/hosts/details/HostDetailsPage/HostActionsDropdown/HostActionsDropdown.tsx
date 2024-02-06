@@ -65,6 +65,8 @@ const HostActionsDropdown = ({
     isMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
+    isLocking: true,
+    isWiping: true,
   });
 
   // No options to render. Exit early

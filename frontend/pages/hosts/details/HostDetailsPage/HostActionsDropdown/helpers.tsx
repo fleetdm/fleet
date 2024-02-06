@@ -32,6 +32,16 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Lock",
+    value: "lock",
+    disabled: false,
+  },
+  {
+    label: "Wipe",
+    value: "wipe",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -54,6 +64,8 @@ interface IHostActionConfigOptions {
   isMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
+  isLocking: boolean;
+  isWiping: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -77,6 +89,71 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
+  );
+};
+
+const canLockHost = ({
+  isPremiumTier,
+  hostPlatform,
+  isMdmEnabledAndConfigured,
+  isEnrolledInMdm,
+  isFleetMdm,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+}: IHostActionConfigOptions) => {
+  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const canLockDarwin =
+    hostPlatform === "darwin" &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  return (
+    isPremiumTier &&
+    (hostPlatform === "windows" || hostPlatform === "linux" || canLockDarwin) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver)
+  );
+};
+
+const canWipeHost = ({
+  isPremiumTier,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isFleetMdm,
+  isEnrolledInMdm,
+  isMdmEnabledAndConfigured,
+  hostPlatform,
+}: IHostActionConfigOptions) => {
+  // macOS and Windows hosts have the same conditions and can be wiped if they
+  // are enrolled in MDM and the MDM is enabled.
+  const canWipeMacOrWindows =
+    (hostPlatform === "darwin" || hostPlatform === "windows") &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  return (
+    isPremiumTier &&
+    (hostPlatform === "linux" || canWipeMacOrWindows) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver)
   );
 };
 
@@ -141,6 +218,21 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
+  if (!canLockHost(config)) {
+    options = options.filter((option) => option.value !== "lock");
+  }
+
+  config = {
+    ...config,
+    hostPlatform: "darwin",
+    isFleetMdm: true,
+    isEnrolledInMdm: true,
+    isMdmEnabledAndConfigured: true,
+  };
+  if (!canWipeHost(config)) {
+    options = options.filter((option) => option.value !== "wipe");
+  }
+
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
   // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options. For
   // example, "Query" is implicitly included by default because there is no equivalent `canQuery`
@@ -152,7 +244,9 @@ const filterOutOptions = (
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
   isHostOnline: boolean,
-  isSandboxMode: boolean
+  isSandboxMode: boolean,
+  isLocking: boolean,
+  isWiping: boolean
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
@@ -171,6 +265,11 @@ const setOptionsAsDisabled = (
   if (isSandboxMode) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "transfer")
+    );
+  }
+  if (isLocking || isWiping) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter((option) => option.value === "lock")
     );
   }
 
@@ -194,7 +293,9 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
   options = setOptionsAsDisabled(
     options,
     config.isHostOnline,
-    config.isSandboxMode
+    config.isSandboxMode,
+    config.isLocking,
+    config.isWiping
   );
 
   if (config.isSandboxMode) {
