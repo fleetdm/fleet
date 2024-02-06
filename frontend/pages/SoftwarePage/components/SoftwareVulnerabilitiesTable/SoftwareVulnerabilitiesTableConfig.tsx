@@ -74,17 +74,14 @@ const generateTableConfig = (
       accessor: "cve",
       disableSortBy: true,
       Header: "Vulnerability",
-      Cell: (cellProps: ICellProps) => {
-        if (cellProps.row.original.id) {
-          const cveId = cellProps.row.original.id.toString();
-          return (
-            <LinkCell
-              value={cellProps.row.original.cve}
-              path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveId)}
-            />
-          );
-        }
-        return <TextCell value={cellProps.row.original.cve} />;
+      Cell: ({ cell: { value } }: ITextCellProps) => {
+        const cveName = value.toString();
+        return (
+          <LinkCell
+            value={cveName}
+            path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveName)}
+          />
+        );
       },
     },
   ];

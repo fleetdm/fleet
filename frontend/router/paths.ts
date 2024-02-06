@@ -58,9 +58,9 @@ export default {
   SOFTWARE_OS_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/software/os/${id}`;
   },
-  SOFTWARE_VULNERABILITIES: `${URL_PREFIX}/vulnerabilities`,
-  SOFTWARE_VULNERABILITY_DETAILS: (id: string): string => {
-    return `${URL_PREFIX}/vulnerabilities/${id}`;
+  SOFTWARE_VULNERABILITIES: `${URL_PREFIX}/software/vulnerabilities`,
+  SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
+    return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
   },
 
   EDIT_PACK: (packId: number): string => {
