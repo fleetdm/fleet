@@ -352,7 +352,7 @@ func packageCommand() *cli.Command {
 				zlog.Logger = zerolog.Nop()
 			}
 
-			fmt.Println("Generating your osquery installer...")
+			fmt.Println("Generating your fleetd agent...")
 			path, err := buildFunc(opt)
 			if err != nil {
 				return err
@@ -360,11 +360,11 @@ func packageCommand() *cli.Command {
 
 			path, _ = filepath.Abs(path)
 			fmt.Printf(`
-Success! You generated an osquery installer at %s
+Success! You generated fleetd at %s
 
-To add this device to Fleet, double-click to open your installer.
+To add this device to Fleet, double-click to install fleetd.
 
-To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
+To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
 `, path)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck
