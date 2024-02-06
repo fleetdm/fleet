@@ -74,7 +74,7 @@ func (svc *Service) TriggerMigrateMDMDevice(ctx context.Context, host *fleet.Hos
 	// existing third-party MDM.
 	refetchUntil := svc.clock.Now().Add(refetchMDMUnenrollCriticalQueryDuration)
 	host.RefetchCriticalQueriesUntil = &refetchUntil
-	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, refetchUntil); err != nil {
+	if err := svc.ds.UpdateHostRefetchCriticalQueriesUntil(ctx, host.ID, &refetchUntil); err != nil {
 		return ctxerr.Wrap(ctx, err, "save host with refetch critical queries timestamp")
 	}
 

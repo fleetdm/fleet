@@ -719,7 +719,7 @@ type Datastore interface {
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
 
 	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
-	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until time.Time) error
+	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
 
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first

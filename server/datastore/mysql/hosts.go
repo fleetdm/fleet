@@ -4272,8 +4272,12 @@ func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, va
 }
 
 // UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
-func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until time.Time) error {
-	level.Debug(ds.logger).Log("msg", "update refetch_critical_queries_until", "host_id", id, "until", until.Format(time.RFC3339))
+func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until *time.Time) error {
+	debugLogs := []interface{}{"msg", "update refetch_critical_queries_until", "host_id", id}
+	if until != nil {
+		debugLogs = append(debugLogs, "until", until.Format(time.RFC3339))
+	}
+	level.Debug(ds.logger).Log(debugLogs...)
 
 	sqlStatement := `UPDATE hosts SET refetch_critical_queries_until = ? WHERE id = ?`
 	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, until, id)
