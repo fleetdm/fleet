@@ -84,6 +84,7 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
+import LockModal from "./modals/LockModal";
 
 const baseClass = "host-details";
 
@@ -156,6 +157,7 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -657,6 +659,9 @@ const HostDetailsPage = ({
       case "runScript":
         setShowRunScriptModal(true);
         break;
+      case "lock":
+        setShowLockHostModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -960,6 +965,13 @@ const HostDetailsPage = ({
           <ScriptDetailsModal
             scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
+          />
+        )}
+        {showLockHostModal && (
+          <LockModal
+            id={host.id}
+            platform={host.platform}
+            onClose={() => setShowLockHostModal(false)}
           />
         )}
       </>

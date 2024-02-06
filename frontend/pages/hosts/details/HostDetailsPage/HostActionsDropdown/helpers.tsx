@@ -260,11 +260,11 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
-  if (true) {
+  if (false) {
     options = options.filter((option) => option.value !== "lock");
   }
 
-  if (true) {
+  if (!canWipeHost(config)) {
     options = options.filter((option) => option.value !== "wipe");
   }
 
