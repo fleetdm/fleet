@@ -42,6 +42,11 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Unlock",
+    value: "unlock",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -159,6 +164,40 @@ const canWipeHost = ({
   );
 };
 
+const canUnlock = ({
+  isPremiumTier,
+  isLocked,
+  isWiped,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isFleetMdm,
+  isEnrolledInMdm,
+  isMdmEnabledAndConfigured,
+  hostPlatform,
+}: IHostActionConfigOptions) => {
+  const canLockDarwin =
+    hostPlatform === "darwin" &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  return (
+    isPremiumTier &&
+    (isLocked || isWiped) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver) &&
+    (canLockDarwin || hostPlatform === "windows" || hostPlatform === "linux")
+  );
+};
+
 const canDeleteHost = (config: IHostActionConfigOptions) => {
   const {
     isGlobalAdmin,
@@ -226,6 +265,10 @@ const filterOutOptions = (
 
   if (true) {
     options = options.filter((option) => option.value !== "wipe");
+  }
+
+  if (!canUnlock(config)) {
+    options = options.filter((option) => option.value !== "unlock");
   }
 
   // TODO: refactor to filter in one pass using predefined filters specified for each of the

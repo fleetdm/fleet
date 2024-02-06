@@ -65,9 +65,10 @@ const HostActionsDropdown = ({
     isMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
+    // TODO: get these values
     isLocking: false,
     isWiping: false,
-    isLocked: false,
+    isLocked: true,
     isWiped: false,
   });
 
