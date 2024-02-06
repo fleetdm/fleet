@@ -41,7 +41,7 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import PoliciesTable from "./components/PoliciesTable";
-import ManageAutomationsModal from "./components/ManagePolicyAutomationsModal";
+import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 
@@ -368,10 +368,6 @@ const ManagePolicyPage = ({
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
     }
   };
-
-  // const findAvailableTeam = (id: number) => {
-  //   return availableTeams?.find((t) => t.id === id);
-  // };
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -801,7 +797,7 @@ const ManagePolicyPage = ({
           </div>
         )}
         {config && automationsConfig && showManageAutomationsModal && (
-          <ManageAutomationsModal
+          <ManagePolicyAutomationsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}
