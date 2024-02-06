@@ -10,8 +10,9 @@ import (
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	selectStmt := `
-		SELECT DISTINCT
+		SELECT
 			vhc.cve,
+			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
@@ -25,6 +26,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.host_count > 0
 		`
+	groupByAppend := " GROUP BY vhc.cve, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count"
 
 	var args []interface{}
 	if opt.TeamID == 0 {
@@ -33,6 +35,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt = selectStmt + " AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
+	selectStmt = selectStmt + groupByAppend
 
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 
