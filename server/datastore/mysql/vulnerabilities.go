@@ -12,7 +12,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	selectStmt := `
 		SELECT DISTINCT
 			vhc.cve,
-			COALESCE(osv.resolved_in_version, sc.resolved_in_version) as resolved_in_version,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,

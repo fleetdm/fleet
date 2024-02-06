@@ -20,12 +20,13 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestListVulnerabilities", testListVulnerabilities},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
 		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
+		{"TestListVulnerabilitiesSort", testListVulnerabilitiesSort},
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			defer TruncateTables(t, ds)
 			c.fn(t, ds)
-			TruncateTables(t, ds)
 		})
 	}
 }
@@ -74,7 +75,6 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
-
 	// insert CVEMeta
 	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
 		{
@@ -88,8 +88,8 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	expected := []fleet.VulnerabilityWithMetadata{
-		{
+	expected := map[string]fleet.VulnerabilityWithMetadata{
+		"CVE-2020-1234": {
 			CVEMeta: fleet.CVEMeta{
 				CVE:              "CVE-2020-1234",
 				CVSSScore:        ptr.Float64(7.5),
@@ -98,28 +98,30 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 				Published:        ptr.Time(mockTime),
 				Description:      "Test CVE 2020-1234",
 			},
-			ResolvedInVersion: ptr.String("1.0.0"),
-			HostCount:         10,
+			HostCount: 10,
 		},
-		{
-			CVEMeta:           fleet.CVEMeta{CVE: "CVE-2020-1235"},
-			ResolvedInVersion: nil,
-			HostCount:         15,
+		"CVE-2020-1235": {
+			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			HostCount: 15,
 		},
-		{
-			CVEMeta:           fleet.CVEMeta{CVE: "CVE-2020-1236"},
-			ResolvedInVersion: nil,
-			HostCount:         20,
+		"CVE-2020-1236": {
+			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			HostCount: 20,
 		},
 	}
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 3)
-	require.ElementsMatch(t, expected, list)
+	for _, vuln := range list {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, vuln.CVEMeta, expectedVuln.CVEMeta)
+		require.Equal(t, vuln.HostCount, expectedVuln.HostCount)
+	}
 }
 
 func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
-	_ = seedVulnerabilities(t, ds)
+	seedVulnerabilities(t, ds)
 
 	opts := fleet.VulnListOptions{
 		ListOptions: fleet.ListOptions{
@@ -145,7 +147,7 @@ func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
 }
 
 func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
-	_ = seedVulnerabilities(t, ds)
+	seedVulnerabilities(t, ds)
 
 	opts := fleet.VulnListOptions{
 		TeamID: 1,
@@ -170,7 +172,40 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 }
 
-func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithMetadata {
+func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	opts := fleet.VulnListOptions{
+		ListOptions: fleet.ListOptions{
+			Page:           0,
+			PerPage:        5,
+			OrderKey:       "cve",
+			OrderDirection: fleet.OrderDescending,
+		},
+	}
+
+	list, _, err := ds.ListVulnerabilities(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, list, 5)
+	require.Equal(t, "CVE-2020-1241", list[0].CVE)
+	require.Equal(t, "CVE-2020-1239", list[1].CVE)
+	require.Equal(t, "CVE-2020-1238", list[2].CVE)
+	require.Equal(t, "CVE-2020-1237", list[3].CVE)
+	require.Equal(t, "CVE-2020-1236", list[4].CVE)
+
+	opts.OrderKey = "published"
+	opts.OrderDirection = fleet.OrderAscending
+	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, list, 5)
+	require.Equal(t, "CVE-2020-1241", list[0].CVE) // NULL dates are sorted first
+	require.Equal(t, "CVE-2020-1234", list[1].CVE)
+	require.Equal(t, "CVE-2020-1236", list[2].CVE)
+	require.Equal(t, "CVE-2020-1235", list[3].CVE)
+	require.Equal(t, "CVE-2020-1237", list[4].CVE)
+}
+
+func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	softwareVulns := []fleet.SoftwareVulnerability{
 		{
 			SoftwareID:        1,
@@ -228,7 +263,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(7.6),
 			EPSSProbability:  ptr.Float64(0.51),
 			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 2)),
 			Description:      "Test CVE 2020-1235",
 		},
 		{
@@ -236,7 +271,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(7.7),
 			EPSSProbability:  ptr.Float64(0.52),
 			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 1)),
 			Description:      "Test CVE 2020-1236",
 		},
 		{
@@ -244,7 +279,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(7.8),
 			EPSSProbability:  ptr.Float64(0.53),
 			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 3)),
 			Description:      "Test CVE 2020-1237",
 		},
 		{
@@ -252,7 +287,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(7.9),
 			EPSSProbability:  ptr.Float64(0.54),
 			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 4)),
 			Description:      "Test CVE 2020-1238",
 		},
 		{
@@ -260,7 +295,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(8.0),
 			EPSSProbability:  ptr.Float64(0.55),
 			CISAKnownExploit: ptr.Bool(false),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 5)),
 			Description:      "Test CVE 2020-1239",
 		},
 		{
@@ -268,7 +303,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 			CVSSScore:        ptr.Float64(8.1),
 			EPSSProbability:  ptr.Float64(0.56),
 			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
+			Published:        ptr.Time(mockTime.Add(time.Hour * 6)),
 			Description:      "Test CVE 2020-1240",
 		},
 		// CVE-2020-1241 ommited to test null values
@@ -371,105 +406,4 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) []fleet.VulnerabilityWithM
 		_, err = ds.writer(context.Background()).Exec(insertStmt, vuln.cve, vuln.teamID, vuln.hostCount)
 		require.NoError(t, err)
 	}
-
-	expected := []fleet.VulnerabilityWithMetadata{
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1234",
-				CVSSScore:        ptr.Float64(7.5),
-				EPSSProbability:  ptr.Float64(0.5),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1234",
-			},
-			ResolvedInVersion: ptr.String("1.0.0"),
-			HostCount:         100,
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1235",
-				CVSSScore:        ptr.Float64(7.6),
-				EPSSProbability:  ptr.Float64(0.51),
-				CISAKnownExploit: ptr.Bool(false),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1235",
-			},
-			ResolvedInVersion: ptr.String("1.0.1"),
-			HostCount:         90,
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1236",
-				CVSSScore:        ptr.Float64(7.7),
-				EPSSProbability:  ptr.Float64(0.52),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1236",
-			},
-			ResolvedInVersion: nil, // No resolved version provided
-			HostCount:         98,  // Host count for team 0
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1237",
-				CVSSScore:        ptr.Float64(7.8),
-				EPSSProbability:  ptr.Float64(0.53),
-				CISAKnownExploit: ptr.Bool(false),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1237",
-			},
-			ResolvedInVersion: nil, // No resolved version provided
-			HostCount:         0,   // No host count for team 1
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1238",
-				CVSSScore:        ptr.Float64(7.9),
-				EPSSProbability:  ptr.Float64(0.54),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1238",
-			},
-			ResolvedInVersion: ptr.String("1.0.0"),
-			HostCount:         60,
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1239",
-				CVSSScore:        ptr.Float64(8.0),
-				EPSSProbability:  ptr.Float64(0.55),
-				CISAKnownExploit: ptr.Bool(false),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1239",
-			},
-			ResolvedInVersion: ptr.String("1.0.1"),
-			HostCount:         15,
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1240",
-				CVSSScore:        ptr.Float64(8.1),
-				EPSSProbability:  ptr.Float64(0.56),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1240",
-			},
-			ResolvedInVersion: nil, // No resolved version provided
-			HostCount:         54,  // Host count for team 0
-		},
-		{
-			CVEMeta: fleet.CVEMeta{
-				CVE:              "CVE-2020-1241",
-				CVSSScore:        nil, // No CVSSScore provided
-				EPSSProbability:  nil, // No EPSSProbability provided
-				CISAKnownExploit: nil, // No CISAKnownExploit provided
-				Published:        nil, // No Published date provided
-				Description:      "",  // No Description provided
-			},
-			ResolvedInVersion: nil, // No resolved version provided
-			HostCount:         14,
-		},
-	}
-
-	return expected
 }
