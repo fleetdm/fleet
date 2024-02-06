@@ -56,14 +56,23 @@ type listHostUpcomingActivitiesRequest struct {
 	ListOptions fleet.ListOptions `url:"list_options"`
 }
 
+type listHostUpcomingActivitiesResponse struct {
+	Meta       *fleet.PaginationMetadata `json:"meta"`
+	Activities []*fleet.Activity         `json:"activities"`
+	Count      uint                      `json:"count"`
+	Err        error                     `json:"error,omitempty"`
+}
+
+func (r listHostUpcomingActivitiesResponse) error() error { return r.Err }
+
 func listHostUpcomingActivitiesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listHostUpcomingActivitiesRequest)
 	acts, meta, err := svc.ListHostUpcomingActivities(ctx, req.HostID, req.ListOptions)
 	if err != nil {
-		return listActivitiesResponse{Err: err}, nil
+		return listHostUpcomingActivitiesResponse{Err: err}, nil
 	}
 
-	return listActivitiesResponse{Meta: meta, Activities: acts}, nil
+	return listHostUpcomingActivitiesResponse{Meta: meta, Activities: acts, Count: meta.TotalResults}, nil
 }
 
 // ListHostUpcomingActivities returns a slice of upcoming activities for the
