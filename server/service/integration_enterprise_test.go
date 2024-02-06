@@ -317,8 +317,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
-	// dry-run never returns id to name mappings as it may not have them
-	require.Empty(t, applyResp.TeamIDsByName)
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true
 	teamSpecs = map[string]any{

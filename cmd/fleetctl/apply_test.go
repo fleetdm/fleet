@@ -869,12 +869,12 @@ func TestApplyPolicies(t *testing.T) {
 func TestApplyPoliciesValidation(t *testing.T) {
 	// Team Policy Spec
 	filename := writeTmpYml(t, duplicateTeamPolicySpec)
-	errorMsg := `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	errorMsg := `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
 	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 
 	// Global Policy Spec
 	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
-	errorMsg = `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	errorMsg = `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
 	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
