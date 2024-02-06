@@ -163,7 +163,10 @@ parasails.registerComponent('scrollableTweets', {
     updatePageIndicators: function() {
       this.showPreviousPageButton = this.currentVisibleTweetCard !== 0;
       console.log((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1)
-      this.showNextPageButton = ((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1 && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage);
+      this.showNextPageButton = (
+        (this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1
+        && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage
+        && this.tweetsDiv.scrollWidth - (this.tweetsDiv.scrollLeft + this.tweetsDiv.clientWidth) > this.tweetCardWidth );
       this.syncing = false;
     },
 
