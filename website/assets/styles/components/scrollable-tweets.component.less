@@ -8,6 +8,7 @@
  [parasails-component='scrollable-tweets'] {
   font-size: 13px;
   line-height: 20px;
+
   position: relative;
 
   [purpose='tweets']::-webkit-scrollbar {
@@ -22,18 +23,12 @@
     cursor: pointer;
     z-index: 30;
     padding: 16px;
-    width: 24px;
-    height: 24px;
     font-size: 48px;
     position: absolute;
-    // border-radius: 50%;
-    // border: solid 1px @core-vibrant-blue;
-    // background-color: @core-vibrant-blue-15;
     top: 50%;
     left: 10px;
     &:hover {
       opacity: 1;
-      // background-color: @core-vibrant-blue-25;
     }
   }
 
@@ -46,17 +41,11 @@
     z-index: 30;
     padding: 16px;
     font-size: 48px;
-    // width: 24px;
-    // height: 24px;
     position: absolute;
-    // border-radius: 50%;
-    // border: solid 1px @core-vibrant-blue;
-    // background-color: @core-vibrant-blue-15;
     top: 50%;
     right: 10px;
     &:hover {
       opacity: 1;
-      // background-color: @core-vibrant-blue-25;
     }
   }
 
@@ -66,7 +55,7 @@
     padding-left: 120px;
     padding-right: 120px;
     margin-top: 80px;
-    padding-bottom: 16px;
+    margin-bottom: 80px;
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
