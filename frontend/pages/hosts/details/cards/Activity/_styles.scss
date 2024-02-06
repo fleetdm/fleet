@@ -7,6 +7,12 @@
     margin: 0 0 $pad-large;
   }
 
+  .react-tabs__tab-list {
+    li:first-of-type {
+      padding-bottom: 10px; // adds 2px to bottom padding of "Past" tab to adjust for the count badge on the "Upcoming" tab
+    }
+  }
+
   &__upcoming-count {
     padding: $pad-xxsmall $pad-xsmall;
     color: $core-white;

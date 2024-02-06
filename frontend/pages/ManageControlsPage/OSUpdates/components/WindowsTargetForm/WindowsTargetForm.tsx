@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
-import classnames from "classnames";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
@@ -11,7 +10,6 @@ import teamsAPI from "services/entities/teams";
 import InputField from "components/forms/fields/InputField";
 import Button from "components/buttons/Button";
 import validatePresence from "components/forms/validators/validate_presence";
-import { AppContext } from "context/app";
 
 const baseClass = "windows-target-form";
 
@@ -86,16 +84,17 @@ interface IWindowsTargetFormProps {
   currentTeamId: number;
   defaultDeadlineDays: string;
   defaultGracePeriodDays: string;
-  inAccordion?: boolean;
+  refetchAppConfig: () => void;
+  refetchTeamConfig: () => void;
 }
 
 const WindowsTargetForm = ({
   currentTeamId,
   defaultDeadlineDays,
   defaultGracePeriodDays,
-  inAccordion = false,
+  refetchAppConfig,
+  refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
-  const { setConfig } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
   const [isSaving, setIsSaving] = useState(false);
   const [deadlineDays, setDeadlineDays] = useState(
@@ -111,15 +110,8 @@ const WindowsTargetForm = ({
     string | undefined
   >();
 
-  const classNames = classnames(baseClass, {
-    [`${baseClass}__accordion-form`]: inAccordion,
-  });
-
-  const updateNoTeamConfig = async (updateData: IWindowsMdmConfigData) => {
-    const updatedConfig = await configAPI.update(updateData);
-    setConfig(updatedConfig);
-  };
-
+  // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
+  // submitting because this component is unmounted.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validateForm({
@@ -135,7 +127,7 @@ const WindowsTargetForm = ({
       const updateData = createMdmConfigData(deadlineDays, gracePeriodDays);
       try {
         currentTeamId === APP_CONTEXT_NO_TEAM_ID
-          ? await updateNoTeamConfig(updateData)
+          ? await configAPI.update(updateData)
           : await teamsAPI.update(updateData, currentTeamId);
         renderFlash(
           "success",
@@ -144,6 +136,9 @@ const WindowsTargetForm = ({
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
+          ? refetchAppConfig()
+          : refetchTeamConfig();
         setIsSaving(false);
       }
     }
@@ -158,7 +153,7 @@ const WindowsTargetForm = ({
   };
 
   return (
-    <form className={classNames} onSubmit={handleSubmit}>
+    <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Deadline"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."

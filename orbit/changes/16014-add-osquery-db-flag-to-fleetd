@@ -1,0 +1,1 @@
+* Allow configuring a custom osquery database directory (`ORBIT_OSQUERY_DB` environment variable or `--osquery-db` flag).
