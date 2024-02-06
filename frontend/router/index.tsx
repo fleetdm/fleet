@@ -224,13 +224,13 @@ const routes = (
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
               <Route path="os" component={SoftwareOS} />
-              <Route
-                path="vulnerabilities/:cve"
-                component={SoftwareVulnerabilityDetailsPage}
-              />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route
+              path="vulnerabilities/:cve"
+              component={SoftwareVulnerabilityDetailsPage}
+            />
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />
