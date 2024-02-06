@@ -13,6 +13,7 @@ interface IHostLinkProps {
   platformLabelId?: number;
   /** Shows right chevron without text */
   condensed?: boolean;
+  customText?: string;
 }
 
 const baseClass = "view-all-hosts-link";
@@ -22,6 +23,7 @@ const ViewAllHostsLink = ({
   className,
   platformLabelId,
   condensed = false,
+  customText,
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className);
 
@@ -35,7 +37,7 @@ const ViewAllHostsLink = ({
 
   return (
     <Link className={viewAllHostsLinkClass} to={path} title="host-link">
-      {!condensed && <span>View all hosts</span>}
+      {!condensed && <span>{customText ?? "View all hosts"}</span>}
       <Icon
         name="chevron-right"
         className={`${baseClass}__icon`}
