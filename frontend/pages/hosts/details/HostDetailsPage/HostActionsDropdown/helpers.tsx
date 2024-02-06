@@ -66,6 +66,8 @@ interface IHostActionConfigOptions {
   isSandboxMode: boolean;
   isLocking: boolean;
   isWiping: boolean;
+  isLocked: boolean;
+  isWiped: boolean;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -218,18 +220,11 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
-  if (!canLockHost(config)) {
+  if (true) {
     options = options.filter((option) => option.value !== "lock");
   }
 
-  config = {
-    ...config,
-    hostPlatform: "darwin",
-    isFleetMdm: true,
-    isEnrolledInMdm: true,
-    isMdmEnabledAndConfigured: true,
-  };
-  if (!canWipeHost(config)) {
+  if (true) {
     options = options.filter((option) => option.value !== "wipe");
   }
 
@@ -243,10 +238,14 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  isHostOnline: boolean,
-  isSandboxMode: boolean,
-  isLocking: boolean,
-  isWiping: boolean
+  {
+    isHostOnline,
+    isSandboxMode,
+    isLocking,
+    isWiping,
+    isLocked,
+    isWiped,
+  }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
@@ -269,7 +268,13 @@ const setOptionsAsDisabled = (
   }
   if (isLocking || isWiping) {
     optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "lock")
+      options.filter(
+        (option) =>
+          option.value === "query" ||
+          option.value === "mdmOff" ||
+          option.value === "lock" ||
+          option.value === "wipe"
+      )
     );
   }
 
@@ -290,13 +295,7 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(
-    options,
-    config.isHostOnline,
-    config.isSandboxMode,
-    config.isLocking,
-    config.isWiping
-  );
+  options = setOptionsAsDisabled(options, config);
 
   if (config.isSandboxMode) {
     const premiumOnlyOptions: IDropdownOption[] = options.filter(
