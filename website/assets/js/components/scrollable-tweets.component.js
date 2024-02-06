@@ -23,16 +23,15 @@ parasails.registerComponent('scrollableTweets', {
     return {
       quotesToDisplay: [],
       quotesWithVideoLinks: [],
-      currentTweetPage: 0,
-      numberOfTweetCards: 0,
-      numberOfTweetPages: 0,
-      numberOfTweetsPerPage: 0,
-      tweetCardWidth: 0,
-      tweetPageWidth: 0,
-      screenSize: 0,
-      scrolledAmount: 0,
-      scrollableAmount: 0,
-      modal: ''
+      tweetsDiv: undefined,
+      tweetCards: undefined,
+      pageWidth: undefined,
+      numberOfTweetCardsDisplayedOnThisPage: undefined,
+      showPreviousPageButton: false,
+      showNextPageButton: true,
+      currentVisibleTweetCard: 0,
+      syncing: false,
+      modal: '',
     };
   },
 
@@ -41,6 +40,8 @@ parasails.registerComponent('scrollableTweets', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="d-flex flex-column">
+    <div purpose="previous-page-indicator" @click="clickPreviousPage()" v-if="showPreviousPageButton"><i class="fa fa-chevron-left"></i></div>
+    <div purpose="next-page-indicator"  @click="clickNextPage()" v-if="showNextPageButton"><i class="fa fa-chevron-right"></i></div>
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
       <a purpose="tweet-card" class="card" v-for="testimonial in quotesToDisplay" target="_blank" :href="testimonial.quoteLinkUrl">
         <div purpose="logo" class="mb-4">
@@ -61,11 +62,9 @@ parasails.registerComponent('scrollableTweets', {
         </div>
       </a>
     </div>
-    <div purpose="page-indictator-container" class="mx-auto d-flex flex-row justify-content-center">
-    </div>
     <div v-for="video in quotesWithVideoLinks">
     <modal purpose="video-modal" v-if="modal === video.modalId" @close="closeModal()" >
-      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
+      <iframe width="560" height="315" :src="'https://www.youtube.com/embed/'+video.embedId+'?rel=0'" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture;" allowfullscreen></iframe>
     </modal>
     </div>
   </div>
@@ -93,7 +92,11 @@ parasails.registerComponent('scrollableTweets', {
 
   },
   mounted: async function(){
-
+    this.tweetsDiv = $('div[purpose="tweets"]')[0];
+    this.tweetCards = $('a[purpose="tweet-card"]');
+    this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
+    this.calculateHowManyFullTweetsCanBeDisplayed();
+    $(window).resize(this.calculateHowManyFullTweetsCanBeDisplayed);
   },
   beforeDestroy: function() {
 
@@ -103,6 +106,66 @@ parasails.registerComponent('scrollableTweets', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
+    calculateHowManyFullTweetsCanBeDisplayed: function() {
+      let firstTweetCard = this.tweetCards[0];
+      let nextTweetCard = this.tweetCards[1];
+      let realCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
+      let viewportWidth = document.body.clientWidth;
+      this.tweetCardWidth = realCardWidth;
+      this.numberOfTweetsPerPage = Math.floor((viewportWidth - 120)/this.tweetCardWidth);
+      this.pageWidth = realCardWidth * this.numberOfTweetsPerPage;
+      if(this.numberOfTweetsPerPage >= this.numberOfTweetCardsDisplayedOnThisPage){
+        $(this.tweetsDiv).addClass('mx-auto');
+      } else {
+        $(this.tweetsDiv).removeClass('mx-auto');
+      }
+      this.updatePageIndicators();
+    },
+
+    clickNextPage: async function() {
+      if(!this.syncing){
+        this.currentVisibleTweetCard += this.numberOfTweetsPerPage;
+        if(this.currentVisibleTweetCard >= this.numberOfTweetCardsDisplayedOnThisPage - 1){
+          this.currentVisibleTweetCard = this.numberOfTweetCardsDisplayedOnThisPage - 1;
+        }
+        if(this.numberOfTweetsPerPage === 1){
+          let tweetCardToScrollTo = this.tweetCards[this.currentVisibleTweetCard];
+          tweetCardToScrollTo.scrollIntoView({ inline: 'center', block: 'nearest' });
+        } else {
+          this.tweetsDiv.scrollLeft += this.pageWidth;
+        }
+        this.syncing = true;
+        await setTimeout(()=>{
+          this.updatePageIndicators();
+        }, 100);
+      }
+    },
+
+    clickPreviousPage: async function() {
+      if(!this.syncing){
+        this.currentVisibleTweetCard -= this.numberOfTweetsPerPage;
+        if(this.currentVisibleTweetCard < 0 ){
+          this.currentVisibleTweetCard = 0;
+        }
+        if(this.numberOfTweetsPerPage === 1){
+          let tweetCardToScrollTo = this.tweetCards[this.currentVisibleTweetCard];
+          tweetCardToScrollTo.scrollIntoView({ inline: 'center', block: 'nearest' });
+        } else {
+          this.tweetsDiv.scrollLeft -= this.pageWidth;
+        }
+        this.syncing = true;
+        await setTimeout(()=>{
+          this.updatePageIndicators();
+        }, 100);
+      }
+    },
+
+    updatePageIndicators: function() {
+      this.showPreviousPageButton = this.currentVisibleTweetCard !== 0;
+      console.log((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1)
+      this.showNextPageButton = ((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1 && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage);
+      this.syncing = false;
+    },
 
     clickOpenVideoModal: function(modalName) {
       this.modal = _.kebabCase(modalName);
