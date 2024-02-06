@@ -6711,77 +6711,60 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 	for _, tc := range []struct {
 		name                 string
 		user                 fleet.User
-		ableToSee            []fleet.Software
-		notAbleToSee         []fleet.Software
 		shouldFailGlobalRead bool
 		shouldFailTeamRead   bool
 	}{
 		{
 			name:                 "global-admin",
 			user:                 s.users["admin1@example.com"],
-			ableToSee:            allSoftware,
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "global-maintainer",
 			user:                 s.users["user1@example.com"],
-			ableToSee:            allSoftware,
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "global-observer",
 			user:                 s.users["user2@example.com"],
-			ableToSee:            allSoftware,
 			shouldFailGlobalRead: false,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "team-admin-belongs-to-team",
 			user:                 extraTestUsers["team-1-admin"],
-			ableToSee:            []fleet.Software{allSoftware[0]},
-			notAbleToSee:         allSoftware[:2],
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "team-maintainer-belongs-to-team",
 			user:                 extraTestUsers["team-1-maintainer"],
-			ableToSee:            []fleet.Software{allSoftware[0]},
-			notAbleToSee:         allSoftware[:2],
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "team-observer-belongs-to-team",
 			user:                 extraTestUsers["team-1-observer"],
-			ableToSee:            []fleet.Software{allSoftware[0]},
-			notAbleToSee:         allSoftware[:2],
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   false,
 		},
 		{
 			name:                 "team-admin-does-not-belong-to-team",
 			user:                 extraTestUsers["team-2-admin"],
-			ableToSee:            []fleet.Software{},
-			notAbleToSee:         allSoftware,
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
 		},
 		{
 			name:                 "team-maintainer-does-not-belong-to-team",
 			user:                 extraTestUsers["team-2-maintainer"],
-			ableToSee:            []fleet.Software{},
-			notAbleToSee:         allSoftware,
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
 		},
 		{
 			name:                 "team-observer-does-not-belong-to-team",
 			user:                 extraTestUsers["team-2-observer"],
-			ableToSee:            []fleet.Software{},
-			notAbleToSee:         allSoftware,
 			shouldFailGlobalRead: true,
 			shouldFailTeamRead:   true,
 		},
@@ -6875,11 +6858,11 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				getSoftwareResp = getSoftwareResponse{}
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
 
-				// Get a count of software vesions using the deprecated endpoint
+				// Get a count of team software vesions using the deprecated endpoint
 				var countSoftwareResp countSoftwareResponse
 				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
 
-				// List all software versions using the deprecated endpoint
+				// List all software versions using the deprecated endpoint for a team
 				var softwareListResp listSoftwareResponse
 				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
 			} else {
@@ -6912,7 +6895,7 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &countSoftwareResp)
 				require.Equal(t, 1, countSoftwareResp.Count)
 
-				// List all software versions using the deprecated endpoint
+				// List all software versions using the deprecated endpoint for a team
 				var softwareListResp listSoftwareResponse
 				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &softwareListResp)
 				require.Equal(t, countSoftwareResp.Count, 1)
