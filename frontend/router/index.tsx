@@ -65,6 +65,7 @@ import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPag
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
+import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -223,6 +224,10 @@ const routes = (
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
               <Route path="os" component={SoftwareOS} />
+              <Route
+                path="vulnerabilities/:cve"
+                component={SoftwareVulnerabilityDetailsPage}
+              />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
