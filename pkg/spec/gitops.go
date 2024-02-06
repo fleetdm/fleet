@@ -7,6 +7,7 @@ import (
 	"github.com/ghodss/yaml"
 	"os"
 	"path/filepath"
+	"slices"
 	"unicode"
 )
 
@@ -41,10 +42,12 @@ type Query struct {
 }
 
 type GitOps struct {
+	TeamID       *uint
 	TeamName     *string
+	TeamSettings map[string]interface{}
+	OrgSettings  map[string]interface{}
 	AgentOptions *json.RawMessage
 	Controls     Controls
-	OrgSettings  map[string]interface{}
 	Policies     []*fleet.PolicySpec
 	Queries      []*fleet.QuerySpec
 }
@@ -60,11 +63,16 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	var errors []string
 	result := &GitOps{}
 
-	// TODO: Check if any additional unknown top-level fields are present. If so, return an error.
+	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries"}
+	for k := range top {
+		if !slices.Contains(topKeys, k) {
+			errors = append(errors, fmt.Sprintf("unknown top-level field: %s", k))
+		}
+	}
 
 	// Figure out if this is an org or team settings file
-	team, teamOk := top["name"]
-	_, teamSettingsOk := top["team_settings"]
+	teamRaw, teamOk := top["name"]
+	teamSettingsRaw, teamSettingsOk := top["team_settings"]
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
 		if teamOk || teamSettingsOk {
@@ -73,12 +81,8 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 			errors = parseOrgSettings(orgSettingsRaw, result, baseDir, errors)
 		}
 	} else if teamOk && teamSettingsOk {
-		teamName := string(team)
-		if !isASCII(teamName) {
-			errors = append(errors, fmt.Sprintf("team name must be in ASCII: %s", teamName))
-		} else {
-			result.TeamName = &teamName
-		}
+		errors = parseName(teamRaw, result, errors)
+		errors = parseTeamSettings(teamSettingsRaw, result, baseDir, errors)
 	} else {
 		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' is required")
 	}
@@ -97,6 +101,16 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	}
 
 	return result, nil
+}
+
+func parseName(raw json.RawMessage, result *GitOps, errors []string) []string {
+	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
+		return append(errors, fmt.Sprintf("failed to unmarshal name: %v", err))
+	}
+	if !isASCII(*result.TeamName) {
+		errors = append(errors, fmt.Sprintf("team name must be in ASCII: %s", *result.TeamName))
+	}
+	return errors
 }
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
@@ -141,17 +155,66 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 	return errors
 }
 
-// TODO: Support this method for teams.
-func parseSecrets(result *GitOps, errors []string) []string {
-	rawSecrets, ok := result.OrgSettings["secrets"]
-	if !ok {
-		return append(errors, "'org_settings.secrets' is required")
+func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+	var teamSettingsTop BaseItem
+	if err := yaml.Unmarshal(raw, &teamSettingsTop); err != nil {
+		return append(errors, fmt.Sprintf("failed to unmarshal team_settings: %v", err))
 	}
-	result.OrgSettings["secrets"] = []*fleet.EnrollSecret{}
+	noError := true
+	if teamSettingsTop.Path != nil {
+		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
+		if err != nil {
+			noError = false
+			errors = append(errors, fmt.Sprintf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
+		} else {
+			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
+			var pathTeamSettings BaseItem
+			if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
+				noError = false
+				errors = append(errors, fmt.Sprintf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err))
+			} else {
+				if pathTeamSettings.Path != nil {
+					noError = false
+					errors = append(
+						errors,
+						fmt.Sprintf("nested paths are not supported: %s in %s", *pathTeamSettings.Path, *teamSettingsTop.Path),
+					)
+				} else {
+					raw = fileBytes
+				}
+			}
+		}
+	}
+	if noError {
+		if err := yaml.Unmarshal(raw, &result.TeamSettings); err != nil {
+			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
+			errors = append(errors, fmt.Sprintf("failed to unmarshal team settings: %v", err))
+		} else {
+			errors = parseSecrets(result, errors)
+		}
+	}
+	return errors
+}
+
+func parseSecrets(result *GitOps, errors []string) []string {
+	var rawSecrets interface{}
+	var ok bool
+	if result.TeamName == nil {
+		rawSecrets, ok = result.OrgSettings["secrets"]
+		if !ok {
+			return append(errors, "'org_settings.secrets' is required")
+		}
+	} else {
+		rawSecrets, ok = result.TeamSettings["secrets"]
+		if !ok {
+			return append(errors, "'team_settings.secrets' is required")
+		}
+	}
+	var enrollSecrets []*fleet.EnrollSecret
 	if rawSecrets != nil {
 		secrets, ok := rawSecrets.([]interface{})
 		if !ok {
-			return append(errors, "'org_settings.secrets' must be a list of secret items")
+			return append(errors, "'secrets' must be a list of secret items")
 		}
 		for _, enrollSecret := range secrets {
 			var secret string
@@ -165,14 +228,19 @@ func parseSecrets(result *GitOps, errors []string) []string {
 			}
 			if !ok || secret == "" {
 				errors = append(
-					errors, "each item in 'org_settings.secrets' must have a 'secret' key containing an ASCII string value",
+					errors, "each item in 'secrets' must have a 'secret' key containing an ASCII string value",
 				)
 				break
 			}
-			result.OrgSettings["secrets"] = append(
-				result.OrgSettings["secrets"].([]*fleet.EnrollSecret), &fleet.EnrollSecret{Secret: secret},
+			enrollSecrets = append(
+				enrollSecrets, &fleet.EnrollSecret{Secret: secret},
 			)
 		}
+	}
+	if result.TeamName == nil {
+		result.OrgSettings["secrets"] = enrollSecrets
+	} else {
+		result.TeamSettings["secrets"] = enrollSecrets
 	}
 	return errors
 }
