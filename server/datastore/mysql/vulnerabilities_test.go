@@ -1026,3 +1026,93 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	}
 	assertHostCounts(t, team2expected, list)
 }
+
+// testVulnerabilityHostCountBatchInserts tests the ability to insert a large
+// number of vulnerabilities in a single batch insert
+// to keep this test fast, we only insert 5 hosts
+func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
+	// create 5 hosts
+	hosts := make([]*fleet.Host, 5)
+	for i := 0; i < 5; i++ {
+		hosts[i] = test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.0.%d", i), fmt.Sprintf("%d", i+1000), fmt.Sprintf("%d", i+1000), time.Now())
+	}
+
+	// add 2 hosts to team 1
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	for i := 0; i < 2; i++ {
+		err = ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[i].ID})
+		require.NoError(t, err)
+	}
+
+	// create 1000 OS vulns
+	osVulns := make([]fleet.OSVulnerability, 1000)
+	for i := 0; i < 1000; i++ {
+		osVulns[i] = fleet.OSVulnerability{
+			OSID: 1,
+			CVE:  fmt.Sprintf("CVE-2020-%d", i),
+		}
+	}
+
+	// create 1000 software vulns
+	softwareVulns := make([]fleet.SoftwareVulnerability, 1000)
+	for i := 0; i < 1000; i++ {
+		softwareVulns[i] = fleet.SoftwareVulnerability{
+			SoftwareID: 1,
+			CVE:        fmt.Sprintf("CVE-2021-%d", i),
+		}
+	}
+
+	// insert OS vulns
+	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert software vulns
+	for _, vuln := range softwareVulns {
+		_, err = ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+		require.NoError(t, err)
+	}
+
+	// update host OS
+	for i := 0; i < 5; i++ {
+		err = ds.UpdateHostOperatingSystem(context.Background(), hosts[i].ID, fleet.OperatingSystem{
+			Name:     "Windows 11 Pro",
+			Version:  "10.0.22000.3007",
+			Arch:     "x86_64",
+			Platform: "windows",
+		})
+		require.NoError(t, err)
+	}
+
+	// update host software
+	for i := 0; i < 5; i++ {
+		_, err = ds.UpdateHostSoftware(context.Background(), hosts[i].ID, []fleet.Software{
+			{
+				Name:    "Chrome",
+				Version: "1.0.0",
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	// update host counts
+	err = ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	// assert host counts
+	list, _, err := ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
+	require.NoError(t, err)
+	require.Len(t, list, 2000)
+	for _, vuln := range list {
+		require.Equal(t, uint(5), vuln.HostCount)
+	}
+
+	// assert team counts
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
+	require.NoError(t, err)
+	require.Len(t, list, 2000)
+	for _, vuln := range list {
+		require.Equal(t, uint(2), vuln.HostCount)
+	}
+}
