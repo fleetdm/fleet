@@ -3679,11 +3679,13 @@ Sends a command to unlock the specified Windows or Linux host, or retrieves the 
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
-##### Default response
+##### Default response (Windows or Linux hosts)
+
+`Status: 204`
+
+##### Default response (macOS hosts)
 
 `Status: 200`
-
-Requests to unlock macOS hosts will also include the following response data:
 
 ```json
 {
