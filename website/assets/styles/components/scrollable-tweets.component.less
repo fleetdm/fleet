@@ -21,7 +21,9 @@
     cursor: pointer;
     z-index: 30;
     position: absolute;
-    top: 50%;
+    transition: transform 1s, opacity 0.25s  ease-in;
+    transform: scale(0.5);
+    bottom: 225px;
     left: 10px;
     width: 48px;
     height: 48px;
@@ -34,8 +36,11 @@
   [purpose='next-page-indicator'] {
     display: none;
     opacity: 0;
+    cursor: pointer;
     position: absolute;
-    top: 50%;
+    transition: transform 1s, opacity 0.25s ease-in;
+    transform: scale(0.5);
+    bottom: 225px;
     z-index: 30;
     right: 10px;
     width: 48px;
@@ -58,16 +63,19 @@
     &:hover {
       [purpose='previous-page-indicator'] {
         opacity: 1;
+        transform: scale(1.0);
       }
       [purpose='next-page-indicator'] {
         opacity: 1;
+        transform: scale(1.0);
       }
     }
   }
 
 
   [purpose='tweet-card'] {
-    box-shadow
+    box-shadow: none;
+    background-color: #FFF;
     [purpose='logo'] {
       img {
         max-height: 32px;
