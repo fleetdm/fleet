@@ -7619,7 +7619,6 @@ Retrieve details about a vulnerability and its affected software and OS versions
   "cisa_known_exploit": false,// Available in Fleet Premium
   "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
   "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
-  "resolved_in_version": "", // Available in Fleet Premium
   "os_versions" : [
     {
       "os_version_id": 6,
