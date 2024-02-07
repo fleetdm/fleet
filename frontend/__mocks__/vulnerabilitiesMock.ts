@@ -29,7 +29,20 @@ const DEFAULT_VULNERABILITY: IVulnerability = {
       generated_cpes: [],
     },
   ],
-  software: [],
+  software: [
+    {
+      id: 1,
+      name: "bad software",
+      version: "1.1.1",
+      bundle_identifier: "com.bad.software",
+      source: "apps",
+      generated_cpe: "cpe:/a:bad:software:1.1.1",
+      hosts_count: 5,
+      last_opened_at: "2021-08-18T15:11:35Z",
+      installed_paths: ["/Applications/BadSoftware.app"],
+      resolved_in_version: "2",
+    },
+  ],
 };
 
 export const createMockVulnerability = (
