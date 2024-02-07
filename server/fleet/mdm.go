@@ -205,6 +205,8 @@ type MDMCommandResult struct {
 	// Hostname is not filled by the query, it is filled in the service layer
 	// afterwards. To make that explicit, the db field tag is explicitly ignored.
 	Hostname string `json:"hostname" db:"-"`
+	// Payload is the contents of the command
+	Payload []byte `json:"payload" db:"payload"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for

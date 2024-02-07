@@ -2754,6 +2754,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd2),
+		Payload:     []byte(rawCmd2),
 	})
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
@@ -2788,6 +2789,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 		{
 			HostUUID:    enrolledHosts[1].UUID,
@@ -2795,6 +2797,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 	})
 
@@ -2821,6 +2824,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 		{
 			HostUUID:    enrolledHosts[1].UUID,
@@ -2828,6 +2832,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 	})
 
