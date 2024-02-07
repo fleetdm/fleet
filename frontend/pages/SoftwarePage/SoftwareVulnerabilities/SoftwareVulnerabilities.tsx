@@ -17,20 +17,24 @@ interface ISoftwareVulnerabilitiesProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   perPage: number;
+  query?: string;
   orderDirection: "asc" | "desc";
   orderKey: string;
   currentPage: number;
   teamId?: number;
+  exploited?: string;
 }
 
 const SoftwareVulnerabilities = ({
   router,
   isSoftwareEnabled,
+  query,
   perPage,
   orderDirection,
   orderKey,
   currentPage,
   teamId,
+  exploited,
 }: ISoftwareVulnerabilitiesProps) => {
   const queryParams = {
     page: currentPage,
@@ -38,6 +42,8 @@ const SoftwareVulnerabilities = ({
     order_direction: orderDirection,
     order_key: orderKey,
     teamId,
+    query,
+    showExploitedVulnerabilitiesOnly: Boolean(exploited),
   };
 
   const { data, isFetching, isError } = useQuery<
@@ -68,6 +74,10 @@ const SoftwareVulnerabilities = ({
       <SoftwareVulnerabilitiesTable
         router={router}
         data={data}
+        query={query}
+        showExploitedVulnerabilitiesOnly={
+          queryParams.showExploitedVulnerabilitiesOnly
+        }
         isSoftwareEnabled={isSoftwareEnabled}
         perPage={perPage}
         orderDirection={orderDirection}

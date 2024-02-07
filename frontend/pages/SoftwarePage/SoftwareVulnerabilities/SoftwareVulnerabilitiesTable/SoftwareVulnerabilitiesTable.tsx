@@ -5,8 +5,13 @@ import { Row } from "react-table";
 import PATHS from "router/paths";
 
 import { AppContext } from "context/app";
-import { GITHUB_NEW_ISSUE_LINK } from "utilities/constants";
+import {
+  GITHUB_NEW_ISSUE_LINK,
+  EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS,
+} from "utilities/constants";
 
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import CustomLink from "components/CustomLink";
 import TableContainer from "components/TableContainer";
 import LastUpdatedText from "components/LastUpdatedText";
@@ -31,9 +36,11 @@ interface ISoftwareVulnerabilitiesTableProps {
   router: InjectedRouter;
   isSoftwareEnabled: boolean;
   data?: IVulnerabilitiesResponse;
+  query?: string;
   perPage: number;
   orderDirection: "asc" | "desc";
   orderKey: string;
+  showExploitedVulnerabilitiesOnly: boolean;
   currentPage: number;
   teamId?: number;
   isLoading: boolean;
@@ -43,14 +50,18 @@ const SoftwareVulnerabilitiesTable = ({
   router,
   isSoftwareEnabled,
   data,
+  query,
   perPage,
   orderDirection,
   orderKey,
+  showExploitedVulnerabilitiesOnly,
   currentPage,
   teamId,
   isLoading,
 }: ISoftwareVulnerabilitiesTableProps) => {
-  const { isSandboxMode, noSandboxHosts } = useContext(AppContext);
+  const { isPremiumTier, isSandboxMode, noSandboxHosts } = useContext(
+    AppContext
+  );
 
   const determineQueryParamChange = useCallback(
     (newTableQuery: ITableQueryData) => {
@@ -94,7 +105,7 @@ const SoftwareVulnerabilitiesTable = ({
       if (changedParam === "") return;
 
       const newRoute = getNextLocationPath({
-        pathPrefix: PATHS.SOFTWARE_OS,
+        pathPrefix: PATHS.SOFTWARE_VULNERABILITIES,
         routeTemplate: "",
         queryParams: generateNewQueryParams(newTableQuery, changedParam),
       });
@@ -104,23 +115,47 @@ const SoftwareVulnerabilitiesTable = ({
     [determineQueryParamChange, generateNewQueryParams, router]
   );
 
-  const softwareTableHeaders = useMemo(() => {
+  // determines if a user be able to search in the table
+  const searchable =
+    isSoftwareEnabled &&
+    (!!data || query !== "" || showExploitedVulnerabilitiesOnly);
+
+  const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(teamId, router, {
+    return generateTableConfig(isPremiumTier, isSandboxMode, teamId, router, {
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
     });
   }, [data, router, teamId]);
 
+  const handleExploitedVulnFilterDropdownChange = (
+    isFilterExploited: string
+  ) => {
+    router.replace(
+      getNextLocationPath({
+        pathPrefix: PATHS.SOFTWARE_VULNERABILITIES,
+        routeTemplate: "",
+        queryParams: {
+          query,
+          teamId,
+          orderDirection,
+          orderKey,
+          exploited: isFilterExploited,
+          page: 0, // resets page index
+        },
+      })
+    );
+  };
+
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = {
+    const hostsByVulnerabilityParams = {
       cve: row.original.cve,
       team_id: teamId,
     };
 
     const path = `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
-      hostsBySoftwareParams
+      hostsByVulnerabilityParams
     )}`;
 
     router.push(path);
@@ -130,7 +165,7 @@ const SoftwareVulnerabilitiesTable = ({
     const count = data?.count;
     if (!data?.vulnerabilities || !count) return "";
 
-    return count === 1 ? `${count} item` : `${count} items`;
+    return count === 1 ? `${count} vulnerability` : `${count} vulnerabilities`;
   };
 
   const getLastUpdatedText = () => {
@@ -138,12 +173,12 @@ const SoftwareVulnerabilitiesTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
+        whatToRetrieve={"vulnerabilities"}
       />
     );
   };
 
-  const renderSoftwareCount = () => {
+  const renderVulnerabilityCount = () => {
     const itemText = getItemsCountText();
     const lastUpdatedText = getLastUpdatedText();
 
@@ -170,10 +205,23 @@ const SoftwareVulnerabilitiesTable = ({
     );
   };
 
+  const renderExploitedVulnerabilitiesDropdown = () => {
+    return (
+      <Dropdown
+        value={showExploitedVulnerabilitiesOnly}
+        className={`${baseClass}__exploited-vulnerabilities-dropdown`}
+        options={EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS}
+        searchable={false}
+        onChange={handleExploitedVulnFilterDropdownChange}
+        tableFilterDropdown
+      />
+    );
+  };
+
   return (
     <div className={baseClass}>
       <TableContainer
-        columnConfigs={softwareTableHeaders}
+        columnConfigs={vulnerabilitiesTableHeaders}
         data={data?.vulnerabilities ?? []}
         isLoading={isLoading}
         resultsTitle={"items"}
@@ -192,10 +240,13 @@ const SoftwareVulnerabilitiesTable = ({
         showMarkAllPages={false}
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
-        searchable={false}
+        searchable={searchable}
         onQueryChange={onQueryChange}
+        customControl={
+          searchable ? renderExploitedVulnerabilitiesDropdown : undefined
+        }
         stackControls
-        renderCount={renderSoftwareCount}
+        renderCount={renderVulnerabilityCount}
         renderFooter={renderTableFooter}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
