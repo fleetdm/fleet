@@ -69,7 +69,7 @@ export FLEET_ENV_PATH=./path/to/env/file/fleet_env
 ./tools/api/fleet/queries/run "[1,2]" "[3,4]"
 ```
 
-Bash Script - Pulls all software based on software ID for your Fleet instance, uses jq
+Bash Script - Pulls all hosts based on software _name_ for your Fleet instance, uses jq. Helps if wanting to track down a particular software and see what hosts might be affected.
 
 `./name.sh api_token software_title_id base_url`
 
@@ -116,7 +116,7 @@ rm "$tmpfile"
 ```
 
 Some quick Python to pull all Vuln software per host 
-Might be better to do this _backwards_ by host instead of by the software. Attempted to use parallel threading to make it run faster, only helps a little.
+Might be better to do this _backwards_ by host instead of by the software. Attempting to use parallel threading to make it run faster, only helps a little.
 can adjust `structure` to display what info you want.
 
 
