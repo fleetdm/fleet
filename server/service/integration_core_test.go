@@ -210,7 +210,7 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 	newUPars := fleet.UserPayload{
 		Name:  ptr.String("Justin A Test"),
 		Email: ptr.String("justin@test.com"),
-		// // This is 73 characters long
+		// This is 73 characters long
 		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
