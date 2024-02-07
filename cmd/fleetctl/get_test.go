@@ -360,6 +360,10 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
 	expectedText := `+------+------------+----------+-----------------+---------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
 +------+------------+----------+-----------------+---------+

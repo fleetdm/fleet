@@ -405,12 +405,12 @@ type MDMHostData struct {
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
 
-	// The Locked, Wiped and ActionsSuspended fields reflect the host_mdm_actions
-	// record corresponding to this host. They default to false if no lock/wipe
-	// is pending or applied to the host.
-	Locked           bool `json:"locked" db:"-" csv:"-"`
-	Wiped            bool `json:"wiped" db:"-" csv:"-"`
-	ActionsSuspended bool `json:"actions_suspended" db:"-" csv:"-"`
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {

@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -51,6 +52,10 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		return err
 	}
 
+	// TODO(mna): error messages are subtly different in the figma for CLI and
+	// UI, they should be the same as they come from the same place (the API).
+	// I used the CLI messages for the implementation.
+
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin":
@@ -75,22 +80,16 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		}
 
 	default:
+		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
 	// if there's a lock, unlock or wipe action pending, do not accept the lock
-	// request. A quick initial check is to look if ActionsSuspended is true,
-	// meaning that a lock, unlock or wipe is pending, otherwise no such action
-	// is pending.
+	// request.
 	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
-	// lockWipe contains the lock status (i.e. a reference to the lock MDM
-	// command or script which may be pending, succeeded or failed, or nil if not
-	// locked nor pending), the wipe status (same, but for wipe), and the unlock
-	// status (nil if not pending, otherwise a reference to the unlock script or
-	// PIN number for macOS).
 	switch {
 	case lockWipe.IsPendingLock():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. The host will lock when it comes online."))
@@ -99,7 +98,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	case lockWipe.IsPendingWipe():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."))
 	case lockWipe.IsLocked():
-		// TODO(mna): succeed quietly, returning the current unlock pin for macos?
+		// TODO(mna): was not convered in figma, succeed quietly, returning the
+		// current unlock pin for macos? For now I'll return 409 conflict.
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
 	}
 
 	// all good, go ahead with queuing the lock request.
@@ -142,6 +143,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		}
 
 	default:
+		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
@@ -157,7 +159,11 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	case lockWipe.IsPendingWipe():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
 	case lockWipe.IsUnlocked():
-		// TODO(mna): error, already unlocked, or succeed quietly? If so, what to return for macOS?
+		// TODO(mna): was not convered in figma, succeed quietly, returning the
+		// current unlock pin for macos? For now I'll return 409 conflict.
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
 	}
+
+	// all good, go ahead with queuing the unlock request.
 	panic("unimplemented")
 }

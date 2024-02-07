@@ -282,7 +282,6 @@ CREATE TABLE `host_mdm_actions` (
   `host_id` int(10) unsigned NOT NULL,
   `lock_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `wipe_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  `suspended` tinyint(1) NOT NULL DEFAULT '0',
   `unlock_pin` varchar(6) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `unlock_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`host_id`)

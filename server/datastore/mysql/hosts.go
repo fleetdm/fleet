@@ -766,14 +766,11 @@ const hostMDMSelect = `,
 			WHEN hdek.host_id IS NULL THEN -1
 			ELSE hdek.decryptable
 		END,
-		'name', hmdm.name,
-		'locked', COALESCE(hma.lock_ref, '') != '',
-		'wiped', COALESCE(hma.wipe_ref, '') != '',
-		'actions_suspended', hma.suspended
+		'name', hmdm.name
 	) mdm_host_data
 	`
 
-// TODO(mna): add integration tests with List/Get host with locked/wiped/suspended to ensure proper marshaling.
+// TODO(mna): add integration tests with Get host with locked/wiped/unlocked (+pending) to ensure proper marshaling.
 
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
@@ -792,7 +789,6 @@ const hostMDMJoin = `
 	  LEFT JOIN mobile_device_management_solutions mdms ON hm.mdm_id = mdms.id
   ) hmdm ON hmdm.host_id = h.id
   LEFT JOIN host_disk_encryption_keys hdek ON hdek.host_id = h.id
-	LEFT JOIN host_mdm_actions hma ON hma.host_id = h.id
   `
 
 func amountEnrolledHostsByOSDB(ctx context.Context, db sqlx.QueryerContext) (byOS map[string][]fleet.HostsCountByOSVersion, totalCount int, err error) {

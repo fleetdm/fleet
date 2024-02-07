@@ -306,7 +306,7 @@ type HostLockWipeStatus struct {
 	// TODO: add wipe status when implementing the Wipe story.
 }
 
-func (s HostLockWipeStatus) IsPendingLock() bool {
+func (s *HostLockWipeStatus) IsPendingLock() bool {
 	if s.HostFleetPlatform == "darwin" {
 		// pending lock if an MDM command is queued but no result received yet
 		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
@@ -347,4 +347,9 @@ func (s HostLockWipeStatus) IsUnlocked() bool {
 	// this state is regardless of pending lock/unlock/wipe (it reports whether
 	// the host is unlocked *now*).
 	return !s.IsLocked()
+}
+
+func (s HostLockWipeStatus) IsWiped() bool {
+	// TODO(mna): implement when addressing Wipe story, for now never wiped
+	return false
 }

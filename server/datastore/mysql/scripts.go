@@ -505,23 +505,48 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		UnlockRef *string `db:"unlock_ref"`
 		UnlockPIN *string `db:"unlock_pin"`
 	}
+	status := &fleet.HostLockWipeStatus{
+		HostFleetPlatform: fleetPlatform,
+	}
+
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, hostID); err != nil {
 		if err == sql.ErrNoRows {
-			return nil, notFound("HostMDMActions").WithID(hostID)
+			// do not return a Not Found error, return the zero-value status, which
+			// will report the correct states.
+			return status, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
 
-	status := &fleet.HostLockWipeStatus{
-		HostFleetPlatform: fleetPlatform,
-	}
 	switch fleetPlatform {
 	case "darwin":
 		if mdmActions.UnlockPIN != nil {
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
+
 		if mdmActions.LockRef != nil {
 			// the lock reference is an MDM command
+			cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command")
+			}
+			status.LockMDMCommand = cmd
+
+			// get the MDM command result, which may be not found (indicating the
+			// command is pending)
+			cmdRes, err := ds.GetMDMAppleCommandResults(ctx, *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command result")
+			}
+			// if there is are results, which one do we care about? Look for a failed
+			// or acknowledged one, the others probably say nothing about the result
+			// of the command (e.g. not now, pending)
+			for _, r := range cmdRes {
+				if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
+					status.LockMDMCommandResult = r
+					break
+				}
+			}
 		}
 
 	case "windows", "linux":
@@ -533,6 +558,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 			}
 			status.LockScript = hsr
 		}
+
 		if mdmActions.UnlockRef != nil {
 			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef)
 			if err != nil {

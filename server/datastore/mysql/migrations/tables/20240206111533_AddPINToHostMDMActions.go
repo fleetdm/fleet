@@ -19,8 +19,8 @@ func Up_20240206111533(tx *sql.Tx) error {
 	// as we already have for lock_ref and wipe_ref.
 	stmt := `ALTER TABLE host_mdm_actions
 		ADD COLUMN unlock_pin VARCHAR(6) NULL,
-		ADD COLUMN unlock_ref VARCHAR(36) NULL
-
+		ADD COLUMN unlock_ref VARCHAR(36) NULL,
+		DROP COLUMN suspended
 `
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("alter table host_mdm_actions: %w", err)
