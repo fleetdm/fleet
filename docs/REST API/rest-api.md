@@ -3659,7 +3659,7 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 
 ##### Default response
 
-`Status: 200`
+`Status: 204`
 
 ### Unlock host
 
