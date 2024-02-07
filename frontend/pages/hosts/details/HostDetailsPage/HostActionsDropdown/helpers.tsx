@@ -112,6 +112,7 @@ const canLockHost = ({
   isTeamAdmin,
   isTeamMaintainer,
   isTeamObserver,
+  isLocked,
 }: IHostActionConfigOptions) => {
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
   const canLockDarwin =
@@ -122,6 +123,7 @@ const canLockHost = ({
 
   return (
     isPremiumTier &&
+    !isLocked &&
     (hostPlatform === "windows" || hostPlatform === "linux" || canLockDarwin) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -144,6 +146,7 @@ const canWipeHost = ({
   isEnrolledInMdm,
   isMdmEnabledAndConfigured,
   hostPlatform,
+  isLocked,
 }: IHostActionConfigOptions) => {
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
@@ -155,6 +158,7 @@ const canWipeHost = ({
 
   return (
     isPremiumTier &&
+    !isLocked &&
     (hostPlatform === "linux" || canWipeMacOrWindows) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -168,7 +172,6 @@ const canWipeHost = ({
 const canUnlock = ({
   isPremiumTier,
   isLocked,
-  isWiped,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
@@ -188,7 +191,7 @@ const canUnlock = ({
 
   return (
     isPremiumTier &&
-    (isLocked || isWiped) &&
+    isLocked &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
@@ -260,7 +263,7 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
-  if (false) {
+  if (!canLockHost(config)) {
     options = options.filter((option) => option.value !== "lock");
   }
 
