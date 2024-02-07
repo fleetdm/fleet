@@ -487,5 +487,59 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
-	panic("unimplemented")
+	const stmt = `
+		SELECT
+			lock_ref,
+			wipe_ref,
+			unlock_ref,
+			unlock_pin
+		FROM
+			host_mdm_actions
+		WHERE
+			host_id = ?
+`
+
+	var mdmActions struct {
+		LockRef   *string `db:"lock_ref"`
+		WipeRef   *string `db:"wipe_ref"`
+		UnlockRef *string `db:"unlock_ref"`
+		UnlockPIN *string `db:"unlock_pin"`
+	}
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound("HostMDMActions").WithID(hostID)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+
+	status := &fleet.HostLockWipeStatus{
+		HostFleetPlatform: fleetPlatform,
+	}
+	switch fleetPlatform {
+	case "darwin":
+		if mdmActions.UnlockPIN != nil {
+			status.UnlockPIN = *mdmActions.UnlockPIN
+		}
+		if mdmActions.LockRef != nil {
+			// the lock reference is an MDM command
+		}
+
+	case "windows", "linux":
+		// lock and unlock references are scripts
+		if mdmActions.LockRef != nil {
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+			}
+			status.LockScript = hsr
+		}
+		if mdmActions.UnlockRef != nil {
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+			}
+			status.UnlockScript = hsr
+		}
+	}
+	return status, nil
 }
