@@ -284,6 +284,7 @@ CREATE TABLE `host_mdm_actions` (
   `wipe_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `suspended` tinyint(1) NOT NULL DEFAULT '0',
   `unlock_pin` varchar(6) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `unlock_ref` varchar(36) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   PRIMARY KEY (`host_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
