@@ -40,8 +40,8 @@ parasails.registerComponent('scrollableTweets', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="d-flex flex-column">
-    <div purpose="previous-page-indicator" @click="clickPreviousPage()" v-if="showPreviousPageButton"><i class="fa fa-chevron-left"></i></div>
-    <div purpose="next-page-indicator"  @click="clickNextPage()" v-if="showNextPageButton"><i class="fa fa-chevron-right"></i></div>
+    <div purpose="previous-page-indicator" @click="clickPreviousPage()" v-if="showPreviousPageButton"><img src="/images/testimonials-pagination-previous-48x48@2x.png"></div>
+    <div purpose="next-page-indicator"  @click="clickNextPage()" v-if="showNextPageButton"><img src="/images/testimonials-pagination-next-48x48@2x.png"></div>
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
       <a purpose="tweet-card" class="card" v-for="testimonial in quotesToDisplay" target="_blank" :href="testimonial.quoteLinkUrl">
         <div purpose="logo" class="mb-4">
@@ -165,8 +165,7 @@ parasails.registerComponent('scrollableTweets', {
       console.log((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1)
       this.showNextPageButton = (
         (this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1
-        && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage
-        && this.tweetsDiv.scrollWidth - (this.tweetsDiv.scrollLeft + this.tweetsDiv.clientWidth) > this.tweetCardWidth );
+        && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage);
       this.syncing = false;
     },
 
