@@ -846,7 +846,12 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
+
+	// ListVulnerabilities returns a list of unique vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
+	UpdateVulnerabilityHostCounts(ctx context.Context) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
 
