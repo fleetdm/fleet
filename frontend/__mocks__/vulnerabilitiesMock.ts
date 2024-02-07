@@ -17,7 +17,18 @@ const DEFAULT_VULNERABILITY: IVulnerability = {
   cve_description:
     "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.", // Available in Fleet Premium
   resolved_in_version: "", // Available in Fleet Premium
-  os_versions: [],
+  os_versions: [
+    {
+      os_version_id: 1,
+      name: "bad version",
+      name_only: "bad version",
+      version: "1",
+      platform: "windows",
+      hosts_count: 5,
+      resolved_in_version: "2",
+      generated_cpes: [],
+    },
+  ],
   software: [],
 };
 

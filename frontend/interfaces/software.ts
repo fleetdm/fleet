@@ -39,6 +39,8 @@ export interface ISoftware {
   installed_paths?: string[];
 }
 
+export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities">;
+
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
