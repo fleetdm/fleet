@@ -3688,7 +3688,7 @@ Requests to unlock macOS hosts will also include the following response data:
 ```json
 {
   "host_id": 8,
-  "unlock_pin": 123456
+  "unlock_pin": "123456"
 }
 ```
 
