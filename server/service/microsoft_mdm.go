@@ -1477,7 +1477,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		}
 
 		// CmdStatusOK is returned for the rest of the operations
-		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID, protoCMD.Verb, syncml.CmdStatusOK))
+		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
 	}
 
 	return responseCmds, nil
@@ -2078,7 +2078,9 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 		Cmd:     &cmdOrig,
 		Data:    &statusCode,
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID: mdm_types.CmdID{
+			Value: uuid.NewString(),
+		},
 	}
 }
 
@@ -2213,10 +2215,16 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 		return nil, fmt.Errorf("unmarshalling profile: %w", err)
 	}
 	// set the CmdID for the <Atomic> command
-	cmd.CmdID = commandUUID
+	cmd.CmdID = mdm_types.CmdID{
+		Value:               commandUUID,
+		IncludeFleetComment: true,
+	}
 	// generate a CmdID for any nested <Replace>
 	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = uuid.NewString()
+		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
 	}
 
 	rawCommand, err := xml.Marshal(cmd)

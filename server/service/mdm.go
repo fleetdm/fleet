@@ -616,7 +616,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 	winCmd := &fleet.MDMWindowsCommand{
 		// TODO: using the provided ID to mimic Apple, but seems better if
 		// we're full in control of it, what we should do?
-		CommandUUID:  cmdMsg.CmdID,
+		CommandUUID:  cmdMsg.CmdID.Value,
 		RawCommand:   rawXMLCmd,
 		TargetLocURI: cmdMsg.GetTargetURI(),
 	}

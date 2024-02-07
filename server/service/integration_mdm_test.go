@@ -999,7 +999,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
 				responseOps = append(responseOps, &mdm_types.SyncMLCmd{
 					XMLName: xml.Name{Local: mdm_types.CmdStatus},
-					CmdID:   uuid.NewString(),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					CmdRef:  &ref,
 					Data:    ptr.String(p.Status),
 				})
@@ -1009,7 +1009,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				if p.Status != "200" || p.Data != "" {
 					responseOps = append(responseOps, &mdm_types.SyncMLCmd{
 						XMLName: xml.Name{Local: mdm_types.CmdResults},
-						CmdID:   uuid.NewString(),
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 						CmdRef:  &ref,
 						Items: []mdm_types.CmdItem{
 							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
@@ -1042,11 +1042,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID),
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
 				Cmd:     ptr.String(c.Verb),
 				Data:    ptr.String(status),
 				Items:   nil,
-				CmdID:   uuid.NewString(),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
 		require.Equal(t, wantProfileInstalls, atomicCmds)
@@ -8019,7 +8019,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Exec"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
@@ -8091,7 +8091,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Get"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	// results for command two (Get)
 	cmdTwoRespUUID := uuid.NewString()
@@ -8107,7 +8107,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 				Data:   &fleet.RawXmlData{Content: "0"},
 			},
 		},
-		CmdID: cmdTwoRespUUID,
+		CmdID: fleet.CmdID{Value: cmdTwoRespUUID},
 	})
 	// status 200 for command Three (Replace)
 	d.AppendResponse(fleet.SyncMLCmd{
@@ -8117,7 +8117,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Replace"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
@@ -10273,11 +10273,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			device.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  &cmdID,
+				CmdRef:  &cmdID.Value,
 				Cmd:     ptr.String(c.Verb),
 				Data:    &status,
 				Items:   nil,
-				CmdID:   uuid.NewString(),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
 		// TODO: verify profile contents as well

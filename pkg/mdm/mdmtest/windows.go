@@ -195,7 +195,7 @@ func (c *TestWindowsMDMClient) doManagementReq(rawXMLReq []byte) (map[string]fle
 
 	cmds := make(map[string]fleet.ProtoCmdOperation)
 	for _, p := range c.lastManagementResp.GetOrderedCmds() {
-		cmds[p.Cmd.CmdID] = p
+		cmds[p.Cmd.CmdID.Value] = p
 	}
 
 	// before returning, clean up any lingering responses
@@ -248,7 +248,7 @@ func (c *TestWindowsMDMClient) SendResponse() (map[string]fleet.ProtoCmdOperatio
 
 // AppendResponse sets a response for a specific command UUID.
 func (c *TestWindowsMDMClient) AppendResponse(op fleet.SyncMLCmd) {
-	c.queuedCommandResponses[op.CmdID] = op
+	c.queuedCommandResponses[op.CmdID.Value] = op
 }
 
 func (c *TestWindowsMDMClient) GetCurrentMsgID() (string, error) {
