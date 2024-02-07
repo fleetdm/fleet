@@ -11,6 +11,11 @@ export interface IOperatingSystemVersion {
   vulnerabilities: ISoftwareVulnerability[];
 }
 
+export type IVulnerabilityOSVersion = Omit<
+  IOperatingSystemVersion,
+  "vulnerabilities"
+> & { resolved_in_version: string };
+
 export const OS_VENDOR_BY_PLATFORM: Record<string, string> = {
   darwin: "Apple",
   windows: "Microsoft",
