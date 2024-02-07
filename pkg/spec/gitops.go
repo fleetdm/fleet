@@ -118,7 +118,7 @@ func parseName(raw json.RawMessage, result *GitOps, errors []string) []string {
 
 func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	var orgSettingsTop BaseItem
-	if err := yaml.Unmarshal(raw, &orgSettingsTop); err != nil {
+	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
 	}
 	noError := true
@@ -160,7 +160,7 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 
 func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
 	var teamSettingsTop BaseItem
-	if err := yaml.Unmarshal(raw, &teamSettingsTop); err != nil {
+	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal team_settings: %v", err))
 	}
 	noError := true
@@ -254,7 +254,7 @@ func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir s
 		return append(errors, "'agent_options' is required")
 	}
 	var agentOptionsTop BaseItem
-	if err := yaml.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
+	if err := json.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
 		errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
 	} else {
 		if agentOptionsTop.Path == nil {
@@ -294,7 +294,7 @@ func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return append(errors, "'controls' is required")
 	}
 	var controlsTop Controls
-	if err := yaml.Unmarshal(controlsRaw, &controlsTop); err != nil {
+	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal controls: %v", err))
 	}
 	if controlsTop.Path == nil {
@@ -326,7 +326,7 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		return append(errors, "'policies' key is required")
 	}
 	var policies []Policy
-	if err := yaml.Unmarshal(policiesRaw, &policies); err != nil {
+	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal policies: %v", err))
 	}
 	for _, item := range policies {
@@ -384,7 +384,7 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		return append(errors, "'queries' key is required")
 	}
 	var queries []Query
-	if err := yaml.Unmarshal(queriesRaw, &queries); err != nil {
+	if err := json.Unmarshal(queriesRaw, &queries); err != nil {
 		return append(errors, fmt.Sprintf("failed to unmarshal queries: %v", err))
 	}
 	for _, item := range queries {
