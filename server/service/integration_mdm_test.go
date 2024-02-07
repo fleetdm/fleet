@@ -10238,14 +10238,14 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				SELECT COALESCE(status, 'pending') as status, retries
 				FROM host_mdm_windows_profiles
 				WHERE command_uuid = ?`
-				return sqlx.GetContext(context.Background(), q, &gotProfile, stmt, cmd.Cmd.CmdID)
+				return sqlx.GetContext(context.Background(), q, &gotProfile, stmt, cmd.Cmd.CmdID.Value)
 			})
 
 			wantDeliveryStatus := fleet.WindowsResponseToDeliveryStatus(wantStatus)
 			if gotProfile.Retries <= servermdm.MaxProfileRetries && wantDeliveryStatus == mdm_types.MDMDeliveryFailed {
-				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID)
+				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			} else {
-				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID)
+				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			}
 		}
 	}
