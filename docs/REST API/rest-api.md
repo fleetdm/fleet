@@ -7631,6 +7631,19 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "platform": "windows"
     }
   ],
+{
+  "os_version": 6,
+  "host_count": 200,
+  "name": "macOS 14.1.2",
+  "name_only": "macOS"
+  "version": "14.1.2",
+  "platform": "darwin",
+  "resolved_in_version": "14.2",
+  "generated_cpes": [
+    "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+    "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+  ]
+  }
   "software": [
     {
       "id": 2363,
