@@ -2013,9 +2013,8 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "enrollment_status": null,
         "name": "",
         "server_url": null,
-        "locked": false,
-        "wiped": false,
-        "actions_suspended": false
+        "device_status": "unlocked",
+        "pending_action": ""
       },
       "software": [
         {
@@ -2443,9 +2442,8 @@ Returns the information of the specified host.
       "enrollment_status": null,
       "name": "",
       "server_url": null,
-      "locked": false,
-      "wiped": false,
-      "actions_suspended": false,
+      "device_status": "unlocked",
+      "pending_action": "",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2654,9 +2652,8 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "enrollment_status": null,
       "name": "",
       "server_url": null,
-      "locked": false,
-      "wiped": false,
-      "actions_suspended": false,
+      "device_status": "unlocked",
+      "pending_action": "lock",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
