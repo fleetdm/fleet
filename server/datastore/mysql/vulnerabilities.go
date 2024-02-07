@@ -2,6 +2,9 @@ package mysql
 
 import (
 	"context"
+	"fmt"
+	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -59,20 +62,14 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
-	type hostCount struct {
-		TeamID    uint   `db:"team_id"`
-		CVE       string `db:"cve"`
-		HostCount uint   `db:"host_count"`
-	}
-
 	globalSelectStmt := `
-    SELECT 0 as team_id, cve, COUNT(DISTINCT host_id) AS host_count
+    SELECT 0 as team_id, cve, COUNT(*) AS host_count
     FROM (
         SELECT sc.cve, hs.host_id
         FROM software_cve sc
         INNER JOIN host_software hs ON sc.software_id = hs.software_id
     
-        UNION ALL
+        UNION
     
         SELECT osv.cve, hos.host_id
         FROM operating_system_vulnerabilities osv
@@ -80,34 +77,29 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
     ) AS combined_results
     GROUP BY cve;
   `
-	var globalHostCounts []hostCount
-	err := sqlx.SelectContext(ctx, ds.reader(ctx), &globalHostCounts, globalSelectStmt)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting global host counts")
-	}
 
-	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
-	var insertArgs []interface{}
-	for _, count := range globalHostCounts {
-		insertStmt += "(?, ?, ?),"
-		insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount)
-	}
-	insertStmt = insertStmt[:len(insertStmt)-1] // remove trailing comma
-	insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count)"
-
-	_, err = ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
+	start := time.Now()
+	globalHostCounts, err := ds.fetchHostCounts(ctx, globalSelectStmt)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting global host counts")
+		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
+	fmt.Printf("global fetchHostCounts took %s\n", time.Since(start))
+
+	start = time.Now()
+	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
+	}
+	fmt.Printf("global batchInsertHostCounts took %s\n", time.Since(start))
 
 	teamSelectStmt := `
-		SELECT h.team_id, combined_results.cve, COUNT(DISTINCT h.id) AS host_count
+		SELECT h.team_id, combined_results.cve, COUNT(*) AS host_count
 		FROM (
 			SELECT hs.host_id, sc.cve
 			FROM software_cve sc
 			INNER JOIN host_software hs ON sc.software_id = hs.software_id
 
-			UNION ALL
+			UNION
 
 			SELECT hos.host_id, osv.cve
 			FROM operating_system_vulnerabilities osv
@@ -118,27 +110,69 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		GROUP BY h.team_id, combined_results.cve
 	`
 
-	var teamHostCounts []hostCount
-	err = sqlx.SelectContext(ctx, ds.reader(ctx), &teamHostCounts, teamSelectStmt)
+	start = time.Now()
+	teamHostCounts, err := ds.fetchHostCounts(ctx, teamSelectStmt)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "getting team host counts")
+		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
+	}
+	fmt.Printf("team fetchHostCounts took %s\n", time.Since(start))
+
+	start = time.Now()
+	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
+	}
+	fmt.Printf("team batchInsertHostCounts took %s\n", time.Since(start))
+
+	return nil
+}
+
+type hostCount struct {
+	TeamID    uint   `db:"team_id"`
+	CVE       string `db:"cve"`
+	HostCount uint   `db:"host_count"`
+}
+
+func (ds *Datastore) fetchHostCounts(ctx context.Context, query string) ([]hostCount, error) {
+	var hostCounts []hostCount
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &hostCounts, query)
+	if err != nil {
+		return nil, err
+	}
+	return hostCounts, nil
+}
+
+func (ds *Datastore) batchInsertHostCounts(ctx context.Context, counts []hostCount) error {
+	if len(counts) == 0 {
+		return nil
 	}
 
-	if len(teamHostCounts) > 0 {
+	insertStmt := "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+	var insertArgs []interface{}
 
-		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
-		insertArgs = []interface{}{}
-		for _, count := range teamHostCounts {
-			insertStmt += "(?, ?, ?),"
+	chunkSize := 100
+	for i := 0; i < len(counts); i += chunkSize {
+		end := i + chunkSize
+		if end > len(counts) {
+			end = len(counts)
+		}
+
+		valueStrings := make([]string, 0, chunkSize)
+		for _, count := range counts[i:end] {
+			valueStrings = append(valueStrings, "(?, ?, ?)")
 			insertArgs = append(insertArgs, count.TeamID, count.CVE, count.HostCount)
 		}
-		insertStmt = insertStmt[:len(insertStmt)-1] // remove trailing comma
-		insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count)"
 
-		_, err = ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
+		insertStmt += strings.Join(valueStrings, ", ")
+		insertStmt += " ON DUPLICATE KEY UPDATE host_count = VALUES(host_count);"
+
+		_, err := ds.writer(ctx).ExecContext(ctx, insertStmt, insertArgs...)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting team host counts")
+			return fmt.Errorf("inserting host counts: %w", err)
 		}
+
+		insertStmt = "INSERT INTO vulnerability_host_counts (team_id, cve, host_count) VALUES "
+		insertArgs = nil
 	}
 
 	return nil
