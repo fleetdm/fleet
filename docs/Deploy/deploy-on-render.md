@@ -47,9 +47,8 @@ following values:
 - Mount Path: `/var/lib/mysql`
 - Size: `50GB`
 
-<!-- FIXME: update this screenshot to new UI -->
 Once you've setup your mysql service and it has successfully deployed on Render we will need to copy the address. You can find that here:
-![mysql address on render](https://fleetdm.com/images/docs/deploy-on-render-6-666x416@2x.png)
+![mysql address on render](https://fleetdm.com/images/docs/deploy-on-render-mysql.png)
 *mysql address on Render*
 
 ---
