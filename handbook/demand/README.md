@@ -89,7 +89,7 @@ There are many times in which community members, customers, and contributors are
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
-- If yes, follow the steps to fufuill a swag request.
+- If yes, follow the steps to fulfill a swag request.
 
 ### Run a new ad or change an existing ad
 Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
@@ -126,15 +126,24 @@ Eventbrite pages for planned events are brought to design review or CEO office m
 Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 ### Create an article
-Article creation begins with creation of an issue using the "🫧 Article request" template.
+Article creation begins with creating an issue using the "🫧 Article request" template.
 
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________).
 2. Move the issue into the "📃 Planned articles" column.
+
+### Create a release article
+Release article creation begins with creating an issue using the "📰 Release article" template. Stories for inclusion are discussed in the [sprint kickoff review](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies).
+
+1. Create a [new GitHub issue using the 📰 Release article template](https://github.com/fleetdm/fleet/issues/new?assignees=spokanemac&labels=%23g-demand,:improve+documentation&projects=&template=release-article.md&title=Release+article:+vXXX.YYY.ZZZ)
+2. Move the issue into the "📃 Planned articles" column.
+3. Duplicate the [release template](https://drive.google.com/drive/folders/1DAzKvfO5zo9ftbuB56MrZDtmw4NESZEG), rename to `Fleet XXX.YYY.ZZZ release` and link in the issue description.
+4. Create a [cover image](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2123%3A102674&mode=design&t=5sNgHapoyLo3HYHK-1).
+5. When a release is made, ask for a review of the article PR from the head of product design.
 
 ### Review ongoing articles
 Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
-### Respond to  a "Talk to an expert" request
+### Respond to a "Talk to an expert" request
 When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.
 
 1. Add questionnaire details to the [Talk to an Expert](https://docs.google.com/spreadsheets/d/1aMLQ9z5TYn90AnE3g1sMPoxsMNMKXn_l3aWb9Kdi7G4/edit) spreadsheet.
