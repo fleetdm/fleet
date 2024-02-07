@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -78,19 +77,15 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
     GROUP BY cve;
   `
 
-	start := time.Now()
 	globalHostCounts, err := ds.fetchHostCounts(ctx, globalSelectStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching global vulnerability host counts")
 	}
-	fmt.Printf("global fetchHostCounts took %s\n", time.Since(start))
 
-	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
-	fmt.Printf("global batchInsertHostCounts took %s\n", time.Since(start))
 
 	teamSelectStmt := `
 		SELECT h.team_id, combined_results.cve, COUNT(*) AS host_count
@@ -110,19 +105,15 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		GROUP BY h.team_id, combined_results.cve
 	`
 
-	start = time.Now()
 	teamHostCounts, err := ds.fetchHostCounts(ctx, teamSelectStmt)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching team vulnerability host counts")
 	}
-	fmt.Printf("team fetchHostCounts took %s\n", time.Since(start))
 
-	start = time.Now()
 	err = ds.batchInsertHostCounts(ctx, teamHostCounts)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
-	fmt.Printf("team batchInsertHostCounts took %s\n", time.Since(start))
 
 	return nil
 }
