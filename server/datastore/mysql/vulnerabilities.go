@@ -190,14 +190,6 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
 	}
-	fmt.Printf("global fetchHostCounts took %s\n", time.Since(start))
-
-	start = time.Now()
-	err = ds.batchInsertHostCounts(ctx, globalHostCounts)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "inserting global vulnerability host counts")
-	}
-	fmt.Printf("global batchInsertHostCounts took %s\n", time.Since(start))
 
 	teamSelectStmt := `
 		SELECT h.team_id, combined_results.cve, COUNT(*) AS host_count
