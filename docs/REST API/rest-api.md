@@ -7652,7 +7652,8 @@ Retrieve details about a vulnerability and its affected software and OS versions
       "source": "programs",
       "browser": "",
       "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
-      "host_count": 50
+      "hosts_count": 50,
+      "resolved_in_version": "5.0.0"
     }
   ]
 }
