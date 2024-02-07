@@ -5439,20 +5439,19 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
-	// // TODO: confirm expected behavior for platforms like chrome where scripts are not explicitly
-	// supported
-	// host5, err := s.ds.NewHost(ctx, &fleet.Host{
-	// 	DetailUpdatedAt: time.Now(),
-	// 	LabelUpdatedAt:  time.Now(),
-	// 	PolicyUpdatedAt: time.Now(),
-	// 	SeenTime:        time.Now().Add(-1 * time.Minute),
-	// 	OsqueryHostID:   ptr.String("host5"),
-	// 	NodeKey:         ptr.String("host5"),
-	// 	UUID:            uuid.New().String(),
-	// 	Hostname:        "host5",
-	// 	Platform:        "chrome",
-	// 	TeamID:          nil,
-	// })
+	// create a chrome host
+	host5, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host5"),
+		NodeKey:         ptr.String("host5"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host5",
+		Platform:        "chrome",
+		TeamID:          nil,
+	})
 
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
@@ -5664,12 +5663,16 @@ VALUES
 		}
 	})
 
-	// t.Run("unsupported platform", func(t *testing.T) {
-	// 	var resp getHostScriptDetailsResponse
-	// 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host5.ID), nil, http.StatusOK, &resp)
-	// 	require.NotNil(t, resp.Scripts)
-	// 	require.Len(t, resp.Scripts, 0)
-	// })
+	// NOTE: Scripts are specified only for platforms other than macOS, Linux,
+	// and Windows; however, we default to listing all scripts for unspecified platforms.
+	// Separately, the UI restricts scripts related functionality to only macOS,
+	// Linux, and Windows.
+	t.Run("unspecified platform", func(t *testing.T) {
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host5.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 4)
+	})
 
 	t.Run("get script results user message", func(t *testing.T) {
 		// add a script with an older created_at timestamp
