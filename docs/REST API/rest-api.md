@@ -7623,27 +7623,19 @@ Retrieve details about a vulnerability and its affected software and OS versions
   "resolved_in_version": "", // Available in Fleet Premium
   "os_versions" : [
     {
-      "os_version_id": 5,
-      "host_count": 5,
-      "name": "Microsoft Windows 11 Enterprise 22H2 10.0.22621.2715",
-      "name_only": "Microsoft Windows 11 Enterprise 22H2",
-      "version": "10.0.22621.2715",
-      "platform": "windows"
+      "os_version_id": 6,
+      "host_count": 200,
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
+      "version": "14.1.2",
+      "platform": "darwin",
+      "resolved_in_version": "14.2",
+      "generated_cpes": [
+        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+      ]
     }
   ],
-{
-  "os_version": 6,
-  "host_count": 200,
-  "name": "macOS 14.1.2",
-  "name_only": "macOS"
-  "version": "14.1.2",
-  "platform": "darwin",
-  "resolved_in_version": "14.2",
-  "generated_cpes": [
-    "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
-    "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
-  ]
-  }
   "software": [
     {
       "id": 2363,
