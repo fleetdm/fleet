@@ -2,7 +2,7 @@ import React from "react";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import { SCRIPT_SUPPORTED_PLATFORMS } from "interfaces/script";
+import { isScriptSupportedPlatform } from "interfaces/script";
 
 const DEFAULT_OPTIONS = [
   {
@@ -111,9 +111,7 @@ const canRunScript = ({
       isTeamAdmin ||
       isTeamMaintainer ||
       isTeamObserver) &&
-    // TODO: revisit this approach to white-list supported platforms (which
-    // would require a more robust approach to identifying linux flavors)
-    !!SCRIPT_SUPPORTED_PLATFORMS.find((p) => p === hostPlatform)
+    isScriptSupportedPlatform(hostPlatform)
   );
 };
 
