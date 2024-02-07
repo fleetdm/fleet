@@ -209,7 +209,7 @@ const HostsFilterBlock = ({
     if (!vulnerability) return null;
 
     // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(`${vulnerability}`);
+    const label = formatOperatingSystemDisplayName(vulnerability);
     const TooltipDescription = (
       <span>Hosts affected by the specified CVE.</span>
     );
