@@ -448,7 +448,8 @@ SELECT
     wmcr.status_code as status,
     wmcr.updated_at,
     wmc.target_loc_uri as request_type,
-    wmr.raw_response as result
+    wmr.raw_response as result,
+    wmc.raw_command as payload
 FROM
     windows_mdm_command_results wmcr
 INNER JOIN

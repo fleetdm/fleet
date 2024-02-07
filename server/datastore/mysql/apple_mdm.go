@@ -411,7 +411,8 @@ SELECT
     ncr.status,
     ncr.result,
     ncr.updated_at,
-    nc.request_type
+    nc.request_type,
+    nc.command as payload
 FROM
     nano_command_results ncr
 INNER JOIN
