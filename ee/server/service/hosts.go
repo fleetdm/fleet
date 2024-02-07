@@ -2,11 +2,13 @@ package service
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -104,7 +106,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	}
 
 	// all good, go ahead with queuing the lock request.
-	panic("unimplemented")
+	return svc.enqueueLockHostRequest(ctx, host.ID, lockWipe)
 }
 
 func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
@@ -165,5 +167,94 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	}
 
 	// all good, go ahead with queuing the unlock request.
-	panic("unimplemented")
+	return svc.enqueueUnlockHostRequest(ctx, host.ID, lockWipe)
 }
+
+func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) error {
+	if lockStatus.HostFleetPlatform == "darwin" {
+		panic("unimplemented")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	script := windowsLockScript
+	if lockStatus.HostFleetPlatform == "linux" {
+		script = linuxLockScript
+	}
+
+	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+	// part starting with the validation of the script (just in case), the checks
+	// that we don't enqueue over the limit, etc. for any other important
+	// validation we may add over there and that we bypass here by enqueueing the
+	// script directly in the datastore layer.
+	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: string(script),
+		UserID:         &vc.User.ID,
+		SyncRequest:    false,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create lock script execution request")
+	}
+
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	return nil
+}
+
+func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) (string, error) {
+	if lockStatus.HostFleetPlatform == "darwin" {
+		return lockStatus.UnlockPIN, nil
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+
+	script := windowsUnlockScript
+	if lockStatus.HostFleetPlatform == "linux" {
+		script = linuxUnlockScript
+	}
+
+	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+	// part starting with the validation of the script (just in case), the checks
+	// that we don't enqueue over the limit, etc. for any other important
+	// validation we may add over there and that we bypass here by enqueueing the
+	// script directly in the datastore layer.
+	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: string(script),
+		UserID:         &vc.User.ID,
+		SyncRequest:    false,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "create unlock script execution request")
+	}
+
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	return "", nil
+}
+
+// TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
+// and scripts/mdm/linux/.. directories where they currently exist, but this is
+// not possible (not a Go package) and I don't know if those script locations
+// are used elsewhere, so for now I just copied the contents under
+// embedded_scripts directory. We'll have to make sure they are kept in sync,
+// or better yet find a way to maintain a single copy.
+var (
+	//go:embed embedded_scripts/windows_lock.ps1
+	windowsLockScript []byte
+	//go:embed embedded_scripts/windows_unlock.ps1
+	windowsUnlockScript []byte
+	//go:embed embedded_scripts/linux_lock.sh
+	linuxLockScript []byte
+	//go:embed embedded_scripts/linux_unlock.sh
+	linuxUnlockScript []byte
+)
