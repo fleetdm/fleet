@@ -28,7 +28,8 @@ Your private service should look like this:
 
 This private service will run MySQL, our database, so let’s give it a fitting name, something like “fleet-mysql”.
 
-We’re also going to need to set up some environment variables and a disk to mount. Expand “Advanced” and enter the following:
+We’re going to need to set up some environment variables. Enter the
+following in the "Environment Variables" section:
 
 ### Environment Variables
 
@@ -37,13 +38,17 @@ We’re also going to need to set up some environment variables and a disk to mo
 - `MYSQL_ROOT_PASSWORD=supersecurerootpw`
 - `MYSQL_USER=fleet`
 
+We're also going to need to configure a disk. Expand "Advanced", click "Add Disk", and enter the
+following values:
+
 ### Disks
 
 - Name: `mysql`
 - Mount Path: `/var/lib/mysql`
 - Size: `50GB`
 
-Once you've setup your mysql service on Render we will need to copy the address. You can find that here:
+<!-- FIXME: update this screenshot to new UI -->
+Once you've setup your mysql service and it has successfully deployed on Render we will need to copy the address. You can find that here:
 ![mysql address on render](https://fleetdm.com/images/docs/deploy-on-render-6-666x416@2x.png)
 *mysql address on Render*
 
@@ -52,6 +57,13 @@ Once you've setup your mysql service on Render we will need to copy the address.
 ## Redis
 
 The next dependency we’ll configure is Redis. Fleet uses Redis to ingest and queue the results of distributed queries, cache data, etc. Luckily for us the folks over at Render have a ready-to-deploy Redis template that makes deploying Redis as a private service a single mouse click. Check out [https://render.com/docs/deploy-redis](https://render.com/docs/deploy-redis).
+
+> Note: For services to communicate with each other via Render's internal network, they have to be
+> deployed to the same region. If you use the one-click deployment option for Redis, it will default
+> to deploying the service in their "Oregon, USA" region, which may not be the same region you chose
+> for your other services in this guide. You can follow the steps in the above guide for manually
+> deploying Redis if you want control over the region. See https://docs.render.com/regions#private-networking for
+> more details about regions and networking in Render.
 
 After it’s deployed, you should see a unique Redis host/port combination, we’ll need that for Fleet so make sure to copy it for later.
 
