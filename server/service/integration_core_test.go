@@ -259,7 +259,7 @@ func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
 		OldPassword: justRightPw,
 		NewPassword: longPw,
 	}
-	changePwPath := "/api/latest/fleet/change_password"
+	changePwPath := "/api/latest/fleet/change_password" // #nosec G101
 
 	badRespChangePw := s.Do("POST", changePwPath, &longPwParams, http.StatusUnprocessableEntity)
 	assertBodyContains(s.T(), badRespChangePw, longPwError)
