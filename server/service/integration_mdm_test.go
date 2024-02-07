@@ -5026,6 +5026,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
+		Payload:     []byte(rawCmd),
 		Hostname:    "test-host",
 	}, cmdResResp.Results[0])
 
@@ -5039,6 +5040,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
+		Payload:     []byte(rawCmd),
 		Hostname:    "test-host",
 	}, getMDMCmdResp.Results[0])
 
@@ -8150,6 +8152,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
 		Result:      getCommandFullResult(cmdOneUUID),
+		Payload:     commandOne.RawCommand,
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -8163,6 +8166,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdTwoUUID),
+		Payload:     commandTwo.RawCommand,
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -8177,6 +8181,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdThreeUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Payload:     commandThree.RawCommand,
 	}, getMDMCmdResp.Results[0])
 }
 
