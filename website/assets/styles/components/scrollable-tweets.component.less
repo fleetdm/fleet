@@ -17,7 +17,7 @@
 
   [purpose='previous-page-indicator'] {
     display: none;
-    opacity: 0.5;
+    opacity: 0;
     cursor: pointer;
     z-index: 30;
     position: absolute;
@@ -33,11 +33,10 @@
 
   [purpose='next-page-indicator'] {
     display: none;
-    opacity: 0.5;
-    cursor: pointer;
-    z-index: 30;
+    opacity: 0;
     position: absolute;
     top: 50%;
+    z-index: 30;
     right: 10px;
     width: 48px;
     height: 48px;
@@ -56,10 +55,19 @@
     margin-bottom: 80px;
     scrollbar-width: none;
     -ms-overflow-style: none;
+    &:hover {
+      [purpose='previous-page-indicator'] {
+        opacity: 1;
+      }
+      [purpose='next-page-indicator'] {
+        opacity: 1;
+      }
+    }
   }
 
 
   [purpose='tweet-card'] {
+    box-shadow
     [purpose='logo'] {
       img {
         max-height: 32px;
