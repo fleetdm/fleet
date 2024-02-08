@@ -79,8 +79,7 @@ if check_installed_version; then
             echo "Upgrade aborted."
         fi
     else
-        # Prompt the user for an upgrade
-        read -p "You are alread yusing the latest version of fleetctl ($latest_strippedVersion) Would you like to reinstall it? (y/n): " reinstall_choice
+        read -p "You are already using the latest version of fleetctl ($latest_strippedVersion) Would you like to reinstall it? (y/n): " reinstall_choice
 
         if [[ "$reinstall_choice" =~ ^[Yy](es)?$ ]]; then
             # Remove the old binary
