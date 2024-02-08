@@ -241,6 +241,7 @@ const ManageHostsPage = ({
     os_name: osName,
     os_version: osVersion,
   } = queryParams;
+  const vulnerability = queryParams?.vulnerability;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams.munki_issue_id, 10)
@@ -383,6 +384,7 @@ const ManageHostsPage = ({
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
         device_mapping: true,
@@ -425,6 +427,7 @@ const ManageHostsPage = ({
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
@@ -824,6 +827,8 @@ const ManageHostsPage = ({
         newQueryParams.os_version_id = osVersionId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
+      } else if (vulnerability) {
+        newQueryParams.vulnerability = vulnerability;
       } else if (osSettingsStatus) {
         newQueryParams[PARAMS.OS_SETTINGS] = osSettingsStatus;
       } else if (diskEncryptionStatus && isPremiumTier) {
@@ -1281,6 +1286,7 @@ const ManageHostsPage = ({
       os_version_id: osVersionId,
       os_name: osName,
       os_version: osVersion,
+      vulnerability,
       visibleColumns,
     };
 

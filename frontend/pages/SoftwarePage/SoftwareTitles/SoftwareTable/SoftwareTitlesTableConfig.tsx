@@ -161,21 +161,26 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_title_id: cellProps.row.original.id,
-                team_id: teamId, // TODO: do we need team id here?
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <ViewAllHostsLink
+            queryParams={{
+              software_title_id: cellProps.row.original.id,
+              team_id: teamId, // TODO: do we need team id here?
+            }}
+            className="software-link"
+            rowHover
+          />
+        );
+      },
     },
   ];
 
