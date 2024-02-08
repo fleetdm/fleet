@@ -12,7 +12,7 @@ const DEFAULT_VULNERABILITY: IVulnerability = {
   details_link: "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
   cvss_score: 7.8, // Available in Fleet Premium
   epss_probability: 0.9729, // Available in Fleet Premium
-  cisa_known_exploit: false, // Available in Fleet Premium
+  cisa_known_exploit: true, // Available in Fleet Premium
   cve_published: "2022-06-01T00:15:00Z", // Available in Fleet Premium
   cve_description:
     "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.", // Available in Fleet Premium
@@ -29,7 +29,20 @@ const DEFAULT_VULNERABILITY: IVulnerability = {
       generated_cpes: [],
     },
   ],
-  software: [],
+  software: [
+    {
+      id: 1,
+      name: "bad software",
+      version: "1.1.1",
+      bundle_identifier: "com.bad.software",
+      source: "apps",
+      generated_cpe: "cpe:/a:bad:software:1.1.1",
+      hosts_count: 5,
+      last_opened_at: "2021-08-18T15:11:35Z",
+      installed_paths: ["/Applications/BadSoftware.app"],
+      resolved_in_version: "2",
+    },
+  ],
 };
 
 export const createMockVulnerability = (

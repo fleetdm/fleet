@@ -155,7 +155,8 @@ export default {
 
   // Vulnerabilities endpoints
   VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
-  VULNERABILITY: (id: number) => `/${API_VERSION}/fleet/vulnerabilities/${id}`,
+  VULNERABILITY: (cve: string) =>
+    `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
 
   // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,

@@ -1,3 +1,10 @@
 .view-all-hosts-link {
   @include table-link;
+  &__text {
+    &--responsive {
+      @media (max-width: $break-md) {
+        display: none;
+      }
+    }
+  }
 }

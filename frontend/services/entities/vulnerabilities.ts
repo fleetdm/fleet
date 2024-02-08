@@ -61,10 +61,10 @@ export const getVulnerabilities = ({
   });
 };
 
-const getVulnerability = (id: number): Promise<IVulnerabilityResponse> => {
+const getVulnerability = (cve: string): Promise<IVulnerabilityResponse> => {
   const { VULNERABILITY } = endpoints;
 
-  // return sendRequest("GET", VULNERABILITY(id)); // TODO: API INTEGRATION: uncomment when API is ready
+  // return sendRequest("GET", VULNERABILITY(cve)); // TODO: API INTEGRATION: uncomment when API is ready
   return new Promise((resolve, reject) => {
     resolve(createMockVulnerabilityResponse());
   });
