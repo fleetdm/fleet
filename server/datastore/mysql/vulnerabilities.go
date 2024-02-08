@@ -45,6 +45,11 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt = selectStmt + " AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
 	}
+
+	if opt.KnownExploit {
+		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
+	}
+
 	selectStmt = selectStmt + groupByAppend
 
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())

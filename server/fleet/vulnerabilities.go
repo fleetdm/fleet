@@ -138,4 +138,5 @@ type VulnListOptions struct {
 	ListOptions
 	ValidSortColumns []string
 	TeamID           uint
+	KnownExploit     bool
 }
