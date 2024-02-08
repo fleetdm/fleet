@@ -62,7 +62,7 @@ const SoftwareVulnerabilitiesTable = ({
       <TableContainer
         columnConfigs={tableHeaders}
         data={data}
-        defaultSortHeader={isPremiumTier ? "epss_probability" : "cve"}
+        defaultSortHeader={isPremiumTier ? "updated_at" : "cve"} // TODO: Change premium to created_at when added to API
         defaultSortDirection={"desc"}
         emptyComponent={() => <NoVulnsDetected itemName={itemName} />}
         isAllPagesSelected={false}

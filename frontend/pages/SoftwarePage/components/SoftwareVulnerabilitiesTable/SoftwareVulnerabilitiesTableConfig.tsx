@@ -1,15 +1,17 @@
 import React from "react";
 
-import { formatFloatAsPercentage } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { ISoftwareVulnerability } from "interfaces/software";
 
+import paths from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 interface IHeaderProps {
   column: {
@@ -72,12 +74,12 @@ const generateTableConfig = (
       accessor: "cve",
       disableSortBy: true,
       Header: "Vulnerability",
-      Cell: ({ cell: { value }, row }: ITextCellProps) => {
+      Cell: ({ cell: { value } }: ITextCellProps) => {
+        const cveName = value.toString();
         return (
-          <CustomLink
-            url={row.original.details_link}
-            text={value.toString()}
-            newTab
+          <LinkCell
+            value={cveName}
+            path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveName)}
           />
         );
       },
@@ -85,39 +87,6 @@ const generateTableConfig = (
   ];
 
   const premiumHeaders: IDataColumn[] = [
-    {
-      title: "Probability of exploit",
-      accessor: "epss_probability",
-      disableSortBy: false,
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The probability that this vulnerability will be exploited in the
-                next 30 days (EPSS probability).
-                <br />
-                This data is reported by FIRST.org.
-              </>
-            }
-          >
-            Probability of exploit
-          </TooltipWrapper>
-        );
-        return (
-          <>
-            <HeaderCell
-              value={titleWithToolTip}
-              isSortedDesc={headerProps.column.isSortedDesc}
-            />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
-          </>
-        );
-      },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell formatter={formatFloatAsPercentage} value={value} />
-      ),
-    },
     {
       title: "Severity",
       accessor: "cvss_score",
@@ -129,9 +98,6 @@ const generateTableConfig = (
               <>
                 The worst case impact across different environments (CVSS base
                 score).
-                <br />
-                This data is reported by the National Vulnerability Database
-                (NVD).
               </>
             }
           >
@@ -153,22 +119,22 @@ const generateTableConfig = (
       ),
     },
     {
-      title: "Known exploit",
-      accessor: "cisa_known_exploit",
+      title: "Probability of exploit",
+      accessor: "epss_probability",
       disableSortBy: false,
-      sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
+            className="epss_probability"
             tipContent={
               <>
-                The vulnerability has been actively exploited in the wild. This
-                data is reported by the Cybersecurity and Infrustructure
-                Security Agency (CISA).
+                The probability that this vulnerability will be exploited in the
+                next 30 days (EPSS probability). <br />
+                This data is reported by FIRST.org.
               </>
             }
           >
-            Known exploit
+            Probability of exploit
           </TooltipWrapper>
         );
         return (
@@ -181,8 +147,12 @@ const generateTableConfig = (
           </>
         );
       },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell value={value ? "Yes" : "No"} />
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <ProbabilityOfExploitCell
+          probabilityOfExploit={cellProps.row.original.epss_probability}
+          cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
+          rowId={cellProps.row.original.cve}
+        />
       ),
     },
     {
@@ -219,6 +189,53 @@ const generateTableConfig = (
             value={valString ? { timeString: valString } : undefined}
             formatter={valString ? HumanTimeDiffWithDateTip : undefined}
           />
+        );
+      },
+    },
+    {
+      title: "Detected",
+      accessor: "created_at",
+      disableSortBy: false,
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        return (
+          <>
+            <HeaderCell
+              value="Detected"
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+          </>
+        );
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const createdAt = cellProps.row.original.created_at || "";
+
+        return (
+          <TextCell
+            value={{ timeString: createdAt }}
+            formatter={HumanTimeDiffWithDateTip}
+          />
+        );
+      },
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  vulnerability: cellProps.row.original.cve,
+                }}
+                className="vulnerabilities-link"
+                rowHover
+              />
+            )}
+          </>
         );
       },
     },

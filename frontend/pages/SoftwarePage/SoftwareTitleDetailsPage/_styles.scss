@@ -16,18 +16,4 @@
       font-size: $medium;
     }
   }
-
-  // for showing and hiding software link on hover
-  tr {
-    .software-link {
-      opacity: 0;
-      transition: opacity 250ms;
-    }
-
-    &:hover {
-      .software-link {
-        opacity: 1;
-      }
-    }
-  }
 }

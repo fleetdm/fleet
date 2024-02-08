@@ -88,20 +88,29 @@ const generateSoftwareTitleDetailsTableConfig = (router: InjectedRouter) => {
       disableSortBy: true,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_version_id: cellProps.row.original.id,
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
     },
   ];
 
