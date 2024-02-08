@@ -601,7 +601,10 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
+	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
+	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies

@@ -132,6 +132,7 @@ type VulnerabilityWithMetadata struct {
 	HostCount          uint                `db:"host_count" json:"host_count"`
 	HostCountUpdatedAt time.Time           `db:"host_count_updated_at" json:"host_count_updated_at"`
 	CreatedAt          time.Time           `db:"created_at" json:"created_at"`
+	DetailsLink        string              `json:"details_link"`
 	Source             VulnerabilitySource `db:"source"`
 }
 
@@ -153,4 +154,3 @@ func (opt VulnListOptions) HasValidSortColumn() bool {
 	}
 	return false
 }
-
