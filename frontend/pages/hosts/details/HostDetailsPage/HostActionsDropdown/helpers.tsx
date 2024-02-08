@@ -148,6 +148,9 @@ const canWipeHost = ({
   hostPlatform,
   isLocked,
 }: IHostActionConfigOptions) => {
+  // TODO: remove when we work on wipe issue.
+  return false;
+
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
   const canWipeMacOrWindows =

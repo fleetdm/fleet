@@ -785,10 +785,10 @@ const HostDetailsPage = ({
           osSettings={host?.mdm.os_settings}
           // TODO: figure out these values
           isLocked
-          isWiped={host.mdm.wiped && !host.mdm.action_suspended}
-          isLocking={host.mdm.locked && host.mdm.action_suspended}
-          isWiping={host.mdm.wiped && host.mdm.action_suspended}
-          isUnlocking={!host.mdm.locked && host.mdm.action_suspended}
+          isWiped
+          isLocking
+          isWiping
+          isUnlocking
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs

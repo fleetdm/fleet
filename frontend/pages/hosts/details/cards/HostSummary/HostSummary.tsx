@@ -127,7 +127,7 @@ const HostSummary = ({
     return (
       <>
         <div
-          className="refetch"
+          className={`${baseClass}__refetch`}
           data-tip
           data-for="refetch-tooltip"
           data-tip-disable={isOnline || showRefetchSpinner}
@@ -362,7 +362,7 @@ const HostSummary = ({
               <span className={`${baseClass}__locked-tag`}>LOCKED</span>
             )}
 
-            <div className="last-fetched">
+            <div className={`${baseClass}__last-fetched`}>
               {"Last fetched"} {lastFetched}
               &nbsp;
             </div>

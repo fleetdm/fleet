@@ -167,9 +167,6 @@ export interface IHostMdmData {
   os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
-  locked: boolean;
-  wiped: boolean;
-  action_suspended: boolean;
 }
 
 export interface IMunkiIssue {
