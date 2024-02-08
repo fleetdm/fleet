@@ -2,8 +2,13 @@ package service
 
 import (
 	"context"
+	_ "embed"
+	"fmt"
+	"net/http"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -30,3 +35,226 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	// reuse OSVersion, but include premium options
 	return svc.Service.OSVersion(ctx, osID, teamID, true)
 }
+
+func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement and is what happens for macOS platforms.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// TODO(mna): error messages are subtly different in the figma for CLI and
+	// UI, they should be the same as they come from the same place (the API).
+	// I used the CLI messages for the implementation.
+
+	// locking validations are based on the platform of the host
+	switch host.FleetPlatform() {
+	case "darwin":
+		// on macOS, the lock command requires the host to be MDM-enrolled in Fleet
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get host MDM information")
+		}
+		if !hostMDM.IsFleetEnrolled() {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."))
+		}
+
+	case "windows", "linux":
+		// on windows and linux, a script is used to lock the host so scripts must
+		// be enabled
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		if appCfg.ServerSettings.ScriptsDisabled {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock host because running scripts is disabled in organization settings."))
+		}
+
+	default:
+		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
+	}
+
+	// if there's a lock, unlock or wipe action pending, do not accept the lock
+	// request.
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	switch {
+	case lockWipe.IsPendingLock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. The host will lock when it comes online."))
+	case lockWipe.IsPendingUnlock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be locked again until unlock is complete."))
+	case lockWipe.IsPendingWipe():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."))
+	case lockWipe.IsLocked():
+		// TODO(mna): was not convered in figma, succeed quietly, returning the
+		// current unlock pin for macos? For now I'll return 409 conflict.
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
+	}
+
+	// all good, go ahead with queuing the lock request.
+	return svc.enqueueLockHostRequest(ctx, host.ID, lockWipe)
+}
+
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return "", err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return "", err
+	}
+
+	// locking validations are based on the platform of the host
+	switch host.FleetPlatform() {
+	case "darwin":
+		// all good, no need to check if MDM enrolled, will validate later that it
+		// is currently locked.
+
+	case "windows", "linux":
+		// on windows and linux, a script is used to lock the host so scripts must
+		// be enabled
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return "", ctxerr.Wrap(ctx, err, "get app config")
+		}
+		if appCfg.ServerSettings.ScriptsDisabled {
+			return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't unlock host because running scripts is disabled in organization settings."))
+		}
+
+	default:
+		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
+	}
+
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	switch {
+	case lockWipe.IsPendingLock():
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be unlocked until lock is complete."))
+	case lockWipe.IsPendingUnlock():
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
+	case lockWipe.IsPendingWipe():
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
+	case lockWipe.IsUnlocked():
+		// TODO(mna): was not convered in figma, succeed quietly, returning the
+		// current unlock pin for macos? For now I'll return 409 conflict.
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
+	}
+
+	// all good, go ahead with queuing the unlock request.
+	return svc.enqueueUnlockHostRequest(ctx, host.ID, lockWipe)
+}
+
+func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) error {
+	if lockStatus.HostFleetPlatform == "darwin" {
+		panic("unimplemented")
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	script := windowsLockScript
+	if lockStatus.HostFleetPlatform == "linux" {
+		script = linuxLockScript
+	}
+
+	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+	// part starting with the validation of the script (just in case), the checks
+	// that we don't enqueue over the limit, etc. for any other important
+	// validation we may add over there and that we bypass here by enqueueing the
+	// script directly in the datastore layer.
+	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: string(script),
+		UserID:         &vc.User.ID,
+		SyncRequest:    false,
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create lock script execution request")
+	}
+
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	return nil
+}
+
+func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) (string, error) {
+	if lockStatus.HostFleetPlatform == "darwin" {
+		return lockStatus.UnlockPIN, nil
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return "", fleet.ErrNoContext
+	}
+
+	script := windowsUnlockScript
+	if lockStatus.HostFleetPlatform == "linux" {
+		script = linuxUnlockScript
+	}
+
+	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+	// part starting with the validation of the script (just in case), the checks
+	// that we don't enqueue over the limit, etc. for any other important
+	// validation we may add over there and that we bypass here by enqueueing the
+	// script directly in the datastore layer.
+	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: string(script),
+		UserID:         &vc.User.ID,
+		SyncRequest:    false,
+	})
+	if err != nil {
+		return "", ctxerr.Wrap(ctx, err, "create unlock script execution request")
+	}
+
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	return "", nil
+}
+
+// TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
+// and scripts/mdm/linux/.. directories where they currently exist, but this is
+// not possible (not a Go package) and I don't know if those script locations
+// are used elsewhere, so for now I just copied the contents under
+// embedded_scripts directory. We'll have to make sure they are kept in sync,
+// or better yet find a way to maintain a single copy.
+var (
+	//go:embed embedded_scripts/windows_lock.ps1
+	windowsLockScript []byte
+	//go:embed embedded_scripts/windows_unlock.ps1
+	windowsUnlockScript []byte
+	//go:embed embedded_scripts/linux_lock.sh
+	linuxLockScript []byte
+	//go:embed embedded_scripts/linux_unlock.sh
+	linuxUnlockScript []byte
+)

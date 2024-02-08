@@ -6380,8 +6380,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Update the host_mdm_actions table
 	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref, suspended)
-          VALUES (?, uuid(), uuid(), false)
+          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref)
+          VALUES (?, uuid(), uuid())
 	`, host.ID)
 	require.NoError(t, err)
 

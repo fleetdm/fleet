@@ -66,7 +66,7 @@ func TestDatastoreReplica(t *testing.T) {
 		// trying to read it fails, not replicated yet
 		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.True(t, errors.Is(err, sql.ErrNoRows), err)
 
 		// force read from primary works
 		ctx = ctxdb.RequirePrimary(ctx, true)
