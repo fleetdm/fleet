@@ -73,6 +73,12 @@ builds:
       - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
+
+universal_binaries:
+  - id: fleetctl # resulting binary id
+    ids: [fleetctl-macos] # source binaries
+    replace: true
+    name_template: fleetctl # resulting binary name
     hooks:
       post:
         - echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
@@ -86,12 +92,6 @@ builds:
         #    --api-key-path ~/.appstoreconnect/key.json \
         #    --staple \
         #    path/to/file/to/notarize
-
-universal_binaries:
-  - id: fleetctl # resulting binary id
-    ids: [fleetctl-macos] # source binaries
-    replace: true
-    name_template: fleetctl # resulting binary name
 
 archives:
   - id: fleet
