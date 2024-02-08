@@ -57,6 +57,7 @@ jobs:
           gh release download --clobber --repo=github.com/indygreg/apple-platform-rs "apple-codesign/$version" --pattern "*$codesign_package*"
           echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
           tar --extract --strip-components 1 --file "$codesign_package"
+          mkdir -p $HOME/.bin  # Ensure the directory exists
           mv rcodesign $HOME/.bin/
           echo "$HOME/.bin" >> $GITHUB_PATH
 
