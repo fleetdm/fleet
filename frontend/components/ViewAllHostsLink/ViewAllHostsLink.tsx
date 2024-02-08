@@ -13,6 +13,8 @@ interface IHostLinkProps {
   platformLabelId?: number;
   /** Shows right chevron without text */
   condensed?: boolean;
+  /** Table links shows on row hover only */
+  rowHover?: boolean;
 }
 
 const baseClass = "view-all-hosts-link";
@@ -22,8 +24,11 @@ const ViewAllHostsLink = ({
   className,
   platformLabelId,
   condensed = false,
+  rowHover = false,
 }: IHostLinkProps): JSX.Element => {
-  const viewAllHostsLinkClass = classnames(baseClass, className);
+  const viewAllHostsLinkClass = classnames(baseClass, className, {
+    "row-hover-link": rowHover,
+  });
 
   const endpoint = platformLabelId
     ? PATHS.MANAGE_HOSTS_LABEL(platformLabelId)
