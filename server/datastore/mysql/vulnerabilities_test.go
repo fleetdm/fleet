@@ -213,6 +213,7 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
+	// Test KnownExploit filter
 	opts := fleet.VulnListOptions{
 		KnownExploit: true,
 	}
@@ -224,6 +225,17 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 	for _, vuln := range list {
 		require.Contains(t, expected, vuln.CVE)
 	}
+
+	// Test CVE LIKE filter
+	opts = fleet.VulnListOptions{
+		ListOptions: fleet.ListOptions{
+			MatchQuery: "2020-1234",
+		},
+	}
+	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
+	require.NoError(t, err)
+	require.Len(t, list, 1)
+	require.Equal(t, "CVE-2020-1234", list[0].CVE)
 }
 
 func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
