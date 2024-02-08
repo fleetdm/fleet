@@ -648,7 +648,7 @@ We encourage all Fleeties to share candid and helpful feedback. We use the 4A fe
 * It is natural to feel defensive when hearing criticism.
 * Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
 
-4. Accept or Discard
+4. Accept or discard
 * Listen and consider all feedback, then decide to accept or discard.
 * The decision to react to the feedback is entirely up to the recipient.
 
