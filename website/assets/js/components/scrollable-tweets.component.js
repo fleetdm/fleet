@@ -29,9 +29,11 @@ parasails.registerComponent('scrollableTweets', {
       numberOfTweetCardsDisplayedOnThisPage: undefined,
       showPreviousPageButton: false,
       showNextPageButton: true,
-      currentVisibleTweetCard: 0,
+      currentVisibleTweetCard: 1,
+      numberOfTweetsPerPage: 0,
       syncing: false,
       modal: '',
+      scrollPercentage: 0,
     };
   },
 
@@ -40,6 +42,7 @@ parasails.registerComponent('scrollableTweets', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <div class="d-flex flex-column">
+
     <div purpose="tweets" class="d-flex flex-row flex-nowrap">
     <div purpose="previous-page-indicator" @click="clickPreviousPage()" v-if="showPreviousPageButton"><img src="/images/testimonials-pagination-previous-48x48@2x.png"></div>
     <div purpose="next-page-indicator"  @click="clickNextPage()" v-if="showNextPageButton"><img src="/images/testimonials-pagination-next-48x48@2x.png"></div>
@@ -96,7 +99,8 @@ parasails.registerComponent('scrollableTweets', {
     this.tweetCards = $('a[purpose="tweet-card"]');
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
-    $(window).resize(this.calculateHowManyFullTweetsCanBeDisplayed);
+    $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
+    $(window).on('wheel', this.updatePageIndicators);
   },
   beforeDestroy: function() {
 
@@ -113,6 +117,9 @@ parasails.registerComponent('scrollableTweets', {
       let viewportWidth = document.body.clientWidth;
       this.tweetCardWidth = realCardWidth;
       this.numberOfTweetsPerPage = Math.floor((viewportWidth - 120)/this.tweetCardWidth);
+      if(this.numberOfTweetsPerPage < 1){
+        this.numberOfTweetsPerPage = 1;
+      }
       this.pageWidth = realCardWidth * this.numberOfTweetsPerPage;
       if(this.numberOfTweetsPerPage >= this.numberOfTweetCardsDisplayedOnThisPage){
         $(this.tweetsDiv).addClass('mx-auto');
@@ -124,49 +131,26 @@ parasails.registerComponent('scrollableTweets', {
 
     clickNextPage: async function() {
       if(!this.syncing){
-        this.currentVisibleTweetCard += this.numberOfTweetsPerPage;
-        if(this.currentVisibleTweetCard >= this.numberOfTweetCardsDisplayedOnThisPage - 1){
-          this.currentVisibleTweetCard = this.numberOfTweetCardsDisplayedOnThisPage - 1;
-        }
-        if(this.numberOfTweetsPerPage === 1){
-          let tweetCardToScrollTo = this.tweetCards[this.currentVisibleTweetCard];
-          tweetCardToScrollTo.scrollIntoView({ inline: 'center', block: 'nearest' });
-        } else {
-          this.tweetsDiv.scrollLeft += this.pageWidth;
-        }
-        this.syncing = true;
+        this.tweetsDiv.scrollLeft += this.pageWidth;
         await setTimeout(()=>{
           this.updatePageIndicators();
-        }, 100);
+        }, 500);
       }
     },
 
     clickPreviousPage: async function() {
       if(!this.syncing){
-        this.currentVisibleTweetCard -= this.numberOfTweetsPerPage;
-        if(this.currentVisibleTweetCard < 0 ){
-          this.currentVisibleTweetCard = 0;
-        }
-        if(this.numberOfTweetsPerPage === 1){
-          let tweetCardToScrollTo = this.tweetCards[this.currentVisibleTweetCard];
-          tweetCardToScrollTo.scrollIntoView({ inline: 'center', block: 'nearest' });
-        } else {
-          this.tweetsDiv.scrollLeft -= this.pageWidth;
-        }
-        this.syncing = true;
+        this.tweetsDiv.scrollLeft -= this.pageWidth;
         await setTimeout(()=>{
           this.updatePageIndicators();
-        }, 100);
+        }, 500);
       }
     },
 
     updatePageIndicators: function() {
-      this.showPreviousPageButton = this.currentVisibleTweetCard !== 0;
-      console.log((this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1)
-      this.showNextPageButton = (
-        (this.currentVisibleTweetCard + this.numberOfTweetsPerPage) <= this.numberOfTweetCardsDisplayedOnThisPage - 1
-        && this.numberOfTweetsPerPage !== this.numberOfTweetCardsDisplayedOnThisPage);
       this.syncing = false;
+      this.showPreviousPageButton = this.tweetsDiv.scrollLeft !== 0;
+      this.showNextPageButton = (this.tweetsDiv.scrollWidth - this.tweetsDiv.scrollLeft - this.tweetsDiv.clientWidth) >= this.tweetCardWidth * .5;
     },
 
     clickOpenVideoModal: function(modalName) {
