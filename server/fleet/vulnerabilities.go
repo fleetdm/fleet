@@ -138,9 +138,10 @@ type VulnerabilityWithMetadata struct {
 
 type VulnListOptions struct {
 	ListOptions
+	IsEE             bool
 	ValidSortColumns []string
-	TeamID           uint
-	KnownExploit     bool
+	TeamID           uint `query:"team_id,optional"`
+	KnownExploit     bool `query:"exploit,optional"`
 }
 
 func (opt VulnListOptions) HasValidSortColumn() bool {

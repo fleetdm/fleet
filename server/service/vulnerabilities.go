@@ -61,6 +61,10 @@ func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 		return nil, nil, badRequest("invalid order key")
 	}
 
+	if opt.KnownExploit && !opt.IsEE {
+		return nil, nil, fleet.ErrMissingLicense
+	}
+
 	vulns, meta, err := svc.ds.ListVulnerabilities(ctx, opt)
 	if err != nil {
 		return nil, nil, err

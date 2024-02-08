@@ -17,5 +17,6 @@ var eeValidVulnSortColumns = []string{
 
 func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	opt.ValidSortColumns = eeValidVulnSortColumns
+	opt.IsEE = true
 	return svc.Service.ListVulnerabilities(ctx, opt)
 }
