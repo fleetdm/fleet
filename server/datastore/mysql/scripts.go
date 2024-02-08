@@ -15,13 +15,22 @@ import (
 )
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	var res *fleet.HostScriptResult
+	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		return err
+	})
+}
+
+func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
 		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
-	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
+	result, err := tx.ExecContext(ctx, insStmt,
 		request.HostID,
 		execID,
 		request.ScriptContents,
@@ -35,9 +44,12 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 	var script fleet.HostScriptResult
 	id, _ := result.LastInsertId()
-	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
+	row := tx.QueryRowxContext(ctx, getStmt, id)
+	err = row.StructScan(&script)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
 	}
+
 	return &script, nil
 }
 
@@ -487,6 +499,7 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	fmt.Println("JVE_LOG: in db layer ", hostID)
 	const stmt = `
 		SELECT
 			lock_ref,
@@ -513,6 +526,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		if err == sql.ErrNoRows {
 			// do not return a Not Found error, return the zero-value status, which
 			// will report the correct states.
+			fmt.Println("JVE_LOG: not found in db layer ", hostID)
 			return status, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
@@ -568,4 +582,75 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		}
 	}
 	return status, nil
+}
+
+// LockHost will create the script execution request and update host_mdm_actions in a single transaction.
+func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+	var res *fleet.HostScriptResult
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
+		}
+
+		const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		lock_ref,
+		unlock_ref
+	)
+	VALUES (?,?,NULL)
+	ON DUPLICATE KEY UPDATE
+		lock_ref = ?,
+		unlock_ref = NULL
+	`
+
+		_, err = tx.ExecContext(ctx, stmt,
+			request.HostID,
+			res.ExecutionID,
+			res.ExecutionID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock host via script update mdm actions")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+	var res *fleet.HostScriptResult
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
+		}
+
+		const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		unlock_ref,
+		lock_ref
+	)
+	VALUES (?,?,NULL)
+	ON DUPLICATE KEY UPDATE
+		unlock_ref = ?,
+		lock_ref = NULL
+	`
+
+		_, err = tx.ExecContext(ctx, stmt,
+			request.HostID,
+			res.ExecutionID,
+			res.ExecutionID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unlock host via script update mdm actions")
+		}
+
+		return err
+	})
 }
