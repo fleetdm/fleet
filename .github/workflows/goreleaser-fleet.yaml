@@ -63,7 +63,7 @@ jobs:
           echo "$HOME/.bin" >> $GITHUB_PATH
           popd
 
-      - name: REMOVEME: Git tag only for testing
+      - name: REMOVEME Git tag only for testing
         run: git tag fleet-v9.99.9
 
       - name: Run GoReleaser
