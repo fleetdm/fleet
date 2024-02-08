@@ -631,7 +631,7 @@ At Fleet, performance feedback is a continuous process. We give feedback (partic
 
 ## Giving and receiving feedback
 
-We encourage all Fleeties to share candid and helpful feedback with each other. We use the 4A feedback pattern: 
+We encourage all Fleeties to share candid and helpful feedback. We use the 4A feedback pattern: 
 
 **When giving feedback**
 
