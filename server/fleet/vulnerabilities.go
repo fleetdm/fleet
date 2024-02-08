@@ -167,4 +167,3 @@ func (opt VulnListOptions) HasValidSortColumn() bool {
 	}
 	return false
 }
-

@@ -390,8 +390,6 @@ type CleanupHostOperatingSystemsFunc func(ctx context.Context) error
 
 type UpdateHostTablesOnMDMUnenrollFunc func(ctx context.Context, uuid string) error
 
-type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, error)
-
 type NewActivityFunc func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error
 
 type ListActivitiesFunc func(ctx context.Context, opt fleet.ListActivitiesOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error)
@@ -1372,9 +1370,6 @@ type DataStore struct {
 
 	UpdateHostTablesOnMDMUnenrollFunc        UpdateHostTablesOnMDMUnenrollFunc
 	UpdateHostTablesOnMDMUnenrollFuncInvoked bool
-
-	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
-	ListVulnerabilitiesFuncInvoked bool
 
 	NewActivityFunc        NewActivityFunc
 	NewActivityFuncInvoked bool
@@ -3312,13 +3307,6 @@ func (s *DataStore) UpdateHostTablesOnMDMUnenroll(ctx context.Context, uuid stri
 	s.UpdateHostTablesOnMDMUnenrollFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostTablesOnMDMUnenrollFunc(ctx, uuid)
-}
-
-func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, error) {
-	s.mu.Lock()
-	s.ListVulnerabilitiesFuncInvoked = true
-	s.mu.Unlock()
-	return s.ListVulnerabilitiesFunc(ctx, opt)
 }
 
 func (s *DataStore) NewActivity(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
