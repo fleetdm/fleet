@@ -147,19 +147,12 @@ const generateTableConfig = (
           </>
         );
       },
-      Cell: (cellProps: ICellProps): JSX.Element => {
-        const probabilityOfExploit = cellProps.row.original.epss_probability;
-        const cisaKnownExploit = cellProps.row.original.cisa_known_exploit;
-        if (typeof probabilityOfExploit === "number") {
-          return (
-            <ProbabilityOfExploitCell
-              probabilityOfExploit={probabilityOfExploit}
-              cisaKnownExploit={cisaKnownExploit}
-            />
-          );
-        }
-        return <TextCell greyed />;
-      },
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <ProbabilityOfExploitCell
+          probabilityOfExploit={cellProps.row.original.epss_probability}
+          cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
+        />
+      ),
     },
     {
       title: "Published",
