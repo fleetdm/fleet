@@ -7122,7 +7122,7 @@ Gets the result of a script that was executed.
 
 ##### Default Response
 
-`Status: 2000`
+`Status: 200`
 
 ```json
 {

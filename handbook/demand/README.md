@@ -78,7 +78,7 @@ To do this:
 6. Repeat this process until all remaining draft orders show "Waiting for Fulfillment"
 
 
-### Fufuill a swag request
+### Fulfill a swag request
 There are many times in which community members, customers, and contributors are in need of some cool Fleet swag. Swag requests are received in the form of issues and will be fulfilled based on availability. To process a swag request:
 1. Check and communicate availability to the requestor.
 2. Use the appropriate shipping method that best serves the company.

@@ -59,7 +59,6 @@ func TestMDMApple(t *testing.T) {
 		{"TestBulkUpsertMDMAppleConfigProfiles", testBulkUpsertMDMAppleConfigProfile},
 		{"TestMDMAppleBootstrapPackageCRUD", testMDMAppleBootstrapPackageCRUD},
 		{"TestListMDMAppleCommands", testListMDMAppleCommands},
-		{"TestMDMAppleEULA", testMDMAppleEULA},
 		{"TestMDMAppleSetupAssistant", testMDMAppleSetupAssistant},
 		{"TestMDMAppleEnrollmentProfile", testMDMAppleEnrollmentProfile},
 		{"TestListMDMAppleSerials", testListMDMAppleSerials},
@@ -2755,6 +2754,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd2),
+		Payload:     []byte(rawCmd2),
 	})
 	p, err = ds.GetMDMCommandPlatform(ctx, uuid2)
 	require.NoError(t, err)
@@ -2789,6 +2789,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 		{
 			HostUUID:    enrolledHosts[1].UUID,
@@ -2796,6 +2797,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 	})
 
@@ -2822,6 +2824,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Acknowledged",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 		{
 			HostUUID:    enrolledHosts[1].UUID,
@@ -2829,6 +2832,7 @@ func testGetMDMAppleCommandResults(t *testing.T, ds *Datastore) {
 			Status:      "Error",
 			RequestType: "ProfileList",
 			Result:      []byte(rawCmd2),
+			Payload:     []byte(rawCmd2),
 		},
 	})
 
@@ -3240,47 +3244,6 @@ func testListMDMAppleCommands(t *testing.T, ds *Datastore) {
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
 	require.Len(t, res, 2)
-}
-
-func testMDMAppleEULA(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	eula := &fleet.MDMAppleEULA{
-		Token: uuid.New().String(),
-		Name:  "eula.pdf",
-		Bytes: []byte("contents"),
-	}
-
-	err := ds.MDMAppleInsertEULA(ctx, eula)
-	require.NoError(t, err)
-
-	var ae fleet.AlreadyExistsError
-	err = ds.MDMAppleInsertEULA(ctx, eula)
-	require.ErrorAs(t, err, &ae)
-
-	gotEULA, err := ds.MDMAppleGetEULAMetadata(ctx)
-	require.NoError(t, err)
-	require.NotEmpty(t, gotEULA.CreatedAt)
-	require.Equal(t, eula.Token, gotEULA.Token)
-	require.Equal(t, eula.Name, gotEULA.Name)
-
-	gotEULABytes, err := ds.MDMAppleGetEULABytes(ctx, eula.Token)
-	require.NoError(t, err)
-	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
-	require.Equal(t, eula.Name, gotEULABytes.Name)
-
-	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
-	require.NoError(t, err)
-
-	var nfe fleet.NotFoundError
-	_, err = ds.MDMAppleGetEULAMetadata(ctx)
-	require.ErrorAs(t, err, &nfe)
-	_, err = ds.MDMAppleGetEULABytes(ctx, eula.Token)
-	require.ErrorAs(t, err, &nfe)
-	err = ds.MDMAppleDeleteEULA(ctx, eula.Token)
-	require.ErrorAs(t, err, &nfe)
-
-	err = ds.MDMAppleInsertEULA(ctx, eula)
-	require.NoError(t, err)
 }
 
 func testMDMAppleSetupAssistant(t *testing.T, ds *Datastore) {
