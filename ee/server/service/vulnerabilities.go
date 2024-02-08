@@ -15,7 +15,7 @@ var eeValidVulnSortColumns = []string{
 	"published",
 }
 
-func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, error) {
+func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	opt.ValidSortColumns = eeValidVulnSortColumns
 	return svc.Service.ListVulnerabilities(ctx, opt)
 }

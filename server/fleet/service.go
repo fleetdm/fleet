@@ -601,7 +601,7 @@ type Service interface {
 	// /////////////////////////////////////////////////////////////////////////////
 	// Vulnerabilities
 
-	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, error)
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies

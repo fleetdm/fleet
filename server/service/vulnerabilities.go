@@ -30,19 +30,19 @@ func (r listVulnerabilitiesResponse) error() error { return r.Err }
 
 func listVulnerabilitiesEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
 	request := req.(*listVulnerabilitiesRequest)
-	vulns, err := svc.ListVulnerabilities(ctx, request.VulnListOptions)
+	vulns, meta, err := svc.ListVulnerabilities(ctx, request.VulnListOptions)
 	if err != nil {
 		return listVulnerabilitiesResponse{Err: err}, nil
 	}
 
-	return listVulnerabilitiesResponse{Vulnerabilities: vulns}, nil
+	return listVulnerabilitiesResponse{Vulnerabilities: vulns, Meta: meta}, nil
 }
 
-func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, error) {
+func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
-		TeamID: opt.TeamID,
+		TeamID: &opt.TeamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	if len(opt.ValidSortColumns) == 0 {
@@ -50,7 +50,7 @@ func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 	}
 	
 	if !opt.HasValidSortColumn() {
-		return nil, badRequest("invalid order key")
+		return nil, nil, badRequest("invalid order key")
 	}
 
 	return svc.ds.ListVulnerabilities(ctx, opt)
