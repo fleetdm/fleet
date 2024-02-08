@@ -55,7 +55,7 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
-type ProfilePlatform = "darwin" | "windows";
+export type ProfilePlatform = "darwin" | "windows";
 
 export interface IProfileLabel {
   name: string;
