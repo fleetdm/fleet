@@ -85,20 +85,20 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
 
-// MDMAppleEULA represents an EULA (End User License Agreement) file.
-type MDMAppleEULA struct {
+// MDMEULA represents an EULA (End User License Agreement) file.
+type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (e MDMAppleEULA) AuthzType() string {
+func (e MDMEULA) AuthzType() string {
 	return "mdm_apple"
 }
 
@@ -205,6 +205,8 @@ type MDMCommandResult struct {
 	// Hostname is not filled by the query, it is filled in the service layer
 	// afterwards. To make that explicit, the db field tag is explicitly ignored.
 	Hostname string `json:"hostname" db:"-"`
+	// Payload is the contents of the command
+	Payload []byte `json:"payload" db:"payload"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for

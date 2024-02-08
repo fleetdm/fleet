@@ -1,27 +1,25 @@
-import React, {
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { RouteProps } from "react-router";
-
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
-import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
-import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
-import { IActivityDetails } from "interfaces/activity";
+import activitiesAPI, {
+  IActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
+import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+
 import {
   IHost,
   IDeviceMappingResponse,
@@ -42,22 +40,19 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 
-import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
-import MainContent from "components/MainContent";
-import BackLink from "components/BackLink";
-
 import {
   normalizeEmptyValues,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import activitiesAPI, {
-  IActivitiesResponse,
-} from "services/entities/activities";
+
+import Spinner from "components/Spinner";
+import TabsWrapper from "components/TabsWrapper";
+import MainContent from "components/MainContent";
+import BackLink from "components/BackLink";
+import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -384,9 +379,9 @@ const HostDetailsPage = ({
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
-    IActivitiesResponse,
+    IUpcomingActivitiesResponse,
     Error,
-    IActivitiesResponse,
+    IUpcomingActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -831,6 +826,7 @@ const HostDetailsPage = ({
                     ? pastActivitiesIsError
                     : upcomingActivitiesIsError
                 }
+                upcomingCount={upcomingActivities?.count || 0}
                 onChangeTab={onChangeActivityTab}
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
