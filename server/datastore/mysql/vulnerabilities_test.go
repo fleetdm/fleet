@@ -71,7 +71,7 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 			OSID: 1,
 			CVE:  "CVE-2020-1235",
 		},
-	}, fleet.NVDSource)
+	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	// insert Software Vuln
@@ -105,14 +105,17 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 				Description:      "Test CVE 2020-1234",
 			},
 			HostCount: 10,
+			Source:    fleet.MSRCSource,
 		},
 		"CVE-2020-1235": {
 			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1235"},
 			HostCount: 15,
+			Source:    fleet.MSRCSource,
 		},
 		"CVE-2020-1236": {
 			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1236"},
 			HostCount: 20,
+			Source:    fleet.NVDSource,
 		},
 	}
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
@@ -121,8 +124,8 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	for _, vuln := range list {
 		expectedVuln, ok := expected[vuln.CVE]
 		require.True(t, ok)
-		require.Equal(t, vuln.CVEMeta, expectedVuln.CVEMeta)
-		require.Equal(t, vuln.HostCount, expectedVuln.HostCount)
+		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostCount)
 	}
 }
 

@@ -129,9 +129,10 @@ const (
 
 type VulnerabilityWithMetadata struct {
 	CVEMeta
-	HostCount          uint      `db:"host_count"`
-	HostCountUpdatedAt time.Time `db:"host_count_updated_at"`
-	CreatedAt          time.Time `db:"created_at"`
+	HostCount          uint                `db:"host_count"`
+	HostCountUpdatedAt time.Time           `db:"host_count_updated_at"`
+	CreatedAt          time.Time           `db:"created_at"`
+	Source             VulnerabilitySource `db:"source"`
 }
 
 type VulnListOptions struct {

@@ -15,6 +15,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		SELECT
 			vhc.cve,
 			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
