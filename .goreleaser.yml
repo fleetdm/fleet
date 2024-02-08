@@ -76,9 +76,7 @@ builds:
     hooks:
       post:
         - echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
-        - rcodesign sign \
-          --p12-file certificate.p12 --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" --for-notarization  \
-          {{ .Path }}
+        - rcodesign sign --p12-file certificate.p12 --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" --for-notarization  {{ .Path }}
         - rm certificate.p12
         # TODO: rcodesign uses the new notary API, and requires arguments that
         # are not available to GitHub runners yet.
