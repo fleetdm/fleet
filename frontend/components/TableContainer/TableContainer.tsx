@@ -25,6 +25,8 @@ export interface ITableQueryData {
   showInheritedTable?: boolean;
   /** Only used for sort/query changes to inherited policies table */
   editingInheritedTable?: boolean;
+  /** Only used for exploited vulnerabilities in software vulnerabilities table */
+  exploited?: boolean;
 }
 interface IRowProps extends Row {
   original: {

@@ -73,18 +73,30 @@ const SoftwareVulnerabilitiesTable = ({
             return val !== orderKey;
           case "pageIndex":
             return val !== currentPage;
+          case "searchQuery":
+            return val !== query;
+          case "exploited":
+            return val !== showExploitedVulnerabilitiesOnly.toString();
           default:
             return false;
         }
       });
       return changedEntry?.[0] ?? "";
     },
-    [currentPage, orderDirection, orderKey]
+    [
+      currentPage,
+      orderDirection,
+      orderKey,
+      query,
+      showExploitedVulnerabilitiesOnly,
+    ]
   );
 
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
+        query: newTableQuery.searchQuery,
+        exploited: newTableQuery.exploited?.toString(),
         team_id: teamId,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
@@ -122,12 +134,12 @@ const SoftwareVulnerabilitiesTable = ({
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(isPremiumTier, isSandboxMode, teamId, router, {
+    return generateTableConfig(isPremiumTier, isSandboxMode, router, {
       includeName: true,
       includeVulnerabilities: true,
       includeIcon: true,
     });
-  }, [data, router, teamId]);
+  }, [data, router]);
 
   const handleExploitedVulnFilterDropdownChange = (
     isFilterExploited: string

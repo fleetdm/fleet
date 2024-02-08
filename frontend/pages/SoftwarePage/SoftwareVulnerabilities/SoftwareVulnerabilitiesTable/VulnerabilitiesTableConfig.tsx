@@ -76,7 +76,6 @@ const formatSeverity = (float: number | null) => {
 const generateTableHeaders = (
   isPremiumTier?: boolean,
   isSandboxMode?: boolean,
-  teamId?: number,
   router?: InjectedRouter,
   configOptions?: IVulnerabilitiesTableConfigOptions
 ): IDataColumn[] => {
@@ -113,26 +112,6 @@ const generateTableHeaders = (
         );
       },
     },
-
-    {
-      title: "Hosts",
-      Header: (cellProps: IHeaderProps): JSX.Element => (
-        <HeaderCell
-          value="Hosts"
-          disableSortBy={false}
-          isSortedDesc={cellProps.column.isSortedDesc}
-        />
-      ),
-      disableSortBy: false,
-      accessor: "hosts_count",
-      Cell: (cellProps: ITextCellProps): JSX.Element => {
-        const { hosts_count } = cellProps.row.original;
-        return <TextCell value={hosts_count} />;
-      },
-    },
-  ];
-
-  const premiumHeaders: IDataColumn[] = [
     {
       title: "Severity",
       accessor: "cvss_score",
@@ -265,9 +244,22 @@ const generateTableHeaders = (
         );
       },
     },
-  ];
-
-  const linkToHosts: IDataColumn[] = [
+    {
+      title: "Hosts",
+      Header: (cellProps: IHeaderProps): JSX.Element => (
+        <HeaderCell
+          value="Hosts"
+          disableSortBy={false}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "hosts_count",
+      Cell: (cellProps: ITextCellProps): JSX.Element => {
+        const { hosts_count } = cellProps.row.original;
+        return <TextCell value={hosts_count} />;
+      },
+    },
     {
       title: "",
       Header: "",
@@ -291,9 +283,15 @@ const generateTableHeaders = (
     },
   ];
 
-  return isPremiumTier
-    ? tableHeaders.concat(premiumHeaders).concat(linkToHosts)
-    : tableHeaders.concat(linkToHosts);
+  if (!isPremiumTier) {
+    return tableHeaders.filter(
+      (header) =>
+        header.accessor !== "epss_probability" &&
+        header.accessor !== "cve_published"
+    );
+  }
+
+  return tableHeaders;
 };
 
 export default generateTableHeaders;
