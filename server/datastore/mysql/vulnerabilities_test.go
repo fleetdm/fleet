@@ -24,6 +24,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
 		{"TestListVulnerabilitiesSort", testListVulnerabilitiesSort},
 		{"TestVulnerabilitiesFilters", testVulnerabilitiesFilters},
+		{"TestCountVulnerabilities", testCountVulnerabilities},
 		{"TestInsertVulnerabilityCounts", testInsertVulnerabilityCounts},
 		{"TestVulnerabilityHostCountBatchInserts", testVulnerabilityHostCountBatchInserts},
 	}
@@ -236,6 +237,45 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, "CVE-2020-1234", list[0].CVE)
+}
+
+func testCountVulnerabilities(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// global count
+	count, err := ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{})
+	require.NoError(t, err)
+	require.Equal(t, uint(7), count)	
+
+	// global count with exploit filter
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{KnownExploit: true})
+	require.NoError(t, err)
+	require.Equal(t, uint(3), count)
+
+	// global count with match query
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
+	require.NoError(t, err)
+	require.Equal(t, uint(1), count)
+
+	// team count
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1})
+	require.NoError(t, err)
+	require.Equal(t, uint(6), count)
+
+	// team count with exploit filter
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, KnownExploit: true})
+	require.NoError(t, err)
+	require.Equal(t, uint(3), count)
+
+	// team count with match query
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
+	require.NoError(t, err)
+	require.Equal(t, uint(1), count)
+
+	// team count with exploit filter and match query
+	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: 1, KnownExploit: true, ListOptions: fleet.ListOptions{MatchQuery: "2020-1234"}})
+	require.NoError(t, err)
+	require.Equal(t, uint(1), count)
 }
 
 func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {

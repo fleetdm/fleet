@@ -590,6 +590,8 @@ type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
+type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
+
 type UpdateVulnerabilityHostCountsFunc func(ctx context.Context) error
 
 type NewMDMAppleConfigProfileFunc func(ctx context.Context, p fleet.MDMAppleConfigProfile) (*fleet.MDMAppleConfigProfile, error)
@@ -1668,6 +1670,9 @@ type DataStore struct {
 
 	ListVulnerabilitiesFunc        ListVulnerabilitiesFunc
 	ListVulnerabilitiesFuncInvoked bool
+
+	CountVulnerabilitiesFunc        CountVulnerabilitiesFunc
+	CountVulnerabilitiesFuncInvoked bool
 
 	UpdateVulnerabilityHostCountsFunc        UpdateVulnerabilityHostCountsFunc
 	UpdateVulnerabilityHostCountsFuncInvoked bool
@@ -4002,6 +4007,13 @@ func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 	s.ListVulnerabilitiesFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListVulnerabilitiesFunc(ctx, opt)
+}
+
+func (s *DataStore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
+	s.mu.Lock()
+	s.CountVulnerabilitiesFuncInvoked = true
+	s.mu.Unlock()
+	return s.CountVulnerabilitiesFunc(ctx, opt)
 }
 
 func (s *DataStore) UpdateVulnerabilityHostCounts(ctx context.Context) error {

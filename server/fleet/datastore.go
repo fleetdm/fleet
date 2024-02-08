@@ -849,6 +849,9 @@ type Datastore interface {
 
 	// ListVulnerabilities returns a list of unique vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// CountVulnerabilities returns the number of unique vulnerabilities based on the provided
+	// options.
+	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// UpdateVulnerabilityHostCounts updates hosts counts for all vulnerabilities.
 	UpdateVulnerabilityHostCounts(ctx context.Context) error
 

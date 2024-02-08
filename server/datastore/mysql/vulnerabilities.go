@@ -77,6 +77,39 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	return vulns, metaData, nil
 }
 
+func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
+	selectStmt := `
+		SELECT COUNT(*)
+		FROM vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
+		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
+		WHERE vhc.host_count > 0
+		`
+	var args []interface{}
+	if opt.TeamID == 0 {
+		selectStmt = selectStmt + " AND vhc.team_id = 0"
+	} else {
+		selectStmt = selectStmt + " AND vhc.team_id = ?"
+		args = append(args, opt.TeamID)
+	}
+
+	if opt.KnownExploit {
+		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
+	}
+
+	if match := opt.MatchQuery; match != "" {
+		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
+	}
+
+	var count uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, selectStmt, args...); err != nil {
+		return 0, ctxerr.Wrap(ctx, err, "count vulnerabilities")
+	}
+
+	return count, nil
+}
+
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	// set all counts to 0 to later identify rows to delete
 	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
