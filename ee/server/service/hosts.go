@@ -190,18 +190,15 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, loc
 	// that we don't enqueue over the limit, etc. for any other important
 	// validation we may add over there and that we bypass here by enqueueing the
 	// script directly in the datastore layer.
-	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+
+	if err := svc.ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         hostID,
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "create lock script execution request")
+	}, lockStatus.HostFleetPlatform); err != nil {
+		return err
 	}
-
-	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
-	// Ideally that would be in the same DB transaction.
 
 	return nil
 }
@@ -226,18 +223,14 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, l
 	// that we don't enqueue over the limit, etc. for any other important
 	// validation we may add over there and that we bypass here by enqueueing the
 	// script directly in the datastore layer.
-	_, err := svc.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{
+	if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
 		HostID:         hostID,
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	})
-	if err != nil {
-		return "", ctxerr.Wrap(ctx, err, "create unlock script execution request")
+	}, lockStatus.HostFleetPlatform); err != nil {
+		return "", err
 	}
-
-	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
-	// Ideally that would be in the same DB transaction.
 
 	return "", nil
 }
