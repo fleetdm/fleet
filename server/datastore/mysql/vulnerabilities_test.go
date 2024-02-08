@@ -245,7 +245,7 @@ func testCountVulnerabilities(t *testing.T, ds *Datastore) {
 	// global count
 	count, err := ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{})
 	require.NoError(t, err)
-	require.Equal(t, uint(7), count)	
+	require.Equal(t, uint(7), count)
 
 	// global count with exploit filter
 	count, err = ds.CountVulnerabilities(context.Background(), fleet.VulnListOptions{KnownExploit: true})
