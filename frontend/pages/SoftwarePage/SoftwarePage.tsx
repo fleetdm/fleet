@@ -256,10 +256,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      const navPath = softwareSubNav[i].pathname;
-      router.replace(
-        navPath.concat(location?.search || "").concat(location?.hash || "")
-      );
+      const navPath = softwareSubNav[i].pathname.concat(location?.hash || "");
+      router.replace(navPath);
     },
     [location, router]
   );
