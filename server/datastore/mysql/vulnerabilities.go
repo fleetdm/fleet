@@ -88,8 +88,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	// Append group by statement
-	selectStmt += groupBy
+	
 
 	if opt.KnownExploit {
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
@@ -99,7 +98,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	selectStmt = selectStmt + groupByAppend
+	// Append group by statement
+	selectStmt += groupBy
 
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
 	selectStmt, args = appendListOptionsWithCursorToSQL(selectStmt, args, &opt.ListOptions)
