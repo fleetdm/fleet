@@ -248,7 +248,7 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 
 	// Test KnownExploit filter
 	opts := fleet.VulnListOptions{
-		IsEE: true,
+		IsEE:         true,
 		KnownExploit: true,
 	}
 	list, _, err := ds.ListVulnerabilities(context.Background(), opts)

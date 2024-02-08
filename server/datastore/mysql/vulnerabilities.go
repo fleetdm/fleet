@@ -88,8 +88,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	
-
 	if opt.KnownExploit {
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
 	}
@@ -122,7 +120,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 
 	return vulns, metaData, nil
 }
-
 
 func (ds *Datastore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {
 	selectStmt := `
