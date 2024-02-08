@@ -6,7 +6,7 @@ Fleet offers managed cloud hosting for [Fleet Premium](https://fleetdm.com/prici
 
 > While organizations of all kinds use Fleet, from Fortune 500 companies to school districts to hobbyists, we are only currently able to provide cost-effective hosting for deployments larger than 1000 hosts.  (Instead, you can [buy a license](https://fleetdm.com/customers/register) and self-host Fleet Premium with support.)
 
-Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/using-fleet/learn-how-to-use-fleet).  Premium features are [available](https://fleetdm.com/pricing) either way.
+Fleet is simple enough to [spin up for yourself](https://fleetdm.com/docs/deploy/introduction).  Premium features are [available](https://fleetdm.com/pricing) either way.
 
 ## What is the easiest way to deploy Fleet?
 
@@ -29,7 +29,7 @@ Fleet comes with a [built-in query library](https://fleetdm.com/queries) for rep
 
 You can easily write queries yourself with query auto-complete, as well as import query packs for HID to detect IOCs using Yara or other intrusion detection mechanisms from the community or other vendors. Or, you can import policies to monitor for high-impact vulnerabilities such as a particular TPM chip; for example, a large vehicle manufacturer uses Fleet to do this.
 
-Customers can build on these built-in policies to monitor ongoing compliance with regulator standards like NIST, PCI, ISO, SOC, and HIPAA.
+Customers can build on these built-in policies to monitor ongoing compliance with regulatory standards like NIST, PCI, ISO, SOC, and HIPAA.
 
 ## Has anyone stress-tested Fleet? How many hosts can the Fleet server handle?
 
@@ -67,7 +67,7 @@ We have different licenses for portions of our software which are noted in the [
 
 - The product will be available for download without leaving an email address or logging in.
 
-- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of realtime reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments supports 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
+- We will always allow you to benchmark the performance of Fleet. (Fleet also [load tests the platform before every release](https://fleetdm.com/handbook/engineering#rituals), with increasingly ambitious targets. The scale of real time reporting supported by Fleet has increased 5,000% since 2019. Today, Fleet deployments support 500,000 devices, and counting. The company is committed to driving this number to 1M+, and beyond.)
 
 ## How do I contact Fleet for support?
 
@@ -79,7 +79,7 @@ If your organization has Fleet Premium, you can [access professional support](ht
 
 If you opt not to renew Fleet Premium, you can continue using only the free capabilities of Fleet (same code base, just unconfigure the license key.)
 
-## Can we buy a licence to access premium features with reduced support for a reduced cost?
+## Can we buy a license to access premium features with reduced support for a reduced cost?
 
 We aren’t able to sell licenses and support separately.
 
@@ -397,7 +397,7 @@ $ fleetctl get hosts --json | jq '.spec .os_version' | sort | uniq -c
 
 No. The agent options set using your software orchestration tool will override the default agent options that appear in the **Settings > Organization settings > Agent options** page. On this page, if you hit the **Save** button, the options that appear in the Fleet UI will override the agent options set using your software orchestration.
 
-### How does Fleet determines online and offline status?
+### How does Fleet determine online and offline status?
 
 #### Online hosts
 

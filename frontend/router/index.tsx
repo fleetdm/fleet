@@ -48,7 +48,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
+import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
@@ -60,9 +60,11 @@ import WindowsAutomaticEnrollmentPage from "pages/admin/IntegrationsPage/cards/A
 import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
-import SoftwareVersions from "pages/SoftwarePage/SoftwareVersions";
+import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
+import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
+import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -155,11 +157,13 @@ const routes = (
               component={WindowsAutomaticEnrollmentPage}
             />
             <Route path="teams" component={TeamDetailsWrapper}>
-              <Route path="members" component={MembersPage} />
+              <Redirect from="members" to="users" />
+              <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
+              <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/users" to="teams" />
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
@@ -217,12 +221,14 @@ const routes = (
             <IndexRedirect to="titles" />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
-              <Route path="versions" component={SoftwareVersions} />
+              <Route path="versions" component={SoftwareTitles} />
+              <Route path="os" component={SoftwareOS} />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

@@ -15,7 +15,7 @@ import (
 )
 
 func TestListOptionsFromRequest(t *testing.T) {
-	var listOptionsTests = []struct {
+	listOptionsTests := []struct {
 		// url string to parse
 		url string
 		// expected list options
@@ -123,14 +123,13 @@ func TestListOptionsFromRequest(t *testing.T) {
 
 				assert.Nil(t, err)
 				assert.Equal(t, tt.listOptions, opt)
-
 			},
 		)
 	}
 }
 
 func TestHostListOptionsFromRequest(t *testing.T) {
-	var hostListOptionsTests = map[string]struct {
+	hostListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options
@@ -156,7 +155,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 		"all params defined": {
 			url: "/foo?order_key=foo&order_direction=asc&page=10&per_page=1&device_mapping=T&additional_info_filters" +
 				"=filter1,filter2&status=new&team_id=2&policy_id=3&policy_response=passing&software_id=4&os_id=5" +
-				"&os_name=osName&os_version=osVersion&disable_failing_policies=1&macos_settings=verified" +
+				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
 				"&munki_issue_id=7&low_disk_space=99",
@@ -175,6 +174,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				PolicyResponseFilter:              ptr.Bool(true),
 				SoftwareIDFilter:                  ptr.Uint(4),
 				OSIDFilter:                        ptr.Uint(5),
+				OSVersionIDFilter:                 ptr.Uint(5),
 				OSNameFilter:                      ptr.String("osName"),
 				OSVersionFilter:                   ptr.String("osVersion"),
 				DisableFailingPolicies:            true,
@@ -359,7 +359,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 }
 
 func TestCarveListOptionsFromRequest(t *testing.T) {
-	var carveListOptionsTests = map[string]struct {
+	carveListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options
@@ -429,7 +429,7 @@ func TestCarveListOptionsFromRequest(t *testing.T) {
 }
 
 func TestUserListOptionsFromRequest(t *testing.T) {
-	var userListOptionsTests = map[string]struct {
+	userListOptionsTests := map[string]struct {
 		// url string to parse
 		url string
 		// expected options

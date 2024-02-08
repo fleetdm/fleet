@@ -44,12 +44,16 @@ interface ITeamDetailsSubNavItem {
 
 const teamDetailsSubNav: ITeamDetailsSubNavItem[] = [
   {
-    name: "Members",
-    getPathname: PATHS.TEAM_DETAILS_MEMBERS,
+    name: "Users",
+    getPathname: PATHS.TEAM_DETAILS_USERS,
   },
   {
     name: "Agent options",
     getPathname: PATHS.TEAM_DETAILS_OPTIONS,
+  },
+  {
+    name: "Settings",
+    getPathname: PATHS.TEAM_DETAILS_SETTINGS,
   },
 ];
 

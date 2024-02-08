@@ -40,3 +40,29 @@ export const MACADMINS_EXTENSION_TABLES: Record<string, OsqueryPlatform[]> = {
   puppet_state: ["darwin", "linux", "windows"],
   macadmins_unified_log: ["darwin"],
 };
+
+/**
+ * Host Linux OSs as defined by the Fleet server.
+ *
+ * @see https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L780
+ */
+export const HOST_LINUX_PLATFORMS = [
+  "linux",
+  "ubuntu",
+  "debian",
+  "rhel",
+  "centos",
+  "sles",
+  "kali",
+  "gentoo",
+  "amzn",
+  "pop",
+  "arch",
+  "linuxmint",
+  "void",
+  "nixos",
+  "endeavouros",
+  "manjaro",
+  "opensuse-leap",
+  "opensuse-tumbleweed",
+] as const;

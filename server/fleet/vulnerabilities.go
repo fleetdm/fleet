@@ -77,21 +77,28 @@ func (sv SoftwareVulnerability) Affected() uint {
 // OSVulnerability is a vulnerability on a OS.
 // Represents an entry in the `os_vulnerabilities` table.
 type OSVulnerability struct {
-	OSID   uint   `db:"operating_system_id"`
-	HostID uint   `db:"host_id"`
-	CVE    string `db:"cve"`
+	OSID uint   `db:"operating_system_id"`
+	CVE  string `db:"cve"`
+	// Source is the source of the vulnerability.
+	Source VulnerabilitySource `db:"source"`
+	// ResolvedInVersion is the version of the OS that resolves the vulnerability.
+	ResolvedInVersion *string `db:"resolved_in_version"`
 }
 
 // String implements fmt.Stringer.
 func (ov OSVulnerability) String() string {
-	return fmt.Sprintf("{%d,%d,%s}", ov.OSID, ov.HostID, ov.CVE)
+	return fmt.Sprintf("{%d,%s}", ov.OSID, ov.CVE)
 }
 
 // Key returns a string representation of the os vulnerability.
 // If we have a list of os vulnerabilities, the Key can be used
 // as a discrimator for unique entries.
 func (ov OSVulnerability) Key() string {
-	return fmt.Sprintf("os:%d:%d:%s", ov.OSID, ov.HostID, ov.CVE)
+	var rv string
+	if ov.ResolvedInVersion != nil {
+		rv = *ov.ResolvedInVersion
+	}
+	return fmt.Sprintf("os:%d:%s:%s", ov.OSID, ov.CVE, rv)
 }
 
 func (ov OSVulnerability) GetCVE() string {
@@ -99,7 +106,7 @@ func (ov OSVulnerability) GetCVE() string {
 }
 
 func (ov OSVulnerability) Affected() uint {
-	return ov.HostID
+	return ov.OSID
 }
 
 // Represents a vulnerability, e.g. an OS or a Software vulnerability.

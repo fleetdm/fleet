@@ -55,7 +55,12 @@ export interface IMdmSummaryResponse {
   mobile_device_management_solution: IMdmSolution[] | null;
 }
 
-type ProfilePlatform = "darwin" | "windows";
+export type ProfilePlatform = "darwin" | "windows";
+
+export interface IProfileLabel {
+  name: string;
+  broken: boolean;
+}
 
 export interface IMdmProfile {
   profile_uuid: string;
@@ -66,6 +71,7 @@ export interface IMdmProfile {
   created_at: string;
   updated_at: string;
   checksum: string | null; // null for windows profiles
+  labels?: IProfileLabel[];
 }
 
 export type MdmProfileStatus = "verified" | "verifying" | "pending" | "failed";
