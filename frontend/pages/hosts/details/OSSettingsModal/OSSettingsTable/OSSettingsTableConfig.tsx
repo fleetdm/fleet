@@ -67,7 +67,11 @@ const generateFormattedTooltip = (detail: string) => {
       <span key={key}>
         <b>{key.trim()}:</b> {value.trim()}
         {/* dont add the trailing comma for the last element */}
-        {index !== keyValuePairs.length - 1 && ", "}
+        {index !== keyValuePairs.length - 1 && (
+          <>
+            ,<br />
+          </>
+        )}
       </span>
     );
   });
