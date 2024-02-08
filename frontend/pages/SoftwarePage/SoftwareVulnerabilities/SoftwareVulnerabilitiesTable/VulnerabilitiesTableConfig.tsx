@@ -7,6 +7,9 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
+// TODO: Replace ProbabilityOfExploitCell when PR for ProbabilityOfExploit merges
+// import ProbabilityOfExploit from "components/ProbabilityOfExploit.ProbabilityOfExploit";
+import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -195,12 +198,16 @@ const generateTableHeaders = (
         );
       },
       Cell: (cellProps: ICellProps): JSX.Element => (
+        // TODO: Replace ProbabilityOfExploitCell when PR for ProbabilityOfExploit merges
         // <ProbabilityOfExploitCell
         //   probabilityOfExploit={cellProps.row.original.epss_probability}
         //   cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
-        //   rowId={cellProps.row.original.cve}
         // />
-        <>Uncomment probability of exploit cell when merged </>
+        <ProbabilityOfExploitCell
+          probabilityOfExploit={cellProps.row.original.epss_probability}
+          cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
+          rowId={cellProps.row.original.cve}
+        />
       ),
     },
     {
@@ -283,7 +290,7 @@ const generateTableHeaders = (
                   vulnerability: cellProps.row.original.cve,
                 }}
                 className="vulnerabilities-link"
-                // rowHover TODO: Uncomment when existing page changes is implemented
+                rowHover
               />
             )}
           </>

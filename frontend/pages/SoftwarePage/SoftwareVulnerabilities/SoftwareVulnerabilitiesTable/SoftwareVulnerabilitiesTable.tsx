@@ -138,9 +138,9 @@ const SoftwareVulnerabilitiesTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          teamId,
-          orderDirection,
-          orderKey,
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
           exploited: isFilterExploited,
           page: 0, // resets page index
         },
