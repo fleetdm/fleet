@@ -60,7 +60,7 @@ const TooltipTruncatedTextCell = ({
         delayHide={200} // need delay set to hover using clickable
       >
         <>
-          {tooltip !== undefined ? tooltip : value}
+          {tooltip ?? value}
           <div className="safari-hack">&nbsp;</div>
           {/* Fixes triple click selecting next element in Safari */}
         </>
