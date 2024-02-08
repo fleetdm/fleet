@@ -4,6 +4,8 @@ package viewer
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
@@ -101,4 +103,59 @@ func (v Viewer) CanPerformPasswordReset() bool {
 		return v.IsLoggedIn() && v.User.IsAdminForcedPasswordReset()
 	}
 	return false
+}
+
+// UserIsGitOpsOnly checks if the user in the provided context is exclusively
+// assigned the GitOps role.
+//
+// It evaluates both global roles and team-specific
+// roles of the user. The function returns true if the user has the GitOps role
+// globally or in all team roles. It returns false if the user has no roles,
+// non-GitOps roles, or a mix of GitOps and non-GitOps roles.
+//
+// In case the context does not contain a user or the user data is incomplete,
+// it returns an error.
+func UserIsGitOpsOnly(ctx context.Context) (bool, error) {
+	vc, ok := FromContext(ctx)
+	if !ok {
+		return false, fleet.ErrNoContext
+	}
+	if vc.User == nil {
+		return false, errors.New("missing user in context")
+	}
+	if vc.User.GlobalRole != nil {
+		return *vc.User.GlobalRole == fleet.RoleGitOps, nil
+	}
+	if len(vc.User.Teams) == 0 {
+		return false, errors.New("user has no roles")
+	}
+	for _, teamRole := range vc.User.Teams {
+		if teamRole.Role != fleet.RoleGitOps {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// DetermineActionAllowingGitOps decides on an action based on the user's
+// GitOps role. If the user is identified as GitOps-only, a predefined GitOps
+// action (fleet.ActionWrite) is returned. Otherwise, the function returns the
+// action provided as input. If there's an error in determining the user's
+// GitOps role, the function returns an error.
+//
+// This method is useful in scenarios where certain actions are restricted or
+// modified based on the user's role, specifically tailored for users with
+// GitOps roles.
+func DetermineActionAllowingGitOps(ctx context.Context, action string) (string, error) {
+	isGitOps, err := UserIsGitOpsOnly(ctx)
+	if err != nil {
+		return "", fmt.Errorf("checking if user is gitops only: %w", err)
+	}
+
+	if isGitOps {
+		return fleet.ActionWrite, nil
+	}
+
+	return action, nil
+
 }

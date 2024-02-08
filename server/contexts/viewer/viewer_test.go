@@ -5,7 +5,9 @@ import (
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 var (
@@ -99,6 +101,170 @@ func TestCanPerformActions(t *testing.T) {
 
 	assert.Equal(t, true, adminViewer.CanPerformActions())
 	assert.Equal(t, false, needsPasswordResetAdminViewer.CanPerformActions())
+}
+
+func TestUserIsGitOpsOnly(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		user       *fleet.User
+		expectedFn func(value bool, err error) bool
+	}{
+		{
+			name: "missing user in context",
+			user: nil,
+			expectedFn: func(value bool, err error) bool {
+				return err != nil && !value
+			},
+		},
+		{
+			name: "no roles",
+			user: &fleet.User{},
+			expectedFn: func(value bool, err error) bool {
+				return err != nil && !value
+			},
+		},
+		{
+			name: "global gitops",
+			user: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleGitOps),
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "global non-gitops",
+			user: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleObserver),
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+		{
+			name: "team gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "multiple team gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleGitOps,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && value
+			},
+		},
+		{
+			name: "multiple teams, not all gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleGitOps,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+		{
+			name: "multiple teams, none gitops",
+			user: &fleet.User{
+				GlobalRole: nil,
+				Teams: []fleet.UserTeam{
+					{
+						Team: fleet.Team{ID: 1},
+						Role: fleet.RoleObserver,
+					},
+					{
+						Team: fleet.Team{ID: 2},
+						Role: fleet.RoleMaintainer,
+					},
+				},
+			},
+			expectedFn: func(value bool, err error) bool {
+				return err == nil && !value
+			},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := UserIsGitOpsOnly(NewContext(context.Background(), Viewer{User: tc.user}))
+			require.True(t, tc.expectedFn(actual, err))
+		})
+	}
+}
+
+func TestDetermineActionAllowingGitOps(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		ctx       context.Context
+		action    string
+		expected  string
+		expectErr bool
+	}{
+		{
+			name: "gitops user, default action",
+			ctx: NewContext(context.Background(), Viewer{User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleGitOps),
+			}}),
+			action:    "default_action",
+			expected:  fleet.ActionWrite,
+			expectErr: false,
+		},
+		{
+			name: "non-gitops user, default action",
+			ctx: NewContext(context.Background(), Viewer{User: &fleet.User{
+				GlobalRole: ptr.String(fleet.RoleObserver),
+			}}),
+			action:    "default_action",
+			expected:  "default_action",
+			expectErr: false,
+		},
+		{
+			name:      "no user in context",
+			ctx:       NewContext(context.Background(), Viewer{User: nil}),
+			action:    "default_action",
+			expected:  "",
+			expectErr: true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			actual, err := DetermineActionAllowingGitOps(tc.ctx, tc.action)
+			if tc.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, actual)
+			}
+		})
+	}
 }
 
 // TODO update these tests

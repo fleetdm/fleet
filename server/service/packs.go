@@ -25,28 +25,6 @@ type packResponse struct {
 	TeamIDs  []uint `json:"team_ids"`
 }
 
-func userIsGitOpsOnly(ctx context.Context) (bool, error) {
-	vc, ok := viewer.FromContext(ctx)
-	if !ok {
-		return false, fleet.ErrNoContext
-	}
-	if vc.User == nil {
-		return false, errors.New("missing user in context")
-	}
-	if vc.User.GlobalRole != nil {
-		return *vc.User.GlobalRole == fleet.RoleGitOps, nil
-	}
-	if len(vc.User.Teams) == 0 {
-		return false, errors.New("user has no roles")
-	}
-	for _, teamRole := range vc.User.Teams {
-		if teamRole.Role != fleet.RoleGitOps {
-			return false, nil
-		}
-	}
-	return true, nil
-}
-
 func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack) (*packResponse, error) {
 	opts := fleet.ListOptions{}
 	queries, err := svc.GetScheduledQueriesInPack(ctx, pack.ID, opts)
@@ -73,7 +51,7 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		// Some users (e.g. gitops) are not able to read targets, thus
 		// we do not fail when gathering the total host count to not fail
 		// write packs request.
-		ok, gerr := userIsGitOpsOnly(ctx)
+		ok, gerr := viewer.UserIsGitOpsOnly(ctx)
 		if gerr != nil {
 			return nil, gerr
 		}
