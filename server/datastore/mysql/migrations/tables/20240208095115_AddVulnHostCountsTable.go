@@ -5,10 +5,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240205095115, Down_20240205095115)
+	MigrationClient.AddMigration(Up_20240208095115, Down_20240208095115)
 }
 
-func Up_20240205095115(tx *sql.Tx) error {
+func Up_20240208095115(tx *sql.Tx) error {
 	createStmt := `
 		CREATE TABLE IF NOT EXISTS vulnerability_host_counts (
 			cve VARCHAR(20) NOT NULL,
@@ -27,6 +27,6 @@ func Up_20240205095115(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240205095115(tx *sql.Tx) error {
+func Down_20240208095115(tx *sql.Tx) error {
 	return nil
 }
