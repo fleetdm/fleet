@@ -7,7 +7,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
 
 interface ITooltipTruncatedTextCellProps {
-  value: string | number | boolean;
+  value: React.ReactNode;
   /** Tooltip to dispay. If this is provided then this will be rendered as the tooltip content. If
    * not the value will be displayed as the tooltip content. Defaults to `undefined` */
   tooltip?: React.ReactNode;
