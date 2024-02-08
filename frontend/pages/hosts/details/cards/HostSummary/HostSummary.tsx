@@ -347,6 +347,33 @@ const HostSummary = ({
     ": unavailable"
   );
 
+  const renderLockedTag = () => {
+    const tooltipText =
+      titleData.platform === "darwin"
+        ? "Host is locked. The end user can’t use the host until the six-digit PIN has been entered."
+        : "Host is locked. The end user can’t use the host until the host has been unlocked.";
+
+    return (
+      <>
+        <span
+          className={`${baseClass}__locked-tag`}
+          data-tip
+          data-for="locked-tooltip"
+        >
+          LOCKED
+        </span>
+        <ReactTooltip
+          place="top"
+          effect="solid"
+          id="locked-tooltip"
+          backgroundColor={COLORS["tooltip-bg"]}
+        >
+          <span className={`${baseClass}__tooltip-text`}>{tooltipText}</span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
   return (
     <div className={baseClass}>
       <div className="header title">
@@ -358,9 +385,7 @@ const HostSummary = ({
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
-            {isLocked && (
-              <span className={`${baseClass}__locked-tag`}>LOCKED</span>
-            )}
+            {isLocked && renderLockedTag()}
 
             <div className={`${baseClass}__last-fetched`}>
               {"Last fetched"} {lastFetched}
