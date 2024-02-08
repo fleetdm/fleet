@@ -49,6 +49,11 @@ interface IHostSummaryProps {
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
+  isLocked?: boolean;
+  isWiped?: boolean;
+  isLocking?: boolean;
+  isWiping?: boolean;
+  isUnlocking?: boolean;
 }
 
 const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
@@ -108,6 +113,11 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
   osSettings,
+  isLocked,
+  isWiped,
+  isLocking,
+  isWiping,
+  isUnlocking,
 }: IHostSummaryProps): JSX.Element => {
   const { status, platform } = titleData;
 
@@ -128,7 +138,14 @@ const HostSummary = ({
             ${!isOnline ? "refetch-offline tooltip" : ""}
               ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
             `}
-            disabled={!isOnline}
+            disabled={
+              !isOnline ||
+              isLocked ||
+              isWiped ||
+              isLocking ||
+              isWiping ||
+              isUnlocking
+            }
             onClick={onRefetchHost}
             variant="text-icon"
           >
@@ -340,6 +357,10 @@ const HostSummary = ({
                 ? "My device"
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
+
+            {isLocked && (
+              <span className={`${baseClass}__locked-tag`}>LOCKED</span>
+            )}
 
             <div className="last-fetched">
               {"Last fetched"} {lastFetched}

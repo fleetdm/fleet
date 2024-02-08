@@ -1,4 +1,11 @@
 .host-summary {
+  &__lock-tag {
+    background-color: $ui-warning;
+    padding: $pad-xsmall;
+    font-size: $pad-small;
+    font-weight: $bold;
+  }
+
   .info-flex {
     &__header {
       display: flex;

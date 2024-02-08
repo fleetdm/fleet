@@ -161,12 +161,15 @@ export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
   name?: string;
-  server_url: string | null;
   id?: number;
+  server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
+  locked: boolean;
+  wiped: boolean;
+  action_suspended: boolean;
 }
 
 export interface IMunkiIssue {

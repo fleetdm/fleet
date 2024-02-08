@@ -788,6 +788,12 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
+          // TODO: figure out these values
+          isLocked
+          isWiped={host.mdm.wiped && !host.mdm.action_suspended}
+          isLocking={host.mdm.locked && host.mdm.action_suspended}
+          isWiping={host.mdm.wiped && host.mdm.action_suspended}
+          isUnlocking={!host.mdm.locked && host.mdm.action_suspended}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
