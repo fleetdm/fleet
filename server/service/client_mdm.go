@@ -373,8 +373,8 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	return b, nil
 }
 
-func (c *Client) MDMLockHost(hostIdent string) error {
-	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%s/lock", hostIdent), nil); err != nil {
+func (c *Client) MDMLockHost(hostID uint) error {
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), nil); err != nil {
 		return fmt.Errorf("lock host request: %w", err)
 	}
 	return nil

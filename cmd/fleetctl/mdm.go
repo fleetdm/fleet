@@ -214,7 +214,7 @@ func mdmLockCommand() *cli.Command {
 				return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
 			}
 
-			if err := client.MDMLockHost(hostIdent); err != nil {
+			if err := client.MDMLockHost(host.ID); err != nil {
 				return fmt.Errorf("Failed to lock host: %w", err)
 			}
 
