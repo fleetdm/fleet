@@ -77,9 +77,7 @@ builds:
       post:
         - echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
         - rcodesign sign \
-          --p12-file certificate.p12 --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" \
-          --code-signature-flags runtime \
-          --for-notarization \
+          --p12-file certificate.p12 --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" --for-notarization  \
           {{ .Path }}
         - rm certificate.p12
         # TODO: rcodesign uses the new notary API, and requires arguments that
