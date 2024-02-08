@@ -127,14 +127,19 @@ const tableHeaders: IDataColumn[] = [
         (profile.status === "failed" && profile.detail) ||
         DEFAULT_EMPTY_CELL_VALUE;
 
+      const tooltip =
+        profile.status === "failed"
+          ? generateErrorTooltip(
+              value,
+              cellProps.row.original.platform,
+              profile.detail
+            )
+          : null;
+
       return (
         <TooltipTruncatedTextCell
           tooltipBreakOnWord
-          tooltip={generateErrorTooltip(
-            value,
-            cellProps.row.original.platform,
-            profile.detail
-          )}
+          tooltip={tooltip}
           value={value}
         />
       );
