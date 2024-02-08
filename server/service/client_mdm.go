@@ -379,3 +379,10 @@ func (c *Client) MDMLockHost(hostID uint) error {
 	}
 	return nil
 }
+
+func (c *Client) MDMUnlockHost(hostID uint) error {
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), nil); err != nil {
+		return fmt.Errorf("lock host request: %w", err)
+	}
+	return nil
+}
