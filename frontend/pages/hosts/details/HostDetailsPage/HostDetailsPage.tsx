@@ -80,6 +80,7 @@ import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncrypt
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
+import UnlockModal from "./modals/UnlockModal";
 
 const baseClass = "host-details";
 
@@ -153,6 +154,7 @@ const HostDetailsPage = ({
     false
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
+  const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -974,6 +976,15 @@ const HostDetailsPage = ({
             id={host.id}
             platform={host.platform}
             onClose={() => setShowLockHostModal(false)}
+          />
+        )}
+        {showUnlockHostModal && (
+          <UnlockModal
+            id={host.id}
+            platform={host.platform}
+            hostName={host.display_name}
+            pin={123456}
+            onClose={() => setShowUnlockHostModal(false)}
           />
         )}
       </>

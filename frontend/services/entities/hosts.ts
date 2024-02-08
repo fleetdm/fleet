@@ -384,4 +384,8 @@ export default {
     const { HOST_LOCK } = endpoints;
     return sendRequest("POST", HOST_LOCK(id));
   },
+  unlockHost: (id: number) => {
+    const { HOST_LOCK } = endpoints;
+    return sendRequest("POST", HOST_LOCK(id));
+  },
 };

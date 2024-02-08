@@ -42,6 +42,7 @@ export default {
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
+  HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
