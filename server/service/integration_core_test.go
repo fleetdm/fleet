@@ -7420,7 +7420,27 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
-	
+	// insert CVEMeta
+	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1234",
+		},
+		{
+			CVE:              "CVE-2021-1235",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1235",
+		},
+	})
+	require.NoError(t, err)
 
 	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
 	require.NoError(t, err)

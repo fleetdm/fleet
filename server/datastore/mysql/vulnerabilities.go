@@ -11,7 +11,9 @@ import (
 )
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
-	selectStmt := `
+	var selectStmt string
+
+	ee := `
 		SELECT
 			vhc.cve,
 			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
@@ -29,7 +31,28 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.host_count > 0
 		`
-	groupByAppend := ` GROUP BY 
+	free := `
+		SELECT
+			vhc.cve,
+			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+			COALESCE(osv.source, sc.source, 0) AS source,
+			vhc.host_count
+		FROM
+			vulnerability_host_counts vhc
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
+		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
+		WHERE vhc.host_count > 0
+		`
+
+	if opt.IsEE {
+		selectStmt = ee
+	} else {
+		selectStmt = free
+	}
+
+	var groupBy string
+
+	eeGroupBy := ` GROUP BY 
 			vhc.cve, 
 			cm.cvss_score, 
 			cm.epss_probability, 
@@ -38,6 +61,13 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			description, 
 			vhc.host_count
 	`
+	freeGroupBy := " GROUP BY vhc.cve, vhc.host_count"
+
+	if opt.IsEE {
+		groupBy = eeGroupBy
+	} else {
+		groupBy = freeGroupBy
+	}
 
 	var args []interface{}
 	if opt.TeamID == 0 {
@@ -55,7 +85,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	selectStmt = selectStmt + groupByAppend
+	selectStmt += groupBy
 
 	if opt.KnownExploit {
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
