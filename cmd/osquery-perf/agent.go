@@ -67,7 +67,7 @@ func loadMacOSVulnerableSoftware() {
 			Source:  "apps",
 		})
 	}
-	log.Printf("Loaded %d vulnerable macOS software\n", len(macosVulnerableSoftware))
+	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
 
 func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
@@ -238,7 +238,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d\n",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -289,7 +289,7 @@ func (n *nodeKeyManager) LoadKeys() {
 	}
 	n.nodekeys = strings.Split(string(data), "\n")
 	n.nodekeys = n.nodekeys[:len(n.nodekeys)-1] // remove last empty node key due to new line.
-	log.Printf("loaded %d node keys\n", len(n.nodekeys))
+	log.Printf("loaded %d node keys", len(n.nodekeys))
 }
 
 func (n *nodeKeyManager) Get(i int) string {
@@ -522,7 +522,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	if a.mdmClient != nil {
 		if err := a.mdmClient.Enroll(); err != nil {
-			log.Printf("MDM enroll failed: %s\n", err)
+			log.Printf("MDM enroll failed: %s", err)
 			a.stats.IncrementMDMErrors()
 			return
 		}
@@ -752,7 +752,7 @@ func (a *agent) runMDMLoop() {
 	for range mdmCheckInTicker {
 		mdmCommandPayload, err := a.mdmClient.Idle()
 		if err != nil {
-			log.Printf("MDM Idle request failed: %s\n", err)
+			log.Printf("MDM Idle request failed: %s", err)
 			a.stats.IncrementMDMErrors()
 			continue
 		}
@@ -761,7 +761,7 @@ func (a *agent) runMDMLoop() {
 			a.stats.IncrementMDMCommandsReceived()
 			mdmCommandPayload, err = a.mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s\n", err)
+				log.Printf("MDM Acknowledge request failed: %s", err)
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
@@ -776,7 +776,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	}
 	defer a.scriptExecRunning.Store(false)
 
-	log.Printf("running scripts: %v\n", execIDs)
+	log.Printf("running scripts: %v", execIDs)
 	for _, execID := range execIDs {
 		if a.disableScriptExec {
 			// send a no-op result without executing if script exec is disabled
@@ -789,7 +789,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 				log.Println("save disabled host script result:", err)
 				return
 			}
-			log.Printf("did save disabled host script result: id=%s\n", execID)
+			log.Printf("did save disabled host script result: id=%s", execID)
 			continue
 		}
 
@@ -817,7 +817,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			log.Println("save host script result:", err)
 			return
 		}
-		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d\n", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
+		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
 }
 
@@ -971,7 +971,7 @@ func (a *agent) config() error {
 			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
 			m, ok := query.(map[string]interface{})
 			if !ok {
-				return fmt.Errorf("processing scheduled query failed: %v\n", query)
+				return fmt.Errorf("processing scheduled query failed: %v", query)
 			}
 
 			q := scheduledQuery{}
@@ -1145,7 +1145,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 
 	var parsedResp distributedReadResponse
 	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
-		log.Printf("json parse: %s\n", err)
+		log.Printf("json parse: %s", err)
 		return nil, err
 	}
 
