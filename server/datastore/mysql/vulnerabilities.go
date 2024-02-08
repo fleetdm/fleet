@@ -87,6 +87,10 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
 	}
 
+	if match := opt.MatchQuery; match != "" {
+		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
+	}
+
 	selectStmt = selectStmt + groupByAppend
 
 	if opt.KnownExploit {
