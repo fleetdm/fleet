@@ -61,6 +61,12 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 }
 
 func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
+	// set all counts to 0 to later identify rows to delete
+	_, err := ds.writer(ctx).ExecContext(ctx, "UPDATE vulnerability_host_counts SET host_count = 0")
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "initializing vulnerability host counts")
+	}
+
 	globalSelectStmt := `
     SELECT 0 as team_id, cve, COUNT(*) AS host_count
     FROM (
@@ -115,6 +121,11 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 		return ctxerr.Wrap(ctx, err, "inserting team vulnerability host counts")
 	}
 
+	err = ds.cleanupVulnerabilityHostCounts(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up vulnerability host counts")
+	}
+
 	return nil
 }
 
@@ -122,6 +133,15 @@ type hostCount struct {
 	TeamID    uint   `db:"team_id"`
 	CVE       string `db:"cve"`
 	HostCount uint   `db:"host_count"`
+}
+
+func (ds *Datastore) cleanupVulnerabilityHostCounts(ctx context.Context) error {
+	_, err := ds.writer(ctx).ExecContext(ctx, "DELETE FROM vulnerability_host_counts WHERE host_count = 0")
+	if err != nil {
+		return fmt.Errorf("deleting zero host count entries: %w", err)
+	}
+
+	return nil
 }
 
 func (ds *Datastore) fetchHostCounts(ctx context.Context, query string) ([]hostCount, error) {
