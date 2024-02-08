@@ -48,47 +48,87 @@ const HostsSummary = ({
     select: ({ specs }) => specs.id,
   });
 
-  const renderMacCount = (teamId?: number) => (
-    <SummaryTile
-      iconName="darwin"
-      circledIcon
-      count={macCount}
-      isLoading={isLoadingHostsSummary}
-      showUI={showHostsUI}
-      title={`macOS host${macCount === 1 ? "" : "s"}`}
-      path={PATHS.MANAGE_HOSTS_LABEL(7).concat(
-        teamId !== undefined ? `?team_id=${teamId}` : ""
-      )}
-    />
-  );
+  const { isLoading: isLoadingLinuxLabelId, data: linuxLabelId } = useQuery<
+    ILabelSpecResponse,
+    Error,
+    number
+  >("linuxLabelId", () => labelsAPI.specByName("All Linux"), {
+    select: ({ specs }) => specs.id,
+  });
 
-  const renderWindowsCount = (teamId?: number) => (
-    <SummaryTile
-      iconName="windows"
-      circledIcon
-      count={windowsCount}
-      isLoading={isLoadingHostsSummary}
-      showUI={showHostsUI}
-      title={`Windows host${windowsCount === 1 ? "" : "s"}`}
-      path={PATHS.MANAGE_HOSTS_LABEL(10).concat(
-        teamId !== undefined ? `?team_id=${teamId}` : ""
-      )}
-    />
-  );
+  const { isLoading: isLoadingMacLabelId, data: macLabelId } = useQuery<
+    ILabelSpecResponse,
+    Error,
+    number
+  >("macLabelId", () => labelsAPI.specByName("macOS"), {
+    select: ({ specs }) => specs.id,
+  });
 
-  const renderLinuxCount = (teamId?: number) => (
-    <SummaryTile
-      iconName="linux"
-      circledIcon
-      count={linuxCount}
-      isLoading={isLoadingHostsSummary}
-      showUI={showHostsUI}
-      title={`Linux host${linuxCount === 1 ? "" : "s"}`}
-      path={PATHS.MANAGE_HOSTS_LABEL(12).concat(
-        teamId !== undefined ? `?team_id=${teamId}` : ""
-      )}
-    />
-  );
+  const { isLoading: isLoadingWindowsLabelId, data: windowsLabelId } = useQuery<
+    ILabelSpecResponse,
+    Error,
+    number
+  >("windowsLabelId", () => labelsAPI.specByName("MS Windows"), {
+    select: ({ specs }) => specs.id,
+  });
+
+  const renderMacCount = (teamId?: number) => {
+    if (isLoadingMacLabelId || macLabelId === undefined) {
+      return <></>;
+    }
+
+    return (
+      <SummaryTile
+        iconName="darwin"
+        circledIcon
+        count={macCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`macOS host${macCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(macLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
+  const renderWindowsCount = (teamId?: number) => {
+    if (isLoadingWindowsLabelId || windowsLabelId === undefined) {
+      return <></>;
+    }
+    return (
+      <SummaryTile
+        iconName="windows"
+        circledIcon
+        count={windowsCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`Windows host${windowsCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(windowsLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
+
+  const renderLinuxCount = (teamId?: number) => {
+    if (isLoadingLinuxLabelId || linuxLabelId === undefined) {
+      return <></>;
+    }
+    return (
+      <SummaryTile
+        iconName="linux"
+        circledIcon
+        count={linuxCount}
+        isLoading={isLoadingHostsSummary}
+        showUI={showHostsUI}
+        title={`Linux host${linuxCount === 1 ? "" : "s"}`}
+        path={PATHS.MANAGE_HOSTS_LABEL(linuxLabelId).concat(
+          teamId !== undefined ? `?team_id=${teamId}` : ""
+        )}
+      />
+    );
+  };
 
   const renderChromeCount = (teamId?: number) => {
     if (isLoadingChromeLabelId || chromeLabelId === undefined) {
