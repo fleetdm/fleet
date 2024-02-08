@@ -51,6 +51,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          pushd /tmp
           readonly version="0.27.0"
           readonly codesign_package="apple-codesign-${version}-x86_64-unknown-linux-musl.tar.gz"
           # wildcard added to match the package + checksum
@@ -60,6 +61,7 @@ jobs:
           mkdir -p $HOME/.bin  # Ensure the directory exists
           mv rcodesign $HOME/.bin/
           echo "$HOME/.bin" >> $GITHUB_PATH
+          popd
 
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
