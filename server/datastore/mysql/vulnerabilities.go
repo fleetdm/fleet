@@ -28,7 +28,15 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.host_count > 0
 		`
-	groupByAppend := " GROUP BY vhc.cve, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count"
+	groupByAppend := ` GROUP BY 
+			vhc.cve, 
+			cm.cvss_score, 
+			cm.epss_probability, 
+			cm.cisa_known_exploit, 
+			cm.published, 
+			description, 
+			vhc.host_count
+	`
 
 	var args []interface{}
 	if opt.TeamID == 0 {
@@ -68,20 +76,20 @@ func (ds *Datastore) UpdateVulnerabilityHostCounts(ctx context.Context) error {
 	}
 
 	globalSelectStmt := `
-    SELECT 0 as team_id, cve, COUNT(*) AS host_count
-    FROM (
-        SELECT sc.cve, hs.host_id
-        FROM software_cve sc
-        INNER JOIN host_software hs ON sc.software_id = hs.software_id
-    
-        UNION
-    
-        SELECT osv.cve, hos.host_id
-        FROM operating_system_vulnerabilities osv
-        INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
-    ) AS combined_results
-    GROUP BY cve;
-  `
+		SELECT 0 as team_id, cve, COUNT(*) AS host_count
+		FROM (
+			SELECT sc.cve, hs.host_id
+			FROM software_cve sc
+			INNER JOIN host_software hs ON sc.software_id = hs.software_id
+		
+			UNION
+		
+			SELECT osv.cve, hos.host_id
+			FROM operating_system_vulnerabilities osv
+			INNER JOIN host_operating_system hos ON hos.os_id = osv.operating_system_id
+		) AS combined_results
+		GROUP BY cve;
+	`
 
 	globalHostCounts, err := ds.fetchHostCounts(ctx, globalSelectStmt)
 	if err != nil {
