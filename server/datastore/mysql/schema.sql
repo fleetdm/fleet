@@ -1420,6 +1420,17 @@ CREATE TABLE `users` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `vulnerability_host_counts` (
+  `cve` varchar(20) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `team_id` int(10) unsigned NOT NULL DEFAULT '0',
+  `host_count` int(10) unsigned NOT NULL DEFAULT '0',
+  `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `cve_team_id` (`cve`,`team_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `windows_mdm_command_queue` (
   `enrollment_id` int(10) unsigned NOT NULL,
   `command_uuid` varchar(127) COLLATE utf8mb4_unicode_ci NOT NULL,
