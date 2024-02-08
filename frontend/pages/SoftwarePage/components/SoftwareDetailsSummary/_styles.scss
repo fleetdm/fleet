@@ -29,15 +29,4 @@
     display: flex;
     gap: $pad-xxlarge;
   }
-
-  &__data-set {
-    font-size: $x-small;
-    display: flex;
-    flex-direction: column;
-    gap: $pad-xsmall;
-
-    dt {
-      font-weight: $bold;
-    }
-  }
 }
