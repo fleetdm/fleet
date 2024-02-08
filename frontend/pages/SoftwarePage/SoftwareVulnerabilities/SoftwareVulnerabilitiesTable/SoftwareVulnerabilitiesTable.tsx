@@ -253,6 +253,8 @@ const SoftwareVulnerabilitiesTable = ({
         isAllPagesSelected={false}
         disableNextPage={!data?.meta.has_next_results}
         searchable={searchable}
+        searchQueryColumn="vulnerability"
+        inputPlaceHolder="Search by CVE"
         onQueryChange={onQueryChange}
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
