@@ -1,5 +1,5 @@
 import React from "react";
-import { Column } from "react-table";
+
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
@@ -7,9 +7,7 @@ import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
-// TODO: Replace ProbabilityOfExploitCell when PR for ProbabilityOfExploit merges
-// import ProbabilityOfExploit from "components/ProbabilityOfExploit.ProbabilityOfExploit";
-import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
+import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
@@ -198,15 +196,9 @@ const generateTableHeaders = (
         );
       },
       Cell: (cellProps: ICellProps): JSX.Element => (
-        // TODO: Replace ProbabilityOfExploitCell when PR for ProbabilityOfExploit merges
-        // <ProbabilityOfExploitCell
-        //   probabilityOfExploit={cellProps.row.original.epss_probability}
-        //   cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
-        // />
-        <ProbabilityOfExploitCell
+        <ProbabilityOfExploit
           probabilityOfExploit={cellProps.row.original.epss_probability}
           cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
-          rowId={cellProps.row.original.cve}
         />
       ),
     },
