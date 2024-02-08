@@ -47,6 +47,17 @@ jobs:
       - name: Install Go Dependencies
         run: make deps-go
 
+      - name: Install macOS signing + notarization tools
+        run: |
+          readonly version="0.27.0"
+          readonly codesign_package="apple-codesign-${version}-x86_64-unknown-linux-musl.tar.gz"
+          # wildcard added to match the package + checksum
+          gh release download --clobber --repo=github.com/indygreg/apple-platform-rs "apple-codesign/$version" --pattern "*$codesign_package*"
+          echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
+          tar --extract --strip-components 1 --file "$codesign_package"
+          mv rcodesign $HOME/.bin/
+          echo "$HOME/.bin" >> $GITHUB_PATH
+
       - name: Run GoReleaser
         uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b
         with:
@@ -56,6 +67,8 @@ jobs:
         env:
           GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          APPLE_APPLICATION_CERTIFICATE: ${{ secrets.APPLE_APPLICATION_CERTIFICATE }}
+          APPLE_APPLICATION_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_APPLICATION_CERTIFICATE_PASSWORD }}
 
       - name: Get tag
         run: |

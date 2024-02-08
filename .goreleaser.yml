@@ -73,6 +73,23 @@ builds:
       - -X github.com/fleetdm/fleet/v4/server/version.revision={{ .FullCommit }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildDate={{ time "2006-01-02" }}
       - -X github.com/fleetdm/fleet/v4/server/version.buildUser={{ .Env.USER }}
+    hooks:
+      post:
+        - echo "$APPLE_APPLICATION_CERTIFICATE" | base64 --decode > certificate.p12
+        - rcodesign sign \
+          --p12-file certificate.p12 --p12-password "$APPLE_APPLICATION_CERTIFICATE_PASSWORD" \
+          --code-signature-flags runtime \
+          --for-notarization \
+          {{ .Path }}
+        - rm certificate.p12
+        # TODO: rcodesign uses the new notary API, and requires arguments that
+        # are not available to GitHub runners yet.
+        # For instructions about getting those, see:
+        # https://gregoryszorc.com/docs/apple-codesign/0.17.0/apple_codesign_getting_started.html#apple-codesign-app-store-connect-api-key
+        # - rcodesign notary-submit \
+        #    --api-key-path ~/.appstoreconnect/key.json \
+        #    --staple \
+        #    path/to/file/to/notarize
 
 universal_binaries:
   - id: fleetctl # resulting binary id
