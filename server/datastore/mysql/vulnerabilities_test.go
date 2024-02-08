@@ -270,6 +270,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 	// add 1 macOS host
 	host3 := test.NewHost(t, ds, "host3", "192.168.0.3", "3333", "3333", time.Now())
 	err = ds.UpdateHostOperatingSystem(context.Background(), host3.ID, macOS)
+	require.NoError(t, err)
 
 	err = ds.UpdateVulnerabilityHostCounts(context.Background())
 	require.NoError(t, err)
@@ -284,6 +285,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		OSID: 2,
 		CVE:  "CVE-2020-1235",
 	}, fleet.NVDSource)
+	require.NoError(t, err)
 
 	err = ds.UpdateVulnerabilityHostCounts(context.Background())
 	require.NoError(t, err)
@@ -303,6 +305,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 			Version: "1.0.0",
 		},
 	})
+	require.NoError(t, err)
 	_, err = ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
 		SoftwareID: 1,
 		CVE:        "CVE-2020-1236",
@@ -366,6 +369,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		{CVE: "CVE-2020-1235", HostCount: 6}, // + 5 macos hosts
 		{CVE: "CVE-2020-1236", HostCount: 1},
 	}
+	assertHostCounts(t, globalExpected, list)
 
 	// team1 counts should not change
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{TeamID: team1.ID})
@@ -413,6 +417,7 @@ func testInsertVulnerabilityCounts(t *testing.T, ds *Datastore) {
 		{CVE: "CVE-2020-1235", HostCount: 1}, // -5 macos hosts
 		{CVE: "CVE-2020-1236", HostCount: 1},
 	}
+	assertHostCounts(t, globalExpected, list)
 
 	// patch software vuln
 	_, err = ds.UpdateHostSoftware(context.Background(), host1.ID, []fleet.Software{})
