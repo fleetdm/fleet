@@ -999,7 +999,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
 				responseOps = append(responseOps, &mdm_types.SyncMLCmd{
 					XMLName: xml.Name{Local: mdm_types.CmdStatus},
-					CmdID:   uuid.NewString(),
+					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					CmdRef:  &ref,
 					Data:    ptr.String(p.Status),
 				})
@@ -1009,7 +1009,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				if p.Status != "200" || p.Data != "" {
 					responseOps = append(responseOps, &mdm_types.SyncMLCmd{
 						XMLName: xml.Name{Local: mdm_types.CmdResults},
-						CmdID:   uuid.NewString(),
+						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 						CmdRef:  &ref,
 						Items: []mdm_types.CmdItem{
 							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
@@ -1042,11 +1042,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  ptr.String(c.Cmd.CmdID),
+				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
 				Cmd:     ptr.String(c.Verb),
 				Data:    ptr.String(status),
 				Items:   nil,
-				CmdID:   uuid.NewString(),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
 		require.Equal(t, wantProfileInstalls, atomicCmds)
@@ -5026,6 +5026,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
+		Payload:     []byte(rawCmd),
 		Hostname:    "test-host",
 	}, cmdResResp.Results[0])
 
@@ -5039,6 +5040,7 @@ func (s *integrationMDMTestSuite) TestEnqueueMDMCommand() {
 		Status:      "Acknowledged",
 		RequestType: "ProfileList",
 		Result:      []byte(rawCmd),
+		Payload:     []byte(rawCmd),
 		Hostname:    "test-host",
 	}, getMDMCmdResp.Results[0])
 
@@ -5223,27 +5225,27 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
 	require.Equal(t, metadataResp.MDMAppleBootstrapPackage.Name, "pkg.pkg")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Sha256, "")
 	require.NotEmpty(t, metadataResp.MDMAppleBootstrapPackage.Token)
 
 	// download a package, wrong token
 	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap?token=bad", nil, http.StatusNotFound, &downloadResp)
 
-	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap?token=%s", metadataResp.MDMAppleBootstrapPackage.Token), nil, http.StatusOK)
 	respBytes, err := io.ReadAll(resp.Body)
 	require.NoError(t, err)
 	require.EqualValues(t, signedPkg, respBytes)
 
 	// missing package
 	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/1/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// delete package
 	var deleteResp deleteBootstrapPackageResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusOK, &deleteResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/bootstrap/0", nil, http.StatusOK, &deleteResp)
 	// check the activity log
 	s.lastActivityMatches(
 		fleet.ActivityTypeDeletedBootstrapPackage{}.ActivityName(),
@@ -5252,9 +5254,9 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	)
 
 	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/0/metadata", nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
-	s.DoJSON("DELETE", "/api/latest/fleet/mdm/apple/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("DELETE", "/api/latest/fleet/mdm/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
@@ -5267,7 +5269,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// get package metadata
 	var metadataResp bootstrapPackageMetadataResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/0/metadata", nil, http.StatusOK, &metadataResp)
 	globalBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	// create a team and upload a bootstrap package for that team.
@@ -5286,7 +5288,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// get package metadata
 	metadataResp = bootstrapPackageMetadataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", team.ID), nil, http.StatusOK, &metadataResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d/metadata", team.ID), nil, http.StatusOK, &metadataResp)
 	teamBootstrapPackage := metadataResp.MDMAppleBootstrapPackage
 
 	type deviceWithResponse struct {
@@ -5403,7 +5405,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	<-ch
 
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	// set the default bm assignment to `team`
@@ -5421,7 +5423,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	<-ch
 
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(teamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
 
 	mockErrorChain := []mdm.ErrorChain{
@@ -5553,7 +5555,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// check summary no team hosts
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/bootstrap/summary", nil, http.StatusOK, &summaryResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(3),
 		Pending:   uint(4),
@@ -5566,7 +5568,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 
 	// check team summary
 	summaryResp = getMDMAppleBootstrapPackageSummaryResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/summary?team_id=%d", team.ID), nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{
 		Installed: uint(2),
 		Pending:   uint(2),
@@ -5584,27 +5586,27 @@ func (s *integrationMDMTestSuite) TestEULA() {
 	pdfName := "eula.pdf"
 
 	// trying to get metadata about an EULA that hasn't been uploaded yet is an error
-	metadataResp := getMDMAppleEULAMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
+	metadataResp := getMDMEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/metadata", nil, http.StatusNotFound, &metadataResp)
 
 	// trying to upload a file that is not a PDF fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: []byte("should-fail"), Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 	// trying to upload an empty file fails
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: []byte{}, Name: "should-fail.pdf"}, http.StatusBadRequest, "invalid file type")
 
 	// admin is able to upload a new EULA
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
 	// get EULA metadata
-	metadataResp = getMDMAppleEULAMetadataResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/metadata", nil, http.StatusOK, &metadataResp)
-	require.NotEmpty(t, metadataResp.MDMAppleEULA.Token)
-	require.NotEmpty(t, metadataResp.MDMAppleEULA.CreatedAt)
-	require.Equal(t, pdfName, metadataResp.MDMAppleEULA.Name)
+	metadataResp = getMDMEULAMetadataResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/metadata", nil, http.StatusOK, &metadataResp)
+	require.NotEmpty(t, metadataResp.MDMEULA.Token)
+	require.NotEmpty(t, metadataResp.MDMEULA.CreatedAt)
+	require.Equal(t, pdfName, metadataResp.MDMEULA.Name)
 	eulaToken := metadataResp.Token
 
 	// download EULA
-	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK)
+	resp := s.DoRaw("GET", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err := io.ReadAll(resp.Body)
@@ -5613,18 +5615,18 @@ func (s *integrationMDMTestSuite) TestEULA() {
 
 	// try to download EULA with a bad token
 	var downloadResp downloadBootstrapPackageResponse
-	s.DoJSON("GET", "/api/latest/fleet/mdm/apple/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
+	s.DoJSON("GET", "/api/latest/fleet/mdm/setup/eula/bad-token", nil, http.StatusNotFound, &downloadResp)
 
 	// trying to upload any EULA without deleting the previous one first results in an error
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: "should-fail.pdf"}, http.StatusConflict, "")
 
 	// delete EULA
-	var deleteResp deleteMDMAppleEULAResponse
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
-	metadataResp = getMDMAppleEULAMetadataResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
+	var deleteResp deleteMDMEULAResponse
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusOK, &deleteResp)
+	metadataResp = getMDMEULAMetadataResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &metadataResp)
 	// trying to delete again is a bad request
-	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/mdm/setup/eula/%s", eulaToken), nil, http.StatusNotFound, &deleteResp)
 }
 
 func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
@@ -5760,6 +5762,8 @@ func (s *integrationMDMTestSuite) TestMigrateMDMDeviceWebhook() {
 	require.NoError(t, err)
 	require.NotNil(t, h.RefetchCriticalQueriesUntil)
 	require.True(t, h.RefetchCriticalQueriesUntil.After(time.Now()))
+
+	require.NoError(t, s.ds.UpdateHostRefetchCriticalQueriesUntil(context.Background(), h.ID, nil))
 
 	// bad token
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "bad-token"), nil, http.StatusUnauthorized)
@@ -6375,7 +6379,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/bootstrap", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/bootstrap", b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
@@ -6384,7 +6388,7 @@ func (s *integrationMDMTestSuite) uploadBootstrapPackage(
 }
 
 func (s *integrationMDMTestSuite) uploadEULA(
-	eula *fleet.MDMAppleEULA,
+	eula *fleet.MDMEULA,
 	expectedStatus int,
 	wantErr string,
 ) {
@@ -6406,7 +6410,7 @@ func (s *integrationMDMTestSuite) uploadEULA(
 		"Authorization": fmt.Sprintf("Bearer %s", s.token),
 	}
 
-	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/apple/setup/eula", b.Bytes(), expectedStatus, headers)
+	res := s.DoRawWithHeaders("POST", "/api/latest/fleet/mdm/setup/eula", b.Bytes(), expectedStatus, headers)
 
 	if wantErr != "" {
 		errMsg := extractServerErrorText(res.Body)
@@ -6826,7 +6830,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// upload an EULA
 	pdfBytes := []byte("%PDF-1.pdf-contents")
 	pdfName := "eula.pdf"
-	s.uploadEULA(&fleet.MDMAppleEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
+	s.uploadEULA(&fleet.MDMEULA{Bytes: pdfBytes, Name: pdfName}, http.StatusOK, "")
 
 	res = s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
@@ -6850,7 +6854,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		),
 	)
 	// the url retrieves a valid EULA
-	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
+	resp := s.DoRaw("GET", "/api/latest/fleet/mdm/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err := io.ReadAll(resp.Body)
@@ -7022,7 +7026,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 		),
 	)
 	// the url retrieves a valid EULA
-	resp = s.DoRaw("GET", "/api/latest/fleet/mdm/apple/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
+	resp = s.DoRaw("GET", "/api/latest/fleet/mdm/setup/eula/"+q.Get("eula_token"), nil, http.StatusOK)
 	require.EqualValues(t, len(pdfBytes), resp.ContentLength)
 	require.Equal(t, "application/pdf", resp.Header.Get("content-type"))
 	respBytes, err = io.ReadAll(resp.Body)
@@ -8017,7 +8021,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Exec"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
@@ -8089,7 +8093,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Get"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	// results for command two (Get)
 	cmdTwoRespUUID := uuid.NewString()
@@ -8105,7 +8109,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 				Data:   &fleet.RawXmlData{Content: "0"},
 			},
 		},
-		CmdID: cmdTwoRespUUID,
+		CmdID: fleet.CmdID{Value: cmdTwoRespUUID},
 	})
 	// status 200 for command Three (Replace)
 	d.AppendResponse(fleet.SyncMLCmd{
@@ -8115,7 +8119,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Cmd:     ptr.String("Replace"),
 		Data:    ptr.String("200"),
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
@@ -8148,6 +8152,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
 		Result:      getCommandFullResult(cmdOneUUID),
+		Payload:     commandOne.RawCommand,
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -8161,6 +8166,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Status:      "200",
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdTwoUUID),
+		Payload:     commandTwo.RawCommand,
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 	}, getMDMCmdResp.Results[0])
 
@@ -8175,6 +8181,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		RequestType: "./Device/Vendor/MSFT/DMClient/Provider/DEMO%%20MDM/SignedEntDMID",
 		Result:      getCommandFullResult(cmdThreeUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Payload:     commandThree.RawCommand,
 	}, getMDMCmdResp.Results[0])
 }
 
@@ -10231,14 +10238,14 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				SELECT COALESCE(status, 'pending') as status, retries
 				FROM host_mdm_windows_profiles
 				WHERE command_uuid = ?`
-				return sqlx.GetContext(context.Background(), q, &gotProfile, stmt, cmd.Cmd.CmdID)
+				return sqlx.GetContext(context.Background(), q, &gotProfile, stmt, cmd.Cmd.CmdID.Value)
 			})
 
 			wantDeliveryStatus := fleet.WindowsResponseToDeliveryStatus(wantStatus)
 			if gotProfile.Retries <= servermdm.MaxProfileRetries && wantDeliveryStatus == mdm_types.MDMDeliveryFailed {
-				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID)
+				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			} else {
-				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID)
+				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			}
 		}
 	}
@@ -10271,11 +10278,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			device.AppendResponse(fleet.SyncMLCmd{
 				XMLName: xml.Name{Local: mdm_types.CmdStatus},
 				MsgRef:  &msgID,
-				CmdRef:  &cmdID,
+				CmdRef:  &cmdID.Value,
 				Cmd:     ptr.String(c.Verb),
 				Data:    &status,
 				Items:   nil,
-				CmdID:   uuid.NewString(),
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
 			})
 		}
 		// TODO: verify profile contents as well

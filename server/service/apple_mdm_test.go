@@ -170,16 +170,16 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
-	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-		return &fleet.MDMAppleEULA{}, nil
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+		return &fleet.MDMEULA{}, nil
 	}
-	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
-		return &fleet.MDMAppleEULA{}, nil
+	ds.MDMGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+		return &fleet.MDMEULA{}, nil
 	}
-	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 		return nil
 	}
-	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
+	ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
 		return nil
 	}
 
@@ -216,11 +216,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 
 		// check EULA routes
-		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		_, err = svc.MDMGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleDeleteEULA(ctx, "foo")
+		err = svc.MDMDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -245,7 +245,7 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
 	require.NoError(t, err)
-	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
+	_, err = svc.MDMGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.

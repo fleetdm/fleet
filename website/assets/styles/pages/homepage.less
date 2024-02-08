@@ -252,6 +252,21 @@
     p {
       margin-bottom: 32px;
     }
+    [purpose='category-button'] {
+      width: min-content;
+      height: 48px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      text-decoration: none;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 21px;
+      color: #FFF;
+      padding: 16px 32px;
+    }
   }
   [purpose='endpoint-ops-image'] {
     max-width: 380px;
@@ -990,6 +1005,9 @@
     }
     [purpose='category-text-block'] {
       max-width: 480px;
+      [purpose='category-button'] {
+        width: 100%;
+      }
     }
     [purpose='endpoint-ops-image'] {
       margin-right: auto;

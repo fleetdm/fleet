@@ -1069,6 +1069,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		host.RefetchRequested = false
 	}
 	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
+	if refetchCriticalSet {
+		level.Debug(svc.logger).Log("msg", "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
+	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
