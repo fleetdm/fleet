@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import { IActivity } from "interfaces/activity";
 import { IActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
