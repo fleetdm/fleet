@@ -169,9 +169,8 @@ fleetctl get mdm-command-results --id=%v
 
 func mdmLockCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "lock",
-		Aliases: []string{"lock"},
-		Usage:   "Lock a host when it needs to be returned to your organization.",
+		Name:  "lock",
+		Usage: "Lock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
 			Usage:    "The host, specified by identifier, that you want to lock.",
@@ -199,7 +198,7 @@ func mdmLockCommand() *cli.Command {
 				var sce kithttp.StatusCoder
 				if errors.As(err, &sce) {
 					if sce.StatusCode() == http.StatusForbidden {
-						return errors.New("Permission denied. You don't have permission to unlock this host.")
+						return errors.New("Permission denied. You don't have permission to lock this host.")
 					}
 				}
 				return err
@@ -236,9 +235,8 @@ fleetctl mdm unlock --host=%s
 
 func mdmUnlockCommand() *cli.Command {
 	return &cli.Command{
-		Name:    "unlock",
-		Aliases: []string{"unlock"},
-		Usage:   "Unlock a host when it needs to be returned to your organization.",
+		Name:  "unlock",
+		Usage: "Unlock a host when it needs to be returned to your organization.",
 		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
 			Name:     "host",
 			Usage:    "The host, specified by identifier, that you want to unlock.",
@@ -280,9 +278,20 @@ func mdmUnlockCommand() *cli.Command {
 			}
 
 			// TODO: update this section to account for MacOS returning the PIN.
-
-			if err := client.MDMUnlockHost(host.ID); err != nil {
+			pin, err := client.MDMUnlockHost(host.ID)
+			if err != nil {
 				return fmt.Errorf("Failed to unlock host: %w", err)
+			}
+
+			if host.Platform == "darwin" {
+				fmt.Fprintf(c.App.Writer, `
+Use this 6 digit PIN to unlock the host:
+
+%s
+
+`, pin)
+
+				return nil
 			}
 
 			fmt.Fprintf(c.App.Writer, `

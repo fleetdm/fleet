@@ -218,9 +218,6 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		return err
 	}
 
-	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
-	// Ideally that would be in the same DB transaction.
-
 	if err := svc.ds.NewActivity(
 		ctx,
 		vc.User,

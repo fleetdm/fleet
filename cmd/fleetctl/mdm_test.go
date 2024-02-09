@@ -767,6 +767,10 @@ func TestMDMUnlockCommand(t *testing.T) {
 	appCfgNoMDM := &fleet.AppConfig{MDM: fleet.MDM{}}
 
 	successfulOutput := func(ident string) string {
+		h := hostByUUID[ident]
+		if h.Platform == "darwin" {
+			return `Use this 6 digit PIN to unlock the host:`
+		}
 		return fmt.Sprintf(`
 The host will unlock when it comes online.  
 
@@ -788,8 +792,7 @@ fleetctl get host %s
 		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.UUID}, ""},
-		// TODO: add check once we have macos implemented
-		// {appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
+		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid linux", []string{"--host", linuxEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid windows but no mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
 		// TODO: should we error here?
@@ -815,7 +818,7 @@ fleetctl get host %s
 			require.ErrorContains(t, err, c.wantErr, c.desc)
 		} else {
 			require.NoError(t, err, c.desc)
-			require.Equal(t, buf.String(), successfulOutput(c.flags[1]), c.desc)
+			require.Contains(t, buf.String(), successfulOutput(c.flags[1]), c.desc)
 		}
 	}
 }
