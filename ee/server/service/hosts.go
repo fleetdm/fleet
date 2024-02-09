@@ -117,7 +117,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	}
 
 	// all good, go ahead with queuing the lock request.
-	return svc.enqueueLockHostRequest(ctx, host.ID, lockWipe)
+	return svc.enqueueLockHostRequest(ctx, host, lockWipe)
 }
 
 func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
@@ -184,10 +184,10 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	}
 
 	// all good, go ahead with queuing the unlock request.
-	return svc.enqueueUnlockHostRequest(ctx, host.ID, lockWipe)
+	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
 }
 
-func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) error {
+func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) error {
 	if lockStatus.HostFleetPlatform == "darwin" {
 		// TODO: implement. Removed panic to avoid issues in tests.
 		return nil
@@ -210,7 +210,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, loc
 	// script directly in the datastore layer.
 
 	if err := svc.ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         hostID,
+		HostID:         host.ID,
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
@@ -218,10 +218,24 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, loc
 		return err
 	}
 
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		vc.User,
+		fleet.ActivityTypeLockedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for lock host request")
+	}
+
 	return nil
 }
 
-func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, lockStatus *fleet.HostLockWipeStatus) (string, error) {
+func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (string, error) {
 	if lockStatus.HostFleetPlatform == "darwin" {
 		return lockStatus.UnlockPIN, nil
 	}
@@ -242,12 +256,27 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, l
 	// validation we may add over there and that we bypass here by enqueueing the
 	// script directly in the datastore layer.
 	if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         hostID,
+		HostID:         host.ID,
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
 	}); err != nil {
 		return "", err
+	}
+
+	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
+	// Ideally that would be in the same DB transaction.
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		vc.User,
+		fleet.ActivityTypeUnlockedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+			HostPlatform:    host.Platform,
+		},
+	); err != nil {
+		return "", ctxerr.Wrap(ctx, err, "create activity for unlock host request")
 	}
 
 	return "", nil

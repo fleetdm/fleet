@@ -20,8 +20,74 @@ const baseClass = "past-activity";
 
 interface IPastActivityProps {
   activity: IActivity;
+  // TODO: To handle clicks for different activity types, this could be refactored as a reducer that
+  // takes the activity and dispatches the relevant show details action based on the activity type
   onDetailsClick: ShowActivityDetailsHandler;
 }
+
+const RanScriptActivityDetails = ({
+  activity,
+  onDetailsClick,
+}: Pick<IPastActivityProps, "activity" | "onDetailsClick">) => (
+  <span className={`${baseClass}__details-topline`}>
+    <b>{activity.actor_full_name}</b>
+    <>
+      {" "}
+      ran {formatScriptNameForActivityItem(activity.details?.script_name)} on
+      this host.{" "}
+      <Button
+        className={`${baseClass}__show-query-link`}
+        variant="text-link"
+        onClick={() => onDetailsClick?.(activity)}
+      >
+        Show details{" "}
+        <Icon className={`${baseClass}__show-query-icon`} name="eye" />
+      </Button>
+    </>
+  </span>
+);
+
+const LockedHostActivityDetails = ({
+  activity,
+}: Pick<IPastActivityProps, "activity">) => (
+  <span className={`${baseClass}__details-topline`}>
+    <b>{activity.actor_full_name}</b> locked this host.
+  </span>
+);
+
+const UnlockedHostActivityDetails = ({
+  activity,
+}: Pick<IPastActivityProps, "activity">) => (
+  <span className={`${baseClass}__details-topline`}>
+    <b>{activity.actor_full_name}</b>{" "}
+    {activity.details?.host_platform === "darwin"
+      ? "viewed the six-digit unlock PIN for"
+      : "unlocked"}{" "}
+    this host.
+  </span>
+);
+
+const PastActivityTopline = ({
+  activity,
+  onDetailsClick,
+}: IPastActivityProps) => {
+  switch (activity.type) {
+    case "ran_script":
+      return (
+        <RanScriptActivityDetails
+          activity={activity}
+          onDetailsClick={onDetailsClick}
+        />
+      );
+    case "locked_host":
+      return <LockedHostActivityDetails activity={activity} />;
+    case "unlocked_host":
+      return <UnlockedHostActivityDetails activity={activity} />;
+    default:
+      return null;
+  }
+};
+
 // TODO: Combine this with ./UpcomingActivity/UpcomingActivity.tsx and
 // frontend/pages/DashboardPage/cards/ActivityFeed/ActivityItem/ActivityItem.tsx
 const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
@@ -41,25 +107,10 @@ const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
       />
       <div className={`${baseClass}__details-wrapper`}>
         <div className={"activity-details"}>
-          <span className={`${baseClass}__details-topline`}>
-            <b>{activity.actor_full_name}</b>
-            <>
-              {" "}
-              ran{" "}
-              {formatScriptNameForActivityItem(
-                activity.details?.script_name
-              )}{" "}
-              on this host.{" "}
-              <Button
-                className={`${baseClass}__show-query-link`}
-                variant="text-link"
-                onClick={() => onDetailsClick?.(activity)}
-              >
-                Show details{" "}
-                <Icon className={`${baseClass}__show-query-icon`} name="eye" />
-              </Button>
-            </>
-          </span>
+          <PastActivityTopline
+            activity={activity}
+            onDetailsClick={onDetailsClick}
+          />
           <br />
           <span
             className={`${baseClass}__details-bottomline`}

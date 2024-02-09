@@ -486,6 +486,9 @@ func TestMDMLockCommand(t *testing.T) {
 
 		return h.MDMInfo, nil
 	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
 
 	appCfgAllMDM := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
 	appCfgWinMDM := &fleet.AppConfig{MDM: fleet.MDM{WindowsEnabledAndConfigured: true}}
@@ -753,6 +756,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 		}
 
 		return h.MDMInfo, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
 	}
 
 	appCfgAllMDM := &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}
