@@ -6,7 +6,11 @@ import {
   BootstrapPackageStatus,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
-import { IOSSettings } from "interfaces/host";
+import {
+  HostDeviceStatus,
+  HostPendingAction,
+  IOSSettings,
+} from "interfaces/host";
 import getHostStatusTooltipText from "pages/hosts/helpers";
 
 import TooltipWrapper from "components/TooltipWrapper";
@@ -23,7 +27,10 @@ import { COLORS } from "styles/var/colors";
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
+
 import { generateWinDiskEncryptionProfile } from "../../helpers";
+import { DEVICE_STATUS_TAGS } from "./helpers";
+import classnames from "classnames";
 
 const baseClass = "host-summary";
 
@@ -49,6 +56,7 @@ interface IHostSummaryProps {
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
+  deviceStatus?: HostDeviceStatus | HostPendingAction | null;
   isLocked?: boolean;
   isWiped?: boolean;
   isLocking?: boolean;
@@ -113,6 +121,7 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
   osSettings,
+  deviceStatus,
   isLocked,
   isWiped,
   isLocking,
@@ -347,28 +356,30 @@ const HostSummary = ({
     ": unavailable"
   );
 
-  const renderLockedTag = () => {
-    const tooltipText =
-      titleData.platform === "darwin"
-        ? "Host is locked. The end user can’t use the host until the six-digit PIN has been entered."
-        : "Host is locked. The end user can’t use the host until the host has been unlocked.";
+  const renderDeviceStatusTag = () => {
+    if (!deviceStatus || deviceStatus === "unlocked") return null;
+
+    const tag = DEVICE_STATUS_TAGS[deviceStatus];
+
+    const classNames = classnames(
+      `${baseClass}__device-status-tag`,
+      tag.tagType
+    );
 
     return (
       <>
-        <span
-          className={`${baseClass}__locked-tag`}
-          data-tip
-          data-for="locked-tooltip"
-        >
-          LOCKED
+        <span className={classNames} data-tip data-for="tag-tooltip">
+          {tag.title}
         </span>
         <ReactTooltip
           place="top"
           effect="solid"
-          id="locked-tooltip"
+          id="tag-tooltip"
           backgroundColor={COLORS["tooltip-bg"]}
         >
-          <span className={`${baseClass}__tooltip-text`}>{tooltipText}</span>
+          <span className={`${baseClass}__tooltip-text`}>
+            {tag.generateTooltip()}
+          </span>
         </ReactTooltip>
       </>
     );
@@ -385,7 +396,7 @@ const HostSummary = ({
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
-            {isLocked && renderLockedTag()}
+            {renderDeviceStatusTag()}
 
             <div className={`${baseClass}__last-fetched`}>
               {"Last fetched"} {lastFetched}

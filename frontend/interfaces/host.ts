@@ -157,6 +157,9 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
+export type HostDeviceStatus = "unlocked" | "locked";
+export type HostPendingAction = "unlock" | "lock";
+
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
@@ -167,6 +170,8 @@ export interface IHostMdmData {
   os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
+  device_status: HostDeviceStatus | null;
+  pending_action: HostPendingAction | null;
 }
 
 export interface IMunkiIssue {

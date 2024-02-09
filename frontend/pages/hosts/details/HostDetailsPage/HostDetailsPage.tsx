@@ -81,6 +81,7 @@ import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
+import { getHostDeviceStatusUIState } from "../helpers";
 
 const baseClass = "host-details";
 
@@ -756,6 +757,12 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
+  //   host.mdm.device_status,
+  //   host.mdm.pending_action
+  // );
+  const hostDeviceStatusUIState = getHostDeviceStatusUIState("locked", null);
+
   return (
     <MainContent className={baseClass}>
       <>
@@ -785,6 +792,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
+          deviceStatus={hostDeviceStatusUIState}
           // TODO: figure out these values
           isLocked
           isWiped

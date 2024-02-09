@@ -1,5 +1,6 @@
 /** Helpers used across the host details and my device pages and components. */
 
+import { HostDeviceStatus, HostPendingAction } from "interfaces/host";
 import {
   IHostMdmProfile,
   IWindowsDiskEncryptionStatus,
@@ -32,4 +33,20 @@ export const generateWinDiskEncryptionProfile = (
     detail,
     operation_type: null,
   };
+};
+
+/**
+ * Gets the current UI state for the host device status. This helps us know what
+ * to display in the UI depending host device status or pending device actions.
+ */
+export const getHostDeviceStatusUIState = (
+  deviceStatus: HostDeviceStatus | null,
+  pendingAction: HostPendingAction | null
+) => {
+  if (deviceStatus === null && pendingAction === null) {
+    return null;
+  } else if (pendingAction) {
+    return pendingAction;
+  }
+  return deviceStatus;
 };

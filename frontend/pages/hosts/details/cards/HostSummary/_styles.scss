@@ -1,11 +1,19 @@
 .host-summary {
-  &__locked-tag {
+  &__device-status-tag {
     margin-left: $pad-small;
     background-color: $ui-warning;
     padding: $pad-xsmall;
     font-size: 10px;
     font-weight: $bold;
     border-radius: $border-radius;
+
+    &.warning {
+      background-color: $ui-warning;
+    }
+
+    &.error {
+      background-color: $ui-error;
+    }
   }
 
   &__last-fetched {
