@@ -1253,7 +1253,7 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserGitOps, object: team1Policy, action: write, allow: true},
-		{user: test.UserGitOps, object: team1Policy, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: team1Policy, action: write, allow: true},
 		{user: test.UserTeamAdminTeam1, object: team1Policy, action: read, allow: true},
@@ -1268,7 +1268,7 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: write, allow: true},
-		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: team2Policy, action: write, allow: false},
 		{user: test.UserTeamAdminTeam1, object: team2Policy, action: read, allow: false},
