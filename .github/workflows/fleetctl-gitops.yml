@@ -87,11 +87,11 @@ jobs:
 
       - name: Run fleetctl gitops
         env:
-          FLEETCTL: ../fleet/build/fleetctl
+          FLEETCTL: ../build/fleetctl
           FLEET_GLOBAL_ENROLL_SECRET: global_secret
           FLEET_WORKSTATIONS_ENROLL_SECRET: workstations_secret
           FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: workstations_canary_secret
-        working-directory: ../fleet-gitops
+        working-directory: fleet-gitops
         run: ./workflow.sh
 
       - name: Upload fleet logs
