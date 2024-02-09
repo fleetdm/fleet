@@ -3002,7 +3002,7 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
-`PATCH /api/v1/fleet/mdm/hosts/:id/unenroll`
+`PATCH /api/v1/fleet/hosts/:id/mdm/off`
 
 #### Parameters
 
@@ -3012,7 +3012,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+`PATCH /api/v1/fleet/hosts/:42/mdm/off`
 
 ##### Default response
 
@@ -3653,7 +3653,7 @@ Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/
 
 Retrieves the disk encryption key for a host.
 
-`GET /api/v1/fleet/mdm/hosts/:id/encryption_key`
+`GET /api/v1/fleet/hosts/:id/encryption_key`
 
 #### Parameters
 
@@ -3664,7 +3664,7 @@ Retrieves the disk encryption key for a host.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/hosts/8/encryption_key`
+`GET /api/v1/fleet/hosts/8/encryption_key`
 
 ##### Default response
 
@@ -3686,7 +3686,7 @@ Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/
 
 Retrieves a list of the configuration profiles assigned to a host.
 
-`GET /api/v1/fleet/mdm/hosts/:id/profiles`
+`GET /api/v1/fleet/hosts/:id/configuration_profiles`
 
 #### Parameters
 
@@ -3697,7 +3697,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/hosts/8/profiles`
+`GET /api/v1/fleet/hosts/8/configuration_profiles`
 
 ##### Default response
 
@@ -4303,13 +4303,14 @@ Deletes the label specified by ID.
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
 - [Get OS settings status](#get-os-settings-status)
 
+
 ### Add custom OS setting (configuration profile)
 
 > [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
-`POST /api/v1/fleet/mdm/profiles`
+`POST /api/v1/fleet/configuration_profiles`
 
 #### Parameters
 
@@ -4324,7 +4325,7 @@ Add a new configuration profile to be applied to macOS hosts
 assigned to a team. Note that in this example the form data specifies`team_id` in addition to
 `profile`.
 
-`POST /api/v1/fleet/mdm/profiles`
+`POST /api/v1/fleet/configuration_profiles`
 
 ##### Request headers
 
@@ -4380,6 +4381,7 @@ Content-Type: application/octet-stream
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
+
 ### List custom OS settings (configuration profiles)
 
 > [List custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
@@ -4390,7 +4392,7 @@ For Fleet Premium, the list can
 optionally be filtered by team ID. If no team ID is specified, team profiles are excluded from the
 results (i.e., only profiles that are associated with "No team" are listed).
 
-`GET /api/v1/fleet/mdm/profiles`
+`GET /api/v1/fleet/configuration_profiles`
 
 #### Parameters
 
@@ -4404,7 +4406,7 @@ results (i.e., only profiles that are associated with "No team" are listed).
 
 List all configuration profiles for macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
 
-`GET /api/v1/fleet/mdm/profiles`
+`GET /api/v1/fleet/configuration_profiles`
 
 ##### Default response
 
@@ -4440,11 +4442,12 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 }
 ```
 
+
 ### Get or download custom OS setting (configuration profile)
 
 > [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
 
-`GET /api/v1/fleet/mdm/profiles/:profile_uuid`
+`GET /api/v1/fleet/configuration_profiles/:profile_uuid`
 
 #### Parameters
 
@@ -4455,7 +4458,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Example (get a profile metadata)
 
-`GET /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+`GET /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
 
 ##### Default response
 
@@ -4476,7 +4479,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 #### Example (download a profile)
 
-`GET /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9?alt=media`
+`GET /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9?alt=media`
 
 ##### Default response
 
@@ -4520,7 +4523,7 @@ solely on the response status code returned by this endpoint.
 
 > [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
-`DELETE /api/v1/fleet/mdm/profiles/:profile_uuid`
+`DELETE /api/v1/fleet/configuration_profiles/:profile_uuid`
 
 #### Parameters
 
@@ -4530,17 +4533,18 @@ solely on the response status code returned by this endpoint.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
+`DELETE /api/v1/fleet/configuration_profiles/f663713f-04ee-40f0-a95a-7af428c351a9`
 
 ##### Default response
 
 `Status: 200`
 
+
 ### Update disk encryption enforcement
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/mdm/apple/settings`
+`POST /api/v1/fleet/disk_encryption`
 
 #### Parameters
 
@@ -4551,11 +4555,12 @@ _Available in Fleet Premium_
 
 #### Example
 
-`PATCH /api/v1/fleet/mdm/apple/settings`
+`POST /api/v1/fleet/disk_encryption`
 
 ##### Default response
 
 `204`
+
 
 ### Get disk encryption statistics
 
@@ -4565,7 +4570,7 @@ Get aggregate status counts of disk encryption enforced on macOS and Windows hos
 
 The summary can optionally be filtered by team ID.
 
-`GET /api/v1/fleet/mdm/disk_encryption/summary`
+`GET /api/v1/fleet/disk_encryption/summary`
 
 #### Parameters
 
@@ -4577,7 +4582,7 @@ The summary can optionally be filtered by team ID.
 
 Get aggregate disk encryption status counts of macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
 
-`GET /api/v1/fleet/mdm/disk_encryption/summary`
+`GET /api/v1/fleet/disk_encryption/summary`
 
 ##### Default response
 
@@ -4594,6 +4599,7 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 }
 ```
 
+
 ### Get OS settings status
 
 > [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
@@ -4603,7 +4609,7 @@ Get aggregate status counts of all OS settings (configuration profiles and disk 
 For Fleet Premium users, the counts can
 optionally be filtered by `team_id`. If no `team_id` is specified, team profiles are excluded from the results (i.e., only profiles that are associated with "No team" are listed).
 
-`GET /api/v1/fleet/mdm/profiles/summary`
+`GET /api/v1/fleet/configuration_profiles/summary`
 
 #### Parameters
 
@@ -4615,7 +4621,7 @@ optionally be filtered by `team_id`. If no `team_id` is specified, team profiles
 
 Get aggregate status counts of profiles for to macOS and Windows hosts that are assigned to "No team".
 
-`GET /api/v1/fleet/mdm/profiles/summary`
+`GET /api/v1/fleet/configuration_profiles/summary`
 
 ##### Default response
 
@@ -4657,7 +4663,7 @@ _Available in Fleet Premium_
 
 Sets the custom MDM setup enrollment profile for a team or no team.
 
-`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+`POST /api/v1/fleet/enrollment_profiles/automatic`
 
 #### Parameters
 
@@ -4669,7 +4675,7 @@ Sets the custom MDM setup enrollment profile for a team or no team.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/enrollment_profile`
+`POST /api/v1/fleet/enrollment_profiles/automatic`
 
 ##### Default response
 
@@ -4693,7 +4699,7 @@ _Available in Fleet Premium_
 
 Gets the custom MDM setup enrollment profile for a team or no team.
 
-`GET /api/v1/fleet/mdm/apple/enrollment_profile`
+`GET /api/v1/fleet/enrollment_profiles/automatic`
 
 #### Parameters
 
@@ -4703,7 +4709,7 @@ Gets the custom MDM setup enrollment profile for a team or no team.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+`GET /api/v1/fleet/enrollment_profiles/automatic?team_id=123`
 
 ##### Default response
 
@@ -4727,7 +4733,7 @@ _Available in Fleet Premium_
 
 Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
-`DELETE /api/v1/fleet/mdm/apple/enrollment_profile`
+`DELETE /api/v1/fleet/enrollment_profiles/automatic`
 
 #### Parameters
 
@@ -4737,7 +4743,7 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/enrollment_profile?team_id=123`
+`DELETE /api/v1/fleet/enrollment_profiles/automatic?team_id=123`
 
 ##### Default response
 
@@ -4748,11 +4754,11 @@ Deletes the custom MDM setup enrollment profile assigned to a team or no team.
 
 Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
-`GET /api/v1/fleet/mdm/manual_enrollment_profile`
+`GET /api/v1/fleet/enrollment_profiles/manual`
 
 ##### Example
 
-`GET /api/v1/fleet/mdm/manual_enrollment_profile`
+`GET /api/v1/fleet/enrollment_profiles/manual`
 
 ##### Default response
 
@@ -4772,7 +4778,7 @@ _Available in Fleet Premium_
 
 Upload a bootstrap package that will be automatically installed during DEP setup.
 
-`POST /api/v1/fleet/mdm/apple/bootstrap`
+`POST /api/v1/fleet/bootstrap`
 
 #### Parameters
 
@@ -4787,7 +4793,7 @@ Upload a bootstrap package that will be installed to macOS hosts enrolled to MDM
 assigned to a team. Note that in this example the form data specifies `team_id` in addition to
 `package`.
 
-`POST /api/v1/fleet/mdm/apple/profiles`
+`POST /api/v1/fleet/bootstrap`
 
 ##### Request headers
 
@@ -4813,13 +4819,14 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+
 ### Get metadata about a bootstrap package
 
 _Available in Fleet Premium_
 
 Get information about a bootstrap package that was uploaded to Fleet.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/:team_id/metadata`
+`GET /api/v1/fleet/bootstrap/:team_id/metadata`
 
 #### Parameters
 
@@ -4830,7 +4837,7 @@ Get information about a bootstrap package that was uploaded to Fleet.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/0/metadata`
+`GET /api/v1/fleet/bootstrap/0/metadata`
 
 ##### Default response
 
@@ -4851,13 +4858,14 @@ In the response above:
 - `token` is the value you can use to [download a bootstrap package](#download-a-bootstrap-package)
 - `sha256` is the SHA256 digest of the bytes of the bootstrap package file.
 
+
 ### Delete a bootstrap package
 
 _Available in Fleet Premium_
 
 Delete a team's bootstrap package.
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/:team_id`
+`DELETE /api/v1/fleet/bootstrap/:team_id`
 
 #### Parameters
 
@@ -4868,11 +4876,12 @@ Delete a team's bootstrap package.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/bootstrap/1`
+`DELETE /api/v1/fleet/bootstrap/1`
 
 ##### Default response
 
 `Status: 200`
+
 
 ### Download a bootstrap package
 
@@ -4880,7 +4889,7 @@ _Available in Fleet Premium_
 
 Download a bootstrap package.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap`
+`GET /api/v1/fleet/bootstrap`
 
 #### Parameters
 
@@ -4890,7 +4899,7 @@ Download a bootstrap package.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
+`GET /api/v1/fleet/bootstrap?token=AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
@@ -4912,7 +4921,7 @@ Get aggregate status counts of bootstrap packages delivered to DEP enrolled host
 
 The summary can optionally be filtered by team ID.
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+`GET /api/v1/fleet/bootstrap/summary`
 
 #### Parameters
 
@@ -4922,7 +4931,7 @@ The summary can optionally be filtered by team ID.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/bootstrap/summary`
+`GET /api/v1/fleet/bootstrap/summary`
 
 ##### Default response
 
@@ -4940,7 +4949,7 @@ The summary can optionally be filtered by team ID.
 
 _Available in Fleet Premium_
 
-`PATCH /api/v1/fleet/mdm/apple/setup`
+`PATCH /api/v1/fleet/setup_experience`
 
 #### Parameters
 
@@ -4951,7 +4960,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`PATCH /api/v1/fleet/mdm/apple/setup`
+`PATCH /api/v1/fleet/setup_experience`
 
 ##### Request body
 
@@ -4966,13 +4975,14 @@ _Available in Fleet Premium_
 
 `Status: 204`
 
+
 ### Upload an EULA file
 
 _Available in Fleet Premium_
 
 Upload an EULA that will be shown during the DEP flow.
 
-`POST /api/v1/fleet/mdm/apple/setup/eula`
+`POST /api/v1/fleet/setup_experience/eula`
 
 #### Parameters
 
@@ -4982,7 +4992,7 @@ Upload an EULA that will be shown during the DEP flow.
 
 #### Example
 
-`POST /api/v1/fleet/mdm/apple/setup/eula`
+`POST /api/v1/fleet/setup_experience/eula`
 
 ##### Request headers
 
@@ -5005,17 +5015,18 @@ Content-Type: application/octet-stream
 
 `Status: 200`
 
+
 ### Get metadata about an EULA file
 
 _Available in Fleet Premium_
 
 Get information about the EULA file that was uploaded to Fleet. If no EULA was previously uploaded, this endpoint returns a `404` status code.
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+`GET /api/v1/fleet/setup_experience/eula/metadata`
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/metadata`
+`GET /api/v1/fleet/setup_experience/eula/metadata`
 
 ##### Default response
 
@@ -5033,13 +5044,14 @@ In the response above:
 
 - `token` is the value you can use to [download an EULA](#download-an-eula-file)
 
+
 ### Delete an EULA file
 
 _Available in Fleet Premium_
 
 Delete an EULA file.
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/:token`
+`DELETE /api/v1/fleet/setup_experience/eula/:token`
 
 #### Parameters
 
@@ -5049,11 +5061,12 @@ Delete an EULA file.
 
 #### Example
 
-`DELETE /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+`DELETE /api/v1/fleet/setup_experience/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
 `Status: 200`
+
 
 ### Download an EULA file
 
@@ -5061,7 +5074,7 @@ _Available in Fleet Premium_
 
 Download an EULA file
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/:token`
+`GET /api/v1/fleet/setup_experience/eula/:token`
 
 #### Parameters
 
@@ -5071,7 +5084,7 @@ Download an EULA file
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple/setup/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
+`GET /api/v1/fleet/setup_experience/eula/AA598E2A-7952-46E3-B89D-526D45F7E233`
 
 ##### Default response
 
@@ -5100,7 +5113,7 @@ Body: <blob>
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
 
-`POST /api/v1/fleet/mdm/commands/run`
+`POST /api/v1/fleet/commands/run`
 
 #### Parameters
 
@@ -5113,7 +5126,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 #### Example
 
-`POST /api/v1/fleet/mdm/commands/run`
+`POST /api/v1/fleet/commands/run`
 
 ##### Default response
 
@@ -5126,13 +5139,14 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 }
 ```
 
+
 ### Get custom MDM command results
 
 > `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
 
 This endpoint returns the results for a specific custom MDM command.
 
-`GET /api/v1/fleet/mdm/commandresults`
+`GET /api/v1/fleet/commands/results`
 
 #### Parameters
 
@@ -5142,7 +5156,7 @@ This endpoint returns the results for a specific custom MDM command.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+`GET /api/v1/fleet/commands/results?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
 
 ##### Default response
 
@@ -5166,13 +5180,14 @@ This endpoint returns the results for a specific custom MDM command.
 
 > Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
 
+
 ### List custom MDM commands
 
 > `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
 
 This endpoint returns the list of custom MDM commands that have been executed.
 
-`GET /api/v1/fleet/mdm/commands`
+`GET /api/v1/fleet/commands`
 
 #### Parameters
 
@@ -5185,7 +5200,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/commands?per_page=5`
+`GET /api/v1/fleet/commands?per_page=5`
 
 ##### Default response
 
@@ -5223,7 +5238,7 @@ This endpoint returns the list of custom MDM commands that have been executed.
 
 ### Get Apple Push Notification service (APNs)
 
-`GET /api/v1/fleet/mdm/apple`
+`GET /api/v1/fleet/apns`
 
 #### Parameters
 
@@ -5231,7 +5246,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple`
+`GET /api/v1/fleet/apns`
 
 ##### Default response
 
@@ -5250,7 +5265,7 @@ None.
 
 _Available in Fleet Premium_
 
-`GET /api/v1/fleet/mdm/apple_bm`
+`GET /api/v1/fleet/abm`
 
 #### Parameters
 
@@ -5258,7 +5273,7 @@ None.
 
 #### Example
 
-`GET /api/v1/fleet/mdm/apple_bm`
+`GET /api/v1/fleet/abm`
 
 ##### Default response
 
