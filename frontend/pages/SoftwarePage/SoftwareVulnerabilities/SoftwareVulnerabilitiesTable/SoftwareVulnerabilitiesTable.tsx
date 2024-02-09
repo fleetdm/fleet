@@ -142,7 +142,7 @@ const SoftwareVulnerabilitiesTable = ({
   }, [data, router]);
 
   const handleExploitedVulnFilterDropdownChange = (
-    isFilterExploited: string
+    isFilterExploited: boolean
   ) => {
     router.replace(
       getNextLocationPath({
@@ -153,7 +153,7 @@ const SoftwareVulnerabilitiesTable = ({
           team_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
-          exploited: isFilterExploited,
+          exploited: isFilterExploited.toString(),
           page: 0, // resets page index
         },
       })

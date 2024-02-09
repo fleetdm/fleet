@@ -22,7 +22,7 @@ interface ISoftwareVulnerabilitiesProps {
   orderKey: string;
   currentPage: number;
   teamId?: number;
-  exploited?: string;
+  showExploitedVulnerabilitiesOnly: boolean;
 }
 
 const SoftwareVulnerabilities = ({
@@ -34,7 +34,7 @@ const SoftwareVulnerabilities = ({
   orderKey,
   currentPage,
   teamId,
-  exploited,
+  showExploitedVulnerabilitiesOnly,
 }: ISoftwareVulnerabilitiesProps) => {
   const queryParams = {
     page: currentPage,
@@ -43,7 +43,7 @@ const SoftwareVulnerabilities = ({
     order_key: orderKey,
     teamId,
     query,
-    showExploitedVulnerabilitiesOnly: Boolean(exploited),
+    exploited: showExploitedVulnerabilitiesOnly,
   };
 
   const { data, isFetching, isError } = useQuery<
@@ -75,9 +75,7 @@ const SoftwareVulnerabilities = ({
         router={router}
         data={data}
         query={query}
-        showExploitedVulnerabilitiesOnly={
-          queryParams.showExploitedVulnerabilitiesOnly
-        }
+        showExploitedVulnerabilitiesOnly={showExploitedVulnerabilitiesOnly}
         isSoftwareEnabled={isSoftwareEnabled}
         perPage={perPage}
         orderDirection={orderDirection}
