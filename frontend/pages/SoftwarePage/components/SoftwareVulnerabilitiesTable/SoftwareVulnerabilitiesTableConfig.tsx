@@ -9,7 +9,7 @@ import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
-import ProbabilityOfExploitCell from "components/TableContainer/DataTable/ProbabilityOfExploitCell.tsx/ProbabilityOfExploitCell";
+import ProbabilityOfExploitCell from "components/ProbabilityOfExploit/ProbabilityOfExploit";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
@@ -151,7 +151,6 @@ const generateTableConfig = (
         <ProbabilityOfExploitCell
           probabilityOfExploit={cellProps.row.original.epss_probability}
           cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
-          rowId={cellProps.row.original.cve}
         />
       ),
     },
