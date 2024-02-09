@@ -80,6 +80,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
 	ActivityTypeEditedWindowsProfile{},
+
+	ActivityTypeLockedHost{},
+	ActivityTypeUnlockedHost{},
 }
 
 type ActivityDetails interface {
