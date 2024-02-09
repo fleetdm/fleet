@@ -1281,9 +1281,9 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.macos_updates.minimum_version         | string | body  | The required minimum operating system version.                                                                                                                                                                                      |
 | mdm.macos_updates.deadline                | string | body  | The required installation date for Nudge to enforce the operating system version.                                                                                                                                                   |
 | mdm.macos_settings                        | object | body  | The macOS-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.macos_settings.custom_settings        | list   | body  | The list of .mobileconfig files (profiles) to apply to hosts that belong to this team.                                                                                                                                                         |
+| mdm.macos_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to .mobileconfig file and `labels` list of label names.                                                                                                                                                         |
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
-| mdm.windows_settings.custom_settings        | list   | body  | The list of XML files (profiles) to apply to hosts that belong to this team.                                                                                                                                                         |
+| mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
@@ -1343,11 +1343,17 @@ If the `name` is not already associated with an existing team, this API route cr
           "deadline": "2023-12-01"
         },
         "macos_settings": {
-          "custom_settings": ["path/to/profile1.mobileconfig"],
+          "custom_settings": {
+            "path": "path/to/profile1.mobileconfig"
+            "labels": ["Label 1", "Label 2"]
+          },
           "enable_disk_encryption": true
         },
         "windows_settings": {
-          "custom_settings": ["path/to/profile1.xml"]
+          "custom_settings": {
+            "path": "path/to/profile1.xml"
+            "labels": ["Label 1", "Label 2"]
+          },
         }
       },
       "scripts": ["path/to/script.sh"],
