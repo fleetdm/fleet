@@ -6,7 +6,6 @@
 * Fixed a bug that would cause OS Settings to never get verified if the MySQL config of Fleet's database has `only_full_group_by` mode enabled (enabled by default).
 * Fix visual display of chevron right icons on Chrome
 * Renamed the `mdm_windows_configuration_profiles` and `mdm_apple_configuration_profiles` `updated_at` field to `uploaded_at` and removed the automatic setting of the value, set explicity instead.
-* Fixed UI issues where dropdown menus were not displaying correctly in the administrative settings page.
 * Fix a small alignment bug in the setup flow
 * Improved the validation of Windows profiles to prevent errors when the
   profiles are delivered to the hosts. If you need to embed a nested XML
