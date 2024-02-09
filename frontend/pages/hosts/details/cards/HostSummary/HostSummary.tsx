@@ -92,7 +92,6 @@ const RefreshButton = ({
         </Button>
         {tooltip && renderTooltip()}
       </div>
-      {}
     </>
   );
 };
