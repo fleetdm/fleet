@@ -744,7 +744,7 @@ const TAGGED_TEMPLATES = {
         <>
           {" "}
           viewed the six-digit unlock PIN for{" "}
-          <b>{activity.details?.host_display_name}</b> via the Fleet app.
+          <b>{activity.details?.host_display_name}</b>.
         </>
       );
     }
