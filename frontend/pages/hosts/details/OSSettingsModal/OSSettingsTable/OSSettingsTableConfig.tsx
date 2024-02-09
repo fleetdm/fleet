@@ -63,8 +63,8 @@ const generateFormattedTooltip = (detail: string) => {
   const keyValuePairs = detail.split(/, */);
   const formattedElements: JSX.Element[] = [];
 
-  for (let i = 0; i < keyValuePairs.length; i += 1) {
-    const [key, value] = keyValuePairs[i].split(/: */);
+  keyValuePairs.forEach((pair, i) => {
+    const [key, value] = pair.split(/: */);
     if (key && value) {
       formattedElements.push(
         <span key={key}>
@@ -78,7 +78,7 @@ const generateFormattedTooltip = (detail: string) => {
         </span>
       );
     }
-  }
+  });
 
   return formattedElements.length ? <>{formattedElements}</> : detail;
 };
