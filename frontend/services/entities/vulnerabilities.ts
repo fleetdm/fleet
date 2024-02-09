@@ -43,6 +43,7 @@ export const getVulnerabilities = ({
   page,
   per_page,
   exploited,
+  query,
 }: IGetVulnerabilitiesQueryParams = {}): Promise<IVulnerabilitiesResponse> => {
   const { VULNERABILITIES } = endpoints;
   let path = VULNERABILITIES;
@@ -54,6 +55,7 @@ export const getVulnerabilities = ({
     page,
     per_page,
     exploited,
+    query,
   });
 
   if (queryString) path += `?${queryString}`;
