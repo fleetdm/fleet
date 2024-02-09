@@ -563,8 +563,8 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "global gitops",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			shouldFailTeamWrite:   true,
-			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+			shouldFailGlobalWrite: false,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,
 		},
@@ -603,7 +603,7 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "team gitops, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailTeamWrite:   true,
+			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: true,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,
