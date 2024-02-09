@@ -22,7 +22,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit,
 			cm.published,
 			COALESCE(cm.description, '') AS description,
-			vhc.host_count
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
 		FROM
 			vulnerability_host_counts vhc
 		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
@@ -35,7 +36,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			vhc.cve,
 			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
-			vhc.host_count
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
 		FROM
 			vulnerability_host_counts vhc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
@@ -54,6 +56,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 	// Define group by statements for EE and Free
 	eeGroupBy := ` GROUP BY 
 			vhc.cve, 
+			source,
 			cm.cvss_score, 
 			cm.epss_probability, 
 			cm.cisa_known_exploit, 
@@ -61,7 +64,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			description, 
 			vhc.host_count
 	`
-	freeGroupBy := " GROUP BY vhc.cve, vhc.host_count"
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count"
 
 	// Choose the appropriate group by statement based on EE or Free
 	var groupBy string
