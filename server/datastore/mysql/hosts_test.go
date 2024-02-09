@@ -420,10 +420,15 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 			OutputSize:    134,
 			SystemTime:    1656,
 			UserTime:      18453,
-			WallTime:      10,
+			WallTime:      0,
+			WallTimeMs:    10000,
 		},
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
+	// Server calculates WallTimeMs if not provided.
+	stats2[0].WallTimeMs = stats2[0].WallTime * 1000
+	// And old WallTime is no longer used.
+	stats2[0].WallTime = 0
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 
@@ -4248,7 +4253,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		OutputSize:         1337,
 		SystemTime:         150,
 		UserTime:           180,
-		WallTime:           0,
+		WallTimeMs:         0,
 	}}
 	globalStatsHost2 := []fleet.ScheduledQueryStats{{
 		ScheduledQueryName: userSQuery.Name,
@@ -4264,7 +4269,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		OutputSize:         1338,
 		SystemTime:         151,
 		UserTime:           181,
-		WallTime:           1,
+		WallTimeMs:         1,
 	}}
 
 	// Reload the hosts and set the scheduled queries stats.
@@ -4445,7 +4450,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1338,
 			SystemTime:         151,
 			UserTime:           181,
-			WallTime:           1,
+			WallTimeMs:         1,
 		},
 		{
 			ScheduledQueryName: userSQuery3.Name,
@@ -4461,7 +4466,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1339,
 			SystemTime:         152,
 			UserTime:           182,
-			WallTime:           2,
+			WallTimeMs:         2,
 		},
 		{
 			ScheduledQueryName: userSQuery4.Name,
@@ -4477,7 +4482,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1340,
 			SystemTime:         153,
 			UserTime:           183,
-			WallTime:           3,
+			WallTimeMs:         3,
 		},
 		{
 			ScheduledQueryName: userSQuery5.Name,
@@ -4493,7 +4498,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1340,
 			SystemTime:         153,
 			UserTime:           183,
-			WallTime:           3,
+			WallTimeMs:         3,
 		},
 	}
 
