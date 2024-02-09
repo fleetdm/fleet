@@ -22,7 +22,7 @@ Fleet UI:
 
 3. Check the box next to **Turn on** and select **Save**.
 
-Fleet API: API documentation is [here](../REST%20API/rest-api.md#update-disk-encryption-enforcement).
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
 
 ### Disk encryption status
 
