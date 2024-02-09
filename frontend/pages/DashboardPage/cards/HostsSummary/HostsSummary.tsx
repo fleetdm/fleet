@@ -67,7 +67,7 @@ const HostsSummary = ({
 
   const renderWindowsCount = (teamId?: number) => {
     const windowsLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === "MS Windows"
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.windows
     )?.id;
 
     if (isLoadingHostsSummary || windowsLabelId === undefined) {
@@ -90,7 +90,7 @@ const HostsSummary = ({
 
   const renderLinuxCount = (teamId?: number) => {
     const linuxLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === "All Linux"
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.linux
     )?.id;
 
     if (isLoadingHostsSummary || linuxLabelId === undefined) {
@@ -113,7 +113,7 @@ const HostsSummary = ({
 
   const renderChromeCount = (teamId?: number) => {
     const chromeLabelId = builtInLabels?.find(
-      (builtin) => builtin.name === "chrome"
+      (builtin) => builtin.name === PLATFORM_NAME_TO_LABEL_NAME.chrome
     )?.id;
 
     if (isLoadingHostsSummary || chromeLabelId === undefined) {
