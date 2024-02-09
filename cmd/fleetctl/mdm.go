@@ -178,20 +178,15 @@ func mdmLockCommand() *cli.Command {
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return fmt.Errorf("create client: %w", err)
-			}
-
-			// print an error if MDM is not configured
-			if err := client.CheckAnyMDMEnabled(); err != nil {
-				return err
-			}
-
 			hostIdent := c.String("host")
 
 			if len(hostIdent) == 0 {
 				return errors.New("No host targeted. Please provide --host.")
+			}
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
 			}
 
 			host, err := client.HostByIdentifier(hostIdent)
@@ -210,9 +205,11 @@ func mdmLockCommand() *cli.Command {
 				return err
 			}
 
-			if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-				host.MDM.Name != fleet.WellKnownMDMFleet {
-				return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
+			if host.Platform == "windows" || host.Platform == "darwin" {
+				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
+					host.MDM.Name != fleet.WellKnownMDMFleet {
+					return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
+				}
 			}
 
 			if err := client.MDMLockHost(host.ID); err != nil {
@@ -248,20 +245,15 @@ func mdmUnlockCommand() *cli.Command {
 			Required: true,
 		}},
 		Action: func(c *cli.Context) error {
-			client, err := clientFromCLI(c)
-			if err != nil {
-				return fmt.Errorf("create client: %w", err)
-			}
-
-			// print an error if MDM is not configured
-			if err := client.CheckAnyMDMEnabled(); err != nil {
-				return err
-			}
-
 			hostIdent := c.String("host")
 
 			if len(hostIdent) == 0 {
 				return errors.New("No host targeted. Please provide --host.")
+			}
+
+			client, err := clientFromCLI(c)
+			if err != nil {
+				return fmt.Errorf("create client: %w", err)
 			}
 
 			host, err := client.HostByIdentifier(hostIdent)
@@ -280,10 +272,14 @@ func mdmUnlockCommand() *cli.Command {
 				return err
 			}
 
-			if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-				host.MDM.Name != fleet.WellKnownMDMFleet {
-				return errors.New(`Can't unlock the host because it doesn't have MDM turned on.`)
+			if host.Platform == "windows" || host.Platform == "darwin" {
+				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
+					host.MDM.Name != fleet.WellKnownMDMFleet {
+					return errors.New(`Can't unlock the host because it doesn't have MDM turned on.`)
+				}
 			}
+
+			// TODO: update this section to account for MacOS returning the PIN.
 
 			if err := client.MDMUnlockHost(host.ID); err != nil {
 				return fmt.Errorf("Failed to unlock host: %w", err)
