@@ -1,1 +1,0 @@
-* Fixed an issue that would cause `fleetd` to report the wrong error if BitLocker encryption fails.

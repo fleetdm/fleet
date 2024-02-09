@@ -1,1 +1,0 @@
-* improve the HTTP client used by `fleetctl` and `fleetd` to prevent errors for 204 responses.

@@ -13,6 +13,7 @@ import (
 
 	eefleetctl "github.com/fleetdm/fleet/v4/ee/fleetctl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/packaging"
+	"github.com/fleetdm/fleet/v4/pkg/filepath_windows"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/rs/zerolog"
 	zlog "github.com/rs/zerolog/log"
@@ -241,6 +242,12 @@ func packageCommand() *cli.Command {
 				EnvVars:     []string{"FLEETCTL_DISABLE_KEYSTORE"},
 				Destination: &opt.DisableKeystore,
 			},
+			&cli.StringFlag{
+				Name:        "osquery-db",
+				Usage:       "Sets a custom osquery database directory, it must be an absolute path (requires orbit >= v1.22.0)",
+				EnvVars:     []string{"FLEETCTL_OSQUERY_DB"},
+				Destination: &opt.OsqueryDB,
+			},
 		},
 		Action: func(c *cli.Context) error {
 			if opt.FleetURL != "" || opt.EnrollSecret != "" {
@@ -281,6 +288,10 @@ func packageCommand() *cli.Command {
 				}
 			}
 
+			if opt.OsqueryDB != "" && !isAbsolutePath(opt.OsqueryDB, c.String("type")) {
+				return fmt.Errorf("--osquery-db must be an absolute path: %q", opt.OsqueryDB)
+			}
+
 			if runtime.GOOS == "windows" && c.String("type") != "msi" {
 				return errors.New("Windows can only build MSI packages.")
 			}
@@ -289,8 +300,9 @@ func packageCommand() *cli.Command {
 				return errors.New("native tooling is only available in Linux")
 			}
 
-			if opt.LocalWixDir != "" && runtime.GOOS != "windows" {
-				return errors.New(`Could not use local WiX to generate an osquery installer. This option is only available on Windows.
+			if opt.LocalWixDir != "" && runtime.GOOS != "windows" && runtime.GOOS != "darwin" {
+				return errors.New(
+					`Could not use local WiX to generate an osquery installer. This option is only available on Windows and macOS.
 				Visit https://wixtoolset.org/ for more information about how to use WiX.`)
 			}
 
@@ -340,61 +352,25 @@ func packageCommand() *cli.Command {
 				zlog.Logger = zerolog.Nop()
 			}
 
-			const maxAttempts = 9 // see #5732
-			var (
-				attempts int
-				path     string
-				err      error
-			)
-			for attempts < maxAttempts {
-				attempts++
-
-				if attempts > 1 {
-					fmt.Printf("Generating your osquery installer [attempt %d/%d]...\n\n", attempts, maxAttempts)
-				} else {
-					fmt.Println("Generating your osquery installer...")
-				}
-				path, err = buildFunc(opt)
-				if err == nil || !shouldRetry(c.String("type"), opt, err) {
-					break
-				}
-			}
+			fmt.Println("Generating your fleetd agent...")
+			path, err := buildFunc(opt)
 			if err != nil {
 				return err
 			}
 
 			path, _ = filepath.Abs(path)
 			fmt.Printf(`
-Success! You generated an osquery installer at %s
+Success! You generated fleetd at %s
 
-To add this device to Fleet, double-click to open your installer.
+To add this device to Fleet, double-click to install fleetd.
 
-To add other devices to Fleet, distribute this installer using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/docs/using-fleet/adding-hosts
+To add other devices to Fleet, distribute fleetd using Chef, Ansible, Jamf, or Puppet. Learn how: https://fleetdm.com/learn-more-about/enrolling-hosts
 `, path)
 			if !disableOpenFolder {
 				open.Start(filepath.Dir(path)) //nolint:errcheck
 			}
 			return nil
 		},
-	}
-}
-
-func shouldRetry(pkgType string, opt packaging.Options, err error) bool {
-	if pkgType != "msi" || runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
-		return false
-	}
-
-	// building an MSI on macos M1, check if the error is one that should be retried
-	errStr := err.Error()
-	switch {
-	case strings.Contains(errStr, "package root files: heat failed"):
-		return true
-	case strings.Contains(errStr, "build package: candle failed"):
-		return true
-	case strings.Contains(errStr, "build package: light failed"):
-		return true
-	default:
-		return false
 	}
 }
 
@@ -407,4 +383,14 @@ func checkPEMCertificate(path string) error {
 		return errors.New("invalid PEM file")
 	}
 	return nil
+}
+
+// isAbsolutePath returns whether a path is absolute.
+// It does not make use of filepath.IsAbs to support
+// checking Windows paths from Go code running in unix.
+func isAbsolutePath(path, pkgType string) bool {
+	if pkgType == "msi" {
+		return filepath_windows.IsAbs(path)
+	}
+	return strings.HasPrefix(path, "/") // this is the unix implementation of filepath.IsAbs
 }

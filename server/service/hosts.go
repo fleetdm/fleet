@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"sort"
 	"strings"
 	"time"
 
@@ -1741,16 +1742,19 @@ func hostsReportEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 type osVersionsRequest struct {
+	fleet.ListOptions
 	TeamID   *uint   `query:"team_id,optional"`
 	Platform *string `query:"platform,optional"`
 	Name     *string `query:"os_name,optional"`
-	Version  *string `query:"os_name,optional"`
+	Version  *string `query:"os_version,optional"`
 }
 
 type osVersionsResponse struct {
-	CountsUpdatedAt *time.Time        `json:"counts_updated_at"`
-	OSVersions      []fleet.OSVersion `json:"os_versions"`
-	Err             error             `json:"error,omitempty"`
+	Meta            *fleet.PaginationMetadata `json:"meta,omitempty"`
+	Count           int                       `json:"count"`
+	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	OSVersions      []fleet.OSVersion         `json:"os_versions"`
+	Err             error                     `json:"error,omitempty"`
 }
 
 func (r osVersionsResponse) error() error { return r.Err }
@@ -1758,7 +1762,7 @@ func (r osVersionsResponse) error() error { return r.Err }
 func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*osVersionsRequest)
 
-	osVersions, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version)
+	osVersions, count, metadata, err := svc.OSVersions(ctx, req.TeamID, req.Platform, req.Name, req.Version, req.ListOptions, false)
 	if err != nil {
 		return &osVersionsResponse{Err: err}, nil
 	}
@@ -1766,20 +1770,27 @@ func osVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 	return &osVersionsResponse{
 		CountsUpdatedAt: &osVersions.CountsUpdatedAt,
 		OSVersions:      osVersions.OSVersions,
+		Meta:            metadata,
+		Count:           count,
 	}, nil
 }
 
-func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts fleet.ListOptions, includeCVSS bool) (*fleet.OSVersions, int, *fleet.PaginationMetadata, error) {
+	var count int
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
 	if name != nil && version == nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_name without os_version"}
 	}
 
 	if name == nil && version != nil {
-		return nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
+		return nil, count, nil, &fleet.BadRequestError{Message: "Cannot specify os_version without os_name"}
+	}
+
+	if opts.OrderKey != "" && opts.OrderKey != "hosts_count" {
+		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
 	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
@@ -1789,16 +1800,131 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 			// most of the time, team should exist so checking here saves unnecessary db calls
 			_, err := svc.ds.Team(ctx, *teamID)
 			if err != nil {
-				return nil, err
+				return nil, count, nil, err
 			}
 		}
 		// if team exists but stats have not yet been gathered, return empty JSON array
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
-		return nil, err
+		return nil, count, nil, err
 	}
 
-	return osVersions, nil
+	for i := range osVersions.OSVersions {
+		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
+			return nil, count, nil, err
+		}
+	}
+
+	if opts.OrderKey == "hosts_count" && opts.OrderDirection == fleet.OrderAscending {
+		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+			return osVersions.OSVersions[i].HostsCount < osVersions.OSVersions[j].HostsCount
+		})
+	} else {
+		sort.Slice(osVersions.OSVersions, func(i, j int) bool {
+			return osVersions.OSVersions[i].HostsCount > osVersions.OSVersions[j].HostsCount
+		})
+	}
+
+	count = len(osVersions.OSVersions)
+
+	var metaData *fleet.PaginationMetadata
+	osVersions.OSVersions, metaData = paginateOSVersions(osVersions.OSVersions, opts)
+
+	return osVersions, count, metaData, nil
+}
+
+func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]fleet.OSVersion, *fleet.PaginationMetadata) {
+	metaData := &fleet.PaginationMetadata{
+		HasPreviousResults: opts.Page > 0,
+	}
+
+	if opts.PerPage == 0 {
+		return slice, metaData
+	}
+
+	start := opts.Page * opts.PerPage
+	if start >= uint(len(slice)) {
+		return []fleet.OSVersion{}, metaData
+	}
+
+	end := start + opts.PerPage
+	if end >= uint(len(slice)) {
+		end = uint(len(slice))
+	} else {
+		metaData.HasNextResults = true
+	}
+
+	return slice[start:end], metaData
+}
+
+type getOSVersionRequest struct {
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getOSVersionResponse struct {
+	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
+	OSVersion       *fleet.OSVersion `json:"os_version"`
+	Err             error            `json:"error,omitempty"`
+}
+
+func (r getOSVersionResponse) error() error { return r.Err }
+
+func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOSVersionRequest)
+
+	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
+	if err != nil {
+		return getOSVersionResponse{Err: err}, nil
+	}
+
+	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
+}
+
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		return nil, nil, err
+	}
+
+	return osVersion, updateTime, nil
+}
+
+// PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+	// Populate GeneratedCPEs
+	if osVersion.Platform == "darwin" {
+		osVersion.GeneratedCPEs = []string{
+			fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osVersion.Version),
+			fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osVersion.Version),
+		}
+	}
+
+	// Populate Vulnerabilities
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
+	if err != nil {
+		return err
+	}
+
+	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	for _, vuln := range vulns {
+		switch osVersion.Platform {
+		case "darwin":
+			vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+		case "windows":
+			vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+		}
+		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////

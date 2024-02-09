@@ -445,8 +445,8 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -472,45 +472,45 @@ func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.Re
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
-	eula := &fleet.MDMAppleEULA{
+	eula := &fleet.MDMEULA{
 		Name:  name,
 		Token: uuid.New().String(),
 		Bytes: bytes,
 	}
 
-	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
+	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
 	return nil
 }
 
-func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: this resource is authorized using the token provided in the
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMAppleGetEULABytes(ctx, token)
+	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
+	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
 	return nil
 }
 
-func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -720,15 +720,18 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
-	var ssoSettings fleet.SSOSettings
-	if appConfig.SSOSettings != nil {
-		ssoSettings = *appConfig.SSOSettings
+	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	// For now, until we get to #10999, we assume that SSO is disabled if
+	// no settings are provided.
+	if settings.IsEmpty() {
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		ssoSettings.EntityID,
+		settings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
@@ -768,7 +771,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -1070,4 +1073,27 @@ func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint,
 func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
 	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsOSUpdatesProfileName)
 	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleManualEnrollmentProfile{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDM.AppleSCEPChallenge,
+		svc.mdmPushCertTopic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return mobileConfig, nil
 }

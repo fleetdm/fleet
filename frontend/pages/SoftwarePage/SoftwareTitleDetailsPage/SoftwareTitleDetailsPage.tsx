@@ -60,12 +60,11 @@ const SoftwareTitleDetailsPage = ({
     return (
       <>
         <SoftwareDetailsSummary
-          id={softwareId}
           title={softwareTitle.name}
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
-          queryParam="software_title_id"
+          queryParams={{ software_title_id: softwareId }}
           name={softwareTitle.name}
           source={softwareTitle.source}
         />

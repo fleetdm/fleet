@@ -599,6 +599,7 @@ Once base64-decoded, they are PEM-encoded certificate and keys.
 | dry_run   | bool   | query | Validate the provided profiles and return any validation errors, but do not apply the changes.                                    |
 | profiles  | json   | body  | An array of objects, consisting of a `profile` base64-encoded .mobileconfig (macOS) or XML (Windows) file, `labels` array of strings (label names), and `name` display name (only for Windows configuration profiles).                                        |
 
+
 If no team (id or name) is provided, the profiles are applied for all hosts (for _Fleet Free_) or for hosts that are not assigned to any team (for _Fleet Premium_). After the call, the provided list of `profiles` will be the active profiles for that team (or no team) - that is, any existing profile that is not part of that list will be removed, and an existing profile with the same payload identifier (macOS) as a new profile will be edited. If the list of provided `profiles` is empty, all profiles are removed for that team (or no team).
 
 #### Example
@@ -2725,39 +2726,6 @@ If the Fleet instance is provided required parameters to complete setup.
 ```
 
 ## Scripts
-
-### Run script asynchronously
-
-_Available in Fleet Premium_
-
-Creates a script execution request and returns the execution identifier to retrieve results at a later time.
-
-`POST /api/v1/fleet/scripts/run`
-
-#### Parameters
-
-| Name            | Type    | In   | Description                                                                                    |
-| ----            | ------- | ---- | --------------------------------------------                                                   |
-| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
-
-> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
-
-#### Example
-
-`POST /api/v1/fleet/scripts/run`
-
-##### Default response
-
-`Status: 202`
-
-```json
-{
-  "host_id": 1227,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
-}
-```
 
 ### Batch-apply scripts 
 

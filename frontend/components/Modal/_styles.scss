@@ -9,6 +9,10 @@
     animation: fade-in 150ms ease-out;
   }
 
+  &__hidden {
+    visibility: hidden;
+  }
+
   &__content {
     margin-top: $pad-large;
     font-size: $x-small;

@@ -161,7 +161,7 @@
         <h3>Osquery on easy mode</h3>
         <p>Accelerate deployment and get more out of osquery. You don’t need to be an osquery expert to get the answers you need from your devices, Fleet takes care of some of that for you.</p>
         <div purpose="checklist" class="flex-column d-flex">
-          <p>Remotely set osquery flags to control initialization, disable/enable features, and select plugins.</p>
+          <p>Remotely disable/enable agent features, choose plugins, and keep osquery up to date.</p>
           <p>Import community queries from other security teams at top brands like Palantir and Fastly.</p>
           <p>Implement the Center for Internet Security (CIS) benchmarks (one click, 400+ queries, supported by Fleet). Or customize exactly the queries you need.</p>
         </div>
@@ -192,11 +192,7 @@
     </div>
   </div>
   <%/* Cloud city banner */%>
-  <div class="d-flex flex-column" purpose="bottom-cloud-city-banner">
-    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-lg-flex" src="/images/homepage-cloud-city-banner-lg-1600x375@2x.png">
-    <img alt="A glass city floating on top of fluffy white clouds" class="d-none d-md-flex d-lg-none" src="/images/homepage-cloud-city-banner-md-990x375@2x.png">
-    <img alt="A glass city floating on top of fluffy white clouds" class="d-flex d-md-none" src="/images/homepage-cloud-city-banner-sm-375x168@2x.png">
-  </div>
+  <parallax-city></parallax-city>
   <modal purpose="video-modal" v-if="modal === 'austin-anderson'" @close="closeModal()">
     <iframe width="560" height="315" src="https://www.youtube.com/embed/G5Ry_vQPaYc?si=vv0AfRe30yssWWRM&amp;rel=0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
   </modal>

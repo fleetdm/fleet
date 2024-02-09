@@ -170,16 +170,16 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
 		return "", nil
 	}
-	ds.MDMAppleGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-		return &fleet.MDMAppleEULA{}, nil
+	ds.MDMGetEULAMetadataFunc = func(ctx context.Context) (*fleet.MDMEULA, error) {
+		return &fleet.MDMEULA{}, nil
 	}
-	ds.MDMAppleGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
-		return &fleet.MDMAppleEULA{}, nil
+	ds.MDMGetEULABytesFunc = func(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+		return &fleet.MDMEULA{}, nil
 	}
-	ds.MDMAppleInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMAppleEULA) error {
+	ds.MDMInsertEULAFunc = func(ctx context.Context, eula *fleet.MDMEULA) error {
 		return nil
 	}
-	ds.MDMAppleDeleteEULAFunc = func(ctx context.Context, token string) error {
+	ds.MDMDeleteEULAFunc = func(ctx context.Context, token string) error {
 		return nil
 	}
 
@@ -216,11 +216,11 @@ func TestAppleMDMAuthorization(t *testing.T) {
 		checkAuthErr(t, err, shouldFailWithAuth)
 
 		// check EULA routes
-		_, err = svc.MDMAppleGetEULAMetadata(ctx)
+		_, err = svc.MDMGetEULAMetadata(ctx)
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
+		err = svc.MDMCreateEULA(ctx, "eula.pdf", bytes.NewReader([]byte("%PDF-")))
 		checkAuthErr(t, err, shouldFailWithAuth)
-		err = svc.MDMAppleDeleteEULA(ctx, "foo")
+		err = svc.MDMDeleteEULA(ctx, "foo")
 		checkAuthErr(t, err, shouldFailWithAuth)
 	}
 
@@ -245,12 +245,30 @@ func TestAppleMDMAuthorization(t *testing.T) {
 	require.NoError(t, err)
 	_, err = svc.GetMDMAppleInstallerDetailsByToken(ctx, "foo")
 	require.NoError(t, err)
-	_, err = svc.MDMAppleGetEULABytes(ctx, "foo")
+	_, err = svc.MDMGetEULABytes(ctx, "foo")
 	require.NoError(t, err)
 	// Generating a new key pair does not actually make any changes to fleet, or expose any
 	// information. The user must configure fleet with the new key pair and restart the server.
 	_, err = svc.NewMDMAppleDEPKeyPair(ctx)
 	require.NoError(t, err)
+
+	// Should work for all user types
+	for _, user := range []*fleet.User{
+		test.UserAdmin,
+		test.UserMaintainer,
+		test.UserObserver,
+		test.UserObserverPlus,
+		test.UserTeamAdminTeam1,
+		test.UserTeamGitOpsTeam1,
+		test.UserGitOps,
+		test.UserTeamMaintainerTeam1,
+		test.UserTeamObserverTeam1,
+		test.UserTeamObserverPlusTeam1,
+	} {
+		usrctx := test.UserContext(ctx, user)
+		_, err = svc.GetMDMManualEnrollmentProfile(usrctx)
+		require.NoError(t, err)
+	}
 
 	// Must be device-authenticated, should fail
 	_, err = svc.GetDeviceMDMAppleEnrollmentProfile(ctx)
@@ -593,11 +611,11 @@ func TestMDMAppleConfigProfileAuthz(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			// test authz create new profile (no team)
-			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes))
+			_, err := svc.NewMDMAppleConfigProfile(ctx, 0, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailGlobal)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes))
+			_, err = svc.NewMDMAppleConfigProfile(ctx, 1, bytes.NewReader(mcBytes), nil)
 			checkShouldFail(err, tt.shouldFailTeam)
 
 			// test authz list profiles (no team)
@@ -659,7 +677,7 @@ func TestNewMDMAppleConfigProfile(t *testing.T) {
 		return nil
 	}
 
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r)
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, 0, r, nil)
 	require.NoError(t, err)
 	require.Equal(t, "Foo", cp.Name)
 	require.Equal(t, "Bar", cp.Identifier)

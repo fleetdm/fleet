@@ -173,9 +173,154 @@ func TestMDMAppleBootstrapPackage(t *testing.T) {
 
 	url, err := bp.URL("http://example.com")
 	require.NoError(t, err)
-	require.Equal(t, "http://example.com/api/latest/fleet/mdm/apple/bootstrap?token=abc-def", url)
+	require.Equal(t, "http://example.com/api/latest/fleet/mdm/bootstrap?token=abc-def", url)
 
 	url, err = bp.URL(" http://example.com")
 	require.Empty(t, url)
 	require.Error(t, err)
+}
+
+func TestMDMProfileSpecUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name         string
+		input        []byte
+		expectPath   string
+		expectLabels []string
+		expectError  bool
+	}{
+		{
+			name:         "empty input",
+			input:        []byte(""),
+			expectPath:   "",
+			expectLabels: nil,
+			expectError:  false,
+		},
+		{
+			name:         "new format",
+			input:        []byte(`{"path": "testpath", "labels": ["label1", "label2"]}`),
+			expectPath:   "testpath",
+			expectLabels: []string{"label1", "label2"},
+			expectError:  false,
+		},
+		{
+			name:         "old format",
+			input:        []byte(`"oldpath"`),
+			expectPath:   "oldpath",
+			expectLabels: nil,
+			expectError:  false,
+		},
+		{
+			name:         "invalid JSON",
+			input:        []byte(`{invalid json}`),
+			expectPath:   "",
+			expectLabels: nil,
+			expectError:  true,
+		},
+		{
+			name:         "valid JSON with extra fields",
+			input:        []byte(`{"path": "testpath", "labels": ["label1"], "extra": "field"}`),
+			expectPath:   "testpath",
+			expectLabels: []string{"label1"},
+			expectError:  false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var p fleet.MDMProfileSpec
+			err := p.UnmarshalJSON(tc.input)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectPath, p.Path)
+				require.Equal(t, tc.expectLabels, p.Labels)
+			}
+		})
+	}
+
+	t.Run("complex scenario", func(t *testing.T) {
+		var p fleet.MDMProfileSpec
+		// test new format
+		data := []byte(`{"path": "newpath", "labels": ["label1", "label2"]}`)
+		err := p.UnmarshalJSON(data)
+		require.NoError(t, err)
+		require.Equal(t, "newpath", p.Path)
+		require.Equal(t, []string{"label1", "label2"}, p.Labels)
+
+		// test old format
+		p = fleet.MDMProfileSpec{}
+		data = []byte(`"oldpath"`)
+		err = p.UnmarshalJSON(data)
+		require.NoError(t, err)
+		require.Equal(t, "oldpath", p.Path)
+		require.Empty(t, p.Labels)
+	})
+}
+
+func TestMDMProfileSpecsMatch(t *testing.T) {
+	tests := []struct {
+		name     string
+		a        []fleet.MDMProfileSpec
+		b        []fleet.MDMProfileSpec
+		expected bool
+	}{
+		{
+			name:     "Empty Slices",
+			a:        []fleet.MDMProfileSpec{},
+			b:        []fleet.MDMProfileSpec{},
+			expected: true,
+		},
+		{
+			name: "Single Element Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Single Element Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path2", Labels: []string{"label1"}},
+			},
+			expected: false,
+		},
+		{
+			name: "Multiple Elements Match",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path2", Labels: []string{"label3"}},
+				{Path: "path1", Labels: []string{"label1", "label2"}},
+			},
+			expected: true,
+		},
+		{
+			name: "Multiple Elements Mismatch",
+			a: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label1"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			b: []fleet.MDMProfileSpec{
+				{Path: "path1", Labels: []string{"label2"}},
+				{Path: "path2", Labels: []string{"label3"}},
+			},
+			expected: false,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result := fleet.MDMProfileSpecsMatch(tc.a, tc.b)
+			require.Equal(t, tc.expected, result)
+		})
+	}
 }

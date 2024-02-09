@@ -2,20 +2,23 @@
 This page covers the things every team member needs to know to effectively contribute at Fleet.
 
 ## All hands
-Every month, Fleet holds a company-wide meeting called the "All hands".
+Every month, Fleet holds a company-wide meeting called the "All hands". 
 
-All team members should attend the "All hands" every month.  Team members who cannot attend are expected to watch the [recording](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) within a few days.
-
-"All hands" meetings are [recorded](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) and have [slides](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) available.
-
+All team members should attend the "All hands" every month.  "All hands" meetings are recorded, To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide "All hands" meetings. Team members who cannot attend are expected to watch the recording within a few days. 
 
 ## Strategy
 You can read about the company's positioning and product strategy in ["🎐 Why Fleet?" (private google doc)](https://docs.google.com/document/d/1E0VU4AcB6UTVRd4JKD45Saxh9Gz-mkO3LnGSTBDLEZo/edit#).
 
-To see the evolution over time or catch up with the latest happenings, review [decks](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY) and [recordings](https://us-65885.app.gong.io/conversations?workspace-id=9148397688380544352&callSearch=%7B%22search%22%3A%7B%22type%22%3A%22And%22%2C%22filters%22%3A%5B%7B%22type%22%3A%22CallTitle%22%2C%22phrase%22%3A%22all%20hands%22%7D%5D%7D%7D) from recent company-wide ["All hands" meetings](https://fleetdm.com/handbook/business-operations#all-hands).
-
 ### Competition
 We track competitors' capabilities and adjacent (or commonly integrated) products in Google doc [Competition](https://docs.google.com/document/d/1Bqdui6oQthdv5XtD5l7EZVB-duNRcqVRg7NVA4lCXeI/edit) (private Google doc).
+
+### Directly responsible individuals (DRIs)
+| Responsibility | DRI |
+| -------------- | --- |
+| Intentionality of Fleet's interfaces | noahtalerman |
+| Best practices for using Fleet | noahtalerman | 
+| What goes in a release | lukeheath |
+| Engineering output and architecture | lukeheath |
 
 ## Marketing programs
 Fleet's community programs are rooted in several areas; created to nurture communication between all current and future Fleet users through events, community support, [social media](#social-media), conversation-starting, [ads](#ads), video, and articles.
@@ -86,12 +89,12 @@ In an all-remote company, "face time" matters. Remember: even if someone's calen
 #### Schedule time with the CEO
 All invitations to meetings are welcomed, and quickly considering them is a top priority for the CEO.
 
-> **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/ceo#team)).
+> **Note:** Please do not add events to the CEO's calendar. **Events added directly to the CEO's calendar will be declined and removed.** Even if the CEO asks you to set up a meeting or add him to a call, please get scheduling help from the [Apprentice](https://www.fleetdm.com/handbook/digital-experience#team)).
 
-To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-ceo&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
+To request time with the CEO, [submit an issue](https://github.com/fleetdm/confidential/issues/new?assignees=sampfluger88&labels=%23g-digital-experience&projects=&template=custom-request.md&title=%7BNAME%7D%C2%BB______________________). Internal meetings can sometimes be moved to make room. External meetings, blocked time, travel, and personal commitments can rarely be moved.
 
-- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/ceo#process-the-ceos-calendar).
-- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar, unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
+- **Why the extra step?** There are not enough hours in the day for the CEO to accept every request to meet, so [we have to prioritize](https://www.fleetdm.com/handbook/digital-experience#process-the-ceos-calendar).
+- **Self-service scheduling:** Unlike other team members, who you can schedule with by simply dropping an event on their calendar unless requested directly from Mike, please do not directly schedule a meeting onto the CEO's calendar without using this process to confirm with the Apprentice first.
 - **Rescheduling:** All items on Mike's calendar are subject to change by the CEO to better serve the company.  Send last-minute changes or cancellations to Mike [via direct message (DM)](https://www.fleetdm.com/handbook/company/why-this-way#why-not-mention-the-ceo-in-slack-threads).
 
 ### Modifying an event organized by someone else
@@ -101,7 +104,7 @@ This works because every Fleetie grants edit access to everyone else at Fleet as
 ### Shared calendars
 Team calendars are the primary source for sprint rituals; they facilitate the execution of each sprint. 
 
-Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/ceo#contact-us) and the appropriate DRI will reply with feedback.
+Looking to add, change, or remove a shared calendar? [Create an issue for the CEO](https://fleetdm.com/handbook/digital-experience#contact-us) and the appropriate DRI will reply with feedback.
 
 
 ### Zoom
@@ -254,7 +257,7 @@ Our handbook and docs pages are written in Markdown and are editable from our we
 ### Merging changes
 When merging a PR to the master branch of the [Fleet repo](https://github.com/fleetdm/fleet), remember that whatever you merge gets deployed live immediately. Ensure that the appropriate quality checks have been completed before merging. [Learn about the website QA process](#quality).
 
-When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/company/product-groups#website-group) in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
+When merging changes to the [docs](https://fleetdm.com/docs), [handbook](https://fleetdm.com/handbook), and articles, make sure that the PR’s changes do not contain inappropriate content (goes without saying) or confidential information, and that the content represents our [brand](#brand) accordingly. When in doubt reach out to the product manager of the [website group](https://fleetdm.com/handbook/digital-expericnce) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 ### Editing a merged pull requests 
 We approach editing retrospectively for pull requests (PRs) to handbook pages. Remember our goal above about moving quickly and reducing time to value for our contributors? We avoid the editor becoming a bottleneck for merging quickly by editing for typos and grammatical errors after-the-fact. Here's how to do it:
@@ -348,7 +351,7 @@ For more developed thoughts about __spending guidelines and limits__, please rea
 ### Brex
 
 #### Non-travel purchases that exceed a Brex cardholder's limit
-For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#intake) with following information:
+For non-travel purchases that would require an increase in the Brex cardholder's limit, please [make a request](https://fleetdm.com/handbook/business-operations#contact-us) with following information:
 - The nature of the purchase (i.e. SaaS subscription and what it's used for)
 - The cost of the purchase and whether it is a fixed or variable (i.e. use-based) cost.
 - Whether it is a one time purchase or a recurring purchase and at what frequency the purchase will re-occur (annually, monthly, etc.)
@@ -357,7 +360,7 @@ For non-travel purchases that would require an increase in the Brex cardholder's
 - For one time purchases where payment via credit card is the most convenient then the card limit will be temporarily increased to accomodate the purchase.  
 
 #### Reimbursements
-Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help](https://fleetdm.com/handbook/business-operations#intake).
+Fleet does not reimburse expenses. We provide all of our team members with Brex cards for making purchases for the company. For company expenses, **use your Brex card.**  If there was an extreme accident, [get help]((https://fleetdm.com/handbook/business-operations#contact-us).
 
 <!-- 
 No longer supported.  -mike, CEO, 2023-04-26.
@@ -381,7 +384,7 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 ## Travel
 
 ### Flights
-- Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/ceo#schedule-travel-for-the-ceo).
+- Everyone at Fleet, including the CEO, uses the same [principles for booking flights](https://fleetdm.com/handbook/digital-experience#schedule-travel-for-the-ceo).
 - For example, feel free to book a direct flight if there is one that is less than double the price of the cheapest non-direct flight.
 
 ### Lodging
@@ -431,7 +434,7 @@ Before spending any money on an offsite, inviting people, booking travel, or oth
 
 After the plan for the offsite is approved at the e-group meeting (including participants, detailed agenda, and final budget):
   - The Head of Business Operations will confirm dates with all approved participants, then book all [lodging](#lodging) and coordinate any additional event space.  (Participants [book their own flights](https://fleetdm.com/handbook/company/communications#flights).)
-  - _**Note:** If the plan needs to change again, after it is approved, [ask the CEO for help](https://fleetdm.com/handbook/ceo#contact-us)._
+  - _**Note:** If the plan needs to change again, after it is approved, [ask Apprentice to the CEO for help](https://fleetdm.com/handbook/digital-experience#contact-us)._
 
 ### Attending conferences
 When attending a conference for Fleet, treat it [like other travel for the company](https://fleetdm.com/handbook/company/communications#travel).
@@ -465,7 +468,7 @@ Please use [Fleet's billing email address](https://fleetdm.com/handbook/company/
 
 To get a contract reviewed, upload the agreement to [Google Drive](https://drive.google.com/drive/folders/1G1JTpFxhKZZzmn2L2RppohCX5Bv_CQ9c).
 
-Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#intake), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
+Complete the [contract review issue template in GitHub](https://fleetdm.com/handbook/business-operations#contact-us), being sure to include the link to the document you uploaded and using the Calendly link in the issue template to schedule time to discuss the agreement with Nathan Holliday (allowing for sufficient time for him to have reviewed the contract prior to the call).
 
 Follow up comments should be made in the GitHub issue and in the document itself so it is all in the same place.
 
@@ -477,7 +480,7 @@ If an agreement requires an additional review during the negotiation process, th
 
 When no further review or action is required for an agreement and the document is ready to be signed, the requestor is then responsible for routing the document for signature.
 
-> **Note:** Please submit other legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#intake).
+> **Note:** Please submit other legal questions and requests to [Business Operations department](https://fleetdm.com/handbook/business-operations#contact-us).
 
 ## Trust
 Fleet is successful because of our customers and community, and those relationships are built on trust.
@@ -528,7 +531,7 @@ When you need to take time off, follow this process:
 - **Non-US team members**: Fleet meets the relevant country's retirement contribution requirements for team members outside the US.
 
 ### Coworking
-Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#intake).
+Your Brex card may be used for up to $500 USD per month in coworking costs. Please get prior approval by making a [custom request to the business operations team](https://fleetdm.com/handbook/business-operations#contact-us).
 
 ## Compensation
 Compensation at Fleet is determined by benchmarking using [Pave](https://pave.com). Annual raises are not guaranteed, instead we ensure teammates are compensated fairly based on the role, experience, location, and performance relative to benchmarks.
@@ -539,26 +542,13 @@ US based Fleeties get paid on the last business day of the month. International 
 Variable compensation (i.e. commission) is reviewed and submitted for processing by RevOps by the 7th of each month for the previous month or quarter's contributions. US based Fleeties that receive variable compensation will be paid by the 10th. International Fleeties will be paid no later than the last day of the month for the previous month's or quarter’s contributions. 
 
 ### Workiversaries
-We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The  team will post in Slack to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
-
-Fleet also [evaluates and (if necessary) updates compensation decisions yearly](#compensation-changes), shortly after the anniversary of a team member's start date.
+We're happy you've ventured a trip around the sun with Fleet- let's celebrate! The team will celebrate your tenure at the monthly "All Hands" meeting to highlight your dedication and contribution to Fleet, giving an opportunity for teammates to share their appreciation of your contribution!
 
 ### Compensation changes
-Fleet evaluates and (if necessary) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The process for that evaluation and update is:
-- On the first Friday of the month, the Head of BizOps posts in the `#help-classified` channel with the list of teammates celebrating anniversaries over the next month.
-- On the day of the fleetiversary, the Head of BizOps or executive team member will post in `#random` celebrating the tenure of the teammate.
-- The Head of BizOps confers with manager or head of department and prepares compensation benchmarking data and schedules time with the CEO and CTO over an existing 1:1 to discuss if an adjustment needs to be made to compensation.
-- During the 1:1 call, founders review benchmarking for role and geography, and decide if there will be an adjustment.
-- Head of BizOps posts to slack in `#help-classified` with the decision on compensation changes and effective date, if any.
-- If a change is to be made, the Head of BizOps communicates decision to the teammate's people manager, who then communicates to their teammate.
-- Head of BizOps updates the respective payroll platform (Gusto or Plane) and [equity spreadsheet](https://docs.google.com/spreadsheets/d/1_GJlqnWWIQBiZFOoyl9YbTr72bg5qdSSp4O3kuKm1Jc/edit?usp=sharing) (internal doc).
-- If an additional equity grant is part of this compensation change, the previous equity and new situation is noted in detail in the "Notes" column of the equity plan, and the "Grant started?" column is set back to "todo" to add it to the queue for the next time grants are processed (quarterly).
+Fleet evaluates and (if relevant) updates compensation decisions yearly, shortly after the anniversary of a team member's start date. The Head of BizOps is responsible for the process to [update compensation](https://fleetdm.com/handbook/business-operations#updating-compensation)
 
 ### Relocating
-When Fleeties relocate, there are vendors that need to be notified of the change. 
-
-Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#intake) by following the directions listed in the relevant issue template ("Moving").
-
+When Fleeties relocate, there are vendors that need to be notified of the change. Before relocating, please [let the company know in advance](https://fleetdm.com/handbook/business-operations#contact-us) by following the directions listed in the relevant issue template ("Moving").
 
 
 ## Team member onboarding
@@ -631,7 +621,7 @@ A high level overview of the Company values
 -->
 
 ### Onboarding retrospective
-At the end of their first two weeks of onboarding at Fleet, every new team member schedules a onboarding retro call.  Agenda: 
+At the end of their first two weeks of onboarding at Fleet, every new team member schedules an onboarding retro call.  Agenda: 
 > Welcome once again to the team! Please tell me about your first few weeks at Fleet. How did your onboarding/training go? What didn't you manage to get to? Anything you weren't sure how to do? Any feedback on how we can make the experience better for Fleet's next hire?
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
@@ -1146,11 +1136,11 @@ View planned changes to the website on the website group's [sprint board](https:
 
 ### Requesting changes
 
-See Marketing [intake](https://fleetdm.com/handbook/marketing#intake) for more information on how the website team prioritizes new requests. Bugs are always prioritized first.
+See Marketing [intake](https://fleetdm.com/handbook/digital-experience#contact-us) for more information on how the website team prioritizes new requests. Bugs are always prioritized first.
 
 ### Wireframes
 
-Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/development-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com.
+Before committing anything to code, we create wireframes (referred to as ["drafting"](https://fleetdm.com/handbook/company/product-groups#making-changes)) to illustrate all changes that affect the layout and structure of the user interface, design, or APIs of fleetdm.com.
 
 See [Why do we use a wireframe first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach) for more information. 
 
@@ -1198,7 +1188,7 @@ The product manager of the website group is responsible for making sure that man
 
 #### Writing QA steps
 
-QA steps are step-by-step instructions used to confirm that changed to the website function as expected. They should be simple and clear enough for anybody to follow. Example steps are included in [the “Website request” issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-website&template=website-request.md&title=Request%3A+__________________________).
+QA steps are step-by-step instructions used to confirm that changed to the website function as expected. They should be simple and clear enough for anybody to follow. Example steps are included in [the “Website request” issue template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=%23g-digital-experience&template=website-request.md&title=Request%3A+__________________________).
 
 #### Actioning QA steps
 
@@ -1242,7 +1232,7 @@ Once you have the above follow these steps:
   - **With Sails.js installed globally:** start the server by running `sails lift`.
 4. When the server has started, the Fleet website will be available at [http://localhost:2024](http://localhost:2024)
     
-  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-website](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
+  > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 
 #### The "Deploy Fleet Website" GitHub action failed

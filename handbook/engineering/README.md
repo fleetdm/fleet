@@ -37,13 +37,17 @@ To begin the freeze, [open the repo on Merge Freeze](https://www.mergefreeze.com
 > Any Fleetie can [unfreeze PRs on Merge Freeze](https://www.mergefreeze.com/installations/3704/branches) if the PR contains documentation changes or bug fixes only. If the PR contains other changes, please confirm with your manager before unfreezing.
 
 ### Merge a pull request during the freeze period
-We merge bug fixes and documentation changes during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
+We merge bug fixes, documentation changes, and website updates during the freeze period, but we do not merge other code changes. This minimizes code churn and helps ensure a stable release. To merge a bug fix, you must first unfreeze the PR in [Merge Freeze](https://app.mergefreeze.com/installations/3704/branches), and click the "Unfreeze 1 pull request" text link. 
 
-It is sometimes necessary to delay the release to allow time to complete partially merged feature work. In these cases, an exception process must be followed before merging during the freeze period. 
+> To allow a stable release test, the final 24 hours before release is a deep freeze when only bugs with the `~release-blocker` or `~unreleased-bug` labels are merged.
+
+If there is partially merged feature work when freeze begins, the previously merged code must be reverted. If there is an exceptional, business critical need to merge feature work during freeze, as determined by the [release ritual DRI](#rituals), the following exception process may be followed:
 
 1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
 2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
 3. The Engineering Manager, QA lead, and [release ritual DRI](#rituals) must all approve the feature work PR before it is unfrozen and merged.
+
+> This exception process should be avoided whenever possible. Any feature work merged during freeze will likely result in a significant release delay.
 
 ### Confirm latest versions of dependencies
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
