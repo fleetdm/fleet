@@ -29,11 +29,10 @@ parasails.registerComponent('scrollableTweets', {
       numberOfTweetCardsDisplayedOnThisPage: undefined,
       showPreviousPageButton: false,
       showNextPageButton: true,
-      currentVisibleTweetCard: 1,
       numberOfTweetsPerPage: 0,
       syncing: false,
+      firstCardPosition: 0,
       modal: '',
-      scrollPercentage: 0,
     };
   },
 
@@ -97,6 +96,7 @@ parasails.registerComponent('scrollableTweets', {
   mounted: async function(){
     this.tweetsDiv = $('div[purpose="tweets"]')[0];
     this.tweetCards = $('a[purpose="tweet-card"]');
+    this.firstCardPosition = this.tweetCards[0].getBoundingClientRect().x;
     this.numberOfTweetCardsDisplayedOnThisPage = this.tweetCards.length;
     this.calculateHowManyFullTweetsCanBeDisplayed();
     $(window).on('resize', this.calculateHowManyFullTweetsCanBeDisplayed);
@@ -113,14 +113,12 @@ parasails.registerComponent('scrollableTweets', {
     calculateHowManyFullTweetsCanBeDisplayed: function() {
       let firstTweetCard = this.tweetCards[0];
       let nextTweetCard = this.tweetCards[1];
-      let realCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
-      let viewportWidth = document.body.clientWidth;
-      this.tweetCardWidth = realCardWidth;
-      this.numberOfTweetsPerPage = Math.floor((viewportWidth - 120)/this.tweetCardWidth);
+      this.tweetCardWidth =  nextTweetCard.getBoundingClientRect().x - firstTweetCard.getBoundingClientRect().x;
+      this.numberOfTweetsPerPage = Math.floor((document.body.clientWidth - this.firstCardPosition)/this.tweetCardWidth);
       if(this.numberOfTweetsPerPage < 1){
         this.numberOfTweetsPerPage = 1;
       }
-      this.pageWidth = realCardWidth * this.numberOfTweetsPerPage;
+      this.pageWidth = this.tweetCardWidth * this.numberOfTweetsPerPage;
       if(this.numberOfTweetsPerPage >= this.numberOfTweetCardsDisplayedOnThisPage){
         $(this.tweetsDiv).addClass('mx-auto');
       } else {
@@ -134,7 +132,7 @@ parasails.registerComponent('scrollableTweets', {
         this.tweetsDiv.scrollLeft += this.pageWidth;
         await setTimeout(()=>{
           this.updatePageIndicators();
-        }, 500);
+        }, 600);
       }
     },
 
@@ -143,14 +141,14 @@ parasails.registerComponent('scrollableTweets', {
         this.tweetsDiv.scrollLeft -= this.pageWidth;
         await setTimeout(()=>{
           this.updatePageIndicators();
-        }, 500);
+        }, 600);
       }
     },
 
     updatePageIndicators: function() {
       this.syncing = false;
-      this.showPreviousPageButton = this.tweetsDiv.scrollLeft !== 0;
-      this.showNextPageButton = (this.tweetsDiv.scrollWidth - this.tweetsDiv.scrollLeft - this.tweetsDiv.clientWidth) >= this.tweetCardWidth * .5;
+      this.showPreviousPageButton = this.tweetsDiv.scrollLeft > (this.firstCardPosition * 0.5);
+      this.showNextPageButton = (this.tweetsDiv.scrollWidth - this.tweetsDiv.scrollLeft - this.tweetsDiv.clientWidth) >= this.tweetCardWidth * .25;
     },
 
     clickOpenVideoModal: function(modalName) {
