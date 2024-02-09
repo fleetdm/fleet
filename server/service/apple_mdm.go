@@ -414,7 +414,7 @@ func listMDMAppleConfigProfilesEndpoint(ctx context.Context, request interface{}
 }
 
 func (svc *Service) ListMDMAppleConfigProfiles(ctx context.Context, teamID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	action, err := viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionList)
+	action, err := viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionRead)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting action for user")
 	}

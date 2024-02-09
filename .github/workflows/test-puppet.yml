@@ -7,8 +7,7 @@ on:
       - patch-*
   pull_request:
     paths:
-      - 'ee/tools/puppet/fleetdm/*.*'
-      - '.github/workflows/test-puppet.yml'
+      - 'ee/tools/puppet/fleetdm/**'
   workflow_dispatch: # Manual
 
 # This allows a subsequently queued workflow run to interrupt previous runs

@@ -62,7 +62,7 @@ describe 'fleetdm::preassign_profile' do
       .to receive(:preassign_profile)
       .with(run_identifier, device_uuid, template, 'default', 'present', rspec_puppet_env)
       .and_return({ 'error' => 'preassign error' })
-    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({"error"=>"preassign error", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({ 'error' => 'preassign error', 'resource_changed' => false })
   end
 
   it 'gracefully handles get_host_by_identifier failures' do
@@ -74,7 +74,7 @@ describe 'fleetdm::preassign_profile' do
       .to receive(:get_host_by_identifier)
       .with(device_uuid, rspec_puppet_env)
       .and_return({ 'error' => 'get host by identifier error' })
-    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({"error"=>"get host by identifier error", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({ 'error' => 'get host by identifier error', 'resource_changed' => false })
   end
 
   it 'gracefully handles get_host_profiles failures' do
@@ -90,7 +90,7 @@ describe 'fleetdm::preassign_profile' do
       .to receive(:get_host_profiles)
       .with(host_response['host']['id'], rspec_puppet_env)
       .and_return({ 'error' => 'get host profiles error' })
-    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({"error"=>"get host profiles error", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({ 'error' => 'get host profiles error', 'resource_changed' => false })
   end
 
   it 'handles the case where no host is found' do
@@ -102,31 +102,31 @@ describe 'fleetdm::preassign_profile' do
       .to receive(:get_host_by_identifier)
       .with(device_uuid, rspec_puppet_env)
       .and_return({ 'error' => '', 'body' => {} }) # Simulating no host found
-    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({"error"=>"No host found", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({ 'error' => 'No host found', 'resource_changed' => false })
   end
 
   it 'does not change resource when profile is already present and ensure is present' do
-    host_profiles = { 'profiles' => [{'checksum' => Digest::MD5.base64digest(template)}] }
+    host_profiles = { 'profiles' => [{ 'checksum' => Digest::MD5.base64digest(template) }] }
     expect_successful_calls_with_host_profiles(host_profiles, 'present')
-    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({"error"=>"", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template).and_return({ 'error' => '', 'resource_changed' => false })
   end
 
   it 'does not change resource when profile is absent and ensure is absent' do
     host_profiles = { 'profiles' => [] } # no profiles assigned
     expect_successful_calls_with_host_profiles(host_profiles, 'absent')
-    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'absent').and_return({"error"=>"", "resource_changed"=>false})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'absent').and_return({ 'error' => '', 'resource_changed' => false })
   end
 
   it 'changes resource when profile is present and ensure is absent' do
-    host_profiles = { 'profiles' => [{'checksum' => Digest::MD5.base64digest(template)}] }
+    host_profiles = { 'profiles' => [{ 'checksum' => Digest::MD5.base64digest(template) }] }
     expect_successful_calls_with_host_profiles(host_profiles, 'absent')
-    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'absent').and_return({"error"=>"", "resource_changed"=>true})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'absent').and_return({ 'error' => '', 'resource_changed' => true })
   end
 
   it 'changes resource when profile is absent and ensure is present' do
     host_profiles = { 'profiles' => [] } # No profiles assigned
     expect_successful_calls_with_host_profiles(host_profiles, 'present')
-    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'present').and_return({"error"=>"", "resource_changed"=>true})
+    is_expected.to run.with_params(profile_identifier, device_uuid, template, 'default', 'present').and_return({ 'error' => '', 'resource_changed' => true })
   end
 
   def expect_successful_calls_with_host_profiles(host_profiles, ensure_profile)

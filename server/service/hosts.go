@@ -660,7 +660,6 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting action for user")
 	}
-
 	if err := svc.authz.Authorize(ctx, &fleet.Host{}, action); err != nil {
 		return nil, err
 	}
@@ -670,7 +669,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	action, err = viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionList)
+	action, err = viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionRead)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting action for user")
 	}
