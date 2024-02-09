@@ -95,15 +95,15 @@ const SoftwareVulnerabilitiesTable = ({
   const generateNewQueryParams = useCallback(
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
-        query: newTableQuery.searchQuery,
-        exploited: newTableQuery.exploited?.toString(),
         team_id: teamId,
+        exploited: showExploitedVulnerabilitiesOnly.toString(),
+        query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
         page: changedParam === "pageIndex" ? newTableQuery.pageIndex : 0,
       };
     },
-    [teamId]
+    [teamId, showExploitedVulnerabilitiesOnly]
   );
 
   const onQueryChange = useCallback(
