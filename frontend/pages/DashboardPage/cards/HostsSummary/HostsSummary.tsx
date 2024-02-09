@@ -1,11 +1,10 @@
 import React from "react";
 import PATHS from "router/paths";
 
-import labelsAPI from "services/entities/labels";
+import { PLATFORM_NAME_TO_LABEL_NAME } from "utilities/constants";
 import DataError from "components/DataError";
 import { SelectedPlatform } from "interfaces/platform";
-import { useQuery } from "react-query";
-import { ILabelSpecResponse } from "interfaces/label";
+import { IHostSummary } from "interfaces/host_summary";
 
 import SummaryTile from "./SummaryTile";
 
@@ -18,6 +17,7 @@ interface IHostSummaryProps {
   linuxCount: number;
   chromeCount: number;
   isLoadingHostsSummary: boolean;
+  builtInLabels?: IHostSummary["builtin_labels"];
   showHostsUI: boolean;
   errorHosts: boolean;
   selectedPlatform?: SelectedPlatform;
@@ -30,6 +30,7 @@ const HostsSummary = ({
   linuxCount,
   chromeCount,
   isLoadingHostsSummary,
+  builtInLabels,
   showHostsUI,
   errorHosts,
   selectedPlatform,
@@ -39,41 +40,13 @@ const HostsSummary = ({
   if (showHostsUI) {
     opacity = isLoadingHostsSummary ? { opacity: 0.4 } : { opacity: 1 };
   }
-  // get the id for the label for chrome hosts - this will be unique to each Fleet instance
-  const { isLoading: isLoadingChromeLabelId, data: chromeLabelId } = useQuery<
-    ILabelSpecResponse,
-    Error,
-    number
-  >("chromeLabelId", () => labelsAPI.specByName("chrome"), {
-    select: ({ specs }) => specs.id,
-  });
-
-  const { isLoading: isLoadingLinuxLabelId, data: linuxLabelId } = useQuery<
-    ILabelSpecResponse,
-    Error,
-    number
-  >("linuxLabelId", () => labelsAPI.specByName("All Linux"), {
-    select: ({ specs }) => specs.id,
-  });
-
-  const { isLoading: isLoadingMacLabelId, data: macLabelId } = useQuery<
-    ILabelSpecResponse,
-    Error,
-    number
-  >("macLabelId", () => labelsAPI.specByName("macOS"), {
-    select: ({ specs }) => specs.id,
-  });
-
-  const { isLoading: isLoadingWindowsLabelId, data: windowsLabelId } = useQuery<
-    ILabelSpecResponse,
-    Error,
-    number
-  >("windowsLabelId", () => labelsAPI.specByName("MS Windows"), {
-    select: ({ specs }) => specs.id,
-  });
 
   const renderMacCount = (teamId?: number) => {
-    if (isLoadingMacLabelId || macLabelId === undefined) {
+    const macLabelId = builtInLabels?.find((builtin) => {
+      return builtin.name === PLATFORM_NAME_TO_LABEL_NAME.darwin;
+    })?.id;
+
+    if (isLoadingHostsSummary || macLabelId === undefined) {
       return <></>;
     }
 
@@ -93,7 +66,11 @@ const HostsSummary = ({
   };
 
   const renderWindowsCount = (teamId?: number) => {
-    if (isLoadingWindowsLabelId || windowsLabelId === undefined) {
+    const windowsLabelId = builtInLabels?.find(
+      (builtin) => builtin.name === "MS Windows"
+    )?.id;
+
+    if (isLoadingHostsSummary || windowsLabelId === undefined) {
       return <></>;
     }
     return (
@@ -112,7 +89,11 @@ const HostsSummary = ({
   };
 
   const renderLinuxCount = (teamId?: number) => {
-    if (isLoadingLinuxLabelId || linuxLabelId === undefined) {
+    const linuxLabelId = builtInLabels?.find(
+      (builtin) => builtin.name === "All Linux"
+    )?.id;
+
+    if (isLoadingHostsSummary || linuxLabelId === undefined) {
       return <></>;
     }
     return (
@@ -131,7 +112,11 @@ const HostsSummary = ({
   };
 
   const renderChromeCount = (teamId?: number) => {
-    if (isLoadingChromeLabelId || chromeLabelId === undefined) {
+    const chromeLabelId = builtInLabels?.find(
+      (builtin) => builtin.name === "chrome"
+    )?.id;
+
+    if (isLoadingHostsSummary || chromeLabelId === undefined) {
       return <></>;
     }
 
