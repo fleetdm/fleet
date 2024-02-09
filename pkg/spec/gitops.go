@@ -363,10 +363,10 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	// Make sure team name is correct, and do additional validation
 	for _, item := range result.Policies {
 		if item.Name == "" {
-			multiError = multierror.Append(multiError, fmt.Errorf("policy name is required for each policy"))
+			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
 		}
 		if item.Query == "" {
-			multiError = multierror.Append(multiError, fmt.Errorf("policy query is required for each policy"))
+			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))
 		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
@@ -427,10 +427,10 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 	// Make sure team name is correct and do additional validation
 	for _, q := range result.Queries {
 		if q.Name == "" {
-			multiError = multierror.Append(multiError, fmt.Errorf("query name is required for each query"))
+			multiError = multierror.Append(multiError, errors.New("query name is required for each query"))
 		}
 		if q.Query == "" {
-			multiError = multierror.Append(multiError, fmt.Errorf("query SQL query is required for each query"))
+			multiError = multierror.Append(multiError, errors.New("query SQL query is required for each query"))
 		}
 		// Don't use non-ASCII
 		if !isASCII(q.Name) {

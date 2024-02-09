@@ -90,7 +90,7 @@ org_settings:
 	require.NoError(t, err)
 	_, err = runAppNoChecks([]string{"gitops", "-f", badFile.Name()})
 	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "YAML processing errors")
+	assert.Contains(t, err.Error(), "errors occurred")
 
 	// DoGitOps error
 	t.Setenv("ORG_NAME", "")
