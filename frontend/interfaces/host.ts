@@ -158,7 +158,7 @@ interface IMdmMacOsSetup {
 }
 
 export type HostDeviceStatus = "unlocked" | "locked";
-export type HostPendingAction = "unlock" | "lock";
+export type HostPendingAction = "unlock" | "lock" | "";
 
 export interface IHostMdmData {
   encryption_key_available: boolean;
@@ -170,8 +170,8 @@ export interface IHostMdmData {
   os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
-  device_status: HostDeviceStatus | null;
-  pending_action: HostPendingAction | null;
+  device_status: HostDeviceStatus;
+  pending_action: HostPendingAction;
 }
 
 export interface IMunkiIssue {

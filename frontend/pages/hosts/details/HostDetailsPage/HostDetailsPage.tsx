@@ -761,7 +761,7 @@ const HostDetailsPage = ({
   //   host.mdm.device_status,
   //   host.mdm.pending_action
   // );
-  const hostDeviceStatusUIState = getHostDeviceStatusUIState("locked", null);
+  const hostDeviceStatusUIState = getHostDeviceStatusUIState("unlocked", "");
 
   return (
     <MainContent className={baseClass}>
@@ -793,12 +793,6 @@ const HostDetailsPage = ({
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
           deviceStatus={hostDeviceStatusUIState}
-          // TODO: figure out these values
-          isLocked
-          isWiped
-          isLocking
-          isWiping
-          isUnlocking
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
