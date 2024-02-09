@@ -420,15 +420,12 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 			OutputSize:    134,
 			SystemTime:    1656,
 			UserTime:      18453,
-			WallTime:      0,
-			WallTimeMs:    10000,
+			WallTime:      10000,
 		},
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
-	// Server calculates WallTimeMs if not provided.
-	stats2[0].WallTimeMs = stats2[0].WallTime * 1000
-	// And old WallTime is no longer used.
-	stats2[0].WallTime = 0
+	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
+	stats2[0].WallTime = stats2[0].WallTime * 1000
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 
@@ -4314,6 +4311,9 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		packStats := host.PackStats
 		require.Len(t, packStats, 1)
 		require.Len(t, packStats[0].QueryStats, 1)
+		// Update wall time.
+		tc.expectedStats[0].WallTime = tc.expectedStats[0].WallTimeMs
+		tc.expectedStats[0].WallTimeMs = 0
 		require.ElementsMatch(t, packStats[0].QueryStats, tc.expectedStats)
 	}
 }
@@ -4546,6 +4546,11 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	sort.Slice(globalStats, func(i, j int) bool {
 		return globalStats[i].ScheduledQueryID < globalStats[j].ScheduledQueryID
 	})
+	// Update wall time
+	for i := range globalStats {
+		globalStats[i].WallTime = globalStats[i].WallTimeMs
+		globalStats[i].WallTimeMs = 0
+	}
 	require.ElementsMatch(t, packStats[0].QueryStats, globalStats)
 
 	// host2 should only return scheduled query stats only for the scheduled queries
