@@ -480,7 +480,7 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
-const formatSeverity = (float: number | null): string => {
+export const formatSeverity = (float: number | null): string => {
   if (float === null) {
     return DEFAULT_EMPTY_CELL_VALUE;
   }

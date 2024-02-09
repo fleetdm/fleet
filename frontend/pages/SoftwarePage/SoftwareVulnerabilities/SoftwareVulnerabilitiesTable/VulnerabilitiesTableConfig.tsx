@@ -3,7 +3,7 @@ import React from "react";
 import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { formatSeverity } from "utilities/helpers";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
@@ -53,25 +53,6 @@ interface IVulnerabilitiesTableConfigOptions {
   includeVulnerabilities?: boolean;
   includeIcon?: boolean;
 }
-
-const formatSeverity = (float: number | null) => {
-  if (float === null) {
-    return DEFAULT_EMPTY_CELL_VALUE;
-  }
-
-  let severity = "";
-  if (float < 4.0) {
-    severity = "Low";
-  } else if (float < 7.0) {
-    severity = "Medium";
-  } else if (float < 9.0) {
-    severity = "High";
-  } else if (float <= 10.0) {
-    severity = "Critical";
-  }
-
-  return `${severity} (${float.toFixed(1)})`;
-};
 
 const generateTableHeaders = (
   isPremiumTier?: boolean,
@@ -140,9 +121,7 @@ const generateTableHeaders = (
         );
       },
       Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        // <TextCell formatter={formatSeverity} value={value} />
-        // TODO: Fix format severity
-        <TextCell value={value} />
+        <TextCell formatter={formatSeverity} value={value} />
       ),
     },
     {
