@@ -228,6 +228,16 @@ Within 60 days of the end of the year, follow these steps:
   - Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
   - Deliver this as early as possible in case they have questions.
 
+### Process a tool upgrade request from a team member
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
+- BizOps will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+### Downgrading unused license seats
+- On the first Wednesday of every quarter, the CEO, head of BizOps and apprentice to the CEO will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
+
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
@@ -297,6 +307,7 @@ The following table lists this department's rituals, frequency, and Directly Res
 | Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
 | KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
 | [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
+| Downgrade unused license seats | Quarterly | Downgrade unused or questionable license seats on the first Wednesday of every quarter. | Head of Business Operations & CEO |
 
 
 <!--
@@ -317,6 +328,7 @@ Note: These are out of date, but retained for future reference.  TODO: Deal with
 | Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
 | Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
+
 
 -->
 
