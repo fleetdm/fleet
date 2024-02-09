@@ -44,8 +44,7 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 
 	var script fleet.HostScriptResult
 	id, _ := result.LastInsertId()
-	row := tx.QueryRowxContext(ctx, getStmt, id)
-	err = row.StructScan(&script)
+	err = sqlx.GetContext(ctx, tx, &script, getStmt, id)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
 	}
@@ -601,13 +600,12 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	)
 	VALUES (?,?,NULL)
 	ON DUPLICATE KEY UPDATE
-		lock_ref = ?,
+		lock_ref = VALUES(lock_ref),
 		unlock_ref = NULL
 	`
 
 		_, err = tx.ExecContext(ctx, stmt,
 			request.HostID,
-			res.ExecutionID,
 			res.ExecutionID,
 		)
 		if err != nil {
@@ -636,13 +634,12 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	)
 	VALUES (?,?,NULL)
 	ON DUPLICATE KEY UPDATE
-		unlock_ref = ?,
+		unlock_ref = VALUES(unlock_ref),
 		lock_ref = NULL
 	`
 
 		_, err = tx.ExecContext(ctx, stmt,
 			request.HostID,
-			res.ExecutionID,
 			res.ExecutionID,
 		)
 		if err != nil {
