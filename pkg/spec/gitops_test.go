@@ -48,17 +48,17 @@ func TestValidGitOpsYaml(t *testing.T) {
 		isTeam   bool
 	}{
 		"global_config_no_paths": {
-			filePath: "test_data/global_config_no_paths.yml",
+			filePath: "testdata/global_config_no_paths.yml",
 		},
 		"global_config_with_paths": {
-			filePath: "test_data/global_config.yml",
+			filePath: "testdata/global_config.yml",
 		},
 		"team_config_no_paths": {
-			filePath: "test_data/team_config_no_paths.yml",
+			filePath: "testdata/team_config_no_paths.yml",
 			isTeam:   true,
 		},
 		"team_config_with_paths": {
-			filePath: "test_data/team_config.yml",
+			filePath: "testdata/team_config.yml",
 			isTeam:   true,
 		},
 	}
@@ -71,7 +71,7 @@ func TestValidGitOpsYaml(t *testing.T) {
 				t.Parallel()
 				dat, err := os.ReadFile(test.filePath)
 				require.NoError(t, err)
-				gitops, err := GitOpsFromBytes(dat, "./test_data")
+				gitops, err := GitOpsFromBytes(dat, "./testdata")
 				require.NoError(t, err)
 
 				if test.isTeam {
@@ -394,6 +394,18 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				_, err = GitOpsFromBytes([]byte(config), "")
 				assert.ErrorContains(t, err, "failed to unmarshal policies file")
 
+				// Policy name missing
+				config = getConfig([]string{"policies"})
+				config += "policies:\n  - query: SELECT 1;\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "name is required")
+
+				// Policy query missing
+				config = getConfig([]string{"policies"})
+				config += "policies:\n  - name: Test Policy\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "query is required")
+
 				// Invalid queries
 				config = getConfig([]string{"queries"})
 				config += "queries:\n  path: [2]\n"
@@ -409,6 +421,18 @@ func TestInvalidGitOpsYaml(t *testing.T) {
 				config += fmt.Sprintf("%s:\n  - path: %s\n", "queries", tmpFile.Name())
 				_, err = GitOpsFromBytes([]byte(config), "")
 				assert.ErrorContains(t, err, "failed to unmarshal queries file")
+
+				// Query name missing
+				config = getConfig([]string{"queries"})
+				config += "queries:\n  - query: SELECT 1;\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "name is required")
+
+				// Query SQL query missing
+				config = getConfig([]string{"queries"})
+				config += "queries:\n  - name: Test Query\n"
+				_, err = GitOpsFromBytes([]byte(config), "")
+				assert.ErrorContains(t, err, "query is required")
 			},
 		)
 	}
@@ -475,6 +499,17 @@ func TestTopLevelGitOpsValidation(t *testing.T) {
 			},
 		)
 	}
+}
+
+func TestGitOpsNullArrays(t *testing.T) {
+	t.Parallel()
+
+	config := getGlobalConfig([]string{"queries", "policies"})
+	config += "queries: null\npolicies: ~\n"
+	gitops, err := GitOpsFromBytes([]byte(config), "")
+	assert.NoError(t, err)
+	assert.Nil(t, gitops.Queries)
+	assert.Nil(t, gitops.Policies)
 }
 
 func TestGitOpsPaths(t *testing.T) {

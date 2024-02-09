@@ -30,7 +30,7 @@ func gitopsCommand() *cli.Command {
 				Name:        "dry-run",
 				EnvVars:     []string{"DRY_RUN"},
 				Destination: &flDryRun,
-				Usage:       "Do not apply the file, just validate it (only supported for 'config' and 'team' specs)",
+				Usage:       "Do not apply the file, just validate it",
 			},
 			configFlag(),
 			contextFlag(),

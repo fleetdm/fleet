@@ -2,9 +2,11 @@ package spec
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
+	"github.com/hashicorp/go-multierror"
 	"os"
 	"path/filepath"
 	"slices"
@@ -60,13 +62,13 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 		return nil, fmt.Errorf("failed to unmarshal file %w: \n", err)
 	}
 
-	var errors []string
+	var multiError *multierror.Error
 	result := &GitOps{}
 
 	topKeys := []string{"name", "team_settings", "org_settings", "agent_options", "controls", "policies", "queries"}
 	for k := range top {
 		if !slices.Contains(topKeys, k) {
-			errors = append(errors, fmt.Sprintf("unknown top-level field: %s", k))
+			multiError = multierror.Append(multiError, fmt.Errorf("unknown top-level field: %s", k))
 		}
 	}
 
@@ -76,69 +78,64 @@ func GitOpsFromBytes(b []byte, baseDir string) (*GitOps, error) {
 	orgSettingsRaw, orgOk := top["org_settings"]
 	if orgOk {
 		if teamOk || teamSettingsOk {
-			errors = append(errors, "'org_settings' cannot be used with 'name' or 'team_settings'")
+			multiError = multierror.Append(multiError, errors.New("'org_settings' cannot be used with 'name' or 'team_settings'"))
 		} else {
-			errors = parseOrgSettings(orgSettingsRaw, result, baseDir, errors)
+			multiError = parseOrgSettings(orgSettingsRaw, result, baseDir, multiError)
 		}
 	} else if teamOk && teamSettingsOk {
-		errors = parseName(teamRaw, result, errors)
-		errors = parseTeamSettings(teamSettingsRaw, result, baseDir, errors)
+		multiError = parseName(teamRaw, result, multiError)
+		multiError = parseTeamSettings(teamSettingsRaw, result, baseDir, multiError)
 	} else {
-		errors = append(errors, "either 'org_settings' or 'name' and 'team_settings' is required")
+		multiError = multierror.Append(multiError, errors.New("either 'org_settings' or 'name' and 'team_settings' is required"))
 	}
 
 	// Validate the required top level options
-	errors = parseControls(top, result, baseDir, errors)
-	errors = parseAgentOptions(top, result, baseDir, errors)
-	errors = parsePolicies(top, result, baseDir, errors)
-	errors = parseQueries(top, result, baseDir, errors)
-	if len(errors) > 0 {
-		err := "\n"
-		for _, e := range errors {
-			err += e + "\n"
-		}
-		return nil, fmt.Errorf("YAML processing errors: %s", err)
-	}
+	multiError = parseControls(top, result, baseDir, multiError)
+	multiError = parseAgentOptions(top, result, baseDir, multiError)
+	multiError = parsePolicies(top, result, baseDir, multiError)
+	multiError = parseQueries(top, result, baseDir, multiError)
 
-	return result, nil
+	return result, multiError.ErrorOrNil()
 }
 
-func parseName(raw json.RawMessage, result *GitOps, errors []string) []string {
+func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error) *multierror.Error {
 	if err := json.Unmarshal(raw, &result.TeamName); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal name: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal name: %v", err))
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
-		return append(errors, "team 'name' is required")
+		return multierror.Append(multiError, errors.New("team 'name' is required"))
 	}
 	if !isASCII(*result.TeamName) {
-		errors = append(errors, fmt.Sprintf("team name must be in ASCII: %s", *result.TeamName))
+		multiError = multierror.Append(multiError, fmt.Errorf("team name must be in ASCII: %s", *result.TeamName))
 	}
-	return errors
+	return multiError
 }
 
-func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var orgSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &orgSettingsTop); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal org_settings: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal org_settings: %v", err))
 	}
 	noError := true
 	if orgSettingsTop.Path != nil {
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *orgSettingsTop.Path))
 		if err != nil {
 			noError = false
-			errors = append(errors, fmt.Sprintf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read org settings file %s: %v", *orgSettingsTop.Path, err))
 		} else {
 			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 			var pathOrgSettings BaseItem
 			if err := yaml.Unmarshal(fileBytes, &pathOrgSettings); err != nil {
 				noError = false
-				errors = append(errors, fmt.Sprintf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err))
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to unmarshal org settings file %s: %v", *orgSettingsTop.Path, err),
+				)
 			} else {
 				if pathOrgSettings.Path != nil {
 					noError = false
-					errors = append(
-						errors,
-						fmt.Sprintf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
+					multiError = multierror.Append(
+						multiError,
+						fmt.Errorf("nested paths are not supported: %s in %s", *pathOrgSettings.Path, *orgSettingsTop.Path),
 					)
 				} else {
 					raw = fileBytes
@@ -149,38 +146,40 @@ func parseOrgSettings(raw json.RawMessage, result *GitOps, baseDir string, error
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.OrgSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			errors = append(errors, fmt.Sprintf("failed to unmarshal org settings: %v", err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal org settings: %v", err))
 		} else {
-			errors = parseSecrets(result, errors)
+			multiError = parseSecrets(result, multiError)
 		}
 		// TODO: Validate that integrations.(jira|zendesk)[].api_token is not empty or fleet.MaskedPassword
 	}
-	return errors
+	return multiError
 }
 
-func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	var teamSettingsTop BaseItem
 	if err := json.Unmarshal(raw, &teamSettingsTop); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal team_settings: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal team_settings: %v", err))
 	}
 	noError := true
 	if teamSettingsTop.Path != nil {
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *teamSettingsTop.Path))
 		if err != nil {
 			noError = false
-			errors = append(errors, fmt.Sprintf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to read team settings file %s: %v", *teamSettingsTop.Path, err))
 		} else {
 			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 			var pathTeamSettings BaseItem
 			if err := yaml.Unmarshal(fileBytes, &pathTeamSettings); err != nil {
 				noError = false
-				errors = append(errors, fmt.Sprintf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err))
+				multiError = multierror.Append(
+					multiError, fmt.Errorf("failed to unmarshal team settings file %s: %v", *teamSettingsTop.Path, err),
+				)
 			} else {
 				if pathTeamSettings.Path != nil {
 					noError = false
-					errors = append(
-						errors,
-						fmt.Sprintf("nested paths are not supported: %s in %s", *pathTeamSettings.Path, *teamSettingsTop.Path),
+					multiError = multierror.Append(
+						multiError,
+						fmt.Errorf("nested paths are not supported: %s in %s", *pathTeamSettings.Path, *teamSettingsTop.Path),
 					)
 				} else {
 					raw = fileBytes
@@ -191,33 +190,33 @@ func parseTeamSettings(raw json.RawMessage, result *GitOps, baseDir string, erro
 	if noError {
 		if err := yaml.Unmarshal(raw, &result.TeamSettings); err != nil {
 			// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-			errors = append(errors, fmt.Sprintf("failed to unmarshal team settings: %v", err))
+			multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal team settings: %v", err))
 		} else {
-			errors = parseSecrets(result, errors)
+			multiError = parseSecrets(result, multiError)
 		}
 	}
-	return errors
+	return multiError
 }
 
-func parseSecrets(result *GitOps, errors []string) []string {
+func parseSecrets(result *GitOps, multiError *multierror.Error) *multierror.Error {
 	var rawSecrets interface{}
 	var ok bool
 	if result.TeamName == nil {
 		rawSecrets, ok = result.OrgSettings["secrets"]
 		if !ok {
-			return append(errors, "'org_settings.secrets' is required")
+			return multierror.Append(multiError, errors.New("'org_settings.secrets' is required"))
 		}
 	} else {
 		rawSecrets, ok = result.TeamSettings["secrets"]
 		if !ok {
-			return append(errors, "'team_settings.secrets' is required")
+			return multierror.Append(multiError, errors.New("'team_settings.secrets' is required"))
 		}
 	}
 	var enrollSecrets []*fleet.EnrollSecret
 	if rawSecrets != nil {
 		secrets, ok := rawSecrets.([]interface{})
 		if !ok {
-			return append(errors, "'secrets' must be a list of secret items")
+			return multierror.Append(multiError, errors.New("'secrets' must be a list of secret items"))
 		}
 		for _, enrollSecret := range secrets {
 			var secret string
@@ -230,8 +229,8 @@ func parseSecrets(result *GitOps, errors []string) []string {
 				secret, ok = secretInterface.(string)
 			}
 			if !ok || secret == "" {
-				errors = append(
-					errors, "each item in 'secrets' must have a 'secret' key containing an ASCII string value",
+				multiError = multierror.Append(
+					multiError, errors.New("each item in 'secrets' must have a 'secret' key containing an ASCII string value"),
 				)
 				break
 			}
@@ -245,89 +244,91 @@ func parseSecrets(result *GitOps, errors []string) []string {
 	} else {
 		result.TeamSettings["secrets"] = enrollSecrets
 	}
-	return errors
+	return multiError
 }
 
-func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parseAgentOptions(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	agentOptionsRaw, ok := top["agent_options"]
 	if !ok {
-		return append(errors, "'agent_options' is required")
+		return multierror.Append(multiError, errors.New("'agent_options' is required"))
 	}
 	var agentOptionsTop BaseItem
 	if err := json.Unmarshal(agentOptionsRaw, &agentOptionsTop); err != nil {
-		errors = append(errors, fmt.Sprintf("failed to unmarshal agent_options: %v", err))
+		multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal agent_options: %v", err))
 	} else {
 		if agentOptionsTop.Path == nil {
 			result.AgentOptions = &agentOptionsRaw
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *agentOptionsTop.Path))
 			if err != nil {
-				return append(errors, fmt.Sprintf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
+				return multierror.Append(multiError, fmt.Errorf("failed to read agent options file %s: %v", *agentOptionsTop.Path, err))
 			}
 			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 			var pathAgentOptions BaseItem
 			if err := yaml.Unmarshal(fileBytes, &pathAgentOptions); err != nil {
-				return append(errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err))
+				return multierror.Append(
+					multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+				)
 			}
 			if pathAgentOptions.Path != nil {
-				return append(
-					errors,
-					fmt.Sprintf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
+				return multierror.Append(
+					multiError,
+					fmt.Errorf("nested paths are not supported: %s in %s", *pathAgentOptions.Path, *agentOptionsTop.Path),
 				)
 			}
 			var raw json.RawMessage
 			if err := yaml.Unmarshal(fileBytes, &raw); err != nil {
 				// This error is currently unreachable because we know the file is valid YAML when we checked for nested path
-				return append(
-					errors, fmt.Sprintf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
+				return multierror.Append(
+					multiError, fmt.Errorf("failed to unmarshal agent options file %s: %v", *agentOptionsTop.Path, err),
 				)
 			}
 			result.AgentOptions = &raw
 		}
 	}
-	return errors
+	return multiError
 }
 
-func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parseControls(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	controlsRaw, ok := top["controls"]
 	if !ok {
-		return append(errors, "'controls' is required")
+		return multierror.Append(multiError, errors.New("'controls' is required"))
 	}
 	var controlsTop Controls
 	if err := json.Unmarshal(controlsRaw, &controlsTop); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal controls: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls: %v", err))
 	}
 	if controlsTop.Path == nil {
 		result.Controls = controlsTop
 	} else {
 		fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *controlsTop.Path))
 		if err != nil {
-			return append(errors, fmt.Sprintf("failed to read controls file %s: %v", *controlsTop.Path, err))
+			return multierror.Append(multiError, fmt.Errorf("failed to read controls file %s: %v", *controlsTop.Path, err))
 		}
 		fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 		var pathControls Controls
 		if err := yaml.Unmarshal(fileBytes, &pathControls); err != nil {
-			return append(errors, fmt.Sprintf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
+			return multierror.Append(multiError, fmt.Errorf("failed to unmarshal controls file %s: %v", *controlsTop.Path, err))
 		}
 		if pathControls.Path != nil {
-			return append(
-				errors,
-				fmt.Sprintf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
+			return multierror.Append(
+				multiError,
+				fmt.Errorf("nested paths are not supported: %s in %s", *pathControls.Path, *controlsTop.Path),
 			)
 		}
 		result.Controls = pathControls
 	}
-	return errors
+	return multiError
 }
 
-func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	policiesRaw, ok := top["policies"]
 	if !ok {
-		return append(errors, "'policies' key is required")
+		return multierror.Append(multiError, errors.New("'policies' key is required"))
 	}
 	var policies []Policy
 	if err := json.Unmarshal(policiesRaw, &policies); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal policies: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies: %v", err))
 	}
 	for _, item := range policies {
 		item := item
@@ -336,21 +337,21 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("failed to read policies file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read policies file %s: %v", *item.Path, err))
 				continue
 			}
 			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 			var pathPolicies []*Policy
 			if err := yaml.Unmarshal(fileBytes, &pathPolicies); err != nil {
-				errors = append(errors, fmt.Sprintf("failed to unmarshal policies file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal policies file %s: %v", *item.Path, err))
 				continue
 			}
 			for _, pp := range pathPolicies {
 				pp := pp
 				if pp != nil {
 					if pp.Path != nil {
-						errors = append(
-							errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
+						multiError = multierror.Append(
+							multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pp.Path, *item.Path),
 						)
 					} else {
 						result.Policies = append(result.Policies, &pp.PolicySpec)
@@ -359,8 +360,14 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 			}
 		}
 	}
-	// Make sure team name is correct
+	// Make sure team name is correct, and do additional validation
 	for _, item := range result.Policies {
+		if item.Name == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("policy name is required for each policy"))
+		}
+		if item.Query == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("policy query is required for each policy"))
+		}
 		if result.TeamName != nil {
 			item.Team = *result.TeamName
 		} else {
@@ -373,19 +380,19 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 		},
 	)
 	if len(duplicates) > 0 {
-		errors = append(errors, fmt.Sprintf("duplicate policy names: %v", duplicates))
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate policy names: %v", duplicates))
 	}
-	return errors
+	return multiError
 }
 
-func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, errors []string) []string {
+func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string, multiError *multierror.Error) *multierror.Error {
 	queriesRaw, ok := top["queries"]
 	if !ok {
-		return append(errors, "'queries' key is required")
+		return multierror.Append(multiError, errors.New("'queries' key is required"))
 	}
 	var queries []Query
 	if err := json.Unmarshal(queriesRaw, &queries); err != nil {
-		return append(errors, fmt.Sprintf("failed to unmarshal queries: %v", err))
+		return multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries: %v", err))
 	}
 	for _, item := range queries {
 		item := item
@@ -394,21 +401,21 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		} else {
 			fileBytes, err := os.ReadFile(resolveApplyRelativePath(baseDir, *item.Path))
 			if err != nil {
-				errors = append(errors, fmt.Sprintf("failed to read queries file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to read queries file %s: %v", *item.Path, err))
 				continue
 			}
 			fileBytes = []byte(os.ExpandEnv(string(fileBytes)))
 			var pathQueries []*Query
 			if err := yaml.Unmarshal(fileBytes, &pathQueries); err != nil {
-				errors = append(errors, fmt.Sprintf("failed to unmarshal queries file %s: %v", *item.Path, err))
+				multiError = multierror.Append(multiError, fmt.Errorf("failed to unmarshal queries file %s: %v", *item.Path, err))
 				continue
 			}
 			for _, pq := range pathQueries {
 				pq := pq
 				if pq != nil {
 					if pq.Path != nil {
-						errors = append(
-							errors, fmt.Sprintf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
+						multiError = multierror.Append(
+							multiError, fmt.Errorf("nested paths are not supported: %s in %s", *pq.Path, *item.Path),
 						)
 					} else {
 						result.Queries = append(result.Queries, &pq.QuerySpec)
@@ -417,16 +424,22 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 			}
 		}
 	}
+	// Make sure team name is correct and do additional validation
 	for _, q := range result.Queries {
-		// Make sure team name is correct
+		if q.Name == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("query name is required for each query"))
+		}
+		if q.Query == "" {
+			multiError = multierror.Append(multiError, fmt.Errorf("query SQL query is required for each query"))
+		}
+		// Don't use non-ASCII
+		if !isASCII(q.Name) {
+			multiError = multierror.Append(multiError, fmt.Errorf("query name must be in ASCII: %s", q.Name))
+		}
 		if result.TeamName != nil {
 			q.TeamName = *result.TeamName
 		} else {
 			q.TeamName = ""
-		}
-		// Don't use non-ASCII
-		if !isASCII(q.Name) {
-			errors = append(errors, fmt.Sprintf("query name must be in ASCII: %s", q.Name))
 		}
 	}
 	duplicates := getDuplicateNames(
@@ -435,9 +448,9 @@ func parseQueries(top map[string]json.RawMessage, result *GitOps, baseDir string
 		},
 	)
 	if len(duplicates) > 0 {
-		errors = append(errors, fmt.Sprintf("duplicate query names: %v", duplicates))
+		multiError = multierror.Append(multiError, fmt.Errorf("duplicate query names: %v", duplicates))
 	}
-	return errors
+	return multiError
 }
 
 func getDuplicateNames[T any](slice []T, getComparableString func(T) string) []string {

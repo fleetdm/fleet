@@ -879,7 +879,7 @@ func (c *Client) DoGitOps(
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
 		group.AppConfig.(map[string]interface{})["agent_options"] = config.AgentOptions
-		delete(config.OrgSettings, "secrets")
+		delete(config.OrgSettings, "secrets") // secrets are applied separately in Client.ApplyGroup
 		if _, ok := group.AppConfig.(map[string]interface{})["mdm"]; !ok {
 			group.AppConfig.(map[string]interface{})["mdm"] = map[string]interface{}{}
 		}
