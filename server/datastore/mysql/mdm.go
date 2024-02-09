@@ -589,7 +589,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 SELECT
 	name,
 	syncml AS raw_profile,
-	mwcp.uploaded_at AS earliest_install_date,
+	min(mwcp.uploaded_at) AS earliest_install_date,
 	0 AS count_profile_labels,
 	0 AS count_host_labels
 FROM
@@ -603,11 +603,12 @@ WHERE
 			mdm_configuration_profile_labels mcpl
 		WHERE
 			mcpl.apple_profile_uuid = mwcp.profile_uuid)
+GROUP BY  name, syncml
 	UNION
 	SELECT
 		name,
 		syncml AS raw_profile,
-		mwcp.uploaded_at AS earliest_install_date,
+		min(mwcp.uploaded_at) AS earliest_install_date,
 		COUNT(*) AS count_profile_labels,
 		COUNT(lm.label_id) AS count_host_labels
 	FROM
@@ -618,7 +619,7 @@ WHERE
 	WHERE
 		mwcp.team_id = ?
 	GROUP BY
-		name
+		name, syncml
 	HAVING
 		count_profile_labels > 0
 		AND count_host_labels = count_profile_labels
@@ -629,7 +630,7 @@ WHERE
 	// Note: teamID provided twice
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
 
 	byName := make(map[string]*fleet.ExpectedMDMProfile, len(profiles))
@@ -672,7 +673,7 @@ WHERE
 		macp.identifier AS identifier,
 		COUNT(*) AS count_profile_labels,
 		COUNT(lm.label_id) AS count_host_labels,
-		earliest_install_date
+		min(earliest_install_date) AS earliest_install_date
 	FROM
 		mdm_apple_configuration_profiles macp
 		JOIN (
