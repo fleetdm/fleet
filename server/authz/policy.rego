@@ -613,36 +613,20 @@ allow {
 # Apple and Windows MDM
 ##
 
-# Global admins and maintainers can read and write MDM config profiles.
+# Global admins, maintainers and gitops can read and write MDM config profiles.
 allow {
   object.type == "mdm_config_profile"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
-# Global gitops can write MDM config profiles.
-allow {
-  object.type == "mdm_config_profile"
-  subject.global_role == gitops
-  action == write
-}
-
-# Team admins and maintainers can read and write MDM config profiles on their teams.
+# Team admins, maintainers and gitops can read and write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Team gitops can write MDM config profiles on their teams.
-allow {
-  not is_null(object.team_id)
-  object.team_id != 0
-  object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == gitops
-  action == write
 }
 
 # Global admins can read and write MDM apple information.
