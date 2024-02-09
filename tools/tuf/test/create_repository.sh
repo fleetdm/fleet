@@ -60,21 +60,17 @@ for system in $SYSTEMS; do
         --version $OSQUERY_VERSION -t $major.$min -t $major -t stable
     rm $osqueryd_path
 
-    goose_value="$system"
-    if [[ $system == "macos" ]]; then
-        goose_value="darwin"
-    fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 
-    # Compile the latest version of orbit from source.
-    GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
-
-    # If macOS and CODESIGN_IDENTITY is defined, sign the executable.
-    if [[ $system == "macos" && -n "$CODESIGN_IDENTITY" ]]; then
-        codesign -s "$CODESIGN_IDENTITY" -i com.fleetdm.orbit -f -v --timestamp --options runtime $orbit_target
+    # for macOS, build a universal binary
+    if [[ $system == "macos" ]]; then
+        CODESIGN_IDENTITY=$CODESIGN_IDENTITY ORBIT_VERSION=42 ORBIT_BINARY_PATH=$orbit_target go run ./orbit/tools/build/build.go
+    else
+      # for other systems, simply compile the latest version of orbit from source using go build
+      GOOS=$system go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
