@@ -196,7 +196,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, hostID uint, loc
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	}, lockStatus.HostFleetPlatform); err != nil {
+	}); err != nil {
 		return err
 	}
 
@@ -228,7 +228,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, hostID uint, l
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	}, lockStatus.HostFleetPlatform); err != nil {
+	}); err != nil {
 		return "", err
 	}
 

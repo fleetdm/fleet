@@ -806,9 +806,9 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error)
 
-type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error
+type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
 
-type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error
+type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -4760,16 +4760,16 @@ func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, hostID uint, flee
 	return s.GetHostLockWipeStatusFunc(ctx, hostID, fleetPlatform)
 }
 
-func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	s.mu.Lock()
 	s.LockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.LockHostViaScriptFunc(ctx, request, fleetPlatform)
+	return s.LockHostViaScriptFunc(ctx, request)
 }
 
-func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	s.mu.Lock()
 	s.UnlockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnlockHostViaScriptFunc(ctx, request, fleetPlatform)
+	return s.UnlockHostViaScriptFunc(ctx, request)
 }

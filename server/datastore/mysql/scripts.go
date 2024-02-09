@@ -499,7 +499,6 @@ ON DUPLICATE KEY UPDATE
 }
 
 func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
-	fmt.Println("JVE_LOG: in db layer ", hostID)
 	const stmt = `
 		SELECT
 			lock_ref,
@@ -526,7 +525,6 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		if err == sql.ErrNoRows {
 			// do not return a Not Found error, return the zero-value status, which
 			// will report the correct states.
-			fmt.Println("JVE_LOG: not found in db layer ", hostID)
 			return status, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
@@ -585,7 +583,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 }
 
 // LockHost will create the script execution request and update host_mdm_actions in a single transaction.
-func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -620,7 +618,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	})
 }
 
-func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, fleetPlatform string) error {
+func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
