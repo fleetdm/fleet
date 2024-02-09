@@ -1814,6 +1814,7 @@ None.
 - [Refetch host](#refetch-host)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
+- [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
@@ -2997,6 +2998,26 @@ _Available in Fleet Premium_
 ##### Default response
 
 `Status: 200`
+
+
+### Turn off MDM for a host
+
+`PATCH /api/v1/fleet/mdm/hosts/:id/unenroll`
+
+#### Parameters
+
+| Name | Type    | In   | Description                           |
+| ---- | ------- | ---- | ------------------------------------- |
+| id   | integer | path | **Required.** The host's ID in Fleet. |
+
+#### Example
+
+`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
+
+##### Default response
+
+`Status: 200`
+
 
 ### Bulk delete hosts by filter or ids
 
@@ -4264,34 +4285,6 @@ Deletes the label specified by ID.
 #### Example
 
 `DELETE /api/v1/fleet/labels/id/13`
-
-##### Default response
-
-`Status: 200`
-
----
-
-## Mobile device management (MDM)
-
-These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
-
-
-- [Turn off MDM for a host](#turn-off-mdm-for-a-host)
-
-
-### Turn off MDM for a host
-
-`PATCH /api/v1/fleet/mdm/hosts/:id/unenroll`
-
-#### Parameters
-
-| Name | Type    | In   | Description                           |
-| ---- | ------- | ---- | ------------------------------------- |
-| id   | integer | path | **Required.** The host's ID in Fleet. |
-
-#### Example
-
-`PATCH /api/v1/fleet/mdm/hosts/42/unenroll`
 
 ##### Default response
 
