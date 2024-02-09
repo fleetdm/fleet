@@ -137,15 +137,13 @@ func UserIsGitOpsOnly(ctx context.Context) (bool, error) {
 	return true, nil
 }
 
-// DetermineActionAllowingGitOps decides on an action based on the user's
-// GitOps role. If the user is identified as GitOps-only, a predefined GitOps
-// action (fleet.ActionWrite) is returned. Otherwise, the function returns the
-// action provided as input. If there's an error in determining the user's
-// GitOps role, the function returns an error.
+// DetermineActionAllowingGitOps decides on an action based on the user's GitOps role. If the user
+// is identified as GitOps-only, a predefined GitOps action (fleet.ActionWrite) is returned. Otherwise, the function
+// returns the action provided as input. If there's an error in determining the user's GitOps role,
+// the function returns an error.
 //
-// This method is useful in scenarios where certain actions are restricted or
-// modified based on the user's role, specifically tailored for users with
-// GitOps roles.
+// This method is useful in scenarios where certain actions are restricted or modified based on
+// the user's role, specifically tailored for users with GitOps roles.
 func DetermineActionAllowingGitOps(ctx context.Context, action string) (string, error) {
 	isGitOps, err := UserIsGitOpsOnly(ctx)
 	if err != nil {
@@ -157,5 +155,4 @@ func DetermineActionAllowingGitOps(ctx context.Context, action string) (string, 
 	}
 
 	return action, nil
-
 }
