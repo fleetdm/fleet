@@ -4276,64 +4276,8 @@ Deletes the label specified by ID.
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 
-- [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
-- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
 
-
-
-### Get Apple Push Notification service (APNs)
-
-`GET /api/v1/fleet/mdm/apple`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
-  "serial_number": "1234567890987654321",
-  "issuer": "Apple Application Integration 2 Certification Authority",
-  "renew_date": "2023-09-30T00:00:00Z"
-}
-```
-
-### Get Apple Business Manager (ABM)
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/mdm/apple_bm`
-
-#### Parameters
-
-None.
-
-#### Example
-
-`GET /api/v1/fleet/mdm/apple_bm`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "apple_id": "apple@example.com",
-  "org_name": "Fleet Device Management",
-  "mdm_server_url": "https://example.com/mdm/apple/mdm",
-  "renew_date": "2023-11-29T00:00:00Z",
-  "default_team": ""
-}
-```
 
 ### Turn off MDM for a host
 
@@ -5277,6 +5221,65 @@ This endpoint returns the list of custom MDM commands that have been executed.
 }
 ```
 
+---
+
+## Integrations
+
+- [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
+- [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
+
+### Get Apple Push Notification service (APNs)
+
+`GET /api/v1/fleet/mdm/apple`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "common_name": "APSP:04u52i98aewuh-xxxx-xxxx-xxxx-xxxx",
+  "serial_number": "1234567890987654321",
+  "issuer": "Apple Application Integration 2 Certification Authority",
+  "renew_date": "2023-09-30T00:00:00Z"
+}
+```
+
+### Get Apple Business Manager (ABM)
+
+_Available in Fleet Premium_
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+#### Parameters
+
+None.
+
+#### Example
+
+`GET /api/v1/fleet/mdm/apple_bm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "apple_id": "apple@example.com",
+  "org_name": "Fleet Device Management",
+  "mdm_server_url": "https://example.com/mdm/apple/mdm",
+  "renew_date": "2023-11-29T00:00:00Z",
+  "default_team": ""
+}
+```
 
 ---
 
