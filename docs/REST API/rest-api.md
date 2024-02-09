@@ -4276,135 +4276,9 @@ Deletes the label specified by ID.
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 
-- [Run custom MDM command](#run-custom-mdm-command)
-- [Get custom MDM command results](#get-custom-mdm-command-results)
-- [List custom MDM commands](#list-custom-mdm-commands)
-
 - [Get Apple Push Notification service (APNs)](#get-apple-push-notification-service-apns)
 - [Get Apple Business Manager (ABM)](#get-apple-business-manager-abm)
 - [Turn off MDM for a host](#turn-off-mdm-for-a-host)
-
-
-
-### Run custom MDM command
-
-> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command).
-
-This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
-
-`POST /api/v1/fleet/mdm/commands/run`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
-| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
-
-Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
-
-#### Example
-
-`POST /api/v1/fleet/mdm/commands/run`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-  "request_type": "ProfileList"
-}
-```
-
-### Get custom MDM command results
-
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
-
-This endpoint returns the results for a specific custom MDM command.
-
-`GET /api/v1/fleet/mdm/commandresults`
-
-#### Parameters
-
-| Name                      | Type   | In    | Description                                                               |
-| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
-| command_uuid              | string | query | The unique identifier of the command.                                     |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "results": [
-    {
-      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
-      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-      "status": "Acknowledged",
-      "updated_at": "2023-04-04:00:00Z",
-      "request_type": "ProfileList",
-      "hostname": "mycomputer",
-      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
-    }
-  ]
-}
-```
-
-> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
-
-### List custom MDM commands
-
-> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
-
-This endpoint returns the list of custom MDM commands that have been executed.
-
-`GET /api/v1/fleet/mdm/commands`
-
-#### Parameters
-
-| Name                      | Type    | In    | Description                                                               |
-| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
-| page                      | integer | query | Page number of the results to fetch.                                      |
-| per_page                  | integer | query | Results per page.                                                         |
-| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
-| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-
-#### Example
-
-`GET /api/v1/fleet/mdm/commands?per_page=5`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "results": [
-    {
-      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
-      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
-      "status": "Acknowledged",
-      "updated_at": "2023-04-04:00:00Z",
-      "request_type": "ProfileList",
-      "hostname": "mycomputer"
-    },
-    {
-      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
-      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
-      "status": "200",
-      "updated_at": "2023-05-04:00:00Z",
-      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
-      "hostname": "myhost"
-    }
-  ]
-}
-```
 
 
 
@@ -4478,14 +4352,6 @@ None.
 ##### Default response
 
 `Status: 200`
-
-
-
-
-
-
-
-
 
 
 ---
@@ -5281,6 +5147,136 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+
+---
+
+## Commands
+
+- [Run custom MDM command](#run-custom-mdm-command)
+- [Get custom MDM command results](#get-custom-mdm-command-results)
+- [List custom MDM commands](#list-custom-mdm-commands)
+
+
+### Run custom MDM command
+
+> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command).
+
+This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
+
+`POST /api/v1/fleet/mdm/commands/run`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command                   | string | json  | A Base64 encoded MDM command as described in [Apple's documentation](https://developer.apple.com/documentation/devicemanagement/commands_and_queries) or [Windows's documentation](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/0353f3d6-dbe2-42b6-b8d5-50db9333bba4). Supported formats are standard and raw (unpadded). You can paste your Base64 code to the [online decoder](https://devpal.co/base64-decode/) to check if you're using the valid format. |
+| host_uuids                | array  | json  | An array of host UUIDs enrolled in Fleet on which the command should run. |
+
+Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Premium_ only.
+
+#### Example
+
+`POST /api/v1/fleet/mdm/commands/run`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+  "request_type": "ProfileList"
+}
+```
+
+### Get custom MDM command results
+
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
+
+This endpoint returns the results for a specific custom MDM command.
+
+`GET /api/v1/fleet/mdm/commandresults`
+
+#### Parameters
+
+| Name                      | Type   | In    | Description                                                               |
+| ------------------------- | ------ | ----- | ------------------------------------------------------------------------- |
+| command_uuid              | string | query | The unique identifier of the command.                                     |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/commandresults?command_uuid=a2064cef-0000-1234-afb9-283e3c1d487e`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer",
+      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+    }
+  ]
+}
+```
+
+> Note: If the server has not yet received a result for a command, it will return an empty object (`{}`).
+
+### List custom MDM commands
+
+> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
+
+This endpoint returns the list of custom MDM commands that have been executed.
+
+`GET /api/v1/fleet/mdm/commands`
+
+#### Parameters
+
+| Name                      | Type    | In    | Description                                                               |
+| ------------------------- | ------  | ----- | ------------------------------------------------------------------------- |
+| page                      | integer | query | Page number of the results to fetch.                                      |
+| per_page                  | integer | query | Results per page.                                                         |
+| order_key                 | string  | query | What to order results by. Can be any field listed in the `results` array example below. |
+| order_direction           | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
+#### Example
+
+`GET /api/v1/fleet/mdm/commands?per_page=5`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "results": [
+    {
+      "host_uuid": "145cafeb-87c7-4869-84d5-e4118a927746",
+      "command_uuid": "a2064cef-0000-1234-afb9-283e3c1d487e",
+      "status": "Acknowledged",
+      "updated_at": "2023-04-04:00:00Z",
+      "request_type": "ProfileList",
+      "hostname": "mycomputer"
+    },
+    {
+      "host_uuid": "322vghee-12c7-8976-83a1-e2118a927342",
+      "command_uuid": "d76d69b7-d806-45a9-8e49-9d6dc533485c",
+      "status": "200",
+      "updated_at": "2023-05-04:00:00Z",
+      "request_type": "./Device/Vendor/MSFT/Reboot/RebootNow",
+      "hostname": "myhost"
+    }
+  ]
+}
+```
+
 
 ---
 
