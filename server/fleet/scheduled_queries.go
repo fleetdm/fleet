@@ -163,7 +163,9 @@ type ScheduledQueryStats struct {
 	OutputSize         uint64     `json:"output_size" db:"output_size"`
 	SystemTime         uint64     `json:"system_time" db:"system_time"`
 	UserTime           uint64     `json:"user_time" db:"user_time"`
-	WallTime           uint64     `json:"wall_time" db:"wall_time"`
+	// WallTime is deprecated in osquery. WallTimeMs now maps to wall_time in the DB.
+	WallTime   uint64 `json:"wall_time" db:"wall_time"`
+	WallTimeMs uint64 `json:"wall_time_ms" db:"wall_time"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result
