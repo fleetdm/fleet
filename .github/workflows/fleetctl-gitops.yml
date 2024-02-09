@@ -1,0 +1,103 @@
+# This workflow tests `fleetctl gitops` command against https://github.com/fleetdm/fleet-gitops repository.
+# It uses a fleet instance also built and executed from source.
+name: Test fleetctl gitops
+
+on:
+  push:
+    branches:
+      - main
+      - patch-*
+      - prepare-*
+    paths:
+      - 'orbit/**.go'
+      - '.github/workflows/fleetctl-gitops.yml'
+  pull_request:
+    paths:
+      - 'orbit/**.go'
+      - '.github/workflows/fleetctl-gitops.yml'
+  workflow_dispatch: # Manual
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  run-server:
+    timeout-minutes: 60
+    strategy:
+      matrix:
+        go-version: [ '${{ vars.GO_VERSION }}' ]
+        mysql: [ 'mysql:5.7' ]
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Install Go
+        uses: actions/setup-go@93397bea11091df50f3d7e59dc26a7711a8bcfbe # v4.1.0
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Checkout fleet-gitops
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+        with:
+          repository: fleetdm/fleet-gitops
+          ref: main
+          path: fleet-gitops
+
+      - name: Start Infra Dependencies
+        run: FLEET_MYSQL_IMAGE=${{ matrix.mysql }} docker-compose up -d mysql redis &
+
+      - name: Install JS Dependencies
+        run: make deps-js
+
+      - name: Generate and bundle go & js code
+        run: make generate
+
+      - name: Build fleet and fleetctl
+        # fleet-dev builds fleet with "race" enabled.
+        run: make fleet-dev fleetctl
+
+      - name: Run Fleet server
+        env:
+          FLEET_OSQUERY_HOST_IDENTIFIER: instance # use instance identifier to allow for duplicate UUIDs
+          FLEET_SERVER_ADDRESS: 0.0.0.0:1337
+          FLEET_SERVER_TLS: false
+          FLEET_LOGGING_DEBUG: true
+        run: |
+          mkdir ./fleet_log
+          make db-reset
+          ./build/fleet serve --dev --dev_license 1>./fleet_log/stdout.log 2>./fleet_log/stderr.log &
+          ./build/fleetctl config set --address http://localhost:1337 --tls-skip-verify
+          until ./build/fleetctl setup --email admin@example.com --name Admin --password preview1337# --org-name Example
+          do
+            echo "Retrying setup in 5s..."
+            sleep 5
+          done
+
+      - name: Run fleetctl gitops
+        env:
+          FLEETCTL: ../fleet/build/fleetctl
+          FLEET_GLOBAL_ENROLL_SECRET: global_secret
+          FLEET_WORKSTATIONS_ENROLL_SECRET: workstations_secret
+          FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET: workstations_canary_secret
+        working-directory: ../fleet-gitops
+        run: ./workflow.sh
+
+      - name: Upload fleet logs
+        if: always()
+        uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
+        with:
+          name: fleet-logs
+          path: |
+            fleet_log
