@@ -77,7 +77,7 @@ func applyCommand() *cli.Command {
 				opts.TeamForPolicies = policiesTeamName
 			}
 			baseDir := filepath.Dir(flFilename)
-			err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
+			_, err = fleetClient.ApplyGroup(c.Context, specs, baseDir, logf, opts)
 			if err != nil {
 				return err
 			}

@@ -881,7 +881,10 @@ type Service interface {
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool) error
+	BatchSetMDMProfiles(
+		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
+		assumeEnabled bool,
+	) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
