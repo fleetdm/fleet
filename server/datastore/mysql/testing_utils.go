@@ -45,7 +45,7 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI_QUOTES"))
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI_QUOTES"), SQLMode("ONLY_FULL_GROUP_BY"))
 	require.Nil(t, err)
 
 	if opts.Replica {
