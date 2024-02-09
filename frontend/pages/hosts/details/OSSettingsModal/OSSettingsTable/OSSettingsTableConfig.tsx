@@ -61,22 +61,26 @@ interface IDataColumn {
  */
 const generateFormattedTooltip = (detail: string) => {
   const keyValuePairs = detail.split(/, */);
-  const formattedElements = keyValuePairs.map((pair, index) => {
-    const [key, value] = pair.split(/: */);
-    return (
-      <span key={key}>
-        <b>{key.trim()}:</b> {value.trim()}
-        {/* dont add the trailing comma for the last element */}
-        {index !== keyValuePairs.length - 1 && (
-          <>
-            ,<br />
-          </>
-        )}
-      </span>
-    );
-  });
+  const formattedElements: JSX.Element[] = [];
 
-  return <>{formattedElements}</>;
+  for (let i = 0; i < keyValuePairs.length; i += 1) {
+    const [key, value] = keyValuePairs[i].split(/: */);
+    if (key && value) {
+      formattedElements.push(
+        <span key={key}>
+          <b>{key.trim()}:</b> {value.trim()}
+          {/* dont add the trailing comma for the last element */}
+          {i !== keyValuePairs.length - 1 && (
+            <>
+              ,<br />
+            </>
+          )}
+        </span>
+      );
+    }
+  }
+
+  return formattedElements.length ? <>{formattedElements}</> : detail;
 };
 
 /**
