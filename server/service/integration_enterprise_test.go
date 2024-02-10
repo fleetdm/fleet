@@ -3316,7 +3316,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	// set operating system information on a host
 	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
 	var osinfo struct {
-		ID uint	`db:"id"` 
+		ID          uint `db:"id"`
 		OSVersionID uint `db:"os_version_id"`
 	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
