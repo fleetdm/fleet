@@ -3170,20 +3170,29 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		Platform: "windows",
 	})
 	require.NoError(t, err)
+	allos, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	var os fleet.OperatingSystem
+	for _, o := range allos {
+		if o.ID > os.ID {
+			os = o
+		}
+	}
 
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: 1,
+		OSID: os.ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
-	_, err = s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
+	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
 		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
 	})
 	require.NoError(t, err)
+	sw := res.Inserted[0]
 
 	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
-		SoftwareID: 1,
+		SoftwareID: sw.ID,
 		CVE:        "CVE-2021-1235",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
