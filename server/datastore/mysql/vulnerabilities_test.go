@@ -118,7 +118,35 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 			Source:    fleet.NVDSource,
 		},
 	}
-	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{IsEE: true})
+	require.NoError(t, err)
+	require.Len(t, list, 3)
+	for _, vuln := range list {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostCount)
+	}
+
+	// Test Fleet Free
+	expected = map[string]fleet.VulnerabilityWithMetadata{
+		"CVE-2020-1234": {
+			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1234"},
+			HostCount: 10,
+			Source:    fleet.MSRCSource,
+		},
+		"CVE-2020-1235": {
+			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			HostCount: 15,
+			Source:    fleet.MSRCSource,
+		},
+		"CVE-2020-1236": {
+			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			HostCount: 20,
+			Source:    fleet.NVDSource,
+		},
+	}
+	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
 	require.NoError(t, err)
 	require.Len(t, list, 3)
 	for _, vuln := range list {
@@ -185,6 +213,7 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	seedVulnerabilities(t, ds)
 
 	opts := fleet.VulnListOptions{
+		IsEE: true,
 		ListOptions: fleet.ListOptions{
 			Page:           0,
 			PerPage:        5,
@@ -219,6 +248,7 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 
 	// Test KnownExploit filter
 	opts := fleet.VulnListOptions{
+		IsEE:         true,
 		KnownExploit: true,
 	}
 	list, _, err := ds.ListVulnerabilities(context.Background(), opts)
