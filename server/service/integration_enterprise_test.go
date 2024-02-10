@@ -3315,13 +3315,16 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// set operating system information on a host
 	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
-	var osID uint
+	var osinfo struct {
+		ID uint	`db:"id"` 
+		OSVersionID uint `db:"os_version_id"`
+	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &osID,
-			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+		return sqlx.GetContext(context.Background(), q, &osinfo,
+			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
 	})
-	require.Greater(t, osID, uint(0))
+	require.Greater(t, osinfo.ID, uint(0))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
@@ -3329,7 +3332,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	expected := resp.Hosts[0]
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osinfo.ID))
 	require.Len(t, resp.Hosts, 1)
 	require.Equal(t, expected, resp.Hosts[0])
 
@@ -3338,7 +3341,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// insert OS Vulns
 	_, err := s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osID,
+		OSID: osinfo.ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
@@ -3374,7 +3377,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
 
 	var osVersionResp getOSVersionResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", 1), nil, http.StatusOK, &osVersionResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
 	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
