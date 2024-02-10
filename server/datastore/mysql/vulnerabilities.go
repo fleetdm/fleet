@@ -11,7 +11,8 @@ import (
 )
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
-	selectStmt := `
+	// Define base select statements for EE and Free versions
+	eeSelectStmt := `
 		SELECT
 			vhc.cve,
 			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
@@ -21,7 +22,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit,
 			cm.published,
 			COALESCE(cm.description, '') AS description,
-			vhc.host_count
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
 		FROM
 			vulnerability_host_counts vhc
 		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
@@ -29,8 +31,32 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.host_count > 0
 		`
-	groupByAppend := ` GROUP BY 
+	freeSelectStmt := `
+		SELECT
+			vhc.cve,
+			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+			COALESCE(osv.source, sc.source, 0) AS source,
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
+		FROM
+			vulnerability_host_counts vhc
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
+		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
+		WHERE vhc.host_count > 0
+		`
+
+	// Choose the appropriate select statement based on EE or Free
+	var selectStmt string
+	if opt.IsEE {
+		selectStmt = eeSelectStmt
+	} else {
+		selectStmt = freeSelectStmt
+	}
+
+	// Define group by statements for EE and Free
+	eeGroupBy := ` GROUP BY 
 			vhc.cve, 
+			source,
 			cm.cvss_score, 
 			cm.epss_probability, 
 			cm.cisa_known_exploit, 
@@ -38,13 +64,31 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			description, 
 			vhc.host_count
 	`
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count"
 
+	// Choose the appropriate group by statement based on EE or Free
+	var groupBy string
+	if opt.IsEE {
+		groupBy = eeGroupBy
+	} else {
+		groupBy = freeGroupBy
+	}
+
+	// Prepare arguments for the query
 	var args []interface{}
 	if opt.TeamID == 0 {
-		selectStmt = selectStmt + " AND vhc.team_id = 0"
+		selectStmt += " AND vhc.team_id = 0"
 	} else {
-		selectStmt = selectStmt + " AND vhc.team_id = ?"
+		selectStmt += " AND vhc.team_id = ?"
 		args = append(args, opt.TeamID)
+	}
+
+	if opt.KnownExploit {
+		selectStmt += " AND cm.cisa_known_exploit = 1"
+	}
+
+	if match := opt.MatchQuery; match != "" {
+		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
 	if opt.KnownExploit {
@@ -55,17 +99,19 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
 	}
 
-	selectStmt = selectStmt + groupByAppend
+	// Append group by statement
+	selectStmt += groupBy
 
 	opt.ListOptions.IncludeMetadata = !(opt.ListOptions.UsesCursorPagination())
-
 	selectStmt, args = appendListOptionsWithCursorToSQL(selectStmt, args, &opt.ListOptions)
 
+	// Execute the query
 	var vulns []fleet.VulnerabilityWithMetadata
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &vulns, selectStmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "list vulnerabilities")
 	}
 
+	// Prepare metadata
 	var metaData *fleet.PaginationMetadata
 	if opt.ListOptions.IncludeMetadata {
 		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
