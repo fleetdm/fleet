@@ -1118,6 +1118,11 @@ type OSVersions struct {
 	OSVersions      []OSVersion `json:"os_versions"`
 }
 
+type VulnerableOS struct {
+	OSVersion
+	ResolvedInVersion *string `json:"resolved_in_version"`
+}
+
 type OSVersion struct {
 	// ID is the unique id of the operating system.
 	ID uint `json:"id,omitempty"`

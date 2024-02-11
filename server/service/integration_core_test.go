@@ -7396,9 +7396,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-		Name:     "windows",
+		Name:     "Windows 11 Enterprise 22H2",
 		Version:  "10.0.19042.1234",
-		Arch:     "64bit",
 		Platform: "windows",
 	})
 	require.NoError(t, err)
@@ -7411,9 +7410,13 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		}
 	}
 
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
 		OSID: os.ID,
 		CVE:  "CVE-2021-1234",
+		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
@@ -7511,6 +7514,25 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
 	}
+
+	var gResp getVulnerabilityResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.Published)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
 }
 
 func (s *integrationTestSuite) TestOSVersions() {

@@ -603,8 +603,12 @@ type Service interface {
 
 	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// ListVulnerability returns a vulnerability based on the provided CVE.
+	ListVulnerability(ctx context.Context, cve string, useCVSScores bool) (*VulnerabilityWithMetadata, error)
 	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
+	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies

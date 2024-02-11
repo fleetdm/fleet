@@ -103,6 +103,11 @@ func (s Software) ToUniqueStr() string {
 	return strings.Join(ss, SoftwareFieldSeparator)
 }
 
+type VulnerableSoftware struct {
+	Software
+	ResolvedInVersion string `json:"resolved_in_version" db:"resolved_in_version"`
+}
+
 type SliceString []string
 
 func (c *SliceString) Scan(v interface{}) error {
