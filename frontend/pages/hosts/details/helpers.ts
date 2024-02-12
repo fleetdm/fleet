@@ -53,7 +53,7 @@ const API_TO_UI_DEVICE_STATUS_MAP: Record<
   lock: "locking",
 };
 
-const deviceUpdatingStates = ["unlocking", "locking"];
+const deviceUpdatingStates = ["unlocking", "locking"] as const;
 
 /**
  * Gets the current UI state for the host device status. This helps us know what
@@ -79,5 +79,5 @@ export const getHostDeviceStatusUIState = (
 export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState
 ) => {
-  return deviceUpdatingStates.includes(deviceStatus);
+  return deviceUpdatingStates.includes(deviceStatus as any);
 };

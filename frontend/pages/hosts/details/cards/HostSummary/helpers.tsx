@@ -7,15 +7,20 @@ interface IDeviceStatusTag {
   generateTooltip: (platform?: string) => string;
 }
 
-// We exclude "unlocked as we dont display any device status for it"
+type HostMdmDeviceStatusUIStateNoUnlock = Exclude<
+  HostMdmDeviceStatusUIState,
+  "unlocked"
+>;
+
+// We exclude "unlocked" as we dont display any device status tag for it
 type DeviceStatusTagConfig = Record<
-  Exclude<HostMdmDeviceStatusUIState, "unlocked">,
+  HostMdmDeviceStatusUIStateNoUnlock,
   IDeviceStatusTag
 >;
 
 export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
   locked: {
-    title: "Locked",
+    title: "LOCKED",
     tagType: "warning",
     generateTooltip: (platform) =>
       platform === "darwin"
@@ -23,20 +28,24 @@ export const DEVICE_STATUS_TAGS: DeviceStatusTagConfig = {
         : "Host is locked. The end user can’t use the host until the host has been unlocked.",
   },
   unlocking: {
-    title: "Unlock Pending",
+    title: "UNLOCK PENDING",
     tagType: "warning",
     generateTooltip: () =>
       "Host will unlock when it comes online.  If the host is online, it will unlock the next time it checks in to Fleet.",
   },
   locking: {
-    title: "Lock Pending",
+    title: "LOCK PENDING",
     tagType: "warning",
     generateTooltip: () =>
       "Host will lock when it comes online.  If the host is online, it will lock the next time it checks in to Fleet.",
   },
 };
 
-export const REFETCH_TOOLTIP_MESSAGES = {
+// We exclude "unlocked" as we dont display a tooltip for it.
+export const REFETCH_TOOLTIP_MESSAGES: Record<
+  HostMdmDeviceStatusUIStateNoUnlock | "offline",
+  JSX.Element
+> = {
   offline: (
     <>
       You can&apos;t fetch data from <br /> an offline host.
