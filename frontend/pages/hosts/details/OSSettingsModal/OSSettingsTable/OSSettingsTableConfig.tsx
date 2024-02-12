@@ -7,6 +7,7 @@ import {
   // FLEET_FILEVAULT_PROFILE_IDENTIFIER,
   IHostMdmProfile,
   MdmProfileStatus,
+  ProfilePlatform,
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
@@ -53,6 +54,50 @@ interface IDataColumn {
   sortType?: string;
 }
 
+/**
+ * generates the formatted tooltip for the error column.
+ * the expected format of the error string is:
+ * "key1: value1, key2: value2, key3: value3"
+ */
+const generateFormattedTooltip = (detail: string) => {
+  const keyValuePairs = detail.split(/, */);
+  const formattedElements: JSX.Element[] = [];
+
+  keyValuePairs.forEach((pair, i) => {
+    const [key, value] = pair.split(/: */);
+    if (key && value) {
+      formattedElements.push(
+        <span key={key}>
+          <b>{key.trim()}:</b> {value.trim()}
+          {/* dont add the trailing comma for the last element */}
+          {i !== keyValuePairs.length - 1 && (
+            <>
+              ,<br />
+            </>
+          )}
+        </span>
+      );
+    }
+  });
+
+  return formattedElements.length ? <>{formattedElements}</> : detail;
+};
+
+/**
+ * generates the error tooltip for the error column. This will be formatted or
+ * unformatted.
+ */
+const generateErrorTooltip = (
+  cellValue: string,
+  platform: ProfilePlatform,
+  detail: string
+) => {
+  if (platform !== "windows") {
+    return cellValue;
+  }
+  return generateFormattedTooltip(detail);
+};
+
 const tableHeaders: IDataColumn[] = [
   {
     title: "Name",
@@ -85,13 +130,25 @@ const tableHeaders: IDataColumn[] = [
     accessor: "detail",
     Cell: (cellProps: ICellProps): JSX.Element => {
       const profile = cellProps.row.original;
+
+      const value =
+        (profile.status === "failed" && profile.detail) ||
+        DEFAULT_EMPTY_CELL_VALUE;
+
+      const tooltip =
+        profile.status === "failed"
+          ? generateErrorTooltip(
+              value,
+              cellProps.row.original.platform,
+              profile.detail
+            )
+          : null;
+
       return (
         <TooltipTruncatedTextCell
           tooltipBreakOnWord
-          value={
-            (profile.status === "failed" && profile.detail) ||
-            DEFAULT_EMPTY_CELL_VALUE
-          }
+          tooltip={tooltip}
+          value={value}
         />
       );
     },

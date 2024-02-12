@@ -317,8 +317,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
-	// dry-run never returns id to name mappings as it may not have them
-	require.Empty(t, applyResp.TeamIDsByName)
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true
 	teamSpecs = map[string]any{
@@ -5424,7 +5423,7 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	})
 	require.NoError(t, err)
 
-	// create a Linux host (unsupported)
+	// create a Linux host
 	host4, err := s.ds.NewHost(ctx, &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -5435,6 +5434,21 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 		UUID:            uuid.New().String(),
 		Hostname:        "host4",
 		Platform:        "ubuntu",
+		TeamID:          nil,
+	})
+	require.NoError(t, err)
+
+	// create a chrome host
+	host5, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String("host5"),
+		NodeKey:         ptr.String("host5"),
+		UUID:            uuid.New().String(),
+		Hostname:        "host5",
+		Platform:        "chrome",
 		TeamID:          nil,
 	})
 	require.NoError(t, err)
@@ -5632,7 +5646,7 @@ VALUES
 		require.Len(t, resp.Scripts, 1)
 	})
 
-	t.Run("unsupported platform linux", func(t *testing.T) {
+	t.Run("linux", func(t *testing.T) {
 		require.Nil(t, host4.TeamID)
 		noTeamScripts, _, err := s.ds.ListScripts(ctx, nil, fleet.ListOptions{})
 		require.NoError(t, err)
@@ -5641,7 +5655,23 @@ VALUES
 		var resp getHostScriptDetailsResponse
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host4.ID), nil, http.StatusOK, &resp)
 		require.NotNil(t, resp.Scripts)
-		require.Len(t, resp.Scripts, 0)
+		require.Len(t, resp.Scripts, 4)
+
+		for _, s := range resp.Scripts {
+			require.Nil(t, s.LastExecution)
+			require.Contains(t, s.Name, ".sh")
+		}
+	})
+
+	// NOTE: Scripts are specified only for platforms other than macOS, Linux,
+	// and Windows; however, we default to listing all scripts for unspecified platforms.
+	// Separately, the UI restricts scripts related functionality to only macOS,
+	// Linux, and Windows.
+	t.Run("unspecified platform", func(t *testing.T) {
+		var resp getHostScriptDetailsResponse
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/scripts", host5.ID), nil, http.StatusOK, &resp)
+		require.NotNil(t, resp.Scripts)
+		require.Len(t, resp.Scripts, 4)
 	})
 
 	t.Run("get script results user message", func(t *testing.T) {

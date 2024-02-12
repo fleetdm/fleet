@@ -523,11 +523,11 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Remotely enforce OS settings
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings
-  tier: Free
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
+  tier: Free
   waysToUse:
-    - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-30). #Customer-preston
+    - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
