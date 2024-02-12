@@ -2,23 +2,19 @@
 
 ### Bug fixes
 
-* Fix a bug where long enroll enroll secrets would overlap with the action buttons on top of them.
-* Fixed a bug that would cause OS Settings to never get verified if the MySQL config of Fleet's database has `only_full_group_by` mode enabled (enabled by default).
-* Fix visual display of chevron right icons on Chrome
-* Renamed the `mdm_windows_configuration_profiles` and `mdm_apple_configuration_profiles` `updated_at` field to `uploaded_at` and removed the automatic setting of the value, set explicity instead.
-* Fix a small alignment bug in the setup flow
-* Improved the validation of Windows profiles to prevent errors when the
-  profiles are delivered to the hosts. If you need to embed a nested XML
-  structure (for example for Wi-Fi profiles) you can either:
-      - Escape the XML
-      - Use a wrapping `<![CDATA[ ... ]]>` element
-* Fixes issue where an inaccurate message was returned after running an async (queued) script.
-* Fix URL query params to reset when switching tabs
-* Fix vulnerable software dropdown from switching back to all teams
-* Updated `GET /api/v1/fleet/hosts/:id/activities/upcoming` response to include the count of all
-  upcoming activities for the host.
-* Fixes issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it
-  were the host's software.
+* Fixed a bug where long enroll secrets would overlap with the action buttons on top of them.
+* Fixed a bug that caused OS Settings to never get verified if the MySQL config of Fleet's database had `only_full_group_by` mode enabled (enabled by default).
+* Fixed visual display of chevron right icons on Chrome.
+* Renamed the `mdm_windows_configuration_profiles` and `mdm_apple_configuration_profiles` `updated_at` field to `uploaded_at` and removed the automatic setting of the value, set explicitly instead.
+* Fixed a small alignment bug in the setup flow.
+* Improved the validation of Windows profiles to prevent errors when the profiles were delivered to the hosts. If you needed to embed a nested XML structure (for example, for Wi-Fi profiles), you could either:
+  - Escaped the XML.
+  - Used a wrapping `<![CDATA[ ... ]]>` element.
+* Fixed an issue where an inaccurate message was returned after running an async (queued) script.
+* Fixed URL query params to reset when switching tabs.
+* Fixed vulnerable software dropdown from switching back to all teams.
+* Updated `GET /api/v1/fleet/hosts/:id/activities/upcoming` response to include the count of all upcoming activities for the host.
+* Fixed an issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it were the host's software.
 * Removed unnecessary nested database transactions in batch-setting of MDM profiles.
 * Added count of upcoming activities to host vitals UI.
 
