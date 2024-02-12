@@ -23,6 +23,15 @@ export interface IGetVulnerabilitiesQueryKey
   scope: string;
 }
 
+interface IGetVulnerabilityOptions {
+  cve: string;
+  teamId?: number;
+}
+
+export interface IGetVulnerabilityQueryKey extends IGetVulnerabilityOptions {
+  scope: "softwareVulnByCVE";
+}
+
 export interface IVulnerabilitiesResponse {
   count: number;
   counts_updated_at: string;
@@ -67,10 +76,14 @@ export const getVulnerabilities = ({
   });
 };
 
-const getVulnerability = (cve: string): Promise<IVulnerabilityResponse> => {
-  const { VULNERABILITY } = endpoints;
+const getVulnerability = ({
+  cve,
+  teamId,
+}: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
+  const endpoint = endpoints.VULNERABILITY(cve);
+  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
-  // return sendRequest("GET", VULNERABILITY(cve)); // TODO: API INTEGRATION: uncomment when API is ready
+  // return sendRequest("GET", path); // TODO: API INTEGRATION: uncomment when API is ready
   return new Promise((resolve, reject) => {
     resolve(createMockVulnerabilityResponse());
   });
