@@ -107,7 +107,7 @@ const HostQueries = ({
             disableCount
             disableMultiRowSelect
             isLoading={false} // loading state handled at parent level
-            {...{ onSelectSingleRow }}
+            onSelectSingleRow={onSelectSingleRow}
           />
         </div>
       )}
