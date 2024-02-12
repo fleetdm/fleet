@@ -883,7 +883,17 @@ func (c *Client) DoGitOps(
 		if _, ok := group.AppConfig.(map[string]interface{})["mdm"]; !ok {
 			group.AppConfig.(map[string]interface{})["mdm"] = map[string]interface{}{}
 		}
-		mdmAppConfig = group.AppConfig.(map[string]interface{})["mdm"].(map[string]interface{})
+		// Ensure mdm config exists
+		mdmConfig, ok := group.AppConfig.(map[string]interface{})["mdm"]
+		if !ok || mdmConfig == nil {
+			mdmConfig = map[string]interface{}{}
+			group.AppConfig.(map[string]interface{})["mdm"] = mdmConfig
+		}
+		mdmAppConfig, ok = mdmConfig.(map[string]interface{})
+		if !ok {
+			return errors.New("org_settings.mdm config is not a map")
+		}
+
 		mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
 		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
