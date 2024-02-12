@@ -13,10 +13,11 @@ const baseClass = "lock-modal";
 interface ILockModalProps {
   id: number;
   platform: string;
+  onSuccess: () => void;
   onClose: () => void;
 }
 
-const LockModal = ({ id, platform, onClose }: ILockModalProps) => {
+const LockModal = ({ id, platform, onSuccess, onClose }: ILockModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
@@ -25,6 +26,7 @@ const LockModal = ({ id, platform, onClose }: ILockModalProps) => {
     setIsLocking(true);
     try {
       await hostAPI.lockHost(id);
+      onSuccess();
       renderFlash("success", "Host locked successfully!");
     } catch (error) {
       const err = error as AxiosError;

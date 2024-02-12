@@ -14,6 +14,7 @@ interface IUnlockModalProps {
   platform: string;
   hostName: string;
   pin?: number;
+  onSuccess: () => void;
   onClose: () => void;
 }
 
@@ -22,6 +23,7 @@ const UnlockModal = ({
   platform,
   hostName,
   pin,
+  onSuccess,
   onClose,
 }: IUnlockModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
@@ -31,6 +33,7 @@ const UnlockModal = ({
     setIsUnlocking(true);
     try {
       await hostAPI.unlockHost(id);
+      onSuccess();
       renderFlash("success", "Host Unlocked successfully!");
     } catch (error) {
       const err = error as AxiosError;

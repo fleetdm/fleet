@@ -994,6 +994,7 @@ const HostDetailsPage = ({
           <LockModal
             id={host.id}
             platform={host.platform}
+            onSuccess={() => setHostMdmDeviceState("locking")}
             onClose={() => setShowLockHostModal(false)}
           />
         )}
@@ -1003,6 +1004,9 @@ const HostDetailsPage = ({
             platform={host.platform}
             hostName={host.display_name}
             pin={123456}
+            onSuccess={() => {
+              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
+            }}
             onClose={() => setShowUnlockHostModal(false)}
           />
         )}
