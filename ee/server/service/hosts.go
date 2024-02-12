@@ -174,8 +174,9 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	case lockWipe.IsPendingUnlock():
 		// MacOS machines are unlocked by typing the PIN into the machine. "Unlock" in this case
 		// should just return the PIN as many times as needed.
+		// Breaking here will fall through to call enqueueLockHostRequest which will return the PIN.
 		if host.FleetPlatform() == "darwin" {
-			return lockWipe.UnlockPIN, nil
+			break
 		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
@@ -234,32 +235,34 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 }
 
 func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (string, error) {
-	if lockStatus.HostFleetPlatform == "darwin" {
-		return lockStatus.UnlockPIN, nil
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return "", fleet.ErrNoContext
 	}
 
-	script := windowsUnlockScript
-	if lockStatus.HostFleetPlatform == "linux" {
-		script = linuxUnlockScript
-	}
+	var unlockPIN string
 
-	// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
-	// part starting with the validation of the script (just in case), the checks
-	// that we don't enqueue over the limit, etc. for any other important
-	// validation we may add over there and that we bypass here by enqueueing the
-	// script directly in the datastore layer.
-	if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
-		HostID:         host.ID,
-		ScriptContents: string(script),
-		UserID:         &vc.User.ID,
-		SyncRequest:    false,
-	}); err != nil {
-		return "", err
+	if lockStatus.HostFleetPlatform == "darwin" {
+		unlockPIN = lockStatus.UnlockPIN
+	} else {
+		script := windowsUnlockScript
+		if lockStatus.HostFleetPlatform == "linux" {
+			script = linuxUnlockScript
+		}
+
+		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+		// part starting with the validation of the script (just in case), the checks
+		// that we don't enqueue over the limit, etc. for any other important
+		// validation we may add over there and that we bypass here by enqueueing the
+		// script directly in the datastore layer.
+		if err := svc.ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: string(script),
+			UserID:         &vc.User.ID,
+			SyncRequest:    false,
+		}); err != nil {
+			return "", err
+		}
 	}
 
 	if err := svc.ds.NewActivity(
@@ -274,7 +277,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		return "", ctxerr.Wrap(ctx, err, "create activity for unlock host request")
 	}
 
-	return "", nil
+	return unlockPIN, nil
 }
 
 // TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
