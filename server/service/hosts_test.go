@@ -1445,8 +1445,6 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	}
 }
 
-// TestLockUnlockHostAuth is broken out into its own test as the permissions differ from the rest of the
-// host endpoints.
 func TestLockUnlockHostAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
@@ -1520,6 +1518,72 @@ func TestLockUnlockHostAuth(t *testing.T) {
 			shouldFailGlobalWrite: true,
 			shouldFailTeamWrite:   true,
 		},
+		{
+			name:                  "team observer",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global observer plus",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team observer plus",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global admin",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team admin",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "global maintainer",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team maintainer",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team admin wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team maintainer wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global gitops",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team gitops",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
 	}
 
 	for _, tt := range cases {
@@ -1529,13 +1593,25 @@ func TestLockUnlockHostAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			err := svc.LockHost(ctx, 1)
+			err := svc.LockHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.LockHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			_, err = svc.UnlockHost(ctx, 1)
+			// Pretend we locked the host
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{HostFleetPlatform: fleetPlatform, LockMDMCommand: &fleet.MDMCommand{}, LockMDMCommandResult: &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}}, nil
+			}
+
+			_, err = svc.UnlockHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			_, err = svc.UnlockHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			// Reset so we're now pretending host is unlocked
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
 		})
 	}
 }
