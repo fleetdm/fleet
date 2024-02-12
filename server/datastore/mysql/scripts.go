@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 	"unicode/utf8"
@@ -62,6 +63,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ? AND
     execution_id = ?`
 
+	const hostMDMActionsStmt = `
+  SELECT
+    CASE
+      WHEN lock_ref = ? THEN 'lock_ref'
+      WHEN unlock_ref = ? THEN 'unlock_ref'
+      WHEN wipe_ref = ? THEN 'wipe_ref'
+      ELSE ''
+    END AS ref_col
+  FROM
+    host_mdm_actions
+  WHERE
+    host_id = ?
+`
+
 	const maxOutputRuneLen = 10000
 	output := result.Output
 	if len(output) > utf8.UTFMax*maxOutputRuneLen {
@@ -74,24 +89,45 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, updStmt,
-		output,
-		result.Runtime,
-		result.ExitCode,
-		result.HostID,
-		result.ExecutionID,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "update host script result")
-	}
-
 	var hsr *fleet.HostScriptResult
-	if n, _ := res.RowsAffected(); n > 0 {
-		// it did update, so return the updated result
-		hsr, err = ds.getHostScriptExecutionResultDB(ctx, ds.writer(ctx), result.ExecutionID)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, updStmt,
+			output,
+			result.Runtime,
+			result.ExitCode,
+			result.HostID,
+			result.ExecutionID,
+		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load updated host script result")
+			return ctxerr.Wrap(ctx, err, "update host script result")
 		}
+
+		if n, _ := res.RowsAffected(); n > 0 {
+			// it did update, so return the updated result
+			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "load updated host script result")
+			}
+
+			// look up if that script was a lock/unlock/wipe script for that host,
+			// and if so update the host_mdm_actions table accordingly.
+			var refCol string
+			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.ExecutionID, result.HostID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, refCol will be empty
+				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
+			}
+			if refCol != "" {
+				err = ds.updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, refCol, result.ExitCode == 0)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "update host mdm action based on script result")
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 	return hsr, nil
 }
@@ -663,4 +699,34 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 
 		return err
 	})
+}
+
+func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
+	stmt := `UPDATE host_mdm_actions SET %s WHERE host_id = ?`
+
+	if succeeded {
+		switch refCol {
+		case "lock_ref":
+			// Note that this must not clear the unlock_pin, because recording the
+			// lock request does generate the PIN and store it there to be used by an
+			// eventual unlock.
+			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL")
+		case "unlock_ref":
+			// a successful unlock clears itself as well as the lock ref, because
+			// unlock is the default state so we don't need to keep its unlock_ref
+			// around once it's confirmed.
+			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
+		case "wipe_ref":
+			// TODO(mna): implement when implementing the wipe story
+		default:
+			return ctxerr.Errorf(ctx, "unknown reference column %q", refCol)
+		}
+	} else {
+		// if the action failed, then we clear the reference to that action itself so
+		// the host stays in the previous state (it doesn't transition to the new
+		// state).
+		stmt = fmt.Sprintf(stmt, refCol+" = NULL")
+	}
+	_, err := tx.ExecContext(ctx, stmt, hostID)
+	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
