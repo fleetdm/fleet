@@ -15,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -958,12 +959,13 @@ func (a *agent) config() error {
 	res := fasthttp.AcquireResponse()
 
 	err := a.fastClient.Do(req, res)
-	if err != nil {
-		return fmt.Errorf("config request failed to run: %w", err)
-	}
 
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
+
+	if err != nil {
+		return fmt.Errorf("config request failed to run: %w", err)
+	}
 
 	a.stats.IncrementConfigRequests()
 
@@ -1146,12 +1148,13 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 	res := fasthttp.AcquireResponse()
 
 	err := a.fastClient.Do(req, res)
-	if err != nil {
-		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
-	}
 
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
+
+	if err != nil {
+		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
+	}
 
 	a.stats.IncrementDistributedReads()
 
@@ -1602,12 +1605,13 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	res := fasthttp.AcquireResponse()
 
 	err = a.fastClient.Do(req, res)
-	if err != nil {
-		return fmt.Errorf("distributed/write request failed to run: %w", err)
-	}
 
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
+
+	if err != nil {
+		return fmt.Errorf("distributed/write request failed to run: %w", err)
+	}
 
 	a.stats.IncrementDistributedWrites()
 
@@ -1669,12 +1673,13 @@ func (a *agent) submitLogs(results []json.RawMessage) error {
 	res := fasthttp.AcquireResponse()
 
 	err = a.fastClient.Do(req, res)
-	if err != nil {
-		return fmt.Errorf("log request failed to run: %w", err)
-	}
 
 	fasthttp.ReleaseRequest(req)
 	defer fasthttp.ReleaseResponse(res)
+
+	if err != nil {
+		return fmt.Errorf("log request failed to run: %w", err)
+	}
 
 	a.stats.IncrementResultLogRequests()
 
@@ -1714,6 +1719,9 @@ func rows(num int) string {
 }
 
 func main() {
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
 	validTemplateNames := map[string]bool{
 		"macos_13.6.2.tmpl":         true,
 		"macos_14.1.2.tmpl":         true,
