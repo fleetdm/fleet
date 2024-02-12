@@ -1,7 +1,7 @@
 /** software/titles/:id */
 
 import React from "react";
-import { RouteComponentProps } from "react-router";
+import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
 import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
@@ -22,17 +22,24 @@ interface ISoftwareTitleDetailsRouteParams {
   id: string;
 }
 
-type ISoftwareTitleDetailsPageProps = RouteComponentProps<
-  undefined,
-  ISoftwareTitleDetailsRouteParams
->;
+interface ISoftwareTitleDetailsPageProps {
+  router: InjectedRouter;
+  routeParams: ISoftwareTitleDetailsRouteParams;
+  location: {
+    query: { team_id?: string };
+  };
+}
 
 const SoftwareTitleDetailsPage = ({
   router,
   routeParams,
+  location,
 }: ISoftwareTitleDetailsPageProps) => {
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
+    : undefined;
 
   const {
     data: softwareTitle,
@@ -66,7 +73,7 @@ const SoftwareTitleDetailsPage = ({
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
-          queryParams={{ software_title_id: softwareId }}
+          queryParams={{ software_title_id: softwareId, team_id: teamId }}
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
@@ -77,6 +84,7 @@ const SoftwareTitleDetailsPage = ({
             router={router}
             data={softwareTitle.versions}
             isLoading={isSoftwareTitleLoading}
+            teamId={teamId}
           />
         </div>
       </>

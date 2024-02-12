@@ -42,6 +42,7 @@ interface ISoftwareTitleDetailsTableProps {
   router: InjectedRouter;
   data: ISoftwareTitleVersion[];
   isLoading: boolean;
+  teamId?: number;
 }
 
 interface IRowProps extends Row {
@@ -54,6 +55,7 @@ const SoftwareTitleDetailsTable = ({
   router,
   data,
   isLoading,
+  teamId,
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
@@ -70,7 +72,7 @@ const SoftwareTitleDetailsTable = ({
   };
 
   const softwareTableHeaders = useMemo(
-    () => generateSoftwareTitleDetailsTableConfig(router),
+    () => generateSoftwareTitleDetailsTableConfig({ router, teamId }),
     [router]
   );
 

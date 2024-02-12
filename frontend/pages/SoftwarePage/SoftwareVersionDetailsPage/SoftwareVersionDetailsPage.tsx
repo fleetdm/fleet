@@ -27,18 +27,18 @@ interface ISoftwareVersionDetailsRouteParams {
   team_id?: string;
 }
 
-interface ISoftwareOSDetailsPageProps {
+interface ISoftwareTitleDetailsPageProps {
   routeParams: ISoftwareVersionDetailsRouteParams;
-  router: InjectedRouter;
+  location: { query: { team_id?: string } };
 }
 
 const SoftwareVersionDetailsPage = ({
   routeParams,
-  router,
-}: ISoftwareOSDetailsPageProps) => {
+  location,
+}: ISoftwareTitleDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
-  const teamId = routeParams.team_id
-    ? parseInt(routeParams.team_id, 10)
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
     : undefined;
 
   const {
@@ -80,14 +80,16 @@ const SoftwareVersionDetailsPage = ({
     if (!softwareVersion) {
       return null;
     }
-
     return (
       <>
         <SoftwareDetailsSummary
           title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={formatSoftwareType(softwareVersion)}
           hosts={hostsCount ?? 0}
-          queryParams={{ software_version_id: softwareVersion.id }}
+          queryParams={{
+            software_version_id: softwareVersion.id,
+            team_id: teamId,
+          }}
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
