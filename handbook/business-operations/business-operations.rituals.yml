@@ -13,7 +13,7 @@
   startedOn: "2024-02-14"
   frequency: "Triweekly"
   description: "Prepare for this sprint's Key review meeting"
-  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#book-an-event"
+  moreInfoUrl: "https://fleetdm.com/handbook/company/leadership#key-reviews"
   dri: "joStableford"
   autoIssue:   
     labels: [ "#g-business-operations" ] 
@@ -157,8 +157,3 @@
 #   description: "Check 📃 Planned articles and complete steps in each issue"
 #   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
 #   dri: "spokanemac"
-
-
-
-https://fleetdm.com/handbook/company/leadership#key-reviews
-
