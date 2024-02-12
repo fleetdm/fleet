@@ -40,7 +40,7 @@ If you would like to use Fleet's MDM features, the following endpoints need to b
 
 - `/mdm/apple/scep`, `/mdm/apple/mdm`, and `/api/mdm/apple/enroll` don't support mTLS.
 - All `/api/v1/fleet/device/*` endpoints support mTLS.
-- The base URL for all MDM feautres that use `/api/v1/fleet/device/*` API endpoints don't support `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST`.
+- The base URL for all MDM features that use `/api/v1/fleet/device/*` API endpoints don't support `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST`.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
