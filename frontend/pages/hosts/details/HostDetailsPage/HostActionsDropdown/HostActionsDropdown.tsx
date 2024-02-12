@@ -62,17 +62,13 @@ const HostActionsDropdown = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
-    // isHostOnline: hostStatus === "online",
+    isHostOnline: hostStatus === "online",
 
-    // isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-    //   hostMdmEnrollemntStatus ?? ""
-    // ),
-    // isFleetMdm: mdmName === "Fleet",
-    // isMdmEnabledAndConfigured,
-    isHostOnline: true,
-    isEnrolledInMdm: true,
-    isFleetMdm: true,
-    isMdmEnabledAndConfigured: true,
+    isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
+      hostMdmEnrollemntStatus ?? ""
+    ),
+    isFleetMdm: mdmName === "Fleet",
+    isMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
     hostMdmDeviceStatus,

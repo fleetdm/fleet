@@ -275,11 +275,10 @@ const HostDetailsPage = ({
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
         setHostMdmDeviceState(
-          // getHostDeviceStatusUIState(
-          //   returnedHost.mdm.device_status,
-          //   returnedHost.mdm.pending_action
-          // ),
-          getHostDeviceStatusUIState("locked", "")
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
         );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
