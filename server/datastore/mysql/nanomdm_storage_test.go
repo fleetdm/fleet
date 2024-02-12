@@ -44,6 +44,7 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 		Platform:      "darwin",
 	})
 	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
 
 	// no commands yet
 	res, err := ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
@@ -52,6 +53,7 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 
 	cmd := &mdm.Command{}
 	cmd.CommandUUID = "cmd-uuid"
+	cmd.Command.RequestType = "DeviceLock"
 	cmd.Raw = []byte("<?xml")
 
 	err = ns.EnqueueDeviceLockCommand(ctx, host, cmd, "123456")
@@ -60,12 +62,10 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 	// command has no results yet, so the status is empty
 	res, err = ds.ListMDMAppleCommands(ctx, fleet.TeamFilter{User: test.UserAdmin}, &fleet.MDMCommandListOptions{})
 	require.NoError(t, err)
-	require.Len(t, res, 2)
+	require.Len(t, res, 1)
 
 	require.NotZero(t, res[0].UpdatedAt)
 	res[0].UpdatedAt = time.Time{}
-	require.NotZero(t, res[1].UpdatedAt)
-	res[1].UpdatedAt = time.Time{}
 
 	require.ElementsMatch(t, []*fleet.MDMAppleCommand{
 		{
@@ -80,6 +80,6 @@ func testEnqueueDeviceLockCommand(t *testing.T, ds *Datastore) {
 
 	status, err := ds.GetHostLockWipeStatus(ctx, host.ID, "darwin")
 	require.NoError(t, err)
-	require.Equal(t, "cmd-uuid", status.LockMDMCommand)
+	require.Equal(t, "cmd-uuid", status.LockMDMCommand.CommandUUID)
 	require.Equal(t, "123456", status.UnlockPIN)
 }
