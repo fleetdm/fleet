@@ -26,7 +26,6 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"sync"
 	"testing"
 	"time"
 )
@@ -202,9 +201,6 @@ type withServer struct {
 	users            map[string]fleet.User
 	token            string
 	cachedAdminToken string
-
-	cachedTokensMu sync.Mutex
-	cachedTokens   map[string]string // email -> auth token
 }
 
 func (ts *withServer) getTestAdminToken() string {
