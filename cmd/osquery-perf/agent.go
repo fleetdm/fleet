@@ -377,7 +377,7 @@ type agent struct {
 	scheduledQueriesMu sync.Mutex // protects the below members
 	scheduledQueries   []string
 	scheduledQueryData []scheduledQuery
-	bufferedResults    []json.RawMessage
+	bufferedResults    []resultLog
 }
 
 type entityCount struct {
@@ -566,13 +566,17 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	defer logTicker.Stop()
 	for range logTicker.C {
 		// check if we have any scheduled queries that should be returning results
-		var results []json.RawMessage
+		var results []resultLog
 		now := time.Now().Unix()
 		a.scheduledQueriesMu.Lock()
 		prevCount := len(a.bufferedResults)
 		for i, query := range a.scheduledQueryData {
 			if query.nextRun == 0 || now >= int64(query.nextRun) {
-				results = append(results, a.scheduledQueryResults(query.packName, query.Name, int(query.numRows)))
+				results = append(results, resultLog{
+					packName:  query.packName,
+					queryName: query.Name,
+					numRows:   int(query.numRows),
+				})
 				a.scheduledQueryData[i].nextRun = float64(now + int64(query.ScheduleInterval))
 			}
 		}
@@ -588,6 +592,16 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	}
 }
 
+type resultLog struct {
+	packName  string
+	queryName string
+	numRows   int
+}
+
+func (r resultLog) emit() json.RawMessage {
+	return scheduledQueryResults(r.packName, r.queryName, r.numRows)
+}
+
 // sendLogsBatch sends up to loggerTLSMaxLines logs and updates the buffer.
 func (a *agent) sendLogsBatch() {
 	if len(a.bufferedResults) == 0 {
@@ -599,7 +613,11 @@ func (a *agent) sendLogsBatch() {
 		batchSize = len(a.bufferedResults)
 	}
 	batch := a.bufferedResults[:batchSize]
-	if err := a.submitLogs(batch); err != nil {
+	batchLogs := make([]json.RawMessage, 0, len(batch))
+	for _, result := range batch {
+		batchLogs = append(batchLogs, result.emit())
+	}
+	if err := a.submitLogs(batchLogs); err != nil {
 		return
 	}
 	a.bufferedResults = a.bufferedResults[batchSize:]
@@ -1603,13 +1621,13 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	return nil
 }
 
-func (a *agent) scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
+func scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
 	return json.RawMessage(`{
-  "snapshot": [` + rows(numResults, a.UUID) + `
+  "snapshot": [` + rows(numResults) + `
   ],
   "action": "snapshot",
   "name": "pack/` + packName + `/` + queryName + `",
-  "hostIdentifier": "` + a.UUID + `",
+  "hostIdentifier": "EF9595F0-CE81-493A-9B06-D8A9D2CCB952",
   "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
   "unixTime": 1696615984,
   "epoch": 0,
@@ -1617,7 +1635,7 @@ func (a *agent) scheduledQueryResults(packName, queryName string, numResults int
   "numerics": false,
   "decorations": {
     "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
-    "hostname": "` + a.CachedString("hostname") + `"
+    "hostname": "osquery-perf"
   }
 }`)
 }
@@ -1670,7 +1688,7 @@ func (a *agent) submitLogs(results []json.RawMessage) error {
 }
 
 // rows returns a set of rows for use in tests for query results.
-func rows(num int, hostUUID string) string {
+func rows(num int) string {
 	b := strings.Builder{}
 	for i := 0; i < num; i++ {
 		b.WriteString(`    {
@@ -1683,7 +1701,7 @@ func rows(num int, hostUUID string) string {
       "pid": "3574",
       "platform_mask": "9",
       "start_time": "1696502961",
-      "uuid": "` + hostUUID + `",
+      "uuid": "EF9595F0-CE81-493A-9B06-D8A9D2CCB95",
       "version": "5.9.2",
       "watcher": "3570"
     }`)
