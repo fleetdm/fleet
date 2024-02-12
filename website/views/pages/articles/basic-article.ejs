@@ -1,6 +1,15 @@
 <div id="basic-article" v-cloak>
   <div style="max-width: 800px;" class="container-fluid px-0">
     <div purpose="article-title">
+      <div purpose="breadcrumbs" class="d-none d-lg-flex p-0 align-items-center breadcrumbs">
+        <a href="/articles" class="pr-3">
+          Articles
+        </a>
+        <div class="d-flex p-0 m-0 align-items-center">
+          <img style="width: 6px; height: 9px;" alt="right chevron" src="/images/chevron-right-6x9@2x.png" />
+          <a :href="'/'+thisPage.url.split('/')[1]" class="px-3">{{thisPage.meta.category}}</a>
+        </div>
+      </div>
       <h1><%=thisPage.meta.articleTitle %></h1>
       <h2 v-if="articleHasSubtitle && articleSubtitle !== undefined">{{articleSubtitle}}</h2>
     </div>
