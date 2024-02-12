@@ -820,10 +820,12 @@ func main() {
 		// Try performing a flags update to use latest configured osquery flags from get-go.
 		// This also takes care of populating the server's capabilities as it calls the orbit
 		// config endpoint.
+		configErrSeen := false
 		if _, err := flagRunner.DoFlagsUpdate(); err != nil {
 			// Just log, OK to continue, since flagRunner will retry
 			// in flagRunner.Execute.
-			log.Debug().Err(err).Msg("initial flags update failed")
+			configErrSeen = true
+			log.Warn().Err(err).Msg("initial flags update failed")
 		}
 		g.Add(flagRunner.Execute, flagRunner.Interrupt)
 
@@ -844,7 +846,13 @@ func main() {
 			if err != nil {
 				// Just log, OK to continue, since serverOverridesRunner will retry
 				// in serverOverridesRunner.Execute.
-				log.Debug().Err(err).Msg("initial flags update failed")
+				// If we have already seen an error, we don't log this error at the same severity.
+				event := log.Debug()
+				if !configErrSeen {
+					event = log.Warn()
+					configErrSeen = true
+				}
+				event.Err(err).Msg("initial flags update failed")
 			}
 			if didUpdate {
 				log.Info().Msg("exiting due to early update of server overrides")
@@ -865,7 +873,15 @@ func main() {
 
 			if _, err := extRunner.DoExtensionConfigUpdate(); err != nil {
 				// just log, OK to continue since this will get retry
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed")
+				// If we have already seen an error, we don't log this error at the same severity.
+				event := log.Debug()
+				if !configErrSeen {
+					event = log.Warn()
+					configErrSeen = true
+				}
+				logging.LogErrIfEnvNotSetWithEvent(
+					constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed", event,
+				)
 			}
 
 			// call UpdateAction on the updateRunner after we have fetched extensions from Fleet

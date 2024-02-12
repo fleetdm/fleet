@@ -128,8 +128,15 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now
+		return oc.configCache.config, oc.configCache.err
 	}
-	return oc.configCache.config, oc.configCache.err
+	// If time-to-live did not pass, we return the cached config.
+	// We update the error text to reduce duplicated error logging.
+	err := oc.configCache.err
+	if err != nil {
+		err = errors.New("no valid config: see previous error")
+	}
+	return oc.configCache.config, err
 }
 
 // SetOrUpdateDeviceToken sends a request to the server to set or update the
