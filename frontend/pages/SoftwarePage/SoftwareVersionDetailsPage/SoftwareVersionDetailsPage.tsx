@@ -1,6 +1,6 @@
 import React from "react";
 import { useQuery } from "react-query";
-import { RouteComponentProps } from "react-router";
+import { InjectedRouter } from "react-router";
 
 import softwareAPI, {
   ISoftwareVersionResponse,
@@ -22,17 +22,20 @@ const baseClass = "software-version-details-page";
 
 interface ISoftwareVersionDetailsRouteParams {
   id: string;
+  team_id?: string;
 }
 
-type ISoftwareTitleDetailsPageProps = RouteComponentProps<
-  undefined,
-  ISoftwareVersionDetailsRouteParams
->;
+interface ISoftwareOSDetailsPageProps {
+  routeParams: ISoftwareVersionDetailsRouteParams;
+  router: InjectedRouter;
+}
 
 const SoftwareVersionDetailsPage = ({
   routeParams,
-}: ISoftwareTitleDetailsPageProps) => {
+  router,
+}: ISoftwareOSDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
+  const teamId = parseInt(routeParams.team_id, 10);
 
   const {
     data: softwareVersion,
@@ -90,6 +93,8 @@ const SoftwareVersionDetailsPage = ({
             data={softwareVersion.vulnerabilities ?? []}
             itemName="software item"
             isLoading={isSoftwareVersionLoading}
+            router={router}
+            teamId={teamId}
           />
         </div>
       </>
