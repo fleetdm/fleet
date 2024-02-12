@@ -42,6 +42,10 @@ const softwareSubNav: ISoftwareSubNavItem[] = [
     name: "OS",
     pathname: PATHS.SOFTWARE_OS,
   },
+  {
+    name: "Vulnerabilities",
+    pathname: PATHS.SOFTWARE_VULNERABILITIES,
+  },
 ];
 
 const getTabIndex = (path: string): number => {
@@ -87,6 +91,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
+      exploited?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -128,6 +133,8 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const query = queryParams && queryParams.query ? queryParams.query : "";
   const showVulnerableSoftware =
     queryParams !== undefined && queryParams.vulnerable === "true";
+  const showExploitedVulnerabilitiesOnly =
+    queryParams !== undefined && queryParams.exploited === "true";
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -334,6 +341,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           // TODO: move down into the Software Titles component
           query,
           showVulnerableSoftware,
+          showExploitedVulnerabilitiesOnly,
         })}
       </div>
     );
