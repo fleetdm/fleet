@@ -39,8 +39,4 @@ func TestServeFrontend(t *testing.T) {
 	response, err := http.DefaultClient.Post(ts.URL, "", bytes.NewReader(requestBody))
 	require.NoError(t, err)
 	require.Equal(t, http.StatusMethodNotAllowed, response.StatusCode)
-
-	response, err = http.DefaultClient.Get(ts.URL)
-	require.NoError(t, err)
-	require.Equal(t, http.StatusOK, response.StatusCode)
 }

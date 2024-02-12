@@ -7,7 +7,7 @@ var (
 	buildTags   = make(map[string]struct{})
 )
 
-func addBuildTag(tag string) {
+func addBuildTag(tag string) { //nolint:unused
 	buildTagsMu.Lock()
 	defer buildTagsMu.Unlock()
 
