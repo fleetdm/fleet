@@ -163,14 +163,14 @@ const SoftwareTable = ({
     [deviceUser, router, pathname]
   );
 
-  const handleVulnFilterDropdownChange = (isFilterVulnerable: string) => {
+  const handleVulnFilterDropdownChange = (isFilterVulnerable: boolean) => {
     const nextPath = getNextLocationPath({
       pathPrefix,
       routeTemplate,
       queryParams: {
         ...queryParams,
         page: 0,
-        vulnerable: isFilterVulnerable,
+        vulnerable: isFilterVulnerable.toString(),
       },
     });
     router?.replace(nextPath);

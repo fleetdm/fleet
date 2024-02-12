@@ -61,6 +61,7 @@ import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
+import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
@@ -224,6 +225,10 @@ const routes = (
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
               <Route path="os" component={SoftwareOS} />
+              <Route
+                path="vulnerabilities"
+                component={SoftwareVulnerabilities}
+              />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
