@@ -122,19 +122,13 @@ func (s *integrationGitopsTestSuite) TestFleetGitops() {
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
 	token := s.getTestToken(user.Email, test.GoodPassword)
-	// TODO: We need to use GitOps user. Remove this line.
-	token = s.getTestToken("admin1@example.com", test.GoodPassword)
 	configStr := fmt.Sprintf(
 		`
 contexts:
   default:
     address: %s
-    custom-headers: null
-    email: "admin1@example.com"
-    rootca: ""
     tls-skip-verify: true
     token: %s
-    url-prefix: ""
 `, s.server.URL, token,
 	)
 	_, err = fleetctlConfig.WriteString(configStr)
