@@ -1194,6 +1194,14 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		}
 		packName, scheduledName := parts[0], parts[1]
 
+		// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+		wallTimeMs := cast.ToUint64(row["wall_time_ms"])
+		if wallTimeMs == 0 {
+			wallTime := cast.ToUint64(row["wall_time"])
+			if wallTime != 0 {
+				wallTimeMs = wallTime * 1000
+			}
+		}
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
@@ -1206,7 +1214,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			OutputSize:   cast.ToUint64(row["output_size"]),
 			SystemTime:   cast.ToUint64(row["system_time"]),
 			UserTime:     cast.ToUint64(row["user_time"]),
-			WallTime:     cast.ToUint64(row["wall_time"]),
+			WallTimeMs:   wallTimeMs,
 		}
 		packs[packName] = append(packs[packName], stats)
 	}

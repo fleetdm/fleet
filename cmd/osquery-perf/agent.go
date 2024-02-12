@@ -1194,7 +1194,8 @@ func (a *agent) randomQueryStats() []map[string]string {
 			"output_size":    fmt.Sprint(rand.Intn(100) + 1),
 			"system_time":    fmt.Sprint(rand.Intn(4000) + 10),
 			"user_time":      fmt.Sprint(rand.Intn(4000) + 10),
-			"wall_time":      fmt.Sprint(rand.Intn(4000) + 10),
+			"wall_time":      fmt.Sprint(rand.Intn(4) + 1),
+			"wall_time_ms":   fmt.Sprint(rand.Intn(4000) + 10),
 		})
 	}
 	return stats
