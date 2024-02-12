@@ -1,37 +1,40 @@
 import React from "react";
 
-import { formatSeverity } from "utilities/helpers";
-import { ISoftwareVulnerability } from "interfaces/software";
+import { InjectedRouter } from "react-router";
 
-import paths from "router/paths";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
-import TextCell from "components/TableContainer/DataTable/TextCell";
-import TooltipWrapper from "components/TooltipWrapper";
-import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import PATHS from "router/paths";
+import { formatSeverity } from "utilities/helpers";
+import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
+import { IVulnerability } from "interfaces/vulnerability";
+
 import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
+import TextCell from "components/TableContainer/DataTable/TextCell";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
 interface ICellProps {
   cell: {
-    value: number | string | string[];
+    value: number | string | IVulnerability[];
   };
   row: {
-    original: ISoftwareVulnerability;
-    index: number;
+    original: IVulnerability;
   };
 }
 
 interface ITextCellProps extends ICellProps {
   cell: {
     value: string | number;
+  };
+}
+
+interface IHeaderProps {
+  column: {
+    title: string;
+    isSortedDesc: boolean;
   };
 }
 
@@ -45,29 +48,51 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const generateTableConfig = (
-  isPremiumTier: boolean,
-  isSandboxMode: boolean
+interface IVulnerabilitiesTableConfigOptions {
+  includeName?: boolean;
+  includeVulnerabilities?: boolean;
+  includeIcon?: boolean;
+}
+
+const generateTableHeaders = (
+  isPremiumTier?: boolean,
+  isSandboxMode?: boolean,
+  router?: InjectedRouter,
+  configOptions?: IVulnerabilitiesTableConfigOptions
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
-      title: "Vunerability",
-      accessor: "cve",
-      disableSortBy: true,
+      title: "Vulnerability",
       Header: "Vulnerability",
-      Cell: ({ cell: { value } }: ITextCellProps) => {
-        const cveName = value.toString();
+      disableSortBy: true,
+      accessor: "cve",
+      Cell: (cellProps: ITextCellProps) => {
+        if (!configOptions?.includeIcon) {
+          return (
+            <TextCell
+              value={cellProps.cell.value}
+              formatter={(name) => formatOperatingSystemDisplayName(name)}
+            />
+          );
+        }
+
+        const { cve } = cellProps.row.original;
+        const onClickVulnerability = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve));
+        };
+
         return (
           <LinkCell
-            value={cveName}
-            path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveName)}
+            path={PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve)}
+            customOnClick={onClickVulnerability}
+            value={cve}
           />
         );
       },
     },
-  ];
-
-  const premiumHeaders: IDataColumn[] = [
     {
       title: "Severity",
       accessor: "cvss_score",
@@ -199,6 +224,22 @@ const generateTableConfig = (
       },
     },
     {
+      title: "Hosts",
+      Header: (cellProps: IHeaderProps): JSX.Element => (
+        <HeaderCell
+          value="Hosts"
+          disableSortBy={false}
+          isSortedDesc={cellProps.column.isSortedDesc}
+        />
+      ),
+      disableSortBy: false,
+      accessor: "hosts_count",
+      Cell: (cellProps: ITextCellProps): JSX.Element => {
+        const { hosts_count } = cellProps.row.original;
+        return <TextCell value={hosts_count} />;
+      },
+    },
+    {
       title: "",
       Header: "",
       accessor: "linkToFilteredHosts",
@@ -221,7 +262,15 @@ const generateTableConfig = (
     },
   ];
 
-  return isPremiumTier ? tableHeaders.concat(premiumHeaders) : tableHeaders;
+  if (!isPremiumTier) {
+    return tableHeaders.filter(
+      (header) =>
+        header.accessor !== "epss_probability" &&
+        header.accessor !== "cve_published"
+    );
+  }
+
+  return tableHeaders;
 };
 
-export default generateTableConfig;
+export default generateTableHeaders;
