@@ -41,7 +41,7 @@ We merge bug fixes, documentation changes, and website updates during the freeze
 
 > To allow a stable release test, the final 24 hours before release is a deep freeze when only bugs with the `~release-blocker` or `~unreleased-bug` labels are merged.
 
-If there is partially merged feature work when freeze begins, the previously merged code must be reverted. If there is an exceptional, business critical need to merge feature work during freeze, as determined by the [release ritual DRI](#rituals), the following exception process may be followed:
+If there is partially merged feature work when freeze begins, the previously merged code must be reverted. If there is an exceptional, business-critical need to merge feature work during freeze, as determined by the [release ritual DRI](#rituals), the following exception process may be followed:
 
 1. The engineer requesting the feature work merge exception during freeze notifies their Engineering Manager. 
 2. The Engineering Manager notifies the QA lead for the product group and the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). 
@@ -129,6 +129,9 @@ Immediately after publishing a new release, we close out the associated GitHub i
 
 12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
 
+### Update the Fleet releases calendar
+The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
+
 ### Review a community pull request
 If you're assigned a community pull request for review, it is important to keep things moving for the contributor. The goal is to not go more than one business day without following up with the contributor.
 
@@ -189,20 +192,18 @@ The on-call developer is responsible for:
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
 ### Notify community members about a critical bug
-We need to inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm.
-Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
+We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
 
-If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.)
-Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
+If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.) Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
 
 Once raised, product confirms whether or not it's critical and defines expected behavior.
 When outside of working hours for the product team or if no one from product responds within 1 hour, then fall back to the #help-p1.
 
-Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success is not available, the on-call engineer is responsible for doing this.
-If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
+Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success is not available, the on-call engineer is responsible for doing this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
 
 When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
 
+> After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
