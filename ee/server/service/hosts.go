@@ -172,6 +172,11 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	case lockWipe.IsPendingLock():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be unlocked until lock is complete."))
 	case lockWipe.IsPendingUnlock():
+		// MacOS machines are unlocked by typing the PIN into the machine. "Unlock" in this case
+		// should just return the PIN as many times as needed.
+		if host.FleetPlatform() == "darwin" {
+			break
+		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
