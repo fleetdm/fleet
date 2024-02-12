@@ -117,13 +117,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	// TODO(mna): assuming this implementation (which is for the deprecated
-	// /mdm/hosts/:id/lock endpoint) should work as the new endpoint, then this
-	// should call svc.enqueueLockHostRequest so that it behaves like the new
-	// endpoint. And yes, we do need to save the generated PIN so the DeviceLock
-	// method signature must change to return it.
-	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}

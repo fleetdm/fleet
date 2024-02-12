@@ -104,7 +104,7 @@ func NewService(
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	depStorage nanodep_storage.AllStorage,
-	mdmStorage nanomdm_storage.AllStorage,
+	mdmStorage fleet.MDMAppleStore,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,
 	cronSchedulesService fleet.CronSchedulesService,
