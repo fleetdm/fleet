@@ -58,7 +58,8 @@ const generateTableHeaders = (
   isPremiumTier?: boolean,
   isSandboxMode?: boolean,
   router?: InjectedRouter,
-  configOptions?: IVulnerabilitiesTableConfigOptions
+  configOptions?: IVulnerabilitiesTableConfigOptions,
+  teamId?: number
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -245,12 +246,14 @@ const generateTableHeaders = (
       accessor: "linkToFilteredHosts",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
+        console.log("teamId", teamId);
         return (
           <>
             {cellProps.row.original && (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
+                  team_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover
