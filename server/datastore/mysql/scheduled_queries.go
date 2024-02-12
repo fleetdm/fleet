@@ -354,7 +354,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 					stat.OutputSize,
 					stat.SystemTime,
 					stat.UserTime,
-					stat.WallTime,
+					stat.WallTimeMs,
 				)
 			} else { // stats for a 2017 pack
 				userPacksQueryCount++
@@ -371,7 +371,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 					stat.OutputSize,
 					stat.SystemTime,
 					stat.UserTime,
-					stat.WallTime,
+					stat.WallTimeMs,
 				)
 			}
 

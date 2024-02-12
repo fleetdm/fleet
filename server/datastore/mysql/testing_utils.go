@@ -45,7 +45,16 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI_QUOTES"))
+	// set SQL mode to ANSI, as it's a special mode equivalent to:
+	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
+	// ONLY_FULL_GROUP_BY
+	//
+	// Per the docs:
+	// > This mode changes syntax and behavior to conform more closely to
+	// standard SQL.
+	//
+	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
 	require.Nil(t, err)
 
 	if opts.Replica {
