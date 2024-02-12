@@ -163,7 +163,10 @@ type ScheduledQueryStats struct {
 	OutputSize         uint64     `json:"output_size" db:"output_size"`
 	SystemTime         uint64     `json:"system_time" db:"system_time"`
 	UserTime           uint64     `json:"user_time" db:"user_time"`
-	WallTime           uint64     `json:"wall_time" db:"wall_time"`
+	// WallTimeMs from osquery maps to WallTime in the DB.
+	WallTime uint64 `json:"wall_time" db:"wall_time"`
+	// WallTimeMs should always be hidden (0-value) in the Fleet API response since it does not map to a field in the DB.
+	WallTimeMs uint64 `json:"wall_time_ms,omitempty"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result
