@@ -63,12 +63,12 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ? AND
     execution_id = ?`
 
-	// TODO(mna): add wipe_ref check when we implement wipe story
 	const hostMDMActionsStmt = `
   SELECT
     CASE
       WHEN lock_ref = ? THEN 'lock_ref'
       WHEN unlock_ref = ? THEN 'unlock_ref'
+      WHEN wipe_ref = ? THEN 'wipe_ref'
       ELSE ''
     END AS ref_col
   FROM
@@ -112,7 +112,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// look up if that script was a lock/unlock/wipe script for that host,
 			// and if so update the host_mdm_actions table accordingly.
 			var refCol string
-			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.HostID)
+			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.ExecutionID, result.HostID)
 			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, scriptAction will be empty
 				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
 			}
@@ -707,7 +707,10 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 	if succeeded {
 		switch refCol {
 		case "lock_ref":
-			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL, unlock_pin = NULL")
+			// Note that this must not clear the unlock_pin, because recording the
+			// lock request does generate the PIN and store it there to be used by an
+			// eventual unlock.
+			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL")
 		case "unlock_ref":
 			stmt = fmt.Sprintf(stmt, "lock_ref = NULL")
 		case "wipe_ref":
