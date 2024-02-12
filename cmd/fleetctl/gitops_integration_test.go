@@ -85,8 +85,6 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
 	s.server = server
 	s.users = users
-	s.token = s.getTestAdminToken()
-	s.cachedAdminToken = s.token
 	s.fleetCfg = fleetCfg
 
 	appConf, err = s.ds.AppConfig(context.Background())
@@ -110,10 +108,22 @@ func (s *integrationGitopsTestSuite) TestFleetGitops() {
 	t := s.T()
 	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
 
+	// Create GitOps user
+	user := fleet.User{
+		Name:       "GitOps User",
+		Email:      "fleetctl-gitops@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(context.Background(), &user)
+	require.NoError(t, err)
+
 	// Create a temporary fleetctl config file
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	// TODO: We need to use GitOps user
+	token := s.getTestToken(user.Email, test.GoodPassword)
+	// TODO: We need to use GitOps user. Remove this line.
+	token = s.getTestToken("admin1@example.com", test.GoodPassword)
 	configStr := fmt.Sprintf(
 		`
 contexts:
@@ -125,7 +135,7 @@ contexts:
     tls-skip-verify: true
     token: %s
     url-prefix: ""
-`, s.server.URL, s.getTestAdminToken(),
+`, s.server.URL, token,
 	)
 	_, err = fleetctlConfig.WriteString(configStr)
 	require.NoError(t, err)
@@ -134,7 +144,7 @@ contexts:
 	repoDir := t.TempDir()
 	_, err = git.PlainClone(
 		repoDir, false, &git.CloneOptions{
-			ReferenceName: "getvictor-patch-1", // TODO: Switch to "main"
+			ReferenceName: "main",
 			SingleBranch:  true,
 			Depth:         1,
 			URL:           fleetGitopsRepo,
@@ -197,22 +207,8 @@ func (ts *withDS) TearDownSuite() {
 type withServer struct {
 	withDS
 
-	server           *httptest.Server
-	users            map[string]fleet.User
-	token            string
-	cachedAdminToken string
-}
-
-func (ts *withServer) getTestAdminToken() string {
-	testUser := testUsers["admin1"]
-
-	// because the login endpoint is rate-limited, use the cached admin token
-	// if available. (If for some reason a test needs to log out the admin user,
-	// then set cachedAdminToken = "" so that a new token is retrieved).
-	if ts.cachedAdminToken == "" {
-		ts.cachedAdminToken = ts.getTestToken(testUser.Email, testUser.PlaintextPassword)
-	}
-	return ts.cachedAdminToken
+	server *httptest.Server
+	users  map[string]fleet.User
 }
 
 type loginRequest struct {
@@ -244,18 +240,6 @@ func (ts *withServer) getTestToken(email string, password string) string {
 	require.Len(ts.suite.T(), jsn.Err, 0)
 
 	return jsn.Token
-}
-
-var testUsers = map[string]struct {
-	Email             string
-	PlaintextPassword string
-	GlobalRole        *string
-}{
-	"admin1": {
-		PlaintextPassword: test.GoodPassword,
-		Email:             "admin1@example.com",
-		GlobalRole:        ptr.String(fleet.RoleAdmin),
-	},
 }
 
 var testBMToken = &nanodepClient.OAuth1Tokens{
