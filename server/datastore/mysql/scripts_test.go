@@ -29,6 +29,7 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScripts", testBatchSetScripts},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
+		{"TestLockUnlockViaScripts", testLockUnlockViaScripts},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -799,4 +800,132 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.True(t, status.IsUnlocked())
 	require.False(t, status.IsPendingUnlock())
 	require.False(t, status.IsLocked())
+}
+
+func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	checkState := func(t *testing.T, status *fleet.HostLockWipeStatus, unlocked, locked, wiped, pendingUnlock, pendingLock, pendingWipe bool) {
+		require.Equal(t, unlocked, status.IsUnlocked())
+		require.Equal(t, locked, status.IsLocked())
+		require.Equal(t, wiped, status.IsWiped())
+		require.Equal(t, pendingLock, status.IsPendingLock())
+		require.Equal(t, pendingUnlock, status.IsPendingUnlock())
+		require.Equal(t, pendingWipe, status.IsPendingWipe())
+	}
+
+	for i, platform := range []string{"windows", "linux"} {
+		hostID := uint(i + 1)
+
+		t.Run(platform, func(t *testing.T) {
+			status, err := ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+
+			// default state
+			checkState(t, status, true, false, false, false, false, false)
+
+			// record a request to lock the host
+			err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "lock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, true, false, false, false, true, false)
+
+			// simulate a successful result for the lock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.LockScript.ExecutionID,
+				ExitCode:    0,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, false, true, false, false, false, false)
+
+			// record a request to unlock the host
+			err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "unlock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, false, true, false, true, false, false)
+
+			// simulate a failed result for the unlock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.UnlockScript.ExecutionID,
+				ExitCode:    -1,
+			})
+			require.NoError(t, err)
+
+			// still locked
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, false, true, false, false, false, false)
+
+			// record another request to unlock the host
+			err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "unlock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, false, true, false, true, false, false)
+
+			// this time simulate a successful result for the unlock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.UnlockScript.ExecutionID,
+				ExitCode:    0,
+			})
+			require.NoError(t, err)
+
+			// host is now unlocked
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, true, false, false, false, false, false)
+
+			// record another request to lock the host
+			err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "lock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, true, false, false, false, true, false)
+
+			// simulate a failed result for the lock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.LockScript.ExecutionID,
+				ExitCode:    2,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			require.NoError(t, err)
+			checkState(t, status, true, false, false, false, false, false)
+		})
+	}
 }
