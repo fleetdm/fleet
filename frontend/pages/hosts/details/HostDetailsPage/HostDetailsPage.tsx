@@ -660,9 +660,18 @@ const HostDetailsPage = ({
       case "lock":
         setShowLockHostModal(true);
         break;
+      case "unlock":
+        setShowUnlockHostModal(true);
+        break;
       default: // do nothing
     }
   };
+
+  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
+  //   host.mdm.device_status,
+  //   host.mdm.pending_action
+  // );
+  const hostDeviceStatusUIState = getHostDeviceStatusUIState("unlocked", "");
 
   const renderActionButtons = () => {
     if (!host) {
@@ -675,6 +684,7 @@ const HostDetailsPage = ({
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
         hostStatus={host.status}
+        hostMdmDeviceStatus={hostDeviceStatusUIState}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
@@ -757,12 +767,6 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
-  //   host.mdm.device_status,
-  //   host.mdm.pending_action
-  // );
-  const hostDeviceStatusUIState = getHostDeviceStatusUIState("unlocked", "");
-
   return (
     <MainContent className={baseClass}>
       <>
@@ -792,7 +796,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
-          deviceStatus={hostDeviceStatusUIState}
+          hostMdmDeviceStatus={hostDeviceStatusUIState}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs

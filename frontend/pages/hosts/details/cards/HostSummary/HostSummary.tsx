@@ -26,7 +26,7 @@ import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
-  HostDeviceStatusUIState,
+  HostMdmDeviceStatusUIState,
   generateWinDiskEncryptionProfile,
 } from "../../helpers";
 import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
@@ -118,7 +118,7 @@ interface IHostSummaryProps {
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
-  deviceStatus?: HostDeviceStatusUIState;
+  hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
 
 const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
@@ -178,7 +178,7 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
   osSettings,
-  deviceStatus,
+  hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
   const { status, platform } = titleData;
 
@@ -192,14 +192,17 @@ const HostSummary = ({
     // into account the host being online or offline for correctly render the
     // refresh button. If we another value for deviceStatus, we take it account
     // as well.
-    if (deviceStatus === undefined || deviceStatus === "unlocked") {
+    if (
+      hostMdmDeviceStatus === undefined ||
+      hostMdmDeviceStatus === "unlocked"
+    ) {
       isDisabled = !isOnline;
       tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
     } else {
       isDisabled = true;
       tooltip = !isOnline
         ? REFETCH_TOOLTIP_MESSAGES.offline
-        : REFETCH_TOOLTIP_MESSAGES[deviceStatus];
+        : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
     }
 
     return (
@@ -391,9 +394,9 @@ const HostSummary = ({
   );
 
   const renderDeviceStatusTag = () => {
-    if (!deviceStatus || deviceStatus === "unlocked") return null;
+    if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
 
-    const tag = DEVICE_STATUS_TAGS[deviceStatus];
+    const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
 
     const classNames = classnames(
       `${baseClass}__device-status-tag`,

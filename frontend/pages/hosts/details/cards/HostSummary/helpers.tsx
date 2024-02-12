@@ -1,5 +1,5 @@
 import React from "react";
-import { HostDeviceStatusUIState } from "../../helpers";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 interface IDeviceStatusTag {
   title: string;
@@ -9,7 +9,7 @@ interface IDeviceStatusTag {
 
 // We exclude "unlocked as we dont display any device status for it"
 type DeviceStatusTagConfig = Record<
-  Exclude<HostDeviceStatusUIState, "unlocked">,
+  Exclude<HostMdmDeviceStatusUIState, "unlocked">,
   IDeviceStatusTag
 >;
 

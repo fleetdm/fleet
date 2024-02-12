@@ -27,6 +27,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus={null}
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -52,6 +53,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus={null}
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -78,6 +80,7 @@ describe("Host Actions Dropdown", () => {
         hostStatus="online"
         hostMdmEnrollemntStatus={null}
         doesStoreEncryptionKey
+        hostMdmDeviceStatus="unlocked"
       />
     );
 
@@ -106,6 +109,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -133,6 +137,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -161,6 +166,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -189,6 +195,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -215,6 +222,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Non Fleet MDM"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -242,6 +250,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -273,6 +282,7 @@ describe("Host Actions Dropdown", () => {
           hostMdmEnrollemntStatus="On (automatic)"
           mdmName="Fleet"
           hostPlatform="windows"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -299,6 +309,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -323,6 +334,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -348,6 +360,7 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -373,12 +386,191 @@ describe("Host Actions Dropdown", () => {
           onSelect={noop}
           hostStatus="online"
           hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+  });
+
+  describe("Lock action", () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Lock")).toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in mdm", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="Off"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in a Fleet MDM solution", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Unlock action", () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in mdm", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="Off"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in a Fleet MDM solution", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollemntStatus="On (automatic)"
+          mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
     });
   });
 });

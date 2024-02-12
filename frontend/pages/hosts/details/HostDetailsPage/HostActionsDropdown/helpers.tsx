@@ -3,6 +3,10 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { isScriptSupportedPlatform } from "interfaces/script";
+import {
+  HostMdmDeviceStatusUIState,
+  isDeviceStatusUpdating,
+} from "../../helpers";
 
 const DEFAULT_OPTIONS = [
   {
@@ -36,11 +40,11 @@ const DEFAULT_OPTIONS = [
     value: "lock",
     disabled: false,
   },
-  {
-    label: "Wipe",
-    value: "wipe",
-    disabled: false,
-  },
+  // {
+  //   label: "Wipe",
+  //   value: "wipe",
+  //   disabled: false,
+  // },
   {
     label: "Unlock",
     value: "unlock",
@@ -69,11 +73,7 @@ interface IHostActionConfigOptions {
   isMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
-  isLocking: boolean;
-  isWiping: boolean;
-  isUnlocking: boolean;
-  isLocked: boolean;
-  isWiped: boolean;
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -112,7 +112,7 @@ const canLockHost = ({
   isTeamAdmin,
   isTeamMaintainer,
   isTeamObserver,
-  isLocked,
+  hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
   const canLockDarwin =
@@ -123,7 +123,7 @@ const canLockHost = ({
 
   return (
     isPremiumTier &&
-    !isLocked &&
+    hostMdmDeviceStatus === "unlocked" &&
     (hostPlatform === "windows" || hostPlatform === "linux" || canLockDarwin) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -146,7 +146,6 @@ const canWipeHost = ({
   isEnrolledInMdm,
   isMdmEnabledAndConfigured,
   hostPlatform,
-  isLocked,
 }: IHostActionConfigOptions) => {
   // TODO: remove when we work on wipe issue.
   return false;
@@ -161,7 +160,6 @@ const canWipeHost = ({
 
   return (
     isPremiumTier &&
-    !isLocked &&
     (hostPlatform === "linux" || canWipeMacOrWindows) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
@@ -174,7 +172,6 @@ const canWipeHost = ({
 
 const canUnlock = ({
   isPremiumTier,
-  isLocked,
   isGlobalAdmin,
   isGlobalMaintainer,
   isGlobalObserver,
@@ -185,6 +182,7 @@ const canUnlock = ({
   isEnrolledInMdm,
   isMdmEnabledAndConfigured,
   hostPlatform,
+  hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   const canLockDarwin =
     hostPlatform === "darwin" &&
@@ -194,7 +192,7 @@ const canUnlock = ({
 
   return (
     isPremiumTier &&
-    isLocked &&
+    hostMdmDeviceStatus === "locked" &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
@@ -268,9 +266,9 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "lock");
   }
 
-  if (!canWipeHost(config)) {
-    options = options.filter((option) => option.value !== "wipe");
-  }
+  // if (!canWipeHost(config)) {
+  //   options = options.filter((option) => option.value !== "wipe");
+  // }
 
   if (!canUnlock(config)) {
     options = options.filter((option) => option.value !== "unlock");
@@ -286,15 +284,7 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  {
-    isHostOnline,
-    isSandboxMode,
-    isLocking,
-    isWiping,
-    isUnlocking,
-    isLocked,
-    isWiped,
-  }: IHostActionConfigOptions
+  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
@@ -306,7 +296,11 @@ const setOptionsAsDisabled = (
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
-        (option) => option.value === "query" || option.value === "mdmOff"
+        (option) =>
+          option.value === "query" ||
+          option.value === "mdmOff" ||
+          option.value === "lock" ||
+          option.value === "unlock"
       )
     );
   }
@@ -315,27 +309,11 @@ const setOptionsAsDisabled = (
       options.filter((option) => option.value === "transfer")
     );
   }
-  if (isLocking || isWiping) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter(
-        (option) =>
-          option.value === "query" ||
-          option.value === "mdmOff" ||
-          option.value === "lock" ||
-          option.value === "wipe"
-      )
-    );
-  }
-  if (isLocked || isWiped) {
+  if (isDeviceStatusUpdating(hostMdmDeviceStatus)) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
       )
-    );
-  }
-  if (isUnlocking) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter((option) => option.value === "unlock")
     );
   }
 

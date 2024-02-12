@@ -7,6 +7,7 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { generateHostActionOptions } from "./helpers";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 const baseClass = "host-actions-dropdown";
 
@@ -14,6 +15,9 @@ interface IHostActionsDropdownProps {
   hostTeamId: number | null;
   hostStatus: string;
   hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
+  /** This represends the mdm manage host device status (e.g. unlocked, locked, unlocking, locking,
+   * ...etc) */
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
   mdmName?: string;
   hostPlatform?: string;
@@ -24,6 +28,7 @@ const HostActionsDropdown = ({
   hostTeamId,
   hostStatus,
   hostMdmEnrollemntStatus,
+  hostMdmDeviceStatus,
   doesStoreEncryptionKey,
   mdmName,
   hostPlatform = "",
@@ -57,20 +62,20 @@ const HostActionsDropdown = ({
     isTeamAdmin,
     isTeamMaintainer,
     isTeamObserver,
-    isHostOnline: hostStatus === "online",
-    isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-      hostMdmEnrollemntStatus ?? ""
-    ),
-    isFleetMdm: mdmName === "Fleet",
-    isMdmEnabledAndConfigured,
+    // isHostOnline: hostStatus === "online",
+
+    // isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
+    //   hostMdmEnrollemntStatus ?? ""
+    // ),
+    // isFleetMdm: mdmName === "Fleet",
+    // isMdmEnabledAndConfigured,
+    isHostOnline: true,
+    isEnrolledInMdm: true,
+    isFleetMdm: true,
+    isMdmEnabledAndConfigured: true,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
-    // TODO: get these values
-    isLocking: false,
-    isWiping: false,
-    isUnlocking: false,
-    isLocked: false,
-    isWiped: false,
+    hostMdmDeviceStatus,
   });
 
   // No options to render. Exit early

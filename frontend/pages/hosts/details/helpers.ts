@@ -1,6 +1,6 @@
 /** Helpers used across the host details and my device pages and components. */
 import { is } from "date-fns/locale";
-import { HostDeviceStatus, HostPendingAction } from "interfaces/host";
+import { HostMdmDeviceStatus, HostMdmPendingAction } from "interfaces/host";
 import {
   IHostMdmProfile,
   IWindowsDiskEncryptionStatus,
@@ -35,7 +35,7 @@ export const generateWinDiskEncryptionProfile = (
   };
 };
 
-export type HostDeviceStatusUIState =
+export type HostMdmDeviceStatusUIState =
   | "unlocked"
   | "locked"
   | "unlocking"
@@ -44,8 +44,8 @@ export type HostDeviceStatusUIState =
 // Exclude the empty string from HostPendingAction as that doesn't represent a
 // valid device status.
 const API_TO_UI_DEVICE_STATUS_MAP: Record<
-  HostDeviceStatus | Exclude<HostPendingAction, "">,
-  HostDeviceStatusUIState
+  HostMdmDeviceStatus | Exclude<HostMdmPendingAction, "">,
+  HostMdmDeviceStatusUIState
 > = {
   unlocked: "unlocked",
   locked: "locked",
@@ -60,9 +60,9 @@ const deviceUpdatingStates = ["unlocking", "locking"];
  * to display in the UI depending host device status or pending device actions.
  */
 export const getHostDeviceStatusUIState = (
-  deviceStatus: HostDeviceStatus,
-  pendingAction: HostPendingAction
-): HostDeviceStatusUIState => {
+  deviceStatus: HostMdmDeviceStatus,
+  pendingAction: HostMdmPendingAction
+): HostMdmDeviceStatusUIState => {
   if (pendingAction === "") {
     return API_TO_UI_DEVICE_STATUS_MAP[deviceStatus];
   }
@@ -73,7 +73,7 @@ export const getHostDeviceStatusUIState = (
  * Helps check if our device status UI state is in an updating state.
  */
 export const isDeviceStatusUpdating = (
-  deviceStatus: HostDeviceStatusUIState
+  deviceStatus: HostMdmDeviceStatusUIState
 ) => {
   return deviceUpdatingStates.includes(deviceStatus);
 };
