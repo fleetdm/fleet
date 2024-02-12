@@ -111,8 +111,6 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	case lockWipe.IsPendingWipe():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."))
 	case lockWipe.IsLocked():
-		// TODO(mna): was not convered in figma, succeed quietly, returning the
-		// current unlock pin for macos? For now I'll return 409 conflict.
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
 	}
 
@@ -178,8 +176,6 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	case lockWipe.IsPendingWipe():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
 	case lockWipe.IsUnlocked():
-		// TODO(mna): was not convered in figma, succeed quietly, returning the
-		// current unlock pin for macos? For now I'll return 409 conflict.
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
 	}
 
@@ -260,9 +256,6 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	}); err != nil {
 		return "", err
 	}
-
-	// TODO(mna): must save the script's execution uuid into host_mdm_actions...
-	// Ideally that would be in the same DB transaction.
 
 	if err := svc.ds.NewActivity(
 		ctx,

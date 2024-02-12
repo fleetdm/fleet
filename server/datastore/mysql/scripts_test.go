@@ -722,18 +722,32 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// verify that we have created entries in host_mdm_actions and host_script_results
-
 	status, err := ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.LockScript)
-	require.Nil(t, status.UnlockScript)
 
 	s := status.LockScript
 	require.Equal(t, script, s.ScriptContents)
 	require.Equal(t, windowsHostID, s.HostID)
 	require.False(t, s.SyncRequest)
 	require.Equal(t, &user.ID, s.UserID)
+
+	require.True(t, status.IsPendingLock())
+
+	// simulate a successful result for the lock script execution
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      s.HostID,
+		ExecutionID: s.ExecutionID,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
+	require.NoError(t, err)
+	require.True(t, status.IsLocked())
+	require.False(t, status.IsPendingLock())
+	require.False(t, status.IsUnlocked())
 }
 
 func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
@@ -759,16 +773,30 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// verify that we have created entries in host_mdm_actions and host_script_results
-
 	status, err := ds.GetHostLockWipeStatus(ctx, hostID, "windows")
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.UnlockScript)
-	require.Nil(t, status.LockScript)
 
 	s := status.UnlockScript
 	require.Equal(t, script, s.ScriptContents)
 	require.Equal(t, hostID, s.HostID)
 	require.False(t, s.SyncRequest)
 	require.Equal(t, &user.ID, s.UserID)
+
+	require.True(t, status.IsPendingUnlock())
+
+	// simulate a successful result for the unlock script execution
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      s.HostID,
+		ExecutionID: s.ExecutionID,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+	require.NoError(t, err)
+	require.True(t, status.IsUnlocked())
+	require.False(t, status.IsPendingUnlock())
+	require.False(t, status.IsLocked())
 }

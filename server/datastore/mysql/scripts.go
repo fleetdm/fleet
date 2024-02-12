@@ -581,7 +581,8 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 	return status, nil
 }
 
-// LockHost will create the script execution request and update host_mdm_actions in a single transaction.
+// LockHostViaScript will create the script execution request and update
+// host_mdm_actions in a single transaction.
 func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -591,6 +592,11 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
 		}
 
+		// on duplicate we don't clear any other existing state because at this
+		// point in time, this is just a request to lock the host that is recorded,
+		// it is pending execution. The host's state should be updated to "locked"
+		// only when the script execution is successfully completed, and then any
+		// unlock or wipe references should be cleared.
 		const stmt = `
 	INSERT INTO host_mdm_actions
 	(
@@ -600,8 +606,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	)
 	VALUES (?,?,NULL)
 	ON DUPLICATE KEY UPDATE
-		lock_ref = VALUES(lock_ref),
-		unlock_ref = NULL
+		lock_ref = VALUES(lock_ref)
 	`
 
 		_, err = tx.ExecContext(ctx, stmt,
@@ -616,6 +621,8 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	})
 }
 
+// UnlockHostViaScript will create the script execution request and update
+// host_mdm_actions in a single transaction.
 func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
@@ -625,6 +632,11 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
 		}
 
+		// on duplicate we don't clear any other existing state because at this
+		// point in time, this is just a request to unlock the host that is
+		// recorded, it is pending execution. The host's state should be updated to
+		// "unlocked" only when the script execution is successfully completed, and
+		// then any lock or wipe references should be cleared.
 		const stmt = `
 	INSERT INTO host_mdm_actions
 	(
@@ -635,7 +647,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	VALUES (?,?,NULL)
 	ON DUPLICATE KEY UPDATE
 		unlock_ref = VALUES(unlock_ref),
-		lock_ref = NULL
+		unlock_pin = NULL
 	`
 
 		_, err = tx.ExecContext(ctx, stmt,

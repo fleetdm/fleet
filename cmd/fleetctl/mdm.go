@@ -216,13 +216,13 @@ func mdmLockCommand() *cli.Command {
 			}
 
 			fmt.Fprintf(c.App.Writer, `
-The host will lock when it comes online.  
+The host will lock when it comes online.
 
 Copy and run this command to see lock status:
 
 fleetctl get host %s
 
-When you're ready to unlock the host, copy and run this command: 
+When you're ready to unlock the host, copy and run this command:
 
 fleetctl mdm unlock --host=%s
 
@@ -277,7 +277,6 @@ func mdmUnlockCommand() *cli.Command {
 				}
 			}
 
-			// TODO: update this section to account for MacOS returning the PIN.
 			pin, err := client.MDMUnlockHost(host.ID)
 			if err != nil {
 				return fmt.Errorf("Failed to unlock host: %w", err)
@@ -295,7 +294,7 @@ Use this 6 digit PIN to unlock the host:
 			}
 
 			fmt.Fprintf(c.App.Writer, `
-The host will unlock when it comes online.  
+The host will unlock when it comes online.
 
 Copy and run this command to see results:
 
