@@ -1257,6 +1257,9 @@ type Datastore interface {
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
 	GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*HostLockWipeStatus, error)
+
+	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql
