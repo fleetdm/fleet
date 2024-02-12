@@ -113,7 +113,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 			// and if so update the host_mdm_actions table accordingly.
 			var refCol string
 			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.ExecutionID, result.HostID)
-			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, scriptAction will be empty
+			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, refCol will be empty
 				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
 			}
 			if refCol != "" {
@@ -712,7 +712,10 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 			// eventual unlock.
 			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL")
 		case "unlock_ref":
-			stmt = fmt.Sprintf(stmt, "lock_ref = NULL")
+			// a successful unlock clears itself as well as the lock ref, because
+			// unlock is the default state so we don't need to keep its unlock_ref
+			// around once it's confirmed.
+			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
 		case "wipe_ref":
 			// TODO(mna): implement when implementing the wipe story
 		default:
