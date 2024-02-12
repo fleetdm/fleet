@@ -256,7 +256,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      const navPath = softwareSubNav[i].pathname.concat(location?.hash || "");
+      // Only query param to persist between tabs is team id
+      const teamIdParam = location?.query.team_id
+        ? `?team_id=${location.query.team_id}`
+        : "";
+
+      const navPath = softwareSubNav[i].pathname
+        .concat(teamIdParam)
+        .concat(location?.hash || "");
       router.replace(navPath);
     },
     [location, router]
