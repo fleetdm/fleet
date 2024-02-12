@@ -819,7 +819,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 		hostID := uint(i + 1)
 
 		t.Run(platform, func(t *testing.T) {
-			status, err := ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err := ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 
 			// default state
@@ -834,7 +834,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, true, false, false, false, true, false)
 
@@ -846,7 +846,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, false, true, false, false, false, false)
 
@@ -859,7 +859,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, false, true, false, true, false, false)
 
@@ -872,7 +872,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// still locked
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, false, true, false, false, false, false)
 
@@ -885,7 +885,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, false, true, false, true, false, false)
 
@@ -898,7 +898,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// host is now unlocked
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, true, false, false, false, false, false)
 
@@ -911,7 +911,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, true, false, false, false, true, false)
 
@@ -923,7 +923,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
 			require.NoError(t, err)
 			checkState(t, status, true, false, false, false, false, false)
 		})

@@ -326,8 +326,8 @@ func (s *HostLockWipeStatus) IsPendingLock() bool {
 
 func (s HostLockWipeStatus) IsPendingUnlock() bool {
 	if s.HostFleetPlatform == "darwin" {
-		// pending unlock if a PIN is set
-		return s.UnlockPIN != ""
+		// pending unlock if an unlock was requested
+		return !s.UnlockRequestedAt.IsZero()
 	}
 	// pending unlock if script execution request is queued but no result yet
 	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
@@ -355,7 +355,7 @@ func (s HostLockWipeStatus) IsLocked() bool {
 func (s HostLockWipeStatus) IsUnlocked() bool {
 	// this state is regardless of pending lock/unlock/wipe (it reports whether
 	// the host is unlocked *now*).
-	return !s.IsLocked()
+	return !s.IsLocked() && !s.IsWiped()
 }
 
 func (s HostLockWipeStatus) IsWiped() bool {
