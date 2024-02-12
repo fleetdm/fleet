@@ -15,6 +15,7 @@ export interface IGetVulnerabilitiesQueryParams {
   page?: number;
   per_page?: number;
   exploited?: boolean;
+  query?: string;
 }
 
 export interface IGetVulnerabilitiesQueryKey
