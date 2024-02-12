@@ -235,15 +235,21 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 }
 
 func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (string, error) {
+	if lockStatus.HostFleetPlatform == "darwin" && !lockStatus.UnlockRequestedAt.IsZero() {
+		// unlock request was already recorded, just return the unlock PIN as this
+		// is just a request to view it again.
+		return lockStatus.UnlockPIN, nil
+	}
+
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return "", fleet.ErrNoContext
 	}
 
-	var unlockPIN string
-
 	if lockStatus.HostFleetPlatform == "darwin" {
-		unlockPIN = lockStatus.UnlockPIN
+		if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
+			return "", err
+		}
 	} else {
 		script := windowsUnlockScript
 		if lockStatus.HostFleetPlatform == "linux" {
@@ -277,7 +283,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 		return "", ctxerr.Wrap(ctx, err, "create activity for unlock host request")
 	}
 
-	return unlockPIN, nil
+	return lockStatus.UnlockPIN, nil
 }
 
 // TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..

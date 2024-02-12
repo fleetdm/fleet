@@ -303,8 +303,12 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to lock
 	LockScript *HostScriptResult
 
-	// macOS hosts must manually unlock using a secret PIN
+	// macOS hosts must manually unlock using a secret PIN, which is stored here
+	// when the lock request is sent.
 	UnlockPIN string
+	// macOS records the timestamp of the unlock request in the "unlock_ref",
+	// which is then stored here.
+	UnlockRequestedAt time.Time
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 

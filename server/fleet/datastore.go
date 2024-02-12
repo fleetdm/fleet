@@ -1263,6 +1263,10 @@ type Datastore interface {
 
 	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
 	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	// UnlockHostmanually records a request to unlock a host that requires manual
+	// intervention (such as for macOS). It indicates the an unlock request is
+	// pending.
+	UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql
