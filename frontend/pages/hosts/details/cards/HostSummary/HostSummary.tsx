@@ -190,8 +190,8 @@ const HostSummary = ({
     // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
     // this prop. When this is the case or when it is `unlocked`, we only take
     // into account the host being online or offline for correctly render the
-    // refresh button. If we another value for deviceStatus, we take it account
-    // as well.
+    // refresh button. If we have a value for deviceStatus, we then need to also
+    // take it account for rendering the button.
     if (
       hostMdmDeviceStatus === undefined ||
       hostMdmDeviceStatus === "unlocked"
