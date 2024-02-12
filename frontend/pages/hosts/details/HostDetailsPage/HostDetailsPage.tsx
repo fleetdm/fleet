@@ -81,7 +81,10 @@ import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
 import LockModal from "./modals/LockModal";
 import UnlockModal from "./modals/UnlockModal";
-import { getHostDeviceStatusUIState } from "../helpers";
+import {
+  HostMdmDeviceStatusUIState,
+  getHostDeviceStatusUIState,
+} from "../helpers";
 
 const baseClass = "host-details";
 
@@ -169,6 +172,10 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+  const [
+    hostMdmDeviceStatus,
+    setHostMdmDeviceState,
+  ] = useState<HostMdmDeviceStatusUIState>("unlocked");
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -267,6 +274,13 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
+        setHostMdmDeviceState(
+          // getHostDeviceStatusUIState(
+          //   returnedHost.mdm.device_status,
+          //   returnedHost.mdm.pending_action
+          // ),
+          getHostDeviceStatusUIState("unlocked", "")
+        );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -671,7 +685,6 @@ const HostDetailsPage = ({
   //   host.mdm.device_status,
   //   host.mdm.pending_action
   // );
-  const hostDeviceStatusUIState = getHostDeviceStatusUIState("unlocked", "");
 
   const renderActionButtons = () => {
     if (!host) {
@@ -684,7 +697,7 @@ const HostDetailsPage = ({
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
         hostStatus={host.status}
-        hostMdmDeviceStatus={hostDeviceStatusUIState}
+        hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollemntStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
@@ -796,7 +809,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
-          hostMdmDeviceStatus={hostDeviceStatusUIState}
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs

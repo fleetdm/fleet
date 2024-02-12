@@ -1,8 +1,12 @@
 import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
+
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+
 import {
   HostMdmDeviceStatusUIState,
   isDeviceStatusUpdating,
@@ -124,7 +128,9 @@ const canLockHost = ({
   return (
     isPremiumTier &&
     hostMdmDeviceStatus === "unlocked" &&
-    (hostPlatform === "windows" || hostPlatform === "linux" || canLockDarwin) &&
+    (hostPlatform === "windows" ||
+      isLinuxLike(hostPlatform) ||
+      canLockDarwin) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
@@ -199,7 +205,7 @@ const canUnlock = ({
       isTeamAdmin ||
       isTeamMaintainer ||
       isTeamObserver) &&
-    (canLockDarwin || hostPlatform === "windows" || hostPlatform === "linux")
+    (canLockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 

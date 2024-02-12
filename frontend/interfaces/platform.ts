@@ -66,3 +66,7 @@ export const HOST_LINUX_PLATFORMS = [
   "opensuse-leap",
   "opensuse-tumbleweed",
 ] as const;
+
+export const isLinuxLike = (platform: string) => {
+  return HOST_LINUX_PLATFORMS.includes(platform as any);
+};
