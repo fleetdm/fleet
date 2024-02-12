@@ -302,11 +302,7 @@ const setOptionsAsDisabled = (
   if (!isHostOnline) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
-        (option) =>
-          option.value === "query" ||
-          option.value === "mdmOff" ||
-          option.value === "lock" ||
-          option.value === "unlock"
+        (option) => option.value === "query" || option.value === "mdmOff"
       )
     );
   }
