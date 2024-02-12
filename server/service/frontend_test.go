@@ -1,12 +1,10 @@
-//go:build full
-// +build full
-
 package service
 
 import (
 	"bytes"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/go-kit/log"
@@ -14,8 +12,15 @@ import (
 )
 
 func TestServeFrontend(t *testing.T) {
-	h := ServeFrontend("", false, log.NewNopLogger())
+	if !hasBuildTag("full") {
+		t.Skip("This test requires running with -tags full")
+	}
+	logger := log.NewLogfmtLogger(os.Stdout)
+	h := ServeFrontend("", false, logger)
 	ts := httptest.NewServer(h)
+	t.Cleanup(func() {
+		ts.Close()
+	})
 
 	// Simulate a misconfigured osquery sending log requests to the root endpoint.
 	requestBody := []byte(`
