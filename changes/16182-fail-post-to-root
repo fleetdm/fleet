@@ -1,0 +1,1 @@
+* Return 405 when receiving `POST` requests on the route path.
