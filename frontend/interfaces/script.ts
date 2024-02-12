@@ -1,3 +1,5 @@
+import { HOST_LINUX_PLATFORMS } from "./platform";
+
 export interface IScript {
   id: number;
   team_id: number | null;
@@ -6,7 +8,8 @@ export interface IScript {
   updated_at: string;
 }
 
-export const SCRIPT_SUPPORTED_PLATFORMS = ["darwin", "windows"] as const; // TODO: revisit this approach to white-list supported platforms (which would require a more robust approach to identifying linux flavors)
+export const isScriptSupportedPlatform = (hostPlatform: string) =>
+  ["darwin", "windows", ...HOST_LINUX_PLATFORMS].includes(hostPlatform); // excludes chrome, see also https://github.com/fleetdm/fleet/blob/5a21e2cfb029053ddad0508869eb9f1f23997bf2/server/fleet/hosts.go#L775
 
 export type IScriptExecutionStatus = "ran" | "pending" | "error";
 

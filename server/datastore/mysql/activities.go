@@ -186,6 +186,16 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 }
 
 func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	const countStmt = `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND exit_code IS NULL`
+	var count uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
+	}
+	if count == 0 {
+		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	// NOTE: Be sure to update both the count and list statements if the list query is modified
 	const listStmt = `
 		SELECT
 			hsr.execution_id as uuid,
@@ -229,12 +239,10 @@ func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint
 	}
 
 	var metaData *fleet.PaginationMetadata
-	if opt.IncludeMetadata {
-		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
-		if len(activities) > int(opt.PerPage) {
-			metaData.HasNextResults = true
-			activities = activities[:len(activities)-1]
-		}
+	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
+	if len(activities) > int(opt.PerPage) {
+		metaData.HasNextResults = true
+		activities = activities[:len(activities)-1]
 	}
 
 	return activities, metaData, nil

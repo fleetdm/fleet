@@ -31,9 +31,10 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
+		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
+		{"TestMDMEULA", testMDMEULA},
 	}
 
 	for _, c := range cases {
@@ -2180,7 +2181,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
+func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Setup funcs
@@ -3087,4 +3088,45 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 			require.ErrorContains(t, err, c.wantErr)
 		})
 	}
+}
+
+func testMDMEULA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	eula := &fleet.MDMEULA{
+		Token: uuid.New().String(),
+		Name:  "eula.pdf",
+		Bytes: []byte("contents"),
+	}
+
+	err := ds.MDMInsertEULA(ctx, eula)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMInsertEULA(ctx, eula)
+	require.ErrorAs(t, err, &ae)
+
+	gotEULA, err := ds.MDMGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotEULA.CreatedAt)
+	require.Equal(t, eula.Token, gotEULA.Token)
+	require.Equal(t, eula.Name, gotEULA.Name)
+
+	gotEULABytes, err := ds.MDMGetEULABytes(ctx, eula.Token)
+	require.NoError(t, err)
+	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
+	require.Equal(t, eula.Name, gotEULABytes.Name)
+
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	require.NoError(t, err)
+
+	var nfe fleet.NotFoundError
+	_, err = ds.MDMGetEULAMetadata(ctx)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMGetEULABytes(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMInsertEULA(ctx, eula)
+	require.NoError(t, err)
 }

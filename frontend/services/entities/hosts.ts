@@ -204,6 +204,7 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -272,6 +273,7 @@ export default {
       order_direction: sortParams.order_direction,
       status,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,

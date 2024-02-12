@@ -8343,7 +8343,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -8408,7 +8408,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
@@ -9853,10 +9853,11 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	}
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%#v", c.queries), func(t *testing.T) {
-			var listResp listActivitiesResponse
+			var listResp listHostUpcomingActivitiesResponse
 			queryArgs := c.queries
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
+			require.Equal(t, uint(5), listResp.Count)
 			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 
@@ -9877,4 +9878,24 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			require.Equal(t, c.wantExecs, gotExecs)
 		})
 	}
+
+	// Test with a host that has no upcoming activities
+	host2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host2.ID), nil, http.StatusOK, &listResp)
+	require.Equal(t, uint(0), listResp.Count)
+	require.Empty(t, listResp.Activities)
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}, listResp.Meta)
 }

@@ -223,6 +223,11 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		if hsr.HostTimeout(scripts.MaxServerWaitTime) {
 			return RunScriptHostTimeoutErrMsg
 		}
+
+		if !hsr.SyncRequest {
+			return RunScriptAsyncScriptEnqueuedErrMsg
+		}
+
 		return RunScriptAlreadyRunningErrMsg
 	}
 

@@ -163,6 +163,10 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				if pack.PackName != "Global" {
 					teamIDArg = *teamID
 				}
+				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+				if query.WallTimeMs == 0 && query.WallTime != 0 {
+					query.WallTimeMs = query.WallTime * 1000
+				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
 					query.ScheduledQueryName,
@@ -176,12 +180,16 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 					query.OutputSize,
 					query.SystemTime,
 					query.UserTime,
-					query.WallTime,
+					query.WallTimeMs,
 				)
 			}
 		} else { // User 2017 packs
 			for _, query := range pack.QueryStats {
 				userPacksQueryCount++
+				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+				if query.WallTimeMs == 0 && query.WallTime != 0 {
+					query.WallTimeMs = query.WallTime * 1000
+				}
 
 				userPacksArgs = append(userPacksArgs,
 					query.PackName,
@@ -196,7 +204,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 					query.OutputSize,
 					query.SystemTime,
 					query.UserTime,
-					query.WallTime,
+					query.WallTimeMs,
 				)
 			}
 		}
@@ -4273,9 +4281,30 @@ func (ds *Datastore) UpdateHostRefetchRequested(ctx context.Context, id uint, va
 	return nil
 }
 
+// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
+func (ds *Datastore) UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, id uint, until *time.Time) error {
+	debugLogs := []interface{}{"msg", "update refetch_critical_queries_until", "host_id", id}
+	if until != nil {
+		debugLogs = append(debugLogs, "until", until.Format(time.RFC3339))
+	}
+	level.Debug(ds.logger).Log(debugLogs...)
+
+	sqlStatement := `UPDATE hosts SET refetch_critical_queries_until = ? WHERE id = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, until, id)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "update host %d refetch_critical_queries_until", id)
+	}
+	return nil
+}
+
 // UpdateHost updates all columns of the `hosts` table.
 // It only updates `hosts` table, other additional host information is ignored.
 func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		level.Debug(ds.logger).Log("msg", "missing orbit_node_key to update host",
+			"host_id", host.ID, "node_key", host.NodeKey, "orbit_node_key", host.OrbitNodeKey)
+	}
+
 	sqlStatement := `
 		UPDATE hosts SET
 			detail_updated_at = ?,

@@ -94,7 +94,11 @@ func (ov OSVulnerability) String() string {
 // If we have a list of os vulnerabilities, the Key can be used
 // as a discrimator for unique entries.
 func (ov OSVulnerability) Key() string {
-	return fmt.Sprintf("os:%d:%s", ov.OSID, ov.CVE)
+	var rv string
+	if ov.ResolvedInVersion != nil {
+		rv = *ov.ResolvedInVersion
+	}
+	return fmt.Sprintf("os:%d:%s:%s", ov.OSID, ov.CVE, rv)
 }
 
 func (ov OSVulnerability) GetCVE() string {

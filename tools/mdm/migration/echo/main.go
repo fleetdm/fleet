@@ -6,8 +6,12 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 )
+
+const DELAY = 10 * time.Second // adjust this to simulate slow webhook response
 
 func main() {
 	http.HandleFunc("/", func(writer http.ResponseWriter, request *http.Request) {
@@ -19,8 +23,10 @@ func main() {
 			detail = fmt.Sprintf("| BODY: %s", string(body))
 		}
 		log.Printf("%s %s %s\n", request.Method, request.URL.Path, detail)
-		if err := request.Write(writer); err != nil {
-			log.Fatalf(err.Error())
+
+		time.Sleep(DELAY)
+		if _, err := writer.Write(nil); err != nil {
+			log.Printf("error writing response %s", err.Error())
 		}
 	})
 
@@ -32,9 +38,14 @@ func main() {
 	fmt.Printf("Server running at http://localhost%s\n", port)
 	server := &http.Server{
 		Addr:              port,
-		ReadHeaderTimeout: 3 * time.Second,
+		ReadHeaderTimeout: 30 * time.Second,
 	}
-	if err := server.ListenAndServe(); err != nil {
-		log.Fatalf(err.Error())
-	}
+	go func() {
+		if err := server.ListenAndServe(); err != nil {
+			log.Fatalf("server error %s", err.Error())
+		}
+	}()
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, syscall.SIGINT, syscall.SIGTERM)
+	<-sig // block on signal
 }

@@ -305,12 +305,15 @@ func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, team
 	}
 
 	var extension string
-	switch hostPlatform {
-	case "darwin":
-		extension = `%.sh`
-		break
-	case "windows":
+	switch {
+	case hostPlatform == "windows":
+		// filter by .ps1 extension
 		extension = `%.ps1`
+	case fleet.IsUnixLike(hostPlatform):
+		// filter by .sh extension
+		extension = `%.sh`
+	default:
+		// no extension filter
 	}
 
 	type row struct {

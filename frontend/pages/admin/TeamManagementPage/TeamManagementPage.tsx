@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useContext } from "react";
+import React, { useState, useCallback, useContext, useMemo } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 
@@ -6,24 +6,22 @@ import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import { ITeam } from "interfaces/team";
 import { IApiError } from "interfaces/errors";
-import { IEmptyTableProps } from "interfaces/empty_table";
 import usersAPI, { IGetMeResponse } from "services/entities/users";
 import teamsAPI, {
   ILoadTeamsResponse,
   ITeamFormData,
 } from "services/entities/teams";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
-import CustomLink from "components/CustomLink";
 import SandboxGate from "components/Sandbox/SandboxGate";
 import SandboxMessage from "components/Sandbox/SandboxMessage";
 
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
 import EditTeamModal from "./components/EditTeamModal";
+import EmptyTeamsTable from "./components/EmptyTeamsTable";
+
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
 
 const baseClass = "team-management";
@@ -42,7 +40,6 @@ const TeamManagementPage = (): JSX.Element => {
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
   const [showEditTeamModal, setShowEditTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
-  const [searchString, setSearchString] = useState("");
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
   }>({});
@@ -69,6 +66,10 @@ const TeamManagementPage = (): JSX.Element => {
       onError: (error) => handlePageError(error),
     }
   );
+
+  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
+  // `setShowCreateTeamModal((prevState) => !prevState)`, instead of including state
+  // variables as dependencies for toggles, etc.
 
   const toggleCreateTeamModal = useCallback(() => {
     setShowCreateTeamModal(!showCreateTeamModal);
@@ -97,21 +98,6 @@ const TeamManagementPage = (): JSX.Element => {
     ]
   );
 
-  const onQueryChange = useCallback(
-    (queryData) => {
-      if (teams) {
-        setSearchString(queryData.searchQuery);
-        const { pageIndex, pageSize, searchQuery } = queryData;
-        teamsAPI.loadAll({
-          page: pageIndex,
-          perPage: pageSize,
-          globalFilter: searchQuery,
-        });
-      }
-    },
-    [setSearchString]
-  );
-
   const onCreateSubmit = useCallback(
     (formData: ITeamFormData) => {
       setIsUpdatingTeams(true);
@@ -138,7 +124,7 @@ const TeamManagementPage = (): JSX.Element => {
           setIsUpdatingTeams(false);
         });
     },
-    [toggleCreateTeamModal]
+    [toggleCreateTeamModal, refetchMe, refetchTeams, renderFlash]
   );
 
   const onDeleteSubmit = useCallback(() => {
@@ -165,7 +151,15 @@ const TeamManagementPage = (): JSX.Element => {
           toggleDeleteTeamModal();
         });
     }
-  }, [teamEditing, toggleDeleteTeamModal]);
+  }, [
+    currentTeam,
+    teamEditing,
+    refetchMe,
+    refetchTeams,
+    renderFlash,
+    setCurrentTeam,
+    toggleDeleteTeamModal,
+  ]);
 
   const onEditSubmit = useCallback(
     (formData: ITeamFormData) => {
@@ -202,54 +196,30 @@ const TeamManagementPage = (): JSX.Element => {
           });
       }
     },
-    [teamEditing, toggleEditTeamModal]
+    [teamEditing, toggleEditTeamModal, refetchTeams, renderFlash]
   );
 
-  const onActionSelection = (action: string, team: ITeam): void => {
-    switch (action) {
-      case "edit":
-        toggleEditTeamModal(team);
-        break;
-      case "delete":
-        toggleDeleteTeamModal(team);
-        break;
-      default:
-    }
-  };
+  const onActionSelection = useCallback(
+    (action: string, team: ITeam): void => {
+      switch (action) {
+        case "edit":
+          toggleEditTeamModal(team);
+          break;
+        case "delete":
+          toggleDeleteTeamModal(team);
+          break;
+        default:
+      }
+    },
+    [toggleEditTeamModal, toggleDeleteTeamModal]
+  );
 
-  const emptyState = () => {
-    const emptyTeams: IEmptyTableProps = {
-      graphicName: "empty-teams",
-      header: "Set up team permissions",
-      info:
-        "Keep your organization organized and efficient by ensuring every user has the correct access to the right hosts.",
-      additionalInfo: (
-        <>
-          {" "}
-          Want to learn more?&nbsp;
-          <CustomLink
-            url="https://fleetdm.com/docs/using-fleet/teams"
-            text="Read about teams"
-            newTab
-          />
-        </>
-      ),
-      primaryButton: (
-        <Button
-          variant="brand"
-          className={`${noTeamsClass}__create-button`}
-          onClick={toggleCreateTeamModal}
-        >
-          Create team
-        </Button>
-      ),
-    };
-
-    return emptyTeams;
-  };
-
-  const tableHeaders = generateTableHeaders(onActionSelection);
-  const tableData = teams ? generateDataSet(teams) : [];
+  const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
+    onActionSelection,
+  ]);
+  const tableData = useMemo(() => (teams ? generateDataSet(teams) : []), [
+    teams,
+  ]);
 
   return (
     <div className={`${baseClass}`}>
@@ -275,28 +245,22 @@ const TeamManagementPage = (): JSX.Element => {
             isLoading={isFetchingTeams}
             defaultSortHeader={"name"}
             defaultSortDirection={"asc"}
-            inputPlaceHolder={"Search"}
             actionButton={{
               name: "create team",
               buttonText: "Create team",
               variant: "brand",
               onActionButtonClick: toggleCreateTeamModal,
-              hideButton: teams && teams.length === 0 && searchString === "",
+              hideButton: teams && teams.length === 0,
             }}
-            onQueryChange={onQueryChange}
             resultsTitle={"teams"}
-            emptyComponent={() =>
-              EmptyTable({
-                graphicName: "empty-teams",
-                header: emptyState().header,
-                info: emptyState().info,
-                additionalInfo: emptyState().additionalInfo,
-                primaryButton: emptyState().primaryButton,
-              })
-            }
+            emptyComponent={() => (
+              <EmptyTeamsTable
+                className={noTeamsClass}
+                onActionButtonClick={toggleCreateTeamModal}
+              />
+            )}
             showMarkAllPages={false}
             isAllPagesSelected={false}
-            searchable={teams && teams.length > 0 && searchString !== ""}
             isClientSidePagination
           />
         )}
