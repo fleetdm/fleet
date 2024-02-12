@@ -58,6 +58,11 @@ const deviceUpdatingStates = ["unlocking", "locking"];
 /**
  * Gets the current UI state for the host device status. This helps us know what
  * to display in the UI depending host device status or pending device actions.
+ *
+ * This approach was chosen to keep a seperation from the API data and the UI.
+ * With this we know the possible UI states that we have to handle and we can
+ * easily add new states if needed or change the implementation detals if the
+ * API changes.
  */
 export const getHostDeviceStatusUIState = (
   deviceStatus: HostMdmDeviceStatus,
