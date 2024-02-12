@@ -53,7 +53,6 @@ If there is partially merged feature work when freeze begins, the previously mer
 Before kicking off release QA, confirm that we are using the latest versions of dependencies we want to keep up-to-date with each release. Currently, those dependencies are:
 
 1. **Go**: Latest minor release
-
 - Check the [version included in Fleet](https://github.com/fleetdm/fleet/settings/variables/actions).
 - Check the [latest minor version of Go](https://go.dev/dl/). For example, if we are using `go1.19.8`, and there is a new minor version `go1.19.9`, we will upgrade.
 - If the latest minor version is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current oncall engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Add the `~release blocker` label. We must upgrade to the latest minor version before publishing the next release.
@@ -63,7 +62,6 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 > In Go versioning, the number after the first dot is the "major" version, while the number after the second dot is the "minor" version. For example, in Go 1.19.9, "19" is the major version and "9" is the minor version. Major version upgrades are assessed separately by engineering.
 
 2. **macadmins-extension**: Latest release
-
 - Check the [latest version of the macadmins-extension](https://github.com/macadmins/osquery-extension/releases).
 - Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/main/go.mod#L60).
 - If the latest stable version of the macadmins-extension is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
@@ -73,15 +71,29 @@ Before kicking off release QA, confirm that we are using the latest versions of 
 
 Our goal is to keep these dependencies up-to-date with each release of Fleet. If a release is going out with an old dependency version, it should be treated as a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs) to make sure it is updated before the release is published.
 
-3. Vulnerability data sources
+3. **osquery**: Latest release
+- Check the [latest version of osquery](https://github.com/osquery/osquery/releases).
+- Check the [version included in Fleet](https://github.com/fleetdm/fleet/blob/ceb4e4602ba9a90ebf0e33e1eddef770c9a8d8b5/.github/workflows/generate-osqueryd-targets.yml#L27).
+- If the latest release of osquery is greater than the version included in Fleet, [file a bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) and assign it to the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals) and the [current on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer).
+- Do not add the `~release blocker` label. 
+- Update the bug description to note that changes to [osquery command-line flags](https://osquery.readthedocs.io/en/stable/installation/cli-flags/) require updates to Fleet's flag validation and related documentation [as shown in this pull request](https://github.com/fleetdm/fleet/pull/16239/files). 
 
+4. Vulnerability data sources
 - Check the [NIST National Vulnerability Database website](https://nvd.nist.gov/) for any announcements that might impact our [NVD data feed](https://github.com/fleetdm/fleet/blob/5e22f1fb4647a6a387ca29db6dd75d492f1864d6/cmd/cpe/generate.go#L53). 
 - Check the [CISA website](https://www.cisa.gov/) for any news or announcements that might impact our [CISA data feed](https://github.com/fleetdm/fleet/blob/5e22f1fb4647a6a387ca29db6dd75d492f1864d6/server/vulnerabilities/nvd/sync.go#L137). 
 
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
+5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
+- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/blob/main/orbit/desktop/) since the last `orbit-*` tag was published.
+- Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
+
+If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Create and assign the release QA issue to a corresponding [GitHub milestone](https://github.com/fleetdm/fleet/milestones) for each tag that will be issued (`fleet-`, `orbit-`, `fleetd-chrome-`).
+
 ### Create release QA issue
 Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=smoke-tests.md&title=). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.
+
+The issue's template will contain validation steps for Fleet and individual `fleetd` components. Remove any instructions that do not apply to this release.
 
 ### Indicate your product group is release-ready
 Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
