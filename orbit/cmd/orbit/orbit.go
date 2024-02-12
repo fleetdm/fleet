@@ -877,7 +877,6 @@ func main() {
 				event := log.Debug()
 				if !configErrSeen {
 					event = log.Warn()
-					configErrSeen = true
 				}
 				logging.LogErrIfEnvNotSetWithEvent(
 					constant.SilenceEnrollLogErrorEnvVar, err, "initial update to fetch extensions from /config API failed", event,
