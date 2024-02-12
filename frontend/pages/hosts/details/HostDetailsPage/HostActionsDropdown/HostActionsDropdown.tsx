@@ -15,8 +15,8 @@ interface IHostActionsDropdownProps {
   hostTeamId: number | null;
   hostStatus: string;
   hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
-  /** This represends the mdm manage host device status (e.g. unlocked, locked, unlocking, locking,
-   * ...etc) */
+  /** This represents the mdm managed host device status (e.g. unlocked, locked,
+   * unlocking, locking, ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
   mdmName?: string;
@@ -63,7 +63,6 @@ const HostActionsDropdown = ({
     isTeamMaintainer,
     isTeamObserver,
     isHostOnline: hostStatus === "online",
-
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
       hostMdmEnrollmentStatus ?? ""
     ),
