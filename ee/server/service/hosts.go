@@ -175,7 +175,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	case lockWipe.IsPendingUnlock():
 		// MacOS machines are unlocked by typing the PIN into the machine. "Unlock" in this case
 		// should just return the PIN as many times as needed.
-		// Breaking here will fall through to call enqueueLockHostRequest which will return the PIN.
+		// Breaking here will fall through to call enqueueUnLockHostRequest which will return the PIN.
 		if host.FleetPlatform() == "darwin" {
 			break
 		}
@@ -191,15 +191,29 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) error {
-	if lockStatus.HostFleetPlatform == "darwin" {
-		lockCommandUUID := uuid.NewString()
-		err := svc.mdmAppleCommander.DeviceLock(ctx, host, lockCommandUUID)
-		return ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return fleet.ErrNoContext
+	}
+
+	if lockStatus.HostFleetPlatform == "darwin" {
+		lockCommandUUID := uuid.NewString()
+		if err := svc.mdmAppleCommander.DeviceLock(ctx, host, lockCommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
+		}
+
+		if err := svc.ds.NewActivity(
+			ctx,
+			vc.User,
+			fleet.ActivityTypeLockedHost{
+				HostID:          host.ID,
+				HostDisplayName: host.DisplayName(),
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for darwin lock host request")
+		}
+
+		return nil
 	}
 
 	script := windowsLockScript
