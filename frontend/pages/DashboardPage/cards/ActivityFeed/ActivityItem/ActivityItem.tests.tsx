@@ -547,7 +547,26 @@ describe("Activity Feed", () => {
     expect(forAllTeams).toBeNull();
   });
 
+  it("renders an 'enabled_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enforced disk encryption for hosts assigned to the", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for a team", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
       details: { team_name: "Alphas" },
@@ -555,8 +574,26 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
+      screen.getByText("enforced disk encryption for hosts assigned to the", {
+        exact: false,
+      })
+    ).toBeInTheDocument();
+    expect(screen.getByText("Alphas")).toBeInTheDocument();
+    expect(screen.getByText(" team.", { exact: false })).toBeInTheDocument();
+    const withNoTeams = screen.queryByText("with no team");
+    expect(withNoTeams).toBeNull();
+  });
+
+  it("renders a 'disabled_disk_encryption' type activity for a team", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledMacDiskEncryption,
+      details: { team_name: "Alphas" },
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
       screen.getByText(
-        "enforced disk encryption for macOS hosts assigned to the",
+        "removed disk encryption enforcement for hosts assigned to the",
         {
           exact: false,
         }
@@ -569,15 +606,16 @@ describe("Activity Feed", () => {
   });
 
   it("renders a 'disabled_macos_disk_encryption' type activity for a team", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
-      type: ActivityType.DisabledMacDiskEncryption,
+      type: ActivityType.DisabledDiskEncryption,
       details: { team_name: "Alphas" },
     });
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for macOS hosts assigned to the",
+        "removed disk encryption enforcement for hosts assigned to the",
         {
           exact: false,
         }
@@ -589,7 +627,21 @@ describe("Activity Feed", () => {
     expect(withNoTeams).toBeNull();
   });
 
+  it("renders an 'enabled_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.EnabledDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText("enforced disk encryption for hosts with no team.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
   it("renders an 'enabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.EnabledMacDiskEncryption,
       details: {},
@@ -597,12 +649,31 @@ describe("Activity Feed", () => {
     render(<ActivityItem activity={activity} isPremiumTier />);
 
     expect(
-      screen.getByText("enforced disk encryption for macOS hosts with no team.")
+      screen.getByText("enforced disk encryption for hosts with no team.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("assigned to the")).toBeNull();
+  });
+
+  it("renders a 'disabled_disk_encryption' type activity for hosts with no team.", () => {
+    const activity = createMockActivity({
+      type: ActivityType.DisabledDiskEncryption,
+      details: {},
+    });
+    render(<ActivityItem activity={activity} isPremiumTier />);
+
+    expect(
+      screen.getByText(
+        "removed disk encryption enforcement for hosts with no team.",
+        {
+          exact: false,
+        }
+      )
     ).toBeInTheDocument();
     expect(screen.queryByText("assigned to the")).toBeNull();
   });
 
   it("renders a 'disabled_macos_disk_encryption' type activity for hosts with no team.", () => {
+    // Test deprecated activity type
     const activity = createMockActivity({
       type: ActivityType.DisabledMacDiskEncryption,
       details: {},
@@ -611,7 +682,7 @@ describe("Activity Feed", () => {
 
     expect(
       screen.getByText(
-        "removed disk encryption enforcement for macOS hosts with no team.",
+        "removed disk encryption enforcement for hosts with no team.",
         {
           exact: false,
         }
