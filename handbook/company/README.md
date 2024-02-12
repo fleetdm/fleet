@@ -37,12 +37,9 @@ At Fleet, we write things down.  Even when we might be wrong.  This helps us mov
 
 ## Open positions
 
-Fleet is currently hiring for the following positions:
-
 
 <open-positions :open-positions="openPositions"></open-positions>
 
-> **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 ### Is it any good?
 
@@ -143,7 +140,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 - 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
-- 🦢 [Product Design](https://fleetdm.com/handbook/product): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
+- 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
 - 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience): The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 ## Advisors

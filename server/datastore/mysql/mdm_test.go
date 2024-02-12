@@ -31,7 +31,7 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
+		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
@@ -2181,7 +2181,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
+func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Setup funcs
