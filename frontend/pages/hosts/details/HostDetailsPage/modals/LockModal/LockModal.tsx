@@ -13,11 +13,18 @@ const baseClass = "lock-modal";
 interface ILockModalProps {
   id: number;
   platform: string;
+  hostName: string;
   onSuccess: () => void;
   onClose: () => void;
 }
 
-const LockModal = ({ id, platform, onSuccess, onClose }: ILockModalProps) => {
+const LockModal = ({
+  id,
+  platform,
+  hostName,
+  onSuccess,
+  onClose,
+}: ILockModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
   const [isLocking, setIsLocking] = React.useState(false);
@@ -53,7 +60,7 @@ const LockModal = ({ id, platform, onSuccess, onClose }: ILockModalProps) => {
               value={lockChecked}
               onChange={(value: boolean) => setLockChecked(value)}
             >
-              I wish to lock <b>Test Host</b>
+              I wish to lock <b>{hostName}</b>
             </Checkbox>
           </div>
         </div>

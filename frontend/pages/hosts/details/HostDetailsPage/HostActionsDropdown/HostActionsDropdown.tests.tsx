@@ -397,7 +397,7 @@ describe("Host Actions Dropdown", () => {
   });
 
   describe("Lock action", () => {
-    it("renders when the host is enrolled in mdm and the mdm is enabled", async () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is unlocked", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
@@ -486,7 +486,7 @@ describe("Host Actions Dropdown", () => {
   });
 
   describe("Unlock action", () => {
-    it("renders when the host is enrolled in mdm and the mdm is enabled", async () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is locked", async () => {
       const render = createCustomRenderer({
         context: {
           app: {

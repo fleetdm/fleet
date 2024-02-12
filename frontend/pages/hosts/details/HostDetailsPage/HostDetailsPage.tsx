@@ -993,6 +993,7 @@ const HostDetailsPage = ({
           <LockModal
             id={host.id}
             platform={host.platform}
+            hostName={host.display_name}
             onSuccess={() => setHostMdmDeviceState("locking")}
             onClose={() => setShowLockHostModal(false)}
           />
