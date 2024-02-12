@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240206111533, Down_20240206111533)
+	MigrationClient.AddMigration(Up_20240212111533, Down_20240212111533)
 }
 
-func Up_20240206111533(tx *sql.Tx) error {
+func Up_20240212111533(tx *sql.Tx) error {
 	// going with a VARCHAR instead of a number because the leading zeros are
 	// important in a PIN. Being a VARCHAR will also make it easy to make larger
 	// if needed in the future.
@@ -28,6 +28,6 @@ func Up_20240206111533(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240206111533(tx *sql.Tx) error {
+func Down_20240212111533(tx *sql.Tx) error {
 	return nil
 }
