@@ -1,11 +1,14 @@
 import React, { useContext } from "react";
 import { AxiosError } from "axios";
+import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
-import hostAPI from "services/entities/hosts";
+import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
+import Spinner from "components/Spinner";
+import DataError from "components/DataError";
 
 const baseClass = "unlock-modal";
 
@@ -29,6 +32,18 @@ const UnlockModal = ({
   const { renderFlash } = useContext(NotificationContext);
   const [isUnlocking, setIsUnlocking] = React.useState(false);
 
+  const {
+    data: macUnlockData,
+    isLoading: macIsLoading,
+    isError: macIsError,
+  } = useQuery<IUnlockHostResponse, AxiosError>(
+    ["mac-unlock-pin", id],
+    () => hostAPI.unlockHost(id),
+    {
+      enabled: platform === "darwin",
+    }
+  );
+
   const onUnlock = async () => {
     setIsUnlocking(true);
     try {
@@ -44,7 +59,12 @@ const UnlockModal = ({
   };
 
   const renderModalContent = () => {
-    if (platform === "darwin" && pin) {
+    if (platform === "darwin") {
+      if (macIsLoading) return <Spinner />;
+      if (macIsError) return <DataError />;
+
+      if (!macUnlockData) return null;
+
       return (
         <>
           {/* TODO: replace with DataSet component */}
@@ -53,7 +73,7 @@ const UnlockModal = ({
           </p>
           <div className={`${baseClass}__pin`}>
             <b>PIN</b>
-            <span>{pin}</span>
+            <span>{macUnlockData.unlock_pin}</span>
           </div>
         </>
       );

@@ -279,7 +279,7 @@ const HostDetailsPage = ({
           //   returnedHost.mdm.device_status,
           //   returnedHost.mdm.pending_action
           // ),
-          getHostDeviceStatusUIState("unlocked", "")
+          getHostDeviceStatusUIState("locked", "")
         );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
