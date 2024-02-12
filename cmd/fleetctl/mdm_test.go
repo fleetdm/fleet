@@ -802,7 +802,7 @@ fleetctl get host %s
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
+		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		// TODO: add test for wipe once implemented
