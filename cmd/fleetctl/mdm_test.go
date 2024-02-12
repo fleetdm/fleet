@@ -497,13 +497,13 @@ func TestMDMLockCommand(t *testing.T) {
 
 	successfulOutput := func(ident string) string {
 		return fmt.Sprintf(`
-The host will lock when it comes online.  
+The host will lock when it comes online.
 
 Copy and run this command to see lock status:
 
 fleetctl get host %s
 
-When you're ready to unlock the host, copy and run this command: 
+When you're ready to unlock the host, copy and run this command:
 
 fleetctl mdm unlock --host=%s
 
@@ -772,7 +772,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 			return `Use this 6 digit PIN to unlock the host:`
 		}
 		return fmt.Sprintf(`
-The host will unlock when it comes online.  
+The host will unlock when it comes online.
 
 Copy and run this command to see results:
 
