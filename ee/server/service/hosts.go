@@ -10,6 +10,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/google/uuid"
 )
 
 func (svc *Service) GetHost(ctx context.Context, id uint, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
@@ -185,8 +186,9 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) error {
 	if lockStatus.HostFleetPlatform == "darwin" {
-		// TODO: implement. Removed panic to avoid issues in tests.
-		return nil
+		lockCommandUUID := uuid.NewString()
+		err := svc.mdmAppleCommander.DeviceLock(ctx, host, lockCommandUUID)
+		return ctxerr.Wrap(ctx, err, "enqueuing lock request for darwin")
 	}
 
 	vc, ok := viewer.FromContext(ctx)

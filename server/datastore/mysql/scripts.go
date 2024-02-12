@@ -548,6 +548,7 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 
 			// get the MDM command result, which may be not found (indicating the
 			// command is pending)
+			// TODO: this bubbles up and returns a not found, it should be fine to not have command results
 			cmdRes, err := ds.GetMDMAppleCommandResults(ctx, *mdmActions.LockRef)
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command result")

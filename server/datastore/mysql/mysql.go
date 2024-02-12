@@ -28,6 +28,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nanomdm "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -155,6 +157,8 @@ func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte
 		MySQLStorage: s,
 		pushCertPEM:  pushCertPEM,
 		pushKeyPEM:   pushKeyPEM,
+		db:           ds.primary,
+		logger:       ds.logger,
 	}, nil
 }
 
@@ -162,6 +166,8 @@ func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte
 type NanoMDMStorage struct {
 	*nanomdm_mysql.MySQLStorage
 
+	db          *sqlx.DB
+	logger      log.Logger
 	pushCertPEM []byte
 	pushKeyPEM  []byte
 }
@@ -196,6 +202,46 @@ func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken 
 // instead they are loaded to memory at startup.
 func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
 	return errors.New("unimplemented")
+}
+
+// EnqueueDeviceLockCommand enqueues a DeviceLock command for the given host.
+//
+// A few implementation details:
+//   - It can only be called for a single hosts, to ensure we don't use the same
+//     pin for multiple hosts.
+//   - The method performs fleet-specific actions after the command is enqueued.
+func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
+	ctx context.Context,
+	host *fleet.Host,
+	cmd *mdm.Command,
+	pin string,
+) error {
+	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
+			return err
+		}
+
+		// TODO(roberto): call @mna's transactionable method to update
+		// these tables when it's ready.
+		stmt := `
+                          INSERT INTO host_mdm_actions (
+			    host_id,
+			    lock_ref,
+			    unlock_pin
+			  )
+                          VALUES (?, ?, ?)
+                          ON DUPLICATE KEY UPDATE
+			        wipe_ref   = NULL,
+                                unlock_ref = NULL,
+				unlock_pin = VALUES(unlock_pin),
+                                lock_ref   = VALUES(lock_ref)`
+
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, pin); err != nil {
+			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceLock")
+		}
+
+		return nil
+	}, s.logger)
 }
 
 // NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
@@ -235,6 +281,37 @@ func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, token
 	return errors.New("unimplemented")
 }
 
+func enqueueCommandDB(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd *nanomdm.Command) error {
+	// NOTE: the code to insert into nano_commands and
+	// nano_enrollment_queue was copied verbatim from the nanomdm
+	// implementation. Ideally we modify some of the interfaces to not
+	// duplicate the code here, but that needs more careful planning
+	// (which we lack right now)
+	if len(ids) < 1 {
+		return errors.New("no id(s) supplied to queue command to")
+	}
+	_, err := tx.ExecContext(
+		ctx,
+		`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, ?, ?);`,
+		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw,
+	)
+	if err != nil {
+		return err
+	}
+	query := `INSERT INTO nano_enrollment_queue (id, command_uuid) VALUES (?, ?)`
+	query += strings.Repeat(", (?, ?)", len(ids)-1)
+	args := make([]interface{}, len(ids)*2)
+	for i, id := range ids {
+		args[i*2] = id
+		args[i*2+1] = cmd.CommandUUID
+	}
+	if _, err = tx.ExecContext(ctx, query+";", args...); err != nil {
+		return err
+	}
+
+	return nil
+}
+
 type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
@@ -271,10 +348,14 @@ func retryableError(err error) bool {
 	return false
 }
 
-// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
+	return withRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+}
+
+// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
+func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) (err error) {
 	operation := func() error {
-		tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+		tx, err := db.BeginTxx(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
@@ -282,7 +363,7 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+					logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 				}
 				panic(p)
 			}

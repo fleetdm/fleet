@@ -7,11 +7,11 @@ import (
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/groob/plist"
 )
 
@@ -28,12 +28,12 @@ type commandPayload struct {
 // in crons and other services, leaving authentication/permission handling to
 // the caller.
 type MDMAppleCommander struct {
-	storage nanomdm_storage.AllStorage
+	storage fleet.MDMAppleStore
 	pusher  nanomdm_push.Pusher
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
@@ -84,7 +84,7 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
-func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error {
+func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, uuid string) error {
 	pin := GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -101,7 +101,21 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, hostUUIDs []string
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceLockCommand(ctx, host, cmd, pin); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceLock")
+	}
+
+	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceLock")
+	}
+
+	return nil
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
@@ -205,15 +219,21 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error {
 	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
+		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	// MySQL implementation always returns nil for the first parameter
-	_, err = svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "commander enqueue")
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 
+	if err := svc.sendNotifications(ctx, hostUUIDs); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications")
+	}
+
+	return nil
+}
+
+func (svc *MDMAppleCommander) sendNotifications(ctx context.Context, hostUUIDs []string) error {
 	apnsResponses, err := svc.pusher.Push(ctx, hostUUIDs)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "commander push")
