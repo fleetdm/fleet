@@ -60,7 +60,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	}
 
 	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
+		cert, err := tls.LoadX509KeyPair("../../service/testdata/server.pem", "../../service/testdata/server.key")
 		return &cert, "", err
 	}
 	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
@@ -104,7 +104,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	host := &fleet.Host{ID: 1, UUID: "abc"}
+	host := &fleet.Host{ID: 1, UUID: "A"}
 	cmdUUID = uuid.New().String()
 	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
 		require.NotNil(t, gotHost)
