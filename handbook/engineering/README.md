@@ -205,6 +205,14 @@ When a critical bug is identified, we will then follow the patch release process
 
 > After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
 
+### Notify stakeholders when a user story is pushed to the next release
+[User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the merge freeze begins, it is the product group EM's responsibility to notify stakeholders:
+
+1. Add the `~pushed` label to the user story. 
+2. Update the user story's milestone to the next minor version milestone. 
+3. Comment on the GitHub issue and at-mention the PM and anyone listed in the requester field. 
+4. If `customer-` labels are applied to the user story, at-mention the [VP of Customer Success](https://fleetdm.com/handbook/customer-success#team).
+
 ### Run Fleet locally for QA purposes
 To try Fleet locally for QA purposes, run `fleetctl preview`, which defaults to running the latest stable release.
 
