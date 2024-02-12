@@ -1719,9 +1719,11 @@ func rows(num int) string {
 }
 
 func main() {
+	// Start HTTP server for pprof. See https://pkg.go.dev/net/http/pprof.
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
+
 	validTemplateNames := map[string]bool{
 		"macos_13.6.2.tmpl":         true,
 		"macos_14.1.2.tmpl":         true,
