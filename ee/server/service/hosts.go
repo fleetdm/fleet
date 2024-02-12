@@ -175,7 +175,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		// MacOS machines are unlocked by typing the PIN into the machine. "Unlock" in this case
 		// should just return the PIN as many times as needed.
 		if host.FleetPlatform() == "darwin" {
-			break
+			return lockWipe.UnlockPIN, nil
 		}
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
