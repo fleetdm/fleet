@@ -33,7 +33,7 @@ import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
 const baseClass = "host-summary";
 
-interface IRefreshButtonProps {
+interface IRefetchButtonProps {
   isDisabled: boolean;
   isFetching: boolean;
   tooltip?: React.ReactNode;
@@ -42,12 +42,12 @@ interface IRefreshButtonProps {
   ) => void;
 }
 
-const RefreshButton = ({
+const RefetchButton = ({
   isDisabled,
   isFetching,
   tooltip,
   onRefetchHost,
-}: IRefreshButtonProps) => {
+}: IRefetchButtonProps) => {
   const classNames = classnames({
     tooltip: isDisabled,
     "refetch-spinner": isFetching,
@@ -206,7 +206,7 @@ const HostSummary = ({
     }
 
     return (
-      <RefreshButton
+      <RefetchButton
         isDisabled={isDisabled}
         isFetching={showRefetchSpinner}
         tooltip={tooltip}
