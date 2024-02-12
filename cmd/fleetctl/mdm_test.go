@@ -541,6 +541,9 @@ fleetctl mdm unlock --host=%s
 		ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 			return c.appCfg, nil
 		}
+		enqueuer.EnqueueDeviceLockCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {
+			return nil
+		}
 		buf, err := runAppNoChecks(append([]string{"mdm", "lock"}, c.flags...))
 		if c.wantErr != "" {
 			require.Error(t, err, c.desc)
@@ -662,6 +665,10 @@ func TestMDMUnlockCommand(t *testing.T) {
 
 	enqueuer := new(mock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
+
+	enqueuer.EnqueueDeviceLockCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {
+		return nil
+	}
 
 	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
 		MDMStorage:       enqueuer,
