@@ -697,7 +697,7 @@ const HostDetailsPage = ({
         hostPlatform={host.platform}
         hostStatus={host.status}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
-        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
       />

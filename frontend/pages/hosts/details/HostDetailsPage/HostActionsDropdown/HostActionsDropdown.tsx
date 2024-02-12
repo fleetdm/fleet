@@ -14,7 +14,7 @@ const baseClass = "host-actions-dropdown";
 interface IHostActionsDropdownProps {
   hostTeamId: number | null;
   hostStatus: string;
-  hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
   /** This represends the mdm manage host device status (e.g. unlocked, locked, unlocking, locking,
    * ...etc) */
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
@@ -27,7 +27,7 @@ interface IHostActionsDropdownProps {
 const HostActionsDropdown = ({
   hostTeamId,
   hostStatus,
-  hostMdmEnrollemntStatus,
+  hostMdmEnrollmentStatus,
   hostMdmDeviceStatus,
   doesStoreEncryptionKey,
   mdmName,
@@ -65,7 +65,7 @@ const HostActionsDropdown = ({
     isHostOnline: hostStatus === "online",
 
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-      hostMdmEnrollemntStatus ?? ""
+      hostMdmEnrollmentStatus ?? ""
     ),
     isFleetMdm: mdmName === "Fleet",
     isMdmEnabledAndConfigured,
