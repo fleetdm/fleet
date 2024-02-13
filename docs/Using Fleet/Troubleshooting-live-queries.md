@@ -2,7 +2,7 @@
 
 ## How do live queries work?
 
-Following is the lifecycle of a live query in Fleet. (For simplicity we'll assume two Fleet instances (0 and 1) and two devices (0 and 1).
+Following is the lifecycle of a live query in Fleet. (For simplicity we'll assume two Fleet instances (0 and 1) and two devices (0 and 1)
 
 ```mermaid
 
