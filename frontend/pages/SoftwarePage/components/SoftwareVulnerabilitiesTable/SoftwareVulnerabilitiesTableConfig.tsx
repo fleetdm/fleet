@@ -65,9 +65,6 @@ const generateTableConfig = (
         );
       },
     },
-  ];
-
-  const premiumHeaders: IDataColumn[] = [
     {
       title: "Severity",
       accessor: "cvss_score",
@@ -221,7 +218,15 @@ const generateTableConfig = (
     },
   ];
 
-  return isPremiumTier ? tableHeaders.concat(premiumHeaders) : tableHeaders;
+  if (!isPremiumTier) {
+    return tableHeaders.filter(
+      (header) =>
+        header.accessor !== "epss_probability" &&
+        header.accessor !== "cve_published"
+    );
+  }
+
+  return tableHeaders;
 };
 
 export default generateTableConfig;

@@ -1,6 +1,8 @@
+/** software/os/:id */
+
 import React from "react";
 import { useQuery } from "react-query";
-import { RouteComponentProps } from "react-router/lib/Router";
+import { InjectedRouter } from "react-router";
 
 import osVersionsAPI, {
   IOSVersionResponse,
@@ -42,13 +44,14 @@ interface ISoftwareOSDetailsRouteParams {
   id: string;
 }
 
-type ISoftwareOSDetailsPageProps = RouteComponentProps<
-  undefined,
-  ISoftwareOSDetailsRouteParams
->;
+interface ISoftwareOSDetailsPageProps {
+  routeParams: ISoftwareOSDetailsRouteParams;
+  router: InjectedRouter;
+}
 
 const SoftwareOSDetailsPage = ({
   routeParams,
+  router,
 }: ISoftwareOSDetailsPageProps) => {
   const osVersionIdFromURL = parseInt(routeParams.id, 10);
 
@@ -82,6 +85,7 @@ const SoftwareOSDetailsPage = ({
         data={osVersionDetails.vulnerabilities}
         itemName="version"
         isLoading={isLoading}
+        router={router}
       />
     );
   };
