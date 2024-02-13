@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
@@ -13,6 +14,7 @@ import (
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/groob/plist"
+	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 // commandPayload is the common structure all MDM commands use
@@ -28,21 +30,35 @@ type commandPayload struct {
 // in crons and other services, leaving authentication/permission handling to
 // the caller.
 type MDMAppleCommander struct {
+	config  config.MDMConfig
 	storage nanomdm_storage.AllStorage
 	pusher  nanomdm_push.Pusher
 }
 
 // NewMDMAppleCommander creates a new commander instance.
-func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher) *MDMAppleCommander {
+func NewMDMAppleCommander(mdmStorage nanomdm_storage.AllStorage, mdmPushService nanomdm_push.Pusher, config config.MDMConfig) *MDMAppleCommander {
 	return &MDMAppleCommander{
 		storage: mdmStorage,
 		pusher:  mdmPushService,
+		config:  config,
 	}
 }
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
 func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+	if svc.config.IsSigningSet() {
+		cert, _, _, err := svc.config.Signing()
+		if err != nil {
+			return err
+		}
+
+		profile, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, profile)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "signing profile with the specified key")
+		}
+	}
+
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

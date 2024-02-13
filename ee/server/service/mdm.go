@@ -29,6 +29,7 @@ import (
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
+	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 	depclient "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/storage"
 )
@@ -1093,6 +1094,18 @@ func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, 
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if svc.config.MDM.IsSigningSet() {
+		cert, _, _, err := svc.config.MDM.Signing()
+		if err != nil {
+			return nil, err
+		}
+
+		mobileConfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
+		}
 	}
 
 	return mobileConfig, nil

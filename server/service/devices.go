@@ -18,6 +18,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -509,6 +510,19 @@ func (svc *Service) GetDeviceMDMAppleEnrollmentProfile(ctx context.Context) ([]b
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if svc.config.MDM.IsSigningSet() {
+		cert, _, _, err := svc.config.MDM.Signing()
+		if err != nil {
+			return nil, err
+		}
+
+		mobileConfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileConfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
+		}
+
 	}
 	return mobileConfig, nil
 }

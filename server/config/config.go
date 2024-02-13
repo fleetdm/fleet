@@ -438,6 +438,9 @@ type MDMConfig struct {
 	appleSCEP        *tls.Certificate
 	appleSCEPPEMCert []byte
 	appleSCEPPEMKey  []byte
+	signing          *tls.Certificate
+	signingPEMCert   []byte
+	signingPEMKey    []byte
 
 	AppleBMServerToken      string `yaml:"apple_bm_server_token"`
 	AppleBMServerTokenBytes string `yaml:"apple_bm_server_token_bytes"`
@@ -445,6 +448,11 @@ type MDMConfig struct {
 	AppleBMCertBytes        string `yaml:"apple_bm_cert_bytes"`
 	AppleBMKey              string `yaml:"apple_bm_key"`
 	AppleBMKeyBytes         string `yaml:"apple_bm_key_bytes"`
+
+	SigningCert      string `yaml:"signing_cert"`
+	SigningCertBytes string `yaml:"signing_cert_bytes"`
+	SigningKey       string `yaml:"signing_key"`
+	SigningKeyBytes  string `yaml:"signing_key_bytes"`
 
 	// the following fields hold the decrypted, validated Apple BM token set the
 	// first time AppleBM is called.
@@ -550,6 +558,37 @@ func (m *MDMConfig) IsAppleAPNsSet() bool {
 		[]byte(m.AppleAPNsKeyBytes),
 	}
 	return pair.IsSet()
+}
+
+func (m *MDMConfig) IsSigningSet() bool {
+	pair := x509KeyPairConfig{
+		m.SigningCert,
+		[]byte(m.SigningCertBytes),
+		m.SigningKey,
+		[]byte(m.SigningKeyBytes),
+	}
+	return pair.IsSet()
+}
+
+// Signing returns the parsed and validated TLS certificate for signing.
+// It parses and validates it if it hasn't been done yet.
+func (m *MDMConfig) Signing() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
+	if m.signing == nil {
+		pair := x509KeyPairConfig{
+			m.SigningCert,
+			[]byte(m.SigningCertBytes),
+			m.SigningKey,
+			[]byte(m.SigningKeyBytes),
+		}
+		cert, err := pair.Parse(true)
+		if err != nil {
+			return nil, nil, nil, fmt.Errorf("Signing keypair configuration: %w", err)
+		}
+		m.signing = cert
+		m.signingPEMCert = pair.certBytes
+		m.signingPEMKey = pair.keyBytes
+	}
+	return m.signing, m.signingPEMCert, m.signingPEMKey, nil
 }
 
 func (m *MDMConfig) IsAppleSCEPSet() bool {
@@ -1083,6 +1122,10 @@ func (man Manager) addConfigs() {
 	man.addConfigString("mdm.apple_scep_cert_bytes", "", "Apple SCEP PEM-encoded certificate bytes")
 	man.addConfigString("mdm.apple_scep_key", "", "Apple SCEP PEM-encoded private key path")
 	man.addConfigString("mdm.apple_scep_key_bytes", "", "Apple SCEP PEM-encoded private key bytes")
+	man.addConfigString("mdm.signing_cert", "", "Signing PEM-encoded certificate path")
+	man.addConfigString("mdm.signing_cert_bytes", "", "Signing PEM-encoded certificate bytes")
+	man.addConfigString("mdm.signing_key", "", "Signing PEM-encoded private key path")
+	man.addConfigString("mdm.signing_key_bytes", "", "Signing PEM-encoded private key bytes")
 	man.addConfigString("mdm.apple_bm_server_token", "", "Apple Business Manager encrypted server token path (.p7m file)")
 	man.addConfigString("mdm.apple_bm_server_token_bytes", "", "Apple Business Manager encrypted server token bytes")
 	man.addConfigString("mdm.apple_bm_cert", "", "Apple Business Manager PEM-encoded certificate path")
@@ -1371,6 +1414,10 @@ func (man Manager) LoadConfig() FleetConfig {
 			AppleSCEPSignerAllowRenewalDays: man.getConfigInt("mdm.apple_scep_signer_allow_renewal_days"),
 			AppleSCEPChallenge:              man.getConfigString("mdm.apple_scep_challenge"),
 			AppleDEPSyncPeriodicity:         man.getConfigDuration("mdm.apple_dep_sync_periodicity"),
+			SigningCert:                     man.getConfigString("mdm.signing_cert"),
+			SigningCertBytes:                man.getConfigString("mdm.signing_cert_bytes"),
+			SigningKey:                      man.getConfigString("mdm.signing_key"),
+			SigningKeyBytes:                 man.getConfigString("mdm.signing_key_bytes"),
 			WindowsWSTEPIdentityCert:        man.getConfigString("mdm.windows_wstep_identity_cert"),
 			WindowsWSTEPIdentityKey:         man.getConfigString("mdm.windows_wstep_identity_key"),
 			WindowsWSTEPIdentityCertBytes:   man.getConfigString("mdm.windows_wstep_identity_cert_bytes"),

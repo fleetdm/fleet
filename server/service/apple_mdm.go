@@ -36,6 +36,7 @@ import (
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
+	"github.com/micromdm/micromdm/pkg/crypto/profileutil"
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -1107,6 +1108,18 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if svc.config.MDM.IsSigningSet() {
+		cert, _, _, err := svc.config.MDM.Signing()
+		if err != nil {
+			return nil, err
+		}
+
+		mobileconfig, err = profileutil.Sign(cert.PrivateKey, cert.Leaf, mobileconfig)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "signing profile with the specified key")
+		}
 	}
 	return mobileconfig, nil
 }
