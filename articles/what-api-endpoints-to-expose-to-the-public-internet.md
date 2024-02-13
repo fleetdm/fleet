@@ -15,7 +15,7 @@ If you are using Fleet Desktop and want it to work on remote devices, the bare m
 
 For full Fleet Desktop and scripts functionality, `/api/fleet/orbit/*` and`/api/fleet/device/ping` must also be exposed.
 
-## Using fleetctl CLI from outsite of your network
+## Using fleetctl CLI from outside of your network
 
 If you would like to use the fleetctl CLI from outside of your network, the following endpoints will also need to be exposed for `fleetctl`:
 
