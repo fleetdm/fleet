@@ -49,7 +49,7 @@ const UnlockModal = ({
     try {
       await hostAPI.unlockHost(id);
       onSuccess();
-      renderFlash("success", "Host Unlocked successfully!");
+      renderFlash("success", "Host is unlocking!");
     } catch (error) {
       const err = error as AxiosError;
       renderFlash("error", err.message);

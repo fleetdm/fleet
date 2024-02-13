@@ -34,7 +34,7 @@ const LockModal = ({
     try {
       await hostAPI.lockHost(id);
       onSuccess();
-      renderFlash("success", "Host locked successfully!");
+      renderFlash("success", "Host is locking!");
     } catch (error) {
       const err = error as AxiosError;
       renderFlash("error", err.message);
