@@ -54,26 +54,26 @@ parasails.registerComponent('parallaxCity', {
 
   },
   mounted: async function(){
-    if(!bowser.isMobile){
-      // Store a reference to the parent container, we'll use this to determine the elements position relative to the user's viewport.
-      this.parallaxCityElement = $('div[purpose="parallax-city-container"]')[0];
-      // Build an array of parallax layers, and set the initial bottom position of each layer to be negative the layer's scroll amount.
-      for(let layer of $('div.parallax-layer')) {
-        let scrollAmount = Number($(layer).attr('scroll-amount'));
-        $(layer).css('bottom', `-${scrollAmount}px`);
-        this.parallaxLayers.push({element: layer, scrollAmount});
-      }
-      // Determine the parallax image's position on the page/user's viewport.
-      this.getElementPositions();
-      // If the bottom of the element is within the user's viewport, update the positions of the layers.
-      if(this.parallaxCityElement.getBoundingClientRect().bottom > this.parallaxCityElement.offsetTop) {
-        this.scrollParallaxLayers();
-      }
-      // Add a scroll event listener
-      $(window).scroll(this.scrollParallaxLayers);
-      // Add a resize event listener.
-      $(window).resize(this.getElementPositions);
-    }
+    // if(!bowser.isMobile){
+    //   // Store a reference to the parent container, we'll use this to determine the elements position relative to the user's viewport.
+    //   this.parallaxCityElement = $('div[purpose="parallax-city-container"]')[0];
+    //   // Build an array of parallax layers, and set the initial bottom position of each layer to be negative the layer's scroll amount.
+    //   for(let layer of $('div.parallax-layer')) {
+    //     let scrollAmount = Number($(layer).attr('scroll-amount'));
+    //     $(layer).css('bottom', `-${scrollAmount}px`);
+    //     this.parallaxLayers.push({element: layer, scrollAmount});
+    //   }
+    //   // Determine the parallax image's position on the page/user's viewport.
+    //   this.getElementPositions();
+    //   // If the bottom of the element is within the user's viewport, update the positions of the layers.
+    //   if(this.parallaxCityElement.getBoundingClientRect().bottom > this.parallaxCityElement.offsetTop) {
+    //     this.scrollParallaxLayers();
+    //   }
+    //   // Add a scroll event listener
+    //   $(window).scroll(this.scrollParallaxLayers);
+    //   // Add a resize event listener.
+    //   $(window).resize(this.getElementPositions);
+    // }
   },
   beforeDestroy: function() {
 
@@ -83,25 +83,25 @@ parasails.registerComponent('parallaxCity', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    getElementPositions: function() {
-      this.elementHeight = this.parallaxCityElement.clientHeight;
-      this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
-      this.distanceFromBottomOfPage = document.body.scrollHeight - this.distanceFromTopOfPage - (this.elementHeight * .5);
-      this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
-    },
-    scrollParallaxLayers: function() {
-      // Calculate how much of the parallax image is visible.
-      let visibleHeight = (window.scrollY + window.innerHeight) - Math.max(this.distanceFromTopOfPage, window.scrollY);
-      let percentageScrolled = visibleHeight / (this.distanceFromBottomOfPage + (this.elementHeight / 2 ));
-      // When the element has been scrolled down 25%, iterate through the layers and update their positions.
-      if(percentageScrolled > .25 ){
-        let adjustedPercentage = (percentageScrolled - .25) * 4/3;
-        for(let layer of this.parallaxLayers) {
-          let movement = Math.min(adjustedPercentage * layer.scrollAmount, layer.scrollAmount);
-          // Update the position of each layer.
-          $(layer.element).css('transform', 'translate3D(0, -' + movement + 'px, 0)');
-        }
-      }
-    },
+    // getElementPositions: function() {
+    //   this.elementHeight = this.parallaxCityElement.clientHeight;
+    //   this.distanceFromTopOfPage = this.parallaxCityElement.offsetTop;
+    //   this.distanceFromBottomOfPage = document.body.scrollHeight - this.distanceFromTopOfPage - (this.elementHeight * .5);
+    //   this.elementBottomPosition = this.elementHeight + this.distanceFromTopOfPage;
+    // },
+    // scrollParallaxLayers: function() {
+    //   // Calculate how much of the parallax image is visible.
+    //   let visibleHeight = (window.scrollY + window.innerHeight) - Math.max(this.distanceFromTopOfPage, window.scrollY);
+    //   let percentageScrolled = visibleHeight / (this.distanceFromBottomOfPage + (this.elementHeight / 2 ));
+    //   // When the element has been scrolled down 25%, iterate through the layers and update their positions.
+    //   if(percentageScrolled > .25 ){
+    //     let adjustedPercentage = (percentageScrolled - .25) * 4/3;
+    //     for(let layer of this.parallaxLayers) {
+    //       let movement = Math.min(adjustedPercentage * layer.scrollAmount, layer.scrollAmount);
+    //       // Update the position of each layer.
+    //       $(layer.element).css('transform', 'translate3D(0, -' + movement + 'px, 0)');
+    //     }
+    //   }
+    // },
   }
 });
