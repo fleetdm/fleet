@@ -311,7 +311,10 @@ const setOptionsAsDisabled = (
       options.filter((option) => option.value === "transfer")
     );
   }
-  if (isDeviceStatusUpdating(hostMdmDeviceStatus)) {
+  if (
+    isDeviceStatusUpdating(hostMdmDeviceStatus) ||
+    hostMdmDeviceStatus === "locked"
+  ) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"

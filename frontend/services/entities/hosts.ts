@@ -392,7 +392,7 @@ export default {
     return sendRequest("POST", HOST_LOCK(id));
   },
   unlockHost: (id: number): Promise<IUnlockHostResponse> => {
-    const { HOST_LOCK } = endpoints;
-    return sendRequest("POST", HOST_LOCK(id));
+    const { HOST_UNLOCK } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK(id));
   },
 };
