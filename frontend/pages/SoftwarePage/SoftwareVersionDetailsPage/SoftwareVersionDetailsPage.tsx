@@ -1,3 +1,5 @@
+/** software/versions/:id */
+
 import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
@@ -35,7 +37,9 @@ const SoftwareVersionDetailsPage = ({
   router,
 }: ISoftwareOSDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
-  const teamId = parseInt(routeParams.team_id, 10);
+  const teamId = routeParams.team_id
+    ? parseInt(routeParams.team_id, 10)
+    : undefined;
 
   const {
     data: softwareVersion,

@@ -1,3 +1,5 @@
+/** software/os/:id */
+
 import React from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";

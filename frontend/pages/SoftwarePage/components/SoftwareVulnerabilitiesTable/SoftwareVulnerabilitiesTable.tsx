@@ -1,3 +1,8 @@
+/**
+software/versions/:id > Vulnerabilities table
+software/os/:id > Vulnerabilities table
+*/
+
 import React, { useContext, useMemo } from "react";
 import classnames from "classnames";
 import { InjectedRouter } from "react-router";
@@ -46,7 +51,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   isLoading: boolean;
   className?: string;
   router: InjectedRouter;
-  teamId: number;
+  teamId?: number;
 }
 
 interface IRowProps extends Row {

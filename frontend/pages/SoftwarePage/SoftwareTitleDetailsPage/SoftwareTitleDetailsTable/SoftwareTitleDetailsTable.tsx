@@ -1,3 +1,5 @@
+/** software/titles/:id > Versions section */
+
 import React, { useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -44,7 +46,7 @@ interface ISoftwareTitleDetailsTableProps {
 
 interface IRowProps extends Row {
   original: {
-    software_version_id?: string;
+    id?: number;
   };
 }
 
@@ -55,7 +57,7 @@ const SoftwareTitleDetailsTable = ({
 }: ISoftwareTitleDetailsTableProps) => {
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
-      software_version_id: row.original.software_version_id,
+      software_version_id: row.original.id,
     };
 
     const path = hostsBySoftwareParams

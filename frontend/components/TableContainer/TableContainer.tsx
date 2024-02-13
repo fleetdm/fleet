@@ -31,7 +31,6 @@ interface IRowProps extends Row {
     id?: number;
     os_version_id?: string; // Required for onSelectSingleRow of SoftwareOSTable.tsx
     cve?: string; // Required for onSelectSingleRow of SoftwareVulnerabilityTable.tsx
-    software_version_id?: string; // Required for onSelectSingleRow of SoftwareTitleDetailsTable.tsx
   };
 }
 
