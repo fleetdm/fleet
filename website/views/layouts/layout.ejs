@@ -134,7 +134,7 @@
       height="0" width="0" style="display:none;visibility:hidden"></iframe>
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
-    <div purpose="page-wrap" <% if(hideFooterLinks) {%>style="padding-bottom: 60px;"<% } %> >
+    <div purpose="page-wrap" style="<%= hideFooterLinks ? 'padding-bottom: 60px;' : '' %>">
       <%// Page header%>
       <div class="header" purpose="header-container" data-nosnippet>
         <div purpose="header-background">
@@ -213,7 +213,7 @@
               <%/* Desktop Navigation bar */%>
               <div purpose="header-nav" class="d-none d-lg-flex align-items-center justify-content-around">
                 <div purpose="dropdown-button" class="btn-group">
-                  <a purpose="header-nav-btn" style="" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
+                  <a purpose="header-nav-btn" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
                     <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
