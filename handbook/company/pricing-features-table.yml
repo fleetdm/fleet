@@ -732,11 +732,6 @@
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Vanta integration
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
 - industryName: Trigger a workflow based on a failing policy
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
