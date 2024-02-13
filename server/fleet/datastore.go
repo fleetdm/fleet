@@ -1271,6 +1271,10 @@ type Datastore interface {
 	// UnlockHostViaScript sends a script to unlock a host and updates the
 	// states in host_mdm_actions
 	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	// UnlockHostmanually records a request to unlock a host that requires manual
+	// intervention (such as for macOS). It indicates the an unlock request is
+	// pending.
+	UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

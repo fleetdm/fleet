@@ -812,6 +812,8 @@ type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRe
 
 type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
 
+type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, ts time.Time) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2003,6 +2005,9 @@ type DataStore struct {
 
 	UnlockHostViaScriptFunc        UnlockHostViaScriptFunc
 	UnlockHostViaScriptFuncInvoked bool
+
+	UnlockHostManuallyFunc        UnlockHostManuallyFunc
+	UnlockHostManuallyFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4784,4 +4789,11 @@ func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.Host
 	s.UnlockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnlockHostViaScriptFunc(ctx, request)
+}
+
+func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+	s.mu.Lock()
+	s.UnlockHostManuallyFuncInvoked = true
+	s.mu.Unlock()
+	return s.UnlockHostManuallyFunc(ctx, hostID, ts)
 }

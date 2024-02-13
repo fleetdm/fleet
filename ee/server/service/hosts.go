@@ -257,8 +257,13 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	}
 
 	var unlockPIN string
-
 	if lockStatus.HostFleetPlatform == "darwin" {
+		// record the unlock request if it was not already recorded
+		if lockStatus.UnlockRequestedAt.IsZero() {
+			if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
+				return "", err
+			}
+		}
 		unlockPIN = lockStatus.UnlockPIN
 	} else {
 		script := windowsUnlockScript

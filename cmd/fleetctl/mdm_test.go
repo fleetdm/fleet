@@ -447,6 +447,7 @@ func TestMDMLockCommand(t *testing.T) {
 		if _, ok := unlockPending[hostID]; ok {
 			if fleetPlatform == "darwin" {
 				status.UnlockPIN = "1234"
+				status.UnlockRequestedAt = time.Now()
 				return &status, nil
 			}
 
@@ -725,6 +726,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 		if _, ok := unlockPending[hostID]; ok {
 			if fleetPlatform == "darwin" {
 				status.UnlockPIN = "1234"
+				status.UnlockRequestedAt = time.Now()
 				return &status, nil
 			}
 
@@ -743,6 +745,9 @@ func TestMDMUnlockCommand(t *testing.T) {
 		return &status, nil
 	}
 	ds.UnlockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+		return nil
+	}
+	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {

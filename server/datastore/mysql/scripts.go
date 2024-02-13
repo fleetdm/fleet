@@ -573,6 +573,17 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		if mdmActions.UnlockPIN != nil {
 			status.UnlockPIN = *mdmActions.UnlockPIN
 		}
+		if mdmActions.UnlockRef != nil {
+			var err error
+			status.UnlockRequestedAt, err = time.Parse(time.DateTime, *mdmActions.UnlockRef)
+			if err != nil {
+				// if the format is unexpected but there's something in UnlockRef, just
+				// replace it with the current timestamp, it should still indicate that
+				// an unlock was requested (e.g. in case someone plays with the data
+				// directly in the DB and messes up the format).
+				status.UnlockRequestedAt = time.Now().UTC()
+			}
+		}
 
 		if mdmActions.LockRef != nil {
 			// the lock reference is an MDM command
@@ -699,6 +710,32 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 
 		return err
 	})
+}
+
+func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+	const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		unlock_ref
+	)
+	VALUES (?, ?)
+	ON DUPLICATE KEY UPDATE
+		-- do not overwrite if a value is already set
+		unlock_ref = IF(unlock_ref IS NULL, VALUES(unlock_ref), unlock_ref)
+	`
+	// for macOS, the unlock_ref is just the timestamp at which the user first
+	// requested to unlock the host. This then indicates in the host's status
+	// that it's pending an unlock (which requires manual intervention by
+	// entering a PIN on the device). The /unlock endpoint can be called multiple
+	// times, so we record the timestamp of the first time it was requested and
+	// from then on, the host is marked as "pending unlock" until the device is
+	// actually unlocked with the PIN.
+	// TODO(mna): to be determined how we then get notified that it has been
+	// unlocked, so that it can transition to unlocked (not pending).
+	unlockRef := ts.Format(time.DateTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef)
+	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
 
 func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
