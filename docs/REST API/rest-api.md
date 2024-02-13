@@ -6621,8 +6621,6 @@ If some targeted hosts haven't responded, the live query will stop and return al
 
 `Status: 200`
 
-
-
 ```json
 {
   "query": "SELECT model, vendor FROM usb_devices;",
