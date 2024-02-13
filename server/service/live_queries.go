@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
+	"github.com/hashicorp/go-multierror"
 )
 
 type runLiveQueryRequest struct {
@@ -58,18 +59,14 @@ type runOneLiveQueryResponse struct {
 func (r runOneLiveQueryResponse) error() error { return r.Err }
 
 type runLiveQueryOnHostResponse struct {
-	fleet.QueryResult
-	Query  string `json:"query"`
-	Status string `json:"status"`
+	HostID uint                `json:"host_id"`
+	Rows   []map[string]string `json:"rows"`
+	Query  string              `json:"query"`
+	Status string              `json:"status"`
+	Err    error               `json:"error,omitempty"`
 }
 
-func (r runLiveQueryOnHostResponse) error() error {
-	// TODO: This is hacky. Fix by not using fleet.QueryResult up above.
-	if r.Error != nil {
-		return errors.New(*r.Error)
-	}
-	return nil
-}
+func (r runLiveQueryOnHostResponse) error() error { return r.Err }
 
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
@@ -127,7 +124,9 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	// TODO: Validate that query is not empty
+	if req.Query == "" {
+		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
+	}
 
 	// Look up host by identifier
 	// TODO: HostByIdentifier here is overkill. Create a new DB method to only get the host id
@@ -150,10 +149,18 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 		Status: status,
 	}
 	if len(queryResults) > 0 {
-		// TODO: We have 2 errors here that need to be combined: queryResults[0].Err and queryResults[0].Results[0].Error
-		// TODO: Handle queryResults[0].Err
+		err = nil
+		if queryResults[0].Err != nil {
+			err = queryResults[0].Err
+		}
 		if len(queryResults[0].Results) > 0 {
-			res.QueryResult = queryResults[0].Results[0]
+			queryResult := queryResults[0].Results[0]
+			if queryResult.Error != nil {
+				err = multierror.Append(err, errors.New(*queryResult.Error))
+			}
+			res.Rows = queryResult.Rows
+			res.HostID = queryResult.HostID
+			res.Err = err
 		}
 	}
 	return res, nil
