@@ -196,9 +196,16 @@ const canUnlock = ({
     isMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
+  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
+  // shouldn't prevent users from trying to see the pin again, which is
+  // considered an "unlock"
+  const isValidState =
+    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    hostMdmDeviceStatus === "locked";
+
   return (
     isPremiumTier &&
-    hostMdmDeviceStatus === "locked" &&
+    isValidState &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
