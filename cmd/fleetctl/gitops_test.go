@@ -2,19 +2,20 @@ package main
 
 import (
 	"context"
-	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/fleet"
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
-	"github.com/fleetdm/fleet/v4/server/service"
-	"github.com/micromdm/nanodep/tokenpki"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 	"os"
 	"slices"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mock"
+	"github.com/fleetdm/fleet/v4/server/service"
+	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 const teamName = "Team Test"
@@ -208,7 +209,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	// License is not needed because we are not using any premium features in our config.
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
-			MDMStorage:  new(nanomdm_mock.Storage),
+			MDMStorage:  new(mock.MDMAppleStore),
 			MDMPusher:   mockPusher{},
 			FleetConfig: &fleetCfg,
 		},
@@ -356,7 +357,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	_, ds := runServerWithMockedDS(
 		t, &service.TestServerOpts{
 			License:     license,
-			MDMStorage:  new(nanomdm_mock.Storage),
+			MDMStorage:  new(mock.MDMAppleStore),
 			MDMPusher:   mockPusher{},
 			FleetConfig: &fleetCfg,
 		},
