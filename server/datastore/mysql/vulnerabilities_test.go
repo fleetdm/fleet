@@ -24,6 +24,7 @@ func TestVulnerabilities(t *testing.T) {
 		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
 		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
 		{"TestOSVersionsByCVE", testOSVersionsByCVE},
+		{"TestSoftwareByCVE", testSoftwareByCVE},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
 		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
 		{"TestListVulnerabilitiesSort", testListVulnerabilitiesSort},
@@ -824,6 +825,43 @@ func testOSVersionsByCVE(t *testing.T, ds *Datastore) {
 	require.Equal(t, osv[0].OSVersion, expected[0].OSVersion)
 }
 
+func testSoftwareByCVE(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// global
+	software, _, err := ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", nil)
+	require.NoError(t, err)
+
+	expected := []fleet.VulnerableSoftware{
+		{
+			Software: fleet.Software{
+				ID:          1,
+				Name:        "Chrome",
+				Version:     "1.0.0",
+				HostsCount:  5,
+				GenerateCPE: "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+			},
+		},
+	}
+
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Software, expected[0].Software)
+
+	// team 1
+	expected[0].HostsCount = 4
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(1))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Software, expected[0].Software)
+
+	// team 2
+	expected[0].HostsCount = 1
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(2))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, software[0].Software, expected[0].Software)
+}
+
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {
 	t.Helper()
 	require.Len(t, actual, len(expected))
@@ -896,6 +934,33 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// 4 windows hosts in team 1
 	// 3 windows hosts in team 2
 	// 1 macOS host in team 2
+
+	// add software to 5 windows hosts
+	// affects:
+	// 5 global windows hosts
+	// 4 windows hosts in team 1
+	// 1 windows host in team 2
+	for i := 0; i < 5; i++ {
+		_, err = ds.UpdateHostSoftware(context.Background(), hostids[i], []fleet.Software{
+			{
+				Name:    "Chrome",
+				Version: "1.0.0",
+				Source:  "programs",
+				
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+		{
+			SoftwareID: 1,
+			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		},
+	})
+
+	err = ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
 
 	softwareVulns := []fleet.SoftwareVulnerability{
 		{

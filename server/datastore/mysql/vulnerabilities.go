@@ -109,6 +109,44 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 	return
 }
 
+func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint) (vs []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
+	var args []interface{}
+	selectStmt := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.browser,
+			scpe.cpe as 'generated_cpe',
+			shc.hosts_count,
+			sc.resolved_in_version
+		FROM software s
+		JOIN software_cve sc ON sc.software_id = s.id
+		LEFT JOIN software_cpe scpe ON scpe.software_id = s.id
+		LEFT JOIN software_host_counts shc ON shc.software_id = s.id
+		WHERE sc.cve = ?
+		`
+	args = append(args, cve)
+
+	if teamID != nil {
+		selectStmt += " AND shc.team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		selectStmt += " AND shc.team_id = 0"
+	}
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vs, selectStmt, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, updatedAt, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
+		}
+		return vs, updatedAt, ctxerr.Wrap(ctx, err, "fetching software by CVE")
+	}
+
+	return
+}
+
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	// Define base select statements for EE and Free versions
 	eeSelectStmt := `
