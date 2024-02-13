@@ -6615,7 +6615,7 @@ If some targeted hosts haven't responded, the live query will stop and return al
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| host_ids | array   | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts. |
+| host_id | integer   | path | **Required**. The IDs of the host to target. |
 | query    | string  | body | The query SQL if running a custom query. May not be used with `query_id`. |
 
 
