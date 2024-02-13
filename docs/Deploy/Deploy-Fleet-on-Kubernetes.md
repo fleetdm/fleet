@@ -8,82 +8,11 @@ There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies(MySQL and Redis), we will set up a `deployment.yml` file with the following specifications:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleet-deployment
-  labels:
-    app: fleet
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: fleet
-  template:
-    metadata:
-      labels:
-        app: fleet
-    spec:
-      containers:
-      - name: fleet
-        image: fleetdm/fleet:4.32.0
-        env:
-          # if running Fleet behind external ingress controller that terminates TLS
-          - name: FLEET_SERVER_TLS
-            value: FALSE
-          - name: FLEET_VULNERABILITIES_DATABASES_PATH
-            value: /tmp/vuln
-          - name: FLEET_MYSQL_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_address
-          - name: FLEET_MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_database
-          - name: FLEET_MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_password
-          - name: FLEET_MYSQL_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_username
-          - name: FLEET_REDIS_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: redis_address
-        volumeMounts:
-          - name: tmp
-            mountPath: /tmp # /tmp might not work on all cloud providers by default
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "2048Mi" # vulnerability processing
-            cpu: "500m"
-        ports:
-        - containerPort: 3000
-      volumes:
-        - name: tmp
-          emptyDir:
-
-```
-Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.
+To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/configuration-files/kubernetes/fleet-deployment.yml).
 
 Let's tell Kubernetes to create the cluster by running the below command.
 
-`kubectl apply -f ./deployment.yml`
-
+`kubectl apply -f ./fleet-deployment.yml`
 
 ### Initializing Helm
 
