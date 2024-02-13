@@ -327,6 +327,7 @@ export const useTeamIdParam = ({
   }, [contextTeam?.id, currentTeam, isRouteOk, setContextTeam]);
 
   return {
+    // essentially `currentTeamIdForAppContext`, where -1: all teams, 0: no team, and positive integers: team ids
     currentTeamId: currentTeam?.id,
     currentTeamName: currentTeam?.name,
     currentTeamSummary: currentTeam,
@@ -347,7 +348,7 @@ export const useTeamIdParam = ({
       !!currentTeam?.id &&
       !!currentUser &&
       permissions.isObserverPlus(currentUser, currentTeam.id),
-    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }),
+    teamIdForApi: getTeamIdForApi({ currentTeam, includeNoTeam }), // for everywhere except AppContext
     userTeams,
     handleTeamChange,
   };

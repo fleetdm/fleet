@@ -24,7 +24,7 @@ import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
-import TeamsDropdown from "components/TeamsDropdown";
+import TeamsHeader from "components/TeamsHeader";
 import TabsWrapper from "components/TabsWrapper";
 
 import ManageAutomationsModal from "./components/ManageSoftwareAutomationsModal";
@@ -280,20 +280,15 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
     return (
       <>
         {isFreeTier && <h1>Software</h1>}
-        {isPremiumTier &&
-          userTeams &&
-          (userTeams.length > 1 || isOnGlobalTeam) && (
-            <TeamsDropdown
-              currentUserTeams={userTeams || []}
-              selectedTeamId={currentTeamId}
-              onChange={onTeamChange}
-              isSandboxMode={isSandboxMode}
-            />
-          )}
-        {isPremiumTier &&
-          !isOnGlobalTeam &&
-          userTeams &&
-          userTeams.length === 1 && <h1>{userTeams[0].name}</h1>}
+        {isPremiumTier && (
+          <TeamsHeader
+            isOnGlobalTeam={isOnGlobalTeam}
+            currentTeamId={currentTeamId}
+            userTeams={userTeams}
+            onTeamChange={onTeamChange}
+            isSandboxMode={isSandboxMode}
+          />
+        )}
       </>
     );
   };

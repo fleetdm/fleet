@@ -17,6 +17,8 @@ interface IHostLinkProps {
   customText?: string;
   /** Table links shows on row hover only */
   rowHover?: boolean;
+  // don't actually create a link, useful when click is handled by an ancestor
+  noLink?: boolean;
 }
 
 const baseClass = "view-all-hosts-link";
@@ -29,6 +31,7 @@ const ViewAllHostsLink = ({
   responsive = false,
   customText,
   rowHover = false,
+  noLink = false,
 }: IHostLinkProps): JSX.Element => {
   const viewAllHostsLinkClass = classnames(baseClass, className, {
     "row-hover-link": rowHover,
@@ -43,7 +46,11 @@ const ViewAllHostsLink = ({
     : endpoint;
 
   return (
-    <Link className={viewAllHostsLinkClass} to={path} title="host-link">
+    <Link
+      className={viewAllHostsLinkClass}
+      to={noLink ? "" : path}
+      title="host-link"
+    >
       {!condensed && (
         <span
           className={`${baseClass}__text${responsive ? "--responsive" : ""}`}
