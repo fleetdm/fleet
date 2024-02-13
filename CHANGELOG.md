@@ -1,19 +1,22 @@
-## Fleet 4.44.1 (Feb 12, 2024)
+## Fleet 4.44.1 (Feb 13, 2024)
 
 ### Bug fixes
 
-* Fixed a bug where long enroll secrets would overlap with the action buttons on top of them.
-* Fixed a bug that caused OS Settings to never get verified if the MySQL config of Fleet's database had `only_full_group_by` mode enabled (enabled by default).
-* Fixed visual display of chevron right icons on Chrome.
-* Renamed the `mdm_windows_configuration_profiles` and `mdm_apple_configuration_profiles` `updated_at` field to `uploaded_at` and removed the automatic setting of the value, set explicitly instead.
+* Fixed a bug where long enrollment secrets would overlap with the action buttons on top of them.
+* Fixed a bug that caused OS Settings to never be verified if the MySQL config of Fleet's database had 'only_full_group_by' mode enabled (enabled by default).
+* Ensured policy names are now unique per team, allowing different teams to have policies with the same name.
+* Fixed the visual display of chevron right icons on Chrome.
+* Renamed the 'mdm_windows_configuration_profiles' and 'mdm_apple_configuration_profiles' 'updated_at' field to 'uploaded_at' and removed the automatic setting of the value, setting it explicitly instead.
 * Fixed a small alignment bug in the setup flow.
-* Improved the validation of Windows profiles to prevent errors when the profiles were delivered to the hosts. If you needed to embed a nested XML structure (for example, for Wi-Fi profiles), you could either:
-  - Escaped the XML.
-  - Used a wrapping `<![CDATA[ ... ]]>` element.
-* Fixed an issue where an inaccurate message was returned after running an async (queued) script.
-* Fixed URL query params to reset when switching tabs.
-* Fixed vulnerable software dropdown from switching back to all teams.
-* Updated `GET /api/v1/fleet/hosts/:id/activities/upcoming` response to include the count of all upcoming activities for the host.
+* Improved the validation of Windows profiles to prevent errors when delivering the profiles to the hosts. If you need to embed a nested XML structure (for example, for Wi-Fi profiles), you can either:
+ - Escape the XML.
+ - Use a wrapping `<![CDATA[ ... ]]>` element.
+* Fixed an issue where an inaccurate message was returned after running an asynchronous (queued) script.
+* Fixed URL query parameters to reset when switching tabs.
+* Fixed the vulnerable software dropdown from switching back to all teams.
+* Added fleetctl gitops command:
+ - Synchronize Fleet configuration with the provided file. This command is intended to be used in a GitOps workflow.
+* Updated the response for 'GET /api/v1/fleet/hosts/:id/activities/upcoming' to include the count of all upcoming activities for the host.
 * Fixed an issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it were the host's software.
 * Removed unnecessary nested database transactions in batch-setting of MDM profiles.
 * Added count of upcoming activities to host vitals UI.
