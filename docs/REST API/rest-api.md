@@ -3831,22 +3831,23 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 Runs an ad-hoc live query against the specified host and responds with the results.
 
-The live query will stop if the targeted host hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+The live query will stop if the targeted host is offline, or hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
 
 
-`POST /api/v1/fleet/hosts/:id/query`
+`POST /api/v1/fleet/hosts/:identifier/query`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id       | integer   | path | **Required**. The ID of the host to target. |
-| query    | string    | body | **Required**. The query SQL. |
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`
+ |
+| query            | string   | body | **Required**. The query SQL. |
 
 
 #### Example
 
-`POST /api/v1/fleet/hosts/123/query`
+`POST /api/v1/fleet/hosts/392547dc-0000-0000-a87a-d701ff75bc65/query`
 
 ##### Request body
 
@@ -3864,10 +3865,9 @@ The live query will stop if the targeted host hasn't responded after 25 seconds 
 {
   "host_id": 123,
   "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "offline",
   "error": null,
-  "rows": [
-    { "TODO": "TODO" }
-  ]
+  "rows": []
 }
 ```
 
