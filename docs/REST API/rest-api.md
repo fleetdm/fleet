@@ -3841,7 +3841,7 @@ The live query will stop if the targeted host hasn't responded after 25 seconds 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | id       | integer   | path | **Required**. The ID of the host to target. |
-| query    | string    | body | The query SQL. |
+| query    | string    | body | **Required**. The query SQL. |
 
 
 #### Example
