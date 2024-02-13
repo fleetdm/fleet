@@ -6532,47 +6532,8 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 }
 ```
 
-### Run live query on one host
 
-Runs a live query against the specified host and responds with the results.
-
-If the targeted host hasn't responded, the live query will stop after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
-
-`POST /api/v1/fleet/hosts/:host_id/query`
-
-#### Parameters
-
-| Name      | Type  | In   | Description                                                                                                                                                        |
-|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| host_id  | integer | path | **Required**. The ID of the host to target. |
-| sql    | string  | body | The query SQL if running a custom query. May not be used with `query_id`. |
-| query_id | integer | body | The ID of a saved query to run. May not be used with `sql`. Required if running query as an observer. |
-
-> Either `sql` or `query_id` must be specified when using this endpoint.
-
-#### Example (custom query)
-
-`POST /api/v1/fleet/hosts/123/query`
-
-##### Request body
-
-```json
-{
-  "sql": "SELECT model, vendor FROM usb_devices;"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-// TODO
-```
-
-
-
-### Run live query on multiple hosts
+### Run live query
 
 > This updated API endpoint replaced `GET /api/v1/fleet/queries/run` in Fleet 4.43.0, for improved compatibility with many HTTP clients. The [deprecated endpoint](https://github.com/fleetdm/fleet/blob/fleet-v4.42.0/docs/REST%20API/rest-api.md#run-live-query) is maintained for backwards compatibility.
 
@@ -6581,24 +6542,28 @@ Runs a live query against the specified hosts and responds with the results.
 If some targeted hosts haven't responded, the live query will stop and return all collected results after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
 
 
-`POST /api/v1/fleet/queries/:id/run`
+`POST /api/v1/fleet/queries/live`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| id | integer | path | **Required**. The ID of the saved query to run. |
-| host_ids  | array | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts.                                                                |
+| host_ids | array   | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts. |
+| query    | string  | body | The query SQL if running a custom query. May not be used with `query_id`. |
+| query_id | integer | body | The ID of a saved query to run. May not be used with `sql`. Required if running query as an observer. |
+> Either `query` or `query_id` must be specified when using this endpoint.
 
-#### Example
 
-`POST /api/v1/fleet/queries/123/run`
+#### Example (running saved query)
+
+`POST /api/v1/fleet/queries/live`
 
 ##### Request body
 
 ```json
 {
-  "host_ids": [ 1, 4, 34, 27 ]
+  "host_ids": [ 1, 4, 34, 27 ],
+  "query_id": 123
 }
 ```
 
@@ -6636,6 +6601,46 @@ If some targeted hosts haven't responded, the live query will stop and return al
       "host_id": 2,
       "rows": [],
       "error": "no such table: os_version"
+    }
+  ]
+}
+```
+
+#### Example (running custom query)
+
+`POST /api/v1/fleet/queries/live`
+
+##### Request body
+
+```json
+{
+  "host_ids": [ 1, 4, 34, 27 ],
+  "query": "SELECT model, vendor FROM usb_devices;"
+```
+
+##### Default response
+
+`Status: 200`
+
+
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "targeted_host_count": 4,
+  "responded_host_count": 2,
+  "results": [
+    {
+      "host_id": 1,
+      "rows": [
+        // TODO
+      ],
+      "error": null
+    },
+    {
+      "host_id": 2,
+      "rows": [],
+      "error": "no such table: usb_devices"
     }
   ]
 }
