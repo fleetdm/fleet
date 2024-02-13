@@ -2,14 +2,12 @@ name: vscode_extensions
 description: Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/). 
 examples: >-
   List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.
-
   ```
 
   SELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);
 
   ```
-notes: | # (optional) string - Notes about this table. Note: This field supports markdown.
-	# Add notes here
+notes: Querying this table requires joining against the `users` table.
 columns: # (required)
 	- name: # (required) string - The name of the column
 	  description: # (required) string - The column's description
