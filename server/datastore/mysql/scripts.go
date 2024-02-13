@@ -599,9 +599,16 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command result")
 			}
-			// if there is are results, which one do we care about? Look for a failed
-			// or acknowledged one, the others probably say nothing about the result
-			// of the command (e.g. not now, pending)
+			// TODO: each item in the slice returned by
+			// GetMDMAppleCommandResults is a result for a
+			// different host. This only works because we're
+			// enqueuing the command with the given UUID for a
+			// single host, but it's the equivalent of doing
+			// cmdRes[0].
+			//
+			// Ideally, and to be super safe, we should try to find
+			// a command with a matching r.HostUUID, but we don't
+			// have the host UUID available.
 			for _, r := range cmdRes {
 				if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
 					status.LockMDMCommandResult = r

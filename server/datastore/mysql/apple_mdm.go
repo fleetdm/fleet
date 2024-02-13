@@ -2890,3 +2890,9 @@ func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID strin
 		return nil
 	})
 }
+
+func (ds *Datastore) CleanMacOSMDMLock(ctx context.Context, hostID uint) error {
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		return ds.updateHostLockWipeStatusFromResult(ctx, tx, hostID, "unlock_ref", true)
+	})
+}
