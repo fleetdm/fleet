@@ -4434,6 +4434,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 		CommandUUID: "command-uuid",
 		Raw:         []byte("<?xml"),
 	}
+	cmd.Command.RequestType = "DeviceLock"
 	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456")
 	require.NoError(t, err)
 
@@ -4441,7 +4442,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	checkState(t, status, true, false, false, false, true, false)
 
-	// execute CleanMacOSMDMLock to simulate successful lock
+	// execute CleanMacOSMDMLock to simulate successful unlock
 	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
 
