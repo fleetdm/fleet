@@ -1,0 +1,2 @@
+- Adds the `fleetctl mdm` commands `lock` and `unlock`
+- Adds missing functionality for lock/unlock flows for Windows and Linux

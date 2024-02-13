@@ -457,13 +457,13 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  enableMacDiskEncryption: (activity: IActivity) => {
+  enabledDiskEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <> enforced disk encryption for macOS hosts {suffix}.</>;
+    return <> enforced disk encryption for hosts {suffix}.</>;
   },
-  disableMacDiskEncryption: (activity: IActivity) => {
+  disabledEncryption: (activity: IActivity) => {
     const suffix = getDiskEncryptionMessageSuffix(activity.details?.team_name);
-    return <>removed disk encryption enforcement for macOS hosts {suffix}.</>;
+    return <>removed disk encryption enforcement for hosts {suffix}.</>;
   },
   changedMacOSSetupAssistant: (activity: IActivity) => {
     return getMacOSSetupAssistantMessage(
@@ -730,6 +730,31 @@ const TAGGED_TEMPLATES = {
   deletedMultipleSavedQuery: (activity: IActivity) => {
     return <> deleted multiple queries.</>;
   },
+  lockedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        locked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedHost: (activity: IActivity) => {
+    if (activity.details?.host_platform === "darwin") {
+      return (
+        <>
+          {" "}
+          viewed the six-digit unlock PIN for{" "}
+          <b>{activity.details?.host_display_name}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -819,11 +844,17 @@ const getDetail = (
     case ActivityType.EditedWindowsProfile: {
       return TAGGED_TEMPLATES.editWindowsProfile(activity, isPremiumTier);
     }
+    // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.EnabledDiskEncryption:
     case ActivityType.EnabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.enableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.enabledDiskEncryption(activity);
     }
+    // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
+    // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+    case ActivityType.DisabledDiskEncryption:
     case ActivityType.DisabledMacDiskEncryption: {
-      return TAGGED_TEMPLATES.disableMacDiskEncryption(activity);
+      return TAGGED_TEMPLATES.disabledEncryption(activity);
     }
     case ActivityType.AddedBootstrapPackage: {
       return TAGGED_TEMPLATES.addedMDMBootstrapPackage(activity);
@@ -869,6 +900,12 @@ const getDetail = (
     }
     case ActivityType.DeletedMultipleSavedQuery: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+    }
+    case ActivityType.LockedHost: {
+      return TAGGED_TEMPLATES.lockedHost(activity);
+    }
+    case ActivityType.UnlockedHost: {
+      return TAGGED_TEMPLATES.unlockedHost(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
