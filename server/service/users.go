@@ -64,7 +64,7 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 		// Validate that the teams exist
 		teamsSummary, err := svc.ds.TeamsSummary(ctx)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "fetching teams")
+			return nil, ctxerr.Wrap(ctx, err, "fetching teams in attempt to verify team exists")
 		}
 		teamIDs := map[uint]struct{}{}
 		for _, team := range teamsSummary {
