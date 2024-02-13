@@ -1,2 +1,0 @@
-- Updated `GET /api/v1/fleet/hosts/:id/activities/upcoming` response to include the count of all
-  upcoming activities for the host.
