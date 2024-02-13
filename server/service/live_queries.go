@@ -62,7 +62,7 @@ type runLiveQueryOnHostResponse struct {
 	HostID uint                `json:"host_id"`
 	Rows   []map[string]string `json:"rows"`
 	Query  string              `json:"query"`
-	Status string              `json:"status"`
+	Status fleet.HostStatus    `json:"status"`
 	Err    error               `json:"error,omitempty"`
 }
 
@@ -129,25 +129,26 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	// Look up host by identifier
-	// TODO: HostByIdentifier here is overkill. Create a new DB method to only get the host id
+	// TODO: HostByIdentifier here is overkill. Create a new DB method to only get the host id and last_seen_time.
 	host, err := svc.HostByIdentifier(ctx, req.Identifier, fleet.HostDetailOptions{})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}
+	res := runLiveQueryOnHostResponse{
+		HostID: host.ID,
+		Query:  req.Query,
+	}
+	status := host.Status(time.Now())
+	if status == fleet.StatusOffline {
+		res.Status = status
+		return res, nil
+	}
 
-	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{0}, req.Query, []uint{host.ID})
+	queryResults, _, err := runLiveQuery(ctx, svc, []uint{0}, req.Query, []uint{host.ID})
 	if err != nil {
 		return nil, err
 	}
 
-	status := "online"
-	if respondedHostCount == 0 {
-		status = "offline"
-	}
-	res := runLiveQueryOnHostResponse{
-		Query:  req.Query,
-		Status: status,
-	}
 	if len(queryResults) > 0 {
 		err = nil
 		if queryResults[0].Err != nil {
@@ -224,7 +225,7 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer wg.Done()
 			queryIDPtr := &queryID
 			queryString := ""
-			// 0 is a special ID that indicates we should use raw SQL query
+			// 0 is a special ID that indicates we should use raw SQL query instead
 			if queryID == 0 {
 				queryIDPtr = nil
 				queryString = query
