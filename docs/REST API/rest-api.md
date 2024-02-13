@@ -6029,7 +6029,6 @@ Either `query` or `query_id` must be provided.
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
-- [Run custom live query](#run-custom-live-query)
 
 
 
