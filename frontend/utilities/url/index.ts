@@ -9,7 +9,6 @@ import {
   HOSTS_QUERY_PARAMS,
   MacSettingsStatusQueryParam,
 } from "services/entities/hosts";
-import vulnerability from "interfaces/vulnerability";
 
 type QueryValues = string | number | boolean | undefined | null;
 export type QueryParams = Record<string, QueryValues>;
