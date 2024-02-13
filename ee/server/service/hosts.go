@@ -235,12 +235,6 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 }
 
 func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) (string, error) {
-	if lockStatus.HostFleetPlatform == "darwin" && !lockStatus.UnlockRequestedAt.IsZero() {
-		// unlock request was already recorded, just return the unlock PIN as this
-		// is just a request to view it again.
-		return lockStatus.UnlockPIN, nil
-	}
-
 	vc, ok := viewer.FromContext(ctx)
 	if !ok {
 		return "", fleet.ErrNoContext
@@ -248,8 +242,11 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 
 	var unlockPIN string
 	if lockStatus.HostFleetPlatform == "darwin" {
-		if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
-			return "", err
+		// record the unlock request if it was not already recorded
+		if lockStatus.UnlockRequestedAt.IsZero() {
+			if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
+				return "", err
+			}
 		}
 		unlockPIN = lockStatus.UnlockPIN
 	} else {
