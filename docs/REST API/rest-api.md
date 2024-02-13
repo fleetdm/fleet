@@ -6627,7 +6627,6 @@ If some targeted hosts haven't responded, the live query will stop and return al
 
 ```json
 {
-  "host_ids": [ 1, 4, 34, 27 ],
   "query": "SELECT model, vendor FROM usb_devices;"
 }
 ```
