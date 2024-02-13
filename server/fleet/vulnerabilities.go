@@ -129,15 +129,29 @@ const (
 
 type VulnerabilityWithMetadata struct {
 	CVEMeta
-	HostCount          uint                `db:"host_count"`
-	HostCountUpdatedAt time.Time           `db:"host_count_updated_at"`
-	CreatedAt          time.Time           `db:"created_at"`
-	Source             VulnerabilitySource `db:"source"`
+	HostCount          uint                `db:"host_count" json:"host_count"`
+	HostCountUpdatedAt time.Time           `db:"host_count_updated_at" json:"host_count_updated_at"`
+	CreatedAt          time.Time           `db:"created_at" json:"created_at"`
+	DetailsLink        string              `json:"details_link"`
+	Source             VulnerabilitySource `db:"source" json:"-"`
 }
 
 type VulnListOptions struct {
 	ListOptions
+	IsEE             bool
 	ValidSortColumns []string
-	TeamID           uint
-	KnownExploit     bool
+	TeamID           uint `query:"team_id,optional"`
+	KnownExploit     bool `query:"exploit,optional"`
+}
+
+func (opt VulnListOptions) HasValidSortColumn() bool {
+	if opt.OrderKey == "" || len(opt.ValidSortColumns) == 0 {
+		return true
+	}
+	for _, c := range opt.ValidSortColumns {
+		if c == opt.OrderKey {
+			return true
+		}
+	}
+	return false
 }
