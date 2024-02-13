@@ -1,6 +1,8 @@
 import React from "react";
+import { InjectedRouter } from "react-router";
 
 import { formatSeverity } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 import { ISoftwareVulnerability } from "interfaces/software";
 
 import paths from "router/paths";
@@ -47,7 +49,9 @@ interface IDataColumn {
 
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean
+  isSandboxMode: boolean,
+  router: InjectedRouter,
+  teamId?: number
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -57,10 +61,26 @@ const generateTableConfig = (
       Header: "Vulnerability",
       Cell: ({ cell: { value } }: ITextCellProps) => {
         const cveName = value.toString();
+        const teamQueryParam = buildQueryStringFromParams({
+          team_id: teamId,
+        });
+
+        const softwareVulnerabilityDetailsPath = `${paths.SOFTWARE_VULNERABILITY_DETAILS(
+          cveName
+        )}?${teamQueryParam}`;
+
+        const onClickCVE = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(softwareVulnerabilityDetailsPath);
+        };
+
         return (
           <LinkCell
             value={cveName}
-            path={paths.SOFTWARE_VULNERABILITY_DETAILS(cveName)}
+            path={softwareVulnerabilityDetailsPath}
+            customOnClick={onClickCVE}
           />
         );
       },
@@ -207,6 +227,7 @@ const generateTableConfig = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
+                  team_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

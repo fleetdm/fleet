@@ -85,7 +85,13 @@ const SoftwareVulnerabilitiesTable = ({
   };
 
   const tableHeaders = useMemo(
-    () => generateTableConfig(Boolean(isPremiumTier), Boolean(isSandboxMode)),
+    () =>
+      generateTableConfig(
+        Boolean(isPremiumTier),
+        Boolean(isSandboxMode),
+        router,
+        teamId
+      ),
     [isPremiumTier, isSandboxMode]
   );
   return (

@@ -46,14 +46,21 @@ interface ISoftwareOSDetailsRouteParams {
 
 interface ISoftwareOSDetailsPageProps {
   routeParams: ISoftwareOSDetailsRouteParams;
+  location: {
+    query: { team_id?: string };
+  };
   router: InjectedRouter;
 }
 
 const SoftwareOSDetailsPage = ({
   routeParams,
   router,
+  location,
 }: ISoftwareOSDetailsPageProps) => {
   const osVersionIdFromURL = parseInt(routeParams.id, 10);
+  const teamId = location.query.team_id
+    ? parseInt(location.query.team_id, 10)
+    : undefined;
 
   const { data: osVersionDetails, isLoading, isError } = useQuery<
     IOSVersionResponse,
@@ -86,6 +93,7 @@ const SoftwareOSDetailsPage = ({
         itemName="version"
         isLoading={isLoading}
         router={router}
+        teamId={teamId}
       />
     );
   };
@@ -111,6 +119,7 @@ const SoftwareOSDetailsPage = ({
           queryParams={{
             os_name: osVersionDetails.name_only,
             os_version: osVersionDetails.version,
+            team_id: teamId,
           }}
           name={osVersionDetails.platform}
         />

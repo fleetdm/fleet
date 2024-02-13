@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
@@ -78,16 +79,22 @@ const generateTableHeaders = (
         }
 
         const { cve } = cellProps.row.original;
+
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareVulnerabilitiesDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+          cve
+        )}?${teamQueryParam}`;
+
         const onClickVulnerability = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
 
-          router?.push(PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve));
+          router?.push(softwareVulnerabilitiesDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve)}
+            path={softwareVulnerabilitiesDetailsPath}
             customOnClick={onClickVulnerability}
             value={cve}
           />
@@ -246,7 +253,6 @@ const generateTableHeaders = (
       accessor: "linkToFilteredHosts",
       disableSortBy: true,
       Cell: (cellProps: ICellProps) => {
-        console.log("teamId", teamId);
         return (
           <>
             {cellProps.row.original && (

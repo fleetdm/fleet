@@ -2,6 +2,7 @@ import React from "react";
 import { Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import {
   formatSoftwareType,
   ISoftwareVersion,
@@ -74,15 +75,23 @@ const generateTableHeaders = (
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, source } = cellProps.row.original;
 
+        const teamQueryParam = buildQueryStringFromParams({
+          team_id: teamId,
+        });
+        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
+
+          router?.push(softwareVersionDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
+            path={softwareVersionDetailsPath}
             customOnClick={onClickSoftware}
             value={
               <>

@@ -29,11 +29,13 @@ interface ISoftwareVersionDetailsRouteParams {
 
 interface ISoftwareTitleDetailsPageProps {
   routeParams: ISoftwareVersionDetailsRouteParams;
+  router: InjectedRouter;
   location: { query: { team_id?: string } };
 }
 
 const SoftwareVersionDetailsPage = ({
   routeParams,
+  router,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
   const versionId = parseInt(routeParams.id, 10);
