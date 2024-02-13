@@ -176,7 +176,7 @@ spec:
 
 ## Extensions
 
-> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server (a Fleet Premium feature).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 

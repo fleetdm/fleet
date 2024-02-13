@@ -82,7 +82,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			false,
-			true,
+			false,
 		},
 		{
 			"team admin, belongs to team",
@@ -117,7 +117,7 @@ func TestTeamScheduleAuth(t *testing.T) {
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			false,
-			true,
+			false,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
