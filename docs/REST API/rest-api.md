@@ -6609,7 +6609,7 @@ Runs a custom live query against the specified hosts and responds with the resul
 If some targeted hosts haven't responded, the live query will stop and return all collected results after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
 
 
-`POST /api/v1/fleet/queries/custom`
+`POST /api/v1/fleet/hosts/:id/query`
 
 #### Parameters
 
