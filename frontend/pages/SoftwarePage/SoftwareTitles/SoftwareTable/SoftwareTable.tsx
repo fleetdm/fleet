@@ -195,9 +195,9 @@ const SoftwareTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          teamId,
-          orderDirection,
-          orderKey,
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
           vulnerable: showVulnerableSoftware.toString(),
           page: 0, // resets page index
         },

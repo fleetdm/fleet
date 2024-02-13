@@ -108,6 +108,7 @@ func createApp(
 		mdmCommand(),
 		upgradePacksCommand(),
 		runScriptCommand(),
+		gitopsCommand(),
 	}
 	return app
 }

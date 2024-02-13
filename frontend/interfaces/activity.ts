@@ -42,7 +42,13 @@ export enum ActivityType {
   CreatedWindowsProfile = "created_windows_profile",
   DeletedWindowsProfile = "deleted_windows_profile",
   EditedWindowsProfile = "edited_windows_profile",
+  // Note: Both "enabled_disk_encryption" and "enabled_macos_disk_encryption" display the same
+  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+  EnabledDiskEncryption = "enabled_disk_encryption",
   EnabledMacDiskEncryption = "enabled_macos_disk_encryption",
+  // Note: Both "disabled_disk_encryption" and "disabled_macos_disk_encryption" display the same
+  // message. The latter is deprecated in the API but it is retained here for backwards compatibility.
+  DisabledDiskEncryption = "disabled_disk_encryption",
   DisabledMacDiskEncryption = "disabled_macos_disk_encryption",
   AddedBootstrapPackage = "added_bootstrap_package",
   DeletedBootstrapPackage = "deleted_bootstrap_package",

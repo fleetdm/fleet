@@ -233,7 +233,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	teams := []fleet.UserTeam{
 		{
 			Team: fleet.Team{
-				ID: 9999,
+				ID: 9999, // non-existent team
 			},
 			Role: fleet.RoleObserver,
 		},
@@ -246,7 +246,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452`)
+	assertBodyContains(t, resp, `team with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -8489,7 +8489,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -8554,7 +8554,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
