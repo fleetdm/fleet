@@ -46,7 +46,11 @@ const ViewAllHostsLink = ({
     : endpoint;
 
   return (
-    <Link className={viewAllHostsLinkClass} to={noLink ? "" : path}>
+    <Link
+      className={viewAllHostsLinkClass}
+      to={noLink ? "" : path}
+      title="host-link"
+    >
       {!condensed && (
         <span
           className={`${baseClass}__text${responsive ? "--responsive" : ""}`}
