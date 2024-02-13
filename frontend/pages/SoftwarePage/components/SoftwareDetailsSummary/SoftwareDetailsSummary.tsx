@@ -1,3 +1,9 @@
+/**
+software/titles/:id > Top section
+software/versions/:id > Top section
+software/os/:id > Top section
+*/
+
 import React from "react";
 
 import { QueryParams } from "utilities/url";

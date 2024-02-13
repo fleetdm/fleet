@@ -1,3 +1,5 @@
+/** software/vulnerabilities Vulnerabilities tab > Table */
+
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";

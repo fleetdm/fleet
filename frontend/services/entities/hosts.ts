@@ -203,6 +203,7 @@ export default {
     const munkiIssueId = options?.munkiIssueId;
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const vulnerability = options?.vulnerability;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -231,6 +232,7 @@ export default {
         lowDiskSpaceHosts,
         osSettings,
         diskEncryptionStatus,
+        vulnerability,
       }),
       status,
       label_id: label,

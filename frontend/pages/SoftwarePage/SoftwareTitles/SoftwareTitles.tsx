@@ -1,3 +1,8 @@
+/** 
+ software/titles Software tab
+ software/versions Software tab (version toggle on) 
+ */
+
 import React from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
