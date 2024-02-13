@@ -2898,7 +2898,7 @@ JOIN hosts h ON hma.host_id = h.id
 SET hma.unlock_ref = NULL,
     hma.lock_ref = NULL,
     hma.unlock_pin = NULL
-WHERE h.uuid = "469CACD0-E459-5A45-A3C0-122E9546600C"
+WHERE h.uuid = ?
   AND hma.unlock_ref IS NOT NULL
   AND hma.unlock_pin IS NOT NULL
   `
