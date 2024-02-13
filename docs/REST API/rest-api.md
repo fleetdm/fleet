@@ -5983,8 +5983,7 @@ Either `query` or `query_id` must be provided.
 - [Delete query by name](#delete-query-by-name)
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
-- [Live query on one host](#run-live-query-on-one-host)
-- [Run live query on multiple hosts](#run-live-query-on-multiple-hosts)
+- [Run live query](#run-live-query)
 
 
 
@@ -6531,7 +6530,6 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
   "deleted": 3
 }
 ```
-
 
 ### Run live query
 
