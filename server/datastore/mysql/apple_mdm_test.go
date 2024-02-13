@@ -4447,7 +4447,8 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 
 	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
 	require.NoError(t, err)
-	checkState(t, status, false, true, false, false, false, false)
+	checkState(t, status, true, false, false, false, false, false)
+	require.Empty(t, status.UnlockPIN)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {
