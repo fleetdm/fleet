@@ -1505,6 +1505,9 @@ func TestLockUnlockHostAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
+		return nil
+	}
 
 	cases := []struct {
 		name                  string

@@ -814,6 +814,8 @@ type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScript
 
 type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, ts time.Time) error
 
+type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2008,6 +2010,9 @@ type DataStore struct {
 
 	UnlockHostManuallyFunc        UnlockHostManuallyFunc
 	UnlockHostManuallyFuncInvoked bool
+
+	CleanMacOSMDMLockFunc        CleanMacOSMDMLockFunc
+	CleanMacOSMDMLockFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4796,4 +4801,11 @@ func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, ts time
 	s.UnlockHostManuallyFuncInvoked = true
 	s.mu.Unlock()
 	return s.UnlockHostManuallyFunc(ctx, hostID, ts)
+}
+
+func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CleanMacOSMDMLockFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanMacOSMDMLockFunc(ctx, hostUUID)
 }
