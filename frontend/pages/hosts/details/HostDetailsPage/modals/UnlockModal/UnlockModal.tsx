@@ -41,6 +41,7 @@ const UnlockModal = ({
       enabled: platform === "darwin",
       refetchOnWindowFocus: false,
       refetchOnReconnect: false,
+      retry: false,
     }
   );
 
