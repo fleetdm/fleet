@@ -523,7 +523,7 @@ func TestHostAuth(t *testing.T) {
 	globalHost := &fleet.Host{}
 
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+		return &fleet.AppConfig{}, nil
 	}
 
 	ds.DeleteHostFunc = func(ctx context.Context, hid uint) error {
