@@ -3834,20 +3834,62 @@ Runs an ad-hoc live query against the specified host and responds with the resul
 The live query will stop if the targeted host is offline, or hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
 
 
-`POST /api/v1/fleet/hosts/:identifier/query`
+`POST /api/v1/fleet/hosts/:id/query`
 
 #### Parameters
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`
- |
+| identifier       | integer  | path | **Required**. The target host ID. |
 | query            | string   | body | **Required**. The query SQL. |
 
 
 #### Example
 
-`POST /api/v1/fleet/hosts/392547dc-0000-0000-a87a-d701ff75bc65/query`
+`POST /api/v1/fleet/hosts/123/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "offline",
+  "error": null,
+  "rows": []
+}
+```
+
+### Live query host by identifier (ad-hoc)
+
+Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
+
+The live query will stop if the targeted host is offline, or hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+
+
+`POST /api/v1/fleet/hosts/identifier/:identifier/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| identifier       | integer or string   | path | **Required**. The host's `uuid`. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65/query`
 
 ##### Request body
 
