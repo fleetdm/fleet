@@ -135,6 +135,12 @@ type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+	// UserID is filled automatically from the context's user (the authenticated
+	// user that made the API request).
+	UserID *uint `json:"-"`
+	// SyncRequest is filled automatically based on the endpoint used to create
+	// the execution request (synchronous or asynchronous).
+	SyncRequest bool `json:"-"`
 }
 
 type HostScriptResultPayload struct {
@@ -173,6 +179,15 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// UserID is the id of the user that requested execution. It is not part of
+	// the rendered JSON as it is only returned by the
+	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
+	// return type.
+	UserID *uint `json:"-" db:"user_id"`
+	// SyncRequest is used to determine when creating the script ran activity if
+	// the request was synchronous or asynchronous. It is otherwise not returned
+	// as part of any API endpoint.
+	SyncRequest bool `json:"-" db:"sync_request"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
@@ -208,6 +223,11 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		if hsr.HostTimeout(scripts.MaxServerWaitTime) {
 			return RunScriptHostTimeoutErrMsg
 		}
+
+		if !hsr.SyncRequest {
+			return RunScriptAsyncScriptEnqueuedErrMsg
+		}
+
 		return RunScriptAlreadyRunningErrMsg
 	}
 
@@ -215,14 +235,14 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 	case -1:
 		return RunScriptScriptTimeoutErrMsg
 	case -2:
-		return "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+		return RunScriptDisabledErrMsg
 	default:
 		return ""
 	}
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
+	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000

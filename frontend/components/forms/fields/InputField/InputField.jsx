@@ -33,7 +33,7 @@ class InputField extends Component {
     ]).isRequired,
     parseTarget: PropTypes.bool,
     tooltip: PropTypes.string,
-    hint: PropTypes.oneOfType([
+    helpText: PropTypes.oneOfType([
       PropTypes.string,
       PropTypes.arrayOf(PropTypes.string),
       PropTypes.object,
@@ -55,7 +55,7 @@ class InputField extends Component {
     value: "",
     parseTarget: false,
     tooltip: "",
-    hint: "",
+    helpText: "",
     enableCopy: false,
     ignore1password: false,
   };
@@ -119,7 +119,7 @@ class InputField extends Component {
     });
 
     const formFieldProps = pick(this.props, [
-      "hint",
+      "helpText",
       "label",
       "error",
       "name",

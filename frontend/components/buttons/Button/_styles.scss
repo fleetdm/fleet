@@ -245,8 +245,12 @@ $base-class: "button";
         }
       }
 
-      // Copy button uses stroke color instead of fill color to darken
-      &.input-field__copy-value-button {
+      // The SVG icons in these buttons contain a `stroke` instead of a `fill`,
+      // so we need to modify that property instead. Adding a custom `fill`
+      // could make these icons render incorrectly.
+      &.input-field__copy-value-button,
+      &.windows-details-button,
+      [data-testid="chevron-right-icon"] {
         svg {
           path {
             fill: none;

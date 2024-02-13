@@ -37,6 +37,11 @@ class Dropdown extends Component {
     autoFocus: PropTypes.bool,
     /** Includes styled filter icon */
     tableFilterDropdown: PropTypes.bool,
+    helpText: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.arrayOf(PropTypes.string),
+      PropTypes.object,
+    ]),
   };
 
   static defaultProps = {
@@ -163,7 +168,7 @@ class Dropdown extends Component {
     } = this.props;
 
     const formFieldProps = pick(this.props, [
-      "hint",
+      "helpText",
       "label",
       "error",
       "name",

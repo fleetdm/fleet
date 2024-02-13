@@ -34,7 +34,8 @@ const createCustomLabelOptions = (labels: ILabel[], query: string) => {
     customLabelGroupOptions = [NO_LABELS_OPTION];
   } else {
     const matchingLabels = customLabels.filter((label) =>
-      label.display_text.toLowerCase().includes(query)
+      // case-insensitive matching
+      label.display_text.toLowerCase().includes(query.toLowerCase())
     );
     customLabelGroupOptions =
       matchingLabels.length !== 0 ? matchingLabels : [EMPTY_OPTION];

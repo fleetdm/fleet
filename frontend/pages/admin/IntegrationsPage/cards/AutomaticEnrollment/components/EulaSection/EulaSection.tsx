@@ -7,6 +7,7 @@ import mdmAPI, { IEulaMetadataResponse } from "services/entities/mdm";
 import { NotificationContext } from "context/notification";
 
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import EulaUploader from "./components/EulaUploader/EulaUploader";
 import UploadedEulaView from "./components/UploadedEulaView/UploadedEulaView";
@@ -56,7 +57,7 @@ const EulaSection = () => {
 
   return (
     <div className={baseClass}>
-      <h2>End user license agreement (EULA)</h2>
+      <SectionHeader title="End user license agreement (EULA)" />
       {isLoading ? (
         <Spinner />
       ) : (

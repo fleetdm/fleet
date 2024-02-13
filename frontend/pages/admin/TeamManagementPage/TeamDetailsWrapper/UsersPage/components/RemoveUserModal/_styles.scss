@@ -1,0 +1,10 @@
+.remove-user-modal {
+  &__name,
+  &__team-name {
+    font-weight: $bold;
+  }
+
+  &__warning {
+    color: $ui-error;
+  }
+}

@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
-import classnames from "classnames";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
@@ -58,7 +57,19 @@ const validateForm = (formData: IWindowsTargetFormData) => {
   return errors;
 };
 
-const createMdmConfigData = (deadlineDays: string, gracePeriodDays: string) => {
+interface IWindowsMdmConfigData {
+  mdm: {
+    windows_updates: {
+      deadline_days: number;
+      grace_period_days: number;
+    };
+  };
+}
+
+const createMdmConfigData = (
+  deadlineDays: string,
+  gracePeriodDays: string
+): IWindowsMdmConfigData => {
   return {
     mdm: {
       windows_updates: {
@@ -73,14 +84,16 @@ interface IWindowsTargetFormProps {
   currentTeamId: number;
   defaultDeadlineDays: string;
   defaultGracePeriodDays: string;
-  inAccordion?: boolean;
+  refetchAppConfig: () => void;
+  refetchTeamConfig: () => void;
 }
 
 const WindowsTargetForm = ({
   currentTeamId,
   defaultDeadlineDays,
   defaultGracePeriodDays,
-  inAccordion = false,
+  refetchAppConfig,
+  refetchTeamConfig,
 }: IWindowsTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [isSaving, setIsSaving] = useState(false);
@@ -97,10 +110,8 @@ const WindowsTargetForm = ({
     string | undefined
   >();
 
-  const classNames = classnames(baseClass, {
-    [`${baseClass}__accordion-form`]: inAccordion,
-  });
-
+  // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
+  // submitting because this component is unmounted.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validateForm({
@@ -125,6 +136,9 @@ const WindowsTargetForm = ({
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
+          ? refetchAppConfig()
+          : refetchTeamConfig();
         setIsSaving(false);
       }
     }
@@ -139,11 +153,11 @@ const WindowsTargetForm = ({
   };
 
   return (
-    <form className={classNames} onSubmit={handleSubmit}>
+    <form className={baseClass} onSubmit={handleSubmit}>
       <InputField
         label="Deadline"
         tooltip="Number of days the end user has before updates are installed and the host is forced to restart."
-        hint="Number of days from 0 to 30."
+        helpText="Number of days from 0 to 30."
         placeholder="5"
         value={deadlineDays}
         error={deadlineDaysError}
@@ -152,7 +166,7 @@ const WindowsTargetForm = ({
       <InputField
         label="Grace period"
         tooltip="Number of days after the deadline the end user has before the host is forced to restart (only if end user was offline when deadline passed)."
-        hint="Number of days from 0 to 7."
+        helpText="Number of days from 0 to 7."
         placeholder="2"
         value={gracePeriodDays}
         error={gracePeriodDaysError}

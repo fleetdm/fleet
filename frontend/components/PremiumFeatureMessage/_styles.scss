@@ -9,6 +9,8 @@
     gap: 4px;
 
     p {
+      // need to set line-height to normal for the icons and text to be aligned
+      line-height: normal;
       margin: 0;
     }
 

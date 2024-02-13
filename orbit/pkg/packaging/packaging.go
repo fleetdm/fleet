@@ -120,6 +120,11 @@ type Options struct {
 	// EndUserEmail is the email address of the end user that uses the host on
 	// which the agent is going to be installed.
 	EndUserEmail string
+	// DisableKeystore disables the use of the keychain on macOS and Credentials Manager on Windows
+	DisableKeystore bool
+	// OsqueryDB is the directory to use for the osquery database.
+	// If not set, then the default is `$ORBIT_ROOT_DIR/osquery.db`.
+	OsqueryDB string
 }
 
 func initializeTempDir() (string, error) {

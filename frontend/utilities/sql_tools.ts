@@ -1,7 +1,7 @@
 // @ts-ignore
 import sqliteParser from "sqlite-parser";
 import { intersection, isPlainObject } from "lodash";
-import { osqueryTables } from "utilities/osquery_tables";
+import { osqueryTablesAvailable } from "utilities/osquery_tables";
 import {
   OsqueryPlatform,
   MACADMINS_EXTENSION_TABLES,
@@ -18,10 +18,10 @@ interface IOsqueryTable {
   platforms: OsqueryPlatform[];
 }
 
-type IPlatformDictionay = Record<string, OsqueryPlatform[]>;
+type IPlatformDictionary = Record<string, OsqueryPlatform[]>;
 
-const platformsByTableDictionary: IPlatformDictionay = (osqueryTables as IOsqueryTable[]).reduce(
-  (dictionary: IPlatformDictionay, osqueryTable) => {
+const platformsByTableDictionary: IPlatformDictionary = (osqueryTablesAvailable as IOsqueryTable[]).reduce(
+  (dictionary: IPlatformDictionary, osqueryTable) => {
     dictionary[osqueryTable.name] = osqueryTable.platforms;
     return dictionary;
   },

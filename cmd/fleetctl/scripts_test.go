@@ -42,10 +42,6 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
-		return nil
-	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
@@ -176,10 +172,10 @@ Oh no!
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-2),
 				Output:   "",
-				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
+				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
-Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.
+Error: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.
 
 `,
 		},
@@ -231,7 +227,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, maxAge time.Duration) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil

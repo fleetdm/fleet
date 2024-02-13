@@ -494,6 +494,15 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{}, nil
+	}
+
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+		return nil
+	}
+
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
 

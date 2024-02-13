@@ -55,7 +55,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 ### Prepare a patch release
 
-A patch release is required when a critical bug is found. Critical bugs are defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
+We issue scheduled patch releases every Monday between minor releases if any bug fixes have merged. We issue patches immediately for critical bugs as defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
 1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
@@ -72,7 +72,7 @@ git checkout --branch patch-fleet-v4.3.1
 git cherry-pick d34db33f
 ```
 
-> Make sure to cherry-pick the commit containing changelog and version number updates.
+> Commits must be cherry-picked in the order they appear on `main` to avoid conflicts. Make sure to also cherry-pick the commit containing changelog and version number updates.
 
 4. **Important!** Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
@@ -83,8 +83,8 @@ git cherry-pick d34db33f
 7. Tag and push the new release in Git:
   
 ```sh
-git tag fleet-v-v4.3.1
-git push origin fleet-v-4.3.1
+git tag fleet-v4.3.1
+git push origin fleet-v4.3.1
 ```
 
 Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
