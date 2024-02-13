@@ -3002,7 +3002,7 @@ _Available in Fleet Premium_
 
 ### Turn off MDM for a host
 
-`PATCH /api/v1/fleet/hosts/:id/mdm/off`
+`DELETE /api/v1/fleet/hosts/:id/mdm`
 
 #### Parameters
 
@@ -3012,7 +3012,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`PATCH /api/v1/fleet/hosts/:42/mdm/off`
+`DELETE /api/v1/fleet/hosts/:42/mdm`
 
 ##### Default response
 
