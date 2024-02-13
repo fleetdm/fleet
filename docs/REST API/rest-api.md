@@ -6602,7 +6602,7 @@ The timeout period is configurable via environment variable on the Fleet server 
 ```
 
 
-### Run custom live query
+### Run live query (ad-hoc)
 
 Runs a custom live query against the specified hosts and responds with the results.
 
