@@ -4570,7 +4570,7 @@ Get aggregate status counts of disk encryption enforced on macOS and Windows hos
 
 The summary can optionally be filtered by team ID.
 
-`GET /api/v1/fleet/disk_encryption/summary`
+`GET /api/v1/fleet/disk_encryption`
 
 #### Parameters
 
@@ -4582,7 +4582,7 @@ The summary can optionally be filtered by team ID.
 
 Get aggregate disk encryption status counts of macOS and Windows hosts enrolled to Fleet's MDM that are not assigned to any team.
 
-`GET /api/v1/fleet/disk_encryption/summary`
+`GET /api/v1/fleet/disk_encryption`
 
 ##### Default response
 
