@@ -1,6 +1,5 @@
 name: vscode_extensions
-description: | # (required) string - The description for this table. Note: this field supports markdown
-	# Add description here
+description: Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/). 
 examples: >-
   List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.
 
