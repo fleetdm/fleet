@@ -3864,12 +3864,10 @@ The live query will stop if the targeted host hasn't responded after 25 seconds 
 {
   "host_id": 123,
   "query": "SELECT model, vendor FROM usb_devices;",
+  "error": null,
   "rows": [
-    {
-      //…
-    }
-  ],
-  "error": null
+    { "TODO": "TODO" }
+  ]
 }
 ```
 
