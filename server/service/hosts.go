@@ -1098,24 +1098,6 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
 
-	// macOS hosts are considered unlocked if they are online any time
-	// after they have been unlocked. If the host has been seen after a
-	// successful unlock, take the opportunity and update the value in the
-	// db as well.
-	if host.Platform == "darwin" &&
-		mdmActions.IsLocked() &&
-		host.SeenTime.After(mdmActions.LockMDMCommandResult.UpdatedAt) {
-		if err := svc.ds.CleanMacOSMDMLock(ctx, host.ID); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "cleaning macOS host lock/wipe status")
-		}
-
-		// refetch mdmActions with the updated values.
-		mdmActions, err = svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
-		}
-	}
-
 	// unlocked with no pending action is the default state
 	// TODO(mna): make constants for those values
 	host.MDM.DeviceStatus = ptr.String("unlocked")

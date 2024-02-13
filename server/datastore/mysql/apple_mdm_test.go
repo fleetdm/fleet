@@ -4442,7 +4442,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	checkState(t, status, true, false, false, false, true, false)
 
 	// execute CleanMacOSMDMLock to simulate successful lock
-	err = ds.CleanMacOSMDMLock(ctx, host.ID)
+	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
 
 	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
