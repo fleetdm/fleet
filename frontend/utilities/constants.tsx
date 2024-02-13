@@ -234,12 +234,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "Linux", value: "linux" },
 ];
 
+// Builtin label names returned from API
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
-  chrome: "ChromeOS",
+  chrome: "chrome",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =

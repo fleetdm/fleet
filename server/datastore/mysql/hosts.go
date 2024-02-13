@@ -163,6 +163,10 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 				if pack.PackName != "Global" {
 					teamIDArg = *teamID
 				}
+				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+				if query.WallTimeMs == 0 && query.WallTime != 0 {
+					query.WallTimeMs = query.WallTime * 1000
+				}
 				scheduledQueriesArgs = append(scheduledQueriesArgs,
 					teamIDArg,
 					query.ScheduledQueryName,
@@ -176,12 +180,16 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 					query.OutputSize,
 					query.SystemTime,
 					query.UserTime,
-					query.WallTime,
+					query.WallTimeMs,
 				)
 			}
 		} else { // User 2017 packs
 			for _, query := range pack.QueryStats {
 				userPacksQueryCount++
+				// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+				if query.WallTimeMs == 0 && query.WallTime != 0 {
+					query.WallTimeMs = query.WallTime * 1000
+				}
 
 				userPacksArgs = append(userPacksArgs,
 					query.PackName,
@@ -196,7 +204,7 @@ func saveHostPackStatsDB(ctx context.Context, db *sqlx.DB, teamID *uint, hostID 
 					query.OutputSize,
 					query.SystemTime,
 					query.UserTime,
-					query.WallTime,
+					query.WallTimeMs,
 				)
 			}
 		}
