@@ -190,7 +190,7 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 
 ## Rituals
-<rituals :rituals="rituals['handbook/product/product.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
 
 <!-- TODO: Transfer to yaml 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
