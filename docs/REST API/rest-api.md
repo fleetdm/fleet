@@ -1827,6 +1827,7 @@ None.
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
+- [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
 ### On the different timestamps in the host data structure
 
