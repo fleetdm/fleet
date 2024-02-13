@@ -5984,6 +5984,7 @@ Either `query` or `query_id` must be provided.
 - [Delete query by ID](#delete-query-by-id)
 - [Delete queries](#delete-queries)
 - [Run live query](#run-live-query)
+- [Run custom live query](#run-custom-live-query)
 
 
 
@@ -6595,6 +6596,63 @@ The timeout period is configurable via environment variable on the Fleet server 
       "host_id": 2,
       "rows": [],
       "error": "no such table: os_version"
+    }
+  ]
+}
+```
+
+
+### Run custom live query
+
+Runs a custom live query against the specified hosts and responds with the results.
+
+If some targeted hosts haven't responded, the live query will stop and return all collected results after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+
+
+`POST /api/v1/fleet/queries/custom`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| host_ids | array   | body | **Required**. The IDs of the hosts to target. User must be authorized to target all of these hosts. |
+| query    | string  | body | The query SQL if running a custom query. May not be used with `query_id`. |
+
+
+#### Example
+
+`POST /api/v1/fleet/queries/custom`
+
+##### Request body
+
+```json
+{
+  "host_ids": [ 1, 4, 34, 27 ],
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "targeted_host_count": 4,
+  "responded_host_count": 2,
+  "results": [
+    {
+      "host_id": 1,
+      "rows": [
+        // TODO
+      ],
+      "error": null
+    },
+    {
+      "host_id": 2,
+      "rows": [],
+      "error": "no such table: usb_devices"
     }
   ]
 }
