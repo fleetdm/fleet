@@ -6554,7 +6554,7 @@ If some targeted hosts haven't responded, the live query will stop and return al
 > Either `query` or `query_id` must be specified when using this endpoint.
 
 
-#### Example (running saved query)
+#### Example (run saved query)
 
 `POST /api/v1/fleet/queries/live`
 
@@ -6606,7 +6606,7 @@ If some targeted hosts haven't responded, the live query will stop and return al
 }
 ```
 
-#### Example (running custom query)
+#### Example (run custom query)
 
 `POST /api/v1/fleet/queries/live`
 
@@ -6616,6 +6616,7 @@ If some targeted hosts haven't responded, the live query will stop and return al
 {
   "host_ids": [ 1, 4, 34, 27 ],
   "query": "SELECT model, vendor FROM usb_devices;"
+}
 ```
 
 ##### Default response
