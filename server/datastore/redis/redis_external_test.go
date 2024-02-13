@@ -364,3 +364,37 @@ func TestReadTimeout(t *testing.T) {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "i/o timeout")
 }
+
+func TestRedisConnWaitTime(t *testing.T) {
+	t.Run("standalone", func(t *testing.T) {
+		pool := redistest.SetupRedisWithConfig(t, "zz", false, false, false, redis.PoolConfig{ConnWaitTimeout: 2 * time.Second, MaxOpenConns: 1})
+
+		conn1 := pool.Get()
+		defer conn1.Close()
+
+		// no more connections available, requesting another will wait and fail after 2s
+		start := time.Now()
+		conn2 := pool.Get()
+		_, err := conn2.Do("PING")
+		require.Error(t, err)
+		require.GreaterOrEqual(t, time.Since(start), 2*time.Second)
+		conn2.Close()
+
+		// request another one but this time close the open connection after a second
+		go func() {
+			time.Sleep(time.Second)
+			conn1.Close()
+		}()
+		start = time.Now()
+		conn3 := pool.Get()
+		_, err = conn2.Do("PING")
+		require.NoError(t, err)
+		require.Less(t, time.Since(start), 2*time.Second)
+		defer conn3.Close()
+	})
+
+	t.Run("cluster", func(t *testing.T) {
+		//pool := redistest.SetupRedis(t, "zz", true, false, false)
+		//require.Equal(t, pool.Mode(), fleet.RedisCluster)
+	})
+}
