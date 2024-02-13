@@ -1826,6 +1826,7 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
 
 ### On the different timestamps in the host data structure
 
@@ -3823,6 +3824,50 @@ Retrieves a list of the configuration profiles assigned to a host.
     "has_next_results": false,
     "has_previous_results": false
   }
+}
+```
+
+### Live query one host (ad-hoc)
+
+Runs an ad-hoc live query against the specified host and responds with the results.
+
+The live query will stop if the targeted host hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+
+
+`POST /api/v1/fleet/hosts/:id/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer   | path | **Required**. The ID of the host to target. |
+| query    | string    | body | The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "results": [
+    // TODO
+  ],
+  "error": ""
 }
 ```
 
@@ -6596,62 +6641,6 @@ The timeout period is configurable via environment variable on the Fleet server 
       "host_id": 2,
       "rows": [],
       "error": "no such table: os_version"
-    }
-  ]
-}
-```
-
-
-### Run live query (ad-hoc)
-
-Runs a custom live query against the specified hosts and responds with the results.
-
-If some targeted hosts haven't responded, the live query will stop and return all collected results after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
-
-
-`POST /api/v1/fleet/hosts/:id/query`
-
-#### Parameters
-
-| Name      | Type  | In   | Description                                                                                                                                                        |
-|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| host_id | integer   | path | **Required**. The IDs of the host to target. |
-| query    | string  | body | The query SQL if running a custom query. May not be used with `query_id`. |
-
-
-#### Example
-
-`POST /api/v1/fleet/queries/custom`
-
-##### Request body
-
-```json
-{
-  "query": "SELECT model, vendor FROM usb_devices;"
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "query": "SELECT model, vendor FROM usb_devices;",
-  "targeted_host_count": 4,
-  "responded_host_count": 2,
-  "results": [
-    {
-      "host_id": 1,
-      "rows": [
-        // TODO
-      ],
-      "error": null
-    },
-    {
-      "host_id": 2,
-      "rows": [],
-      "error": "no such table: usb_devices"
     }
   ]
 }
