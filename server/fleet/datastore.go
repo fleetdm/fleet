@@ -1279,7 +1279,7 @@ type Datastore interface {
 
 	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
-	CleanMacOSMDMLock(ctx context.Context, hostID uint) error
+	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with

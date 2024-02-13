@@ -2376,21 +2376,8 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		// db as well.
 		//
 		// TODO: sanity check if this approach is still valid after we implement wipe
-		host, err := svc.ds.HostByIdentifier(r.Context, cmdResult.UDID)
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "finding host by uuid")
-		}
-
-		// refetch mdmActions with the updated values.
-		mdmActions, err := svc.ds.GetHostLockWipeStatus(r.Context, host.ID, host.FleetPlatform())
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "get host mdm lock/wipe status")
-		}
-
-		if mdmActions.IsPendingUnlock() {
-			if err := svc.ds.CleanMacOSMDMLock(r.Context, host.ID); err != nil {
-				return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
-			}
+		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
 		}
 	}
 
