@@ -8,7 +8,7 @@ Fleet UI is the GUI (graphical user interface) used to control Fleet. [Docs](htt
 Fleetctl (pronouced “fleet control”) is a CLI (command line interface) tool for managing Fleet from the command line. [Docs](https://fleetdm.com/docs/using-fleet/fleetctl-cli).
 
 ## Fleetd
-Fleetd is a bundle of agents provided by Fleet to gather information about your devices. Fleetd includes [osquery](https://www.osquery.io/), [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/README.md), Fleet Desktop, and [Fleetd Chrome Extension](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
+Fleetd is a bundle of agents provided by Fleet to gather information about your devices. Fleetd includes [osquery](https://www.osquery.io/), [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/README.md), Fleet Desktop, and the [Fleetd Chrome Extension](https://github.com/fleetdm/fleet/blob/main/ee/fleetd-chrome/README.md).
 
 ## Osquery
 Osquery is an open-source tool for gathering information about the state of any device that the osquery agent has been installed on. [Learn more](https://www.osquery.io/).
