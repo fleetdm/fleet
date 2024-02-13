@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -25,6 +26,11 @@ type runLiveQueryRequest struct {
 type runOneLiveQueryRequest struct {
 	QueryID uint   `url:"id"`
 	HostIDs []uint `json:"host_ids"`
+}
+
+type runLiveQueryOnHostRequest struct {
+	Identifier string `url:"identifier"`
+	Query      string `json:"query"`
 }
 
 type summaryPayload struct {
@@ -51,13 +57,27 @@ type runOneLiveQueryResponse struct {
 
 func (r runOneLiveQueryResponse) error() error { return r.Err }
 
+type runLiveQueryOnHostResponse struct {
+	fleet.QueryResult
+	Query  string `json:"query"`
+	Status string `json:"status"`
+}
+
+func (r runLiveQueryOnHostResponse) error() error {
+	// TODO: This is hacky. Fix by not using fleet.QueryResult up above.
+	if r.Error != nil {
+		return errors.New(*r.Error)
+	}
+	return nil
+}
+
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
 
 	// Only allow a host to be specified once in HostIDs
 	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
 
-	campaignResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{req.QueryID}, hostIDs)
+	campaignResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{req.QueryID}, "", hostIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +109,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// Only allow a host to be specified once in HostIDs
 	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
 
-	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, queryIDs, hostIDs)
+	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, queryIDs, "", hostIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +124,42 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return res, nil
 }
 
-func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostIDs []uint) (
+func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runLiveQueryOnHostRequest)
+
+	// TODO: Validate that query is not empty
+
+	// Look up host by identifier
+	// TODO: HostByIdentifier here is overkill. Create a new DB method to only get the host id
+	host, err := svc.HostByIdentifier(ctx, req.Identifier, fleet.HostDetailOptions{})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
+	}
+
+	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{0}, req.Query, []uint{host.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	status := "online"
+	if respondedHostCount == 0 {
+		status = "offline"
+	}
+	res := runLiveQueryOnHostResponse{
+		Query:  req.Query,
+		Status: status,
+	}
+	if len(queryResults) > 0 {
+		// TODO: We have 2 errors here that need to be combined: queryResults[0].Err and queryResults[0].Results[0].Error
+		// TODO: Handle queryResults[0].Err
+		if len(queryResults[0].Results) > 0 {
+			res.QueryResult = queryResults[0].Results[0]
+		}
+	}
+	return res, nil
+}
+
+func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, query string, hostIDs []uint) (
 	[]fleet.QueryCampaignResult, int, error,
 ) {
 	// The period used here should always be less than the request timeout for any load
@@ -119,7 +174,7 @@ func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostI
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
-	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, queryIDs, hostIDs, duration)
+	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, queryIDs, query, hostIDs, duration)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -142,7 +197,7 @@ func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostI
 }
 
 func (svc *Service) RunLiveQueryDeadline(
-	ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration,
+	ctx context.Context, queryIDs []uint, query string, hostIDs []uint, deadline time.Duration,
 ) ([]fleet.QueryCampaignResult, int, error) {
 	if len(queryIDs) == 0 || len(hostIDs) == 0 {
 		svc.authz.SkipAuthorization(ctx)
@@ -160,8 +215,16 @@ func (svc *Service) RunLiveQueryDeadline(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: hostIDs})
+			queryIDPtr := &queryID
+			queryString := ""
+			// 0 is a special ID that indicates we should use raw SQL query
+			if queryID == 0 {
+				queryIDPtr = nil
+				queryString = query
+			}
+			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
+				queryID = campaign.QueryID
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
