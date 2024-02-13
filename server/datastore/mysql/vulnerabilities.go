@@ -33,7 +33,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, includeCVESc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.cve = ?
-		GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count
+		GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at
 	`
 
 	freeSelectStmt := `
@@ -48,7 +48,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, includeCVESc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.cve = ?
-		GROUP BY vhc.cve, source, vhc.host_count
+		GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at
 	`
 
 	var selectStmt string
