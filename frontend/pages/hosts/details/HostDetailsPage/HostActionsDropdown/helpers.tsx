@@ -61,7 +61,8 @@ const DEFAULT_OPTIONS = [
   },
 ] as const;
 
-export interface IHostActionConfigOptions {
+// eslint-disable-next-line import/prefer-default-export
+interface IHostActionConfigOptions {
   hostPlatform: string;
   isPremiumTier: boolean;
   isGlobalAdmin: boolean;
@@ -175,7 +176,7 @@ const canWipeHost = ({
   );
 };
 
-export const canUnlock = ({
+const canUnlock = ({
   isPremiumTier,
   isGlobalAdmin,
   isGlobalMaintainer,

@@ -515,6 +515,35 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Unlock")).toBeInTheDocument();
     });
 
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is unlocking", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocking"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).toBeInTheDocument();
+    });
+
     it("does not render when the host is not enrolled in mdm", async () => {
       const render = createCustomRenderer({
         context: {
