@@ -22,6 +22,15 @@ func TestUserAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
 
+	const (
+		teamID      = 1
+		otherTeamID = 2
+	)
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		team1 := &fleet.TeamSummary{ID: teamID}
+		team2 := &fleet.TeamSummary{ID: otherTeamID}
+		return []*fleet.TeamSummary{team1, team2}, nil
+	}
 	ds.InviteByTokenFunc = func(ctx context.Context, token string) (*fleet.Invite, error) {
 		return &fleet.Invite{
 			Email: "some@email.com",
@@ -50,7 +59,7 @@ func TestUserAuth(t *testing.T) {
 		case userTeamMaintainerID:
 			return &fleet.User{
 				ID:    userTeamMaintainerID,
-				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}},
+				Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}},
 			}, nil
 		case userGlobalMaintainerID:
 			return &fleet.User{
@@ -175,7 +184,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team admin, belongs to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleAdmin}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  false,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -196,7 +205,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team maintainer, belongs to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  true,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -217,7 +226,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team observer, belongs to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleObserver}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  true,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -238,7 +247,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team maintainer, DOES NOT belong to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: otherTeamID}, Role: fleet.RoleMaintainer}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  true,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -259,7 +268,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team admin, DOES NOT belong to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: otherTeamID}, Role: fleet.RoleAdmin}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  true,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -280,7 +289,7 @@ func TestUserAuth(t *testing.T) {
 		},
 		{
 			name:                                 "team observer, DOES NOT belong to team",
-			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleObserver}}},
+			user:                                 &fleet.User{ID: 1000, Teams: []fleet.UserTeam{{Team: fleet.Team{ID: otherTeamID}, Role: fleet.RoleObserver}}},
 			shouldFailGlobalWrite:                true,
 			shouldFailTeamWrite:                  true,
 			shouldFailWriteRoleGlobalToGlobal:    true,
@@ -352,7 +361,7 @@ func TestUserAuth(t *testing.T) {
 				checkAuthErr(t, tt.shouldFailWriteRoleOwnDomain, err)
 			}
 
-			teams := []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}
+			teams := []fleet.UserTeam{{Team: fleet.Team{ID: teamID}, Role: fleet.RoleMaintainer}}
 			_, err = svc.CreateUser(ctx, fleet.UserPayload{
 				Name:     ptr.String("Some Name"),
 				Email:    ptr.String("some@email.com"),
@@ -381,7 +390,7 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.ModifyUser(ctx, userGlobalMaintainerID, fleet.UserPayload{Teams: &teams})
 			checkAuthErr(t, tt.shouldFailWriteRoleGlobalToTeam, err)
 
-			anotherTeams := []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleMaintainer}}
+			anotherTeams := []fleet.UserTeam{{Team: fleet.Team{ID: otherTeamID}, Role: fleet.RoleMaintainer}}
 			_, err = svc.ModifyUser(ctx, userTeamMaintainerID, fleet.UserPayload{Teams: &anotherTeams})
 			checkAuthErr(t, tt.shouldFailWriteRoleTeamToAnotherTeam, err)
 
@@ -415,7 +424,7 @@ func TestUserAuth(t *testing.T) {
 			_, err = svc.ListUsers(ctx, fleet.UserListOptions{})
 			checkAuthErr(t, tt.shouldFailListAll, err)
 
-			_, err = svc.ListUsers(ctx, fleet.UserListOptions{TeamID: 1})
+			_, err = svc.ListUsers(ctx, fleet.UserListOptions{TeamID: teamID})
 			checkAuthErr(t, tt.shouldFailListTeam, err)
 		})
 	}
