@@ -104,8 +104,14 @@ func (s Software) ToUniqueStr() string {
 }
 
 type VulnerableSoftware struct {
-	Software
-	ResolvedInVersion string `json:"resolved_in_version" db:"resolved_in_version"`
+	ID                uint    `json:"id" db:"id"`
+	Name              string  `json:"name" db:"name"`
+	Version           string  `json:"version" db:"version"`
+	Source            string  `json:"source" db:"source"`
+	Browser           string  `json:"browser" db:"browser"`
+	GenerateCPE       string  `json:"generated_cpe" db:"generated_cpe"`
+	HostsCount        int     `json:"hosts_count,omitempty" db:"hosts_count"`
+	ResolvedInVersion *string `json:"resolved_in_version" db:"resolved_in_version"`
 }
 
 type SliceString []string

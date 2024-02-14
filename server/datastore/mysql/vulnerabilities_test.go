@@ -832,34 +832,32 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	software, _, err := ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", nil)
 	require.NoError(t, err)
 
-	expected := []fleet.VulnerableSoftware{
-		{
-			Software: fleet.Software{
-				ID:          1,
-				Name:        "Chrome",
-				Version:     "1.0.0",
-				HostsCount:  5,
-				GenerateCPE: "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
-			},
-		},
+	expected := &fleet.VulnerableSoftware{
+		ID:          1,
+		Name:        "Chrome",
+		Version:     "1.0.0",
+		Source:      "programs",
+		HostsCount:  5,
+		GenerateCPE: "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		ResolvedInVersion: ptr.String("1.0.0"),
 	}
 
 	require.Len(t, software, 1)
-	require.Equal(t, software[0].Software, expected[0].Software)
+	require.Equal(t, expected, software[0])
 
 	// team 1
-	expected[0].HostsCount = 4
+	expected.HostsCount = 4
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(1))
 	require.NoError(t, err)
 	require.Len(t, software, 1)
-	require.Equal(t, software[0].Software, expected[0].Software)
+	require.Equal(t, expected, software[0])
 
 	// team 2
-	expected[0].HostsCount = 1
+	expected.HostsCount = 1
 	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(2))
 	require.NoError(t, err)
 	require.Len(t, software, 1)
-	require.Equal(t, software[0].Software, expected[0].Software)
+	require.Equal(t, expected, software[0])
 }
 
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {
@@ -946,18 +944,18 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 				Name:    "Chrome",
 				Version: "1.0.0",
 				Source:  "programs",
-				
 			},
 		})
 		require.NoError(t, err)
 	}
 
-	ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+	_, err = ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
 		{
 			SoftwareID: 1,
 			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		},
 	})
+	require.NoError(t, err)
 
 	err = ds.SyncHostsSoftware(context.Background(), time.Now())
 	require.NoError(t, err)

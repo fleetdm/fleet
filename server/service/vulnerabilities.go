@@ -125,15 +125,15 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 		return getVulnerabilityResponse{Err: err}, nil
 	}
 
-	// software, err := svc.ListSoftwareByCVE(ctx, vuln.CVE)
-	// if err != nil {
-	// 	return listVulnerabilityResponse{Err: err}, nil
-	// }
+	software, _, err := svc.ListSoftwareByCVE(ctx, vuln.CVE, request.TeamID)
+	if err != nil {
+		return getVulnerabilityResponse{Err: err}, nil
+	}
 
 	return getVulnerabilityResponse{
 		Vulnerability: vuln,
 		OSVersions:    osVersions,
-		Software:      nil,
+		Software:      software,
 	}, nil
 }
 
@@ -155,4 +155,11 @@ func (svc *Service) ListOSVersionsByCVE(ctx context.Context, cve string, teamID 
 		return nil, updatedAt, err
 	}
 	return svc.ds.OSVersionsByCVE(ctx, cve, teamID)
+}
+
+func (svc *Service) ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+		return nil, updatedAt, err
+	}
+	return svc.ds.SoftwareByCVE(ctx, cve, teamID)
 }

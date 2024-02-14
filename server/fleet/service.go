@@ -609,6 +609,8 @@ type Service interface {
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
 	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
 	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
+	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
+	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies

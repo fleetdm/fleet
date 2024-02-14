@@ -7414,17 +7414,28 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: os.ID,
-		CVE:  "CVE-2021-1234",
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
 		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
 	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
-		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+		{Name: "Google Chrome", Version: "0.0.1", Source: "programs"},
 	})
 	require.NoError(t, err)
 	sw := res.Inserted[0]
+
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+		{
+			SoftwareID: sw.ID,
+			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		},
+	})
+	require.NoError(t, err)
+
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
 
 	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
 		SoftwareID: sw.ID,
@@ -7533,6 +7544,23 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
 	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
 	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostCount)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.Published)
+	require.Len(t, gResp.Software, 1)
+	require.Equal(t, "Google Chrome", gResp.Software[0].Name)
+	require.Equal(t, "0.0.1", gResp.Software[0].Version)
+	require.Equal(t, "programs", gResp.Software[0].Source)
+	require.Equal(t, "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*", gResp.Software[0].GenerateCPE)
+	require.Equal(t, 1, gResp.Software[0].HostsCount)
 }
 
 func (s *integrationTestSuite) TestOSVersions() {
