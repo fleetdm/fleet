@@ -18,14 +18,29 @@ Besides that, you should consider the answer(s) to the following question: how c
 
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
 
-## Connecting to Dogfood MySQL & Redis
+### In this section
+- [Connecting to Dogfood MySQL & Redis](#connecting-to-dogfood-mysql--redis)
+- [Foreign keys and locking](#foreign-keys-and-locking)
+- [Insert on duplicate update](#insert-on-duplicate-update)
+- [Host extra data and JOINs](#host-extra-data-and-joins)
+- [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
+- [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
+- [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
+- [On constantly changing data](#on-constantly-changing-data)
+- [Counts and aggregated data](#counts-and-aggregated-data)
+- [Caching data such as app config](#caching-data-such-as-app-config)
+- [Redis SCAN](#redis-scan)
 
-### Prerequisites
+### Connecting to Dogfood MySQL & Redis
+
+When investigating performance issues, it can be helpful to connect directly to the MySQL and Redis
+instances to run queries and inspect data. Below are instructions for connecting to the Dogfood
+MySQL and Redis instances.
+
+#### Prerequisites
 
 1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
 2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
-
-### Connecting
 
 #### MySQL
 
@@ -61,7 +76,7 @@ Connect:
 redis-cli -h "${REDIS_HOST}"
 ```
 
-## Foreign keys and locking
+### Foreign keys and locking
 
 Among the first things you learn in database data modeling is: that if one table references a row in another, that reference should be a foreign key. This provides a lot of assurances and makes coding basic things much simpler.
 
@@ -70,20 +85,6 @@ However, this database feature doesn’t come without a cost. The one to focus o
 The TLDR is: understand very well how a table will be used. If we do bulk inserts/updates, InnoDB might lock more than you anticipate and cause issues. This is not an argument to not do bulk inserts/updates, but to be very careful when you add a foreign key.
 
 In particular, host_id is a foreign key we’ve been skipping in all the new additional host data tables, which is not something that comes for free, as with that, [we have to keep the data consistent by hand with cleanups](https://github.com/fleetdm/fleet/blob/71a237042a9c39a45bc8f9c76465e5ff6039eba9/server/datastore/mysql/hosts.go#L444).
-
-### In this section
-
-- [Insert on duplicate update](#insert-on-duplicate-update)
-- [Host extra data and JOINs](#host-extra-data-and-joins)
-- [What DB tables matter more when thinking about performance?](#what-db-tables-matter-more-when-thinking-about-performance)
-- [Expose more host data in the host listing](#expose-more-host-data-in-the-host-listing)
-- [Understand main use-cases for queries](#understand-main-use-cases-for-queries)
-- [On constantly changing data](#on-constantly-changing-data)
-- [Counts and aggregated data](#counts-and-aggregated-data)
-- [Caching data such as app config](#caching-data-such-as-app-config)
-- [Redis SCAN](#redis-scan)
-- [Fleet docs](#fleet-docs)
-- [Community support](#community-support)
 
 ### Insert on duplicate update
 
