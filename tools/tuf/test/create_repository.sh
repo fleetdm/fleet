@@ -60,6 +60,10 @@ for system in $SYSTEMS; do
         --version $OSQUERY_VERSION -t $major.$min -t $major -t stable
     rm $osqueryd_path
 
+    goose_value="$system"
+    if [[ $system == "macos" ]]; then
+        goose_value="darwin"
+    fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
         orbit_target="${orbit_target}.exe"
@@ -79,7 +83,7 @@ for system in $SYSTEMS; do
       # go build, note that GOARCH is hardcoded here to prevent cross
       # compilation issues when building macOS arm64 binaries from Linux (CGO +
       # libraries are required)
-      GOOS=$system GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
