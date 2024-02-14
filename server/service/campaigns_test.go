@@ -30,6 +30,10 @@ func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
 }
 
+func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, activeCampaignIDs []uint) error {
+	return nil
+}
+
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()
