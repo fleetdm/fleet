@@ -3876,6 +3876,8 @@ The live query will stop if the targeted host is offline, or hasn't responded af
 }
 ```
 
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
+
 ### Live query host by identifier (ad-hoc)
 
 Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
