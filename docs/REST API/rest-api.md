@@ -3884,7 +3884,7 @@ The live query will stop if the targeted host is offline, or hasn't responded af
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| identifier       | integer or string   | path | **Required**. The host's `uuid`. |
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
 | query            | string   | body | **Required**. The query SQL. |
 
 
