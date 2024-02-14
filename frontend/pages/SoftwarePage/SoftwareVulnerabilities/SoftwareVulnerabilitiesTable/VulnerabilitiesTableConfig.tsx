@@ -4,6 +4,7 @@ import { InjectedRouter } from "react-router";
 
 import PATHS from "router/paths";
 import { formatSeverity } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 import { formatOperatingSystemDisplayName } from "interfaces/operating_system";
 import { IVulnerability } from "interfaces/vulnerability";
 
@@ -58,7 +59,8 @@ const generateTableHeaders = (
   isPremiumTier?: boolean,
   isSandboxMode?: boolean,
   router?: InjectedRouter,
-  configOptions?: IVulnerabilitiesTableConfigOptions
+  configOptions?: IVulnerabilitiesTableConfigOptions,
+  teamId?: number
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -77,16 +79,22 @@ const generateTableHeaders = (
         }
 
         const { cve } = cellProps.row.original;
+
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareVulnerabilitiesDetailsPath = `${PATHS.SOFTWARE_VULNERABILITY_DETAILS(
+          cve
+        )}?${teamQueryParam}`;
+
         const onClickVulnerability = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
 
-          router?.push(PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve));
+          router?.push(softwareVulnerabilitiesDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_VULNERABILITY_DETAILS(cve)}
+            path={softwareVulnerabilitiesDetailsPath}
             customOnClick={onClickVulnerability}
             value={cve}
           />
@@ -251,6 +259,7 @@ const generateTableHeaders = (
               <ViewAllHostsLink
                 queryParams={{
                   vulnerability: cellProps.row.original.cve,
+                  team_id: teamId,
                 }}
                 className="vulnerabilities-link"
                 rowHover

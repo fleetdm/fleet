@@ -1,20 +1,29 @@
 /** software/os/:id */
 
-import React from "react";
+import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
+import { RouteComponentProps } from "react-router";
+import { AxiosError } from "axios";
+
+import useTeamIdParam from "hooks/useTeamIdParam";
+
+import { AppContext } from "context/app";
 
 import osVersionsAPI, {
   IOSVersionResponse,
+  IGetOsVersionQueryKey,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
+import Fleet404 from "pages/errors/Fleet404";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import TeamsHeader from "components/TeamsHeader";
+import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
@@ -42,30 +51,65 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
 
 interface ISoftwareOSDetailsRouteParams {
   id: string;
+  team_id?: string;
 }
 
-interface ISoftwareOSDetailsPageProps {
-  routeParams: ISoftwareOSDetailsRouteParams;
-  router: InjectedRouter;
-}
+type ISoftwareOSDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareOSDetailsRouteParams
+>;
 
 const SoftwareOSDetailsPage = ({
   routeParams,
   router,
+  location,
 }: ISoftwareOSDetailsPageProps) => {
+  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+
   const osVersionIdFromURL = parseInt(routeParams.id, 10);
 
-  const { data: osVersionDetails, isLoading, isError } = useQuery<
+  const {
+    currentTeamId,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
+
+  const {
+    data: osVersionDetails,
+    isLoading,
+    isError: isOsVersionError,
+    error: osVersionError,
+  } = useQuery<
     IOSVersionResponse,
-    Error,
-    IOperatingSystemVersion
+    AxiosError,
+    IOperatingSystemVersion,
+    IGetOsVersionQueryKey[]
   >(
-    ["osVersionDetails", osVersionIdFromURL],
-    () => osVersionsAPI.getOSVersion(osVersionIdFromURL),
+    [
+      {
+        scope: "osVersionDetails",
+        os_version_id: osVersionIdFromURL,
+        teamId: teamIdForApi,
+      },
+    ],
+    ({ queryKey }) => osVersionsAPI.getOSVersion(queryKey[0]),
     {
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
     }
+  );
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
   );
 
   const renderTable = () => {
@@ -86,6 +130,7 @@ const SoftwareOSDetailsPage = ({
         itemName="version"
         isLoading={isLoading}
         router={router}
+        teamIdForApi={teamIdForApi}
       />
     );
   };
@@ -95,7 +140,11 @@ const SoftwareOSDetailsPage = ({
       return <Spinner />;
     }
 
-    if (isError) {
+    if (isOsVersionError) {
+      // confirm okay to cast to AxiosError like this
+      if (osVersionError.status === 404) {
+        return <Fleet404 />;
+      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
@@ -105,20 +154,32 @@ const SoftwareOSDetailsPage = ({
 
     return (
       <>
+        {isPremiumTier && (
+          <TeamsHeader
+            isOnGlobalTeam={isOnGlobalTeam}
+            currentTeamId={currentTeamId}
+            userTeams={userTeams}
+            onTeamChange={onTeamChange}
+          />
+        )}
         <SoftwareDetailsSummary
           title={osVersionDetails.name}
           hosts={osVersionDetails.hosts_count}
           queryParams={{
             os_name: osVersionDetails.name_only,
             os_version: osVersionDetails.version,
+            team_id: teamIdForApi,
           }}
           name={osVersionDetails.platform}
         />
-        {/* TODO: can we use Card here for card styles */}
-        <div className={`${baseClass}__vulnerabilities-section`}>
+        <Card
+          borderRadiusSize="large"
+          includeShadow
+          className={`${baseClass}__vulnerabilities-section`}
+        >
           <h2>Vulnerabilities</h2>
           {renderTable()}
-        </div>
+        </Card>
       </>
     );
   };

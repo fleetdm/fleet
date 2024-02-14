@@ -8,6 +8,7 @@ import {
   formatSoftwareType,
 } from "interfaces/software";
 import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -91,16 +92,21 @@ const generateTableHeaders = (
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, source } = cellProps.row.original;
 
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
 
-          router?.push(PATHS.SOFTWARE_TITLE_DETAILS(id.toString()));
+          router?.push(softwareTitleDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
+            path={softwareTitleDetailsPath}
             customOnClick={onClickSoftware}
             value={
               <>

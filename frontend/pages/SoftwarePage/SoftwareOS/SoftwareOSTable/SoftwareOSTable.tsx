@@ -1,4 +1,4 @@
-/** software/os OS tab */
+/** software/os OS tab > Table */
 
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
