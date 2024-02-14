@@ -1,5 +1,7 @@
 package fleet
 
+import "context"
+
 // LiveQueryStore defines an interface for storing and retrieving the status of
 // live queries in the Fleet system.
 type LiveQueryStore interface {
@@ -16,4 +18,8 @@ type LiveQueryStore interface {
 	// given host. After calling QueryCompleted, that query will no longer be
 	// sent to the host.
 	QueryCompletedByHost(name string, hostID uint) error
+	// CleanupInactiveQueries removes any queries that are not in the provided
+	// list of active campaign IDs. This is used via a cron job to regularly
+	// cleanup any queries that may have failed to be stopped properly.
+	CleanupInactiveQueries(ctx context.Context, activeCampaignIDs []uint) error
 }

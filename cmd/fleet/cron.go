@@ -702,6 +702,7 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	lq fleet.LiveQueryStore,
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
@@ -719,8 +720,14 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
-				return err
+				if _, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now()); err != nil {
+					return err
+				}
+				// TODO(mna): load the list of active campaign IDs, maybe could be returned by the Cleanup call
+				if err := lq.CleanupInactiveQueries(ctx, activeIDs); err != nil {
+					return err
+				}
+				return nil
 			},
 		),
 		schedule.WithJob(
