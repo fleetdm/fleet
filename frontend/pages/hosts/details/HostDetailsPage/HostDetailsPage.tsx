@@ -1003,7 +1003,6 @@ const HostDetailsPage = ({
             id={host.id}
             platform={host.platform}
             hostName={host.display_name}
-            pin={123456}
             onSuccess={() => {
               host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
             }}
