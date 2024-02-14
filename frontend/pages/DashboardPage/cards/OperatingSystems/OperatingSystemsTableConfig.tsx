@@ -87,8 +87,8 @@ const generateDefaultTableHeaders = (
       const teamQueryParam = buildQueryStringFromParams({
         team_id: teamId,
       });
-      const softwareOsDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
-        os_version_id.toString()
+      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
+        os_version_id
       )}?${teamQueryParam}`;
 
       const onClickSoftware = (e: React.MouseEvent) => {
