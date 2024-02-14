@@ -3,4 +3,8 @@
   display: flex;
   flex-direction: column;
   gap: $pad-medium;
+
+  h2 {
+    font-size: $small;
+  }
 }

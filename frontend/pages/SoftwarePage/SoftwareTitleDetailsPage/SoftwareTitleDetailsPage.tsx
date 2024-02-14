@@ -1,17 +1,26 @@
 /** software/titles/:id */
 
-import React from "react";
-import { InjectedRouter } from "react-router";
+import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { RouteComponentProps } from "react-router";
+import { AxiosError } from "axios";
+
+import useTeamIdParam from "hooks/useTeamIdParam";
+
+import { AppContext } from "context/app";
 
 import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import softwareAPI, {
   ISoftwareTitleResponse,
+  IGetSoftwareTitleQueryKey,
 } from "services/entities/software";
 
-import MainContent from "components/MainContent";
-import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import TableDataError from "components/DataError";
+import Fleet404 from "pages/errors/Fleet404";
+import MainContent from "components/MainContent";
+import TeamsHeader from "components/TeamsHeader";
+import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
@@ -20,37 +29,59 @@ const baseClass = "software-title-details-page";
 
 interface ISoftwareTitleDetailsRouteParams {
   id: string;
+  team_id?: string;
 }
 
-interface ISoftwareTitleDetailsPageProps {
-  router: InjectedRouter;
-  routeParams: ISoftwareTitleDetailsRouteParams;
-  location: {
-    query: { team_id?: string };
-  };
-}
+type ISoftwareTitleDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareTitleDetailsRouteParams
+>;
 
 const SoftwareTitleDetailsPage = ({
   router,
   routeParams,
   location,
 }: ISoftwareTitleDetailsPageProps) => {
+  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
-  const teamId = location.query.team_id
-    ? parseInt(location.query.team_id, 10)
-    : undefined;
+
+  const {
+    currentTeamId,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
     isError: isSoftwareTitleError,
-  } = useQuery<ISoftwareTitleResponse, Error, ISoftwareTitle>(
-    ["softwareById", softwareId],
-    () => softwareAPI.getSoftwareTitle(softwareId),
+    error: softwareTitleError,
+  } = useQuery<
+    ISoftwareTitleResponse,
+    AxiosError,
+    ISoftwareTitle,
+    IGetSoftwareTitleQueryKey[]
+  >(
+    [{ scope: "softwareById", softwareId, teamId: teamIdForApi }],
+    ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
       select: (data) => data.software_title,
     }
+  );
+
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
   );
 
   const renderContent = () => {
@@ -59,6 +90,10 @@ const SoftwareTitleDetailsPage = ({
     }
 
     if (isSoftwareTitleError) {
+      // confirm okay to cast to AxiosError like this
+      if (softwareTitleError.status === 404) {
+        return <Fleet404 />;
+      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
@@ -68,25 +103,36 @@ const SoftwareTitleDetailsPage = ({
 
     return (
       <>
+        {isPremiumTier && (
+          <TeamsHeader
+            isOnGlobalTeam={isOnGlobalTeam}
+            currentTeamId={currentTeamId}
+            userTeams={userTeams}
+            onTeamChange={onTeamChange}
+          />
+        )}
         <SoftwareDetailsSummary
           title={softwareTitle.name}
           type={formatSoftwareType(softwareTitle)}
           versions={softwareTitle.versions.length}
           hosts={softwareTitle.hosts_count}
-          queryParams={{ software_title_id: softwareId, team_id: teamId }}
+          queryParams={{ software_title_id: softwareId, team_id: teamIdForApi }}
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
-        {/* TODO: can we use Card here for card styles */}
-        <div className={`${baseClass}__versions-section`}>
+        <Card
+          borderRadiusSize="large"
+          includeShadow
+          className={`${baseClass}__versions-section`}
+        >
           <h2>Versions</h2>
           <SoftwareTitleDetailsTable
             router={router}
             data={softwareTitle.versions}
             isLoading={isSoftwareTitleLoading}
-            teamId={teamId}
+            teamIdForApi={teamIdForApi}
           />
-        </div>
+        </Card>
       </>
     );
   };
