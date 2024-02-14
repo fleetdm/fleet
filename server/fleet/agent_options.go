@@ -61,6 +61,9 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if flags.ExtensionsAutoload != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
 		}
+		if flags.DatabasePath != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--database_path")
+		}
 	}
 
 	if len(opts.UpdateChannels) > 0 {

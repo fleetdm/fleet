@@ -175,7 +175,7 @@ Oh no!
 				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
-Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.
+Error: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.
 
 `,
 		},
@@ -239,6 +239,9 @@ Fleet records the last 10,000 characters to prevent downtime.
 				return c.scriptResult, nil
 			}
 			return &fleet.HostScriptResult{}, nil
+		}
+		ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
 		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), req.HostID)

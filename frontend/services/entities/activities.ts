@@ -16,6 +16,10 @@ export interface IActivitiesResponse {
   };
 }
 
+export interface IUpcomingActivitiesResponse extends IActivitiesResponse {
+  count: number;
+}
+
 export default {
   loadNext: (
     page = DEFAULT_PAGE,
@@ -60,7 +64,7 @@ export default {
     id: number,
     page = DEFAULT_PAGE,
     perPage = DEFAULT_PAGE_SIZE
-  ): Promise<IActivitiesResponse> => {
+  ): Promise<IUpcomingActivitiesResponse> => {
     const { HOST_UPCOMING_ACTIVITIES } = endpoints;
 
     const queryParams = {

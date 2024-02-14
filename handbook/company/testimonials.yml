@@ -117,6 +117,7 @@
   quoteAuthorProfileImageFilename: testimonial-author-harrison-ravazzolo-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/harrison-ravazzolo/
   quoteAuthorJobTitle: Lead platform and identity engineer
+  youtubeVideoUrl: https://www.youtube.com/watch?v=5W0q5yQE3R0
   productCategories: [Endpoint operations]
 -
   quote: Fleet has such a huge amount of use cases. My goal was to get telemetry on endpoints, but then our IR team, our TBM team, and multiple other folks in security started heavily utilizing the system in ways I didn’t expect. It spread so naturally, even our corporate and infrastructure teams want to run it.
@@ -124,6 +125,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/charleszaffery/
   quoteAuthorJobTitle: Principle computer janitor
   quoteAuthorProfileImageFilename: testimonial-author-charles-zaffery-48x48@2x.png
+  youtubeVideoUrl: https://www.youtube.com/watch?v=nRbZJflWqCo
   productCategories: [Endpoint operations]
 -
   quote: I don't want one bad actor to brick my fleet, I want them to make a pull request first.
@@ -138,4 +140,13 @@
   quoteAuthorJobTitle: IT Engineering Manager
   quoteAuthorProfileImageFilename: testimonial-author-tom-larkin-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
+  youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
   productCategories: [Endpoint operations]
+-
+  quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/cmajumdar/
+  quoteAuthorName: Chandra Majumdar
+  quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
+  quoteAuthorJobTitle: Partner - Cyber and Strategic Risk
+  productCategories: [Vulnerability management, Endpoint operations]

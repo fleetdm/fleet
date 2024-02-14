@@ -1,3 +1,0 @@
-New flow for `fleetctl package --type=msi` on macOS using arm64 processor (M1, M2, etc.)
-- wine must be installed locally. See ./orbit/tools/build/install-wine-macos.sh and https://wiki.winehq.org/MacOS for reference.
-- --local-wix-dir can be used to point to a local Wix3 installation (using this switch requires a current Fleet EE subscription)

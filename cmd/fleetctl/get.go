@@ -1497,9 +1497,18 @@ func getMDMCommandResultsCommand() *cli.Command {
 				// unformatted command
 				if err != nil {
 					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+						log(c, fmt.Sprintf("error formatting command result: %s\n", err))
 					}
 					formattedResult = r.Result
+				}
+				formattedPayload, err := formatXML(r.Payload)
+				// if we get an error, just log it and use the
+				// unformatted payload
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command payload: %s\n", err))
+					}
+					formattedPayload = r.Payload
 				}
 				data = append(data, []string{
 					r.CommandUUID,
@@ -1507,10 +1516,11 @@ func getMDMCommandResultsCommand() *cli.Command {
 					r.RequestType,
 					r.Status,
 					r.Hostname,
+					string(formattedPayload),
 					string(formattedResult),
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			printTableWithXML(c, columns, data)
 
 			return nil

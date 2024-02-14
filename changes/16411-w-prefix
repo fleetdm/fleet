@@ -1,2 +1,0 @@
-- Fixes a bug where the UUID for Windows updates profiles is missing the `"w"` prefix used to denote
-  Windows MDM profiles.

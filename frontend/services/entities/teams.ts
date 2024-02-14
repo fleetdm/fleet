@@ -8,8 +8,8 @@ import { IEnrollSecret } from "interfaces/enroll_secret";
 import { IIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
-  INewMembersBody,
-  IRemoveMembersBody,
+  INewTeamUsersBody,
+  IRemoveTeamUserBody,
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
@@ -139,7 +139,7 @@ export default {
 
     return sendRequest("PATCH", path, requestBody);
   },
-  addMembers: (teamId: number | undefined, newMembers: INewMembersBody) => {
+  addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
         new Error(
@@ -147,14 +147,14 @@ export default {
         )
       );
     }
-    const { TEAMS_MEMBERS } = endpoints;
-    const path = TEAMS_MEMBERS(teamId);
+    const { TEAM_USERS } = endpoints;
+    const path = TEAM_USERS(teamId);
 
-    return sendRequest("PATCH", path, newMembers);
+    return sendRequest("PATCH", path, newUsers);
   },
-  removeMembers: (
+  removeUsers: (
     teamId: number | undefined,
-    removeMembers: IRemoveMembersBody
+    removeUsers: IRemoveTeamUserBody
   ) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
@@ -163,10 +163,10 @@ export default {
         )
       );
     }
-    const { TEAMS_MEMBERS } = endpoints;
-    const path = TEAMS_MEMBERS(teamId);
+    const { TEAM_USERS } = endpoints;
+    const path = TEAM_USERS(teamId);
 
-    return sendRequest("DELETE", path, removeMembers);
+    return sendRequest("DELETE", path, removeUsers);
   },
   transferHosts: (teamId: number, hostIds: number[]) => {
     const { TEAMS_TRANSFER_HOSTS } = endpoints;

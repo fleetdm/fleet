@@ -525,6 +525,12 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 		logs = append(logs, logCountsForResults(apiResp.Devices)...)
 		level.Info(logger).Log(logs...)
+
+		debugLogs := []interface{}{"msg", "assign profile responses by device"}
+		for k, v := range apiResp.Devices {
+			debugLogs = append(debugLogs, k, v)
+		}
+		level.Debug(logger).Log(debugLogs...)
 	}
 
 	return nil

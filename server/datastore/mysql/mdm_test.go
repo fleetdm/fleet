@@ -31,8 +31,10 @@ func TestMDMShared(t *testing.T) {
 		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
 		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
 		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		{"TestGetHostMDMAppleProfilesExpectedForVerification", testGetHostMDMAppleProfilesExpectedForVerification},
+		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
+		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
+		{"TestMDMEULA", testMDMEULA},
 	}
 
 	for _, c := range cases {
@@ -2179,7 +2181,7 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	})
 }
 
-func testGetHostMDMAppleProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
+func testGetHostMDMProfilesExpectedForVerification(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
 	// Setup funcs
@@ -3020,4 +3022,111 @@ func testBatchSetProfileLabelAssociations(t *testing.T, ds *Datastore) {
 		})
 		require.Error(t, err)
 	})
+}
+
+func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	lbl, err := ds.NewLabel(ctx, &fleet.Label{Name: "label", Query: "select 1"})
+	require.NoError(t, err)
+
+	cases := []struct {
+		windowsErr string
+		appleErr   string
+		wantErr    string
+	}{
+		{"select:a", "", "batch set windows profiles: load existing profiles: select:a"},
+		{"insert:b", "", ": insert:b"},
+		{"delete:c", "", "batch set windows profiles: delete obsolete profiles: delete:c"},
+		{"reselect:d", "", "batch set windows profiles: load newly inserted profiles: reselect:d"},
+		{"labels:e", "", "batch set windows profiles: inserting windows profile label associations: labels:e"},
+		{"inselect:k", "", "batch set windows profiles: build query to load existing profiles: inselect:k"},
+		{"indelete:l", "", "batch set windows profiles: build statement to delete obsolete profiles: indelete:l"},
+		{"inreselect:m", "", "batch set windows profiles: build query to load newly inserted profiles: inreselect:m"},
+		{"", "select:f", "batch set apple profiles: load existing profiles: select:f"},
+		{"", "insert:g", ": insert:g"},
+		{"", "delete:h", "batch set apple profiles: delete obsolete profiles: delete:h"},
+		{"", "reselect:i", "batch set apple profiles: load newly inserted profiles: reselect:i"},
+		{"", "labels:j", "batch set apple profiles: inserting apple profile label associations: labels:j"},
+		{"", "inselect:n", "batch set apple profiles: build query to load existing profiles: inselect:n"},
+		{"", "indelete:o", "batch set apple profiles: build statement to delete obsolete profiles: indelete:o"},
+		{"", "inreselect:p", "batch set apple profiles: build query to load newly inserted profiles: inreselect:p"},
+	}
+	for _, c := range cases {
+		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
+			t.Cleanup(func() {
+				testBatchSetMDMAppleProfilesErr = ""
+				testBatchSetMDMWindowsProfilesErr = ""
+			})
+
+			appleProfs := []*fleet.MDMAppleConfigProfile{
+				configProfileForTest(t, "N1", "I1", "a"),
+				configProfileForTest(t, "N2", "I2", "b"),
+			}
+			winProfs := []*fleet.MDMWindowsConfigProfile{
+				windowsConfigProfileForTest(t, "W1", "l1"),
+				windowsConfigProfileForTest(t, "W2", "l2"),
+			}
+			// set the initial profiles without error
+			err := ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs)
+			require.NoError(t, err)
+
+			// now ensure all steps are required (add a profile, delete a profile, set labels)
+			appleProfs = []*fleet.MDMAppleConfigProfile{
+				configProfileForTest(t, "N1", "I1", "aa"),
+				configProfileForTest(t, "N3", "I3", "c", lbl),
+			}
+			winProfs = []*fleet.MDMWindowsConfigProfile{
+				windowsConfigProfileForTest(t, "W1", "l11"),
+				windowsConfigProfileForTest(t, "W3", "l3", lbl),
+			}
+			// setup the expected errors
+			testBatchSetMDMAppleProfilesErr = c.appleErr
+			testBatchSetMDMWindowsProfilesErr = c.windowsErr
+
+			err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs)
+			require.ErrorContains(t, err, c.wantErr)
+		})
+	}
+}
+
+func testMDMEULA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	eula := &fleet.MDMEULA{
+		Token: uuid.New().String(),
+		Name:  "eula.pdf",
+		Bytes: []byte("contents"),
+	}
+
+	err := ds.MDMInsertEULA(ctx, eula)
+	require.NoError(t, err)
+
+	var ae fleet.AlreadyExistsError
+	err = ds.MDMInsertEULA(ctx, eula)
+	require.ErrorAs(t, err, &ae)
+
+	gotEULA, err := ds.MDMGetEULAMetadata(ctx)
+	require.NoError(t, err)
+	require.NotEmpty(t, gotEULA.CreatedAt)
+	require.Equal(t, eula.Token, gotEULA.Token)
+	require.Equal(t, eula.Name, gotEULA.Name)
+
+	gotEULABytes, err := ds.MDMGetEULABytes(ctx, eula.Token)
+	require.NoError(t, err)
+	require.EqualValues(t, eula.Bytes, gotEULABytes.Bytes)
+	require.Equal(t, eula.Name, gotEULABytes.Name)
+
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	require.NoError(t, err)
+
+	var nfe fleet.NotFoundError
+	_, err = ds.MDMGetEULAMetadata(ctx)
+	require.ErrorAs(t, err, &nfe)
+	_, err = ds.MDMGetEULABytes(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+	err = ds.MDMDeleteEULA(ctx, eula.Token)
+	require.ErrorAs(t, err, &nfe)
+
+	err = ds.MDMInsertEULA(ctx, eula)
+	require.NoError(t, err)
 }

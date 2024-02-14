@@ -27,10 +27,8 @@
       <h2 class="pt-3 mb-3">2. Run Fleet</h2>
       <p>Install the <code>fleetctl</code> command line tool and start the Fleet preview experience:</p>
       <div purpose="terminal-commands">
-        <p class="text-muted"># Install the Fleet command-line tool (windows)</p>
-        <p>for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\.fleetctl" mkdir "%USERPROFILE%\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\.fleetctl" && del "%a"</p>
-        <p class="text-muted"># Install the Fleet command-line tool (macOS & Linux)</p>
-        <p>curl -sSL https://fleetdm.com/resources/install-fleet.sh | bash</p>
+        <p class="text-muted"># Install the Fleet command-line tool</p>
+        <p>npm install -g fleetctl</p>
         <p class="text-muted"># Run a local demo of the Fleet server</p>
         <p>fleetctl preview</p>
       </div>

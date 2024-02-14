@@ -1,2 +1,0 @@
-- Adds 2 new scripts related endpoints (`/hosts/:id/activity` and `/hosts/:id/activity/upcoming`) as
-  well as validation and functionality changes for enqueuing scripts.

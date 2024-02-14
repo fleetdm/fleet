@@ -128,7 +128,7 @@
       <h1 purpose="page-title" class="d-flex d-lg-none py-4 m-0"><%= thisPage.title %></h1>
 
       <div purpose="edit-button-container">
-          <a purpose="edit-button" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">
+          <a :purpose="thisPage.title !== 'FAQ' ? 'edit-button' : 'faq-edit-button'" :href="'https://github.com/fleetdm/fleet/edit/main/docs/'+thisPage.sectionRelativeRepoPath" target="_blank">
             <i class="fa fa-pencil"></i>Edit page
           </a>
       </div>

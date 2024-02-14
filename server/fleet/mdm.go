@@ -85,20 +85,20 @@ func (bp *MDMAppleBootstrapPackage) URL(host string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	pkgURL.Path = "/api/latest/fleet/mdm/apple/bootstrap"
+	pkgURL.Path = "/api/latest/fleet/mdm/bootstrap"
 	pkgURL.RawQuery = fmt.Sprintf("token=%s", bp.Token)
 	return pkgURL.String(), nil
 }
 
-// MDMAppleEULA represents an EULA (End User License Agreement) file.
-type MDMAppleEULA struct {
+// MDMEULA represents an EULA (End User License Agreement) file.
+type MDMEULA struct {
 	Name      string    `json:"name"`
 	Bytes     []byte    `json:"bytes"`
 	Token     string    `json:"token"`
 	CreatedAt time.Time `json:"created_at" db:"created_at"`
 }
 
-func (e MDMAppleEULA) AuthzType() string {
+func (e MDMEULA) AuthzType() string {
 	return "mdm_apple"
 }
 
@@ -205,6 +205,8 @@ type MDMCommandResult struct {
 	// Hostname is not filled by the query, it is filled in the service layer
 	// afterwards. To make that explicit, the db field tag is explicitly ignored.
 	Hostname string `json:"hostname" db:"-"`
+	// Payload is the contents of the command
+	Payload []byte `json:"payload" db:"payload"`
 }
 
 // MDMCommand represents an MDM command that has been enqueued for
@@ -364,7 +366,7 @@ type MDMConfigProfilePayload struct {
 	Identifier  string                      `json:"identifier,omitempty" db:"identifier"` // only set for macOS
 	Checksum    []byte                      `json:"checksum,omitempty" db:"checksum"`     // only set for macOS
 	CreatedAt   time.Time                   `json:"created_at" db:"created_at"`
-	UpdatedAt   time.Time                   `json:"updated_at" db:"updated_at"`
+	UploadedAt  time.Time                   `json:"updated_at" db:"uploaded_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 	Labels      []ConfigurationProfileLabel `json:"labels,omitempty" db:"-"`
 }
 
@@ -387,7 +389,7 @@ func NewMDMConfigProfilePayloadFromWindows(cp *MDMWindowsConfigProfile) *MDMConf
 		Name:        cp.Name,
 		Platform:    "windows",
 		CreatedAt:   cp.CreatedAt,
-		UpdatedAt:   cp.UpdatedAt,
+		UploadedAt:  cp.UploadedAt,
 		Labels:      cp.Labels,
 	}
 }
@@ -405,7 +407,7 @@ func NewMDMConfigProfilePayloadFromApple(cp *MDMAppleConfigProfile) *MDMConfigPr
 		Platform:    "darwin",
 		Checksum:    cp.Checksum,
 		CreatedAt:   cp.CreatedAt,
-		UpdatedAt:   cp.UpdatedAt,
+		UploadedAt:  cp.UploadedAt,
 		Labels:      cp.Labels,
 	}
 }

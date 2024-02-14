@@ -86,14 +86,6 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 				newVF.Supersedes = ptr.Uint(*r.Supersedes)
 			}
 			b.VendorFixes[kbID] = newVF
-		} else {
-			// TODO: Remove this code once we are done transitioning from FixedBuild to FixedBuilds
-			vf := b.VendorFixes[kbID]
-			if vf.FixedBuild != "" {
-				vf.AddFixedBuild(b.VendorFixes[kbID].FixedBuild)
-				vf.FixedBuild = ""
-				b.VendorFixes[kbID] = vf
-			}
 		}
 	}
 
@@ -210,8 +202,6 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 // ----------------------
 
 type VendorFix struct {
-	// TODO: FixedBuild is being replaced with FixedBuilds, remove this field once we are done transitioning.
-	FixedBuild  string
 	FixedBuilds []string
 	// Set of products ids that target this vendor fix
 	ProductIDs map[string]bool
@@ -220,7 +210,7 @@ type VendorFix struct {
 }
 
 func (vf *VendorFix) AddFixedBuild(fixedBuild string) {
-	if !slices.Contains(vf.FixedBuilds, fixedBuild) {
+	if fixedBuild != "" && !slices.Contains(vf.FixedBuilds, fixedBuild) {
 		vf.FixedBuilds = append(vf.FixedBuilds, fixedBuild)
 	}
 }

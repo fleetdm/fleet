@@ -34,3 +34,7 @@ output "non_circular" {
     "subnets"         = var.fleet_config.networking.subnets,
   }
 }
+
+output "fleet_config" {
+  value = var.fleet_config
+}

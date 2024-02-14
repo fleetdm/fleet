@@ -13,13 +13,13 @@
           <div purpose="hero-text">
             <strong>Your last MDM migration</strong>
             <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in and get it out.</p>
-            <strong>Consolidate your tools</strong>
+            <strong>Simplify your tools</strong>
             <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
             <strong>Implement “zero trust” faster</strong>
             <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
             <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
               <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-              <a purpose="animated-arrow-button-red" href="/pricing">View source code</a>
+              <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
             </div>
           </div>
         </div>
@@ -59,10 +59,10 @@
         </div>
       </div>
 
-      <%/* Consolidate your tools section */%>
+      <%/* Simplify your tools section */%>
       <div purpose="page-section">
         <div purpose="feature-headline">
-          <h2>Consolidate your tools</h2>
+          <h2>Simplify your tools</h2>
           <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
         </div>
 
@@ -115,7 +115,7 @@
 
         <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
           <div purpose="feature-text" class="d-flex flex-column">
-            <h3>Manage everything in one place</h3>
+            <h3>Manage devices like code</h3>
             <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
           </div>
           <div purpose="feature-image" class="right">
@@ -205,12 +205,12 @@
         <h2>Manage everything in one place</h2>
         <div purpose="button-row" style="margin-top: 32px;" class="d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
-          <a purpose="animated-arrow-button-red" href="/pricing">View source code</a>
+          <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
         </div>
       </div>
     </div>
   </div>
   <%/* Cloud city banner */%>
-  <parallax-city :is-mobile="bowser.mobile"></parallax-city>
+  <parallax-city></parallax-city>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>

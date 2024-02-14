@@ -218,15 +218,9 @@ const ManageQueriesPage = ({
   };
 
   const togglePreviewDataModal = useCallback(() => {
-    // Manage automation modal must close/open every time preview data modal opens/closes
-    setShowManageAutomationsModal(!showManageAutomationsModal);
+    // ManageQueryAutomationsModal will be cosmetically hidden when the preview data modal is open
     setShowPreviewDataModal(!showPreviewDataModal);
-  }, [
-    showPreviewDataModal,
-    setShowPreviewDataModal,
-    showManageAutomationsModal,
-    setShowManageAutomationsModal,
-  ]);
+  }, [showPreviewDataModal, setShowPreviewDataModal]);
 
   const onDeleteQuerySubmit = useCallback(async () => {
     const bulk = selectedQueryIds.length > 1;
@@ -403,8 +397,6 @@ const ManageQueriesPage = ({
     [refetchAllQueries, automatedQueryIds, toggleManageAutomationsModal]
   );
 
-  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
-
   const renderModals = () => {
     return (
       <>
@@ -420,6 +412,7 @@ const ManageQueriesPage = ({
             isUpdatingAutomations={isUpdatingAutomations}
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
+            isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
             availableQueries={curTeamEnhancedQueries}
             automatedQueryIds={automatedQueryIds}

@@ -28,7 +28,8 @@
       font-size: 13px;
       color: $core-fleet-blue;
       line-height: 20px;
-      padding: 12px $pad-large 12px $pad-medium;
+      line-break: anywhere;
+      padding: 12px $pad-xlarge 12px $pad-medium;
     }
   }
 
@@ -59,7 +60,7 @@
     align-items: center;
     position: relative;
     top: 28px;
-    right: 16px;
+    right: 12px;
     // prevent this element from affecting the parent label's height
     height: 0;
     gap: $pad-small;

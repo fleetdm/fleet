@@ -142,8 +142,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Upload scripts to change configuration and remediate issues on macOS and
-        Windows hosts. You can run scripts on individual hosts.{" "}
+        Upload scripts to remediate issues on macOS, Windows, and Linux hosts.
+        You can run scripts on individual hosts.{" "}
         <CustomLink
           text="Learn more"
           url="https://fleetdm.com/docs/using-fleet/scripts"

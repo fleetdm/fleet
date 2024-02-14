@@ -18,7 +18,7 @@ import (
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
-	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	DeviceLock(ctx context.Context, host *Host, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
@@ -206,9 +206,9 @@ type MDMAppleConfigProfile struct {
 	// Checksum is an MD5 hash of the Mobileconfig bytes
 	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
 	// Labels are the associated labels for this profile
-	Labels    []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
-	CreatedAt time.Time                   `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time                   `db:"updated_at" json:"updated_at"`
+	Labels     []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	CreatedAt  time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
 }
 
 // ConfigurationProfileLabel represents the many-to-many relationship between
