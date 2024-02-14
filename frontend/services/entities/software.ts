@@ -58,6 +58,16 @@ export interface ISoftwareCountQueryKey
   scope: "softwareCount";
 }
 
+export interface IGetSoftwareVersionQueryParams {
+  versionId: number;
+  teamId?: number;
+}
+
+export interface IGetSoftwareVersionQueryKey
+  extends IGetSoftwareVersionQueryParams {
+  scope: "softwareVersion";
+}
+
 const ORDER_KEY = "name";
 const ORDER_DIRECTION = "asc";
 
@@ -155,8 +165,13 @@ export default {
     return sendRequest("GET", path);
   },
 
-  getSoftwareVersion: (id: number) => {
-    const { SOFTWARE_VERSION } = endpoints;
-    return sendRequest("GET", SOFTWARE_VERSION(id));
+  getSoftwareVersion: ({
+    versionId,
+    teamId,
+  }: IGetSoftwareVersionQueryParams) => {
+    const endpoint = endpoints.SOFTWARE_VERSION(versionId);
+    const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
+
+    return sendRequest("GET", path);
   },
 };

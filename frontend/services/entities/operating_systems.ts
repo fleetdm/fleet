@@ -36,6 +36,14 @@ export interface IOSVersionsResponse {
     has_previous_results: boolean;
   };
 }
+interface IGetOsVersionOptions {
+  os_version_id: number;
+  teamId?: number;
+}
+
+export interface IGetOsVersionQueryKey extends IGetOsVersionOptions {
+  scope: "osVersionDetails";
+}
 
 export interface IOSVersionResponse {
   os_version: IOperatingSystemVersion;
@@ -70,10 +78,14 @@ export const getOSVersions = ({
   return sendRequest("GET", path);
 };
 
-const getOSVersion = (os_version_id: number): Promise<IOSVersionResponse> => {
-  const { OS_VERSION } = endpoints;
+const getOSVersion = ({
+  os_version_id,
+  teamId,
+}: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
+  const endpoint = endpoints.OS_VERSION(os_version_id);
+  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
-  return sendRequest("GET", OS_VERSION(os_version_id));
+  return sendRequest("GET", path);
 };
 
 export default {

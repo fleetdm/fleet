@@ -51,7 +51,7 @@ interface ISoftwareVulnerabilitiesTableProps {
   isLoading: boolean;
   className?: string;
   router: InjectedRouter;
-  teamId?: number;
+  teamIdForApi?: number;
 }
 
 interface IRowProps extends Row {
@@ -66,14 +66,17 @@ const SoftwareVulnerabilitiesTable = ({
   isLoading,
   className,
   router,
-  teamId,
+  teamIdForApi,
 }: ISoftwareVulnerabilitiesTableProps) => {
   const { isPremiumTier, isSandboxMode } = useContext(AppContext);
 
   const classNames = classnames(baseClass, className);
 
   const handleRowSelect = (row: IRowProps) => {
-    const hostsBySoftwareParams = { cve: row.original.cve, team_id: teamId };
+    const hostsBySoftwareParams = {
+      cve: row.original.cve,
+      team_id: teamIdForApi,
+    };
 
     const path = hostsBySoftwareParams
       ? `${PATHS.MANAGE_HOSTS}?${buildQueryStringFromParams(
@@ -90,7 +93,7 @@ const SoftwareVulnerabilitiesTable = ({
         Boolean(isPremiumTier),
         Boolean(isSandboxMode),
         router,
-        teamId
+        teamIdForApi
       ),
     [isPremiumTier, isSandboxMode]
   );
