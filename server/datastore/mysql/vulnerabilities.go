@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) Vulnerability(ctx context.Context, cve string, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
+func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	var vuln fleet.VulnerabilityWithMetadata
 
 	eeSelectStmt := `
@@ -33,8 +33,9 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, includeCVESc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.cve = ?
-		GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at
 	`
+	eeGroupBy := " GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at"
+
 
 	freeSelectStmt := `
 		SELECT
@@ -48,8 +49,20 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, includeCVESc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
 		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
 		WHERE vhc.cve = ?
-		GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at
 	`
+
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
+
+	if teamID != nil {
+		eeSelectStmt += " AND vhc.team_id = ?"
+		freeSelectStmt += " AND vhc.team_id = ?"
+	} else {
+		eeSelectStmt += " AND vhc.team_id = 0"
+		freeSelectStmt += " AND vhc.team_id = 0"
+	}
+
+	eeSelectStmt += eeGroupBy
+	freeSelectStmt += freeGroupBy
 
 	var selectStmt string
 	if includeCVEScores {

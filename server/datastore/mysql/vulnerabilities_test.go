@@ -166,7 +166,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 
-	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", false)
+	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.Nil(t, v)
 	require.Error(t, err)
 	var nfe *notFoundError
@@ -212,7 +212,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	}
 
 	// No CVSSScores
-	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", false)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)
@@ -232,7 +232,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	}
 
 	// With CVSSScores
-	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", true)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)
@@ -243,7 +243,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	ctx := context.Background()
 
-	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", false)
+	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.Nil(t, v)
 	require.Error(t, err)
 	var nfe *notFoundError
@@ -287,7 +287,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		Source:    fleet.NVDSource,
 	}
 
-	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", false)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)
@@ -307,7 +307,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 		Source:    fleet.NVDSource,
 	}
 
-	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", true)
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
 	require.NoError(t, err)
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)

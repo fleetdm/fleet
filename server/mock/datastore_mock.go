@@ -594,7 +594,7 @@ type DeleteOutOfDateOSVulnerabilitiesFunc func(ctx context.Context, source fleet
 
 type ListVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error)
 
-type VulnerabilityFunc func(ctx context.Context, cve string, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error)
+type VulnerabilityFunc func(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error)
 
 type CountVulnerabilitiesFunc func(ctx context.Context, opt fleet.VulnListOptions) (uint, error)
 
@@ -4038,11 +4038,11 @@ func (s *DataStore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListO
 	return s.ListVulnerabilitiesFunc(ctx, opt)
 }
 
-func (s *DataStore) Vulnerability(ctx context.Context, cve string, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
+func (s *DataStore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	s.mu.Lock()
 	s.VulnerabilityFuncInvoked = true
 	s.mu.Unlock()
-	return s.VulnerabilityFunc(ctx, cve, includeCVEScores)
+	return s.VulnerabilityFunc(ctx, cve, teamID, includeCVEScores)
 }
 
 func (s *DataStore) CountVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) (uint, error) {

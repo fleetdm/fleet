@@ -852,7 +852,7 @@ type Datastore interface {
 	// ListVulnerabilities returns a list of unique vulnerabilities based on the provided options.
 	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
 	// Vulnerability returns the vulnerability corresponding to the specified CVE ID
-	Vulnerability(ctx context.Context, cve string, includeCVEScores bool) (*VulnerabilityWithMetadata, error)
+	Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*VulnerabilityWithMetadata, error)
 	// CountVulnerabilities returns the number of unique vulnerabilities based on the provided
 	// options.
 	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)

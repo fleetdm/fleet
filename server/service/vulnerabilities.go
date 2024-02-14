@@ -109,7 +109,7 @@ func (r getVulnerabilityResponse) error() error { return r.Err }
 func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Service) (errorer, error) {
 	request := req.(*getVulnerabilityRequest)
 
-	vuln, err := svc.ListVulnerability(ctx, request.CVE, false)
+	vuln, err := svc.Vulnerability(ctx, request.CVE, request.TeamID, false)
 	if err != nil {
 		return getVulnerabilityResponse{Err: err}, nil
 	}
@@ -137,12 +137,12 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 	}, nil
 }
 
-func (svc *Service) ListVulnerability(ctx context.Context, cve string, useCVSScores bool) (*fleet.VulnerabilityWithMetadata, error) {
+func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	vuln, err := svc.ds.Vulnerability(ctx, cve, useCVSScores)
+	vuln, err := svc.ds.Vulnerability(ctx, cve, teamID, useCVSScores)
 	if err != nil {
 		return nil, err
 	}
