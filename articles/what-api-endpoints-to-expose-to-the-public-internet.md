@@ -62,9 +62,7 @@ The following endpoints don't support mTLS:
 - `/api/mdm/microsoft/management`
 - `/api/mdm/microsoft/tos`
 
-`/mdm/apple/mdm` and `/api/mdm/apple/enroll` support mTLS but require the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes) to validate client certificates. 
-
-By default, for macOS, Fleet checks that the certificate presented by the host when it makes a request is valid (more info in the [Apple developer docs here](https://developer.apple.com/documentation/devicemanagement/implementing_device_management/managing_certificates_for_mdm_servers_and_devices#3677960)).
+`/mdm/apple/mdm` and `/api/mdm/apple/enroll` support mTLS but require the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes) to validate client certificates.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
