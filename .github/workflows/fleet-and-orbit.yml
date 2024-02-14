@@ -252,7 +252,7 @@ jobs:
     strategy:
       matrix:
         go-version: ['${{ vars.GO_VERSION }}']
-    runs-on: ubuntu-latest
+    runs-on: macos-12
     needs: [gen, build-macos-targets]
     steps:
 
