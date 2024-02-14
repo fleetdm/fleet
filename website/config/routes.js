@@ -406,6 +406,7 @@ module.exports.routes = {
   'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
   'GET /handbook/marketing': '/handbook/demand/',
   'GET /handbook/customers': '/handbook/sales/',
+  'GET /handbook/product': '/handbook/product-design',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
