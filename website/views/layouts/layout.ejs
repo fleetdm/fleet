@@ -297,6 +297,7 @@
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
       <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
+        <div purpose="footer-content">
         <div purpose="footer-nav" class="d-flex flex-row flex-wrap row">
           <div purpose="footer-nav-column" class="d-lg-flex d-none col-3">
             <a href="/">
@@ -366,6 +367,7 @@
               </a>
             </div>
           </div>
+        </div>
         </div>
       </div>
       <% } else { %>
