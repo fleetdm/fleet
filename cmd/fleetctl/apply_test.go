@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -901,7 +900,7 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	enqueuer := new(nanomdm_mock.Storage)
+	enqueuer := new(mock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
