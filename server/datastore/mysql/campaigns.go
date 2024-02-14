@@ -121,7 +121,7 @@ func (ds *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targ
 	return target, nil
 }
 
-func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
+func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error) {
 	// Expire old waiting/running campaigns
 	sqlStatement := `
 		UPDATE distributed_query_campaigns
@@ -133,13 +133,13 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 		fleet.QueryWaiting, now.Add(-1*time.Minute),
 		fleet.QueryRunning, now.Add(-24*time.Hour))
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "updating distributed query campaign")
+		return 0, nil, ctxerr.Wrap(ctx, err, "updating distributed query campaign")
 	}
 
 	exp, err := result.RowsAffected()
 	if err != nil {
-		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
+		return 0, nil, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 
-	return uint(exp), nil
+	return uint(exp), nil, nil
 }

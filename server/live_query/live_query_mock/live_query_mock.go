@@ -48,7 +48,7 @@ func (m *MockLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 }
 
 // CleanupInactiveQueries mocks the live query store CleanupInactiveQueries method.
-func (m *MockLiveQuery) CleanupInactiveQueries(ctx context.Context, activeCampaignIDs []uint) error {
-	args := m.Called(ctx, activeCampaignIDs)
+func (m *MockLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	args := m.Called(ctx, inactiveCampaignIDs)
 	return args.Error(0)
 }

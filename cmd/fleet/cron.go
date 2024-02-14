@@ -724,11 +724,11 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				if _, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now()); err != nil {
+				_, recentInactiveIDs, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+				if err != nil {
 					return err
 				}
-				// TODO(mna): load the list of active campaign IDs, maybe could be returned by the Cleanup call
-				if err := lq.CleanupInactiveQueries(ctx, activeIDs); err != nil {
+				if err := lq.CleanupInactiveQueries(ctx, recentInactiveIDs); err != nil {
 					return err
 				}
 				return nil

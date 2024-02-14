@@ -96,7 +96,7 @@ type DistributedQueryCampaignTargetIDsFunc func(ctx context.Context, id uint) (t
 
 type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
 
-type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
+type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error)
 
 type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
 
@@ -2345,7 +2345,7 @@ func (s *DataStore) NewDistributedQueryCampaignTarget(ctx context.Context, targe
 	return s.NewDistributedQueryCampaignTargetFunc(ctx, target)
 }
 
-func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
+func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error) {
 	s.mu.Lock()
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	s.mu.Unlock()

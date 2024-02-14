@@ -30,7 +30,7 @@ func (nopLiveQuery) QueryCompletedByHost(name string, hostID uint) error {
 	return nil
 }
 
-func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, activeCampaignIDs []uint) error {
+func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
 	return nil
 }
 
