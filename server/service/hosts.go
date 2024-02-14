@@ -2069,3 +2069,41 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 
 	return hh, nil
 }
+
+func (svc *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
+}
+
+func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByID(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
+}
