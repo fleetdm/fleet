@@ -36,10 +36,12 @@ The Demand department is directly responsible for growing awareness of Fleet and
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
 
 To propose an ad, or a change to an ad:
-1. Add your change for review to the "Design review" agenda and attend the next scheduled website design review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-2. Make revisions and re-attend the meeting as needed until the planned change is settled.
-3. Execute the planned change.
-4. Create a calendar reminder to check ad performance two weeks from the date changes were made.
+1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
+2. Experiment campaigns must follow the YYYY-MM-DD._{buying_situation}-{ad_name}_ format. (2024-01-12.mdm - Cross-platform MDM waitlist)
+3. Image ads should follow the recommended size, centering, and asset guidelines. These are available on [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2078-100840&mode=design&t=cHriEw2E7hLxgwuG-0).
+4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+5. Make revisions and re-attend the meeting as needed until the planned change is executed.
+7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
 ### Settle event strategy
 The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
