@@ -3163,9 +3163,8 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.NoError(t, err)
 
 	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
-		Name:     "windows",
+		Name:     "Windows 11 Enterprise 22H2",
 		Version:  "10.0.19042.1234",
-		Arch:     "64bit",
 		Platform: "windows",
 	})
 	require.NoError(t, err)
@@ -3178,9 +3177,13 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		}
 	}
 
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: os.ID,
-		CVE:  "CVE-2021-1234",
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: ptr.String("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 
@@ -3299,6 +3302,25 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
 	}
+
+	var gResp getVulnerabilityResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "Test CVE 2021-1234", gResp.Vulnerability.Description)
+	require.Equal(t, ptr.Float64(7.5), gResp.Vulnerability.CVSSScore)
+	require.Equal(t, ptr.Bool(true), gResp.Vulnerability.CISAKnownExploit)
+	require.Equal(t, ptr.Float64(0.5), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, ptr.Time(mockTime), gResp.Vulnerability.Published)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
 }
 
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {

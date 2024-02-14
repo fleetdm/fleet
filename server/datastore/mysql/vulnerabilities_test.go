@@ -20,6 +20,10 @@ func TestVulnerabilities(t *testing.T) {
 		fn   func(t *testing.T, ds *Datastore)
 	}{
 		{"TestListVulnerabilities", testListVulnerabilities},
+		{"TestVulnerabilityWithOS", testVulnerabilityWithOS},
+		{"TestVulnerabilityWithSoftware", testVulnerabilityWithSoftware},
+		{"TestOSVersionsByCVE", testOSVersionsByCVE},
+		{"TestSoftwareByCVE", testSoftwareByCVE},
 		{"TestVulnerabilitiesPagination", testVulnerabilitiesPagination},
 		{"TestVulnerabilitiesTeamFilter", testVulnerabilitiesTeamFilter},
 		{"TestListVulnerabilitiesSort", testListVulnerabilitiesSort},
@@ -155,6 +159,169 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostCount)
 	}
+}
+
+func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
+	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+
+	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.Nil(t, v)
+	require.Error(t, err)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// Insert Host Count
+	insertStmt := `
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
+		VALUES (?, ?, ?), (?, ?, ?)
+	`
+	_, err = ds.writer(context.Background()).Exec(insertStmt,
+		"CVE-2020-1234", 0, 10,
+		"CVE-2020-1234", 1, 4,
+	)
+	require.NoError(t, err)
+
+	// // insert OS Vuln
+	_, err = ds.InsertOSVulnerabilities(context.Background(), []fleet.OSVulnerability{
+		{
+			OSID:              1,
+			CVE:               "CVE-2020-1234",
+			ResolvedInVersion: ptr.String("1.0.0"),
+		},
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// // insert CVEMeta
+	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2020-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2020-1234",
+		},
+	})
+	require.NoError(t, err)
+
+	expected := fleet.VulnerabilityWithMetadata{
+		CVEMeta: fleet.CVEMeta{
+			CVE: "CVE-2020-1234",
+		},
+		HostCount: 10,
+		Source:    fleet.MSRCSource,
+	}
+
+	// No CVSSScores
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// Team 1
+	expected.HostCount = 4
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(1), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	expected = fleet.VulnerabilityWithMetadata{
+		CVEMeta: fleet.CVEMeta{
+			CVE:              "CVE-2020-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2020-1234",
+		},
+		HostCount: 10,
+		Source:    fleet.MSRCSource,
+	}
+
+	// With CVSSScores
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
+}
+
+func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
+	mockTime := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
+	ctx := context.Background()
+
+	v, err := ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.Nil(t, v)
+	require.Error(t, err)
+	var nfe *notFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	// Insert Host Count
+	insertStmt := `
+		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
+		VALUES (?, ?, ?)
+	`
+
+	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10)
+	require.NoError(t, err)
+
+	// insert Software Vuln
+	_, err = ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: 1,
+		CVE:        "CVE-2020-1234",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert CVEMeta
+	err = ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2020-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2020-1234",
+		},
+	})
+	require.NoError(t, err)
+
+	// No CVSSScores
+	expected := fleet.VulnerabilityWithMetadata{
+		CVEMeta: fleet.CVEMeta{
+			CVE: "CVE-2020-1234",
+		},
+		HostCount: 10,
+		Source:    fleet.NVDSource,
+	}
+
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
+
+	// With CVSSScores
+	expected = fleet.VulnerabilityWithMetadata{
+		CVEMeta: fleet.CVEMeta{
+			CVE:              "CVE-2020-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2020-1234",
+		},
+		HostCount: 10,
+		Source:    fleet.NVDSource,
+	}
+
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
 }
 
 func testVulnerabilitiesPagination(t *testing.T, ds *Datastore) {
@@ -629,6 +796,80 @@ func testVulnerabilityHostCountBatchInserts(t *testing.T, ds *Datastore) {
 	}
 }
 
+func testOSVersionsByCVE(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// global
+	osv, _, err := ds.OSVersionsByCVE(context.Background(), "CVE-2020-1238", nil)
+	require.NoError(t, err)
+
+	expected := []fleet.VulnerableOS{
+		{
+			OSVersion: fleet.OSVersion{
+				Name:        "Microsoft Windows 11 Enterprise 22H2 10.0.22621.2715",
+				NameOnly:    "Microsoft Windows 11 Enterprise 22H2",
+				OSVersionID: 1,
+				Version:     "10.0.22621.2715",
+				Platform:    "windows",
+				HostsCount:  10,
+			},
+			ResolvedInVersion: ptr.String("1.0.0"),
+		},
+	}
+
+	require.Len(t, osv, 1)
+	require.Equal(t, osv[0].OSVersion, expected[0].OSVersion)
+
+	// team 1
+	expected[0].OSVersion.HostsCount = 4
+	osv, _, err = ds.OSVersionsByCVE(context.Background(), "CVE-2020-1238", ptr.Uint(1))
+	require.NoError(t, err)
+	require.Len(t, osv, 1)
+	require.Equal(t, osv[0].OSVersion, expected[0].OSVersion)
+
+	// team 2
+	expected[0].OSVersion.HostsCount = 3
+	osv, _, err = ds.OSVersionsByCVE(context.Background(), "CVE-2020-1238", ptr.Uint(2))
+	require.NoError(t, err)
+	require.Len(t, osv, 1)
+	require.Equal(t, osv[0].OSVersion, expected[0].OSVersion)
+}
+
+func testSoftwareByCVE(t *testing.T, ds *Datastore) {
+	seedVulnerabilities(t, ds)
+
+	// global
+	software, _, err := ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", nil)
+	require.NoError(t, err)
+
+	expected := &fleet.VulnerableSoftware{
+		ID:                1,
+		Name:              "Chrome",
+		Version:           "1.0.0",
+		Source:            "programs",
+		HostsCount:        5,
+		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		ResolvedInVersion: ptr.String("1.0.0"),
+	}
+
+	require.Len(t, software, 1)
+	require.Equal(t, expected, software[0])
+
+	// team 1
+	expected.HostsCount = 4
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(1))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, expected, software[0])
+
+	// team 2
+	expected.HostsCount = 1
+	software, _, err = ds.SoftwareByCVE(context.Background(), "CVE-2020-1234", ptr.Uint(2))
+	require.NoError(t, err)
+	require.Len(t, software, 1)
+	require.Equal(t, expected, software[0])
+}
+
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {
 	t.Helper()
 	require.Len(t, actual, len(expected))
@@ -639,6 +880,88 @@ func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.Vulnera
 }
 
 func seedVulnerabilities(t *testing.T, ds *Datastore) {
+	// insert 20 hosts
+	var hostids []uint
+	for i := 0; i < 20; i++ {
+		host := test.NewHost(t, ds, fmt.Sprintf("host%d", i), fmt.Sprintf("192.168.0.%d", i), fmt.Sprintf("%d", i+1000), fmt.Sprintf("%d", i+1000), time.Now())
+		hostids = append(hostids, host.ID)
+	}
+
+	// update 15 hosts to windows
+	for i := 0; i < 10; i++ {
+		err := ds.UpdateHostOperatingSystem(context.Background(), hostids[i], fleet.OperatingSystem{
+			Name:     "Microsoft Windows 11 Enterprise 22H2",
+			Version:  "10.0.22621.2715",
+			Arch:     "x86_64",
+			Platform: "windows",
+		})
+		require.NoError(t, err)
+	}
+
+	// update 5 hosts to macOS
+	for i := 10; i < 15; i++ {
+		err := ds.UpdateHostOperatingSystem(context.Background(), hostids[i], fleet.OperatingSystem{
+			Name:     "macOS",
+			Version:  "14.1.2",
+			Arch:     "arm64",
+			Platform: "darwin",
+		})
+		require.NoError(t, err)
+	}
+
+	// move 4 windows hosts to team 1
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(context.Background(), &team1.ID, hostids[:4])
+	require.NoError(t, err)
+
+	// move 3 windows hosts to team 2
+	team2, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+	err = ds.AddHostsToTeam(context.Background(), &team2.ID, hostids[4:7])
+	require.NoError(t, err)
+
+	// move 1 macOS host to team 2
+	err = ds.AddHostsToTeam(context.Background(), &team2.ID, []uint{hostids[10]})
+	require.NoError(t, err)
+
+	err = ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
+	// State:
+	// 10 global windows hosts
+	// 5 global macOS hosts
+	// 4 windows hosts in team 1
+	// 3 windows hosts in team 2
+	// 1 macOS host in team 2
+
+	// add software to 5 windows hosts
+	// affects:
+	// 5 global windows hosts
+	// 4 windows hosts in team 1
+	// 1 windows host in team 2
+	for i := 0; i < 5; i++ {
+		_, err = ds.UpdateHostSoftware(context.Background(), hostids[i], []fleet.Software{
+			{
+				Name:    "Chrome",
+				Version: "1.0.0",
+				Source:  "programs",
+			},
+		})
+		require.NoError(t, err)
+	}
+
+	_, err = ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+		{
+			SoftwareID: 1,
+			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		},
+	})
+	require.NoError(t, err)
+
+	err = ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+
 	softwareVulns := []fleet.SoftwareVulnerability{
 		{
 			SoftwareID:        1,
@@ -817,7 +1140,7 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 
 	// Insert OS Vuln
-	_, err := ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
 	require.NoError(t, err)
 
 	// Insert Software Vuln

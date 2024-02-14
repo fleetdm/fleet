@@ -2,13 +2,166 @@ package mysql
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
 )
+
+func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
+	var vuln fleet.VulnerabilityWithMetadata
+
+	eeSelectStmt := `
+		SELECT
+			vhc.cve,
+			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+			COALESCE(osv.source, sc.source, 0) AS source,
+			cm.cvss_score,
+			cm.epss_probability,
+			cm.cisa_known_exploit,
+			cm.published,
+			COALESCE(cm.description, '') AS description,
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
+		FROM
+			vulnerability_host_counts vhc
+		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
+		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
+		WHERE vhc.cve = ?
+	`
+	eeGroupBy := " GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at"
+
+	freeSelectStmt := `
+		SELECT
+			vhc.cve,
+			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+			COALESCE(osv.source, sc.source, 0) AS source,
+			vhc.host_count,
+			vhc.updated_at as host_count_updated_at
+		FROM
+			vulnerability_host_counts vhc
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
+		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
+		WHERE vhc.cve = ?
+	`
+
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
+
+	var args []interface{}
+	args = append(args, cve)
+
+	if teamID != nil {
+		eeSelectStmt += " AND vhc.team_id = ?"
+		freeSelectStmt += " AND vhc.team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		eeSelectStmt += " AND vhc.team_id = 0"
+		freeSelectStmt += " AND vhc.team_id = 0"
+	}
+
+	eeSelectStmt += eeGroupBy
+	freeSelectStmt += freeGroupBy
+
+	var selectStmt string
+	if includeCVEScores {
+		selectStmt = eeSelectStmt
+	} else {
+		selectStmt = freeSelectStmt
+	}
+
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &vuln, selectStmt, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "fetching vulnerability")
+	}
+	return &vuln, nil
+}
+
+func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
+	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
+	if err != nil {
+		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+	}
+
+	updatedAt = osvs.CountsUpdatedAt
+
+	var osVersionWithResolved []struct {
+		OSVersionID     uint    `db:"os_version_id"`
+		ResolvedVersion *string `db:"resolved_in_version"`
+	}
+
+	selectStmt := `
+		SELECT os.os_version_id, osv.resolved_in_version
+		FROM operating_system_vulnerabilities osv
+		JOIN operating_systems os ON os.id = osv.operating_system_id
+		WHERE osv.cve = ?
+	`
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &osVersionWithResolved, selectStmt, cve)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, updatedAt, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
+		}
+		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+	}
+
+	for _, osv := range osvs.OSVersions {
+		for _, id := range osVersionWithResolved {
+			if osv.OSVersionID == id.OSVersionID {
+				vos = append(vos, &fleet.VulnerableOS{
+					OSVersion:         osv,
+					ResolvedInVersion: id.ResolvedVersion,
+				})
+			}
+		}
+	}
+
+	return
+}
+
+func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint) (vs []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
+	var args []interface{}
+	selectStmt := `
+		SELECT
+			s.id,
+			s.name,
+			s.version,
+			s.source,
+			s.browser,
+			COALESCE(scpe.cpe, '') as generated_cpe,
+			COALESCE(shc.hosts_count, 0) as hosts_count,
+			COALESCE(sc.resolved_in_version, '') as resolved_in_version
+		FROM software s
+		JOIN software_cve sc ON sc.software_id = s.id
+		LEFT JOIN software_cpe scpe ON scpe.software_id = s.id
+		LEFT JOIN software_host_counts shc ON shc.software_id = s.id
+		WHERE sc.cve = ?
+		`
+	args = append(args, cve)
+
+	if teamID != nil {
+		selectStmt += " AND shc.team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		selectStmt += " AND shc.team_id = 0"
+	}
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &vs, selectStmt, args...)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, updatedAt, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
+		}
+		return vs, updatedAt, ctxerr.Wrap(ctx, err, "fetching software by CVE")
+	}
+
+	return
+}
 
 func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 	// Define base select statements for EE and Free versions
@@ -62,9 +215,10 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit, 
 			cm.published, 
 			description, 
-			vhc.host_count
+			vhc.host_count,
+			host_count_updated_at
 	`
-	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count"
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
 
 	// Choose the appropriate group by statement based on EE or Free
 	var groupBy string
@@ -85,14 +239,6 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 
 	if opt.KnownExploit {
 		selectStmt += " AND cm.cisa_known_exploit = 1"
-	}
-
-	if match := opt.MatchQuery; match != "" {
-		selectStmt, args = searchLike(selectStmt, args, match, "vhc.cve")
-	}
-
-	if opt.KnownExploit {
-		selectStmt = selectStmt + " AND cm.cisa_known_exploit = 1"
 	}
 
 	if match := opt.MatchQuery; match != "" {
