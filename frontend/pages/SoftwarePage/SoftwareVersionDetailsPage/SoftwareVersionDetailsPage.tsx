@@ -1,11 +1,17 @@
 /** software/versions/:id */
 
-import React from "react";
+import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
-import { InjectedRouter } from "react-router";
+import { RouteComponentProps } from "react-router";
+import { AxiosError } from "axios";
+
+import useTeamIdParam from "hooks/useTeamIdParam";
+
+import { AppContext } from "context/app";
 
 import softwareAPI, {
   ISoftwareVersionResponse,
+  IGetSoftwareVersionQueryKey,
 } from "services/entities/software";
 import hostsCountAPI, {
   IHostsCountQueryKey,
@@ -13,9 +19,12 @@ import hostsCountAPI, {
 } from "services/entities/host_count";
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 
-import MainContent from "components/MainContent";
-import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
+import TableDataError from "components/DataError";
+import Fleet404 from "pages/errors/Fleet404";
+import MainContent from "components/MainContent";
+import TeamsHeader from "components/TeamsHeader";
+import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
@@ -27,27 +36,45 @@ interface ISoftwareVersionDetailsRouteParams {
   team_id?: string;
 }
 
-interface ISoftwareOSDetailsPageProps {
-  routeParams: ISoftwareVersionDetailsRouteParams;
-  router: InjectedRouter;
-}
+type ISoftwareTitleDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareVersionDetailsRouteParams
+>;
 
 const SoftwareVersionDetailsPage = ({
   routeParams,
   router,
-}: ISoftwareOSDetailsPageProps) => {
+  location,
+}: ISoftwareTitleDetailsPageProps) => {
+  const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+
   const versionId = parseInt(routeParams.id, 10);
-  const teamId = routeParams.team_id
-    ? parseInt(routeParams.team_id, 10)
-    : undefined;
+
+  const {
+    currentTeamId,
+    teamIdForApi,
+    userTeams,
+    handleTeamChange,
+  } = useTeamIdParam({
+    location,
+    router,
+    includeAllTeams: true,
+    includeNoTeam: false,
+  });
 
   const {
     data: softwareVersion,
     isLoading: isSoftwareVersionLoading,
     isError: isSoftwareVersionError,
-  } = useQuery<ISoftwareVersionResponse, Error, ISoftwareVersion>(
-    ["software-version", versionId],
-    () => softwareAPI.getSoftwareVersion(versionId),
+    error: softwareVersionError,
+  } = useQuery<
+    ISoftwareVersionResponse,
+    AxiosError,
+    ISoftwareVersion,
+    IGetSoftwareVersionQueryKey[]
+  >(
+    [{ scope: "softwareVersion", versionId, teamId: teamIdForApi }],
+    ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
       select: (data) => data.software,
     }
@@ -68,39 +95,64 @@ const SoftwareVersionDetailsPage = ({
     }
   );
 
+  const onTeamChange = useCallback(
+    (teamId: number) => {
+      handleTeamChange(teamId);
+    },
+    [handleTeamChange]
+  );
+
   const renderContent = () => {
     if (isSoftwareVersionLoading) {
       return <Spinner />;
     }
 
     if (isSoftwareVersionError) {
+      // confirm okay to cast to AxiosError like this
+      if (softwareVersionError.status === 404) {
+        return <Fleet404 />;
+      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
     if (!softwareVersion) {
       return null;
     }
-
     return (
       <>
+        {isPremiumTier && (
+          <TeamsHeader
+            isOnGlobalTeam={isOnGlobalTeam}
+            currentTeamId={currentTeamId}
+            userTeams={userTeams}
+            onTeamChange={onTeamChange}
+          />
+        )}
         <SoftwareDetailsSummary
           title={`${softwareVersion.name}, ${softwareVersion.version}`}
           type={formatSoftwareType(softwareVersion)}
           hosts={hostsCount ?? 0}
-          queryParams={{ software_version_id: softwareVersion.id }}
+          queryParams={{
+            software_version_id: softwareVersion.id,
+            team_id: teamIdForApi,
+          }}
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
-        <div className={`${baseClass}__vulnerabilities-section`}>
+        <Card
+          borderRadiusSize="large"
+          includeShadow
+          className={`${baseClass}__vulnerabilities-section`}
+        >
           <h2 className="section__header">Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
             data={softwareVersion.vulnerabilities ?? []}
             itemName="software item"
             isLoading={isSoftwareVersionLoading}
             router={router}
-            teamId={teamId}
+            teamIdForApi={teamIdForApi}
           />
-        </div>
+        </Card>
       </>
     );
   };

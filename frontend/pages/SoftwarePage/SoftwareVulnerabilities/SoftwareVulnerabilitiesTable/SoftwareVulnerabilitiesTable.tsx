@@ -136,12 +136,18 @@ const SoftwareVulnerabilitiesTable = ({
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
-    return generateTableConfig(isPremiumTier, isSandboxMode, router, {
-      includeName: true,
-      includeVulnerabilities: true,
-      includeIcon: true,
-    });
-  }, [data, router]);
+    return generateTableConfig(
+      isPremiumTier,
+      isSandboxMode,
+      router,
+      {
+        includeName: true,
+        includeVulnerabilities: true,
+        includeIcon: true,
+      },
+      teamId
+    );
+  }, [data, router, teamId]);
 
   const handleExploitedVulnFilterDropdownChange = (
     isFilterExploited: boolean
