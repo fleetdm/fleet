@@ -26,7 +26,7 @@ To propose an ad, or a change to an ad:
 1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
 2. Experiment campaigns must follow the YYYY-MM-DD._{buying_situation}-{ad_name}_ format. (2024-01-12.mdm - Cross-platform MDM waitlist)
 3. Image ads should follow the recommended size, centering, and asset guidelines. These are available on [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2078-100840&mode=design&t=cHriEw2E7hLxgwuG-0).
-4. Add your ad proposal for review to the "Experiment review" agenda and attend the next scheduled experiment review review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
