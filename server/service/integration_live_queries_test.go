@@ -178,7 +178,6 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 						t.Error("Error selecting from distributed_query_campaigns", err)
 						return
 					}
-					t.Logf("campaign: %+v", campaign)
 					q1.ID = campaign.QueryID
 					cidChannel <- fmt.Sprint(campaign.ID)
 					return
