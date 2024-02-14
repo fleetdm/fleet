@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"strings"
 	"testing"
 	"time"
 
@@ -248,8 +247,6 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)
 	require.Equal(t, expected.Source, v.Source)
-
-	
 }
 
 func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
@@ -882,14 +879,6 @@ func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.Vulnera
 	}
 }
 
-type osversionCounts struct {
-	teamID   uint
-	isGlobal int
-	name     string
-	version  string
-	count    int
-}
-
 func seedVulnerabilities(t *testing.T, ds *Datastore) {
 	// insert 20 hosts
 	var hostids []uint
@@ -1173,83 +1162,4 @@ func seedVulnerabilities(t *testing.T, ds *Datastore) {
 		_, err = ds.writer(context.Background()).Exec(insertStmt, vuln.cve, vuln.teamID, vuln.hostCount)
 		require.NoError(t, err)
 	}
-}
-
-func seedOSVersionCounts(t *testing.T, ds *Datastore) {
-	counts := []struct {
-		teamID      uint
-		name        string
-		version     string
-		osVersionID uint
-		count       int
-	}{
-		{
-			teamID:      0,
-			name:        "Microsoft Windows 11 Enterprise 22H2",
-			version:     "10.0.22621.2715",
-			osVersionID: 2,
-			count:       20,
-		},
-		{
-			teamID:      0,
-			name:        "macOS",
-			version:     "13.6.2",
-			osVersionID: 3,
-			count:       30,
-		},
-		{
-			teamID:      1,
-			name:        "Microsoft Windows 11 Enterprise 22H2",
-			version:     "10.0.22621.2715",
-			osVersionID: 2,
-			count:       9,
-		},
-		{
-			teamID:      1,
-			name:        "macOS",
-			version:     "13.6.2",
-			osVersionID: 3,
-			count:       10,
-		},
-		{
-			teamID:      2,
-			name:        "Microsoft Windows 11 Enterprise 22H2",
-			version:     "10.0.22621.2715",
-			osVersionID: 2,
-			count:       1,
-		},
-		{
-			teamID:      2,
-			name:        "macOS",
-			version:     "13.6.2",
-			osVersionID: 3,
-			count:       2,
-		},
-	}
-
-	var osversions []fleet.OSVersion
-	var args []interface{}
-	for _, c := range counts {
-		osversions = append(osversions, fleet.OSVersion{
-			OSVersionID: c.osVersionID,
-			Name:        c.name,
-			Version:     c.version,
-			HostsCount:  c.count,
-		})
-	}
-
-	stmt := "INSERT INTO aggregated_stats (id, type, json_value, global_stats) VALUES "
-	values := "(?, ?, ?, ?),"
-	for _, c := range counts {
-		var globalstat int
-		if c.teamID == 0 {
-			globalstat = 1
-		}
-		stmt += values
-		args = append(args, c.teamID, "os_versions", osversions, globalstat)
-	}
-
-	stmt = strings.TrimSuffix(stmt, ",")
-	_, err := ds.writer(context.Background()).Exec(stmt, args...)
-	require.NoError(t, err)
 }

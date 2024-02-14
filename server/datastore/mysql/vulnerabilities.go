@@ -14,7 +14,6 @@ import (
 
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	var vuln fleet.VulnerabilityWithMetadata
-	
 
 	eeSelectStmt := `
 		SELECT
@@ -37,7 +36,6 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	`
 	eeGroupBy := " GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at"
 
-
 	freeSelectStmt := `
 		SELECT
 			vhc.cve,
@@ -53,7 +51,6 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	`
 
 	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
-
 
 	var args []interface{}
 	args = append(args, cve)
