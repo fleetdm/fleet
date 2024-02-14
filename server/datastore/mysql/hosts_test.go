@@ -2484,8 +2484,8 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
-	require.Error(t, err)
-	require.Nil(t, h)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
 }
 
 func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
@@ -2543,7 +2543,7 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "foobar")
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
 
 	h, err = ds.HostLiteByIdentifier(context.Background(), "")
