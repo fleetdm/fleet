@@ -139,9 +139,14 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 		Query:  req.Query,
 	}
 	status := host.Status(time.Now())
-	if status == fleet.StatusOffline {
-		res.Status = status
+	switch status {
+	case fleet.StatusOnline, fleet.StatusNew:
+		res.Status = fleet.StatusOnline
+	case fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
+		res.Status = fleet.StatusOffline
 		return res, nil
+	default:
+		return nil, fmt.Errorf("unknown host status: %s", status)
 	}
 
 	queryResults, _, err := runLiveQuery(ctx, svc, []uint{0}, req.Query, []uint{host.ID})
@@ -232,10 +237,10 @@ func (svc *Service) RunLiveQueryDeadline(
 			}
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
-				queryID = campaign.QueryID
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
+			queryID = campaign.QueryID
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {

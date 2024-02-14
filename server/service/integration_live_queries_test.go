@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/jmoiron/sqlx"
 	"math"
 	"math/rand"
 	"net/http"
@@ -23,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -89,7 +89,7 @@ func (s *liveQueriesTestSuite) TearDownTest() {
 type liveQueryEndpoint int
 
 const (
-	oldEndpoint = iota
+	oldEndpoint liveQueryEndpoint = iota
 	oneQueryEndpoint
 	customQueryOneHostEndpoint
 )
@@ -157,7 +157,9 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		var cid string
 		cidChannel := make(chan string)
 		go func() {
-			for {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
 				if endpoint == customQueryOneHostEndpoint {
 					campaign := fleet.DistributedQueryCampaign{}
 					err := mysql.ExecAdhocSQLWithError(
@@ -215,9 +217,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 				hostDistributedQueryPrefix + cid:    0,
 				hostDistributedQueryPrefix + "9999": "0",
 			},
-			Messages: map[string]string{
-				hostDistributedQueryPrefix + cid: "some msg",
-			},
+			Messages: map[string]string{},
 			Stats: map[string]*fleet.Stats{
 				hostDistributedQueryPrefix + cid: stats,
 			},
@@ -260,7 +260,9 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 		var activity *fleet.ActivityTypeLiveQuery
 		activityUpdated := make(chan *fleet.ActivityTypeLiveQuery)
 		go func() {
-			for {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
 				details := json.RawMessage{}
 				err := mysql.ExecAdhocSQLWithError(
 					s.ds, func(q sqlx.ExtContext) error {
@@ -390,7 +392,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
 			hostDistributedQueryPrefix + cid2: "some other msg",
 		},
 		Stats: map[string]*fleet.Stats{
-			hostDistributedQueryPrefix + cid1: &fleet.Stats{
+			hostDistributedQueryPrefix + cid1: {
 				UserTime:   uint64(1),
 				SystemTime: uint64(2),
 			},
@@ -506,7 +508,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestMultipleHostMultipleQuery() {
 				hostDistributedQueryPrefix + cid2: "some other msg",
 			},
 			Stats: map[string]*fleet.Stats{
-				hostDistributedQueryPrefix + cid1: &fleet.Stats{
+				hostDistributedQueryPrefix + cid1: {
 					UserTime:   uint64(1),
 					SystemTime: uint64(2),
 				},
@@ -755,7 +757,6 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsToCreateCampaign() {
 	oneLiveQueryResp := runOneLiveQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", 999), oneLiveQueryRequest, http.StatusNotFound, &oneLiveQueryResp)
 	assert.Equal(t, 0, oneLiveQueryResp.RespondedHostCount)
-
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
@@ -789,7 +790,6 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestInvalidHost() {
 	}
 	oneLiveQueryResp := runOneLiveQueryResponse{}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), oneLiveQueryRequest, http.StatusBadRequest, &oneLiveQueryResp)
-
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestFailsOnSomeHost() {
