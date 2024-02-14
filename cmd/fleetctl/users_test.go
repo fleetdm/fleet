@@ -126,6 +126,15 @@ func TestCreateBulkUsers(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		team1 := &fleet.TeamSummary{
+			ID: 1,
+		}
+		team2 := &fleet.TeamSummary{
+			ID: 2,
+		}
+		return []*fleet.TeamSummary{team1, team2}, nil
+	}
 
 	csvFile := writeTmpCsv(t,
 		`Name,Email,SSO,API Only,Global Role,Teams

@@ -31,6 +31,13 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+export type IUnlockHostResponse =
+  | {
+      host_id: number;
+      unlock_pin: string;
+    }
+  | Record<string, never>;
+
 // the source of truth for the filter option names.
 // there are used on many other pages but we define them here.
 // TODO: add other filter options here.
@@ -378,5 +385,14 @@ export default {
   getEncryptionKey: (id: number) => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  lockHost: (id: number) => {
+    const { HOST_LOCK } = endpoints;
+    return sendRequest("POST", HOST_LOCK(id));
+  },
+  unlockHost: (id: number): Promise<IUnlockHostResponse> => {
+    const { HOST_UNLOCK } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK(id));
   },
 };

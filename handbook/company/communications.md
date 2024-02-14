@@ -626,8 +626,27 @@ At the end of their first two weeks of onboarding at Fleet, every new team membe
 
 Fleet prioritizes a [bias for action](https://fleetdm.com/handbook/company#ownership).  If possible, apply onboarding feedback to the handbook and issue templates in realtime, during this call.  This avoids backlogging tasks that may just get out of date before we get around to them anyway.
 
-## Receiving performance feedback
+## Performance feedback
 At Fleet, performance feedback is a continuous process. We give feedback (particularly negative) as soon as possible. Managers at Fleet will provide performance feedback [during scheduled 1:1 meetings](https://fleetdm.com/handbook/company/leadership#performance-feedback), if not sooner.
+
+Feedback is how we improve. We encourage all Fleeties to share candid and helpful feedback with each other. We use the 4A feedback pattern: 
+
+When giving feedback:
+
+1. Aim to assist
+  - Feedback must be given with positive intent.
+  - Feedback must be framed around how it can help the individual or the company.
+2. Actionable
+  - Feedback must be actionable and focus on what the recipient can do differently.
+
+When receiving feedback:
+
+3. Appreciate
+  - It is natural to feel defensive when hearing criticism.
+  - Rather than immediately reacting, listen carefully and be open-minded without becoming defensive or angry.
+4. Accept or discard
+  - Listen and consider all feedback, then decide to accept or discard.
+  - The decision to react to the feedback is entirely up to the recipient.
 
 ## Equipment
 Fleet provides laptops and YubiKey security keys for core team members to use while working at Fleet. As soon as an offer is accepted, Business Operations will reach out to the new team member to start this process and will work with the new team member to get their equipment requested and shipped to them on time. From time to time, team members need to purchase additional equipment in the interest of the company.

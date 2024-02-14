@@ -27,7 +27,6 @@ import (
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
-	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
@@ -62,7 +61,7 @@ func setupAppleMDMService(t *testing.T, license *fleet.LicenseInfo) (fleet.Servi
 		}
 	}))
 
-	mdmStorage := &nanomdm_mock.Storage{}
+	mdmStorage := &mock.MDMAppleStore{}
 	depStorage := &nanodep_mock.Storage{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
 	pusher := nanomdm_pushsvc.New(
@@ -752,6 +751,9 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 
 	expectedNilSlice := []fleet.HostMDMAppleProfile(nil)
 	expectedEmptySlice := []fleet.HostMDMAppleProfile{}
@@ -1044,7 +1046,7 @@ func TestMDMAuthenticate(t *testing.T) {
 func TestMDMTokenUpdate(t *testing.T) {
 	ctx := context.Background()
 	ds := new(mock.Store)
-	mdmStorage := &nanomdm_mock.Storage{}
+	mdmStorage := &mock.MDMAppleStore{}
 	pushFactory, _ := newMockAPNSPushProviderFactory()
 	pusher := nanomdm_pushsvc.New(
 		mdmStorage,
@@ -1958,96 +1960,9 @@ func TestUpdateMDMAppleSetup(t *testing.T) {
 	})
 }
 
-func TestMDMAppleCommander(t *testing.T) {
-	ctx := context.Background()
-	mdmStorage := &nanomdm_mock.Storage{}
-	pushFactory, _ := newMockAPNSPushProviderFactory()
-	pusher := nanomdm_pushsvc.New(
-		mdmStorage,
-		mdmStorage,
-		pushFactory,
-		NewNanoMDMLogger(kitlog.NewJSONLogger(os.Stdout)),
-	)
-	cmdr := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
-
-	// TODO(roberto): there's a data race in the mock when more
-	// than one host ID is provided because the pusher uses one
-	// goroutine per uuid to send the commands
-	hostUUIDs := []string{"A"}
-	payloadName := "com.foo.bar"
-	payloadIdentifier := "com-foo-bar"
-	mc := mobileconfigForTest(payloadName, payloadIdentifier)
-
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-		require.NotNil(t, cmd)
-		require.Equal(t, cmd.Command.RequestType, "InstallProfile")
-		require.Contains(t, string(cmd.Raw), base64.StdEncoding.EncodeToString(mc))
-		return nil, nil
-	}
-
-	mdmStorage.RetrievePushInfoFunc = func(p0 context.Context, targetUUIDs []string) (map[string]*mdm.Push, error) {
-		require.ElementsMatch(t, hostUUIDs, targetUUIDs)
-		pushes := make(map[string]*mdm.Push, len(targetUUIDs))
-		for _, uuid := range targetUUIDs {
-			pushes[uuid] = &mdm.Push{
-				PushMagic: "magic" + uuid,
-				Token:     []byte("token" + uuid),
-				Topic:     "topic" + uuid,
-			}
-		}
-
-		return pushes, nil
-	}
-
-	mdmStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
-		cert, err := tls.LoadX509KeyPair("testdata/server.pem", "testdata/server.key")
-		return &cert, "", err
-	}
-	mdmStorage.IsPushCertStaleFunc = func(ctx context.Context, topic string, staleToken string) (bool, error) {
-		return false, nil
-	}
-
-	cmdUUID := uuid.New().String()
-	err := cmdr.InstallProfile(ctx, hostUUIDs, mc, cmdUUID)
-	require.NoError(t, err)
-	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-	mdmStorage.EnqueueCommandFuncInvoked = false
-	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
-	mdmStorage.RetrievePushInfoFuncInvoked = false
-
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-		require.NotNil(t, cmd)
-		require.Equal(t, "RemoveProfile", cmd.Command.RequestType)
-		require.Contains(t, string(cmd.Raw), payloadIdentifier)
-		return nil, nil
-	}
-	cmdUUID = uuid.New().String()
-	err = cmdr.RemoveProfile(ctx, hostUUIDs, payloadIdentifier, cmdUUID)
-	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-	mdmStorage.EnqueueCommandFuncInvoked = false
-	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
-	mdmStorage.RetrievePushInfoFuncInvoked = false
-	require.NoError(t, err)
-
-	cmdUUID = uuid.New().String()
-	mdmStorage.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
-		require.NotNil(t, cmd)
-		require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-		require.Contains(t, string(cmd.Raw), "http://test.example.com")
-		require.Contains(t, string(cmd.Raw), cmdUUID)
-		return nil, nil
-	}
-	err = cmdr.InstallEnterpriseApplication(ctx, hostUUIDs, "http://test.example.com", cmdUUID)
-	require.NoError(t, err)
-	require.True(t, mdmStorage.EnqueueCommandFuncInvoked)
-	mdmStorage.EnqueueCommandFuncInvoked = false
-	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
-	mdmStorage.RetrievePushInfoFuncInvoked = false
-}
-
 func TestMDMAppleReconcileAppleProfiles(t *testing.T) {
 	ctx := context.Background()
-	mdmStorage := &nanomdm_mock.Storage{}
+	mdmStorage := &mock.MDMAppleStore{}
 	ds := new(mock.Store)
 	pushFactory, _ := newMockAPNSPushProviderFactory()
 	pusher := nanomdm_pushsvc.New(

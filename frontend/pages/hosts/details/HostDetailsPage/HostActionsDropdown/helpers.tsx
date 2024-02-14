@@ -1,8 +1,16 @@
 import React from "react";
-import { IDropdownOption } from "interfaces/dropdownOption";
 import { cloneDeep } from "lodash";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+
+import { IDropdownOption } from "interfaces/dropdownOption";
+import { isLinuxLike } from "interfaces/platform";
 import { isScriptSupportedPlatform } from "interfaces/script";
+
+import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+
+import {
+  HostMdmDeviceStatusUIState,
+  isDeviceStatusUpdating,
+} from "../../helpers";
 
 const DEFAULT_OPTIONS = [
   {
@@ -32,6 +40,21 @@ const DEFAULT_OPTIONS = [
     disabled: false,
   },
   {
+    label: "Lock",
+    value: "lock",
+    disabled: false,
+  },
+  // {
+  //   label: "Wipe",
+  //   value: "wipe",
+  //   disabled: false,
+  // },
+  {
+    label: "Unlock",
+    value: "unlock",
+    disabled: false,
+  },
+  {
     label: "Delete",
     disabled: false,
     value: "delete",
@@ -54,6 +77,7 @@ interface IHostActionConfigOptions {
   isMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
 }
 
 const canTransferTeam = (config: IHostActionConfigOptions) => {
@@ -77,6 +101,118 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
+  );
+};
+
+const canLockHost = ({
+  isPremiumTier,
+  hostPlatform,
+  isMdmEnabledAndConfigured,
+  isEnrolledInMdm,
+  isFleetMdm,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  hostMdmDeviceStatus,
+}: IHostActionConfigOptions) => {
+  // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
+  const canLockDarwin =
+    hostPlatform === "darwin" &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  return (
+    isPremiumTier &&
+    hostMdmDeviceStatus === "unlocked" &&
+    (hostPlatform === "windows" ||
+      isLinuxLike(hostPlatform) ||
+      canLockDarwin) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver)
+  );
+};
+
+const canWipeHost = ({
+  isPremiumTier,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isFleetMdm,
+  isEnrolledInMdm,
+  isMdmEnabledAndConfigured,
+  hostPlatform,
+}: IHostActionConfigOptions) => {
+  // TODO: remove when we work on wipe issue.
+  return false;
+
+  // macOS and Windows hosts have the same conditions and can be wiped if they
+  // are enrolled in MDM and the MDM is enabled.
+  const canWipeMacOrWindows =
+    (hostPlatform === "darwin" || hostPlatform === "windows") &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  return (
+    isPremiumTier &&
+    (hostPlatform === "linux" || canWipeMacOrWindows) &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver)
+  );
+};
+
+const canUnlock = ({
+  isPremiumTier,
+  isGlobalAdmin,
+  isGlobalMaintainer,
+  isGlobalObserver,
+  isTeamAdmin,
+  isTeamMaintainer,
+  isTeamObserver,
+  isFleetMdm,
+  isEnrolledInMdm,
+  isMdmEnabledAndConfigured,
+  hostPlatform,
+  hostMdmDeviceStatus,
+}: IHostActionConfigOptions) => {
+  const canLockDarwin =
+    hostPlatform === "darwin" &&
+    isFleetMdm &&
+    isMdmEnabledAndConfigured &&
+    isEnrolledInMdm;
+
+  // "unlocking" for a macOS host means that somebody saw the unlock pin, but
+  // shouldn't prevent users from trying to see the pin again, which is
+  // considered an "unlock"
+  const isValidState =
+    (hostMdmDeviceStatus === "unlocking" && hostPlatform === "darwin") ||
+    hostMdmDeviceStatus === "locked";
+
+  return (
+    isPremiumTier &&
+    isValidState &&
+    (isGlobalAdmin ||
+      isGlobalMaintainer ||
+      isGlobalObserver ||
+      isTeamAdmin ||
+      isTeamMaintainer ||
+      isTeamObserver) &&
+    (canLockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 
@@ -139,6 +275,18 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "runScript");
   }
 
+  if (!canLockHost(config)) {
+    options = options.filter((option) => option.value !== "lock");
+  }
+
+  // if (!canWipeHost(config)) {
+  //   options = options.filter((option) => option.value !== "wipe");
+  // }
+
+  if (!canUnlock(config)) {
+    options = options.filter((option) => option.value !== "unlock");
+  }
+
   // TODO: refactor to filter in one pass using predefined filters specified for each of the
   // DEFAULT_OPTIONS. Note that as currently, structured the default is to include all options. For
   // example, "Query" is implicitly included by default because there is no equivalent `canQuery`
@@ -149,8 +297,7 @@ const filterOutOptions = (
 
 const setOptionsAsDisabled = (
   options: IDropdownOption[],
-  isHostOnline: boolean,
-  isSandboxMode: boolean
+  { isHostOnline, isSandboxMode, hostMdmDeviceStatus }: IHostActionConfigOptions
 ) => {
   const disableOptions = (optionsToDisable: IDropdownOption[]) => {
     optionsToDisable.forEach((option) => {
@@ -171,6 +318,16 @@ const setOptionsAsDisabled = (
       options.filter((option) => option.value === "transfer")
     );
   }
+  if (
+    isDeviceStatusUpdating(hostMdmDeviceStatus) ||
+    hostMdmDeviceStatus === "locked"
+  ) {
+    optionsToDisable = optionsToDisable.concat(
+      options.filter(
+        (option) => option.value === "query" || option.value === "mdmOff"
+      )
+    );
+  }
 
   disableOptions(optionsToDisable);
   return options;
@@ -189,11 +346,7 @@ export const generateHostActionOptions = (config: IHostActionConfigOptions) => {
 
   if (options.length === 0) return options;
 
-  options = setOptionsAsDisabled(
-    options,
-    config.isHostOnline,
-    config.isSandboxMode
-  );
+  options = setOptionsAsDisabled(options, config);
 
   if (config.isSandboxMode) {
     const premiumOnlyOptions: IDropdownOption[] = options.filter(
