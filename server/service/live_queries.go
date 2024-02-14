@@ -33,6 +33,11 @@ type runLiveQueryOnHostRequest struct {
 	Query      string `json:"query"`
 }
 
+type runLiveQueryOnHostByIDRequest struct {
+	HostID uint   `url:"id"`
+	Query  string `json:"query"`
+}
+
 type summaryPayload struct {
 	TargetedHostCount  int `json:"targeted_host_count"`
 	RespondedHostCount int `json:"responded_host_count"`
@@ -131,9 +136,29 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}
+
+	return runLiveQueryOnHost(svc, ctx, host, req.Query)
+}
+
+func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runLiveQueryOnHostByIDRequest)
+
+	if req.Query == "" {
+		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
+	}
+
+	host, err := svc.HostLiteByID(ctx, req.HostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
+	}
+
+	return runLiveQueryOnHost(svc, ctx, host, req.Query)
+}
+
+func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (errorer, error) {
 	res := runLiveQueryOnHostResponse{
 		HostID: host.ID,
-		Query:  req.Query,
+		Query:  query,
 	}
 
 	status := (&fleet.Host{
@@ -151,7 +176,7 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 		return nil, fmt.Errorf("unknown host status: %s", status)
 	}
 
-	queryResults, _, err := runLiveQuery(ctx, svc, []uint{0}, req.Query, []uint{host.ID})
+	queryResults, _, err := runLiveQuery(ctx, svc, []uint{0}, query, []uint{host.ID})
 	if err != nil {
 		return nil, err
 	}
@@ -167,6 +192,8 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 			}
 			res.Rows = queryResult.Rows
 			res.HostID = queryResult.HostID
+		} else { // timeout waiting for results
+			err = errors.New("timeout waiting for results")
 		}
 		if err != nil {
 			res.Error = err.Error()
