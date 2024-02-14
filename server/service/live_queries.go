@@ -2,9 +2,11 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -25,6 +27,16 @@ type runLiveQueryRequest struct {
 type runOneLiveQueryRequest struct {
 	QueryID uint   `url:"id"`
 	HostIDs []uint `json:"host_ids"`
+}
+
+type runLiveQueryOnHostRequest struct {
+	Identifier string `url:"identifier"`
+	Query      string `json:"query"`
+}
+
+type runLiveQueryOnHostByIDRequest struct {
+	HostID uint   `url:"id"`
+	Query  string `json:"query"`
 }
 
 type summaryPayload struct {
@@ -51,13 +63,23 @@ type runOneLiveQueryResponse struct {
 
 func (r runOneLiveQueryResponse) error() error { return r.Err }
 
+type runLiveQueryOnHostResponse struct {
+	HostID uint                `json:"host_id"`
+	Rows   []map[string]string `json:"rows"`
+	Query  string              `json:"query"`
+	Status fleet.HostStatus    `json:"status"`
+	Error  string              `json:"error,omitempty"`
+}
+
+func (r runLiveQueryOnHostResponse) error() error { return nil }
+
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
 
 	// Only allow a host to be specified once in HostIDs
 	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
 
-	campaignResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{req.QueryID}, hostIDs)
+	campaignResults, respondedHostCount, err := runLiveQuery(ctx, svc, []uint{req.QueryID}, "", hostIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -89,7 +111,7 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	// Only allow a host to be specified once in HostIDs
 	hostIDs := server.RemoveDuplicatesFromSlice(req.HostIDs)
 
-	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, queryIDs, hostIDs)
+	queryResults, respondedHostCount, err := runLiveQuery(ctx, svc, queryIDs, "", hostIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -104,7 +126,81 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	return res, nil
 }
 
-func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostIDs []uint) (
+func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runLiveQueryOnHostRequest)
+
+	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
+	}
+
+	return runLiveQueryOnHost(svc, ctx, host, req.Query)
+}
+
+func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*runLiveQueryOnHostByIDRequest)
+
+	host, err := svc.HostLiteByID(ctx, req.HostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
+	}
+
+	return runLiveQueryOnHost(svc, ctx, host, req.Query)
+}
+
+func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (errorer, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
+	}
+
+	res := runLiveQueryOnHostResponse{
+		HostID: host.ID,
+		Query:  query,
+	}
+
+	status := (&fleet.Host{
+		DistributedInterval: host.DistributedInterval,
+		ConfigTLSRefresh:    host.ConfigTLSRefresh,
+		SeenTime:            host.SeenTime,
+	}).Status(time.Now())
+	switch status {
+	case fleet.StatusOnline, fleet.StatusNew:
+		res.Status = fleet.StatusOnline
+	case fleet.StatusOffline, fleet.StatusMIA, fleet.StatusMissing:
+		res.Status = fleet.StatusOffline
+		return res, nil
+	default:
+		return nil, fmt.Errorf("unknown host status: %s", status)
+	}
+
+	queryResults, _, err := runLiveQuery(ctx, svc, []uint{0}, query, []uint{host.ID})
+	if err != nil {
+		return nil, err
+	}
+
+	if len(queryResults) > 0 {
+		var err error
+		if queryResults[0].Err != nil {
+			err = queryResults[0].Err
+		} else if len(queryResults[0].Results) > 0 {
+			queryResult := queryResults[0].Results[0]
+			if queryResult.Error != nil {
+				err = errors.New(*queryResult.Error)
+			}
+			res.Rows = queryResult.Rows
+			res.HostID = queryResult.HostID
+		} else { // timeout waiting for results
+			err = errors.New("timeout waiting for results")
+		}
+		if err != nil {
+			res.Error = err.Error()
+		}
+	}
+	return res, nil
+}
+
+func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, query string, hostIDs []uint) (
 	[]fleet.QueryCampaignResult, int, error,
 ) {
 	// The period used here should always be less than the request timeout for any load
@@ -119,7 +215,7 @@ func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostI
 		logging.WithExtras(ctx, "live_query_rest_period_err", err)
 	}
 
-	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, queryIDs, hostIDs, duration)
+	queryResults, respondedHostCount, err := svc.RunLiveQueryDeadline(ctx, queryIDs, query, hostIDs, duration)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -142,7 +238,7 @@ func runLiveQuery(ctx context.Context, svc fleet.Service, queryIDs []uint, hostI
 }
 
 func (svc *Service) RunLiveQueryDeadline(
-	ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration,
+	ctx context.Context, queryIDs []uint, query string, hostIDs []uint, deadline time.Duration,
 ) ([]fleet.QueryCampaignResult, int, error) {
 	if len(queryIDs) == 0 || len(hostIDs) == 0 {
 		svc.authz.SkipAuthorization(ctx)
@@ -160,11 +256,19 @@ func (svc *Service) RunLiveQueryDeadline(
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			campaign, err := svc.NewDistributedQueryCampaign(ctx, "", &queryID, fleet.HostTargets{HostIDs: hostIDs})
+			queryIDPtr := &queryID
+			queryString := ""
+			// 0 is a special ID that indicates we should use raw SQL query instead
+			if queryID == 0 {
+				queryIDPtr = nil
+				queryString = query
+			}
+			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
+			queryID = campaign.QueryID
 
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {

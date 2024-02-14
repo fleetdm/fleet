@@ -730,6 +730,31 @@ const TAGGED_TEMPLATES = {
   deletedMultipleSavedQuery: (activity: IActivity) => {
     return <> deleted multiple queries.</>;
   },
+  lockedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        locked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  unlockedHost: (activity: IActivity) => {
+    if (activity.details?.host_platform === "darwin") {
+      return (
+        <>
+          {" "}
+          viewed the six-digit unlock PIN for{" "}
+          <b>{activity.details?.host_display_name}</b>.
+        </>
+      );
+    }
+    return (
+      <>
+        {" "}
+        unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -875,6 +900,12 @@ const getDetail = (
     }
     case ActivityType.DeletedMultipleSavedQuery: {
       return TAGGED_TEMPLATES.deletedMultipleSavedQuery(activity);
+    }
+    case ActivityType.LockedHost: {
+      return TAGGED_TEMPLATES.lockedHost(activity);
+    }
+    case ActivityType.UnlockedHost: {
+      return TAGGED_TEMPLATES.unlockedHost(activity);
     }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);

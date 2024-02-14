@@ -64,6 +64,8 @@ export enum ActivityType {
   DeletedScript = "deleted_script",
   EditedScript = "edited_script",
   EditedWindowsUpdates = "edited_windows_updates",
+  LockedHost = "locked_host",
+  UnlockedHost = "unlocked_host",
 }
 export interface IActivity {
   created_at: string;
@@ -99,6 +101,7 @@ export interface IActivityDetails {
   host_display_name?: string;
   host_display_names?: string[];
   host_ids?: number[];
+  host_platform?: string;
   installed_from_dep?: boolean;
   mdm_platform?: "microsoft" | "apple";
   minimum_version?: string;

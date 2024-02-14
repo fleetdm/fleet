@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 	"unicode/utf8"
@@ -15,13 +16,22 @@ import (
 )
 
 func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
+	var res *fleet.HostScriptResult
+	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		return err
+	})
+}
+
+func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
 	const (
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
 		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
-	result, err := ds.writer(ctx).ExecContext(ctx, insStmt,
+	result, err := tx.ExecContext(ctx, insStmt,
 		request.HostID,
 		execID,
 		request.ScriptContents,
@@ -35,9 +45,11 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 	var script fleet.HostScriptResult
 	id, _ := result.LastInsertId()
-	if err := ds.writer(ctx).GetContext(ctx, &script, getStmt, id); err != nil {
+	err = sqlx.GetContext(ctx, tx, &script, getStmt, id)
+	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting the created host script result to return")
 	}
+
 	return &script, nil
 }
 
@@ -51,6 +63,20 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
     host_id = ? AND
     execution_id = ?`
 
+	const hostMDMActionsStmt = `
+  SELECT
+    CASE
+      WHEN lock_ref = ? THEN 'lock_ref'
+      WHEN unlock_ref = ? THEN 'unlock_ref'
+      WHEN wipe_ref = ? THEN 'wipe_ref'
+      ELSE ''
+    END AS ref_col
+  FROM
+    host_mdm_actions
+  WHERE
+    host_id = ?
+`
+
 	const maxOutputRuneLen = 10000
 	output := result.Output
 	if len(output) > utf8.UTFMax*maxOutputRuneLen {
@@ -63,24 +89,45 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		output = string(outputRunes[len(outputRunes)-maxOutputRuneLen:])
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, updStmt,
-		output,
-		result.Runtime,
-		result.ExitCode,
-		result.HostID,
-		result.ExecutionID,
-	)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "update host script result")
-	}
-
 	var hsr *fleet.HostScriptResult
-	if n, _ := res.RowsAffected(); n > 0 {
-		// it did update, so return the updated result
-		hsr, err = ds.getHostScriptExecutionResultDB(ctx, ds.writer(ctx), result.ExecutionID)
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, updStmt,
+			output,
+			result.Runtime,
+			result.ExitCode,
+			result.HostID,
+			result.ExecutionID,
+		)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "load updated host script result")
+			return ctxerr.Wrap(ctx, err, "update host script result")
 		}
+
+		if n, _ := res.RowsAffected(); n > 0 {
+			// it did update, so return the updated result
+			hsr, err = ds.getHostScriptExecutionResultDB(ctx, tx, result.ExecutionID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "load updated host script result")
+			}
+
+			// look up if that script was a lock/unlock/wipe script for that host,
+			// and if so update the host_mdm_actions table accordingly.
+			var refCol string
+			err = sqlx.GetContext(ctx, tx, &refCol, hostMDMActionsStmt, result.ExecutionID, result.ExecutionID, result.ExecutionID, result.HostID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) { // ignore ErrNoRows, refCol will be empty
+				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
+			}
+			if refCol != "" {
+				err = ds.updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, refCol, result.ExitCode == 0)
+				if err != nil {
+					return ctxerr.Wrap(ctx, err, "update host mdm action based on script result")
+				}
+			}
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
 	}
 	return hsr, nil
 }
@@ -116,8 +163,8 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
 
 func (ds *Datastore) IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error) {
 	const getStmt = `
-		SELECT 
-		  1 
+		SELECT
+		  1
 		FROM
 		  host_script_results
 		WHERE
@@ -487,4 +534,243 @@ ON DUPLICATE KEY UPDATE
 		}
 		return nil
 	})
+}
+
+func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	const stmt = `
+		SELECT
+			lock_ref,
+			wipe_ref,
+			unlock_ref,
+			unlock_pin
+		FROM
+			host_mdm_actions
+		WHERE
+			host_id = ?
+`
+
+	var mdmActions struct {
+		LockRef   *string `db:"lock_ref"`
+		WipeRef   *string `db:"wipe_ref"`
+		UnlockRef *string `db:"unlock_ref"`
+		UnlockPIN *string `db:"unlock_pin"`
+	}
+	status := &fleet.HostLockWipeStatus{
+		HostFleetPlatform: fleetPlatform,
+	}
+
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, hostID); err != nil {
+		if err == sql.ErrNoRows {
+			// do not return a Not Found error, return the zero-value status, which
+			// will report the correct states.
+			return status, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+
+	switch fleetPlatform {
+	case "darwin":
+		if mdmActions.UnlockPIN != nil {
+			status.UnlockPIN = *mdmActions.UnlockPIN
+		}
+		if mdmActions.UnlockRef != nil {
+			var err error
+			status.UnlockRequestedAt, err = time.Parse(time.DateTime, *mdmActions.UnlockRef)
+			if err != nil {
+				// if the format is unexpected but there's something in UnlockRef, just
+				// replace it with the current timestamp, it should still indicate that
+				// an unlock was requested (e.g. in case someone plays with the data
+				// directly in the DB and messes up the format).
+				status.UnlockRequestedAt = time.Now().UTC()
+			}
+		}
+
+		if mdmActions.LockRef != nil {
+			// the lock reference is an MDM command
+			cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command")
+			}
+			status.LockMDMCommand = cmd
+
+			// get the MDM command result, which may be not found (indicating the
+			// command is pending)
+			cmdRes, err := ds.GetMDMAppleCommandResults(ctx, *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command result")
+			}
+			// TODO: each item in the slice returned by
+			// GetMDMAppleCommandResults is a result for a
+			// different host. This only works because we're
+			// enqueuing the command with the given UUID for a
+			// single host, but it's the equivalent of doing
+			// cmdRes[0].
+			//
+			// Ideally, and to be super safe, we should try to find
+			// a command with a matching r.HostUUID, but we don't
+			// have the host UUID available.
+			for _, r := range cmdRes {
+				if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
+					status.LockMDMCommandResult = r
+					break
+				}
+			}
+		}
+
+	case "windows", "linux":
+		// lock and unlock references are scripts
+		if mdmActions.LockRef != nil {
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference script result")
+			}
+			status.LockScript = hsr
+		}
+
+		if mdmActions.UnlockRef != nil {
+			hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.UnlockRef)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "get unlock reference script result")
+			}
+			status.UnlockScript = hsr
+		}
+	}
+	return status, nil
+}
+
+// LockHostViaScript will create the script execution request and update
+// host_mdm_actions in a single transaction.
+func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+	var res *fleet.HostScriptResult
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
+		}
+
+		// on duplicate we don't clear any other existing state because at this
+		// point in time, this is just a request to lock the host that is recorded,
+		// it is pending execution. The host's state should be updated to "locked"
+		// only when the script execution is successfully completed, and then any
+		// unlock or wipe references should be cleared.
+		const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		lock_ref,
+		unlock_ref
+	)
+	VALUES (?,?,NULL)
+	ON DUPLICATE KEY UPDATE
+		lock_ref = VALUES(lock_ref)
+	`
+
+		_, err = tx.ExecContext(ctx, stmt,
+			request.HostID,
+			res.ExecutionID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "lock host via script update mdm actions")
+		}
+
+		return nil
+	})
+}
+
+// UnlockHostViaScript will create the script execution request and update
+// host_mdm_actions in a single transaction.
+func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+	var res *fleet.HostScriptResult
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
+		}
+
+		// on duplicate we don't clear any other existing state because at this
+		// point in time, this is just a request to unlock the host that is
+		// recorded, it is pending execution. The host's state should be updated to
+		// "unlocked" only when the script execution is successfully completed, and
+		// then any lock or wipe references should be cleared.
+		const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		unlock_ref,
+		lock_ref
+	)
+	VALUES (?,?,NULL)
+	ON DUPLICATE KEY UPDATE
+		unlock_ref = VALUES(unlock_ref),
+		unlock_pin = NULL
+	`
+
+		_, err = tx.ExecContext(ctx, stmt,
+			request.HostID,
+			res.ExecutionID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "unlock host via script update mdm actions")
+		}
+
+		return err
+	})
+}
+
+func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+	const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		unlock_ref
+	)
+	VALUES (?, ?)
+	ON DUPLICATE KEY UPDATE
+		-- do not overwrite if a value is already set
+		unlock_ref = IF(unlock_ref IS NULL, VALUES(unlock_ref), unlock_ref)
+	`
+	// for macOS, the unlock_ref is just the timestamp at which the user first
+	// requested to unlock the host. This then indicates in the host's status
+	// that it's pending an unlock (which requires manual intervention by
+	// entering a PIN on the device). The /unlock endpoint can be called multiple
+	// times, so we record the timestamp of the first time it was requested and
+	// from then on, the host is marked as "pending unlock" until the device is
+	// actually unlocked with the PIN.
+	// TODO(mna): to be determined how we then get notified that it has been
+	// unlocked, so that it can transition to unlocked (not pending).
+	unlockRef := ts.Format(time.DateTime)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef)
+	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
+}
+
+func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
+	stmt := `UPDATE host_mdm_actions SET %s WHERE host_id = ?`
+
+	if succeeded {
+		switch refCol {
+		case "lock_ref":
+			// Note that this must not clear the unlock_pin, because recording the
+			// lock request does generate the PIN and store it there to be used by an
+			// eventual unlock.
+			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL")
+		case "unlock_ref":
+			// a successful unlock clears itself as well as the lock ref, because
+			// unlock is the default state so we don't need to keep its unlock_ref
+			// around once it's confirmed.
+			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
+		case "wipe_ref":
+			// TODO(mna): implement when implementing the wipe story
+		default:
+			return ctxerr.Errorf(ctx, "unknown reference column %q", refCol)
+		}
+	} else {
+		// if the action failed, then we clear the reference to that action itself so
+		// the host stays in the previous state (it doesn't transition to the new
+		// state).
+		stmt = fmt.Sprintf(stmt, refCol+" = NULL")
+	}
+	_, err := tx.ExecContext(ctx, stmt, hostID)
+	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
