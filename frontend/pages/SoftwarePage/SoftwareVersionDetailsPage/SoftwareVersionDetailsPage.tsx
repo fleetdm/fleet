@@ -2,6 +2,7 @@
 
 import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -47,6 +48,7 @@ const SoftwareVersionDetailsPage = ({
   location,
 }: ISoftwareTitleDetailsPageProps) => {
   const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const handlePageError = useErrorHandler();
 
   const versionId = parseInt(routeParams.id, 10);
 
@@ -66,7 +68,6 @@ const SoftwareVersionDetailsPage = ({
     data: softwareVersion,
     isLoading: isSoftwareVersionLoading,
     isError: isSoftwareVersionError,
-    error: softwareVersionError,
   } = useQuery<
     ISoftwareVersionResponse,
     AxiosError,
@@ -77,6 +78,7 @@ const SoftwareVersionDetailsPage = ({
     ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
       select: (data) => data.software,
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -108,10 +110,6 @@ const SoftwareVersionDetailsPage = ({
     }
 
     if (isSoftwareVersionError) {
-      // confirm okay to cast to AxiosError like this
-      if (softwareVersionError.status === 404) {
-        return <Fleet404 />;
-      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 

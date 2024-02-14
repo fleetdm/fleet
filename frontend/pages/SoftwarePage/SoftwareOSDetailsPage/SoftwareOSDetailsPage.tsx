@@ -2,6 +2,7 @@
 
 import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -18,7 +19,6 @@ import { SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import Fleet404 from "pages/errors/Fleet404";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -65,6 +65,7 @@ const SoftwareOSDetailsPage = ({
   location,
 }: ISoftwareOSDetailsPageProps) => {
   const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const handlePageError = useErrorHandler();
 
   const osVersionIdFromURL = parseInt(routeParams.id, 10);
 
@@ -84,7 +85,6 @@ const SoftwareOSDetailsPage = ({
     data: osVersionDetails,
     isLoading,
     isError: isOsVersionError,
-    error: osVersionError,
   } = useQuery<
     IOSVersionResponse,
     AxiosError,
@@ -102,6 +102,7 @@ const SoftwareOSDetailsPage = ({
     {
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -141,10 +142,6 @@ const SoftwareOSDetailsPage = ({
     }
 
     if (isOsVersionError) {
-      // confirm okay to cast to AxiosError like this
-      if (osVersionError.status === 404) {
-        return <Fleet404 />;
-      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 

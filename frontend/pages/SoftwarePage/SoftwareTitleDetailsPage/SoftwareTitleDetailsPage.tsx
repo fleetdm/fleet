@@ -2,6 +2,7 @@
 
 import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
+import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
 import { AxiosError } from "axios";
 
@@ -17,7 +18,6 @@ import softwareAPI, {
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import Fleet404 from "pages/errors/Fleet404";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
@@ -43,6 +43,7 @@ const SoftwareTitleDetailsPage = ({
   location,
 }: ISoftwareTitleDetailsPageProps) => {
   const { isPremiumTier, isOnGlobalTeam } = useContext(AppContext);
+  const handlePageError = useErrorHandler();
 
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
@@ -63,7 +64,6 @@ const SoftwareTitleDetailsPage = ({
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
     isError: isSoftwareTitleError,
-    error: softwareTitleError,
   } = useQuery<
     ISoftwareTitleResponse,
     AxiosError,
@@ -74,6 +74,7 @@ const SoftwareTitleDetailsPage = ({
     ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
       select: (data) => data.software_title,
+      onError: (error) => handlePageError(error),
     }
   );
 
@@ -90,10 +91,6 @@ const SoftwareTitleDetailsPage = ({
     }
 
     if (isSoftwareTitleError) {
-      // confirm okay to cast to AxiosError like this
-      if (softwareTitleError.status === 404) {
-        return <Fleet404 />;
-      }
       return <TableDataError className={`${baseClass}__table-error`} />;
     }
 
