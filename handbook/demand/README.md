@@ -116,6 +116,14 @@ Any changes to the current running ads visible to a user, including designs, key
 ### Engage with the community
 Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
+### Promote a post on LinkedIn
+Original posts on LinkedIn by Fleet employees can be promoted using the Fleet company page. If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us).
+
+1. Create the post on your personal LinkedIn profile. (Only original posts. Reposts and quotes of other posts can be promoted)
+2. Create an issue linking to the post on the [#g-demand board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) with the buying situation and if there are any data restrictions.
+3. Keep an eye on your inbox as demand will request permission to use the post in a promoted post.
+4. Demand will communicate the results of the post.
+
 Here are some links that filter relevant conversations on each platform:
 - [LinkedIn](https://www.linkedin.com/search/results/content/?datePosted=%22past-week%22&keywords=osquery%20OR%20%22fleet%20device%20management%22%20OR%20%22fleetdm%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22fleetdm.com%22&origin=FACETED_SEARCH&sid=oxR)
 - [Twitter](https://twitter.com/search?q=%22osquery%22%20OR%20%22github.com%2Fosquery%2Fosquery%22%20OR%20%22github.com%2Ffleetdm%2Ffleet%22%20OR%20%22github.com%2Fkolide%2Ffleet%22%20OR%20%22fleetdm%22%20OR%20%22fleet%20device%20management%22%20OR%20%22nanomdm%22%20OR%20%22micromdm%22%20OR%20%22swiftDialog%22&src=typed_query&f=live)
