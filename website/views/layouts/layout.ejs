@@ -296,36 +296,36 @@
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
       <% if(!hideFooterLinks) { %>
-      <div class="invisible" purpose="page-footer" class="container-fluid" data-hide-until-rendered data-nosnippet>
+      <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
         <div purpose="footer-nav" class="d-flex flex-row flex-wrap row">
           <div purpose="footer-nav-column" class="d-lg-flex d-none col-3">
             <a href="/">
-              <img purpose="footer-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" style="" />
+              <img purpose="footer-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
             </a>
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Platform</strong>
-            <a href="/device-management" class="">Device management</a>
-            <a href="/vulnerability-management" class="">Vulnerability management</a>
-            <a href="/endpoint-ops" class="">Endpoint ops</a>
-            <a href="/integrations" class="">Integrations</a>
-            <a href="/pricing" class="">Pricing</a>
+            <a href="/device-management">Device management</a>
+            <a href="/vulnerability-management">Vulnerability management</a>
+            <a href="/endpoint-ops">Endpoint ops</a>
+            <a href="/integrations">Integrations</a>
+            <a href="/pricing">Pricing</a>
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Documentation</strong>
-            <a href="/support" class="">Support</a>
-            <a href="/docs" class="">Docs</a>
-            <a href="/docs/rest-api" class="">REST API</a>
-            <a href="/customers/register" class="">Get your license</a>
-            <a href="/docs/contributing" class="">Contribute</a>
+            <a href="/support">Support</a>
+            <a href="/docs">Docs</a>
+            <a href="/docs/rest-api">REST API</a>
+            <a href="/customers/register">Get your license</a>
+            <a href="/docs/contributing">Contribute</a>
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Company</strong>
-            <a href="/handbook" class="">About</a>
-            <a href="/blog" class="">Blog</a>
-            <a href="/apply" class="">Jobs</a>
-            <a href="/logos" class="">Logos/artwork</a>
-            <a href="/handbook/company/why-this-way#why-open-source" class="">Why open source?</a>
+            <a href="/handbook">About</a>
+            <a href="/blog">Blog</a>
+            <a href="/apply">Jobs</a>
+            <a href="/logos">Logos/artwork</a>
+            <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
           </div>
         </div>
 
@@ -335,7 +335,7 @@
             <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
               <div purpose="license-information" class="d-flex flex-row align-items-center">
                 <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
-                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="text-sm-nowrap d-block d-sm-inline">
                 © <%= (new Date()).getFullYear() %> <a href="/handbook">Fleet Device Management Inc.</a>
@@ -373,7 +373,7 @@
             <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row align-items-center justify-content-center">
               <div class="d-flex flex-row align-items-center pb-2 pb-sm-0">
                 <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" style="width: 80px; height: 15px; margin-right: 8px;"/>
-                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="d-flex">
                 © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
