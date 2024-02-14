@@ -3926,6 +3926,8 @@ The live query will stop if the targeted host is offline, or hasn't responded af
 }
 ```
 
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
+
 ---
 
 
