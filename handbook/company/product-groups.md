@@ -64,7 +64,7 @@ Fleet's highest product ambition is to create experiences that users want.
 
 To deliver on this mission, we need a clear, repeatable process for turning an idea into a set of cohesively-designed changes in the product. We also need to allow [open source contributions](https://fleetdm.com/handbook/company#open-source) at any point in the process from the wider Fleet community - these won't necessarily follow this process.
 
-> Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way/why-do-we-use-a-wireframe-first-approach).
+> Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 To make a change to Fleet:
 - First, [get it prioritized](https://fleetdm.com/handbook/product).

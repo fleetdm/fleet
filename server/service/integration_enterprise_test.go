@@ -317,8 +317,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	}
 	applyResp = applyTeamSpecsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
-	// dry-run never returns id to name mappings as it may not have them
-	require.Empty(t, applyResp.TeamIDsByName)
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
 
 	// dry-run with macos disk encryption set to true
 	teamSpecs = map[string]any{
@@ -3947,11 +3946,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &modifyQueryResponse{})
 
-	// Attempt to view a query, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), getQueryRequest{}, http.StatusForbidden, &getQueryResponse{})
+	// Attempt to view a query, should work.
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/queries/%d", cqr.Query.ID), getQueryRequest{}, http.StatusOK, &getQueryResponse{})
 
-	// Attempt to list all queries, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/queries", listQueriesRequest{}, http.StatusForbidden, &listQueriesResponse{})
+	// Attempt to list all queries, should work.
+	s.DoJSON("GET", "/api/latest/fleet/queries", listQueriesRequest{}, http.StatusOK, &listQueriesResponse{})
 
 	// Attempt to delete queries, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/queries/id/%d", cqr.Query.ID), deleteQueryByIDRequest{}, http.StatusOK, &deleteQueryByIDResponse{})
@@ -3976,8 +3975,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to remove a query from the global schedule, should allow.
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/packs/schedule/%d", sqr.Scheduled.ID), deleteScheduledQueryRequest{}, http.StatusOK, &scheduleQueryResponse{})
 
-	// Attempt to read the global schedule, should disallow.
-	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
+	// Attempt to read the global schedule, should allow.
+	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusOK, &getGlobalScheduleResponse{})
 
 	// Attempt to create a pack, should allow.
 	cpr := createPackResponse{}
@@ -4016,8 +4015,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &mgplr)
 
-	// Attempt to read a global policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), getPolicyByIDRequest{}, http.StatusForbidden, &getPolicyByIDResponse{})
+	// Attempt to read a global policy, should allow.
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/policies/%d", gplr.Policy.ID), getPolicyByIDRequest{}, http.StatusOK,
+		&getPolicyByIDResponse{},
+	)
 
 	// Attempt to delete a global policy, should allow.
 	s.DoJSON("POST", "/api/latest/fleet/policies/delete", deleteGlobalPoliciesRequest{
@@ -4039,8 +4041,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusOK, &mtplr)
 
-	// Attempt to view a team policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, tplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
+	// Attempt to view a team policy, should allow.
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, tplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusOK,
+		&getTeamPolicyByIDResponse{},
+	)
 
 	// Attempt to delete a team policy, should allow.
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies/delete", t1.ID), deleteTeamPoliciesRequest{
@@ -4214,8 +4219,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to read the global schedule, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/schedule", nil, http.StatusForbidden, &getGlobalScheduleResponse{})
 
-	// Attempt to read the team's schedule, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
+	// Attempt to read the team's schedule, should allow.
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t1.ID), getTeamScheduleRequest{}, http.StatusOK,
+		&getTeamScheduleResponse{},
+	)
 
 	// Attempt to read other team's schedule, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/schedule", t2.ID), getTeamScheduleRequest{}, http.StatusForbidden, &getTeamScheduleResponse{})
@@ -4281,8 +4289,11 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 		},
 	}, http.StatusForbidden, &modifyTeamPolicyResponse{})
 
-	// Attempt to view a team policy, should fail.
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, ttplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
+	// Attempt to view a team policy, should allow.
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t1.ID, ttplr.Policy.ID), getTeamPolicyByIDRequest{}, http.StatusOK,
+		&getTeamPolicyByIDResponse{},
+	)
 
 	// Attempt to view another team's policy, should fail.
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/team/%d/policies/%d", t2.ID, t2p.ID), getTeamPolicyByIDRequest{}, http.StatusForbidden, &getTeamPolicyByIDResponse{})
@@ -6524,6 +6535,64 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			},
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+}
+
+func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
+	ctx := context.Background()
+	t := s.T()
+
+	// create a Windows and a Linux hosts
+	winHost := createOrbitEnrolledHost(t, "windows", "win_lock_unlock", s.ds)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "linux_lock_unlock", s.ds)
+
+	// get the host's information
+	var getHostResp getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", winHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", linuxHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	// try to lock/unlock the Windows host, fails because Windows MDM must be enabled
+	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", winHost.ID), nil, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", winHost.ID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+
+	// try to lock/unlock the Linux host succeeds, no MDM constraints
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
+
+	// simulate a successful script result for the lock command
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	require.NoError(t, err)
+
+	var orbitScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *linuxHost.OrbitNodeKey, status.LockScript.ExecutionID)),
+		http.StatusOK, &orbitScriptResp)
+
+	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", linuxHost.ID), nil, http.StatusNoContent)
+
+	// windows host status is unchanged, linux is locked pending unlock
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", winHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", linuxHost.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with

@@ -12,7 +12,7 @@
           <div purpose="pricing-tier-title">
             <div class="d-flex flex-row justify-content-center">
               <div class="d-flex flex-column justify-content-center">
-                <h2>Community</h2>
+                <h2>Free</h2>
                 <h3>Unlimited hosts</h3>
                 <div class="d-flex flex-row align-items-center">
                   <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
@@ -62,7 +62,7 @@
                   <td><h4><%- category.categoryName %></h4></td>
                   <%if(pricingTable.indexOf(category) === 0) {%>
                   <td class="text-center">
-                    <strong>Community</strong>
+                    <strong>Free</strong>
                   </td>
                   <%}else {%>
                   <td ></td>
@@ -103,7 +103,7 @@
                   <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
-                  Community
+                  Free
                 <%if(feature.tier === 'Free') {%>
                   <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
                 <% } %>
@@ -129,7 +129,7 @@
               <tr>
                 <td><h4>{{category.categoryName}}</h4></td>
                 <td class="text-center" v-if="index === 0">
-                  <strong>Community</strong>
+                  <strong>Free</strong>
                 </td>
                 <td v-else></td>
                 <td class="text-center" v-if="index === 0">
@@ -179,7 +179,7 @@
               <tr>
                 <td><h4>{{category.categoryName}}</h4></td>
                 <td class="text-center" v-if="index === 0">
-                  <strong>Community</strong>
+                  <strong>Free</strong>
                 </td>
                 <td v-else></td>
                 <td class="text-center" v-if="index === 0">
@@ -264,7 +264,7 @@
             <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
           </p>
           <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-            If you opt not to renew Fleet Premium, you can continue using Fleet Community Edition (same code base, just unconfigure the license key.)
+            If you opt not to renew Fleet Premium, you can continue using Fleet Free (same code base, just unconfigure the license key.)
           </p>
         </div>
         <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">

@@ -404,6 +404,13 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -1193,4 +1200,18 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostLite contains a subset of Host fields.
+type HostLite struct {
+	ID                  uint      `db:"id"`
+	TeamID              *uint     `db:"team_id"`
+	Hostname            string    `db:"hostname"`
+	OsqueryHostID       string    `db:"osquery_host_id"`
+	NodeKey             string    `db:"node_key"`
+	UUID                string    `db:"uuid"`
+	HardwareSerial      string    `db:"hardware_serial"`
+	SeenTime            time.Time `db:"seen_time"`
+	DistributedInterval uint      `db:"distributed_interval"`
+	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }

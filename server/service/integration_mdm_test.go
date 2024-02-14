@@ -10647,7 +10647,7 @@ func (s *integrationMDMTestSuite) TestApplyTeamsMDMWindowsProfiles() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", rawTeamSpec(`
 		{ "windows_settings": { "custom_settings": null } }
   `), http.StatusOK, &applyResp, "dry_run", "true")
-	require.Len(t, applyResp.TeamIDsByName, 0)
+	assert.Equal(t, map[string]uint{team.Name: team.ID}, applyResp.TeamIDsByName)
 
 	teamResp = getTeamResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), nil, http.StatusOK, &teamResp)
@@ -10998,6 +10998,95 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	require.NoError(t, err)
 	s.runWorker()
 	checkInstallFleetdCommandSent(mdmDevice, false)
+}
+
+func (s *integrationMDMTestSuite) TestLockUnlockWindowsLinux() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create an MDM-enrolled Windows host
+	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "lock_unlock_linux", s.ds)
+
+	for _, host := range []*fleet.Host{winHost, linuxHost} {
+		t.Run(host.FleetPlatform(), func(t *testing.T) {
+			// get the host's information
+			var getHostResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// try to unlock the host (which is already its status)
+			var unlockResp unlockHostResponse
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
+
+			// lock the host
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+
+			// refresh the host's status, it is now pending lock
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
+
+			// try locking the host while it is pending lock fails
+			res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Host has pending lock request.")
+
+			// simulate a successful script result for the lock command
+			status, err := s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			require.NoError(t, err)
+
+			var orbitScriptResp orbitPostScriptResultResponse
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, status.LockScript.ExecutionID)),
+				http.StatusOK, &orbitScriptResp)
+
+			// refresh the host's status, it is now locked
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// try to lock the host again
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusConflict)
+
+			// unlock the host
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusNoContent)
+
+			// refresh the host's status, it is locked pending unlock
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+			// try unlocking the host while it is pending unlock fails
+			res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Host has pending unlock request.")
+
+			// simulate a failed script result for the unlock command
+			status, err = s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			require.NoError(t, err)
+
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": -1, "output": "fail"}`, *host.OrbitNodeKey, status.UnlockScript.ExecutionID)),
+				http.StatusOK, &orbitScriptResp)
+
+			// refresh the host's status, it is still locked, no pending action
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+		})
+	}
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {

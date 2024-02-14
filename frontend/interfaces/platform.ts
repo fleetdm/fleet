@@ -66,3 +66,12 @@ export const HOST_LINUX_PLATFORMS = [
   "opensuse-leap",
   "opensuse-tumbleweed",
 ] as const;
+
+/**
+ * Checks if the provided platform is a Linux-like OS. We can recieve many
+ * different types of host platforms so we need a check that will cover all
+ * the possible Linux-like platform values.
+ */
+export const isLinuxLike = (platform: string) => {
+  return HOST_LINUX_PLATFORMS.includes(platform as any);
+};
