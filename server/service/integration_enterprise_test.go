@@ -3177,9 +3177,13 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		}
 	}
 
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
 	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: os.ID,
-		CVE:  "CVE-2021-1234",
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: ptr.String("10.0.19043.2013"),
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
 

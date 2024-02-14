@@ -215,9 +215,10 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit, 
 			cm.published, 
 			description, 
-			vhc.host_count
+			vhc.host_count,
+			host_count_updated_at
 	`
-	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count"
+	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
 
 	// Choose the appropriate group by statement based on EE or Free
 	var groupBy string
