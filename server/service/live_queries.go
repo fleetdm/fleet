@@ -128,9 +128,7 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
 	}
 
-	// Look up host by identifier
-	// TODO: HostByIdentifier here is overkill. Create a new DB method to only get the host id and last_seen_time.
-	host, err := svc.HostByIdentifier(ctx, req.Identifier, fleet.HostDetailOptions{})
+	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
 	}
@@ -138,7 +136,12 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 		HostID: host.ID,
 		Query:  req.Query,
 	}
-	status := host.Status(time.Now())
+
+	status := (&fleet.Host{
+		DistributedInterval: host.DistributedInterval,
+		ConfigTLSRefresh:    host.ConfigTLSRefresh,
+		SeenTime:            host.SeenTime,
+	}).Status(time.Now())
 	switch status {
 	case fleet.StatusOnline, fleet.StatusNew:
 		res.Status = fleet.StatusOnline

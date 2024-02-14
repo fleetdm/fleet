@@ -366,6 +366,7 @@ type Service interface {
 	// device-authenticated API), or manually by the user (via the
 	// user-authenticated API).
 	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)

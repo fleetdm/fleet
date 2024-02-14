@@ -182,14 +182,13 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 					q1.ID = campaign.QueryID
 					cidChannel <- fmt.Sprint(campaign.ID)
 					return
-				} else {
-					campaigns, err := s.ds.DistributedQueryCampaignsForQuery(context.Background(), q1.ID)
-					require.NoError(t, err)
+				}
+				campaigns, err := s.ds.DistributedQueryCampaignsForQuery(context.Background(), q1.ID)
+				require.NoError(t, err)
 
-					if len(campaigns) == 1 && campaigns[0].Status == fleet.QueryRunning {
-						cidChannel <- fmt.Sprint(campaigns[0].ID)
-						return
-					}
+				if len(campaigns) == 1 && campaigns[0].Status == fleet.QueryRunning {
+					cidChannel <- fmt.Sprint(campaigns[0].ID)
+					return
 				}
 			}
 		}()
