@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -10,16 +11,27 @@ import (
 )
 
 func (ds *Datastore) NewDistributedQueryCampaign(ctx context.Context, camp *fleet.DistributedQueryCampaign) (*fleet.DistributedQueryCampaign, error) {
+	args := []any{camp.QueryID, camp.Status, camp.UserID}
 
-	sqlStatement := `
+	// for tests, we sometimes provide specific timestamps for CreatedAt, honor
+	// those if provided.
+	var createdAtField, createdAtPlaceholder string
+	if !camp.CreatedAt.IsZero() {
+		createdAtField = ", created_at"
+		createdAtPlaceholder = ", ?"
+		args = append(args, camp.CreatedAt)
+	}
+
+	sqlStatement := fmt.Sprintf(`
 		INSERT INTO distributed_query_campaigns (
 			query_id,
 			status,
 			user_id
+			%s
 		)
-		VALUES(?,?,?)
-	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, camp.QueryID, camp.Status, camp.UserID)
+		VALUES(?,?,?%s)
+	`, createdAtField, createdAtPlaceholder)
+	result, err := ds.writer(ctx).ExecContext(ctx, sqlStatement, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "inserting distributed query campaign")
 	}
@@ -123,7 +135,7 @@ func (ds *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targ
 
 func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error) {
 	// Expire old waiting/running campaigns
-	sqlStatement := `
+	const sqlStatement = `
 		UPDATE distributed_query_campaigns
 		SET status = ?
 		WHERE (status = ? AND created_at < ?)
@@ -141,5 +153,19 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 		return 0, nil, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
 
-	return uint(exp), nil, nil
+	const getInactiveStmt = `
+		SELECT
+			id
+		FROM
+			distributed_query_campaigns
+		WHERE
+			status = ? AND
+			created_at > ?
+`
+	// using the writer so we catch the ones we just marked as completed
+	err = sqlx.SelectContext(ctx, ds.writer(ctx), &recentInactive, getInactiveStmt, fleet.QueryComplete, now.AddDate(0, 0, -7))
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "selecting recent inactive campaigns")
+	}
+	return uint(exp), recentInactive, nil
 }

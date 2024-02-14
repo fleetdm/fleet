@@ -80,10 +80,9 @@ func testCampaignsDistributedQuery(t *testing.T, ds *Datastore) {
 }
 
 func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
 	user := test.NewUser(t, ds, "Zach", "zwass@fleet.co", true)
-
 	mockClock := clock.NewMockClock()
-
 	query := test.NewQuery(t, ds, nil, "test", "select * from time", user.ID, false)
 
 	c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
@@ -91,18 +90,19 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
-	expired, _, err := ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, recentInactive, err := ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), expired)
+	assert.Empty(t, recentInactive)
 
 	{
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, c1.Status, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -114,18 +114,19 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, _, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, recentInactive, err = ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
+	assert.Equal(t, []uint{c1.ID}, recentInactive)
 	{
 		// c1 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, c2.Status, retrieved.Status)
@@ -135,22 +136,55 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, _, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, recentInactive, err = ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
+	assert.ElementsMatch(t, []uint{c1.ID, c2.ID}, recentInactive)
 	{
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c1.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c1.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
 	{
 		// c2 should now be complete
-		retrieved, err := ds.DistributedQueryCampaign(context.Background(), c2.ID)
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c2.ID)
 		require.Nil(t, err)
 		assert.Equal(t, c2.QueryID, retrieved.QueryID)
 		assert.Equal(t, fleet.QueryComplete, retrieved.Status)
 	}
+
+	// simulate another old campaign created > 7 days ago
+	c3 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now().AddDate(0, 0, -8))
+	{
+		retrieved, err := ds.DistributedQueryCampaign(ctx, c3.ID)
+		require.Nil(t, err)
+		assert.Equal(t, c3.QueryID, retrieved.QueryID)
+		assert.Equal(t, fleet.QueryWaiting, retrieved.Status)
+	}
+
+	// cleanup will mark c3 as completed because it was waiting for > 1 minute,
+	// but it won't return it as recently inactive because it's too old a query.
+	expired, recentInactive, err = ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(1), expired)
+	assert.ElementsMatch(t, []uint{c1.ID, c2.ID}, recentInactive)
+
+	// cleanup again does not expire any new campaign and still returns the same
+	// recently inactive campaigns
+	expired, recentInactive, err = ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), expired)
+	assert.ElementsMatch(t, []uint{c1.ID, c2.ID}, recentInactive)
+
+	// move time forward 7 days and cleanup again, this time it returns no recent
+	// inactive campaigns
+	mockClock.AddTime(7*24*time.Hour + 1*time.Second)
+
+	expired, recentInactive, err = ds.CleanupDistributedQueryCampaigns(ctx, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(0), expired)
+	assert.Empty(t, recentInactive)
 }
 
 func testCampaignsSaveDistributedQuery(t *testing.T, ds *Datastore) {
