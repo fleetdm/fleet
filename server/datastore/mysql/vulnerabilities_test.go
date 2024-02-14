@@ -175,9 +175,12 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	// Insert Host Count
 	insertStmt := `
 		INSERT INTO vulnerability_host_counts (cve, team_id, host_count)
-		VALUES (?, ?, ?)
+		VALUES (?, ?, ?), (?, ?, ?)
 	`
-	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1234", 0, 10)
+	_, err = ds.writer(context.Background()).Exec(insertStmt,
+		"CVE-2020-1234", 0, 10,
+		"CVE-2020-1234", 1, 4,
+	)
 	require.NoError(t, err)
 
 	// // insert OS Vuln
@@ -218,6 +221,14 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.HostCount, v.HostCount)
 	require.Equal(t, expected.Source, v.Source)
 
+	// Team 1
+	expected.HostCount = 4
+	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(1), false)
+	require.NoError(t, err)
+	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.HostCount, v.HostCount)
+	require.Equal(t, expected.Source, v.Source)
+
 	expected = fleet.VulnerabilityWithMetadata{
 		CVEMeta: fleet.CVEMeta{
 			CVE:              "CVE-2020-1234",
@@ -237,6 +248,8 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.Equal(t, expected.CVEMeta, v.CVEMeta)
 	require.Equal(t, expected.HostCount, v.HostCount)
 	require.Equal(t, expected.Source, v.Source)
+
+	
 }
 
 func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
@@ -833,12 +846,12 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected := &fleet.VulnerableSoftware{
-		ID:          1,
-		Name:        "Chrome",
-		Version:     "1.0.0",
-		Source:      "programs",
-		HostsCount:  5,
-		GenerateCPE: "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		ID:                1,
+		Name:              "Chrome",
+		Version:           "1.0.0",
+		Source:            "programs",
+		HostsCount:        5,
+		GenerateCPE:       "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
 		ResolvedInVersion: ptr.String("1.0.0"),
 	}
 

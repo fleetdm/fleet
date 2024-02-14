@@ -14,6 +14,7 @@ import (
 
 func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint, includeCVEScores bool) (*fleet.VulnerabilityWithMetadata, error) {
 	var vuln fleet.VulnerabilityWithMetadata
+	
 
 	eeSelectStmt := `
 		SELECT
@@ -53,9 +54,14 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 
 	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
 
+
+	var args []interface{}
+	args = append(args, cve)
+
 	if teamID != nil {
 		eeSelectStmt += " AND vhc.team_id = ?"
 		freeSelectStmt += " AND vhc.team_id = ?"
+		args = append(args, *teamID)
 	} else {
 		eeSelectStmt += " AND vhc.team_id = 0"
 		freeSelectStmt += " AND vhc.team_id = 0"
@@ -71,7 +77,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		selectStmt = freeSelectStmt
 	}
 
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &vuln, selectStmt, cve)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &vuln, selectStmt, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
