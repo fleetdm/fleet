@@ -240,7 +240,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			require.Len(t, liveQueryResp.Results[0].Results, 1)
 			result = liveQueryResp.Results[0].Results[0]
 		} else { // customQueryOneHostEndpoint
-			assert.Nil(t, liveQueryOnHostResp.Err)
+			assert.Empty(t, liveQueryOnHostResp.Error)
 			assert.Equal(t, host.ID, liveQueryOnHostResp.HostID)
 			assert.Equal(t, fleet.StatusOnline, liveQueryOnHostResp.Status)
 			assert.Equal(t, query, liveQueryOnHostResp.Query)

@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
-	"github.com/hashicorp/go-multierror"
 )
 
 type runLiveQueryRequest struct {
@@ -63,10 +62,10 @@ type runLiveQueryOnHostResponse struct {
 	Rows   []map[string]string `json:"rows"`
 	Query  string              `json:"query"`
 	Status fleet.HostStatus    `json:"status"`
-	Err    error               `json:"error,omitempty"`
+	Error  string              `json:"error,omitempty"`
 }
 
-func (r runLiveQueryOnHostResponse) error() error { return r.Err }
+func (r runLiveQueryOnHostResponse) error() error { return nil }
 
 func runOneLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runOneLiveQueryRequest)
@@ -158,18 +157,19 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 	}
 
 	if len(queryResults) > 0 {
-		err = nil
+		var err error
 		if queryResults[0].Err != nil {
 			err = queryResults[0].Err
-		}
-		if len(queryResults[0].Results) > 0 {
+		} else if len(queryResults[0].Results) > 0 {
 			queryResult := queryResults[0].Results[0]
 			if queryResult.Error != nil {
-				err = multierror.Append(err, errors.New(*queryResult.Error))
+				err = errors.New(*queryResult.Error)
 			}
 			res.Rows = queryResult.Rows
 			res.HostID = queryResult.HostID
-			res.Err = err
+		}
+		if err != nil {
+			res.Error = err.Error()
 		}
 	}
 	return res, nil
