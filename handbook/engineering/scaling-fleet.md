@@ -1,25 +1,10 @@
 # Scaling Fleet
 
-Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
-
-In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
-
-In many, caching helps, but given that we are not doing load balancing based on host id (i.e., make sure that the same host ends up in the same Fleet server). This goes only so far. Caching host-specific data is not done because round-robin LB means all Fleet instances end up circling the total list of hosts.
-
-### How to prevent most of this
-
-The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
-
-Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
-
-**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
-
-## What have we learned so far?
-
 This is a document that evolves and will likely always be incomplete. If you feel like something is missing, either add it or bring it up in any way you consider.
 
-### In this section
-- [Connecting to Dogfood MySQL & Redis](#connecting-to-dogfood-mysql--redis)
+### What have we learned so far?
+- [How Fleet scales](#how-fleet-scales)
+- [How to prevent most of this](#how-to-prevent-most-of-this)
 - [Foreign keys and locking](#foreign-keys-and-locking)
 - [Insert on duplicate update](#insert-on-duplicate-update)
 - [Host extra data and JOINs](#host-extra-data-and-joins)
@@ -30,51 +15,23 @@ This is a document that evolves and will likely always be incomplete. If you fee
 - [Counts and aggregated data](#counts-and-aggregated-data)
 - [Caching data such as app config](#caching-data-such-as-app-config)
 - [Redis SCAN](#redis-scan)
+- [Connecting to Dogfood MySQL & Redis](#connecting-to-dogfood-mysql--redis)
 
-### Connecting to Dogfood MySQL & Redis
+### How Fleet scales
 
-When investigating performance issues, it can be helpful to connect directly to the MySQL and Redis
-instances to run queries and inspect data. Below are instructions for connecting to the Dogfood
-MySQL and Redis instances.
+Nowadays, Fleet, as a Go server, scales horizontally very well. It’s not very CPU or memory intensive. In terms of load in infrastructure, from highest to lowest are: MySQL, Redis, and Fleet.
 
-#### Prerequisites
+In general, we should burn a bit of CPU or memory on the Fleet side if it allows us to reduce the load on MySQL or Redis.
 
-1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
-2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
+In many cases, caching helps, but given that we are not doing load balancing based on host id (i.e., make sure that the same host ends up in the same Fleet server). This goes only so far. Caching host-specific data is not done because round-robin LB means all Fleet instances end up circling the total list of hosts.
 
-#### MySQL
+### How to prevent most of this
 
-Get the database host:
-```shell
-DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].Endpoint" --output=text)
-```
+The best way we’ve got so far to prevent any scaling issues is to load test things. **Every new feature must have its corresponding osquery-perf implementation as part of the PR, and it should be tested at a reasonable scale for the feature**.
 
-Get the database user:
-```shell
-DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].MasterUsername" --output=text)
-```
+Besides that, you should consider the answer(s) to the following question: how can I know that the feature I’m working on is working and performing well enough? Add any logs, metrics, or anything that will help us debug and understand what’s happening when things unavoidably go wrong or take longer than anticipated.
 
-Get the database password:
-```shell
-DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id fleet-dogfood-database-password --query "SecretString" --output=text)
-```
-
-Connect:
-```shell
-mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
-```
-
-#### Redis
-
-Get the Redis Host:
-```shell
-REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
-```
-
-Connect:
-```shell
-redis-cli -h "${REDIS_HOST}"
-```
+**HOWEVER** (and forgive this Captain Obvious comment): do NOT optimize before you KNOW you have to. Don’t hesitate to take an extra day on your feature/bug work to load test things properly.
 
 ### Foreign keys and locking
 
@@ -174,7 +131,55 @@ Another place to cache things would be Redis. The improvement here is that all i
 
 ### Redis SCAN
 
-Redis has solved many scaling problems in general, but it’s not devoid of scaling problems of its own. In particular, we learned that the SCAN command scans the whole key space before it does the filtering. This can be very slow, depending on the state of the system. If Redis is slow, a lot suffers from it.
+Redis has solved many scaling problems in general, but it’s not devoid of scaling problems of its
+own. In particular, we learned that the SCAN command scans the whole key space before it does the
+filtering. This can be very slow, depending on the state of the system. If Redis is slow, a lot
+suffers from it.
+
+### Connecting to Dogfood MySQL & Redis
+
+When investigating performance issues, it can be helpful to connect directly to the MySQL and Redis
+instances to run queries and inspect data. Below are instructions for connecting to the Dogfood
+MySQL and Redis instances.
+
+#### Prerequisites
+
+1. Setup [VPN](https://github.com/fleetdm/confidential/blob/main/vpn/README.md)
+2. Configure [SSO](https://github.com/fleetdm/confidential/tree/main/infrastructure/sso#how-to-use-sso)
+
+#### MySQL
+
+Get the database host:
+```shell
+DB_HOST=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].Endpoint" --output=text)
+```
+
+Get the database user:
+```shell
+DB_USER=$(aws rds describe-db-clusters --filter Name=db-cluster-id,Values=fleet-dogfood --query "DBClusters[0].MasterUsername" --output=text)
+```
+
+Get the database password:
+```shell
+DB_PASSWORD=$(aws secretsmanager get-secret-value --secret-id fleet-dogfood-database-password --query "SecretString" --output=text)
+```
+
+Connect:
+```shell
+mysql -h"${DB_HOST}" -u"${DB_USER}" -p"${DB_PASSWORD}"
+```
+
+#### Redis
+
+Get the Redis Host:
+```shell
+REDIS_HOST=$(aws elasticache describe-replication-groups --replication-group-id fleetdm-redis --query "ReplicationGroups[0].NodeGroups[0].PrimaryEndpoint.Address" --output=text)
+```
+
+Connect:
+```shell
+redis-cli -h "${REDIS_HOST}"
+```
 
 <meta name="maintainedBy" value="lukeheath">
 <meta name="title" value="Scaling Fleet">
