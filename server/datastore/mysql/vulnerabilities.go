@@ -137,9 +137,9 @@ func (ds *Datastore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint
 			s.version,
 			s.source,
 			s.browser,
-			scpe.cpe as 'generated_cpe',
-			shc.hosts_count,
-			sc.resolved_in_version
+			COALESCE(scpe.cpe, '') as generated_cpe,
+			COALESCE(shc.hosts_count, 0) as hosts_count,
+			COALESCE(sc.resolved_in_version, '') as resolved_in_version
 		FROM software s
 		JOIN software_cve sc ON sc.software_id = s.id
 		LEFT JOIN software_cpe scpe ON scpe.software_id = s.id
