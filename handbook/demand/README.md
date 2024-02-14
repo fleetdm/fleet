@@ -114,7 +114,19 @@ Any changes to the current running ads visible to a user, including designs, key
 
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
 
+### Posting on social media
+Social media posts should represent the Fleet brand in an appropriate tone, be on message, and encourage engagement from the community.
 
+- Each platform serves the community in a different way and our posts should fit that platform's tone
+- Social media posts should highlight:
+    - Fleet the product, the company, and the people who keep it running
+    - Blog posts that have been approved for the website
+    - News about our industry in general
+    - Thought leadership on our product categories, open-source in general, or IT/security pain points
+- Fleet integrates with many other platforms. We should share their wins and share their content.
+- Fleet should post at least three per week to keep a consistent presence within our community.
+
+  
 ### Engage with the community
 Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
 
