@@ -2124,7 +2124,7 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 
 	host, err := svc.ds.HostLiteByID(ctx, id)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
 	}
 
 	if err := svc.authz.Authorize(ctx, fleet.Host{

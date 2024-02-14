@@ -4919,7 +4919,7 @@ func (ds *Datastore) loadHostLite(ctx context.Context, id *uint, identifier *str
 		return nil, errors.New("must set one of id or identifier")
 	}
 	if id != nil && identifier != nil {
-		return nil, errors.New("cannot set both id or identifier")
+		return nil, errors.New("cannot set both id and identifier")
 	}
 	stmt := `
     SELECT

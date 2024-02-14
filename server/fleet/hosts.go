@@ -1202,6 +1202,7 @@ type HostMacOSProfile struct {
 	InstallDate time.Time `json:"install_date" db:"install_date"`
 }
 
+// HostLite contains a subset of Host fields.
 type HostLite struct {
 	ID                  uint      `db:"id"`
 	TeamID              *uint     `db:"team_id"`
