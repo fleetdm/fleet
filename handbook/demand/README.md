@@ -51,12 +51,19 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
   - who from Fleet will attend
   - the training plan for Fleet attendees
   - which talk proposal Fleet will submit
-  - all event materials, including printouts, banners, swag given out, and even the clothing worn by fleeties
-  - estimated budget, including sponsorship or airfare, and lodging for attendees
+  - all event materials, including printouts, banners, swag given out, and even the clothing worn by Fleeties
+  - estimated budget, including sponsorship or airfare and lodging for attendees
 2. Set up and attend a 30m meeting with the Head of Business Operations and CEO:
-  - First during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
+  - First, during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
-  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
+  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation or removing the event idea from the spreadsheet.
+
+### Event lead follow up
+Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. 
+
+1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
+2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
+3. Demand will determine appropriate follow-up to each potential lead, and sales will be notified of actions needed immediately following.
 
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
