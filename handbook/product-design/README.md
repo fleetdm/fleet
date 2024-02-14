@@ -81,12 +81,13 @@ changing specifications while ensuring that Fleet meets our brand and quality gu
 You'll know it's time for expedited drafting when:
 - The team discovers that a drafted user story is missing crucial information that prevents contributors from continuing the development task.
 - A user story is taking more effort than was originally estimated, and Product Manager wants to find ways to cut aspects of planned functionality in order to still ship the improvement in the currently scheduled release.
-- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. 
+- A user story on the drafting board won't reach "Settled" by the last estimation session in the current sprint and cannot wait until the next sprint. This can also happen when we decide to bring a user story in mid-sprint.
 
 What happens during expedited drafting?
-1. Everyone in the product group knows that a user story is going through expedited drafting.
-2. Drafts are updated or finished.
-3. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the engineering sprint or are estimated.
+1. If the user story wasn't "Settled" by the last estimation session, the product group's engineering manager (EM), [release DRI](https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris), and Head of Product Design are notified in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5). Decision to allow the user story to make it into the sprint is up to the release DRI.
+2. If the user story is already in the sprint, the EM, release DRI, and Head of Product Design are notified in #help-product-design. If there are significant changes to the requirements, then the user story might be pushed to the next sprint. Decision is up to the release DRI.
+3. If the release DRI decides the user story will be worked on this sprint, drafts are updated or finished.
+4. UI changes [are approved](https://fleetdm.com/handbook/company/development-groups#drafting-process), and the UI changes are brought back into the sprint or are estimated.
 
 ### Correctly prioritize a bug
 Bugs are always prioritized. (Fleet takes quality and stability [very seriously](https://fleetdm.com/handbook/company/why-this-way#why-spend-so-much-energy-responding-to-every-potential-production-incident).) Bugs should be prioritized in the following order:
@@ -189,7 +190,7 @@ No further action is needed if the crawler successfully reindexes the Fleet webs
 
 
 ## Rituals
-<rituals :rituals="rituals['handbook/product/product.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
 
 <!-- TODO: Transfer to yaml 
 Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.

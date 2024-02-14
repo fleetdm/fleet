@@ -101,7 +101,7 @@ All infrastructure alarms (fleetdm.com and Managed Cloud) will go to #help-p1. W
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/customers/customer-success.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/customer-success/customer-success.rituals.yml']"></rituals>
 
 #### Stubs
 The following stubs are included only to make links backward compatible.

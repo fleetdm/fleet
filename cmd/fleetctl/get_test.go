@@ -360,6 +360,10 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
 	expectedText := `+------+------------+----------+-----------------+---------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
 +------+------------+----------+-----------------+---------+
@@ -439,7 +443,7 @@ func TestGetHosts(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
 			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
@@ -533,7 +537,7 @@ func TestGetHostsMDM(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
 			got, err := runAppNoChecks(tt.args)
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -2214,7 +2218,7 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {

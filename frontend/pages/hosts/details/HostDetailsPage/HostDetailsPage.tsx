@@ -79,6 +79,12 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
+import LockModal from "./modals/LockModal";
+import UnlockModal from "./modals/UnlockModal";
+import {
+  HostMdmDeviceStatusUIState,
+  getHostDeviceStatusUIState,
+} from "../helpers";
 
 const baseClass = "host-details";
 
@@ -151,6 +157,8 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showLockHostModal, setShowLockHostModal] = useState(false);
+  const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -164,6 +172,10 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+  const [
+    hostMdmDeviceStatus,
+    setHostMdmDeviceState,
+  ] = useState<HostMdmDeviceStatusUIState>("unlocked");
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -262,6 +274,12 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -652,9 +670,20 @@ const HostDetailsPage = ({
       case "runScript":
         setShowRunScriptModal(true);
         break;
+      case "lock":
+        setShowLockHostModal(true);
+        break;
+      case "unlock":
+        setShowUnlockHostModal(true);
+        break;
       default: // do nothing
     }
   };
+
+  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
+  //   host.mdm.device_status,
+  //   host.mdm.pending_action
+  // );
 
   const renderActionButtons = () => {
     if (!host) {
@@ -667,7 +696,8 @@ const HostDetailsPage = ({
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
         hostStatus={host.status}
-        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        hostMdmDeviceStatus={hostMdmDeviceStatus}
+        hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
       />
@@ -778,6 +808,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
@@ -956,6 +987,26 @@ const HostDetailsPage = ({
           <ScriptDetailsModal
             scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
+          />
+        )}
+        {showLockHostModal && (
+          <LockModal
+            id={host.id}
+            platform={host.platform}
+            hostName={host.display_name}
+            onSuccess={() => setHostMdmDeviceState("locking")}
+            onClose={() => setShowLockHostModal(false)}
+          />
+        )}
+        {showUnlockHostModal && (
+          <UnlockModal
+            id={host.id}
+            platform={host.platform}
+            hostName={host.display_name}
+            onSuccess={() => {
+              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
+            }}
+            onClose={() => setShowUnlockHostModal(false)}
           />
         )}
       </>

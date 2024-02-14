@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	_ "embed"
 	"fmt"
 	"strings"
 	"testing"
@@ -26,6 +27,10 @@ func TestScripts(t *testing.T) {
 		{"ListScripts", testListScripts},
 		{"GetHostScriptDetails", testGetHostScriptDetails},
 		{"BatchSetScripts", testBatchSetScripts},
+		{"TestLockHostViaScript", testLockHostViaScript},
+		{"TestUnlockHostViaScript", testUnlockHostViaScript},
+		{"TestLockUnlockViaScripts", testLockUnlockViaScripts},
+		{"TestLockUnlockManually", testLockUnlockManually},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -694,4 +699,270 @@ func testBatchSetScripts(t *testing.T, ds *Datastore) {
 
 	// clear scripts for tm1
 	applyAndExpect(nil, ptr.Uint(1), nil)
+}
+
+func testLockHostViaScript(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// no script saved yet
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	windowsHostID := uint(1)
+
+	script := "lock"
+
+	err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         windowsHostID,
+		ScriptContents: script,
+		UserID:         &user.ID,
+		SyncRequest:    false,
+	})
+
+	require.NoError(t, err)
+
+	// verify that we have created entries in host_mdm_actions and host_script_results
+	status, err := ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
+	require.NoError(t, err)
+	require.Equal(t, "windows", status.HostFleetPlatform)
+	require.NotNil(t, status.LockScript)
+
+	s := status.LockScript
+	require.Equal(t, script, s.ScriptContents)
+	require.Equal(t, windowsHostID, s.HostID)
+	require.False(t, s.SyncRequest)
+	require.Equal(t, &user.ID, s.UserID)
+
+	require.True(t, status.IsPendingLock())
+
+	// simulate a successful result for the lock script execution
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      s.HostID,
+		ExecutionID: s.ExecutionID,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
+	require.NoError(t, err)
+	require.True(t, status.IsLocked())
+	require.False(t, status.IsPendingLock())
+	require.False(t, status.IsUnlocked())
+}
+
+func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	// no script saved yet
+	pending, err := ds.ListPendingHostScriptExecutions(ctx, 1)
+	require.NoError(t, err)
+	require.Empty(t, pending)
+
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	hostID := uint(1)
+
+	script := "unlock"
+
+	err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+		HostID:         hostID,
+		ScriptContents: script,
+		UserID:         &user.ID,
+		SyncRequest:    false,
+	})
+
+	require.NoError(t, err)
+
+	// verify that we have created entries in host_mdm_actions and host_script_results
+	status, err := ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+	require.NoError(t, err)
+	require.Equal(t, "windows", status.HostFleetPlatform)
+	require.NotNil(t, status.UnlockScript)
+
+	s := status.UnlockScript
+	require.Equal(t, script, s.ScriptContents)
+	require.Equal(t, hostID, s.HostID)
+	require.False(t, s.SyncRequest)
+	require.Equal(t, &user.ID, s.UserID)
+
+	require.True(t, status.IsPendingUnlock())
+
+	// simulate a successful result for the unlock script execution
+	_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      s.HostID,
+		ExecutionID: s.ExecutionID,
+		ExitCode:    0,
+	})
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+	require.NoError(t, err)
+	require.True(t, status.IsUnlocked())
+	require.False(t, status.IsPendingUnlock())
+	require.False(t, status.IsLocked())
+}
+
+func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
+
+	for i, platform := range []string{"windows", "linux"} {
+		hostID := uint(i + 1)
+
+		t.Run(platform, func(t *testing.T) {
+			status, err := ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+
+			// default state
+			checkLockWipeState(t, status, true, false, false, false, false, false)
+
+			// record a request to lock the host
+			err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "lock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, true, false, false, false, true, false)
+
+			// simulate a successful result for the lock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.LockScript.ExecutionID,
+				ExitCode:    0,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, false, true, false, false, false, false)
+
+			// record a request to unlock the host
+			err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "unlock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, false, true, false, true, false, false)
+
+			// simulate a failed result for the unlock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.UnlockScript.ExecutionID,
+				ExitCode:    -1,
+			})
+			require.NoError(t, err)
+
+			// still locked
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, false, true, false, false, false, false)
+
+			// record another request to unlock the host
+			err = ds.UnlockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "unlock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, false, true, false, true, false, false)
+
+			// this time simulate a successful result for the unlock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.UnlockScript.ExecutionID,
+				ExitCode:    0,
+			})
+			require.NoError(t, err)
+
+			// host is now unlocked
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, true, false, false, false, false, false)
+
+			// record another request to lock the host
+			err = ds.LockHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+				HostID:         hostID,
+				ScriptContents: "lock",
+				UserID:         &user.ID,
+				SyncRequest:    false,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, true, false, false, false, true, false)
+
+			// simulate a failed result for the lock script execution
+			_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+				HostID:      hostID,
+				ExecutionID: status.LockScript.ExecutionID,
+				ExitCode:    2,
+			})
+			require.NoError(t, err)
+
+			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			require.NoError(t, err)
+			checkLockWipeState(t, status, true, false, false, false, false, false)
+		})
+	}
+}
+
+func testLockUnlockManually(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	twoDaysAgo := time.Now().AddDate(0, 0, -2).UTC()
+	today := time.Now().UTC()
+	err := ds.UnlockHostManually(ctx, 1, twoDaysAgo)
+	require.NoError(t, err)
+
+	status, err := ds.GetHostLockWipeStatus(ctx, 1, "darwin")
+	require.NoError(t, err)
+	require.False(t, status.UnlockRequestedAt.IsZero())
+	require.WithinDuration(t, twoDaysAgo, status.UnlockRequestedAt, 1*time.Second)
+
+	// if the unlock request already exists, it is not overwritten by subsequent
+	// requests
+	err = ds.UnlockHostManually(ctx, 1, today)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, 1, "darwin")
+	require.NoError(t, err)
+	require.False(t, status.UnlockRequestedAt.IsZero())
+	require.WithinDuration(t, twoDaysAgo, status.UnlockRequestedAt, 1*time.Second)
+
+	// but for a new host, it will set it properly, even if that host already has a
+	// host_mdm_actions entry
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "INSERT INTO host_mdm_actions (host_id) VALUES (2)")
+		return err
+	})
+	err = ds.UnlockHostManually(ctx, 2, today)
+	require.NoError(t, err)
+	status, err = ds.GetHostLockWipeStatus(ctx, 2, "darwin")
+	require.NoError(t, err)
+	require.False(t, status.UnlockRequestedAt.IsZero())
+	require.WithinDuration(t, today, status.UnlockRequestedAt, 1*time.Second)
+}
+
+func checkLockWipeState(t *testing.T, status *fleet.HostLockWipeStatus, unlocked, locked, wiped, pendingUnlock, pendingLock, pendingWipe bool) {
+	require.Equal(t, unlocked, status.IsUnlocked(), "unlocked")
+	require.Equal(t, locked, status.IsLocked(), "locked")
+	require.Equal(t, wiped, status.IsWiped(), "wiped")
+	require.Equal(t, pendingLock, status.IsPendingLock(), "pending lock")
+	require.Equal(t, pendingUnlock, status.IsPendingUnlock(), "pending unlock")
+	require.Equal(t, pendingWipe, status.IsPendingWipe(), "pending wipe")
 }

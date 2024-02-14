@@ -240,6 +240,9 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &fleet.HostScriptResult{}, nil
 		}
+		ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
+		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), req.HostID)
 			return &fleet.HostScriptResult{
