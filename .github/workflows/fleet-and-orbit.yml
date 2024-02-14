@@ -31,7 +31,6 @@ defaults:
 
 env:
   OSQUERY_VERSION: 5.9.1
-  CGO_ENABLED: 1
 
 permissions:
   contents: read

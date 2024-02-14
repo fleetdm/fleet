@@ -65,12 +65,21 @@ for system in $SYSTEMS; do
         orbit_target="${orbit_target}.exe"
     fi
 
-    # for macOS, build a universal binary
-    if [[ $system == "macos" ]]; then
-        CODESIGN_IDENTITY=$CODESIGN_IDENTITY ORBIT_VERSION=42 ORBIT_BINARY_PATH=$orbit_target go run ./orbit/tools/build/build.go
+    # compiling a macOS-arm64 binary requires CGO and a macOS computer (due to
+    # the 'appicons' table we build), if this is the case, compile an universal
+    # binary.
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ]; then
+       CGO_ENABLED=1 \
+       CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
+       ORBIT_VERSION=42 \
+       ORBIT_BINARY_PATH=$orbit_target \
+       go run ./orbit/tools/build/build.go
     else
-      # for other systems, simply compile the latest version of orbit from source using go build
-      GOOS=$system go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      # otherwise, simply compile the latest version of orbit from source using
+      # go build, note that GOARCH is hardcoded here to prevent cross
+      # compilation issues when building macOS arm64 binaries from Linux (CGO +
+      # libraries are required)
+      GOOS=$system GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
