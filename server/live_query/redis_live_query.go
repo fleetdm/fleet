@@ -48,6 +48,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -62,10 +63,7 @@ const (
 	queryKeyPrefix   = "livequery:"
 	sqlKeyPrefix     = "sql:"
 	activeQueriesKey = "livequery:active"
-	// this MUST be called this way, so that in cluster mode it hashes to the
-	// same slot as activeQueriesKey (due to the braces).
-	inactiveQueriesKey = "{livequery:active}:inactive"
-	queryExpiration    = 7 * 24 * time.Hour
+	queryExpiration  = 7 * 24 * time.Hour
 )
 
 type redisLiveQuery struct {
@@ -328,46 +326,35 @@ func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
 	return names, nil
 }
 
-func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, activeCampaignIDs []uint) error {
+func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
 	// the following logic is used to cleanup inactive queries:
-	// 	* the current livequery:active set is renamed to
-	// 		{livequery:active}:inactive (the braces are used so that in cluster mode
-	// 		both keys hash to the same slot so they live on the same node)
-	// 	* the updated livequery:active set is created with the provided active
-	// 		campaign IDs, which are known to be valid as they come from the mysql
-	// 		source of truth.
-	// 	* the {livequery:active}:inactive set is updated using SDIFFSTORE with
-	// 		the real active set, so it now contains only inactive campaign IDs.
-	// 	* a short TTL is set to the inactive set so it gets deleted shortly
-	// 		after.
-	// 	* the members of the inactive set are retrieved so we can delete the
-	// 		associated keys (bitfield and query sql).
+	// 	* the inactive campaign IDs are removed from the livequery:active set
 	//
-	// All those steps above are done atomically via a Lua script, and from the
-	// time this is completed, all inactive queries are already effectively
-	// deleted - the rest is just best effort cleanup to save Redis memory space,
-	// but those keys would otherwise be ignored and without effect.
+	// At this point, all inactive queries are already effectively deleted - the
+	// rest is just best effort cleanup to save Redis memory space, but those
+	// keys would otherwise be ignored and without effect.
 	//
-	// The remaining steps are to remove the livequery:<ID> and
-	// sql:livequery:<ID> for every inactive campaign ID.
+	// * remove the livequery:<ID> and sql:livequery:<ID> for every inactive
+	// 	campaign ID.
 
-	inactiveCampaigns, err := r.swapActiveQueriesReturnInactive(ctx, activeCampaignIDs)
-	if err != nil {
+	if len(inactiveCampaignIDs) == 0 {
+		return nil
+	}
+
+	if err := r.removeInactiveQueries(ctx, inactiveCampaignIDs); err != nil {
 		return err
 	}
 
-	if len(inactiveCampaigns) > 0 {
-		keysToDel := make([]string, 0, len(inactiveCampaigns)*2)
-		for _, name := range inactiveCampaigns {
-			targetKey, sqlKey := generateKeys(name)
-			keysToDel = append(keysToDel, targetKey, sqlKey)
-		}
+	keysToDel := make([]string, 0, len(inactiveCampaignIDs)*2)
+	for _, id := range inactiveCampaignIDs {
+		targetKey, sqlKey := generateKeys(strconv.Itoa(int(id)))
+		keysToDel = append(keysToDel, targetKey, sqlKey)
+	}
 
-		keysBySlot := redis.SplitKeysBySlot(r.pool, keysToDel...)
-		for _, qkeys := range keysBySlot {
-			if err := r.removeBatchInactiveKeys(ctx, qkeys); err != nil {
-				return err
-			}
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keysToDel...)
+	for _, keys := range keysBySlot {
+		if err := r.removeBatchInactiveKeys(ctx, keys); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -384,39 +371,15 @@ func (r *redisLiveQuery) removeBatchInactiveKeys(ctx context.Context, keys []str
 	return nil
 }
 
-func (r *redisLiveQuery) swapActiveQueriesReturnInactive(ctx context.Context, activeCampaignIDs []uint) ([]string, error) {
-	// keys and arguments passed to the script are:
-	// KEYS[1]: livequery:active
-	// KEYS[2]: {livequery:active}:inactive
-	// ARGV[1]: short ttl for the inactive set (just needs to outlive the lua script, really)
-	// ARGV[2..]: the active campaign ids
-	script := redigo.NewScript(2, `
-    redis.call('RENAME', KEYS[1], KEYS[2])
-		if #ARGV > 1 then
-			redis.call('SADD', KEYS[1], unpack(ARGV, 2))
-		end
-    redis.call('SDIFFSTORE', KEYS[2], KEYS[2], KEYS[1])
-    redis.call('EXPIRE', KEYS[2], ARGV[1])
-    return redis.call('SMEMBERS', KEYS[2])
-  `)
-
-	// allocate sufficient space to store all args (2 keys, 1 TTL + the active
-	// campaign IDs)
-	args := make(redigo.Args, 0, 3+len(activeCampaignIDs))
-	args = args.Add(activeQueriesKey, inactiveQueriesKey, 5 /* seconds */)
-	args = args.AddFlat(activeCampaignIDs)
-
+func (r *redisLiveQuery) removeInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
 	conn := r.pool.Get()
 	defer conn.Close()
-	if err := redis.BindConn(r.pool, conn, activeQueriesKey, inactiveQueriesKey); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "bind redis connection")
-	}
 
-	inactiveCampaignIDs, err := redigo.Strings(script.Do(conn, args...))
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "run redis script")
+	args := redigo.Args{}.Add(activeQueriesKey).AddFlat(inactiveCampaignIDs)
+	if _, err := conn.Do("SREM", args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove inactive campaign IDs")
 	}
-	return inactiveCampaignIDs, nil
+	return nil
 }
 
 // mapBitfield takes the given host IDs and maps them into a bitfield compatible

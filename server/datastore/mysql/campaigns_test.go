@@ -91,7 +91,7 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that nothing changed (because time has not
 	// advanced)
-	expired, err := ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, _, err := ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(0), expired)
 
@@ -114,7 +114,7 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, _, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{
@@ -135,7 +135,7 @@ func testCampaignsCleanupDistributedQuery(t *testing.T, ds *Datastore) {
 
 	// Cleanup and verify that the campaign was expired and executions
 	// deleted appropriately
-	expired, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
+	expired, _, err = ds.CleanupDistributedQueryCampaigns(context.Background(), mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), expired)
 	{

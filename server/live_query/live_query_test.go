@@ -168,7 +168,7 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	require.Equal(t, map[string]string{"1": "SELECT 1", "4": "SELECT 4"}, m)
 
 	// simulate that only campaigns 2 and 4 are still active, cleanup the rest
-	err = store.CleanupInactiveQueries(ctx, []uint{2, 4})
+	err = store.CleanupInactiveQueries(ctx, []uint{1, 3, 5})
 	require.NoError(t, err)
 
 	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
@@ -193,16 +193,23 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	require.NoError(t, err)
 	require.Equal(t, map[string]string{"2": "SELECT 2"}, m)
 
-	// simulate that there are no active campaigns anymore
+	// simulate that there are no inactive campaigns to cleanup
 	err = store.CleanupInactiveQueries(ctx, nil)
+	require.NoError(t, err)
+
+	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	require.NoError(t, err)
+	require.ElementsMatch(t, []string{"2"}, activeNames)
+
+	// simulate that all campaigns are inactive, cleanup all
+	err = store.CleanupInactiveQueries(ctx, []uint{1, 2, 3, 4, 5})
 	require.NoError(t, err)
 
 	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
 	require.NoError(t, err)
 	require.Empty(t, activeNames)
 
-	// the inactive key may still be present but will expire shortly
-	ttl, err := redigo.Int(conn.Do("TTL", inactiveQueriesKey))
+	m, err = store.QueriesForHost(4)
 	require.NoError(t, err)
-	require.LessOrEqual(t, 5, ttl)
+	require.Empty(t, m)
 }
