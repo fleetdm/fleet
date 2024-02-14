@@ -415,7 +415,7 @@ const HostSummary = ({
           backgroundColor={COLORS["tooltip-bg"]}
         >
           <span className={`${baseClass}__tooltip-text`}>
-            {tag.generateTooltip()}
+            {tag.generateTooltip(platform)}
           </span>
         </ReactTooltip>
       </>
