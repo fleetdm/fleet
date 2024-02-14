@@ -3865,9 +3865,14 @@ The live query will stop if the targeted host is offline, or hasn't responded af
 {
   "host_id": 123,
   "query": "SELECT model, vendor FROM usb_devices;",
-  "status": "offline",
+  "status": "online", // "online" or "offline"
   "error": null,
-  "rows": []
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
 }
 ```
 
@@ -3908,9 +3913,14 @@ The live query will stop if the targeted host is offline, or hasn't responded af
 {
   "host_id": 123,
   "query": "SELECT model, vendor FROM usb_devices;",
-  "status": "offline",
+  "status": "online", // "online" or "offline"
   "error": null,
-  "rows": []
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
 }
 ```
 
