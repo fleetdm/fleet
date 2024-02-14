@@ -138,7 +138,11 @@ func getVulnerabilityEndpoint(ctx context.Context, req interface{}, svc fleet.Se
 }
 
 func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*fleet.VulnerabilityWithMetadata, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
@@ -158,7 +162,7 @@ func (svc *Service) ListOSVersionsByCVE(ctx context.Context, cve string, teamID 
 }
 
 func (svc *Service) ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*fleet.VulnerableSoftware, updatedAt time.Time, err error) {
-	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{}, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, updatedAt, err
 	}
 	return svc.ds.SoftwareByCVE(ctx, cve, teamID)
