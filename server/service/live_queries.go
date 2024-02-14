@@ -280,6 +280,7 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer func() {
 				err := svc.CompleteCampaign(ctx, campaign)
 				if err != nil {
+					level.Error(svc.logger).Log("msg", "CompleteCampaign failed", "campaign.id", campaign.ID, "err", err)
 					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				}
 			}()
