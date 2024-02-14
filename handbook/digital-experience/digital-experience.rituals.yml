@@ -130,3 +130,12 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-linkedin-for-unread-messages"
   dri: "sampfluger88"
   autoIssue:
+- 
+  task: "Update merged schema JSON"
+  startedOn: "2024-02-13" 
+  frequency: "Weekly"
+  description: "Run the `generate-merged-schema` script to update the osqueyr schema tables."
+  dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
+    repo: fleet
