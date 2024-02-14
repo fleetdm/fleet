@@ -16,7 +16,6 @@ interface IUnlockModalProps {
   id: number;
   platform: string;
   hostName: string;
-  pin?: number;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -25,7 +24,6 @@ const UnlockModal = ({
   id,
   platform,
   hostName,
-  pin,
   onSuccess,
   onClose,
 }: IUnlockModalProps) => {
@@ -41,6 +39,9 @@ const UnlockModal = ({
     () => hostAPI.unlockHost(id),
     {
       enabled: platform === "darwin",
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
     }
   );
 
