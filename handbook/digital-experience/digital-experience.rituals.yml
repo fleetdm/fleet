@@ -136,6 +136,6 @@
   frequency: "Weekly"
   description: "Run the `generate-merged-schema` script to update the osqueyr schema tables."
   dri: "eashaw"
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-digital-experience" ] # label to be applied to issue
+  autoIssue:
+    labels: [ "#g-digital-experience" ]
     repo: fleet
