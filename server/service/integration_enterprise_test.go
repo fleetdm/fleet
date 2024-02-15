@@ -3421,7 +3421,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
-	assert.Nil(t, osVersionResp.OSVersion)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})

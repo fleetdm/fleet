@@ -1905,6 +1905,9 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
+	if osVersion == nil {
+		osVersion = &fleet.OSVersion{}
+	}
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
