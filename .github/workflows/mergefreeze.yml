@@ -22,16 +22,16 @@ jobs:
             for PATTERN in "${ALLOWED_PATHS[@]}"; do
               if [[ ! $FILE == $PATTERN ]]; then
                 echo "file $FILE is not in the allowed paths, PR can't be automatically unfrozen."
+                echo "files_with_frozen_changes=true" >> "$GITHUB_OUTPUT"
                 exit 0
               fi
             done
           done
 
           echo "all changed files are in the allowed paths. Automatically unfreezing."
-          echo "all_files_allowed=true" >> "$GITHUB_OUTPUT"
 
       - name: Unfreeze if the PR has the unfrozen tag
-        if: ${{ steps.modified-files.outputs.all_files_allowed }}
+        if: ${{ steps.modified-files.outputs.files_with_frozen_changes }}
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
           REQUIRED_TAG="~timebox"
