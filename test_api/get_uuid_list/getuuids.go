@@ -1,4 +1,4 @@
-package getuuids
+package main
 
 import (
 	"fmt"
