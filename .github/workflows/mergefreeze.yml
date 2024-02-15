@@ -15,7 +15,7 @@ jobs:
         id: modified-files
         run: |
           ALLOWED_PATHS=(docs/**/*.md handbook/**/*.md mdm_profiles/** website/**)
-          CHANGED_FILES=$(gh pr view $PR_NUMBER --json files --jq '.files[].path')
+          CHANGED_FILES=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json files --jq '.files[].path')
 
           for FILE in $CHANGED_FILES; do
             for PATTERN in "${ALLOWED_PATHS[@]}"; do
@@ -34,7 +34,7 @@ jobs:
           PR_NUMBER=${{ github.event.pull_request.number }}
           REQUIRED_TAG="~timebox"
       
-          LABELS=$(gh pr view $PR_NUMBER --json labels --jq '.labels[].name')
+          LABELS=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json labels --jq '.labels[].name')
       
           for LABEL in $LABELS; do
             if [ "$LABEL" == "$REQUIRED_TAG" ]; then
