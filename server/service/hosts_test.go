@@ -1518,26 +1518,26 @@ func TestLockUnlockHostAuth(t *testing.T) {
 		{
 			name:                  "global observer",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
 		},
 		{
 			name:                  "team observer",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
 			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			shouldFailTeamWrite:   false,
 		},
 		{
 			name:                  "global observer plus",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
-			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
 		},
 		{
 			name:                  "team observer plus",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
 			shouldFailGlobalWrite: true,
-			shouldFailTeamWrite:   true,
+			shouldFailTeamWrite:   false,
 		},
 		{
 			name:                  "global admin",
@@ -1572,6 +1572,18 @@ func TestLockUnlockHostAuth(t *testing.T) {
 		{
 			name:                  "team maintainer wrong team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team observer wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleObserver}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team observer plus wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleObserverPlus}}},
 			shouldFailGlobalWrite: true,
 			shouldFailTeamWrite:   true,
 		},
