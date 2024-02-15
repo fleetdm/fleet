@@ -46,7 +46,12 @@ import {
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_TITLE_DATA,
+  HOST_ABOUT_DATA,
+  HOST_OSQUERY_DATA,
+} from "utilities/constants";
 
 import Spinner from "components/Spinner";
 import TabsWrapper from "components/TabsWrapper";
@@ -457,48 +462,11 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "platform",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "display_name",
-    ])
-  );
+  const titleData = normalizeEmptyValues(pick(host, HOST_TITLE_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-      "last_restarted_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
-  const osqueryData = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ])
-  );
+  const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
