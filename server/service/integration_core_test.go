@@ -7566,7 +7566,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
 		},
 		"CVE-2021-1236": {
-			HostCount: 1,
+			HostCount:   1,
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1236",
 		},
 	}
