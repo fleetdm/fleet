@@ -66,7 +66,7 @@ func TestDatastoreReplica(t *testing.T) {
 		// trying to read it fails, not replicated yet
 		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.True(t, errors.Is(err, sql.ErrNoRows), err)
 
 		// force read from primary works
 		ctx = ctxdb.RequirePrimary(ctx, true)
@@ -971,14 +971,14 @@ func TestDebugs(t *testing.T) {
 	require.Greater(t, len(processList), 0)
 }
 
-func TestANSIQuotesEnabled(t *testing.T) {
-	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
+func TestWantedModesEnabled(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	var sqlMode string
 	err := ds.writer(context.Background()).GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
+	require.Contains(t, sqlMode, "ONLY_FULL_GROUP_BY")
 }
 
 func Test_buildWildcardMatchPhrase(t *testing.T) {

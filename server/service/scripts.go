@@ -759,6 +759,10 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 	if maybeTmID != nil || maybeTmName != nil {
 		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
 		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
 			return err
 		}
 		teamID = &team.ID
@@ -832,4 +836,84 @@ func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, auth
 		return nil, err
 	}
 	return script, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Lock host
+////////////////////////////////////////////////////////////////////////////////
+
+type lockHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type lockHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r lockHostResponse) Status() int  { return http.StatusNoContent }
+func (r lockHostResponse) error() error { return r.Err }
+
+func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*lockHostRequest)
+	if err := svc.LockHost(ctx, req.HostID); err != nil {
+		return lockHostResponse{Err: err}, nil
+	}
+	return lockHostResponse{}, nil
+}
+
+func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Unlock host
+////////////////////////////////////////////////////////////////////////////////
+
+type unlockHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type unlockHostResponse struct {
+	HostID    *uint  `json:"host_id,omitempty"`
+	UnlockPIN string `json:"unlock_pin,omitempty"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r unlockHostResponse) Status() int {
+	if r.HostID != nil {
+		// there is a response body
+		return http.StatusOK
+	}
+	// no response body
+	return http.StatusNoContent
+}
+func (r unlockHostResponse) error() error { return r.Err }
+
+func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*unlockHostRequest)
+	pin, err := svc.UnlockHost(ctx, req.HostID)
+	if err != nil {
+		return unlockHostResponse{Err: err}, nil
+	}
+
+	var resp unlockHostResponse
+	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
+	// call triggers the unlocking without further user action.
+	if pin != "" {
+		resp.HostID = &req.HostID
+		resp.UnlockPIN = pin
+	}
+	return resp, nil
+}
+
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
 }

@@ -1,5 +1,6 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import classnames from "classnames";
 
 import {
   IHostMdmProfile,
@@ -23,9 +24,77 @@ import { COLORS } from "styles/var/colors";
 import OSSettingsIndicator from "./OSSettingsIndicator";
 import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
-import { generateWinDiskEncryptionProfile } from "../../helpers";
+
+import {
+  HostMdmDeviceStatusUIState,
+  generateWinDiskEncryptionProfile,
+} from "../../helpers";
+import { DEVICE_STATUS_TAGS, REFETCH_TOOLTIP_MESSAGES } from "./helpers";
 
 const baseClass = "host-summary";
+
+interface IRefetchButtonProps {
+  isDisabled: boolean;
+  isFetching: boolean;
+  tooltip?: React.ReactNode;
+  onRefetchHost: (
+    evt: React.MouseEvent<HTMLButtonElement, React.MouseEvent>
+  ) => void;
+}
+
+const RefetchButton = ({
+  isDisabled,
+  isFetching,
+  tooltip,
+  onRefetchHost,
+}: IRefetchButtonProps) => {
+  const classNames = classnames({
+    tooltip: isDisabled,
+    "refetch-spinner": isFetching,
+    "refetch-btn": !isFetching,
+  });
+
+  const buttonText = isFetching
+    ? "Fetching fresh vitals...this may take a moment"
+    : "Refetch";
+
+  // add additonal props when we need to display a tooltip for the button
+  const conditionalProps: any = {};
+  if (tooltip) {
+    conditionalProps["data-tip"] = true;
+    conditionalProps["data-for"] = "refetch-tooltip";
+  }
+
+  const renderTooltip = () => {
+    return (
+      <ReactTooltip
+        place="top"
+        effect="solid"
+        id="refetch-tooltip"
+        backgroundColor={COLORS["tooltip-bg"]}
+      >
+        <span className={`${baseClass}__tooltip-text`}>{tooltip}</span>
+      </ReactTooltip>
+    );
+  };
+
+  return (
+    <>
+      <div className={`${baseClass}__refetch`} {...conditionalProps}>
+        <Button
+          className={classNames}
+          disabled={isDisabled}
+          onClick={onRefetchHost}
+          variant="text-icon"
+        >
+          <Icon name="refresh" color="core-fleet-blue" size="small" />
+          {buttonText}
+        </Button>
+        {tooltip && renderTooltip()}
+      </div>
+    </>
+  );
+};
 
 interface IBootstrapPackageData {
   status?: BootstrapPackageStatus | "";
@@ -49,6 +118,7 @@ interface IHostSummaryProps {
   renderActionButtons: () => JSX.Element | null;
   deviceUser?: boolean;
   osSettings?: IOSSettings;
+  hostMdmDeviceStatus?: HostMdmDeviceStatusUIState;
 }
 
 const MAC_WINDOWS_DISK_ENCRYPTION_MESSAGES = {
@@ -108,47 +178,40 @@ const HostSummary = ({
   renderActionButtons,
   deviceUser,
   osSettings,
+  hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
   const { status, platform } = titleData;
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
+    let isDisabled = false;
+    let tooltip: React.ReactNode = <></>;
+
+    // deviceStatus can be `undefined` in the case of the MyDevice Page not sending
+    // this prop. When this is the case or when it is `unlocked`, we only take
+    // into account the host being online or offline for correctly render the
+    // refresh button. If we have a value for deviceStatus, we then need to also
+    // take it account for rendering the button.
+    if (
+      hostMdmDeviceStatus === undefined ||
+      hostMdmDeviceStatus === "unlocked"
+    ) {
+      isDisabled = !isOnline;
+      tooltip = !isOnline ? REFETCH_TOOLTIP_MESSAGES.offline : null;
+    } else {
+      isDisabled = true;
+      tooltip = !isOnline
+        ? REFETCH_TOOLTIP_MESSAGES.offline
+        : REFETCH_TOOLTIP_MESSAGES[hostMdmDeviceStatus];
+    }
 
     return (
-      <>
-        <div
-          className="refetch"
-          data-tip
-          data-for="refetch-tooltip"
-          data-tip-disable={isOnline || showRefetchSpinner}
-        >
-          <Button
-            className={`
-            button
-            ${!isOnline ? "refetch-offline tooltip" : ""}
-              ${showRefetchSpinner ? "refetch-spinner" : "refetch-btn"}
-            `}
-            disabled={!isOnline}
-            onClick={onRefetchHost}
-            variant="text-icon"
-          >
-            <Icon name="refresh" color="core-fleet-blue" size="small" />
-            {showRefetchSpinner
-              ? "Fetching fresh vitals...this may take a moment"
-              : "Refetch"}
-          </Button>
-        </div>
-        <ReactTooltip
-          place="top"
-          effect="solid"
-          id="refetch-tooltip"
-          backgroundColor={COLORS["tooltip-bg"]}
-        >
-          <span className={`${baseClass}__tooltip-text`}>
-            You can’t fetch data from <br /> an offline host.
-          </span>
-        </ReactTooltip>
-      </>
+      <RefetchButton
+        isDisabled={isDisabled}
+        isFetching={showRefetchSpinner}
+        tooltip={tooltip}
+        onRefetchHost={onRefetchHost}
+      />
     );
   };
 
@@ -330,6 +393,35 @@ const HostSummary = ({
     ": unavailable"
   );
 
+  const renderDeviceStatusTag = () => {
+    if (!hostMdmDeviceStatus || hostMdmDeviceStatus === "unlocked") return null;
+
+    const tag = DEVICE_STATUS_TAGS[hostMdmDeviceStatus];
+
+    const classNames = classnames(
+      `${baseClass}__device-status-tag`,
+      tag.tagType
+    );
+
+    return (
+      <>
+        <span className={classNames} data-tip data-for="tag-tooltip">
+          {tag.title}
+        </span>
+        <ReactTooltip
+          place="top"
+          effect="solid"
+          id="tag-tooltip"
+          backgroundColor={COLORS["tooltip-bg"]}
+        >
+          <span className={`${baseClass}__tooltip-text`}>
+            {tag.generateTooltip(platform)}
+          </span>
+        </ReactTooltip>
+      </>
+    );
+  };
+
   return (
     <div className={baseClass}>
       <div className="header title">
@@ -341,7 +433,9 @@ const HostSummary = ({
                 : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
-            <div className="last-fetched">
+            {renderDeviceStatusTag()}
+
+            <div className={`${baseClass}__last-fetched`}>
               {"Last fetched"} {lastFetched}
               &nbsp;
             </div>

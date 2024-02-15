@@ -18,7 +18,7 @@ Fleet UI:
 
 3. Select **Upload** and choose your configuration profile.
 
-Fleet API: API documentation is [here](../REST%20API/rest-api.md#add-custom-setting-configuration-profile)
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#add-custom-os-setting-configuration-profile)
 
 ### OS settings status
 

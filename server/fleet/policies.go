@@ -228,14 +228,18 @@ func (p PolicySpec) Verify() error {
 	return nil
 }
 
-// return first duplicate name of policies or empty string if no duplicates found
+// FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
-	names := make(map[string]struct{})
+	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if _, ok := names[spec.Name]; ok {
-			return spec.Name
+		if team, ok := teams[spec.Team]; ok {
+			if _, ok = team[spec.Name]; ok {
+				return spec.Name
+			}
+			team[spec.Name] = struct{}{}
+		} else {
+			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
 		}
-		names[spec.Name] = struct{}{}
 	}
 	return ""
 }

@@ -1,7 +1,6 @@
 ---
 name:  Release QA
 about: Checklist of required tests prior to release
-
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
 assignees: 'xpkoala,sabrinabuckets'
@@ -93,13 +92,44 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
-<tr><td>MDM Smoke Tests</td><td>Verify MDM enrollments, run commands, and script execution</td><td>
+<tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
   
 1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
 2. With Windows MDM turned On, enroll a Windows host and verify MDM is turned On for the host.
-3. Verify able to run a script on all host types from CLI.
-4. Verify scripts library upload/download/delete, run from Host details.
-5. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+3. Verify able to run MDM commands on both macOS and Windows hosts from the CLI.
+</td><td>pass/fail</td></tr>
+
+<tr><td>Scripts</td><td>Verify script library and execution</td><td>
+
+1. Verify able to run a script on all host types from CLI.
+2. Verify scripts library upload/download/delete.
+3. From Host details (Windows and macOS) run a script that should PASS, verify.
+4. From Host details (Windows and macOS) run a script that should FAIL, verify.
+5. Verify UI loading state and statuses for scripts.
+6. Disable scripts globally and verify unable to run.
+7. Verify scripts display correctly in Activity feed.
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
+
+1. Verify able to configure Disk encryption.
+2. Verify host enrolled with Disk encryption enforced successfully encrypts.
+3. Verify Profiles upload/download/delete (macOS & Windows).
+4. Verify profiles are delivered to host and applied. 
+</td><td>pass/fail</td></tr>
+
+<tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
+
+1. Configure End user authentication.
+2. Upload a Boostrap package.
+3. Enroll an ADE-eligible macOS host and verify successful authentication.
+4. Verify Boostrap package is delivered.
+</td><td>pass/fail</td></tr>
+
+<tr><td>OS updates</td><td>Verify OS updates flow</td><td>
+
+1. Configure OS updates (macOS & Windows).
+2. Verify on-device that Nudge prompt appears (macOS). 
 </td><td>pass/fail</td></tr>
 
 <tr><td>Migration Test</td><td>Verify Fleet can migrate to the next version with no issues.</td><td>

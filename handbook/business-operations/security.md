@@ -366,8 +366,8 @@ is kept up to date.
 
 ## Hardware security keys
 
-If you do not already have a pair of hardware security keys, order [YubiKey 5C NFC security
-keys](https://www.yubico.com/ca/product/yubikey-5c-nfc-pack-of-2/) with your company card, or ask
+If you do not already have a pair of hardware security keys, order [two YubiKey 5C NFC security
+keys](https://www.yubico.com/us/product/yubikey-5-nfc/) with your company card, or ask
 for help in [#help-login](https://fleetdm.com/handbook/security#slack-channels) to get one if you do not have a company card.
 
 ### Are they YubiKeys or security keys?

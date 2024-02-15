@@ -900,15 +900,15 @@ func TestAuthorizeQuery(t *testing.T) {
 			},
 		},
 		{
-			name: "Global GitOps cannot read, or run any query, but can write",
+			name: "Global GitOps cannot run any query, but can read or write",
 			testCases: []authTestCase{
-				{user: test.UserGitOps, object: globalQuery, action: read, allow: false},
+				{user: test.UserGitOps, object: globalQuery, action: read, allow: true},
 				{user: test.UserGitOps, object: globalQuery, action: write, allow: true},
 				{user: test.UserGitOps, object: teamAdminQuery, action: write, allow: true},
 				{user: test.UserGitOps, object: globalQueryNoTargets, action: run, allow: false},
 				{user: test.UserGitOps, object: globalQueryTargetedToTeam1, action: run, allow: false},
 				{user: test.UserGitOps, object: globalQuery, action: runNew, allow: false},
-				{user: test.UserGitOps, object: globalObserverQuery, action: read, allow: false},
+				{user: test.UserGitOps, object: globalObserverQuery, action: read, allow: true},
 				{user: test.UserGitOps, object: globalObserverQuery, action: write, allow: true},
 				{user: test.UserGitOps, object: globalObserverQueryEmptyTargets, action: run, allow: false},
 				{user: test.UserGitOps, object: globalObserverQueryTargetedToTeam1, action: run, allow: false},
@@ -1201,7 +1201,7 @@ func TestAuthorizeGlobalPolicy(t *testing.T) {
 		{user: test.UserObserverPlus, object: globalPolicy, action: read, allow: true},
 
 		{user: test.UserGitOps, object: globalPolicy, action: write, allow: true},
-		{user: test.UserGitOps, object: globalPolicy, action: read, allow: false},
+		{user: test.UserGitOps, object: globalPolicy, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: globalPolicy, action: write, allow: false},
 		{user: test.UserTeamAdminTeam1, object: globalPolicy, action: read, allow: true},
@@ -1253,7 +1253,7 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserGitOps, object: team1Policy, action: write, allow: true},
-		{user: test.UserGitOps, object: team1Policy, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: team1Policy, action: write, allow: true},
 		{user: test.UserTeamAdminTeam1, object: team1Policy, action: read, allow: true},
@@ -1268,7 +1268,7 @@ func TestAuthorizeTeamPolicy(t *testing.T) {
 		{user: test.UserTeamObserverPlusTeam1, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: write, allow: true},
-		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Policy, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: team2Policy, action: write, allow: false},
 		{user: test.UserTeamAdminTeam1, object: team2Policy, action: read, allow: false},
@@ -2002,9 +2002,9 @@ func TestAuthorizeScript(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Script, action: write, allow: false},
 		{user: test.UserObserverPlus, object: team1Script, action: read, allow: true},
 
-		{user: test.UserGitOps, object: globalScript, action: write, allow: false},
+		{user: test.UserGitOps, object: globalScript, action: write, allow: true},
 		{user: test.UserGitOps, object: globalScript, action: read, allow: false},
-		{user: test.UserGitOps, object: team1Script, action: write, allow: false},
+		{user: test.UserGitOps, object: team1Script, action: write, allow: true},
 		{user: test.UserGitOps, object: team1Script, action: read, allow: false},
 
 		{user: test.UserTeamAdminTeam1, object: globalScript, action: write, allow: false},
@@ -2049,7 +2049,7 @@ func TestAuthorizeScript(t *testing.T) {
 
 		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalScript, action: read, allow: false},
-		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: write, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: write, allow: true},
 		{user: test.UserTeamGitOpsTeam1, object: team1Script, action: read, allow: false},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalScript, action: write, allow: false},

@@ -84,7 +84,14 @@ go.mod @fleetdm/go
 #
 # (see website/config/custom.js for DRIs of other paths not listed here)
 ##############################################################################################
-/handbook                   @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+/handbook                       @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+/handbook/business-operations   @sampfluger88
+/handbook/digital-experience    @sampfluger88
+/handbook/customer-success      @sampfluger88
+/handbook/demand                @sampfluger88
+/handbook/engineering           @sampfluger88
+/handbook/sales                 @sampfluger88
+/handbook/product-design        @sampfluger88
 
 ##############################################################################################
 # 🦿 GitHub issue templates
