@@ -78,7 +78,16 @@ func (svc *Service) ListSoftwareTitles(
 	// cursor-based pagination is not supported for software titles
 	opt.ListOptions.After = ""
 
-	titles, count, meta, err := svc.ds.ListSoftwareTitles(ctx, opt)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, 0, nil, fleet.ErrNoContext
+	}
+
+	titles, count, meta, err := svc.ds.ListSoftwareTitles(ctx, opt, fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+		TeamID:          opt.TeamID,
+	})
 	if err != nil {
 		return nil, 0, nil, err
 	}
