@@ -114,6 +114,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -3140,6 +3141,84 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.2")}, 3)
 	for _, h := range hosts {
 		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
+}
+
+func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 9; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// seed software
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+	}
+
+	// add software to 5 hosts
+	var swVulnHostIDs []uint
+	for i := 0; i < 5; i++ {
+		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software)
+		require.NoError(t, err)
+		swVulnHostIDs = append(swVulnHostIDs, hosts[i].ID)
+	}
+
+	// seed software vulnerabilities
+	vuln := fleet.SoftwareVulnerability{
+		CVE:        "CVE-2021-1234",
+		SoftwareID: 1,
+	}
+
+	_, err := ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err := ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1234")})
+	require.NoError(t, err)
+	require.Len(t, list, 5)
+	for _, h := range list {
+		require.Contains(t, swVulnHostIDs, h.ID)
+	}
+
+	// update 2 host operating system
+	os := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "20.4.0 LTS",
+		Arch:          "x86_64",
+		Platform:      "ubuntu",
+		KernelVersion: "5.10.76-linuxkit",
+	}
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, os)
+	require.NoError(t, err)
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[1].ID, os)
+	require.NoError(t, err)
+
+	// seed os vulnerability
+	osVulns := []fleet.OSVulnerability{
+		{
+			OSID: 1,
+			CVE:  "CVE-2021-1235",
+		},
+	}
+	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err = ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1235")})
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	for _, h := range list {
+		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
 }
 
