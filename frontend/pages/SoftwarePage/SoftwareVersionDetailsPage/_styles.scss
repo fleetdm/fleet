@@ -7,8 +7,4 @@
   h2 {
     font-size: $small;
   }
-
-  .empty-details {
-    @include empty-software-details;
-  }
 }

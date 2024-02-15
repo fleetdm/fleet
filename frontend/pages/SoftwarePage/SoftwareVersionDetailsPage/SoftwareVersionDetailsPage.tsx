@@ -28,6 +28,7 @@ import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
+import DetailsNoHosts from "../components/DetailsNoHosts";
 
 const baseClass = "software-version-details-page";
 
@@ -141,23 +142,34 @@ const SoftwareVersionDetailsPage = ({
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
-        <Card
+        {/* TODO - replace logic */}
+        {/* {noHosts ? ( */}
+        <DetailsNoHosts
+          header="Software not detected"
+          details="No host has this software installed."
+        />
+        {/* ) : ( */}
+        {/* <Card
           borderRadiusSize="large"
           includeShadow
           className={
             noHosts ? "empty-details" : `${baseClass}__vulnerabilities-section`
           }
-        >
-          {/* TODO - replace logic */}
-          {/* {noHosts ? ( */}
-          <>
-            <h2>Software not detected</h2>
-            <p>
-              No host {!!teamIdForApi && "on this team "}has{" "}
-              {softwareVersion.name}, {softwareVersion.version} installed.
-            </p>
-          </>
+        <>
+          <h2>Software not detected</h2>
+          <p>
+            No host {!!teamIdForApi && "on this team "}has{" "}
+            {softwareVersion.name}, {softwareVersion.version} installed.
+          </p>
+        </>
+      <Card
+          borderRadiusSize="large"
+          includeShadow
+          className={
+            noHosts ? "empty-details" : `${baseClass}__vulnerabilities-section`
+          }
           {/* ) : (
+        >
             <>
           <h2 className="section__header">Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
@@ -168,8 +180,8 @@ const SoftwareVersionDetailsPage = ({
             teamIdForApi={teamIdForApi}
           />
             </>
-          )} */}
         </Card>
+          )} */}
       </>
     );
   };

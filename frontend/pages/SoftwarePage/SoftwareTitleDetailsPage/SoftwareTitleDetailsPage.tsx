@@ -24,6 +24,7 @@ import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
+import DetailsNoHosts from "../components/DetailsNoHosts";
 
 const baseClass = "software-title-details-page";
 
@@ -119,6 +120,13 @@ const SoftwareTitleDetailsPage = ({
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
+        {/* TODO - replace logic */}
+        {/* {noHosts ? ( */}
+        <DetailsNoHosts
+          header="Software not detected"
+          details={`No host on this team has ${softwareTitle.name} installed.`}
+        />
+        {/* ) : (
         <Card
           borderRadiusSize="large"
           includeShadow
@@ -126,13 +134,6 @@ const SoftwareTitleDetailsPage = ({
             noHosts ? "empty-details" : `${baseClass}__versions-section`
           }
         >
-          {/* TODO - replace logic */}
-          {/* {noHosts ? ( */}
-          <>
-            <h2>Software not detected</h2>
-            <p>No host on this team has {softwareTitle.name} installed.</p>
-          </>
-          {/* ) : (
             <>
               <h2>Versions</h2>
               <SoftwareTitleDetailsTable
@@ -142,8 +143,8 @@ const SoftwareTitleDetailsPage = ({
                 teamIdForApi={teamIdForApi}
               />
             </>
-          )} */}
         </Card>
+          )} */}
       </>
     );
   };

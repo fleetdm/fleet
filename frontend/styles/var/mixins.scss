@@ -220,14 +220,3 @@ $max-width: 2560px;
   // compensate in layout for extra clickable area button height
   margin: -8px 0;
 }
-
-@mixin empty-software-details {
-  padding: $pad-xxlarge;
-  gap: 0;
-  text-align: center;
-  * {
-    font-size: $x-small;
-    line-height: 21px;
-    margin: 0;
-  }
-}
