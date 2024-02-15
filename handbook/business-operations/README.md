@@ -5,6 +5,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
+| Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 | Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
@@ -35,7 +36,7 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
 ### Register a domain for Fleet
-Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet --> 
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ### Access a background check
 Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
@@ -283,7 +284,28 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
   - Enter disk encryption key on laptop. This should prompt you to create a new password.
 - You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
 
+
+### Book an event
+The Business Operations department is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
+
+> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
+
+<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to business-operations.rituals.yml
+
+### Create an article
+Article creation begins with creation of an issue using the "Article request" template.
+
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+2. Move the issue into the "📃 Planned articles" column.
+
+
+### Review ongoing articles
+Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+-->
+
+
 ## Rituals
+
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
 
 > TODO: Verify each of these points to the correct link above.  Then extrapolate into rituals.yml.  (See CEO handbook page for an example.)
@@ -308,6 +330,11 @@ The following table lists this department's rituals, frequency, and Directly Res
 | KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
 | [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
 | Downgrade unused license seats | Quarterly | Downgrade unused or questionable license seats on the first Wednesday of every quarter. | Head of Business Operations & CEO |
+=======
+
+<rituals :rituals="rituals['handbook/business-operations/business-operations.rituals.yml']"></rituals>
+
+
 
 
 <!--

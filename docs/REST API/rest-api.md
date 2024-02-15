@@ -4276,6 +4276,7 @@ Deletes the label specified by ID.
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
+- [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
@@ -4378,7 +4379,7 @@ Content-Type: application/octet-stream
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
-#### Get manual enrollment profile
+### Get manual enrollment profile
 
 Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 

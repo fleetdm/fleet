@@ -74,15 +74,6 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBat
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
 }
 
-// ApplyPolicies sends the list of Policies to be applied to the
-// Fleet instance.
-func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
-	req := applyPolicySpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/latest/fleet/spec/policies"
-	var responseBody applyPolicySpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
-}
-
 // ApplyTeamScripts sends the list of scripts to be applied for the specified
 // team.
 func (c *Client) ApplyTeamScripts(tmName string, scripts []fleet.ScriptPayload, opts fleet.ApplySpecOptions) error {

@@ -308,7 +308,9 @@ type Service interface {
 
 	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
 	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
-	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int, error)
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, query string, hostIDs []uint, deadline time.Duration) (
+		[]QueryCampaignResult, int, error,
+	)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
@@ -364,6 +366,11 @@ type Service interface {
 	// device-authenticated API), or manually by the user (via the
 	// user-authenticated API).
 	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
+	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -881,7 +888,10 @@ type Service interface {
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool) error
+	BatchSetMDMProfiles(
+		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
+		assumeEnabled bool,
+	) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
@@ -928,4 +938,8 @@ type Service interface {
 	// BatchSetScripts replaces the scripts for a specified team or for
 	// hosts with no team.
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
+
+	// Script-based methods (at least for some platforms, MDM-based for others)
+	LockHost(ctx context.Context, hostID uint) error
+	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
 }

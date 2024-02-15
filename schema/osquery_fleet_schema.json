@@ -27580,7 +27580,7 @@
   },
   {
     "name": "vscode_extensions",
-    "description": "Lists all vscode extensions.",
+    "description": "Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/).",
     "url": "https://fleetdm.com/tables/vscode_extensions",
     "platforms": [
       "darwin",
@@ -27589,13 +27589,13 @@
     ],
     "evented": false,
     "cacheable": false,
-    "notes": "",
-    "examples": "```\nselect * from vscode_extensions\n```",
+    "notes": "Querying this table requires joining against the `users` table.",
+    "examples": "List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
     "columns": [
       {
         "name": "name",
         "description": "Extension Name",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27604,7 +27604,7 @@
       {
         "name": "uuid",
         "description": "Extension UUID",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27613,7 +27613,7 @@
       {
         "name": "version",
         "description": "Extension version",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27622,7 +27622,7 @@
       {
         "name": "path",
         "description": "Extension path",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27631,7 +27631,7 @@
       {
         "name": "publisher",
         "description": "Publisher Name",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27640,7 +27640,7 @@
       {
         "name": "publisher_id",
         "description": "Publisher ID",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27649,7 +27649,7 @@
       {
         "name": "installed_at",
         "description": "Installed Timestamp",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27658,7 +27658,7 @@
       {
         "name": "prerelease",
         "description": "Pre release version",
-        "type": "integer",
+        "type": "INTEGER",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27667,15 +27667,14 @@
       {
         "name": "uid",
         "description": "The local user that owns the plugin",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/vscode_extensions.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fvscode_extensions.yml&value=name%3A%20vscode_extensions%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
   },
   {
     "name": "wifi_networks",

@@ -29,14 +29,14 @@ module.exports = {
     });
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Zaffery','Grzelak','Waisman','Larkin','Anderson','Gomez','Fohs','Shaklovitz','Arpaia','Shields','Majumdar','Elshaer','Yousafzai','Ravazzolo','Whetstone','Botelho'];
+    let testimonialOrderForThisPage = ['Charles Zaffery','Dan Grzelak','Nico Waisman','Tom Larkin','Austin Anderson','Erik Gomez','Nick Fohs','Brendan Shaklovitz','Mike Arpaia','Andre Shields','Dhruv Majumdar','Ahmed Elshaer','Abubakar Yousafzai','Harrison Ravazzolo','Wes Whetstone','Kenny Botelho', 'Chandra Majumdar'];
     testimonialsForScrollableTweets.sort((a, b)=>{
-      if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName.split(' ')[1]) === -1){
+      if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
         return 1;
-      } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName.split(' ')[1]) === -1) {
+      } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName) === -1) {
         return -1;
       }
-      return testimonialOrderForThisPage.indexOf(a.quoteAuthorName.split(' ')[1]) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName.split(' ')[1]);
+      return testimonialOrderForThisPage.indexOf(a.quoteAuthorName) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName);
     });
 
     // Respond with view.
