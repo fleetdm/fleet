@@ -1910,7 +1910,7 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
 
@@ -1919,8 +1919,10 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		return nil, nil, err
 	}
 
-	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
-		return nil, nil, err
+	if osVersion != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return osVersion, updateTime, nil

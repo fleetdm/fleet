@@ -3401,6 +3401,28 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
 	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
 
+	// OS versions with invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"99999",
+	)
+
+	// Create team and ask for the OS versions from the team (with no hosts) -- should get none.
+	tr := teamResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String("os_versions_team"),
+			},
+		}, http.StatusOK, &tr,
+	)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		fmt.Sprintf("%d", tr.Team.ID),
+	)
+	assert.Nil(t, osVersionResp.OSVersion)
+
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)

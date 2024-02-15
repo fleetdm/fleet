@@ -4442,7 +4442,7 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *ui
 
 	if teamOSVersionNotFound {
 		// If the team OS version was not found, but it exists, we need to return empty state.
-		return &fleet.OSVersion{}, &updatedAt, nil
+		return nil, &updatedAt, nil
 	}
 
 	// aggregate counts by name and version
