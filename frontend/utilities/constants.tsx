@@ -323,11 +323,8 @@ export const HOST_TITLE_DATA = [
   "gigs_disk_space_available",
   "team_name",
   "disk_encryption_enabled",
+  "display_name", // Not rendered on my device page
 ];
-
-export const HOST_TITLE_DATA_DEVICE_ONLY = ["platform", "mdm"];
-
-export const HOST_TITLE_DATA_HDP_ONLY = ["display_name"];
 
 export const HOST_ABOUT_DATA = [
   "seen_time",

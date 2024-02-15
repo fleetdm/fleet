@@ -29,7 +29,6 @@ import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
   HOST_TITLE_DATA,
-  HOST_TITLE_DATA_DEVICE_ONLY,
 } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -210,9 +209,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [...HOST_TITLE_DATA, ...HOST_TITLE_DATA_DEVICE_ONLY])
-  );
+  const titleData = normalizeEmptyValues(pick(host, HOST_TITLE_DATA));
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
