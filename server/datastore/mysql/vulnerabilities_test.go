@@ -367,7 +367,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 		"CVE-2020-1236": 18,
 		"CVE-2020-1238": 16,
 		"CVE-2020-1239": 15,
-		// No team host counts for CVE-2020-1240
+		"CVE-2020-1240": 0,
 		"CVE-2020-1241": 14,
 	}
 
