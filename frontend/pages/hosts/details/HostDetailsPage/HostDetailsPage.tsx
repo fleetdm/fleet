@@ -85,6 +85,7 @@ import {
   HostMdmDeviceStatusUIState,
   getHostDeviceStatusUIState,
 } from "../helpers";
+import WipeModal from "./modals/WipeModal";
 
 const baseClass = "host-details";
 
@@ -159,6 +160,7 @@ const HostDetailsPage = ({
   );
   const [showLockHostModal, setShowLockHostModal] = useState(false);
   const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
+  const [showWipeModal, setShowWipeModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -274,7 +276,12 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
-        setHostMdmDeviceState(getHostDeviceStatusUIState("unlocked", "unlock"));
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -671,6 +678,9 @@ const HostDetailsPage = ({
       case "unlock":
         setShowUnlockHostModal(true);
         break;
+      case "wipe":
+        setShowWipeModal(true);
+        break;
       default: // do nothing
     }
   };
@@ -1003,6 +1013,14 @@ const HostDetailsPage = ({
               host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
             }}
             onClose={() => setShowUnlockHostModal(false)}
+          />
+        )}
+        {showWipeModal && (
+          <WipeModal
+            id={host.id}
+            hostName={host.display_name}
+            onSuccess={() => setHostMdmDeviceState("wiping")}
+            onClose={() => setShowWipeModal(false)}
           />
         )}
       </>
