@@ -97,7 +97,9 @@ const SoftwareTitleDetailsPage = ({
     if (!softwareTitle) {
       return null;
     }
-
+    // TODO - replace logic
+    // const noHosts = softwareTitle.hosts_count === 0;
+    const noHosts = true;
     return (
       <>
         {isPremiumTier && (
@@ -120,15 +122,27 @@ const SoftwareTitleDetailsPage = ({
         <Card
           borderRadiusSize="large"
           includeShadow
-          className={`${baseClass}__versions-section`}
+          className={
+            noHosts ? "empty-details" : `${baseClass}__versions-section`
+          }
         >
-          <h2>Versions</h2>
-          <SoftwareTitleDetailsTable
-            router={router}
-            data={softwareTitle.versions}
-            isLoading={isSoftwareTitleLoading}
-            teamIdForApi={teamIdForApi}
-          />
+          {/* TODO - replace logic */}
+          {/* {noHosts ? ( */}
+          <>
+            <h2>Software not detected</h2>
+            <p>No host on this team has {softwareTitle.name} installed.</p>
+          </>
+          {/* ) : (
+            <>
+              <h2>Versions</h2>
+              <SoftwareTitleDetailsTable
+                router={router}
+                data={softwareTitle.versions}
+                isLoading={isSoftwareTitleLoading}
+                teamIdForApi={teamIdForApi}
+              />
+            </>
+          )} */}
         </Card>
       </>
     );
