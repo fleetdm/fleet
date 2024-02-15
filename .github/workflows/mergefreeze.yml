@@ -20,7 +20,7 @@ jobs:
 
           for FILE in $CHANGED_FILES; do
             for PATTERN in "${ALLOWED_PATHS[@]}"; do
-              if [[ ! $FILE == $PATTERN ]]; then
+              if [[ ! "$FILE" == $PATTERN ]]; then
                 echo "file $FILE is not in the allowed paths, PR can't be automatically unfrozen."
                 echo "files_with_frozen_changes=true" >> "$GITHUB_OUTPUT"
                 exit 0
