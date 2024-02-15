@@ -27,6 +27,7 @@ import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
+import DetailsNoHosts from "../components/DetailsNoHosts";
 
 const baseClass = "software-os-details-page";
 
@@ -169,14 +170,24 @@ const SoftwareOSDetailsPage = ({
           }}
           name={osVersionDetails.platform}
         />
-        <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={`${baseClass}__vulnerabilities-section`}
-        >
-          <h2>Vulnerabilities</h2>
-          {renderTable()}
-        </Card>
+        {/* TODO: */}
+        {/* {osVersionDetails.hosts_count === 0 ? ( */}
+        <DetailsNoHosts
+          header="OS not detected"
+          details={`No host ${teamIdForApi ? "on this team " : ""}has ${
+            osVersionDetails.name
+          } installed.`}
+        />
+        {/* ) : (
+          <Card
+            borderRadiusSize="large"
+            includeShadow
+            className={`${baseClass}__vulnerabilities-section`}
+          >
+            <h2>Vulnerabilities</h2>
+            {renderTable()}
+          </Card>
+        )} */}
       </>
     );
   };
