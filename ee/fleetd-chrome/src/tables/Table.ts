@@ -14,7 +14,6 @@ const CONCAT_CHROME_WARNINGS = (warnings: ChromeWarning[]): string => {
 class cursorState {
   rowIndex: number;
   rows: Record<string, string>[];
-  error: any;
 }
 
 interface ChromeWarning {

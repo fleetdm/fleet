@@ -6,7 +6,15 @@ export default class TableNetworkInterfaces extends Table {
 
   async generate() {
     if (!chrome.enterprise) {
-      return { data: [] };
+      return {
+        data: [],
+        warnings: [
+          {
+            column: "mac",
+            error_message: "chrome.enterprise API is not available for network details",
+          },
+        ],
+      };
     }
 
     // @ts-expect-error @types/chrome doesn't yet have the getNetworkDetails Promise API.
