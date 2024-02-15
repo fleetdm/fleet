@@ -61,7 +61,7 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
-    goarch_value="$(uname -m)"
+    goarch_value="" # leave it empty to use the default for the system
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
 	# for all platforms except Darwin, GOARCH is hardcoded to amd64 to
