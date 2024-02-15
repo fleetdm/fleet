@@ -3,6 +3,8 @@
 - [How to add your device to Fleet](#how-to-add-your-device-to-fleet)
 - [How to ask questions about your device](#how-to-ask-questions-about-your-device)
 
+foo
+
 ### Overview
 
 In this guide, we'll cover the following concepts:
