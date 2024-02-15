@@ -308,7 +308,7 @@ export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
 
-export const HOST_TITLE_DATA = [
+export const HOST_SUMMARY_DATA = [
   "id",
   "status",
   "issues",

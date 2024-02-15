@@ -102,7 +102,7 @@ interface IBootstrapPackageData {
 }
 
 interface IHostSummaryProps {
-  titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
+  summaryData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
@@ -163,7 +163,7 @@ const getHostDiskEncryptionTooltipMessage = (
 };
 
 const HostSummary = ({
-  titleData,
+  summaryData,
   bootstrapPackageData,
   isPremiumTier,
   isSandboxMode = false,
@@ -182,10 +182,10 @@ const HostSummary = ({
     status,
     platform,
     disk_encryption_enabled: diskEncryptionEnabled,
-  } = titleData;
+  } = summaryData;
 
   const renderRefetch = () => {
-    const isOnline = titleData.status === "online";
+    const isOnline = summaryData.status === "online";
     let isDisabled = false;
     let tooltip: React.ReactNode = <></>;
 
@@ -239,11 +239,11 @@ const HostSummary = ({
           data-html
         >
           <span className={`tooltip__tooltip-text`}>
-            Failing policies ({titleData.issues.failing_policies_count})
+            Failing policies ({summaryData.issues.failing_policies_count})
           </span>
         </ReactTooltip>
         <span className={"info-flex__data__text"}>
-          {titleData.issues.total_issues_count}
+          {summaryData.issues.total_issues_count}
         </span>
       </span>
     </div>
@@ -253,8 +253,8 @@ const HostSummary = ({
     <div className="info-flex__item info-flex__item--title">
       <span className="info-flex__header">Team</span>
       <span className={`info-flex__data`}>
-        {titleData.team_name ? (
-          `${titleData.team_name}`
+        {summaryData.team_name ? (
+          `${summaryData.team_name}`
         ) : (
           <span className="info-flex__no-team">No team</span>
         )}
@@ -318,7 +318,7 @@ const HostSummary = ({
           />
         </div>
 
-        {(titleData.issues?.total_issues_count > 0 || isSandboxMode) &&
+        {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
           renderIssues()}
 
@@ -354,9 +354,11 @@ const HostSummary = ({
             <span className="info-flex__header">Disk space</span>
             <DiskSpaceGraph
               baseClass="info-flex"
-              gigsDiskSpaceAvailable={titleData.gigs_disk_space_available}
-              percentDiskSpaceAvailable={titleData.percent_disk_space_available}
-              id={`disk-space-tooltip-${titleData.id}`}
+              gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
+              percentDiskSpaceAvailable={
+                summaryData.percent_disk_space_available
+              }
+              id={`disk-space-tooltip-${summaryData.id}`}
               platform={platform}
               tooltipPosition="bottom"
             />
@@ -368,28 +370,28 @@ const HostSummary = ({
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Memory</span>
           <span className="info-flex__data">
-            {wrapFleetHelper(humanHostMemory, titleData.memory)}
+            {wrapFleetHelper(humanHostMemory, summaryData.memory)}
           </span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Processor type</span>
-          <span className="info-flex__data">{titleData.cpu_type}</span>
+          <span className="info-flex__data">{summaryData.cpu_type}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">{titleData.os_version}</span>
+          <span className="info-flex__data">{summaryData.os_version}</span>
         </div>
         <div className="info-flex__item info-flex__item--title">
           <span className="info-flex__header">Osquery</span>
-          <span className="info-flex__data">{titleData.osquery_version}</span>
+          <span className="info-flex__data">{summaryData.osquery_version}</span>
         </div>
       </div>
     );
   };
 
-  const lastFetched = titleData.detail_updated_at ? (
+  const lastFetched = summaryData.detail_updated_at ? (
     <HumanTimeDiffWithFleetLaunchCutoff
-      timeString={titleData.detail_updated_at}
+      timeString={summaryData.detail_updated_at}
     />
   ) : (
     ": unavailable"
@@ -432,7 +434,7 @@ const HostSummary = ({
             <h1 className="display-name">
               {deviceUser
                 ? "My device"
-                : titleData.display_name || DEFAULT_EMPTY_CELL_VALUE}
+                : summaryData.display_name || DEFAULT_EMPTY_CELL_VALUE}
             </h1>
 
             {renderDeviceStatusTag()}

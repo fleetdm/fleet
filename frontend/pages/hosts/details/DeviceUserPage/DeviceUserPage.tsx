@@ -28,7 +28,7 @@ import PATHS from "router/paths";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_ABOUT_DATA,
-  HOST_TITLE_DATA,
+  HOST_SUMMARY_DATA,
 } from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
@@ -209,7 +209,7 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(pick(host, HOST_TITLE_DATA));
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
@@ -366,7 +366,7 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              titleData={titleData}
+              summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}

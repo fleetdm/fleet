@@ -48,7 +48,7 @@ import {
 import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
-  HOST_TITLE_DATA,
+  HOST_SUMMARY_DATA,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
@@ -462,7 +462,7 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  const titleData = normalizeEmptyValues(pick(host, HOST_TITLE_DATA));
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
@@ -763,7 +763,7 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          titleData={titleData}
+          summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
