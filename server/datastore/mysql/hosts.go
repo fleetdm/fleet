@@ -4526,7 +4526,7 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamID *uint) (*
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, id, globalStats, aggregatedStatsTypeOSVersions)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, time.Time{}, ctxerr.Wrap(ctx, notFound("OSVersion"))
+			return nil, time.Time{}, nil
 		}
 		return nil, time.Time{}, err
 	}

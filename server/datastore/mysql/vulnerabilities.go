@@ -100,7 +100,17 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
 	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
 	if err != nil {
-		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
+	}
+
+	if len(osvs.OSVersions) == 0 {
+		osvs, err = ds.OSVersions(ctx, nil, nil, nil, nil)
+		if err != nil {
+			return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching global OS versions")
+		}
+		for i := range osvs.OSVersions {
+			osvs.OSVersions[i].HostsCount = 0
+		}
 	}
 
 	updatedAt = osvs.CountsUpdatedAt
@@ -121,7 +131,7 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		if err == sql.ErrNoRows {
 			return nil, updatedAt, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
 		}
-		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS version and resolved version by CVE")
 	}
 
 	for _, osv := range osvs.OSVersions {
