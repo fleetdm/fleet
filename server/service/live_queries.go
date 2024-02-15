@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,10 +129,6 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	if req.Query == "" {
-		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
-	}
-
 	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
@@ -143,10 +140,6 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryOnHostByIDRequest)
 
-	if req.Query == "" {
-		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
-	}
-
 	host, err := svc.HostLiteByID(ctx, req.HostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
@@ -156,6 +149,11 @@ func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (errorer, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
+	}
+
 	res := runLiveQueryOnHostResponse{
 		HostID: host.ID,
 		Query:  query,
