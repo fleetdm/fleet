@@ -98,9 +98,6 @@ const SoftwareTitleDetailsPage = ({
     if (!softwareTitle) {
       return null;
     }
-    // TODO - replace logic
-    // const noHosts = softwareTitle.hosts_count === 0;
-    const noHosts = true;
     return (
       <>
         {isPremiumTier && (
@@ -120,18 +117,20 @@ const SoftwareTitleDetailsPage = ({
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
-        {/* TODO - replace logic */}
-        {/* {noHosts ? ( */}
+        {/* TODO - replace ternary logic */}
+        {/* {softwareTitle.hosts_count === 0 ? ( */}
         <DetailsNoHosts
           header="Software not detected"
-          details={`No host on this team has ${softwareTitle.name} installed.`}
+          details={`No host ${teamIdForApi ? "on this team " : ""}has ${
+            softwareTitle.name
+          } installed.`}
         />
         {/* ) : (
         <Card
           borderRadiusSize="large"
           includeShadow
           className={
-            noHosts ? "empty-details" : `${baseClass}__versions-section`
+            `${baseClass}__versions-section`
           }
         >
             <>

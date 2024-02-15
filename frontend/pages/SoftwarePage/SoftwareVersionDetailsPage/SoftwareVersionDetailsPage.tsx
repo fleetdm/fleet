@@ -117,10 +117,6 @@ const SoftwareVersionDetailsPage = ({
       return null;
     }
 
-    // TODO - replace logic
-    // const noHosts = softwareVersion.hosts_count === 0;
-    const noHosts = true;
-
     return (
       <>
         {isPremiumTier && (
@@ -142,31 +138,20 @@ const SoftwareVersionDetailsPage = ({
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
-        {/* TODO - replace logic */}
-        {/* {noHosts ? ( */}
+        {/* // TODO - replace logic */}
+        {/* {softwareVersion.hosts_count === 0 ? ( */}
         <DetailsNoHosts
           header="Software not detected"
-          details="No host has this software installed."
+          details={`No host ${
+            teamIdForApi ? "on this team " : ""
+          }has this software installed.`}
         />
         {/* ) : ( */}
         {/* <Card
           borderRadiusSize="large"
           includeShadow
           className={
-            noHosts ? "empty-details" : `${baseClass}__vulnerabilities-section`
-          }
-        <>
-          <h2>Software not detected</h2>
-          <p>
-            No host {!!teamIdForApi && "on this team "}has{" "}
-            {softwareVersion.name}, {softwareVersion.version} installed.
-          </p>
-        </>
-      <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={
-            noHosts ? "empty-details" : `${baseClass}__vulnerabilities-section`
+            `${baseClass}__vulnerabilities-section`
           }
           {/* ) : (
         >
