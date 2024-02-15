@@ -25,7 +25,7 @@ func TestListVulnerabilities(t *testing.T) {
 					Description: "A vulnerability",
 				},
 				CreatedAt: time.Now(),
-				HostCount: 10,
+				HostsCount: 10,
 			},
 		}, nil, nil
 	}

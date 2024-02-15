@@ -12,7 +12,7 @@ import (
 
 var freeValidVulnSortColumns = []string{
 	"cve",
-	"host_count",
+	"hosts_count",
 	"host_count_updated_at",
 	"created_at",
 }

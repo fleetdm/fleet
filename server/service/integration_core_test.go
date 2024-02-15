@@ -7574,7 +7574,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE]
 		require.True(t, ok)
-		require.Equal(t, expectedVuln.HostCount, vuln.HostCount)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
 	}
@@ -7601,7 +7601,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	for _, vuln := range resp.Vulnerabilities {
 		expectedVuln, ok := expected[vuln.CVE]
 		require.True(t, ok)
-		require.Equal(t, expectedVuln.HostCount, vuln.HostCount)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
 		require.Empty(t, vuln.CVSSScore)
 	}
@@ -7620,7 +7620,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
-	require.Equal(t, uint(1), gResp.Vulnerability.HostCount)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
@@ -7638,7 +7638,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE)
-	require.Equal(t, uint(1), gResp.Vulnerability.HostCount)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)

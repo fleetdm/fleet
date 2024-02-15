@@ -25,8 +25,8 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			cm.cisa_known_exploit,
 			cm.published,
 			cm.description,
-			COALESCE(vhc.host_count, 0) as host_count,
-			COALESCE(vhc.updated_at, NOW()) as host_count_updated_at
+			COALESCE(vhc.host_count, 0) as hosts_count,
+			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
 		FROM cve_meta cm
 		JOIN (
 			SELECT cve
@@ -49,8 +49,8 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			union_cve.cve,
 			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
-			COALESCE(vhc.host_count, 0) as host_count,
-			COALESCE(vhc.updated_at, NOW()) as host_count_updated_at
+			COALESCE(vhc.host_count, 0) as hosts_count,
+			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
 		FROM (
 			SELECT cve, created_at, source
 			FROM operating_system_vulnerabilities
@@ -198,8 +198,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit,
 			cm.published,
 			COALESCE(cm.description, '') AS description,
-			vhc.host_count,
-			vhc.updated_at as host_count_updated_at
+			vhc.host_count as hosts_count,
+			vhc.updated_at as hosts_count_updated_at
 		FROM
 			vulnerability_host_counts vhc
 		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
@@ -212,8 +212,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			vhc.cve,
 			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
-			vhc.host_count,
-			vhc.updated_at as host_count_updated_at
+			vhc.host_count as hosts_count,
+			vhc.updated_at as hosts_count_updated_at
 		FROM
 			vulnerability_host_counts vhc
 		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
@@ -238,10 +238,10 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cisa_known_exploit, 
 			cm.published, 
 			description, 
-			vhc.host_count,
-			host_count_updated_at
+			hosts_count,
+			hosts_count_updated_at
 	`
-	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
+	freeGroupBy := " GROUP BY vhc.cve, source, hosts_count, hosts_count_updated_at"
 
 	// Choose the appropriate group by statement based on EE or Free
 	var groupBy string
