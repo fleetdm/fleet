@@ -10,17 +10,13 @@ import (
 )
 
 func main() {
-	// Check if UUID is provided as a command-line argument
 	if len(os.Args) < 3 {
-		fmt.Println("Usage: go run main.go <UUID> <JWT_TOKEN>")
+		fmt.Println("Usage: go run run_query.go <UUID> <JWT_TOKEN>")
 		return
 	}
-
-	// Extract UUID and JWT token from command-line arguments
 	uuid := os.Args[1]
 	jwtToken := os.Args[2]
 
-	// Define the request body
 	requestBody := map[string]string{
 		"query": "SELECT * FROM time;",
 	}
@@ -30,21 +26,15 @@ func main() {
 		return
 	}
 
-	// API endpoint URL
 	apiUrl := fmt.Sprintf("https://dogfood.fleetdm.com/api/v1/fleet/hosts/identifier/%s/query", uuid)
-
-	// Create a new HTTP request
 	req, err := http.NewRequest("POST", apiUrl, bytes.NewBuffer(requestBodyBytes))
 	if err != nil {
 		fmt.Println("Error creating request:", err)
 		return
 	}
-
-	// Set JWT token in the Authorization header
 	req.Header.Set("Authorization", "Bearer "+jwtToken)
 	req.Header.Set("Content-Type", "application/json")
 
-	// Send the request using default HTTP client
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
