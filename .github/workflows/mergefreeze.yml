@@ -25,6 +25,7 @@ jobs:
                 exit 0
               fi
             done
+          done
 
           echo "all changed files are in the allowed paths. Automatically unfreezing."
           echo "all_files_allowed=true" >> "$GITHUB_OUTPUT"
