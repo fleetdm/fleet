@@ -1,4 +1,4 @@
-# Hosts activities
+# Host's activities
 
 This document includes the API responses for each host's upcopming and past activity type.
 
@@ -498,6 +498,100 @@ Examples for each upcoming activity type on Windows hosts.
     "type": "mdm_command",
     "command_uuid": "21a6dad3-87cd-4d4f-a565-c5e5d5e7f069",
     "status": "Pending",
+  }
+}
+```
+
+## Upcoming activities (Linux)
+
+Examples for each upcoming activity type on Linux hosts.
+
+### `ran_script`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "uuid": "cc5675d9-f9fb-40be-9d3c-b7357a11bf83",
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "ran_script",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_name": "set-timezone.sh",
+    "script_execution_id": "5566fde8-5128-4077-a4cb-147e98ecbef9",
+    "exit_code": null,     
+    "async": true
+  }
+}
+```
+
+### `locked`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "uuid": "cf85d4dc-3938-4ea6-8b45-3ba00da2e946",
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "locked",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "7ec73de9-d339-474d-a99c-4b1063e69e4e"
+    "exit_code": null
+  }
+}
+```
+
+### `unlocked`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "uuid": "18034f12-8cbb-4c6e-874b-9827ef0433f3",
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "unlocked",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "01726aa0-64bb-4ee4-bfbf-a0844aab171d"
+    "exit_code": null
+  }
+}
+```
+
+### `wiped`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "uuid": "1a8e900f-4482-41dd-95a1-f0a28fbc60b3",
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "wiped",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "21a6dad3-87cd-4d4f-a565-c5e5d5e7f069"
+    "exit_code": null
   }
 }
 ```
