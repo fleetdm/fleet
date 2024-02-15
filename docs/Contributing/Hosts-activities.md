@@ -1092,3 +1092,99 @@ Examples for each past activity type on Windows hosts.
   }
 }
 ```
+
+## Past activities (Linux)
+
+Examples for each past activity type on Linux hosts.
+
+### `ran_script`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 23,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "ran_script",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_name": "set-timezone.sh",
+    "script_execution_id": "bc1ede69-7b78-4137-a20e-3469e7f7eeb9",
+    "exit_code": 0,
+    "async": true
+  }
+},
+```
+
+### `locked`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 24,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "locked",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "7ec73de9-d339-474d-a99c-4b1063e69e4e",
+    "exit_code": 0
+  }
+}
+```
+
+### `unlocked`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 25,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "unlocked",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "01726aa0-64bb-4ee4-bfbf-a0844aab171d",
+    "exit_code": 0
+  }
+}
+```
+
+### `wiped`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 26,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "wiped",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "UBUNTU-8734L0IK",
+    "type": "script",
+    "script_execution_id": "01726aa0-64bb-4ee4-bfbf-a0844aab171d",
+    "exit_code": 0
+  }
+}
+```
+
+<meta name="pageOrderInSection" value="2000">
