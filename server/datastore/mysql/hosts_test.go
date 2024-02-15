@@ -3168,7 +3168,7 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	}
 
 	// add software to 5 hosts
-	var swVulnHostIDs []uint 
+	var swVulnHostIDs []uint
 	for i := 0; i < 5; i++ {
 		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software)
 		require.NoError(t, err)
@@ -3207,8 +3207,8 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 	// seed os vulnerability
 	osVulns := []fleet.OSVulnerability{
 		{
-			OSID: 	 1,
-			CVE:     "CVE-2021-1235",
+			OSID: 1,
+			CVE:  "CVE-2021-1235",
 		},
 	}
 	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
@@ -3221,7 +3221,6 @@ func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
 		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
 }
-
 
 func testHostsListMacOSSettingsDiskEncryptionStatus(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
