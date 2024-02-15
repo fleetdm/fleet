@@ -518,6 +518,9 @@ module.exports.routes = {
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
+  'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
+  'GET /renew-apns': '/docs/using-fleet/mdm-macos-setup#renewing-apns',
+  'GET /renew-abm': '/docs/using-fleet/mdm-macos-setup#renewing-abm',
 
   // Sitemap
   // =============================================================================================================
