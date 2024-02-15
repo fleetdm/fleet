@@ -77,7 +77,7 @@ export const getHostDeviceStatusUIState = (
 };
 
 /**
- * Helps check if our device status UI state is in an updating state.
+ * Checks if our device status UI state is in an updating state.
  */
 export const isDeviceStatusUpdating = (
   deviceStatus: HostMdmDeviceStatusUIState

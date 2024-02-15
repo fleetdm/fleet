@@ -44,11 +44,11 @@ const DEFAULT_OPTIONS = [
     value: "lock",
     disabled: false,
   },
-  // {
-  //   label: "Wipe",
-  //   value: "wipe",
-  //   disabled: false,
-  // },
+  {
+    label: "Wipe",
+    value: "wipe",
+    disabled: false,
+  },
   {
     label: "Unlock",
     value: "unlock",
@@ -152,10 +152,8 @@ const canWipeHost = ({
   isEnrolledInMdm,
   isMdmEnabledAndConfigured,
   hostPlatform,
+  hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  // TODO: remove when we work on wipe issue.
-  return false;
-
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
   const canWipeMacOrWindows =
@@ -166,7 +164,8 @@ const canWipeHost = ({
 
   return (
     isPremiumTier &&
-    (hostPlatform === "linux" || canWipeMacOrWindows) &&
+    hostMdmDeviceStatus === "unlocked" &&
+    (isLinuxLike(hostPlatform) || canWipeMacOrWindows) &&
     (isGlobalAdmin ||
       isGlobalMaintainer ||
       isGlobalObserver ||
@@ -279,9 +278,9 @@ const filterOutOptions = (
     options = options.filter((option) => option.value !== "lock");
   }
 
-  // if (!canWipeHost(config)) {
-  //   options = options.filter((option) => option.value !== "wipe");
-  // }
+  if (!canWipeHost(config)) {
+    options = options.filter((option) => option.value !== "wipe");
+  }
 
   if (!canUnlock(config)) {
     options = options.filter((option) => option.value !== "unlock");
@@ -306,7 +305,12 @@ const setOptionsAsDisabled = (
   };
 
   let optionsToDisable: IDropdownOption[] = [];
-  if (!isHostOnline) {
+  if (
+    !isHostOnline ||
+    isDeviceStatusUpdating(hostMdmDeviceStatus) ||
+    hostMdmDeviceStatus === "locked" ||
+    hostMdmDeviceStatus === "wiped"
+  ) {
     optionsToDisable = optionsToDisable.concat(
       options.filter(
         (option) => option.value === "query" || option.value === "mdmOff"
@@ -316,16 +320,6 @@ const setOptionsAsDisabled = (
   if (isSandboxMode) {
     optionsToDisable = optionsToDisable.concat(
       options.filter((option) => option.value === "transfer")
-    );
-  }
-  if (
-    isDeviceStatusUpdating(hostMdmDeviceStatus) ||
-    hostMdmDeviceStatus === "locked"
-  ) {
-    optionsToDisable = optionsToDisable.concat(
-      options.filter(
-        (option) => option.value === "query" || option.value === "mdmOff"
-      )
     );
   }
 

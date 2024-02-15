@@ -274,12 +274,7 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
-        setHostMdmDeviceState(
-          getHostDeviceStatusUIState(
-            returnedHost.mdm.device_status,
-            returnedHost.mdm.pending_action
-          )
-        );
+        setHostMdmDeviceState(getHostDeviceStatusUIState("unlocked", "unlock"));
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -695,7 +690,7 @@ const HostDetailsPage = ({
         hostTeamId={host.team_id}
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
-        hostStatus={host.status}
+        hostStatus={"online"}
         hostMdmDeviceStatus={hostMdmDeviceStatus}
         hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
