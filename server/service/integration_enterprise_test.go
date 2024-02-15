@@ -4696,6 +4696,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// attempt to create an async script execution request, succeeds because script is added to queue.
 	s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host"),
+		NodeKey:         ptr.String("plain-osquery-host"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -4857,6 +4876,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host-2"),
+		NodeKey:         ptr.String("plain-osquery-host-2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host-2"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
