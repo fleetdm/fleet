@@ -61,17 +61,22 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
+    goarch_value="$(uname -m)"
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
+	# for all platforms except Darwin, GOARCH is hardcoded to amd64 to
+	# prevent cross compilation issues when building macOS arm64 binaries
+	# from Linux (CGO + libraries are required)
+	goarch_value="amd64"
     fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
         orbit_target="${orbit_target}.exe"
     fi
 
-    # compiling a macOS-arm64 binary requires CGO and a macOS computer (due to
-    # the 'appicons' table we build), if this is the case, compile an universal
-    # binary.
+    # compiling a macOS-arm64 binary requires CGO and a macOS computer (for
+    # Apple keychain, some tables, etc), if this is the case, compile an
+    # universal binary.
     if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ]; then
        CGO_ENABLED=1 \
        CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
@@ -79,11 +84,7 @@ for system in $SYSTEMS; do
        ORBIT_BINARY_PATH=$orbit_target \
        go run ./orbit/tools/build/build.go
     else
-      # otherwise, simply compile the latest version of orbit from source using
-      # go build, note that GOARCH is hardcoded here to prevent cross
-      # compilation issues when building macOS arm64 binaries from Linux (CGO +
-      # libraries are required)
-      GOOS=$goose_value GOARCH=amd64 go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
+      GOOS=$goose_value GOARCH=$goarch_value go build -ldflags="-X github.com/fleetdm/fleet/v4/orbit/pkg/build.Version=42" -o $orbit_target ./orbit/cmd/orbit
     fi
 
     ./build/fleetctl updates add \
