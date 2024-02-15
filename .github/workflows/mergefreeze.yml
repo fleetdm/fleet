@@ -14,6 +14,7 @@ jobs:
       - name: Unfreeze if all modified files are OK to merge.
         id: modified-files
         run: |
+          PR_NUMBER=${{ github.event.pull_request.number }}
           ALLOWED_PATHS=(docs/**/*.md handbook/**/*.md mdm_profiles/** website/**)
           CHANGED_FILES=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json files --jq '.files[].path')
 
