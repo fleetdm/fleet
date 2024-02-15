@@ -1,6 +1,8 @@
 import React from "react";
 import { RouteComponentProps } from "react-router";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
+import { useErrorHandler } from "react-error-boundary";
 
 import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
 import softwareAPI, {
@@ -32,15 +34,24 @@ const SoftwareTitleDetailsPage = ({
   // TODO: handle non integer values
   const softwareId = parseInt(routeParams.id, 10);
 
+  const handlePageError = useErrorHandler();
+
   const {
     data: softwareTitle,
     isLoading: isSoftwareTitleLoading,
     isError: isSoftwareTitleError,
-  } = useQuery<ISoftwareTitleResponse, Error, ISoftwareTitle>(
+  } = useQuery<ISoftwareTitleResponse, AxiosError, ISoftwareTitle>(
     ["softwareById", softwareId],
     () => softwareAPI.getSoftwareTitle(softwareId),
     {
       select: (data) => data.software_title,
+      retry: false,
+      refetchOnWindowFocus: false,
+      onError: (error) => {
+        if (error.status === 403) {
+          handlePageError({ status: 403 });
+        }
+      },
     }
   );
 
