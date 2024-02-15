@@ -51,7 +51,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
 	// requirement and is what happens for macOS platforms.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMHostActionAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -133,7 +133,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 	// Authorize again with team loaded now that we have the host's team_id.
 	// Authorize as "execute mdm_command", which is the correct access
 	// requirement.
-	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, fleet.MDMHostActionAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
 		return "", err
 	}
 

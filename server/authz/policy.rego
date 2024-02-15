@@ -800,6 +800,27 @@ allow {
 	action == read
 }
 
+
+##
+# MDM Actions (lock, unlock, wipe, etc.)
+##
+
+# Team admins, maintainers, observers, and observer_plus can write (execute) MDM actions on hosts of their teams.
+allow {
+  not is_null(object.team_id)
+  object.type == "mdm_action"
+  team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+  action == write
+}
+
+# Global admins, maintainers, observers, and observer_plus can write (execute) MDM actions on hosts.
+allow {
+  object.type == "mdm_action"
+  subject.global_role == [admin, maintainer, observer, observer_plus][_]
+  action == write
+}
+
+
 ##
 # Cron schedules
 ##
