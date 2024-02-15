@@ -3701,7 +3701,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Get host's past activity
 
-`GET /api/v1/fleet/hosts/:id/activites`
+`GET /api/v1/fleet/hosts/:id/activities`
 
 #### Parameters
 
