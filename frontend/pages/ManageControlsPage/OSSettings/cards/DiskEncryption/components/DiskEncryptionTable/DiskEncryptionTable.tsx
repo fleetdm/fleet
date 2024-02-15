@@ -55,7 +55,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
         disableCount
         emptyComponent={() => (
           <EmptyTable
-            header="No Disk Encryption Status"
+            header="No disk encryption status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."
           />
