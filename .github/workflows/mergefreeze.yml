@@ -15,19 +15,25 @@ jobs:
         id: modified-files
         run: |
           PR_NUMBER=${{ github.event.pull_request.number }}
-          ALLOWED_PATHS=(docs/**/*.md handbook/**/*.md mdm_profiles/** website/**)
+          ALLOWED_PATHS=("docs/**/*.md" "handbook/**/*.md" "mdm_profiles/** website/**")
           CHANGED_FILES=$(gh pr view $PR_NUMBER --repo fleetdm/fleet --json files --jq '.files[].path')
+
+          OLD_IFS="$IFS"
+          IFS=$'\n'
 
           for FILE in $CHANGED_FILES; do
             for PATTERN in "${ALLOWED_PATHS[@]}"; do
-              if [[ ! "$FILE" == $PATTERN ]]; then
-                echo "file $FILE is not in the allowed paths, PR can't be automatically unfrozen."
-                echo "files_with_frozen_changes=true" >> "$GITHUB_OUTPUT"
-                exit 0
-              fi
+            echo $FILE, $PATTERN
+                if [[ $FILE == $PATTERN ]]; then
+                  break
+                else
+                  echo "file $FILE is not in the allowed paths, PR can't be automatically unfrozen."
+                  exit 0
+                fi
             done
           done
 
+          IFS="$OLD_IFS"
           echo "all changed files are in the allowed paths. Automatically unfreezing."
 
       - name: Unfreeze if the PR has the unfrozen tag
