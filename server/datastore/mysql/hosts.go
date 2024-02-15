@@ -4398,6 +4398,27 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 
 func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
+	teamOSVersionNotFound := false
+	if teamID != nil && errors.Is(err, sql.ErrNoRows) {
+		// Check if team exists. If not, return not found error.
+		teams, teamsErr := ds.TeamsSummary(ctx)
+		if teamsErr != nil {
+			return nil, nil, teamsErr
+		}
+		teamFound := false
+		for _, team := range teams {
+			if team.ID == *teamID {
+				teamFound = true
+				break
+			}
+		}
+		if !teamFound {
+			return nil, nil, err
+		}
+		teamOSVersionNotFound = true
+		// Grab the global OS version stats
+		jsonValue, updatedAt, err = ds.executeOSVersionQuery(ctx, nil)
+	}
 	if err != nil {
 		return nil, nil, err
 	}
@@ -4417,6 +4438,11 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *ui
 
 	if len(filtered) == 0 {
 		return nil, nil, ctxerr.Wrap(ctx, notFound("OSVersion"))
+	}
+
+	if teamOSVersionNotFound {
+		// If the team OS version was not found, but it exists, we need to return empty state.
+		return &fleet.OSVersion{}, &updatedAt, nil
 	}
 
 	// aggregate counts by name and version
