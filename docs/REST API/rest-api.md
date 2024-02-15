@@ -3701,7 +3701,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Get host's past activity
 
-`GET /api/v1/fleet/hosts/:id/activites/past`
+`GET /api/v1/fleet/hosts/:id/activites`
 
 #### Parameters
 
@@ -3713,7 +3713,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activities/past`
+`GET /api/v1/fleet/hosts/12/activities`
 
 ##### Default response
 
@@ -3725,33 +3725,37 @@ Retrieves a list of the configuration profiles assigned to a host.
     {
       "created_at": "2023-07-27T14:35:08Z",
       "id": 2,
-      "actor_full_name": "Anna",
+      "actor_full_name": "Marko",
       "actor_id": 1,
       "actor_gravatar": "",
-      "actor_email": "anna@example.com",
+      "actor_email": "marko@example.com",
       "type": "ran_script",
+      "fleet_initiated_activity": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Steve's MacBook Pro",
+        "type": "script",
         "script_name": "set-timezones.sh",
-        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "script_execution_id": "11fb7bcc-f9b2-40e7-b02c-93eef339227e",
+        "exit_code": 0,
         "async": true
       },
     },
     {
-      "created_at": "2021-07-27T13:25:21Z",
-      "id": 1,
-      "actor_full_name": "Bob",
+      "created_at": "2024-01-28T13:25:21Z",
+      "id": 2,
+      "actor_full_name": "Rachael",
       "actor_id": 2,
       "actor_gravatar": "",
-      "actor_email": "bob@example.com",
-      "type": "ran_script",
+      "actor_email": "rachael@example.com",
+      "type": "ran_mdm_command",
+      "fleet_initiated_activity": false,
       "details": {
         "host_id": 1,
         "host_display_name": "Steve's MacBook Pro",
-        "script_name": "",
-        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
-        "async": false
+        "type": "mdm_command",
+        "command_uuid": "ea082cdc-e62a-46f5-9dac-be10482565c5",
+        "status": "Pending"
       },
     },
   ],
@@ -3777,6 +3781,8 @@ Retrieves a list of the configuration profiles assigned to a host.
 #### Example
 
 `GET /api/v1/fleet/hosts/12/activities/upcoming`
+
+Examples of all upcoming activities for different operating systems are listed [here](#url).
 
 ##### Default response
 
