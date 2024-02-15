@@ -5,7 +5,9 @@ This document includes the API responses for each host's upcopming and past acti
 - [Upcoming activities (macOS)](#upcoming-activities-macos)
 - [Upcoming activities (Windows)](#upcoming-activities-windows)
 - [Upcoming activities (Linux)](#upcoming-activities-linux)
-- [Past activities](#past-activities)
+- [Past activities (macOS)](#past-activities-macos)
+- [Past activities (Windows)](#past-activities-windows)
+- [Past activities (Linux)](#past-activities-linux)
 
 ## Upcoming activities (macOS)
 
@@ -298,7 +300,7 @@ Examples for each upcoming activity type on Windows hosts.
     "host_id": 1,
     "host_display_name": "DELL-124FG87",
     "type": "script",
-    "script_name": "set-timezone.sh",
+    "script_name": "set-timezone.ps1",
     "script_execution_id": "bc1ede69-7b78-4137-a20e-3469e7f7eeb9",
     "exit_code": null,     
     "async": true
@@ -359,12 +361,12 @@ Examples for each upcoming activity type on Windows hosts.
   "actor_id": 1,
   "actor_gravatar": "",
   "actor_email": "marko@example.com",
-  "type": "created_macos_profile",
+  "type": "created_windows_profile",
   "fleet_initiated_activity": false,
   "details": {
     "host_id": 1,
     "host_display_name": "DELL-124FG87",
-    "profile_name": "macOS restrictions",
+    "profile_name": "Windows restrictions",
     "type": "mdm_command",
     "command_uuid": "eeeddb94-52d3-4071-8b18-7322cd382abb",
     "status": "Pending"
@@ -596,13 +598,301 @@ Examples for each upcoming activity type on Linux hosts.
 }
 ```
 
-## Past activities
+## Past activities (macOS)
 
-Examples for each past activity type.
+Examples for each past activity type on macOS hosts.
 
 ### `ran_script`
 
 ```json
-
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 1,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "ran_script",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "script",
+    "script_name": "set-timezone.sh",
+    "script_execution_id": "bc1ede69-7b78-4137-a20e-3469e7f7eeb9",
+    "exit_code": 0,
+    "async": true
+  }
+},
 ```
 
+### `ran_mdm_command`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 2,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "mdm_command",
+  "fleet_initiated_activity": false,  
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "db84026b-1c53-4685-bb9c-56cd274f6e5b",
+    "status": "Acknowledged",
+  }
+}
+```
+
+### `installed_fleetd`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 3,
+  "actor_full_name": "Fleet",
+  "actor_gravatar": "",
+  "actor_email": "",
+  "type": "installed_fleetd",
+  "fleet_initiated_activity": true,  
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "61e56080-1ffe-42a5-bd51-43d4174cb47f",
+    "status": "Acknowledged",
+  }
+}
+```
+
+### `set_account_configuration`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 4,
+  "actor_full_name": "Fleet",
+  "actor_gravatar": "",
+  "actor_email": "",
+  "type": "set_account_configuration",
+  "fleet_initiated_activity": true,  
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "db84026b-1c53-4685-bb9c-56cd274f6e5b",
+    "status": "Acknowledged",
+  }
+}
+```
+
+### `created_macos_profile`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "actor_full_name": "Marko",
+  "id": 5,
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "created_macos_profile",
+  "fleet_initiated_activity": true,  
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "profile_name": "macOS restrictions",
+    "type": "mdm_command",
+    "command_uuid": "eeeddb94-52d3-4071-8b18-7322cd382abb",
+    "status": "Acknowledged",
+  }
+}
+```
+
+### `edited_macos_profile`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "actor_full_name": "GitOps user",
+  "id": 6,
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "",
+  "type": "edited_macos_profile",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "profile_name": "macOS restrictions",
+    "type": "mdm_command",
+    "command_uuid": "b2c0b113-ca79-41ee-87d5-724de51b352c",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `deleted_macos_profile`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 7,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "deleted_macos_profile",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "profile_name": "macOS restrictions",
+    "type": "mdm_command",
+    "command_uuid": "68d81b61-78a0-48f6-926a-9c441e7ff961",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `enabled_disk_encryption`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 8,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "enabled_disk_encryption",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "f4ebbb4e-b2cf-4b60-92c8-df566de2e64d",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `disabled_disk_encryption`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 9,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "disabled_disk_encryption",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "f4ebbb4e-b2cf-4b60-92c8-df566de2e64d",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `edited_macos_min_version`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 10,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "edited_macos_min_version",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "minimum_version": "14.3.1",
+    "deadline": "2023-12-31",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `locked`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 11,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "locked",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "de05f360-0c37-4665-bfae-f5c9c48d9d50",
+    "status": "Acknowledged"
+  }
+}
+```
+
+### `wiped`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 12,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "wiped",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "Steve's MacBook Pro",
+    "type": "mdm_command",
+    "command_uuid": "f43efadb-13b3-4d63-8a68-f6de4d3277e4",
+    "status": "Acknowledged"
+  }
+}
+```
+
+## Past activities (Windows)
+
+Examples for each past activity type on Windows hosts.
+
+### `ran_script`
+
+```json
+{
+  "created_at": "2023-07-27T14:35:08Z",
+  "id": 13,
+  "actor_full_name": "Marko",
+  "actor_id": 1,
+  "actor_gravatar": "",
+  "actor_email": "marko@example.com",
+  "type": "ran_script",
+  "fleet_initiated_activity": false,
+  "details": {
+    "host_id": 1,
+    "host_display_name": "DELL-124FG87",
+    "type": "script",
+    "script_name": "set-timezone.ps1",
+    "script_execution_id": "bc1ede69-7b78-4137-a20e-3469e7f7eeb9",
+    "exit_code": 0,
+    "async": true
+  }
+},
+```
