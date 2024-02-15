@@ -166,62 +166,8 @@
       font-size: $large;
       font-weight: $bold;
     }
-
-    .last-fetched {
-      font-size: $xx-small;
-      color: $core-fleet-black;
-      margin: 0;
-      padding-left: $pad-small;
-    }
-
-    .refetch {
-      display: flex;
-      margin-right: $pad-small;
-
-      .refetch-btn {
-        font-size: $x-small;
-        height: 38px;
-        margin-left: $pad-small;
-
-        &:hover {
-          svg {
-            path {
-              fill: $core-vibrant-blue-over;
-            }
-          }
-        }
-      }
-
-      .refetch-offline {
-        opacity: 25%;
-      }
-
-      .refetch-spinner {
-        color: $core-vibrant-blue;
-        cursor: default;
-        font-size: $x-small;
-        height: 38px;
-        opacity: 50%;
-        filter: saturate(100%);
-        margin-left: $pad-small;
-
-        .icon {
-          animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-            transform-origin: center center;
-          }
-          100% {
-            transform: rotate(360deg);
-            transform-origin: center center;
-          }
-        }
-      }
-    }
   }
+
   &__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;

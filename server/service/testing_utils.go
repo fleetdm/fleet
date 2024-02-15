@@ -26,7 +26,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
-	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
@@ -63,7 +62,7 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 		c                 clock.Clock                = clock.C
 
 		is          fleet.InstallerStore
-		mdmStorage  nanomdm_storage.AllStorage
+		mdmStorage  fleet.MDMAppleStore
 		mdmPusher   nanomdm_push.Pusher
 		ssoStore    sso.SessionStore
 		profMatcher fleet.ProfileMatcher
@@ -280,7 +279,7 @@ type TestServerOpts struct {
 	EnrollHostLimiter   fleet.EnrollHostLimiter
 	Is                  fleet.InstallerStore
 	FleetConfig         *config.FleetConfig
-	MDMStorage          nanomdm_storage.AllStorage
+	MDMStorage          fleet.MDMAppleStore
 	DEPStorage          nanodep_storage.AllStorage
 	SCEPStorage         scep_depot.Depot
 	MDMPusher           nanomdm_push.Pusher

@@ -35,11 +35,7 @@ END AS platform
 	return p, nil
 }
 
-func (ds *Datastore) ListMDMCommands(
-	ctx context.Context,
-	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, error) {
+func getCombinedMDMCommandsQuery() string {
 	appleStmt := `
 SELECT
     nvq.id as host_uuid,
@@ -75,16 +71,35 @@ INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.en
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 `
 
-	jointStmt := fmt.Sprintf(
-		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE %s`,
-		appleStmt, windowsStmt, ds.whereFilterHostsByTeams(tmFilter, "h"),
+	return fmt.Sprintf(
+		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
+		appleStmt, windowsStmt,
 	)
+}
+
+func (ds *Datastore) ListMDMCommands(
+	ctx context.Context,
+	tmFilter fleet.TeamFilter,
+	listOpts *fleet.MDMCommandListOptions,
+) ([]*fleet.MDMCommand, error) {
+
+	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "list commands")
 	}
 	return results, nil
+}
+
+func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
+	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
+
+	var cmd fleet.MDMCommand
+	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm command by UUID")
+	}
+	return &cmd, nil
 }
 
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {

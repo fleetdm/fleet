@@ -360,6 +360,10 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
 	expectedText := `+------+------------+----------+-----------------+---------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
 +------+------------+----------+-----------------+---------+
@@ -439,7 +443,7 @@ func TestGetHosts(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
 			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
@@ -533,7 +537,7 @@ func TestGetHostsMDM(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
 			got, err := runAppNoChecks(tt.args)
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -616,7 +620,7 @@ func TestGetSoftwareTitles(t *testing.T) {
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
 		return []fleet.SoftwareTitle{
 			{

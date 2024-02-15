@@ -117,8 +117,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -141,6 +140,12 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 	}
 
 	// TODO: save the pin (first return value) in the database
+	// TODO(mna): same here for when we implement the Wipe story, assuming this
+	// implementation (which is for the deprecated /mdm/hosts/:id/wipe endpoint)
+	// should work as the new endpoint, then this should call
+	// svc.enqueueWipeHostRequest so that it behaves like the new endpoint. And
+	// yes, we do need to save the generated PIN so the EraseDevice method
+	// signature must change to return it.
 	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
 	if err != nil {
 		return err

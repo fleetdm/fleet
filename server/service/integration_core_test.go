@@ -233,7 +233,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	teams := []fleet.UserTeam{
 		{
 			Team: fleet.Team{
-				ID: 9999,
+				ID: 9999, // non-existent team
 			},
 			Role: fleet.RoleObserver,
 		},
@@ -246,7 +246,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452`)
+	assertBodyContains(t, resp, `team with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -5349,6 +5349,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
 		"team_id", "1",
 	)
+
+	// lock/unlock a host
+	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {

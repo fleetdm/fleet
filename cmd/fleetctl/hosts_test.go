@@ -64,7 +64,20 @@ func TestHostsTransferByHosts(t *testing.T) {
 	}
 
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--hosts", "host1"}))
-	require.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	assert.True(t, ds.NewActivityFuncInvoked)
+
+	// Now, transfer out of the team.
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		assert.Nil(t, teamID)
+		assert.Equal(t, []uint{42}, hostIDs)
+		return nil
+	}
+	ds.NewActivityFuncInvoked = false
+	ds.AddHostsToTeamFuncInvoked = false
+	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "", "--hosts", "host1"}))
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	assert.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByLabel(t *testing.T) {
@@ -121,6 +134,19 @@ func TestHostsTransferByLabel(t *testing.T) {
 
 	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "team1", "--label", "label1"}))
 	require.True(t, ds.NewActivityFuncInvoked)
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+
+	// Now, transfer out of the team.
+	ds.AddHostsToTeamFunc = func(ctx context.Context, teamID *uint, hostIDs []uint) error {
+		assert.Nil(t, teamID)
+		require.Equal(t, []uint{32, 12}, hostIDs)
+		return nil
+	}
+	ds.NewActivityFuncInvoked = false
+	ds.AddHostsToTeamFuncInvoked = false
+	assert.Equal(t, "", runAppForTest(t, []string{"hosts", "transfer", "--team", "", "--label", "label1"}))
+	assert.True(t, ds.AddHostsToTeamFuncInvoked)
+	assert.True(t, ds.NewActivityFuncInvoked)
 }
 
 func TestHostsTransferByStatus(t *testing.T) {
