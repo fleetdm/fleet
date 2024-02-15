@@ -1,3 +1,0 @@
-## Upcoming activities
-
-Examples
