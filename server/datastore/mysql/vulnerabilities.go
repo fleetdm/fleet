@@ -46,26 +46,25 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 
 	freeSelectStmt := `
 		SELECT DISTINCT
-			cm.cve,
+			union_cve.cve,
 			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			COALESCE(vhc.host_count, 0) as host_count,
 			COALESCE(vhc.updated_at, NOW()) as host_count_updated_at
-		FROM cve_meta cm
-		JOIN (
-			SELECT cve
-			FROM software_cve
+		FROM (
+			SELECT cve, created_at, source
+			FROM operating_system_vulnerabilities
 			WHERE cve = ?
 			
 			UNION
 			
-			SELECT cve
-			FROM operating_system_vulnerabilities
+			SELECT cve, created_at, source
+			FROM software_cve
 			WHERE cve = ?
-		) AS cve_table ON cm.cve = cve_table.cve
-		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cm.cve
-		LEFT JOIN software_cve sc ON sc.cve = cm.cve
-		LEFT JOIN vulnerability_host_counts vhc ON cm.cve = vhc.cve
+		) AS union_cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = union_cve.cve
+		LEFT JOIN software_cve sc ON sc.cve = union_cve.cve
+		LEFT JOIN vulnerability_host_counts vhc ON vhc.cve = union_cve.cve
 	`
 
 	var args []interface{}
