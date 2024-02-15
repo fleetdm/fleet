@@ -27,7 +27,7 @@ jobs:
             done
 
           echo "all changed files are in the allowed paths. Automatically unfreezing."
-          echo "all_files_allowed=true" >> $GITHUB_OUTPUT
+          echo "all_files_allowed=true" >> "$GITHUB_OUTPUT"
 
       - name: Unfreeze if the PR has the unfrozen tag
         if: ${{ steps.modified-files.outputs.all_files_allowed }}
