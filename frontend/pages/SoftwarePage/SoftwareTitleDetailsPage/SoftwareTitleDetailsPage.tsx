@@ -117,33 +117,28 @@ const SoftwareTitleDetailsPage = ({
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
-        {/* TODO - replace ternary logic */}
-        {/* {softwareTitle.hosts_count === 0 ? ( */}
-        <DetailsNoHosts
-          header="Software not detected"
-          details={`No host ${teamIdForApi ? "on this team " : ""}has ${
-            softwareTitle.name
-          } installed.`}
-        />
-        {/* ) : (
-        <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={
-            `${baseClass}__versions-section`
-          }
-        >
-            <>
-              <h2>Versions</h2>
-              <SoftwareTitleDetailsTable
-                router={router}
-                data={softwareTitle.versions}
-                isLoading={isSoftwareTitleLoading}
-                teamIdForApi={teamIdForApi}
-              />
-            </>
-        </Card>
-          )} */}
+        {softwareTitle.hosts_count === 0 ? (
+          <DetailsNoHosts
+            header="Software not detected"
+            details={`No host ${teamIdForApi ? "on this team " : ""}has ${
+              softwareTitle.name
+            } installed.`}
+          />
+        ) : (
+          <Card
+            borderRadiusSize="large"
+            includeShadow
+            className={`${baseClass}__versions-section`}
+          >
+            <h2>Versions</h2>
+            <SoftwareTitleDetailsTable
+              router={router}
+              data={softwareTitle.versions}
+              isLoading={isSoftwareTitleLoading}
+              teamIdForApi={teamIdForApi}
+            />
+          </Card>
+        )}
       </>
     );
   };

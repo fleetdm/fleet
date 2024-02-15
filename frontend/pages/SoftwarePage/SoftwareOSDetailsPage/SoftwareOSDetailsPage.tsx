@@ -170,15 +170,14 @@ const SoftwareOSDetailsPage = ({
           }}
           name={osVersionDetails.platform}
         />
-        {/* TODO: */}
-        {/* {osVersionDetails.hosts_count === 0 ? ( */}
-        <DetailsNoHosts
-          header="OS not detected"
-          details={`No host ${teamIdForApi ? "on this team " : ""}has ${
-            osVersionDetails.name
-          } installed.`}
-        />
-        {/* ) : (
+        {osVersionDetails.hosts_count === 0 ? (
+          <DetailsNoHosts
+            header="OS not detected"
+            details={`No host ${teamIdForApi ? "on this team " : ""}has ${
+              osVersionDetails.name
+            } installed.`}
+          />
+        ) : (
           <Card
             borderRadiusSize="large"
             includeShadow
@@ -187,7 +186,7 @@ const SoftwareOSDetailsPage = ({
             <h2>Vulnerabilities</h2>
             {renderTable()}
           </Card>
-        )} */}
+        )}
       </>
     );
   };

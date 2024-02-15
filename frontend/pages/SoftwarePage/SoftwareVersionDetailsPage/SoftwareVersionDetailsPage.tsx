@@ -138,35 +138,29 @@ const SoftwareVersionDetailsPage = ({
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
-        {/* // TODO - replace logic */}
-        {/* {softwareVersion.hosts_count === 0 ? ( */}
-        <DetailsNoHosts
-          header="Software not detected"
-          details={`No host ${
-            teamIdForApi ? "on this team " : ""
-          }has this software installed.`}
-        />
-        {/* ) : ( */}
-        {/* <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={
-            `${baseClass}__vulnerabilities-section`
-          }
-          {/* ) : (
-        >
-            <>
-          <h2 className="section__header">Vulnerabilities</h2>
-          <SoftwareVulnerabilitiesTable
-            data={softwareVersion.vulnerabilities ?? []}
-            itemName="software item"
-            isLoading={isSoftwareVersionLoading}
-            router={router}
-            teamIdForApi={teamIdForApi}
+        {softwareVersion.hosts_count === 0 ? (
+          <DetailsNoHosts
+            header="Software not detected"
+            details={`No host ${
+              teamIdForApi ? "on this team " : ""
+            }has this software installed.`}
           />
-            </>
-        </Card>
-          )} */}
+        ) : (
+          <Card
+            borderRadiusSize="large"
+            includeShadow
+            className={`${baseClass}__vulnerabilities-section`}
+          >
+            <h2 className="section__header">Vulnerabilities</h2>
+            <SoftwareVulnerabilitiesTable
+              data={softwareVersion.vulnerabilities ?? []}
+              itemName="software item"
+              isLoading={isSoftwareVersionLoading}
+              router={router}
+              teamIdForApi={teamIdForApi}
+            />
+          </Card>
+        )}
       </>
     );
   };
