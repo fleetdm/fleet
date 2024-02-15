@@ -49,6 +49,7 @@ import permissions from "utilities/permissions";
 import {
   DOCUMENT_TITLE_SUFFIX,
   HOST_TITLE_DATA,
+  HOST_TITLE_DATA_HDP_ONLY,
   HOST_ABOUT_DATA,
   HOST_OSQUERY_DATA,
 } from "utilities/constants";
@@ -462,7 +463,9 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  const titleData = normalizeEmptyValues(pick(host, HOST_TITLE_DATA));
+  const titleData = normalizeEmptyValues(
+    pick(host, [...HOST_TITLE_DATA, ...HOST_TITLE_DATA_HDP_ONLY])
+  );
 
   const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
@@ -764,7 +767,6 @@ const HostDetailsPage = ({
         </div>
         <HostSummaryCard
           titleData={titleData}
-          diskEncryptionEnabled={host?.disk_encryption_enabled}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}

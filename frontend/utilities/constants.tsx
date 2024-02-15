@@ -322,8 +322,12 @@ export const HOST_TITLE_DATA = [
   "percent_disk_space_available",
   "gigs_disk_space_available",
   "team_name",
-  "display_name",
+  "disk_encryption_enabled",
 ];
+
+export const HOST_TITLE_DATA_DEVICE_ONLY = ["platform", "mdm"];
+
+export const HOST_TITLE_DATA_HDP_ONLY = ["display_name"];
 
 export const HOST_ABOUT_DATA = [
   "seen_time",

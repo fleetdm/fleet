@@ -104,7 +104,6 @@ interface IBootstrapPackageData {
 interface IHostSummaryProps {
   titleData: any; // TODO: create interfaces for this and use consistently across host pages and related helpers
   bootstrapPackageData?: IBootstrapPackageData;
-  diskEncryptionEnabled?: boolean;
   isPremiumTier?: boolean;
   isSandboxMode?: boolean;
   toggleOSSettingsModal?: () => void;
@@ -166,7 +165,6 @@ const getHostDiskEncryptionTooltipMessage = (
 const HostSummary = ({
   titleData,
   bootstrapPackageData,
-  diskEncryptionEnabled,
   isPremiumTier,
   isSandboxMode = false,
   toggleOSSettingsModal,
@@ -180,7 +178,11 @@ const HostSummary = ({
   osSettings,
   hostMdmDeviceStatus,
 }: IHostSummaryProps): JSX.Element => {
-  const { status, platform } = titleData;
+  const {
+    status,
+    platform,
+    disk_encryption_enabled: diskEncryptionEnabled,
+  } = titleData;
 
   const renderRefetch = () => {
     const isOnline = titleData.status === "online";
