@@ -22,7 +22,6 @@ import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import Fleet404 from "pages/errors/Fleet404";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
@@ -116,6 +115,11 @@ const SoftwareVersionDetailsPage = ({
     if (!softwareVersion) {
       return null;
     }
+
+    // TODO - replace logic
+    // const noHosts = softwareVersion.hosts_count === 0;
+    const noHosts = true;
+
     return (
       <>
         {isPremiumTier && (
@@ -140,8 +144,21 @@ const SoftwareVersionDetailsPage = ({
         <Card
           borderRadiusSize="large"
           includeShadow
-          className={`${baseClass}__vulnerabilities-section`}
+          className={
+            noHosts ? "empty-details" : `${baseClass}__vulnerabilities-section`
+          }
         >
+          {/* TODO - replace logic */}
+          {/* {noHosts ? ( */}
+          <>
+            <h2>Software not detected</h2>
+            <p>
+              No host {!!teamIdForApi && "on this team "}has{" "}
+              {softwareVersion.name}, {softwareVersion.version} installed.
+            </p>
+          </>
+          {/* ) : (
+            <>
           <h2 className="section__header">Vulnerabilities</h2>
           <SoftwareVulnerabilitiesTable
             data={softwareVersion.vulnerabilities ?? []}
@@ -150,6 +167,8 @@ const SoftwareVersionDetailsPage = ({
             router={router}
             teamIdForApi={teamIdForApi}
           />
+            </>
+          )} */}
         </Card>
       </>
     );
