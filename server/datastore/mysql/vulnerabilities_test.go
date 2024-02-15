@@ -109,17 +109,17 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 				Description:      "Test CVE 2020-1234",
 			},
 			HostsCount: 10,
-			Source:    fleet.MSRCSource,
+			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1235": {
-			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1235"},
 			HostsCount: 15,
-			Source:    fleet.MSRCSource,
+			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1236": {
-			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1236"},
 			HostsCount: 20,
-			Source:    fleet.NVDSource,
+			Source:     fleet.NVDSource,
 		},
 	}
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{IsEE: true})
@@ -135,19 +135,19 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	// Test Fleet Free
 	expected = map[string]fleet.VulnerabilityWithMetadata{
 		"CVE-2020-1234": {
-			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1234"},
+			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1234"},
 			HostsCount: 10,
-			Source:    fleet.MSRCSource,
+			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1235": {
-			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1235"},
 			HostsCount: 15,
-			Source:    fleet.MSRCSource,
+			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1236": {
-			CVEMeta:   fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1236"},
 			HostsCount: 20,
-			Source:    fleet.NVDSource,
+			Source:     fleet.NVDSource,
 		},
 	}
 	list, _, err = ds.ListVulnerabilities(context.Background(), fleet.VulnListOptions{})
@@ -210,7 +210,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 			CVE: "CVE-2020-1234",
 		},
 		HostsCount: 10,
-		Source:    fleet.MSRCSource,
+		Source:     fleet.MSRCSource,
 	}
 
 	// No CVSSScores
@@ -238,7 +238,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 			Description:      "Test CVE 2020-1234",
 		},
 		HostsCount: 10,
-		Source:    fleet.MSRCSource,
+		Source:     fleet.MSRCSource,
 	}
 
 	// With CVSSScores
@@ -294,7 +294,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 			CVE: "CVE-2020-1234",
 		},
 		HostsCount: 10,
-		Source:    fleet.NVDSource,
+		Source:     fleet.NVDSource,
 	}
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
@@ -314,7 +314,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 			Description:      "Test CVE 2020-1234",
 		},
 		HostsCount: 10,
-		Source:    fleet.NVDSource,
+		Source:     fleet.NVDSource,
 	}
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
