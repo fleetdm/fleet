@@ -3715,6 +3715,8 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 `GET /api/v1/fleet/hosts/12/activities`
 
+Examples of all past activities for different operating systems are listed [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Hosts-activities.md#past-activities).
+
 ##### Default response
 
 `Status: 200`
@@ -3782,7 +3784,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 `GET /api/v1/fleet/hosts/12/activities/upcoming`
 
-Examples of all upcoming activities for different operating systems are listed [here](#url).
+Examples of all upcoming activities for different operating systems are listed [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Hosts-activities.md#upcoming-activities).
 
 ##### Default response
 
