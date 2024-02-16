@@ -5263,7 +5263,7 @@ These API endpoints are used to notify about important actions that are required
 
 - [Expiring Apple Push Notification certificate](#expiring-apple-push-notification-certificate)
 
-### Expiring Apple Push Notification certificate
+### Apple Push Notification service notifications
 
 `GET /api/v1/fleet/notifications/apple_apns`
 
@@ -5277,8 +5277,47 @@ These API endpoints are used to notify about important actions that are required
 
 ```json
 {
- "status": "expired"
+ "certificate_status": "expired",
  "message": "Your Apple Push Notification service (APNs) certificate has expired. All end users have to turn MDM off and back on after you renew the certificate."
+}
+```
+
+### Apple Business Manager notifications
+
+`GET /api/v1/fleet/notifications/apple_abm`
+
+#### Example
+
+`GET /api/v1/fleet/notifications/apple_abm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+ "token_status": "expiring",
+ "message": "Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, new macOS hosts will not automatically enroll to Fleet.",
+"apple_bm_terms_expired": false
+}
+```
+
+### Apple Business Manager token
+
+`GET /api/v1/fleet/notifications/apple_abm`
+
+#### Example
+
+`GET /api/v1/fleet/notifications/apple_abm`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+ "status": "expiring"
+ "message": "Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, new macOS hosts will not automatically enroll to Fleet."
 }
 ```
 
