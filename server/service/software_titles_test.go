@@ -21,6 +21,7 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{}, nil
 	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
