@@ -111,7 +111,7 @@ const SoftwareTitleDetailsPage = ({
         <SoftwareDetailsSummary
           title={softwareTitle.name}
           type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions.length}
+          versions={softwareTitle.versions?.length ?? 0}
           hosts={softwareTitle.hosts_count}
           queryParams={{ software_title_id: softwareId, team_id: teamIdForApi }}
           name={softwareTitle.name}
@@ -133,7 +133,7 @@ const SoftwareTitleDetailsPage = ({
             <h2>Versions</h2>
             <SoftwareTitleDetailsTable
               router={router}
-              data={softwareTitle.versions}
+              data={softwareTitle.versions ?? []}
               isLoading={isSoftwareTitleLoading}
               teamIdForApi={teamIdForApi}
             />
