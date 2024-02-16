@@ -4,7 +4,7 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError } from "axios";
+import { AxiosError, isAxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -17,7 +17,6 @@ import softwareAPI, {
 } from "services/entities/software";
 
 import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
@@ -75,7 +74,13 @@ const SoftwareTitleDetailsPage = ({
     ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
       select: (data) => data.software_title,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // 404s returned for both non-existent and non-accessable entities
+        // which we intentionally handle with the same empty state for security
+        if (isAxiosError(error) && error.response?.status !== 404) {
+          handlePageError(error);
+        }
+      },
     }
   );
 
@@ -91,10 +96,6 @@ const SoftwareTitleDetailsPage = ({
       return <Spinner />;
     }
 
-    if (isSoftwareTitleError) {
-      return <TableDataError className={`${baseClass}__table-error`} />;
-    }
-
     if (!softwareTitle) {
       return null;
     }
@@ -108,36 +109,42 @@ const SoftwareTitleDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        <SoftwareDetailsSummary
-          title={softwareTitle.name}
-          type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions?.length ?? 0}
-          hosts={softwareTitle.hosts_count}
-          queryParams={{ software_title_id: softwareId, team_id: teamIdForApi }}
-          name={softwareTitle.name}
-          source={softwareTitle.source}
-        />
-        {softwareTitle.hosts_count === 0 ? (
+        {/* at this point, error can only be 404 per above handling */}
+        {isSoftwareTitleError ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No hosts ${teamIdForApi ? "on this team " : ""}have ${
-              softwareTitle.name
-            } installed.`}
+            details={`No hosts ${
+              teamIdForApi ? "on this team " : ""
+            }have this software installed.`}
           />
         ) : (
-          <Card
-            borderRadiusSize="large"
-            includeShadow
-            className={`${baseClass}__versions-section`}
-          >
-            <h2>Versions</h2>
-            <SoftwareTitleDetailsTable
-              router={router}
-              data={softwareTitle.versions ?? []}
-              isLoading={isSoftwareTitleLoading}
-              teamIdForApi={teamIdForApi}
+          <>
+            <SoftwareDetailsSummary
+              title={softwareTitle.name}
+              type={formatSoftwareType(softwareTitle)}
+              versions={softwareTitle.versions?.length ?? 0}
+              hosts={softwareTitle.hosts_count}
+              queryParams={{
+                software_title_id: softwareId,
+                team_id: teamIdForApi,
+              }}
+              name={softwareTitle.name}
+              source={softwareTitle.source}
             />
-          </Card>
+            <Card
+              borderRadiusSize="large"
+              includeShadow
+              className={`${baseClass}__versions-section`}
+            >
+              <h2>Versions</h2>
+              <SoftwareTitleDetailsTable
+                router={router}
+                data={softwareTitle.versions ?? []}
+                isLoading={isSoftwareTitleLoading}
+                teamIdForApi={teamIdForApi}
+              />
+            </Card>
+          </>
         )}
       </>
     );
