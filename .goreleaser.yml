@@ -82,14 +82,7 @@ universal_binaries:
     hooks:
       post:
         - sh -c "echo \"$APPLE_APPLICATION_CERTIFICATE\" | base64 --decode > certificate.p12 && rcodesign sign --p12-file certificate.p12 --p12-password \"$APPLE_APPLICATION_CERTIFICATE_PASSWORD\" --for-notarization  {{ .Path }} && rm certificate.p12"
-        # TODO: rcodesign uses the new notary API, and requires arguments that
-        # are not available to GitHub runners yet.
-        # For instructions about getting those, see:
-        # https://gregoryszorc.com/docs/apple-codesign/0.17.0/apple_codesign_getting_started.html#apple-codesign-app-store-connect-api-key
-        # - rcodesign notary-submit \
-        #    --api-key-path ~/.appstoreconnect/key.json \
-        #    --staple \
-        #    path/to/file/to/notarize
+        - sh -c "echo \"$APPLE_APP_STORE_CONNECT_KEY\" | base64 --decode > key.json && rcodesign notary-submit --api-key-path key.json --staple  {{ .Path }} && rm key.json"
 
 archives:
   - id: fleet
