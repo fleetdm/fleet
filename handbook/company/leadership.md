@@ -15,7 +15,7 @@ This page covers the things managers and other leaders at Fleet need to know abo
 - I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?"
 
 
-### Contact the CEO
+## Contact the CEO
 **Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
 
