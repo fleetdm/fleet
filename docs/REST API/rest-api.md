@@ -1826,6 +1826,8 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
+- [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
 ### On the different timestamps in the host data structure
 
@@ -3825,6 +3827,106 @@ Retrieves a list of the configuration profiles assigned to a host.
   }
 }
 ```
+
+### Live query one host (ad-hoc)
+
+Runs an ad-hoc live query against the specified host and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/:id/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer  | path | **Required**. The target host ID. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
+
+### Live query host by identifier (ad-hoc)
+
+Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/identifier/:identifier/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 ---
 
@@ -6537,9 +6639,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 Runs a live query against the specified hosts and responds with the results.
 
-If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
-
-The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
+The live query will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
 `POST /api/v1/fleet/queries/:id/run`
