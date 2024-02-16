@@ -56,7 +56,7 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
 2. Set up and attend a 30m meeting with the Head of Business Operations and CEO:
   - First, during this meeting, the Head of Business Operations proposes an event issue for each of the **_current quarter's_** events to get input and any new information or changes from the Head of Demand and CEO. (Events for the current quarter were already decided in a previous event strategy session, so Fleet does not make changes except in extreme circumstances.)
   - Next, decide which events in the **_following quarter_** the company will invest time or money into.  This includes any event that Fleet pays to send someone to or to sponsor, and even events where Fleet's only involvement is that a fleetie will be giving a talk or otherwise representing the brand.
-  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation or removing the event idea from the spreadsheet.
+  - Finally, qualify or disqualify any newly-entered event ideas by either verifying and setting the buying situation, or removing the event idea from the spreadsheet.
 
 ### Event lead follow up
 Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. 
