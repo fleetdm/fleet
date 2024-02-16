@@ -160,7 +160,7 @@ You can help a Premium license dispenser customers change their credit card by d
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/sales/sales.rituals.yml']"></rituals>
 
 
 #### Stubs
