@@ -64,6 +64,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 	ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
 		return &fleet.Software{}, nil
 	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
 	svc, ctx := newTestService(t, ds, nil, nil)
 
 	for _, tc := range []struct {

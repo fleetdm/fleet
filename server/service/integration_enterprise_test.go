@@ -3403,7 +3403,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// OS versions with invalid team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusBadRequest, &osVersionResp, "team_id",
 		"99999",
 	)
 
