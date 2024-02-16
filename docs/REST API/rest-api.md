@@ -3882,7 +3882,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
 
-The live query will stop if the targeted host is offline, or hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+The live query will stop if the targeted host is offline, or the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
 `POST /api/v1/fleet/hosts/identifier/:identifier/query`
