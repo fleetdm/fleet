@@ -22,3 +22,15 @@ export interface IRegistrationFormData {
   fleet_web_address: string;
   server_url: string;
 }
+
+export interface IRegistrationFormErrors {
+  name?: string | null;
+  password?: string | null;
+  password_confirmation?: string | null;
+  email?: string | null;
+  org_name?: string | null;
+  org_web_url?: string | null;
+  org_logo_url?: string | null;
+  fleet_web_address?: string | null;
+  server_url?: string | null;
+}

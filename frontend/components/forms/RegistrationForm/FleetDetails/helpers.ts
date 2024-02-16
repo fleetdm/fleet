@@ -1,7 +1,11 @@
 import { size, startsWith } from "lodash";
+import {
+  IRegistrationFormData,
+  IRegistrationFormErrors,
+} from "interfaces/registration_form_data";
 
-const validate = (formData) => {
-  const errors = {};
+const validate = (formData: IRegistrationFormData) => {
+  const errors: IRegistrationFormErrors = {};
   const { server_url: fleetWebAddress } = formData;
 
   if (!fleetWebAddress) {
