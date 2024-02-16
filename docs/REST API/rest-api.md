@@ -5302,25 +5302,6 @@ These API endpoints are used to notify about important actions that are required
 }
 ```
 
-### Apple Business Manager token
-
-`GET /api/v1/fleet/notifications/apple_abm`
-
-#### Example
-
-`GET /api/v1/fleet/notifications/apple_abm`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
- "status": "expiring"
- "message": "Your Apple Business Manager (ABM) server token is less than 30 days from expiration. If it expires, new macOS hosts will not automatically enroll to Fleet."
-}
-```
-
 ---
 
 ## Policies
