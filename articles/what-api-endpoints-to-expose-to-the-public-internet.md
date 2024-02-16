@@ -59,7 +59,7 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 
 ## Advanced
 
-The following endpoints don't support mTLS:
+The following endpoints don't support mTLS or `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST`:
 - `/mdm/apple/scep`
 - `/api/mdm/microsoft/discovery`
 - `/api/mdm/microsoft/auth`
