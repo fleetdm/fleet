@@ -15,8 +15,6 @@ const Breadcrumbs = ({
   currentPage = 1,
   pageProgress = 1,
 }: IBreadcrumbs): JSX.Element => {
-  console.log("page", currentPage);
-  console.log("pageProgress", pageProgress);
   const pageBaseClass = `${baseClass}__page`;
   const page1ClassName = classnames(pageBaseClass, `${pageBaseClass}--1`, {
     [`${pageBaseClass}--active`]: currentPage === 1,

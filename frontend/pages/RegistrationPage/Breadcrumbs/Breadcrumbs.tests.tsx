@@ -6,13 +6,13 @@ import Breadcrumbs from "pages/RegistrationPage/Breadcrumbs";
 
 describe("Breadcrumbs - component", () => {
   it("renders 3 Button components", () => {
-    render(<Breadcrumbs onSetPage={noop} pageProgress={1} />);
+    render(<Breadcrumbs onSetPage={noop} pageProgress={1} currentPage={1} />);
     expect(screen.getAllByRole("button").length).toEqual(3);
   });
 
-  it("renders page 1 Button as active when the page prop is 1", () => {
+  it("renders page 1 Button as active when the current page prop is 1", () => {
     const { container } = render(
-      <Breadcrumbs onSetPage={noop} pageProgress={1} />
+      <Breadcrumbs onSetPage={noop} pageProgress={1} currentPage={1} />
     );
     const page1Btn = container.querySelector(
       "button.registration-breadcrumbs__page--1"
