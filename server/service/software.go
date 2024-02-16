@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"fmt"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"time"
 
@@ -153,7 +152,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, badRequest(fmt.Sprintf("team %d does not exist", *teamID))
+			return nil, fleet.NewAuthFailedError("team does not exist")
 		}
 	}
 	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores)
