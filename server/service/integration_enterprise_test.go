@@ -4696,6 +4696,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 
 	// attempt to create an async script execution request, succeeds because script is added to queue.
 	s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo"}, http.StatusAccepted)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host"),
+		NodeKey:         ptr.String("plain-osquery-host"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptContents: "echo"}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
@@ -4857,6 +4876,25 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+
+	// attempt to run a script on a plain osquery host
+	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-time.Minute),
+		OsqueryHostID:   ptr.String("plain-osquery-host-2"),
+		NodeKey:         ptr.String("plain-osquery-host-2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%s.local", "plain-osquery-host-2"),
+		HardwareSerial:  uuid.New().String(),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: plainOsqueryHost.ID, ScriptID: &script.ID}, http.StatusUnprocessableEntity)
+	require.Contains(t, extractServerErrorText(res.Body), fleet.RunScriptDisabledErrMsg)
 }
 
 func (s *integrationEnterpriseTestSuite) TestEnqueueSameScriptTwice() {
@@ -6368,8 +6406,8 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		{
 			Name:          "foo",
 			Source:        "homebrew",
-			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host
-			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host
+			VersionsCount: 1, // NOTE: this value is 1 because the team has only 1 matching host in the team
+			HostsCount:    1, // NOTE: this value is 1 because the team has only 1 matching host in the team
 			Versions: []fleet.SoftwareVersion{
 				{Version: "0.0.1", Vulnerabilities: nil}, // NOTE: this only includes versions present in the team
 			},
@@ -6650,4 +6688,360 @@ func (s *integrationEnterpriseTestSuite) createHosts(t *testing.T, platforms ...
 		hosts = append(hosts, host)
 	}
 	return hosts
+}
+
+func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
+	t := s.T()
+	ctx := context.Background()
+	// create two hosts, one belongs to team1 and one has no team
+	host, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	tmHost, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "tm"),
+		NodeKey:         ptr.String(t.Name() + "tm"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()+"tm"),
+		Platform:        "linux",
+	})
+	require.NoError(t, err)
+
+	// Create two teams, team1 and team2.
+	team1, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          42,
+		Name:        "team1",
+		Description: "desc team1",
+	})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID}))
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{
+		ID:          43,
+		Name:        "team2",
+		Description: "desc team2",
+	})
+	require.NoError(t, err)
+
+	allSoftware := []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "homebrew"},
+		{Name: "foo", Version: "0.0.3", Source: "homebrew"},
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+	}
+	// add all the software entries to the "no team host"
+	_, err = s.ds.UpdateHostSoftware(ctx, host.ID, allSoftware)
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, host, false))
+
+	// add only one version of "foo" to the team host
+	_, err = s.ds.UpdateHostSoftware(ctx, tmHost.ID, []fleet.Software{allSoftware[0]})
+	require.NoError(t, err)
+	require.NoError(t, s.ds.LoadHostSoftware(ctx, tmHost, false))
+
+	// calculate hosts counts
+	hostsCountTs := time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(ctx, hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// add variations of user roles to different teams
+	extraTestUsers := make(map[string]fleet.User)
+	for k, u := range map[string]struct {
+		Email      string
+		GlobalRole *string
+		Teams      *[]fleet.UserTeam
+	}{
+		"team-1-admin": {
+			Email: "team-1-admin@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			}}),
+		},
+		"team-1-maintainer": {
+			Email: "team-1-maintainer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleMaintainer,
+			}}),
+		},
+		"team-1-observer": {
+			Email: "team-1-observer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team1,
+				Role: fleet.RoleObserver,
+			}}),
+		},
+		"team-2-admin": {
+			Email: "team-2-admin@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleAdmin,
+			}}),
+		},
+		"team-2-maintainer": {
+			Email: "team-2-maintainer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleMaintainer,
+			}}),
+		},
+		"team-2-observer": {
+			Email: "team-2-observer@example.com",
+			Teams: &([]fleet.UserTeam{{
+				Team: *team2,
+				Role: fleet.RoleObserver,
+			}}),
+		},
+	} {
+		uu := u
+		cur := createUserResponse{}
+		s.DoJSON("POST", "/api/latest/fleet/users/admin", createUserRequest{
+			UserPayload: fleet.UserPayload{
+				Email:                    &uu.Email,
+				Password:                 &test.GoodPassword,
+				Name:                     &uu.Email,
+				Teams:                    uu.Teams,
+				AdminForcedPasswordReset: ptr.Bool(false),
+			},
+		}, http.StatusOK, &cur)
+		extraTestUsers[k] = *cur.User
+	}
+
+	// List all software titles with an admin
+	var listSoftwareTitlesResp listSoftwareTitlesResponse
+	s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
+
+	var softwareFoo, softwareBar *fleet.SoftwareTitle
+	for _, s := range listSoftwareTitlesResp.SoftwareTitles {
+		s := s
+		switch s.Name {
+		case "foo":
+			softwareFoo = &s
+		case "bar":
+			softwareBar = &s
+		}
+	}
+	require.NotNil(t, softwareFoo)
+	require.NotNil(t, softwareBar)
+
+	var teamFooVersion *fleet.SoftwareVersion
+	for _, sv := range softwareFoo.Versions {
+		sv := sv
+		if sv.Version == "0.0.1" {
+			teamFooVersion = &sv
+		}
+	}
+	require.NotNil(t, teamFooVersion)
+
+	for _, tc := range []struct {
+		name                 string
+		user                 fleet.User
+		shouldFailGlobalRead bool
+		shouldFailTeamRead   bool
+	}{
+		{
+			name:                 "global-admin",
+			user:                 s.users["admin1@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "global-maintainer",
+			user:                 s.users["user1@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "global-observer",
+			user:                 s.users["user2@example.com"],
+			shouldFailGlobalRead: false,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-admin-belongs-to-team",
+			user:                 extraTestUsers["team-1-admin"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-maintainer-belongs-to-team",
+			user:                 extraTestUsers["team-1-maintainer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-observer-belongs-to-team",
+			user:                 extraTestUsers["team-1-observer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   false,
+		},
+		{
+			name:                 "team-admin-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-admin"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+		{
+			name:                 "team-maintainer-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-maintainer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+		{
+			name:                 "team-observer-does-not-belong-to-team",
+			user:                 extraTestUsers["team-2-observer"],
+			shouldFailGlobalRead: true,
+			shouldFailTeamRead:   true,
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			// to make the request as the user
+			s.token = s.getTestToken(tc.user.Email, test.GoodPassword)
+
+			if tc.shouldFailGlobalRead {
+				// List all software titles
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusForbidden, &listSoftwareTitlesResp)
+
+				// List all software versions
+				var resp listSoftwareVersionsResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareTitlesRequest{}, http.StatusForbidden, &resp)
+
+				// Get a global software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+
+				// Get a global software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a global software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
+
+				// List all software versions using the deprecated endpoint
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
+			} else {
+				// List all software titles
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{}, http.StatusOK, &listSoftwareTitlesResp)
+				require.Equal(t, 2, listSoftwareTitlesResp.Count)
+				require.NotEmpty(t, listSoftwareTitlesResp.CountsUpdatedAt)
+
+				// List all software versions
+				var resp listSoftwareVersionsResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{}, http.StatusOK, &resp)
+				require.Equal(t, 3, resp.Count)
+				require.NotEmpty(t, resp.CountsUpdatedAt)
+
+				// Get a global software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareBar.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
+
+				// Get a global software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a global software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", softwareBar.Versions[0].ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a global count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{}, http.StatusOK, &countSoftwareResp)
+				require.Equal(t, 3, countSoftwareResp.Count)
+
+				// List all software versions using the deprecated endpoint
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusOK, &softwareListResp)
+				require.Equal(t, countSoftwareResp.Count, 3)
+			}
+
+			if tc.shouldFailTeamRead {
+				// List all software titles for a team
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &listSoftwareTitlesResp)
+
+				// List software versions for a team.
+				var resp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusForbidden, &resp)
+
+				// Get a team software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &getSoftwareTitleResp)
+
+				// Get a team software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a team software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResp)
+
+				// Get a count of team software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", getSoftwareRequest{}, http.StatusForbidden, &countSoftwareResp)
+
+				// List all software versions using the deprecated endpoint for a team
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{}, http.StatusForbidden, &softwareListResp)
+			} else {
+				// List all software titles for a team
+				var listSoftwareTitlesResp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/titles", listSoftwareTitlesRequest{SoftwareTitleListOptions: fleet.SoftwareTitleListOptions{TeamID: &team1.ID}}, http.StatusOK, &listSoftwareTitlesResp)
+				require.Equal(t, 1, listSoftwareTitlesResp.Count)
+				require.NotEmpty(t, listSoftwareTitlesResp.CountsUpdatedAt)
+
+				// List software versions for a team.
+				var resp listSoftwareTitlesResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/versions", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &resp)
+				require.Equal(t, 1, resp.Count)
+				require.NotEmpty(t, resp.CountsUpdatedAt)
+
+				// Get a team software title
+				var getSoftwareTitleResp getSoftwareTitleResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", softwareFoo.ID), getSoftwareTitleRequest{}, http.StatusOK, &getSoftwareTitleResp)
+
+				// Get a team software version
+				var getSoftwareResp getSoftwareResponse
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a team software vesion using the deprecated endpoint
+				getSoftwareResp = getSoftwareResponse{}
+				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", teamFooVersion.ID), getSoftwareRequest{}, http.StatusOK, &getSoftwareResp)
+
+				// Get a team count of software vesions using the deprecated endpoint
+				var countSoftwareResp countSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software/count", countSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &countSoftwareResp)
+				require.Equal(t, 1, countSoftwareResp.Count)
+
+				// List all software versions using the deprecated endpoint for a team
+				var softwareListResp listSoftwareResponse
+				s.DoJSON("GET", "/api/latest/fleet/software", listSoftwareRequest{SoftwareListOptions: fleet.SoftwareListOptions{TeamID: &team1.ID}}, http.StatusOK, &softwareListResp)
+				require.Equal(t, countSoftwareResp.Count, 1)
+			}
+		})
+	}
+
+	// set the admin token again to avoid breaking other tests
+	s.token = s.getTestAdminToken()
+
 }
