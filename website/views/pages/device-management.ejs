@@ -13,10 +13,10 @@
           <div purpose="hero-text">
             <strong>Your last MDM migration</strong>
             <p>Even if you've never done an MDM migration, you've probably heard it's hard.  Fleet makes it easy to get your data in and get it out.</p>
-            <strong>Simplify your tools</strong>
-            <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
-            <strong>Implement “zero trust” faster</strong>
-            <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
+            <strong>Tidy up your tools</strong>
+            <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
+            <strong>“Zero” trust, fewer tickets</strong>
+            <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
             <div purpose="button-row" class="d-flex flex-md-row flex-column justify-content-start align-items-center">
               <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
               <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>
@@ -62,8 +62,8 @@
       <%/* Simplify your tools section */%>
       <div purpose="page-section">
         <div purpose="feature-headline">
-          <h2>Simplify your tools</h2>
-          <p>Deploy a modern Mac-first MDM that’s purpose-built to manage your Apple, Windows, and Linux computers.</p>
+          <h2>Tidy up your tools</h2>
+          <p>Deploy a modern Mac-first MDM purpose-built for IT engineers and cross-training. Use principles from DevOps to manage Apple, Windows, and Linux computers declaratively.</p>
         </div>
 
         <div purpose="two-column-features" class="mx-auto">
@@ -97,6 +97,16 @@
           </div>
         </div>
 
+        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
+          <div purpose="feature-text" class="d-flex flex-column">
+            <h3>Manage devices like code</h3>
+            <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
+          </div>
+          <div purpose="feature-image" class="right">
+            <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
+          </div>
+        </div>
+
         <div purpose="feature" class="d-flex flex-md-row flex-column justify-content-between mx-auto align-items-center">
           <div purpose="feature-image" class="left">
             <img alt="Absolute certainty" src="/images/device-management-absolute-certainty-380x320@2x.png">
@@ -113,21 +123,12 @@
           </div>
         </div>
 
-        <div purpose="feature" class="d-flex flex-md-row flex-column-reverse justify-content-between mx-auto align-items-center">
-          <div purpose="feature-text" class="d-flex flex-column">
-            <h3>Manage devices like code</h3>
-            <p>Manage your IT infrastructure in any browser or <a target="_blank" href="https://github.com/fleetdm/fleet-gitops">use git</a> to make infrastructure changes as code. You can use the CLI or API to automate the deployment, configuration, and monitoring of your devices.</p>
-          </div>
-          <div purpose="feature-image" class="right">
-            <img alt="ClickOps or DevOps" src="/images/device-management-clickops-or-devops-380x280@2x.png">
-          </div>
-        </div>
       </div>
       <%/* Implement “zero trust” faster section */%>
       <div purpose="page-section">
         <div purpose="feature-headline" style="max-width: 580px;">
-          <h2>Implement “zero trust” faster</h2>
-          <p>Use Fleet to enforce conditional access checking at login. (It's pretty easy to customize whatever you need.)</p>
+          <h2>“Zero” trust, fewer tickets</h2>
+          <p>You can use Fleet’s API to customize every aspect of conditional access – even the stuff your CISO hasn’t thought of yet.</p>
         </div>
 
         <div purpose="three-column-features" class="mx-auto">
@@ -135,20 +136,20 @@
 
             <div purpose="feature-column" class="ml-md-0">
               <img alt="Control the login experience" src="/images/device-management-icon-control-login-experience-48x48@2x.png" class="mx-auto mx-sm-0">
-              <h5>Control the login experience</h5>
-              <p>Ensure that only healthy, up-to-date devices can log in and access company data and resources with conditional access.</p>
+              <h5>Trust the login experience</h5>
+              <p>Use <a href="https://fleetdm.com/queries">common device trust policies</a> from industry peers, or create your own threshold with low-level access to system data and events.</p>
             </div>
 
             <div purpose="feature-column">
-              <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
-              <h5>Manage device posture</h5>
-              <p>Find vulnerable software, track progress for security remediation project deadlines, and enforce due dates with automations and tickets.</p>
+              <img alt="Step-by-step instructions" src="/images/device-management-icon-step-by-step-48x48@2x.png">
+              <h5>Step-by-step instructions</h5>
+              <p>Show resolution steps or use <a href="https://medium.com/pinterest-engineering/enforcing-device-authn-compliance-at-pinterest-a74938cb089b" target="_blank">custom HTML</a> to show employees what they need to do to restore their access without waiting on a ticket. Then give it back automatically, as soon as the problems are fixes.</p>
             </div>
 
             <div purpose="feature-column" class="mr-md-0 mb-0">
-              <img alt="Simplify health checks" src="/images/device-management-icon-simplify-health-checks-48x48@2x.png">
-              <h5>Simplify health checks</h5>
-              <p>Use <a href="https://fleetdm.com/queries">common health checks</a> from industry peers, or easily create your own with low-level access to system data and events.</p>
+              <img alt="Manage device posture" src="/images/device-management-icon-manage-device-posture-48x48@2x.png">
+              <h5>Live retry</h5>
+              <p>Give people a way to get back to work quickly and minimize downtime. Fleet’s live query API instantly re-checks the OS version and other device state so users don’t get locked out.</p>
             </div>
           </div>
         </div>
