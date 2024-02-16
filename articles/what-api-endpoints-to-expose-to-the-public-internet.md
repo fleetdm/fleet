@@ -44,11 +44,11 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 
 If you would like to use Fleet's Windows MDM features, the following endpoints need to be exposed:
 
-- `/api/mdm/microsoft/discovery` TODO
-- `/api/mdm/microsoft/auth` TODO
-- `/api/mdm/microsoft/policy` TODO
-- `/api/mdm/microsoft/enroll` TODO
-- `/api/mdm/microsoft/management` TODO
+- `/api/mdm/microsoft/discovery` used to get information about the MDM server when a client turns on MDM features. See the [section 3.1 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887) for more details.
+- `/api/mdm/microsoft/auth` used for automatic enrollment to authenticate users via a form presented in a webview. See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
+- `/api/mdm/microsoft/policy` delivers the X.509 Certificate enrollment policies required to issue identity certificates to hosts. See the [section 3.3 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/08ec4475-32c2-457d-8c27-5a176660a210) for more details.
+- `/api/mdm/microsoft/enroll` delivers WS-Trust X.509v3 Token Enrollment (MS-WSTEP) functionality. See the [section 3.4 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) for more details.
+- `/api/mdm/microsoft/management` used for all MDM communications (commands, profiles, etc) once the host has turned on MDM features. For more details see the [Mobile Device Management Protocol specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac31-47ef-ae7b-dc8501f7104f).
 - `/api/mdm/microsoft/tos` - if you use automatic enrollment for Windows devices, this endpoints presents end users with the Terms of Service agreement during out-of-the-box Windows setup.
 
 ## Advanced
