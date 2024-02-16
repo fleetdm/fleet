@@ -513,13 +513,3 @@ func MDMProfileSpecsMatch(a, b []MDMProfileSpec) bool {
 
 	return len(pathLabelCounts) == 0
 }
-
-// MDMHostActionAuthz is used to check authorization for executing MDM actions on a host, e.g. lock,
-// unlock, wipe, etc.
-type MDMHostActionAuthz struct {
-	TeamID *uint `json:"team_id"` // required for authorization by team
-}
-
-func (m MDMHostActionAuthz) AuthzType() string {
-	return "mdm_action"
-}
