@@ -240,13 +240,13 @@ spec:
         deadline: "2022-01-04"
       macos_settings:
         custom_settings:
-          - path/to/profile1.mobileconfig
-          - path/to/profile2.mobileconfig
+          - path: path/to/profile1.mobileconfig
+          - path: path/to/profile2.mobileconfig
         enable_disk_encryption: true
       windows_settings:
         custom_settings:
-          - path/to/profile3.xml
-          - path/to/profile4.xml
+          - path: path/to/profile3.xml
+          - path: path/to/profile4.xml
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
@@ -456,13 +456,13 @@ spec:
       deadline: ""
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: path/to/profile1.mobileconfig
+        - path: path/to/profile2.mobileconfig
       enable_disk_encryption: true
     windows_settings:
       custom_settings:
-        - path/to/profile3.xml
-        - path/to/profile4.xml
+        - path: path/to/profile3.xml
+        - path: path/to/profile4.xml
 ```
 
 ### Settings
@@ -1181,8 +1181,8 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: path/to/profile1.mobileconfig
+        - path: path/to/profile2.mobileconfig
   ```
 
 ##### mdm.macos_settings.enable_disk_encryption
@@ -1221,8 +1221,8 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     windows_settings:
       custom_settings:
-        - path/to/profile1.xml
-        - path/to/profile2.xml
+        - path: path/to/profile1.xml
+        - path: path/to/profile2.xml
   ```
 
 #### Scripts 
