@@ -93,8 +93,8 @@ module "main" {
   fleet_config = {
     image  = local.geolite2_image
     family = local.customer
-    cpu    = 256
-    mem    = 512
+    cpu    = 1024
+    mem    = 4096
     autoscaling = {
       min_capacity = 2
       max_capacity = 5
