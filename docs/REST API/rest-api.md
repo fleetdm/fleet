@@ -3841,7 +3841,7 @@ The live query will stop if the targeted host is offline, or if the query times 
 
 | Name      | Type  | In   | Description                                                                                                                                                        |
 |-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| identifier       | integer  | path | **Required**. The target host ID. |
+| id       | integer  | path | **Required**. The target host ID. |
 | query            | string   | body | **Required**. The query SQL. |
 
 
