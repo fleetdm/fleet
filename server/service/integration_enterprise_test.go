@@ -3403,11 +3403,11 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// OS versions with invalid team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusBadRequest, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
 		"99999",
 	)
 
-	// Create team and ask for the OS versions from the team (with no hosts) -- should get none.
+	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
 	tr := teamResponse{}
 	s.DoJSON(
 		"POST", "/api/latest/fleet/teams", createTeamRequest{
@@ -3418,10 +3418,9 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
-	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})

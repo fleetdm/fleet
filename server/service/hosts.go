@@ -1922,7 +1922,7 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, fleet.NewAuthFailedError("team does not exist")
+			return nil, nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
 		}
 	}
 	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"time"
 
@@ -152,7 +153,7 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, fleet.NewAuthFailedError("team does not exist")
+			return nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
 		}
 	}
 	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores)
