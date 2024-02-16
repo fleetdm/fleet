@@ -1173,7 +1173,11 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 		q = q.Where(goqu.L("EXISTS (SELECT 1 FROM host_software WHERE software_id = ? LIMIT 1)", id))
 	} else {
 		// if teamID filter is used, host counts need to be up-to-date
-		q = q.Where(goqu.L("EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ?)", id, *teamID))
+		q = q.Where(
+			goqu.L(
+				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
+			),
+		)
 	}
 
 	sql, args, err := q.ToSQL()

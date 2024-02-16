@@ -25,6 +25,7 @@ FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 WHERE st.id = ?
 AND sthc.team_id = ?
+AND sthc.hosts_count > 0
 	`
 	teamIDVal := uint(0)
 	if teamID != nil {

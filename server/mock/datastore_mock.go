@@ -350,6 +350,8 @@ type TeamEnrollSecretsFunc func(ctx context.Context, teamID uint) ([]*fleet.Enro
 
 type DeleteIntegrationsFromTeamsFunc func(ctx context.Context, deletedIntgs fleet.Integrations) error
 
+type TeamExistsFunc func(ctx context.Context, teamID uint) (bool, error)
+
 type ListSoftwareTitlesFunc func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error)
 
 type SoftwareTitleByIDFunc func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error)
@@ -1330,6 +1332,9 @@ type DataStore struct {
 
 	DeleteIntegrationsFromTeamsFunc        DeleteIntegrationsFromTeamsFunc
 	DeleteIntegrationsFromTeamsFuncInvoked bool
+
+	TeamExistsFunc        TeamExistsFunc
+	TeamExistsFuncInvoked bool
 
 	ListSoftwareTitlesFunc        ListSoftwareTitlesFunc
 	ListSoftwareTitlesFuncInvoked bool
@@ -3217,6 +3222,13 @@ func (s *DataStore) DeleteIntegrationsFromTeams(ctx context.Context, deletedIntg
 	s.DeleteIntegrationsFromTeamsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteIntegrationsFromTeamsFunc(ctx, deletedIntgs)
+}
+
+func (s *DataStore) TeamExists(ctx context.Context, teamID uint) (bool, error) {
+	s.mu.Lock()
+	s.TeamExistsFuncInvoked = true
+	s.mu.Unlock()
+	return s.TeamExistsFunc(ctx, teamID)
 }
 
 func (s *DataStore) ListSoftwareTitles(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {

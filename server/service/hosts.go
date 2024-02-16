@@ -1917,6 +1917,14 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 		return nil, nil, err
 	}
 
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, nil, badRequest(fmt.Sprintf("team %d does not exist", *teamID))
+		}
+	}
 	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
 	if err != nil {
 		return nil, nil, err

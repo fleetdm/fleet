@@ -4400,23 +4400,10 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *ui
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
 	teamOSVersionNotFound := false
 	if teamID != nil && errors.Is(err, sql.ErrNoRows) {
-		// Check if team exists. If not, return not found error.
-		teams, teamsErr := ds.TeamsSummary(ctx)
-		if teamsErr != nil {
-			return nil, nil, teamsErr
-		}
-		teamFound := false
-		for _, team := range teams {
-			if team.ID == *teamID {
-				teamFound = true
-				break
-			}
-		}
-		if !teamFound {
-			return nil, nil, err
-		}
+		// We assume the team has already been validated
 		teamOSVersionNotFound = true
 		// Grab the global OS version stats
+		// FIXME: This is a security issue -- we are allowing team user access to global software inventory.
 		jsonValue, updatedAt, err = ds.executeOSVersionQuery(ctx, nil)
 	}
 	if err != nil {

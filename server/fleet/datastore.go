@@ -456,6 +456,8 @@ type Datastore interface {
 	// DeleteIntegrationsFromTeams deletes integrations used by teams, as they
 	// are being deleted from the global configuration.
 	DeleteIntegrationsFromTeams(ctx context.Context, deletedIntgs Integrations) error
+	// TeamExists returns true if a team with the given id exists.
+	TeamExists(ctx context.Context, teamID uint) (bool, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Software Titles
