@@ -37,7 +37,7 @@ esac
 # Download the fleetctl binary and extract it into the install directory
 download_and_extract() {
     echo "Downloading fleetctl ${latest_strippedVersion} for ${OS}..."
-    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 fleetctl_v${latest_strippedVersion}_${OS}/fleetctl
+    curl -sSL $DOWNLOAD_URL | tar -xz -C $FLEETCTL_INSTALL_DIR --strip-components=1 fleetctl_v${latest_strippedVersion}_${OS}/
 }
 
 # Check to see if the fleetctl binary exists in the script's install directory.
@@ -72,11 +72,13 @@ if check_installed_version; then
             # Download and install the new version
             download_and_extract
             echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-            echo "It is reccommended that you add fleetctl to your terminal profile"
-            echo "e.g.,"
-            echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
+            echo
+            echo "To start the local demo:"
+            echo
+            echo "1. Start Docker Desktop"
+            echo "2. Run, ~/.fleetctl/fleetctl preview"
         else
-            echo "Upgrade aborted."
+            echo "Upgrade canceled."
         fi
     else
         read -p "You are already using the latest version of fleetctl ($latest_strippedVersion) Would you like to reinstall it? (y/n): " reinstall_choice
@@ -84,30 +86,34 @@ if check_installed_version; then
         if [[ "$reinstall_choice" =~ ^[Yy](es)?$ ]]; then
             # Remove the old binary
             rm -f "${FLEETCTL_INSTALL_DIR}/fleetctl"
-            echo "Removed the old version."
+            echo "Removing an older version of fleetctl."
 
             # Download and install the new version
             download_and_extract
             echo "fleetctl reinstalled successfully in ${FLEETCTL_INSTALL_DIR}"
-            echo "It is reccommended that you add fleetctl to your terminal profile"
-            echo "e.g.,"
-            echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
+            echo
+            echo "To start the local demo:"
+            echo
+            echo "1. Start Docker Desktop"
+            echo "2. Run, ~/.fleetctl/fleetctl preview"
         else
-            echo "Install aborted."
+            echo "Install canceled."
         fi
     fi
 else
     # If there is no existing fleetctl binary, download the latest version and extract it.
     download_and_extract
     echo "fleetctl installed successfully in ${FLEETCTL_INSTALL_DIR}"
-    echo "It is reccommended that you add fleetctl to your terminal profile"
-    echo "e.g.,"
-    echo "alias fleetctl=\"${HOME}/.fleetctl/fleetctl\""
+    echo
+    echo "To start the local demo:"
+    echo
+    echo "1. Start Docker Desktop"
+    echo "2. Run, ~/.fleetctl/fleetctl preview"
 fi
 
 # Verify if the binary is executable
 if [[ ! -x "${FLEETCTL_INSTALL_DIR}/fleetctl" ]]; then
-    echo "Failed to install or upgrade fleetctl. Please check your permissions or try again later."
+    echo "Failed to install or upgrade fleetctl. Please check your permissions and try running this script again."
     exit 1
 fi
 
