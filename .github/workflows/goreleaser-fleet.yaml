@@ -48,14 +48,12 @@ jobs:
         run: make deps-go
 
       - name: Install macOS signing + notarization tools
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           pushd /tmp
           readonly version="0.27.0"
           readonly codesign_package="apple-codesign-${version}-x86_64-unknown-linux-musl.tar.gz"
-          # wildcard added to match the package + checksum
-          gh release download --clobber --repo=github.com/indygreg/apple-platform-rs "apple-codesign/$version" --pattern "*$codesign_package*"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}"
+          curl -O -L "https://github.com/indygreg/apple-platform-rs/releases/download/apple-codesign%2F${version}/${codesign_package}.sha256"
           echo "$(cat $codesign_package.sha256)  $codesign_package" | sha256sum --quiet --strict --check -
           tar --extract --strip-components 1 --file "$codesign_package"
           mkdir -p $HOME/.bin  # Ensure the directory exists
