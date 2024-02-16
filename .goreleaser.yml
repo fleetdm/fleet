@@ -82,7 +82,7 @@ universal_binaries:
     hooks:
       post:
         - sh -c "echo \"$APPLE_APPLICATION_CERTIFICATE\" | base64 --decode > certificate.p12 && rcodesign sign --p12-file certificate.p12 --p12-password \"$APPLE_APPLICATION_CERTIFICATE_PASSWORD\" --for-notarization  {{ .Path }} && rm certificate.p12"
-        - sh -c "echo \"$APPLE_APP_STORE_CONNECT_KEY\" | base64 --decode > key.json && rcodesign notary-submit --api-key-path key.json --staple  {{ .Path }} && rm key.json"
+        - sh -c "echo \"$APPLE_APP_STORE_CONNECT_KEY\" > key.json && rcodesign notary-submit --api-key-path key.json --staple  {{ .Path }} && rm key.json"
 
 archives:
   - id: fleet
