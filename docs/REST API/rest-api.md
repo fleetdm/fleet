@@ -5255,6 +5255,32 @@ Content-Disposition: attachment
 Content-Length: <length>
 Body: <blob>
 ```
+---
+
+## Notifications
+
+These API endpoints are used to notify about important actions that are required.
+
+- [Expiring Apple Push Notification certificate](#expiring-apple-push-notification-certificate)
+
+### Expiring Apple Push Notification certificate
+
+`GET /api/v1/fleet/notifications/apple_apns`
+
+#### Example
+
+`GET /api/v1/fleet/notifications/apple_apns`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+ "status": "expired"
+ "message": "Your Apple Push Notification service (APNs) certificate has expired. All end users have to turn MDM off and back on after you renew the certificate."
+}
+```
 
 ---
 
