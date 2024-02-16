@@ -6153,6 +6153,13 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		"hosts_count", "order_direction", "desc", "team_id", teamStr,
 	)
 	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
+
+	// Invalid software team
+	detailsResp := getSoftwareResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusForbidden, &detailsResp,
+		"team_id", "999999",
+	)
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {

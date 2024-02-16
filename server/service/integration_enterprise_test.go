@@ -6820,6 +6820,12 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"team_id", fmt.Sprintf("%d", team2.ID),
 	)
 
+	// Non-existent team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &stResp,
+		"team_id", "99999",
+	)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
