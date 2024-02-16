@@ -29,13 +29,14 @@ If you would like to use the fleetctl CLI from outside of your network, the foll
 
 If you would like to use Fleet's macOS MDM features, the following endpoints need to be exposed:
 
-- `/mdm/apple/scep` to allow hosts to obtain a SCEP certificate.
-- `/mdm/apple/mdm` to allow hosts to reach the server using the MDM protocol.
-- `/api/mdm/apple/enroll` to allow DEP-enrolled devices to get an enrollment profile.
-- `/api/*/fleet/device/*` to give end users access to their **My device** page. This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the documentation [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#device-authenticated-routes).
-- `/api/*/fleet/mdm/sso` and `/api/*/fleet/mdm/sso/callback` if you use automatic enrollment (DEP) and you require [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup.
-- `/api/*/fleet/mdm/setup/eula/*` if you use automatic enrollment (DEP) and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup.
-- `/api/*/fleet/mdm/bootstrap` if you use automatic enrollment (DEP) and you install a [bootstrap package](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) during out-of-the-box macOS setup.
+- `/mdm/apple/scep`: Allows hosts to obtain a SCEP certificate.
+- `/mdm/apple/mdm`: Allows hosts to reach the server using the MDM protocol.
+- `/api/mdm/apple/enroll`: If you use automatic enrollment, allows hosts to get an enrollment profile.
+- `/api/*/fleet/device/*`: Provides end users access to their **My device** page.
+  - This page is where they download their manual enrollment profile, rotate their disk encryption key, and use other features. For more information on these API endpoints see the documentation [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/API-for-contributors.md#device-authenticated-routes).
+- `/api/*/fleet/mdm/sso` and `/api/*/fleet/mdm/sso/callback`: If you use automatic enrollment and you require [end user authentication](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end users to authenticate with your IdP.
+- `/api/*/fleet/mdm/setup/eula/*`: If you use automatic enrollment and you require that the end user agrees to an [End User License Agreement (EULA)](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula) during out-of-the-box macOS setup, allows end user to see the EULA.
+- `/api/*/fleet/mdm/bootstrap`: If you use automatic enrollment and you install a [bootstrap package](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package) during out-of-the-box macOS setup, installs the bootstrap package.
 
 > The `/mdm/apple/scep` and `/mdm/apple/mdm` endpoints are outside of the `/api` path because they
 > are not RESTful and are not intended for use by API clients or browsers.
@@ -44,12 +45,17 @@ If you would like to use Fleet's macOS MDM features, the following endpoints nee
 
 If you would like to use Fleet's Windows MDM features, the following endpoints need to be exposed:
 
-- `/api/mdm/microsoft/discovery` used to get information about the MDM server when a client turns on MDM features. See the [section 3.1 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887) for more details.
-- `/api/mdm/microsoft/auth` used for automatic enrollment to authenticate users via a form presented in a webview. See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
-- `/api/mdm/microsoft/policy` delivers the X.509 Certificate enrollment policies required to issue identity certificates to hosts. See the [section 3.3 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/08ec4475-32c2-457d-8c27-5a176660a210) for more details.
-- `/api/mdm/microsoft/enroll` delivers WS-Trust X.509v3 Token Enrollment (MS-WSTEP) functionality. See the [section 3.4 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) for more details.
-- `/api/mdm/microsoft/management` used for all MDM communications (commands, profiles, etc) once the host has turned on MDM features. For more details see the [Mobile Device Management Protocol specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac31-47ef-ae7b-dc8501f7104f).
-- `/api/mdm/microsoft/tos` - if you use automatic enrollment for Windows devices, this endpoints presents end users with the Terms of Service agreement during out-of-the-box Windows setup.
+- `/api/mdm/microsoft/management`: Allows host to get MDM commands and profiles once the host.
+  - See the [Mobile Device Management Protocol specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac31-47ef-ae7b-dc8501f7104f).
+- `/api/mdm/microsoft/discovery`: Allows hosts to get information from the MDM server.
+  - See the [section 3.1 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/2681fd76-1997-4557-8963-cf656ab8d887) for more details.
+- `/api/mdm/microsoft/policy`: Delivers the enrollment policies required to issue identity certificates to hosts.
+  - See the [section 3.3 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-xcep/08ec4475-32c2-457d-8c27-5a176660a210) for more details.
+- `/api/mdm/microsoft/enroll`: Delivers WS-Trust X.509v3 Token Enrollment (MS-WSTEP) functionality.
+  - See the [section 3.4 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-wstep/4766a85d-0d18-4fa1-a51f-e5cb98b752ea) for more details.
+- `/api/mdm/microsoft/tos`: Presents end users with the Terms of Service agreement during out-of-the-box Windows setup. Required for automatic enrollment.
+- `/api/mdm/microsoft/auth`: If you use automatic enrollment, authenticates end users during out-of-the-box Windows setup. 
+  - See the [section 3.2 on the MS-MDE2 specification](https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/27ed8c2c-0140-41ce-b2fa-c3d1a793ab4a) for more details.
 
 ## Advanced
 
