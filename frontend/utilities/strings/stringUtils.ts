@@ -47,7 +47,8 @@ export const enforceFleetSentenceCasing = (s: string) => {
 };
 
 /**
- * Pluralizes a word based on the entitiy count and the desired suffixes.
+ * Pluralizes a word based on the entitiy count and the desired suffixes. If no
+ * suffixes are provided, the default suffix "s" is used.
  *
  * @param count The number of items.
  * @param root The root of the word, omitting any suffixs.
@@ -66,8 +67,8 @@ export const enforceFleetSentenceCasing = (s: string) => {
 export const pluralize = (
   count: number,
   root: string,
-  pluralSuffix: string,
-  singularSuffix: string
+  pluralSuffix = "s",
+  singularSuffix = ""
 ) => {
   return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
 };
