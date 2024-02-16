@@ -3832,7 +3832,7 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 Runs an ad-hoc live query against the specified host and responds with the results.
 
-The live query will stop if the targeted host is offline, or hasn't responded after 25 seconds (or whatever time period is configured via environment variable, e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`).
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
 `POST /api/v1/fleet/hosts/:id/query`
