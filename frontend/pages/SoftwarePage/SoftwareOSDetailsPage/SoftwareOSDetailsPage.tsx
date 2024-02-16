@@ -4,7 +4,7 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError } from "axios";
+import { AxiosError, isAxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -18,7 +18,6 @@ import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
 
 import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
@@ -103,7 +102,13 @@ const SoftwareOSDetailsPage = ({
     {
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // 404s returned for both non-existent and non-accessable entities
+        // which we intentionally handle with the same empty state for security
+        if (isAxiosError(error) && error.response?.status !== 404) {
+          handlePageError(error);
+        }
+      },
     }
   );
 
@@ -142,10 +147,6 @@ const SoftwareOSDetailsPage = ({
       return <Spinner />;
     }
 
-    if (isOsVersionError) {
-      return <TableDataError className={`${baseClass}__table-error`} />;
-    }
-
     if (!osVersionDetails) {
       return null;
     }
@@ -160,32 +161,36 @@ const SoftwareOSDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        <SoftwareDetailsSummary
-          title={osVersionDetails.name}
-          hosts={osVersionDetails.hosts_count}
-          queryParams={{
-            os_name: osVersionDetails.name_only,
-            os_version: osVersionDetails.version,
-            team_id: teamIdForApi,
-          }}
-          name={osVersionDetails.platform}
-        />
-        {osVersionDetails.hosts_count === 0 ? (
+        {/* at this point, error can only be 404 per above handling */}
+        {isOsVersionError ? (
           <DetailsNoHosts
             header="OS not detected"
-            details={`No hosts ${teamIdForApi ? "on this team " : ""}have ${
-              osVersionDetails.name
-            } installed.`}
+            details={`No hosts ${
+              teamIdForApi ? "on this team " : ""
+            }have this OS version installed.`}
           />
         ) : (
-          <Card
-            borderRadiusSize="large"
-            includeShadow
-            className={`${baseClass}__vulnerabilities-section`}
-          >
-            <h2>Vulnerabilities</h2>
-            {renderTable()}
-          </Card>
+          <>
+            <SoftwareDetailsSummary
+              title={osVersionDetails.name}
+              hosts={osVersionDetails.hosts_count}
+              queryParams={{
+                os_name: osVersionDetails.name_only,
+                os_version: osVersionDetails.version,
+                team_id: teamIdForApi,
+              }}
+              name={osVersionDetails.platform}
+            />
+            <Card
+              borderRadiusSize="large"
+              includeShadow
+              className={`${baseClass}__vulnerabilities-section`}
+            >
+              <h2>Vulnerabilities</h2>
+              {renderTable()}
+            </Card>
+            ;
+          </>
         )}
       </>
     );
