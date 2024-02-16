@@ -92,7 +92,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
 | Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
-| Lock, unlock, and wipe hosts\*                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
+| Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
