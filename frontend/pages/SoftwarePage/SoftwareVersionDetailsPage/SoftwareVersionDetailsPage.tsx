@@ -141,9 +141,9 @@ const SoftwareVersionDetailsPage = ({
         {softwareVersion.hosts_count === 0 ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No host ${
+            details={`No hosts ${
               teamIdForApi ? "on this team " : ""
-            }has this software installed.`}
+            }have this software installed.`}
           />
         ) : (
           <Card

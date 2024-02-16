@@ -120,7 +120,7 @@ const SoftwareTitleDetailsPage = ({
         {softwareTitle.hosts_count === 0 ? (
           <DetailsNoHosts
             header="Software not detected"
-            details={`No host ${teamIdForApi ? "on this team " : ""}has ${
+            details={`No hosts ${teamIdForApi ? "on this team " : ""}have ${
               softwareTitle.name
             } installed.`}
           />
