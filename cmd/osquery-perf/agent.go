@@ -396,8 +396,6 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallProb  float64
 }
 
-var httpClient *http.Client
-
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
