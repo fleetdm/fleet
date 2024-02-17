@@ -76,7 +76,7 @@ if check_installed_version; then
             echo "To start the local demo:"
             echo
             echo "1. Start Docker Desktop"
-            echo "2. Run, ~/.fleetctl/fleetctl preview"
+            echo "2. Run  ~/.fleetctl/fleetctl preview"
         else
             echo "Upgrade canceled."
         fi
@@ -95,7 +95,7 @@ if check_installed_version; then
             echo "To start the local demo:"
             echo
             echo "1. Start Docker Desktop"
-            echo "2. Run, ~/.fleetctl/fleetctl preview"
+            echo "2. Run  ~/.fleetctl/fleetctl preview"
         else
             echo "Install canceled."
         fi
@@ -108,7 +108,7 @@ else
     echo "To start the local demo:"
     echo
     echo "1. Start Docker Desktop"
-    echo "2. Run, ~/.fleetctl/fleetctl preview"
+    echo "2. Run  ~/.fleetctl/fleetctl preview"
 fi
 
 # Verify if the binary is executable
