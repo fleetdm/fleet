@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"reflect"
 	"sort"
@@ -838,6 +839,62 @@ func TestSubmitResultLogsToQueryResultsDoesNotCountNullDataRows(t *testing.T) {
 	err = svc.SubmitResultLogs(ctx, results)
 	require.NoError(t, err)
 	assert.True(t, ds.OverwriteQueryResultRowsFuncInvoked)
+}
+
+type failingLogger struct {
+}
+
+func (n *failingLogger) Write(context.Context, []json.RawMessage) error {
+	return errors.New("some error")
+}
+
+func TestSubmitResultLogsFail(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	host := fleet.Host{
+		ID: 999,
+	}
+	ctx = hostctx.NewContext(ctx, &host)
+
+	// Hack to get at the service internals and modify the writer
+	serv := ((svc.(validationMiddleware)).Service).(*Service)
+
+	testLogger := &failingLogger{}
+	serv.osqueryLogWriter = &OsqueryLogger{Result: testLogger}
+
+	logs := []string{
+		`{"name":"pack/Global/system_info","hostIdentifier":"some_uuid","calendarTime":"Fri Sep 30 17:55:15 2016 UTC","unixTime":1475258115,"decorations":{"host_uuid":"some_uuid","username":"zwass"},"columns":{"cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz","hostname":"hostimus","physical_memory":"17179869184"},"action":"added"}`,
+	}
+
+	logJSON := fmt.Sprintf("[%s]", strings.Join(logs, ","))
+	var results []json.RawMessage
+	err := json.Unmarshal([]byte(logJSON), &results)
+	require.NoError(t, err)
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
+		return &fleet.Query{
+			ID:                 1,
+			DiscardData:        false,
+			AutomationsEnabled: true,
+			Name:               name,
+		}, nil
+	}
+	ds.ResultCountForQueryFunc = func(ctx context.Context, queryID uint) (int, error) {
+		return 0, nil
+	}
+	ds.OverwriteQueryResultRowsFunc = func(ctx context.Context, rows []*fleet.ScheduledQueryResultRow) error {
+		return nil
+	}
+
+	// Expect an error when unable to write to logging destination.
+	err = svc.SubmitResultLogs(ctx, results)
+	require.Error(t, err)
+	assert.Equal(t, http.StatusRequestEntityTooLarge, err.(*osqueryError).Status())
+
 }
 
 func TestGetQueryNameAndTeamIDFromResult(t *testing.T) {

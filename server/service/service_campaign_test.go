@@ -196,7 +196,7 @@ func TestUpdateStats(t *testing.T) {
 		tracker.stats, statsToSave{
 			hostID: myHostID,
 			Stats: &fleet.Stats{
-				WallTimeMs: myWallTime * 1000,
+				WallTimeMs: myWallTime,
 				UserTime:   myUserTime,
 				SystemTime: mySystemTime,
 				Memory:     myMemory,
@@ -264,7 +264,7 @@ func TestUpdateStats(t *testing.T) {
 		tracker.stats, statsToSave{
 			hostID: myHostID,
 			Stats: &fleet.Stats{
-				WallTimeMs: myNewWallTime * 1000,
+				WallTimeMs: myNewWallTime,
 				UserTime:   myNewUserTime,
 				SystemTime: myNewSystemTime,
 				Memory:     myNewMemory,

@@ -1378,89 +1378,6 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/asl.yml"
   },
   {
-    "name": "atom_packages",
-    "description": "Lists all atom packages in a directory or globally installed in a system.",
-    "url": "https://fleetdm.com/tables/atom_packages",
-    "platforms": [
-      "darwin",
-      "linux",
-      "windows"
-    ],
-    "evented": false,
-    "cacheable": false,
-    "notes": "",
-    "examples": [
-      "select * from atom_packages"
-    ],
-    "columns": [
-      {
-        "name": "name",
-        "description": "Package display name",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "version",
-        "description": "Package supplied version",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "description",
-        "description": "Package supplied description",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "path",
-        "description": "Package's package.json path",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "license",
-        "description": "License for package",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "homepage",
-        "description": "Package supplied homepage",
-        "type": "text",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": false
-      },
-      {
-        "name": "uid",
-        "description": "The local user that owns the plugin",
-        "type": "bigint",
-        "notes": "",
-        "hidden": false,
-        "required": false,
-        "index": true
-      }
-    ],
-    "hidden": true,
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/atom_packages.yml"
-  },
-  {
     "name": "augeas",
     "description": "Configuration files parsed by [augeas](https://augeas.net/).",
     "url": "https://fleetdm.com/tables/augeas",
@@ -4274,7 +4191,7 @@
       },
       {
         "name": "serial_number",
-        "description": "The serial number of the display.",
+        "description": "The serial number of the display. (may not be unique)",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -6614,7 +6531,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true
+        "index": false
       },
       {
         "name": "uuid",
@@ -9604,7 +9521,7 @@
       },
       {
         "name": "team_id",
-        "description": "Team identifier of thd process",
+        "description": "Team identifier of the process",
         "type": "text",
         "notes": "",
         "hidden": false,
@@ -10444,6 +10361,90 @@
         "index": false,
         "platforms": [
           "Windows"
+        ]
+      },
+      {
+        "name": "shortcut_target_path",
+        "description": "Full path to the file the shortcut points to",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_target_type",
+        "description": "Display name for the target type",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_target_location",
+        "description": "Folder name where the shortcut target resides",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_start_in",
+        "description": "Full path to the working directory to use when executing the shortcut target",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_run",
+        "description": "Window mode the target of the shortcut should be run in",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
+        ]
+      },
+      {
+        "name": "shortcut_comment",
+        "description": "Comment on the shortcut",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "windows",
+          "win32",
+          "cygwin"
         ]
       },
       {
@@ -13177,7 +13178,7 @@
   },
   {
     "name": "keychain_acls",
-    "description": "Applications that have ACL entries in the keychain.",
+    "description": "Applications that have ACL entries in the keychain. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_acls",
     "platforms": [
       "darwin"
@@ -13237,7 +13238,7 @@
   },
   {
     "name": "keychain_items",
-    "description": "Generic details about keychain items.",
+    "description": "Generic details about keychain items. NOTE: osquery limits frequent access to keychain files. This limit is controlled by keychain_access_interval flag.",
     "url": "https://fleetdm.com/tables/keychain_items",
     "platforms": [
       "darwin"
@@ -20740,13 +20741,13 @@
     ],
     "evented": true,
     "cacheable": false,
-    "notes": "",
+    "notes": "This table will only include events for changes and files in directories that existed before the fleetd agent starts.",
     "examples": [],
     "columns": [
       {
         "name": "operation",
         "description": "Operation type",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20755,7 +20756,7 @@
       {
         "name": "pid",
         "description": "Process ID",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20764,7 +20765,7 @@
       {
         "name": "ppid",
         "description": "Parent process ID",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20773,7 +20774,7 @@
       {
         "name": "time",
         "description": "Time of execution in UNIX time",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20782,7 +20783,7 @@
       {
         "name": "executable",
         "description": "The executable path",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20791,7 +20792,7 @@
       {
         "name": "partial",
         "description": "True if this is a partial event (i.e.: this process existed before we started osquery)",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20800,7 +20801,7 @@
       {
         "name": "cwd",
         "description": "The current working directory of the process",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20809,7 +20810,7 @@
       {
         "name": "path",
         "description": "The path associated with the event",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20818,7 +20819,7 @@
       {
         "name": "dest_path",
         "description": "The canonical path associated with the event",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20827,7 +20828,7 @@
       {
         "name": "uid",
         "description": "The uid of the process performing the action",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20836,7 +20837,7 @@
       {
         "name": "gid",
         "description": "The gid of the process performing the action",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20845,7 +20846,7 @@
       {
         "name": "auid",
         "description": "Audit user ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20854,7 +20855,7 @@
       {
         "name": "euid",
         "description": "Effective user ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20863,7 +20864,7 @@
       {
         "name": "egid",
         "description": "Effective group ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20872,7 +20873,7 @@
       {
         "name": "fsuid",
         "description": "Filesystem user ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20881,7 +20882,7 @@
       {
         "name": "fsgid",
         "description": "Filesystem group ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20890,7 +20891,7 @@
       {
         "name": "suid",
         "description": "Saved user ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20899,7 +20900,7 @@
       {
         "name": "sgid",
         "description": "Saved group ID of the process using the file",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20908,7 +20909,7 @@
       {
         "name": "uptime",
         "description": "Time of execution in system uptime",
-        "type": "bigint",
+        "type": "BIGINT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20917,15 +20918,14 @@
       {
         "name": "eid",
         "description": "Event ID",
-        "type": "text",
+        "type": "TEXT",
         "notes": "",
         "hidden": true,
         "required": false,
         "index": false
       }
     ],
-    "osqueryRepoUrl": "https://github.com/osquery/osquery/blob/master/specs/linux/process_file_events.table",
-    "fleetRepoUrl": "https://github.com/fleetdm/fleet/new/main/schema?filename=tables%2Fprocess_file_events.yml&value=name%3A%20process_file_events%0Adescription%3A%20%7C%20%23%20(required)%20string%20-%20The%20description%20for%20this%20table.%20Note%3A%20this%20field%20supports%20markdown%0A%09%23%20Add%20description%20here%0Aexamples%3A%20%7C%20%23%20(optional)%20string%20-%20An%20example%20query%20for%20this%20table.%20Note%3A%20This%20field%20supports%20markdown%0A%09%23%20Add%20examples%20here%0Anotes%3A%20%7C%20%23%20(optional)%20string%20-%20Notes%20about%20this%20table.%20Note%3A%20This%20field%20supports%20markdown.%0A%09%23%20Add%20notes%20here%0Acolumns%3A%20%23%20(required)%0A%09-%20name%3A%20%23%20(required)%20string%20-%20The%20name%20of%20the%20column%0A%09%20%20description%3A%20%23%20(required)%20string%20-%20The%20column's%20description%0A%09%20%20type%3A%20%23%20(required)%20string%20-%20the%20column's%20data%20type%0A%09%20%20required%3A%20%23%20(required)%20boolean%20-%20whether%20or%20not%20this%20column%20is%20required%20to%20query%20this%20table."
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/process_file_events.yml"
   },
   {
     "name": "process_memory_map",
@@ -21265,7 +21265,7 @@
         "notes": "",
         "hidden": false,
         "required": false,
-        "index": true
+        "index": false
       },
       {
         "name": "fd",
@@ -23419,7 +23419,43 @@
       },
       {
         "name": "secure_mode",
-        "description": "Secure mode for Intel-based macOS: 0 disabled, 1 full security, 2 medium security",
+        "description": "(Intel) Secure mode: 0 disabled, 1 full security, 2 medium security",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "description",
+        "description": "(Apple Silicon) Human-readable description: 'Full Security', 'Reduced Security', or 'Permissive Security'",
+        "type": "text",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "kernel_extensions",
+        "description": "(Apple Silicon) Allow user management of kernel extensions from identified developers (1 if allowed)",
+        "type": "integer",
+        "notes": "",
+        "hidden": true,
+        "required": false,
+        "index": false,
+        "platforms": [
+          "macOS"
+        ]
+      },
+      {
+        "name": "mdm_operations",
+        "description": "(Apple Silicon) Allow remote (MDM) management of kernel extensions and automatic software updates (1 if allowed)",
         "type": "integer",
         "notes": "",
         "hidden": true,
@@ -27543,6 +27579,104 @@
     "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/virtual_memory_info.yml"
   },
   {
+    "name": "vscode_extensions",
+    "description": "Installed extensions for [Visual Studio (VS) Code](https://code.visualstudio.com/).",
+    "url": "https://fleetdm.com/tables/vscode_extensions",
+    "platforms": [
+      "darwin",
+      "linux",
+      "windows"
+    ],
+    "evented": false,
+    "cacheable": false,
+    "notes": "Querying this table requires joining against the `users` table.",
+    "examples": "List the name, publisher, and version of the Visual Studio (VS) Code extensions installed on hosts.\n```\nSELECT extension.name, extension.publisher, extension.version FROM users JOIN vscode_extensions extension USING (uid);\n```",
+    "columns": [
+      {
+        "name": "name",
+        "description": "Extension Name",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uuid",
+        "description": "Extension UUID",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "version",
+        "description": "Extension version",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "path",
+        "description": "Extension path",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "publisher",
+        "description": "Publisher Name",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "publisher_id",
+        "description": "Publisher ID",
+        "type": "TEXT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "installed_at",
+        "description": "Installed Timestamp",
+        "type": "BIGINT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "prerelease",
+        "description": "Pre release version",
+        "type": "INTEGER",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "uid",
+        "description": "The local user that owns the plugin",
+        "type": "BIGINT",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      }
+    ],
+    "fleetRepoUrl": "https://github.com/fleetdm/fleet/blob/main/schema/tables/vscode_extensions.yml"
+  },
+  {
     "name": "wifi_networks",
     "description": "Wi-Fi networks previously connected to by this Mac, or that are otherwise in this computer's known/remembered Wi-Fi networks list.",
     "url": "https://fleetdm.com/tables/wifi_networks",
@@ -29833,6 +29967,15 @@
       {
         "name": "folder_id",
         "description": "Folder identifier for the VM",
+        "type": "text",
+        "notes": "",
+        "hidden": false,
+        "required": false,
+        "index": false
+      },
+      {
+        "name": "cloud_id",
+        "description": "Cloud identifier for the VM",
         "type": "text",
         "notes": "",
         "hidden": false,

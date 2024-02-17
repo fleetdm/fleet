@@ -1,17 +1,13 @@
 ---
 name:  Release QA
 about: Checklist of required tests prior to release
-title: ''
-labels: ''
-assignees: ''
+title: 'Release QA:'
+labels: '#g-mdm,#g-endpoint-ops,:release'
+assignees: 'xpkoala,sabrinabuckets'
 
 ---
 
 # Goal: easy-to-follow test steps for checking a release manually
-
-**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
-
-**Web browser** _(e.g. Chrome 88.0.4324)_: 
 
 # Important reference data
 
@@ -20,18 +16,21 @@ assignees: ''
 3. premium tests require license key (needs renewal) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjQwOTk1MjAwLCJzdWIiOiJkZXZlbG9wbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6ImJhc2ljIiwiaWF0IjoxNjIyNDI2NTg2fQ.WmZ0kG4seW3IrNvULCHUPBSfFdqj38A_eiXdV_DFunMHechjHbkwtfkf1J6JQJoDyqn8raXpgbdhafDwv3rmDw`
 4. premium tests require license key (active - Expires Sunday, January 1, 2023 12:00:00 AM) `fleetctl preview --license-key=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCBJbmMuIiwiZXhwIjoxNjcyNTMxMjAwLCJzdWIiOiJGbGVldCBEZXZpY2UgTWFuYWdlbWVudCIsImRldmljZXMiOjEwMCwibm90ZSI6ImZvciBkZXZlbG9wbWVudCBvbmx5IiwidGllciI6InByZW1pdW0iLCJpYXQiOjE2NDI1MjIxODF9.EGHQjIzM73YyMbnCruswzg360DEYCsDi9uz48YcDwQHq90BabGT5PIXRiculw79emGj5sk2aKgccTd2hU5J7Jw`
 
-
 # Smoke Tests
 Smoke tests are limited to core functionality and serve as a pre-release final review. If smoke tests are failing, a release cannot proceed.
 
-## Prerequisites
+## Fleet core:
+
+**Fleet version** (Head to the "My account" page in the Fleet UI or run `fleetctl version`):
+
+**Web browser** _(e.g. Chrome 88.0.4324)_: 
+
+### Prerequisites
 
 1. `fleetctl preview` is set up and running the desired test version using [`--tag` parameters.](https://github.com/fleetdm/fleet/blob/main/handbook/product.md#manual-qa )
 2. Unless you are explicitly testing older browser versions, browser is up to date.
 3. Certificate & flagfile are in place to create new host.
 4. In your browser, clear local storage using devtools.
-
-## Instructions
 
 <table>
 <tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
@@ -39,10 +38,10 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 <tr><td>Update flow</td><td>
 
 1. remove all fleet processes/agents/etc using `fleetctl preview reset` for a clean slate
-1. run `fleetctl preview` with no tag for latest stable
-1. create a host/query to later confirm upgrade with
-1. STOP fleet-preview-server instances in containers/apps on Docker
-1. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
+2. run `fleetctl preview` with no tag for latest stable
+3. create a host/query to later confirm upgrade with
+4. STOP fleet-preview-server instances in containers/apps on Docker
+5. run `fleetctl preview` with appropriate testing tag </td><td>All previously created hosts/queries are verified to still exist</td><td>pass/fail</td></tr>
 <tr><td>Login flow</td><td>
 
 1. navigate to the login page and attempt to login with both valid and invalid credentials to verify some combination of expected results.
@@ -84,6 +83,15 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
  
 </td><td>pass/fail</td></tr>
 
+
+<tr><td>My device page</td><td>Verify the end user's my device page loads successfully.</td><td>
+
+1. Clicking the Fleet desktop item, then "My device" successfully loads the my device page.
+2. The "My device" page is populated correctly and as expected. 
+3. Styling and padding appears correct.
+ 
+</td><td>pass/fail</td></tr>
+
 <tr><td>MDM enrollment flow</td><td>Verify MDM enrollments, run MDM commands</td><td>
   
 1. Erase an ADE-eligible macOS host and verify able to complete auomated enrollment flow.
@@ -92,7 +100,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 </td><td>pass/fail</td></tr>
 
 <tr><td>Scripts</td><td>Verify script library and execution</td><td>
-  
+
 1. Verify able to run a script on all host types from CLI.
 2. Verify scripts library upload/download/delete.
 3. From Host details (Windows and macOS) run a script that should PASS, verify.
@@ -103,7 +111,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS settings</td><td>Verify OS settings functionality</td><td>
-  
+
 1. Verify able to configure Disk encryption.
 2. Verify host enrolled with Disk encryption enforced successfully encrypts.
 3. Verify Profiles upload/download/delete (macOS & Windows).
@@ -111,7 +119,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 </td><td>pass/fail</td></tr>
 
 <tr><td>Setup experience</td><td>Verify macOS Setup experience</td><td>
-  
+
 1. Configure End user authentication.
 2. Upload a Boostrap package.
 3. Enroll an ADE-eligible macOS host and verify successful authentication.
@@ -119,7 +127,7 @@ Smoke tests are limited to core functionality and serve as a pre-release final r
 </td><td>pass/fail</td></tr>
 
 <tr><td>OS updates</td><td>Verify OS updates flow</td><td>
-  
+
 1. Configure OS updates (macOS & Windows).
 2. Verify on-device that Nudge prompt appears (macOS). 
 </td><td>pass/fail</td></tr>
@@ -142,6 +150,62 @@ Run the instructions in [tools/percona/test/README.md](../../tools/percona/test/
 2. If any are found raise an alarm in the `#help-engineering` and `#help-product-design` channels.
 </td><td>pass/fail</td></tr>
 </table>
+
+### Notes
+
+Issues found new to this version:
+
+Issues found that reproduce in last stable version: 
+
+What has not been tested:
+
+Include any notes on whether issues should block release or not as needed:
+
+## `fleetd` agent:
+
+Includes updates to: 
+- Orbit: True / False
+- Desktop: True / False
+- Chrome extension: True / False
+
+List versions changes for any component updates below: 
+<!-- Remove items without updates -->
+- Orbit `v1.xx.x` > `v1.xx.x`
+- Desktop `v1.xx.x` > `v1.xx.x`
+- Chrome extension `v1.xx.x` > `v1.xx.x`
+
+### Prerequisites
+
+1. Build a new `fleetd` from the release candidate branch as neded for Orbit, Desktop, and Chrome Extension.
+
+<table>
+<tr><th>Test name</th><th>Step instructions</th><th>Expected result</th><th>pass/fail</td></tr>
+<tr><td>$Name</td><td>{what a tester should do}</td><td>{what a tester should see when they do that}</td><td>pass/fail</td></tr>
+<tr><td>`fleetd` tests</td>
+<td>
+1. Create binaries for Mac, Windows, and Ubuntu running against the `edge` channels and install (--orbit-channel edge, --desktop-channel edge).<br>
+2. Work with engineer leading the release to push changes to the `edge` channel.
+</td>
+<td>
+1. Confirm the hosts running on the edge channel receive the update and are working correctly.<br>
+2. Confirm any new features and/or bug fixes associated with this release are working as intended.
+</td>
+<td>pass/fail</td></tr>
+<td>`fleetd` auto-update tests</td>
+<td>
+1. Conduct the [`fleetd` auto-update n+1 test]([url](https://github.com/fleetdm/fleet/blob/main/tools/tuf/test/Fleetd-auto-update-test-guide.md))<br>
+2. QA certifies new release by commenting in issue.<br>
+3. Engineer waits at least 1 business day, then promotes update to `stable`.
+</td>
+<td>
+1. Agent successfully auto-updates.<br>
+2. Issue is certified by QA.<br>
+3. Agent is promoted to `stable`.<br>
+4. Confirms agents running on `stable` receive the new update.
+</td>
+<td>pass/fail</td></tr>
+</table>
+
   
 # Notes
 
@@ -151,4 +215,5 @@ Issues found that reproduce in last stable version:
 
 What has not been tested:
 
-Include any notes on whether issues should block release or not as needed
+
+Include any notes on whether issues should block release or not as needed:

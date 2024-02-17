@@ -1,27 +1,25 @@
-import React, {
-  useContext,
-  useState,
-  useCallback,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useContext, useState, useCallback, useEffect } from "react";
 import { Params, InjectedRouter } from "react-router/lib/Router";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { RouteProps } from "react-router";
-
 import { pick } from "lodash";
 
 import PATHS from "router/paths";
-import hostAPI from "services/entities/hosts";
-import queryAPI from "services/entities/queries";
-import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+
 import { AppContext } from "context/app";
 import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
-import { IActivityDetails } from "interfaces/activity";
+import activitiesAPI, {
+  IActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
+import hostAPI from "services/entities/hosts";
+import queryAPI from "services/entities/queries";
+import teamAPI, { ILoadTeamsResponse } from "services/entities/teams";
+
 import {
   IHost,
   IDeviceMappingResponse,
@@ -42,22 +40,24 @@ import {
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
 
-import Spinner from "components/Spinner";
-import TabsWrapper from "components/TabsWrapper";
-import MainContent from "components/MainContent";
-import BackLink from "components/BackLink";
-
 import {
   normalizeEmptyValues,
   wrapFleetHelper,
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
 import permissions from "utilities/permissions";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_SUMMARY_DATA,
+  HOST_ABOUT_DATA,
+  HOST_OSQUERY_DATA,
+} from "utilities/constants";
+
+import Spinner from "components/Spinner";
+import TabsWrapper from "components/TabsWrapper";
+import MainContent from "components/MainContent";
+import BackLink from "components/BackLink";
 import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
-import activitiesAPI, {
-  IActivitiesResponse,
-} from "services/entities/activities";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -84,6 +84,12 @@ import SelectQueryModal from "./modals/SelectQueryModal";
 import { isSupportedPlatform } from "./modals/DiskEncryptionKeyModal/DiskEncryptionKeyModal";
 import HostDetailsBanners from "./components/HostDetailsBanners";
 import { IShowActivityDetailsData } from "../cards/Activity/Activity";
+import LockModal from "./modals/LockModal";
+import UnlockModal from "./modals/UnlockModal";
+import {
+  HostMdmDeviceStatusUIState,
+  getHostDeviceStatusUIState,
+} from "../helpers";
 
 const baseClass = "host-details";
 
@@ -156,6 +162,8 @@ const HostDetailsPage = ({
   const [showBootstrapPackageModal, setShowBootstrapPackageModal] = useState(
     false
   );
+  const [showLockHostModal, setShowLockHostModal] = useState(false);
+  const [showUnlockHostModal, setShowUnlockHostModal] = useState(false);
   const [scriptDetailsId, setScriptDetailsId] = useState("");
   const [selectedPolicy, setSelectedPolicy] = useState<IHostPolicy | null>(
     null
@@ -169,6 +177,10 @@ const HostDetailsPage = ({
   const [usersState, setUsersState] = useState<{ username: string }[]>([]);
   const [usersSearchString, setUsersSearchString] = useState("");
   const [pathname, setPathname] = useState("");
+  const [
+    hostMdmDeviceStatus,
+    setHostMdmDeviceState,
+  ] = useState<HostMdmDeviceStatusUIState>("unlocked");
 
   // activity states
   const [activeActivityTab, setActiveActivityTab] = useState<
@@ -267,6 +279,12 @@ const HostDetailsPage = ({
       select: (data: IHostResponse) => data.host,
       onSuccess: (returnedHost) => {
         setShowRefetchSpinner(returnedHost.refetch_requested);
+        setHostMdmDeviceState(
+          getHostDeviceStatusUIState(
+            returnedHost.mdm.device_status,
+            returnedHost.mdm.pending_action
+          )
+        );
         if (returnedHost.refetch_requested) {
           // If the API reports that a Fleet refetch request is pending, we want to check back for fresh
           // host details. Here we set a one second timeout and poll the API again using
@@ -382,9 +400,9 @@ const HostDetailsPage = ({
     isError: upcomingActivitiesIsError,
     refetch: refetchUpcomingActivities,
   } = useQuery<
-    IActivitiesResponse,
+    IUpcomingActivitiesResponse,
     Error,
-    IActivitiesResponse,
+    IUpcomingActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
@@ -444,48 +462,11 @@ const HostDetailsPage = ({
     setPathname(location.pathname + location.search);
   }, [location]);
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "platform",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "display_name",
-    ])
-  );
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-      "last_restarted_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
-  const osqueryData = normalizeEmptyValues(
-    pick(host, [
-      "config_tls_refresh",
-      "logger_tls_period",
-      "distributed_interval",
-    ])
-  );
+  const osqueryData = normalizeEmptyValues(pick(host, HOST_OSQUERY_DATA));
 
   const togglePolicyDetailsModal = useCallback(
     (policy: IHostPolicy) => {
@@ -657,9 +638,20 @@ const HostDetailsPage = ({
       case "runScript":
         setShowRunScriptModal(true);
         break;
+      case "lock":
+        setShowLockHostModal(true);
+        break;
+      case "unlock":
+        setShowUnlockHostModal(true);
+        break;
       default: // do nothing
     }
   };
+
+  // const hostDeviceStatusUIState = getHostDeviceStatusUIState(
+  //   host.mdm.device_status,
+  //   host.mdm.pending_action
+  // );
 
   const renderActionButtons = () => {
     if (!host) {
@@ -672,7 +664,8 @@ const HostDetailsPage = ({
         onSelect={onSelectHostAction}
         hostPlatform={host.platform}
         hostStatus={host.status}
-        hostMdmEnrollemntStatus={host.mdm.enrollment_status}
+        hostMdmDeviceStatus={hostMdmDeviceStatus}
+        hostMdmEnrollmentStatus={host.mdm.enrollment_status}
         doesStoreEncryptionKey={host.mdm.encryption_key_available}
         mdmName={mdm?.name}
       />
@@ -770,8 +763,7 @@ const HostDetailsPage = ({
           />
         </div>
         <HostSummaryCard
-          titleData={titleData}
-          diskEncryptionEnabled={host?.disk_encryption_enabled}
+          summaryData={summaryData}
           bootstrapPackageData={bootstrapPackageData}
           isPremiumTier={isPremiumTier}
           isSandboxMode={isSandboxMode}
@@ -783,6 +775,7 @@ const HostDetailsPage = ({
           onRefetchHost={onRefetchHost}
           renderActionButtons={renderActionButtons}
           osSettings={host?.mdm.os_settings}
+          hostMdmDeviceStatus={hostMdmDeviceStatus}
         />
         <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
           <Tabs
@@ -820,6 +813,7 @@ const HostDetailsPage = ({
                     ? pastActivitiesIsError
                     : upcomingActivitiesIsError
                 }
+                upcomingCount={upcomingActivities?.count || 0}
                 onChangeTab={onChangeActivityTab}
                 onNextPage={() => setActivityPage(activityPage + 1)}
                 onPreviousPage={() => setActivityPage(activityPage - 1)}
@@ -960,6 +954,26 @@ const HostDetailsPage = ({
           <ScriptDetailsModal
             scriptExecutionId={scriptDetailsId}
             onCancel={onCancelScriptDetailsModal}
+          />
+        )}
+        {showLockHostModal && (
+          <LockModal
+            id={host.id}
+            platform={host.platform}
+            hostName={host.display_name}
+            onSuccess={() => setHostMdmDeviceState("locking")}
+            onClose={() => setShowLockHostModal(false)}
+          />
+        )}
+        {showUnlockHostModal && (
+          <UnlockModal
+            id={host.id}
+            platform={host.platform}
+            hostName={host.display_name}
+            onSuccess={() => {
+              host.platform !== "darwin" && setHostMdmDeviceState("unlocking");
+            }}
+            onClose={() => setShowUnlockHostModal(false)}
           />
         )}
       </>

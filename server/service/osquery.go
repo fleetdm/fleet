@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ import (
 type osqueryError struct {
 	message     string
 	nodeInvalid bool
-
+	statusCode  int
 	fleet.ErrorWithUUID
 }
 
@@ -44,6 +45,10 @@ func (e *osqueryError) Error() string {
 // should contain the node_invalid property.
 func (e *osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
+}
+
+func (e *osqueryError) Status() int {
+	return e.statusCode
 }
 
 func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
@@ -1064,6 +1069,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		host.RefetchRequested = false
 	}
 	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
+	if refetchCriticalSet {
+		level.Debug(svc.logger).Log("msg", "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
+	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
@@ -1539,7 +1547,10 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	svc.authz.SkipAuthorization(ctx)
 
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
-		return newOsqueryError("error writing status logs: " + err.Error())
+		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }
@@ -1616,11 +1627,14 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
-		return newOsqueryError(
+		osqueryErr := newOsqueryError(
 			"error writing result logs " +
 				"(if the logging destination is down, you can reduce frequency/size of osquery logs by " +
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }

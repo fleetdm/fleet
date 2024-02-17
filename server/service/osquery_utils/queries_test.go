@@ -101,7 +101,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM osquery_info",
     "system_time":"150",
     "user_time":"180",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"50400",
@@ -115,7 +115,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"140",
     "user_time":"190",
-    "wall_time":"1"
+    "wall_time":"1111",
+    "wall_time_ms":"1"
   },
   {
     "average_memory":"0",
@@ -129,7 +130,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"0",
     "user_time":"0",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"0",
@@ -143,7 +144,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM time",
     "system_time":"70",
     "user_time":"50",
-    "wall_time":"1"
+    "wall_time_ms":"1"
   }
 ]
 `
@@ -170,7 +171,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         100,
 				UserTime:           60,
-				WallTime:           180,
+				WallTimeMs:         180 * 1000,
 			},
 		},
 	)
@@ -188,7 +189,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         1337,
 				SystemTime:         150,
 				UserTime:           180,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "processes?",
@@ -201,7 +202,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         140,
 				UserTime:           190,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 			{
 				ScheduledQueryName: "processes?-1",
@@ -214,7 +215,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         0,
 				UserTime:           0,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "time",
@@ -227,7 +228,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         70,
 				UserTime:           50,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 		},
 	)
@@ -1745,5 +1746,32 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		} else {
 			require.Equal(t, gotQuery, tc.want)
 		}
+	}
+}
+
+func TestShouldRemoveSoftware(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+		s    *fleet.Software
+		h    *fleet.Host
+	}{
+		{
+			name: "parallels windows software on MacOS host",
+			want: true,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.parallels.winapp.notepad", Name: "Notepad.app"},
+		},
+		{
+			name: "regular macos software",
+			want: false,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.apple.dock", Name: "Dock.app"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
 	}
 }

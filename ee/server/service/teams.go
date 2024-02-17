@@ -804,24 +804,22 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		})
 	}
 
-	if applyOpts.DryRun {
-		return nil, nil
-	}
-
 	idsByName := make(map[string]uint, len(details))
 	if len(details) > 0 {
 		for _, tm := range details {
 			idsByName[tm.Name] = tm.ID
 		}
 
-		if err := svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeAppliedSpecTeam{
-				Teams: details,
-			},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team spec")
+		if !applyOpts.DryRun {
+			if err := svc.ds.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeAppliedSpecTeam{
+					Teams: details,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for team spec")
+			}
 		}
 	}
 	return idsByName, nil

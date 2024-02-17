@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from "react";
-import { omit } from "lodash";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
@@ -15,6 +14,7 @@ interface IManageQueryAutomationsModalProps {
   isUpdatingAutomations: boolean;
   handleSubmit: (formData: any) => void; // TODO
   onCancel: () => void;
+  isShowingPreviewDataModal: boolean;
   togglePreviewDataModal: () => void;
   availableQueries?: ISchedulableQuery[];
   automatedQueryIds: number[];
@@ -59,12 +59,13 @@ const ManageQueryAutomationsModal = ({
   automatedQueryIds,
   handleSubmit,
   onCancel,
+  isShowingPreviewDataModal,
   togglePreviewDataModal,
   availableQueries,
   logDestination,
 }: IManageQueryAutomationsModalProps): JSX.Element => {
   // TODO: Error handling, if any
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  // const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   // Client side sort queries alphabetically
   const sortedAvailableQueries =
@@ -105,6 +106,7 @@ const ManageQueryAutomationsModal = ({
       onExit={onCancel}
       className={baseClass}
       width="large"
+      isHidden={isShowingPreviewDataModal}
     >
       <div className={`${baseClass} form`}>
         <div className={`${baseClass}__heading`}>
@@ -127,8 +129,8 @@ const ManageQueryAutomationsModal = ({
                         name={name}
                         onChange={() => {
                           updateQueryItems(id);
-                          !isChecked &&
-                            setErrors((errs) => omit(errs, "queryItems"));
+                          // !isChecked &&
+                          //   setErrors((errs) => omit(errs, "queryItems"));
                         }}
                       >
                         {name}

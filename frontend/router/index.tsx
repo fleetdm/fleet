@@ -48,7 +48,7 @@ import Fleet404 from "pages/errors/Fleet404";
 import UserSettingsPage from "pages/UserSettingsPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
+import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
@@ -157,12 +157,13 @@ const routes = (
               component={WindowsAutomaticEnrollmentPage}
             />
             <Route path="teams" component={TeamDetailsWrapper}>
-              <Route path="members" component={MembersPage} />
+              <Redirect from="members" to="users" />
+              <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
               <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/users" to="teams" />
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
@@ -227,7 +228,7 @@ const routes = (
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/details" component={SoftwareOSDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">

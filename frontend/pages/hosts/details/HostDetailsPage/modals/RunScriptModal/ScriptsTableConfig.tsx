@@ -8,6 +8,7 @@ import { IDropdownOption } from "interfaces/dropdownOption";
 import { IHostScript, ILastExecution } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
+import Icon from "components/Icon";
 import DropdownCell from "components/TableContainer/DataTable/DropdownCell";
 import {
   isGlobalAdmin,
@@ -131,8 +132,10 @@ export const generateTableColumnConfigs = (
       accessor: "actions",
       Cell: (cellProps: IDropdownCellProps) => {
         if (scriptsDisabled) {
+          // create a basic span that doesn't use the dropdown component (which relies on react-select
+          // and makes it difficult for us to style the disabled tooltip underline on the placeholder text.
           return (
-            <span>
+            <span className="run-script-action--disabled">
               <TooltipWrapper
                 position="top"
                 tipContent={
@@ -141,13 +144,9 @@ export const generateTableColumnConfigs = (
                   </div>
                 }
               >
-                <DropdownCell
-                  options={[] as IDropdownOption[]}
-                  onChange={noop}
-                  placeholder={"Actions"}
-                  disabled={scriptsDisabled}
-                />
+                Actions
               </TooltipWrapper>
+              <Icon name="chevron-down" color="ui-fleet-black-50" />
             </span>
           );
         }

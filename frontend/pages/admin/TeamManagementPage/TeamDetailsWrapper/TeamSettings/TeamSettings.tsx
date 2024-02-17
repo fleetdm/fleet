@@ -19,6 +19,7 @@ import DataError from "components/DataError";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
@@ -215,7 +216,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
   return (
     <section className={`${baseClass}`}>
-      <div className="section-header">Host expiry settings</div>
+      <SectionHeader title="Host expiry settings" />
       {renderForm()}
     </section>
   );

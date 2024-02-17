@@ -2,7 +2,6 @@ package msrc
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,9 +9,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/io"
 	msrc "github.com/fleetdm/fleet/v4/server/vulnerabilities/msrc/parsed"
 	utils "github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 )
 
 const (
@@ -25,6 +27,7 @@ func Analyze(
 	os fleet.OperatingSystem,
 	vulnPath string,
 	collectVulns bool,
+	logger kitlog.Logger,
 ) ([]fleet.OSVulnerability, error) {
 	bulletin, err := loadBulletin(os, vulnPath)
 	if err != nil {
@@ -51,17 +54,21 @@ func Analyze(
 	// Run vulnerability detection for all hosts in this batch (hIDs)
 	// and store the results in 'found'.
 	var found []fleet.OSVulnerability
-
 	for cve, v := range bulletin.Vulnerabities {
 		// Check if this vulnerability targets the OS
 		if !utils.ProductIDsIntersect(v.ProductIDs, matchingPIDs) {
 			continue
 		}
-		// Check if the vulnerability is patched by referencing the OS version number
-		if patched(os, bulletin, v, matchingPIDs) {
-			continue
+		// Check if the OS is vulnerable to the vulnerability by referencing the OS kernel version
+		isVuln, riv := isOSVulnerable(os.KernelVersion, bulletin, v, matchingPIDs, cve, logger)
+		if isVuln {
+			found = append(found, fleet.OSVulnerability{
+				OSID:              os.ID,
+				CVE:               cve,
+				Source:            fleet.MSRCSource,
+				ResolvedInVersion: ptr.String(riv),
+			})
 		}
-		found = append(found, fleet.OSVulnerability{OSID: os.ID, CVE: cve})
 	}
 
 	// Fetch all stored vulnerabilities for the current batch
@@ -114,36 +121,65 @@ func Analyze(
 	return inserted, nil
 }
 
-// patched returns true if the vulnerability (v) is patched by the any of the provided Windows
-// updates.
-func patched(
-	os fleet.OperatingSystem,
+// isOSVulnerable returns true if the OS is vulnerable to the given vulnerability.
+// If the OS is vulnerable, the function returns the version in which the vulnerability
+// was resolved.
+func isOSVulnerable(
+	osKernel string,
 	b *msrc.SecurityBulletin,
 	v msrc.Vulnerability,
 	matchingPIDs map[string]bool,
-) bool {
+	cve string,
+	logger kitlog.Logger,
+) (isVulnerable bool, resolvedInVersion string) {
 	for KBID := range v.RemediatedBy {
 		fix := b.VendorFixes[KBID]
 
-		// Check if this vendor fix targets the OS
+		// Check if the MSRC FixedBuild version targets the OS version
 		if !utils.ProductIDsIntersect(fix.ProductIDs, matchingPIDs) {
 			continue
 		}
 
-		// An empty FixBuild is a bug in the MSRC feed, last
-		// seen around apr-2021.  Ignoring it to avoid false
-		// positive vulnerabilities.
-		if fix.FixedBuild == "" {
-			continue
-		}
+		for _, build := range fix.FixedBuilds {
+			// An empty FixBuild is a bug in the MSRC feed, last
+			// seen around apr-2021.  Ignoring it to avoid false
+			// positive vulnerabilities.
+			if build == "" {
+				continue
+			}
 
-		isGreater, err := winBuildVersionGreaterOrEqual(fix.FixedBuild, os.KernelVersion)
-		// Return true on errors to prevent false positives
-		if err != nil || isGreater {
-			return true
+			fixedBuild, feedParts, err := getBuildNumber(build)
+			if err != nil {
+				level.Debug(logger).Log("msg", "invalid msrc feed version", "cve", cve, "err", err)
+				continue
+			}
+
+			osBuild, osParts, err := getBuildNumber(osKernel)
+			if err != nil {
+				continue
+			}
+
+			// skip if the product version number does not match
+			// ie. 10.0.22000.X vs 10.0.22631.X
+			if isProductVersionMismatch(feedParts, osParts) {
+				continue
+			}
+
+			if osBuild < fixedBuild {
+				return true, build
+			}
 		}
 	}
 
+	return
+}
+
+func isProductVersionMismatch(feedVersion, osVersion []string) bool {
+	for i := 0; i < 3; i++ {
+		if feedVersion[i] != osVersion[i] {
+			return true
+		}
+	}
 	return false
 }
 
@@ -160,30 +196,8 @@ func loadBulletin(os fleet.OperatingSystem, dir string) (*msrc.SecurityBulletin,
 	return msrc.UnmarshalBulletin(latest)
 }
 
-func winBuildVersionGreaterOrEqual(feed, os string) (bool, error) {
-	if feed == "" {
-		return false, errors.New("empty feed version")
-	}
-
-	feedBuild, feedParts, err := getBuildNumber(feed)
-	if err != nil {
-		return false, fmt.Errorf("invalid feed version: %w", err)
-	}
-
-	osBuild, osParts, err := getBuildNumber(os)
-	if err != nil {
-		return false, fmt.Errorf("invalid os version: %w", err)
-	}
-
-	for i := 0; i < 3; i++ {
-		if feedParts[i] != osParts[i] {
-			return false, fmt.Errorf("comparing different product versions: %s, %s", feed, os)
-		}
-	}
-
-	return osBuild >= feedBuild, nil
-}
-
+// getBuildNumber expects a version string in the format "10.0.22000.194" and
+// returns the final part (build number) as an integer and the parts as a slice of strings.
 func getBuildNumber(version string) (int, []string, error) {
 	if version == "" {
 		return 0, nil, fmt.Errorf("empty version string %s", version)

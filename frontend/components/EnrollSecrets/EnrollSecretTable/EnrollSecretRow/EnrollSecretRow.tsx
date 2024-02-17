@@ -66,32 +66,34 @@ const EnrollSecretRow = ({
 
   const renderCopyShowButtons = () => {
     return (
-      <div className="buttons">
+      <div className={`${baseClass}__action-overlay`}>
         {copyMessage && (
-          <span
+          <div
             className={`${baseClass}__copy-message`}
-          >{`${copyMessage} `}</span>
+          >{`${copyMessage} `}</div>
         )}
-        <Button
-          variant="unstyled"
-          className={`${baseClass}__copy-secret-icon`}
-          onClick={onCopySecret}
-        >
-          <Icon name="copy" />
-        </Button>
-        <Button
-          variant="unstyled"
-          className={`${baseClass}__show-secret-icon`}
-          onClick={onToggleSecret}
-        >
-          <Icon name="eye" />
-        </Button>
+        <div className="buttons">
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__copy-secret-icon`}
+            onClick={onCopySecret}
+          >
+            <Icon name="copy" />
+          </Button>
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__show-secret-icon`}
+            onClick={onToggleSecret}
+          >
+            <Icon name="eye" />
+          </Button>
+        </div>
       </div>
     );
   };
 
   const renderEditDeleteButtons = () => (
-    <>
+    <div className="buttons">
       <Button
         onClick={onEditSecretClick}
         className={`${baseClass}__edit-secret-icon`}
@@ -106,7 +108,7 @@ const EnrollSecretRow = ({
       >
         <Icon name="trash" />
       </Button>
-    </>
+    </div>
   );
 
   return (

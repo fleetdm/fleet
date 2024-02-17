@@ -1,1 +1,0 @@
-* Added database migration to record the user that requests a script execution and to create the `host_activities` table to associate activities to specific hosts.

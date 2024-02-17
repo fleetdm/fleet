@@ -225,11 +225,34 @@ const ManagePolicyAutomationsModal = ({
     //   newPolicyIds = [];
     // }
 
+    const updatedEnabledPoliciesAcrossPages = () => {
+      if (webhook.policy_ids) {
+        // Array of policy ids on the page
+        const availablePoliciesIds = availablePolicies.map(
+          (policy) => policy.id
+        );
+
+        // Array of policy ids enabled NOT on the page
+        const enabledPoliciesOnOtherPages = webhook.policy_ids.filter(
+          (policyId) => !availablePoliciesIds.includes(policyId)
+        );
+
+        // Concatenate with array of policies enabled on the page
+        const allEnabledPolicies = enabledPoliciesOnOtherPages.concat(
+          newPolicyIds
+        );
+
+        return allEnabledPolicies;
+      }
+
+      return [];
+    };
+
     // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
     const newWebhook = {
       failing_policies_webhook: {
         destination_url: destinationUrl,
-        policy_ids: newPolicyIds,
+        policy_ids: updatedEnabledPoliciesAcrossPages(),
         enable_failing_policies_webhook:
           isPolicyAutomationsEnabled && isWebhookEnabled,
       },

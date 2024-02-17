@@ -1,1 +1,0 @@
-- Fixed bug in manage hosts UI where changing the dropdown filter did not clear OS settings filter.

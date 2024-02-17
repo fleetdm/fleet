@@ -18,9 +18,9 @@ Running Fleet in ECS consists of two main components the [ECS Service](https://g
 
 #### Fleet migrations
 
-Migrations in ECS can be achieved (and is recommended) by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L261)
+Migrations in ECS can be achieved by running [dedicated ECS tasks](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws#migrating-the-db) that run the `fleet prepare --no-prompt=true db` command. See [terraform for more details](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/ecs.tf#L261)
 
-Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this not recommended for production environments.
+Alternatively you can bake the prepare command into the same task definition see [here for a discussion](https://github.com/fleetdm/fleet/pull/1761#discussion_r697599457), but this is not recommended for production environments.
 
 <meta name="title" value="AWS ECS">
 <meta name="pageOrderInSection" value="400">

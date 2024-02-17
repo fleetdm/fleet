@@ -769,8 +769,8 @@ Retrieves the specified carve block. This endpoint retrieves the data that was c
 - [Modify configuration](#modify-configuration)
 - [Get global enroll secrets](#get-global-enroll-secrets)
 - [Modify global enroll secrets](#modify-global-enroll-secrets)
-- [Get enroll secrets for a team](#get-enroll-secrets-for-a-team)
-- [Modify enroll secrets for a team](#modify-enroll-secrets-for-a-team)
+- [Get team enroll secrets](#get-team-enroll-secrets)
+- [Modify team enroll secrets](#modify-team-enroll-secrets)
 - [Create invite](#create-invite)
 - [List invites](#list-invites)
 - [Delete invite](#delete-invite)
@@ -1390,7 +1390,7 @@ Delete all global enroll secrets.
 {}
 ```
 
-### Get enroll secrets for a team
+### Get team enroll secrets
 
 Returns the valid team enroll secrets.
 
@@ -1421,7 +1421,7 @@ None.
 ```
 
 
-### Modify enroll secrets for a team
+### Modify team enroll secrets
 
 Replaces all existing team enroll secrets.
 
@@ -1818,12 +1818,17 @@ None.
 - [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
-- [Get host's macadmin mobile device management (MDM) and Munki information](#get-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
 - [List host OS versions](#list-host-os-versions)
 - [Get host OS version](#get-host-os-version)
+- [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Get host's past activity](#get-hosts-past-activity)
+- [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
+- [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
 ### On the different timestamps in the host data structure
 
@@ -1865,7 +1870,7 @@ the `software` table.
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
@@ -3291,13 +3296,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 ---
 
-### Get host's macadmin mobile device management (MDM) and Munki information
-
-Requires the [macadmins osquery
-extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery
-installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-Currently supported only on macOS.
+### Get host's mobile device management (MDM) and Munki information
 
 Retrieves a host's MDM enrollment status, MDM server URL, and Munki version.
 
@@ -3526,7 +3525,6 @@ Retrieves information about the specified OS version.
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The OS version's ID. |
 
-
 ##### Default response
 
 `Status: 200`
@@ -3574,6 +3572,63 @@ OS vulnerability data is currently available for Windows and macOS. For other pl
 ```
 
 
+### Get host's scripts
+
+`GET /api/v1/fleet/hosts/:id/scripts`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/123/scripts`
+
+##### Default response
+
+`Status: 200`
+
+```json
+  "scripts": [
+    {
+      "script_id": 3,
+      "name": "remove-zoom-artifacts.sh",
+      "last_execution": {
+        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "error"
+      }
+    },
+    {
+      "script_id": 5,
+      "name": "set-timezone.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "pending"
+      }
+    },
+    {
+      "script_id": 8,
+      "name": "uninstall-zoom.sh",
+      "last_execution": {
+        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+        "executed_at": "2021-12-15T15:23:57Z",
+        "status": "ran"
+      }
+    }
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+
+```
 
 ### Get hosts report in CSV
 
@@ -3702,6 +3757,233 @@ Retrieves a list of the configuration profiles assigned to a host.
   ]
 }
 ```
+
+### Get host's past activity
+
+`GET /api/v1/fleet/hosts/:id/activites/past`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activities/past`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "id": 2,
+      "actor_full_name": "Anna",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "anna@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 1,
+      "actor_full_name": "Bob",
+      "actor_id": 2,
+      "actor_gravatar": "",
+      "actor_email": "bob@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
+      },
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Get host's upcoming activity
+
+`GET /api/v1/fleet/hosts/:id/activities/upcoming`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| id   | integer | path | **Required**. The host's id. |
+| page | integer | query | Page number of the results to fetch.|
+| per_page | integer | query | Results per page.|
+
+#### Example
+
+`GET /api/v1/fleet/hosts/12/activities/upcoming`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "count": 2,
+  "activities": [
+    {
+      "created_at": "2023-07-27T14:35:08Z",
+      "uuid": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+      "actor_full_name": "Marko",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "marko@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "set-timezones.sh",
+        "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": true
+      },
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "uuid": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+      "actor_full_name": "Rachael",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "rachael@example.com",
+      "type": "ran_script",
+      "details": {
+        "host_id": 1,
+        "host_display_name": "Steve's MacBook Pro",
+        "script_name": "",
+        "script_execution_id": "y3cffa75-b5b5-41ef-9230-15073c8a88cf",
+        "async": false
+      },
+    },
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+### Live query one host (ad-hoc)
+
+Runs an ad-hoc live query against the specified host and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/:id/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer  | path | **Required**. The target host ID. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
+
+### Live query host by identifier (ad-hoc)
+
+Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/identifier/:identifier/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 ---
 
@@ -4153,8 +4435,9 @@ Deletes the label specified by ID.
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
+- [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
-- [Download custom OS setting (configuration profile)](#download-custom-os-setting-configuration-profile)
+- [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
 - [Update disk encryption enforcement](#update-disk-encryption-enforcement)
 - [Get disk encryption statistics](#get-disk-encryption-statistics)
@@ -4180,7 +4463,7 @@ These API endpoints are used to automate MDM features in Fleet. Read more about 
 
 ### Add custom OS setting (configuration profile)
 
-> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Add custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#add-custom-macos-setting-configuration-profile) (`POST /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Add a configuration profile to enforce custom settings on macOS and Windows hosts.
 
@@ -4255,10 +4538,31 @@ Content-Type: application/octet-stream
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
+### Get manual enrollment profile
+
+Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
+
+`GET /api/v1/fleet/mdm/manual_enrollment_profile`
+
+##### Example
+
+`GET /api/v1/fleet/mdm/manual_enrollment_profile`
+
+##### Default response
+
+`Status: 200`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!-- ... -->
+</plist>
+```
 
 ### List custom OS settings (configuration profiles)
 
-> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get a list of the configuration profiles in Fleet.
 
@@ -4318,7 +4622,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 
 ### Get or download custom OS setting (configuration profile)
 
-> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
+> [Download custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#download-custom-macos-setting-configuration-profile) (`GET /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the API endpoint below instead.
 
 `GET /api/v1/fleet/mdm/profiles/:profile_uuid`
 
@@ -4394,7 +4698,7 @@ solely on the response status code returned by this endpoint.
 
 ### Delete custom OS setting (configuration profile)
 
-> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Delete custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#delete-custom-macos-setting-configuration-profile) (`DELETE /api/v1/fleet/mdm/apple/profiles/:profile_id`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 `DELETE /api/v1/fleet/mdm/profiles/:profile_uuid`
 
@@ -4472,7 +4776,7 @@ Get aggregate disk encryption status counts of macOS and Windows hosts enrolled 
 
 ### Get OS settings status
 
-> [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [Get macOS settings statistics](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#get-macos-settings-statistics) (`GET /api/v1/fleet/mdm/apple/profiles/summary`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get aggregate status counts of all OS settings (configuration profiles and disk encryption) enforced on hosts.
 
@@ -4508,7 +4812,7 @@ Get aggregate status counts of profiles for to macOS and Windows hosts that are 
 
 ### Run custom MDM command
 
-> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#run-custom-mdm-command).
+> `POST /api/v1/fleet/mdm/apple/enqueue` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#run-custom-mdm-command).
 
 This endpoint tells Fleet to run a custom MDM command, on the targeted macOS or Windows hosts, the next time they come online.
 
@@ -4540,7 +4844,7 @@ Note that the `EraseDevice` and `DeviceLock` commands are _available in Fleet Pr
 
 ### Get custom MDM command results
 
-> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
+> `GET /api/v1/fleet/mdm/apple/commandresults` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#get-custom-mdm-command-results).
 
 This endpoint returns the results for a specific custom MDM command.
 
@@ -4580,7 +4884,7 @@ This endpoint returns the results for a specific custom MDM command.
 
 ### List custom MDM commands
 
-> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/ee02782eaf84c121256d73abc20b949d31bf2e57/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
+> `GET /api/v1/fleet/mdm/apple/commands` API endpoint is deprecated as of Fleet 4.40. It is maintained for backward compatibility. Please use the new API endpoint below. See old API endpoint docs [here](https://github.com/fleetdm/fleet/blob/fleet-v4.39.0/docs/REST%20API/rest-api.md#list-custom-mdm-commands).
 
 This endpoint returns the list of custom MDM commands that have been executed.
 
@@ -5605,7 +5909,7 @@ Team policies work the same as policies, but at the team level.
 #### Parameters
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
-| team_id                 | integer | path  | **Required.** Defines what team ID to operate on   
+| team_id                 | integer | path  | **Required.** Defines what team ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 
 #### Example
@@ -6392,9 +6696,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 Runs a live query against the specified hosts and responds with the results.
 
-If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
-
-The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
+The live query will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
 `POST /api/v1/fleet/queries/:id/run`
@@ -6920,6 +7222,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
+- [Run live script](#run-script)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
@@ -6928,9 +7231,76 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 ### Run script
 
-_Available in Fleet Premium_
+Run a script on a host.
 
-Execute a script and see script results (5 minute timeout).
+The script will be added to the host's list of upcoming activities.
+
+The new script will run after other activities finish. Failure of one activity won't cancel other activities.
+
+`POST /api/v1/fleet/scripts/run`
+
+#### Parameters
+
+| Name            | Type    | In   | Description                                                                                    |
+| ----            | ------- | ---- | --------------------------------------------                                                   |
+| host_id         | integer | body | **Required**. The ID of the host to run the script on.                                                |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+
+> Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
+
+#### Example
+
+`POST /api/v1/fleet/scripts/run`
+
+##### Default response
+
+`Status: 202`
+
+```json
+{
+  "host_id": 1227,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002"
+}
+```
+
+### Get script result
+
+Gets the result of a script that was executed.
+
+#### Parameters
+
+| Name         | Type   | In   | Description                                   |
+| ----         | ------ | ---- | --------------------------------------------  |
+| execution_id | string | path | **Required**. The execution id of the script. |
+
+#### Example
+
+`GET /api/v1/fleet/scripts/results/:execution_id`
+
+##### Default Response
+
+`Status: 200`
+
+```json
+{
+  "script_contents": "echo 'hello'",
+  "exit_code": 0,
+  "output": "hello",
+  "message": "",
+  "hostname": "Test Host",
+  "host_timeout": false,
+  "host_id": 1,
+  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
+  "runtime": 20
+}
+```
+
+> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
+
+### Run live script
+
+Run a live script and get results back (5 minute timeout). Live scripts only runs on the host if it has no other scripts running.
 
 `POST /api/v1/fleet/scripts/run/sync`
 
@@ -6965,45 +7335,7 @@ Execute a script and see script results (5 minute timeout).
 }
 ```
 
-### Get script result
-
-_Available in Fleet Premium_
-
-Gets the result of a script that was executed.
-
-#### Parameters
-
-| Name         | Type   | In   | Description                                   |
-| ----         | ------ | ---- | --------------------------------------------  |
-| execution_id | string | path | **Required**. The execution id of the script. |
-
-#### Example
-
-`GET /api/v1/fleet/scripts/results/:execution_id`
-
-##### Default Response
-
-`Status: 2000`
-
-```json
-{
-  "script_contents": "echo 'hello'",
-  "exit_code": 0,
-  "output": "hello",
-  "message": "",
-  "hostname": "Test Host",
-  "host_timeout": false,
-  "host_id": 1,
-  "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-  "runtime": 20
-}
-```
-
-> Note: `exit_code` can be `null` if Fleet hasn't heard back from the host yet.
-
 ### Upload a script
-
-_Available in Fleet Premium_
 
 Uploads a script, making it available to run on hosts assigned to the specified team (or no team).
 
@@ -7055,8 +7387,6 @@ echo "hello"
 
 ### Delete a script
 
-_Available in Fleet Premium_
-
 Deletes an existing script.
 
 `DELETE /api/v1/fleet/scripts/:id`
@@ -7076,8 +7406,6 @@ Deletes an existing script.
 `Status: 204`
 
 ### List scripts
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts`
 
@@ -7123,8 +7451,6 @@ _Available in Fleet Premium_
 ```
 
 ### Get or download a script
-
-_Available in Fleet Premium_
 
 `GET /api/v1/fleet/scripts/:id`
 
@@ -7173,68 +7499,6 @@ Content-Disposition: attachment;filename="2023-09-27 script_1.sh"
 ```
 echo "hello"
 ```
-
-### Get script details by host
-
-_Available in Fleet Premium_
-
-`GET /api/v1/fleet/hosts/:id/scripts`
-
-#### Parameters
-
-| Name            | Type    | In    | Description                                                                                                                   |
-| --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
-| page            | integer | query | Page number of the results to fetch.                                                                                          |
-| per_page        | integer | query | Results per page.                                                                                                             |
-
-#### Example
-
-`GET /api/v1/fleet/hosts/123/scripts`
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "scripts": [
-    {
-      "script_id": 3,
-      "name": "remove-zoom-artifacts.sh",
-      "last_execution": {
-        "execution_id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "error"
-      }
-    },
-    {
-      "script_id": 5,
-      "name": "set-timezone.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "pending"
-      }
-    },
-    {
-      "script_id": 8,
-      "name": "uninstall-zoom.sh",
-      "last_execution": {
-        "id": "e797d6c6-3aae-11ee-be56-0242ac120002",
-        "executed_at": "2021-12-15T15:23:57Z",
-        "status": "ran"
-      }
-    }
-  ],
-  "meta": {
-    "has_next_results": false,
-    "has_previous_results": false
-  }
-}
-
-```
-
----
 
 ## Sessions
 
@@ -8065,85 +8329,6 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;host_expiry_enabled                         | boolean | body | When enabled, allows automatic cleanup of hosts that have not communicated with Fleet in some number of days. When disabled, defaults to the global setting.                                               |
 | &nbsp;&nbsp;host_expiry_window                          | integer | body | If a host has not communicated with Fleet in the specified number of days, it will be removed.                                                                                                             |
 
-
-#### Example (add users to a team)
-
-`PATCH /api/v1/fleet/teams/1/users`
-
-##### Request body
-
-```json
-{
-  "user_ids": [1, 17, 22, 32]
-}
-```
-
-##### Default response
-
-`Status: 200`
-
-```json
-{
-  "team": {
-    "name": "Workstations",
-    "id": 1,
-    "user_count": 4,
-    "host_count": 0,
-    "agent_options": {
-      "config": {
-        "options": {
-          "pack_delimiter": "/",
-          "logger_tls_period": 10,
-          "distributed_plugin": "tls",
-          "disable_distributed": false,
-          "logger_tls_endpoint": "/api/v1/osquery/log",
-          "distributed_interval": 10,
-          "distributed_tls_max_attempts": 3
-        },
-        "decorators": {
-          "load": [
-            "SELECT uuid AS host_uuid FROM system_info;",
-            "SELECT hostname AS hostname FROM system_info;"
-          ]
-        }
-      },
-      "overrides": {},
-      "command_line_flags": {}
-    },
-    "webhook_settings": {
-      "failing_policies_webhook": {
-        "enable_failing_policies_webhook": false,
-        "destination_url": "",
-        "policy_ids": null,
-        "host_batch_size": 0
-      }
-    },
-    "mdm": {
-      "macos_updates": {
-        "minimum_version": "12.3.1",
-        "deadline": "2022-01-01"
-      },
-      "windows_updates": {
-        "deadline_days": 5,
-        "grace_period_days": 1
-      },
-      "macos_settings": {
-        "custom_settings": ["path/to/profile1.mobileconfig"],
-        "enable_disk_encryption": false
-      },
-      "windows_settings": {
-        "custom_settings": ["path/to/profile2.xml"],
-      },
-      "macos_setup": {
-        "bootstrap_package": "",
-        "enable_end_user_authentication": false,
-        "macos_setup_assistant": "path/to/config.json"
-      }
-    }
-  }
-}
-```
-
 #### Example (transfer hosts to a team)
 
 `PATCH /api/v1/fleet/teams/1`
@@ -8196,6 +8381,138 @@ _Available in Fleet Premium_
         "host_batch_size": 0
       }
     }
+  }
+}
+```
+
+### Add users to a team
+
+_Available in Fleet Premium_
+
+`PATCH /api/v1/fleet/teams/:id/users`
+
+#### Parameters
+
+| Name             | Type    | In   | Description                                  |
+|------------------|---------|------|----------------------------------------------|
+| id               | integer | path | **Required.** The desired team's ID.         |
+| users            | string  | body | Array of users to add.                       |
+| &nbsp;&nbsp;id   | integer | body | The id of the user.                          |
+| &nbsp;&nbsp;role | string  | body | The team role that the user will be granted. Options are: "admin", "maintainer", "observer", "observer_plus", and "gitops". |
+
+#### Example
+
+`PATCH /api/v1/fleet/teams/1/users`
+
+##### Request body
+
+```json
+{
+  "users": [
+    {
+      "id": 1,
+      "role": "admin"
+    },
+    {
+      "id": 17,
+      "role": "observer"
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "team": {
+    "name": "Workstations",
+    "id": 1,
+    "user_count": 2,
+    "host_count": 0,
+    "agent_options": {
+      "config": {
+        "options": {
+          "pack_delimiter": "/",
+          "logger_tls_period": 10,
+          "distributed_plugin": "tls",
+          "disable_distributed": false,
+          "logger_tls_endpoint": "/api/v1/osquery/log",
+          "distributed_interval": 10,
+          "distributed_tls_max_attempts": 3
+        },
+        "decorators": {
+          "load": [
+            "SELECT uuid AS host_uuid FROM system_info;",
+            "SELECT hostname AS hostname FROM system_info;"
+          ]
+        }
+      },
+      "overrides": {},
+      "command_line_flags": {}
+    },
+    "webhook_settings": {
+      "failing_policies_webhook": {
+        "enable_failing_policies_webhook": false,
+        "destination_url": "",
+        "policy_ids": null,
+        "host_batch_size": 0
+      }
+    },
+    "mdm": {
+      "macos_updates": {
+        "minimum_version": "12.3.1",
+        "deadline": "2022-01-01"
+      },
+      "windows_updates": {
+        "deadline_days": 5,
+        "grace_period_days": 1
+      },
+      "macos_settings": {
+        "custom_settings": ["path/to/profile1.mobileconfig"],
+        "enable_disk_encryption": false
+      },
+      "windows_settings": {
+        "custom_settings": ["path/to/profile2.xml"],
+      },
+      "macos_setup": {
+        "bootstrap_package": "",
+        "enable_end_user_authentication": false,
+        "macos_setup_assistant": "path/to/config.json"
+      }
+    },
+    "users": [
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 1,
+        "name": "Example User1",
+        "email": "user1@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "admin"
+      },
+      {
+        "created_at": "0001-01-01T00:00:00Z",
+        "updated_at": "0001-01-01T00:00:00Z",
+        "id": 17,
+        "name": "Example User2",
+        "email": "user2@example.com",
+        "force_password_reset": false,
+        "gravatar_url": "",
+        "sso_enabled": false,
+        "global_role": null,
+        "api_only": false,
+        "teams": null,
+        "role": "observer"
+      }
+    ]
   }
 }
 ```

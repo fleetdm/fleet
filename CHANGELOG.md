@@ -1,3 +1,85 @@
+## Fleet 4.44.1 (Feb 13, 2024)
+
+### Bug fixes
+
+* Fixed a bug where long enrollment secrets would overlap with the action buttons on top of them.
+* Fixed a bug that caused OS Settings to never be verified if the MySQL config of Fleet's database had 'only_full_group_by' mode enabled (enabled by default).
+* Ensured policy names are now unique per team, allowing different teams to have policies with the same name.
+* Fixed the visual display of chevron right icons on Chrome.
+* Renamed the 'mdm_windows_configuration_profiles' and 'mdm_apple_configuration_profiles' 'updated_at' field to 'uploaded_at' and removed the automatic setting of the value, setting it explicitly instead.
+* Fixed a small alignment bug in the setup flow.
+* Improved the validation of Windows profiles to prevent errors when delivering the profiles to the hosts. If you need to embed a nested XML structure (for example, for Wi-Fi profiles), you can either:
+ - Escape the XML.
+ - Use a wrapping `<![CDATA[ ... ]]>` element.
+* Fixed an issue where an inaccurate message was returned after running an asynchronous (queued) script.
+* Fixed URL query parameters to reset when switching tabs.
+* Fixed the vulnerable software dropdown from switching back to all teams.
+* Added fleetctl gitops command:
+ - Synchronize Fleet configuration with the provided file. This command is intended to be used in a GitOps workflow.
+* Updated the response for 'GET /api/v1/fleet/hosts/:id/activities/upcoming' to include the count of all upcoming activities for the host.
+* Fixed an issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it were the host's software.
+* Removed unnecessary nested database transactions in batch-setting of MDM profiles.
+* Added count of upcoming activities to host vitals UI.
+
+## Fleet 4.44.0 (Jan 31, 2024)
+
+### Changes
+
+* **Endpoint operations**:
+  - Removed rate-limiting from `/api/fleet/orbit/ping` and `/api/fleet/device/ping` endpoints.
+  - For Windows hosts, fleetd now uses Windows Credential Manager for enroll secret.
+  - For macOS hosts, fleetd stores and retrieves enroll secret from macOS keychain for non-MDM flow.
+  - Query reports feature now supports a custom `pack_delimiter` in agent settings.
+  - Packaged `fleetctl` for macOS as a universal binary (native support for both amd64 and arm64 architectures).
+  - Added new flow for `fleetctl package --type=msi` on macOS using arm64 processor.
+  - Teams can now configure their own host expiry settings.
+  - Added UI for host details activity card.
+  - Added `host_count_updated_at` to policy API responses.
+  - Added "Run script" action to host details page.
+  - Created the "script ran" activity linked to its host.
+  - Updated host details page and `GET /api/v1/fleet/hosts/:id` endpoint so that failing policies are listed first.
+
+* **Device management (MDM)**:
+  - Added new endpoints `GET /api/v1/fleet/mdm/manual_enrollment_profile` and scripts related endpoints (`/hosts/:id/activity`, `/hosts/:id/activity/upcoming`).
+  - Added support for label-based MDM profiles reconciliation.
+  - Improved MDM migration puppet module.
+  - Added Windows scripts for MDM unenrollment and fleetd removal.
+  - Added the profile's `labels` object to MDM profiles response payload.
+  - Updated UI with ability to target MDM profiles by label.
+  - Added ability to configure custom `configuration_web_url` values in DEP profile.
+  - Fixed a bug causing MDM SSO to fail with certain configurations.
+  - Fixed queries reporting inconsistent MDM enrollment status in Windows.
+
+* **Vulnerability management**:
+  - Added support for detecting operating system vulnerabilities for macOS and Windows.
+  - Corrected Windows OS false negative for multiple OS build remediations.
+  - Fixed issue with incorrect `resolved_in_version` for vulnerabilities.
+
+### Bug fixes and improvements
+
+  - Added "No report" text for query results not saved in Fleet.
+  - Updated forms across the UI for consistent styling.
+  - Improved UX for globally enabling/disabling SSO.
+  - Added new consistent header styling across the app.
+  - Clearer browser page titles and CTAs for Observer+.
+  - Updated logging destination failure response to return a 4xx error instead of 500.
+  - Addressed issues with query reports and host expiry settings.
+  - Resolved platform compatibility checker issues with deprecated osquery tables.
+  - Updated Go to version 1.21.6.
+  - osquery flag validation updated for osquery 5.11.
+  - Fixed validation and error handling for `/api/fleet/orbit/device_token` and other endpoints.
+  - Fixed UI bugs in script functionality, side navigation content headers, and premium message alignment.
+  - Fixed a bug in searching for hosts by email addresses.
+  - Fixed issues with sticky errors in fleetd-chrome after querying privacy_preferences table.
+  - Fixed a bug where Munki issues section was incorrectly displayed.
+  - Fixed OS compatibility calculation for certain queries.
+  - Fixed a bug where capital characters would not match labels containing them.
+  - Fixed bug in manage hosts UI where changing the dropdown filter did not clear OS settings filter.
+  - Fixed a bug in `fleetctl` where `--context` and `--debug` flags were not allowed after certain commands.
+  - Fixed a bug where the UUID for Windows updates profiles was missing the `"w"` prefix.
+  - Fixed a UI bug on the controls page in team targeting forms.
+  - Fixed a bug where policy automations when saved were resetting automations on other pages.
+
 ## Fleet 4.43.3 (Jan 23, 2024)
 
 ### Bug fixes

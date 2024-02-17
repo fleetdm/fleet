@@ -1022,7 +1022,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		wantErr       string
 	}{
 		{"empty profile", 0, "", true, "The file should include valid XML."},
-		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
 		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
@@ -1033,7 +1033,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
-		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
 		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"team valid windows profile", 1, `<Replace></Replace>`, true, ""},
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
@@ -1389,7 +1389,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)

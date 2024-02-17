@@ -396,9 +396,9 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 	require.NoError(t, err)
 
 	// set profile updated at 2 hours ago
-	testProfile.UpdatedAt = time.Now().Truncate(time.Second).Add(-2 * time.Hour)
+	testProfile.UploadedAt = time.Now().Truncate(time.Second).Add(-2 * time.Hour)
 	// set profile created at 24 hours ago (irrelevant but included for completeness)
-	testProfile.CreatedAt = testProfile.UpdatedAt.Add(-24 * time.Hour)
+	testProfile.CreatedAt = testProfile.UploadedAt.Add(-24 * time.Hour)
 
 	cases := []struct {
 		testName            string
@@ -407,24 +407,24 @@ func TestMDMProfileIsWithinGracePeriod(t *testing.T) {
 	}{
 		{
 			testName:            "outside grace period",
-			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(61 * time.Minute), // more than 1 hour grace period
+			hostDetailUpdatedAt: testProfile.UploadedAt.Add(61 * time.Minute), // more than 1 hour grace period
 			expect:              false,
 		},
 		{
 			testName:            "online host within grace period",
-			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(59 * time.Minute), // less than 1 hour grace period
+			hostDetailUpdatedAt: testProfile.UploadedAt.Add(59 * time.Minute), // less than 1 hour grace period
 			expect:              true,
 		},
 		{
 			testName:            "offline host within grace period",
-			hostDetailUpdatedAt: testProfile.UpdatedAt.Add(-48 * time.Hour), // grace period doesn't start until host is online (i.e. host detail updated at is after profile updated at)
+			hostDetailUpdatedAt: testProfile.UploadedAt.Add(-48 * time.Hour), // grace period doesn't start until host is online (i.e. host detail updated at is after profile updated at)
 			expect:              true,
 		},
 	}
 
 	for _, c := range cases {
 		t.Run(c.testName, func(t *testing.T) {
-			ep := ExpectedMDMProfile{Identifier: testProfile.Identifier, EarliestInstallDate: testProfile.UpdatedAt}
+			ep := ExpectedMDMProfile{Identifier: testProfile.Identifier, EarliestInstallDate: testProfile.UploadedAt}
 			require.Equal(t, c.expect, ep.IsWithinGracePeriod(c.hostDetailUpdatedAt))
 		})
 	}

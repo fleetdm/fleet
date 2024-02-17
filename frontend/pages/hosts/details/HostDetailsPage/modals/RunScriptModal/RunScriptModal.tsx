@@ -1,19 +1,18 @@
 import React, { useCallback, useContext, useMemo, useState } from "react";
 import { useQuery } from "react-query";
-import { AxiosResponse } from "axios";
 
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 
-import { IApiError } from "interfaces/errors";
+import { getErrorReason, IApiError } from "interfaces/errors";
 import { IHost } from "interfaces/host";
+import { IHostScript } from "interfaces/script";
 import { IUser } from "interfaces/user";
 
 import scriptsAPI, {
   IHostScriptsQueryKey,
   IHostScriptsResponse,
 } from "services/entities/scripts";
-import { IHostScript } from "interfaces/script";
 
 import Button from "components/buttons/Button";
 import DataError from "components/DataError/DataError";
@@ -90,12 +89,13 @@ const RunScriptModal = ({
               host_id: host.id,
               script_id: script.script_id,
             });
-            renderFlash("success", "Script successfully queued for execution");
+            renderFlash(
+              "success",
+              "Script is running or will run when the host comes online."
+            );
             refetchHostScripts();
           } catch (e) {
-            const error = e as AxiosResponse<IApiError>;
-            console.log(error);
-            renderFlash("error", error.data.errors[0].reason);
+            renderFlash("error", getErrorReason(e));
             setRunScriptRequested(false);
           }
           break;
@@ -139,10 +139,10 @@ const RunScriptModal = ({
         <div className={`${baseClass}__modal-content`}>
           {isLoading && <Spinner />}
           {!isLoading && isError && <DataError />}
-          {!isLoading && !isError && tableData && tableData.length === 0 && (
+          {!isLoading && !isError && (!tableData || tableData.length === 0) && (
             <EmptyTable
               header="No scripts are available for this host"
-              info="Expecting to see scripts? Try selecting “Refetch” to ask this host to report new vitals."
+              info="Expecting to see scripts? Try selecting “Refetch” to ask the host to report new vitals."
             />
           )}
           {!isLoading && !isError && tableData && tableData.length > 0 && (
