@@ -94,7 +94,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		return nil, ctxerr.Wrap(ctx, err, "fetching vulnerability")
 	}
 
-	if vuln.HostCount == 0 {
+	if vuln.HostsCount == 0 {
 		var msg string
 		if teamID == nil {
 			msg = "global"
