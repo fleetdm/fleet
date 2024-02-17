@@ -1820,6 +1820,7 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
+- [Get host's activities](#get-hosts-activities)
 - [Get host OS versions](#get-host-os-versions)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
@@ -3438,6 +3439,61 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
   }
 }
 ```
+
+
+### Get host's activities
+
+Returns a list of the activities performed in Fleet affecting the current host. It returns activities sorted in descending order by the `created_at` field.
+
+`GET /api/v1/fleet/hosts/{id}/activities`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| id | integer | path | **Required**. The ID of the host to get the details for. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+##### Example
+
+`GET /api/v1/fleet/hosts/154/activities?page=0&per_page=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2021-07-30T13:41:07Z",
+      "id": 24,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 231
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 19,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 14
+      }
+    },
+  ]
+}
+```
+
 
 ### Get host OS versions
 

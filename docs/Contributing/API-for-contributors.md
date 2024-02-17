@@ -2443,6 +2443,59 @@ Lists the policies applied to the current device.
 }
 ```
 
+#### Get device's activities
+
+Returns a list of the activities performed in Fleet affecting the current device. It returns activities sorted in descending order by the `created_at` field.
+
+`GET /api/v1/fleet/device/{token}/activities`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+| page | integer | query | Page number of the results to fetch. |
+| per_page | integer | query | Results per page. |
+
+##### Example
+
+`GET /api/v1/fleet/device/abcdef012456789/activities?page=0&per_page=2`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "activities": [
+    {
+      "created_at": "2021-07-30T13:41:07Z",
+      "id": 24,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 231
+      }
+    },
+    {
+      "created_at": "2021-07-27T13:25:21Z",
+      "id": 19,
+      "actor_full_name": "name",
+      "actor_id": 1,
+      "actor_gravatar": "",
+      "actor_email": "name@example.com",
+      "type": "live_query",
+      "details": {
+        "targets_count": 14
+      }
+    },
+  ]
+}
+```
+
 #### Get device's API features
 
 This supports the dynamic discovery of API features supported by the server for device-authenticated routes. This allows supporting different versions of Fleet Desktop and Fleet server instances (older or newer) while supporting the evolution of the API features. With this mechanism, an older Fleet Desktop can ignore features it doesn't know about, and a newer one can avoid requesting features about which the server doesn't know.
