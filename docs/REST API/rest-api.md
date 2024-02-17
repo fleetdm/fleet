@@ -1820,7 +1820,8 @@ None.
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Get host OS versions](#get-host-os-versions)
+- [List host OS versions](#list-host-os-versions)
+- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
@@ -1874,7 +1875,7 @@ the `software` table.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
@@ -2093,7 +2094,7 @@ Response payload with the `munki_issue_id` filter provided:
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                            |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
@@ -3439,7 +3440,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Get host OS versions
+### List host OS versions
 
 Retrieves the aggregated host OS versions information.
 
@@ -3453,6 +3454,12 @@ Retrieves the aggregated host OS versions information.
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| team_id                | integer | query | _Available in Fleet Premium_. Filters to only include OS versions for the specified team.                                                                                                                                 |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
 
 ##### Default response
 
@@ -3460,59 +3467,110 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
-  "counts_updated_at": "2022-03-22T21:38:31Z",
+  "count": 1
+  "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
-      "hosts_count": 1,
-      "name": "CentOS 6.10.0",
-      "name_only": "CentOS",
-      "version": "6.10.0",
-      "platform": "rhel",
-      "os_id": 1
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 7.9.2009",
-      "name_only": "CentOS",
-      "version": "7.9.2009",
-      "platform": "rhel",
-      "os_id": 2
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 8.3.2011",
-      "name_only": "CentOS",
-      "version": "8.2.2011",
-      "platform": "rhel",
-      "os_id": 3
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 10.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "10.0.0",
-      "platform": "debian",
-      "os_id": 4
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 9.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "9.0.0",
-      "platform": "debian",
-      "os_id": 5
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 16.4.0 LTS",
-      "name_only": "Ubuntu",
-      "version": "16.4.0 LTS",
-      "platform": "ubuntu",
-      "os_id": 6
+      "os_version_id": 123,
+      "hosts_count": 21,
+      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+      "name_only": "Microsoft Windows 11 Pro 23H2",
+      "version": "10.0.22621.1234",
+      "platform": "windows",
+      "generated_cpes": [],
+      "vulnerabilities": [
+        {
+          "cve": "CVE-2022-30190",
+          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+          "cvss_score": 7.8,// Available in Fleet Premium
+          "epss_probability": 0.9729,// Available in Fleet Premium
+          "cisa_known_exploit": false,// Available in Fleet Premium
+          "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+          "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+          "resolved_in_version": ""// Available in Fleet Premium
+        }
+      ]
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
+### Get host OS version
+
+Retrieves information about the specified OS version.
+
+`GET /api/v1/fleet/os_versions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The OS version's ID. |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2023-12-06T22:17:30Z",
+  "os_version": {
+    "id": 123,
+    "hosts_count": 21,
+    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "version": "10.0.22621.1234",
+    "platform": "windows",
+    "generated_cpes": [],
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2022-30190",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+        "cvss_score": 7.8,// Available in Fleet Premium
+        "epss_probability": 0.9729,// Available in Fleet Premium
+        "cisa_known_exploit": false,// Available in Fleet Premium
+        "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+        "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+        "resolved_in_version": ""// Available in Fleet Premium
+      }
+    ]
+  }
+}
+```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "id": 321,
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
 
 ### Get host's scripts
 
@@ -3535,7 +3593,6 @@ Retrieves the aggregated host OS versions information.
 `Status: 200`
 
 ```json
-{
   "scripts": [
     {
       "script_id": 3,
@@ -3595,7 +3652,7 @@ requested by a web browser.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
