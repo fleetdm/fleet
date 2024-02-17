@@ -571,8 +571,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
@@ -583,7 +583,7 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
-    - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
+    - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Encrypt macOS hard disks with FileVault
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   tier: Premium
