@@ -93,6 +93,17 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		}
 		return nil, ctxerr.Wrap(ctx, err, "fetching vulnerability")
 	}
+
+	if vuln.HostCount == 0 {
+		var msg string
+		if teamID == nil {
+			msg = "global"
+		} else {
+			msg = fmt.Sprintf("team %d", *teamID)
+		}
+		return nil, ctxerr.Wrap(ctx, notFound(fmt.Sprintf("Vulnerability for %s", msg)).WithName(cve))
+	}
+
 	return &vuln, nil
 }
 
@@ -100,17 +111,6 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
-	}
-
-	// If no team OS versions are found, fetch global OS versions
-	if osvs == nil {
-		osvs, err = ds.OSVersions(ctx, nil, nil, nil, nil)
-		if err != nil {
-			return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching global OS versions")
-		}
-		for i := range osvs.OSVersions {
-			osvs.OSVersions[i].HostsCount = 0
-		}
 	}
 
 	updatedAt = osvs.CountsUpdatedAt

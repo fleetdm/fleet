@@ -7611,11 +7611,12 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
 
 	// Valid CVE but not in team scope
-	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusOK, &gResp, "team_id", "1")
-	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1236", gResp.Vulnerability.CVE)
-	require.Equal(t, uint(0), gResp.Vulnerability.HostCount)
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNotFound, &gResp, "team_id", "1")
 
+	// Invalid TeamID
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+
+	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)

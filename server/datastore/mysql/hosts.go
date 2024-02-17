@@ -4452,7 +4452,7 @@ func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *str
 
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "execute os version query")
+		return nil, err
 	}
 
 	res := &fleet.OSVersions{
@@ -4462,7 +4462,7 @@ func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *str
 
 	counts, err := ds.unmarshalOSVersions(jsonValue)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "unmarshal os versions")
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
 	// filter by platform, name, and version
@@ -4526,7 +4526,7 @@ func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamID *uint) (*
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, id, globalStats, aggregatedStatsTypeOSVersions)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return nil, time.Time{}, notFound("OSVersions")
+			return nil, time.Time{}, nil
 		}
 		return nil, time.Time{}, err
 	}
