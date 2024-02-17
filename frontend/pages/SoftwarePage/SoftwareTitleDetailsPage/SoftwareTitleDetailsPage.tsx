@@ -96,7 +96,7 @@ const SoftwareTitleDetailsPage = ({
       return <Spinner />;
     }
 
-    if (!softwareTitle) {
+    if (!softwareTitle && !isSoftwareTitleError) {
       return null;
     }
     return (

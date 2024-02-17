@@ -147,7 +147,7 @@ const SoftwareOSDetailsPage = ({
       return <Spinner />;
     }
 
-    if (!osVersionDetails) {
+    if (!osVersionDetails && !isOsVersionError) {
       return null;
     }
 
@@ -167,7 +167,7 @@ const SoftwareOSDetailsPage = ({
             header="OS not detected"
             details={`No hosts ${
               teamIdForApi ? "on this team " : ""
-            }have this OS version installed.`}
+            }have this OS installed.`}
           />
         ) : (
           <>
@@ -189,7 +189,6 @@ const SoftwareOSDetailsPage = ({
               <h2>Vulnerabilities</h2>
               {renderTable()}
             </Card>
-            ;
           </>
         )}
       </>
