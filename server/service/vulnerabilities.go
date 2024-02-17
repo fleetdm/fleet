@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 )
 
@@ -144,6 +146,15 @@ func (svc *Service) Vulnerability(ctx context.Context, cve string, teamID *uint,
 
 	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
+	}
+
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+		}
 	}
 
 	vuln, err := svc.ds.Vulnerability(ctx, cve, teamID, useCVSScores)
