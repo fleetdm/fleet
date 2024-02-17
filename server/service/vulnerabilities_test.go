@@ -69,6 +69,10 @@ func TestVulnerabilitesAuth(t *testing.T) {
 		return 0, nil
 	}
 
+	ds.TeamExistsFunc = func(cxt context.Context, teamID uint) (bool, error) {
+		return true, nil
+	}
+
 	for _, tc := range []struct {
 		name                 string
 		user                 *fleet.User
