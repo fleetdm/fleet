@@ -12,7 +12,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
+func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 	const selectSoftwareTitleStmt = `
 SELECT
 	st.id,
@@ -24,17 +24,22 @@ SELECT
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
 WHERE st.id = ?
-AND sthc.team_id = 0
+AND sthc.team_id = ?
+AND sthc.hosts_count > 0
 	`
+	teamIDVal := uint(0)
+	if teamID != nil {
+		teamIDVal = *teamID
+	}
 	var title fleet.SoftwareTitle
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &title, selectSoftwareTitleStmt, id, teamIDVal); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, notFound("SoftwareTitle").WithID(id)
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get software title")
 	}
 
-	selectSoftwareVersionsStmt, args, err := selectSoftwareVersionsSQL([]uint{id}, 0, true)
+	selectSoftwareVersionsStmt, args, err := selectSoftwareVersionsSQL([]uint{id}, teamIDVal, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building versions statement")
 	}

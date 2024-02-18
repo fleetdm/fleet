@@ -4419,6 +4419,9 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("OSVersion")
+		}
 		return nil, nil, err
 	}
 

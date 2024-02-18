@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"github.com/fleetdm/fleet/v4/server/authz"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -89,7 +90,8 @@ func (svc *Service) ListSoftwareTitles(
 /////////////////////////////////////////////////////////////////////////////////
 
 type getSoftwareTitleRequest struct {
-	ID uint `url:"id"`
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
 }
 
 type getSoftwareTitleResponse struct {
@@ -102,7 +104,7 @@ func (r getSoftwareTitleResponse) error() error { return r.Err }
 func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*getSoftwareTitleRequest)
 
-	software, err := svc.SoftwareTitleByID(ctx, req.ID)
+	software, err := svc.SoftwareTitleByID(ctx, req.ID, req.TeamID)
 	if err != nil {
 		return getSoftwareTitleResponse{Err: err}, nil
 	}
@@ -110,14 +112,20 @@ func getSoftwareTitleEndpoint(ctx context.Context, request interface{}, svc flee
 	return getSoftwareTitleResponse{SoftwareTitle: software}, nil
 }
 
-func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
-	// TODO: this is the autorization we do for GET /software, does it look right?
-	// checking with product here: https://github.com/fleetdm/fleet/issues/14674#issuecomment-1841395788
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	software, err := svc.ds.SoftwareTitleByID(ctx, id)
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+		}
+	}
+	software, err := svc.ds.SoftwareTitleByID(ctx, id, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting software title by id")
 	}

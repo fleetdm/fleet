@@ -18,9 +18,10 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 		return []fleet.SoftwareTitle{}, 0, &fleet.PaginationMetadata{}, nil
 	}
-	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint) (*fleet.SoftwareTitle, error) {
+	ds.SoftwareTitleByIDFunc = func(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
 		return &fleet.SoftwareTitle{}, nil
 	}
+	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }
 
 	svc, ctx := newTestService(t, ds, nil, nil)
 
@@ -154,8 +155,13 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 			}
 
 			// Get a software title
-			_, err = svc.SoftwareTitleByID(ctx, 1)
-			checkAuthErr(t, false, err)
+			_, err = svc.SoftwareTitleByID(ctx, 1, nil)
+			checkAuthErr(t, tc.shouldFailGlobalRead, err)
+
+			// Get a software title for a team
+			_, err = svc.SoftwareTitleByID(ctx, 1, ptr.Uint(1))
+			checkAuthErr(t, tc.shouldFailTeamRead, err)
+
 		})
 	}
 }

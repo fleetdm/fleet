@@ -3401,6 +3401,27 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
 	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
 
+	// OS versions with invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"99999",
+	)
+
+	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
+	tr := teamResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String("os_versions_team"),
+			},
+		}, http.StatusOK, &tr,
+	)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		fmt.Sprintf("%d", tr.Team.ID),
+	)
+
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
@@ -6352,7 +6373,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// create a couple of teams and add tmHost to one
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
-	_, err = s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID}))
 
@@ -6697,6 +6718,26 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
+	// valid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "homebrew",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
 	// find the ID of "bar"
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -6728,6 +6769,63 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			},
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// invalid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+
+	// add bar tmHost
+	software = []fleet.Software{
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), tmHost.ID, software)
+	require.NoError(t, err)
+
+	// calculate hosts counts
+	hostsCountTs = time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// valid title with vulnerabilities
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "bar",
+				Source:        "apps",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.4",
+						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
+						HostsCount:      ptr.Uint(1),
+					},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
+	// Team without hosts
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team2.ID),
+	)
+
+	// Non-existent team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &stResp,
+		"team_id", "99999",
+	)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
