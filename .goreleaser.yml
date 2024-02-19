@@ -81,8 +81,7 @@ universal_binaries:
     name_template: fleetctl # resulting binary name
     hooks:
       post:
-        - sh -c "echo \"$APPLE_APPLICATION_CERTIFICATE\" | base64 --decode > certificate.p12 && rcodesign sign --p12-file certificate.p12 --p12-password \"$APPLE_APPLICATION_CERTIFICATE_PASSWORD\" --for-notarization  {{ .Path }} && rm certificate.p12"
-        - sh -c "echo \"$APPLE_APP_STORE_CONNECT_KEY\" > key.json && rcodesign notary-submit --api-key-path key.json --staple  {{ .Path }} && rm key.json"
+        - make fleetctl-darwin-sign-ci FLEETCTL_BINARY_PATH={{ .Path }}
 
 archives:
   - id: fleet
