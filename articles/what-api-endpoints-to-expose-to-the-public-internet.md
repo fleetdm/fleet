@@ -59,7 +59,11 @@ If you would like to use Fleet's Windows MDM features, the following endpoints n
 
 ## Advanced
 
-The following endpoints don't support mTLS or `ORBIT_FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST`:
+The `/api/*/fleet/*` endpoints accessed by the fleetd agent can use mTLS with the certificate provided via the `--fleet-tls-client-certificate` flag in the `fleetctl package` command.
+
+The `/mdm/apple/mdm` and `/api/mdm/apple/enroll` endpoints can use mTLS with the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes).
+
+These endpoints don't use mTLS:
 - `/mdm/apple/scep`
 - `/api/mdm/microsoft/discovery`
 - `/api/mdm/microsoft/auth`
@@ -68,7 +72,7 @@ The following endpoints don't support mTLS or `ORBIT_FLEET_DESKTOP_ALTERNATIVE_B
 - `/api/mdm/microsoft/management`
 - `/api/mdm/microsoft/tos`
 
-`/mdm/apple/mdm` and `/api/mdm/apple/enroll` support mTLS but require the [SCEP certificate issued by the Fleet server](https://fleetdm.com/docs/configuration/fleet-server-configuration#mdm-apple-scep-cert-bytes) to validate client certificates.
+For macOS and Windows, the MDM client on the host will send the client certificate in a header. The Fleet server always does additional verification of this certificate.
 
 <meta name="category" value="guides">
 <meta name="authorGitHubUsername" value="mike-j-thomas">
