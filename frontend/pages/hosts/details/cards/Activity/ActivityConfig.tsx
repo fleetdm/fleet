@@ -19,7 +19,6 @@ export interface IHostActivityItemComponentProps {
   onShowDetails?: ShowActivityDetailsHandler;
 }
 
-// eslint-disable-next-line import/prefer-default-export
 export const pastActivityComponentMap: Record<
   IHostPastActivityType,
   React.FC<IHostActivityItemComponentProps>
