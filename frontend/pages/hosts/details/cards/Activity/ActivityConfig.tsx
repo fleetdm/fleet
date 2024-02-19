@@ -6,10 +6,14 @@ import {
   IPastActivity,
 } from "interfaces/activity";
 
-import RanScriptActivityItem from "./RanScriptActivityItem";
 import { ShowActivityDetailsHandler } from "./Activity";
 
-interface IPastActivityFeedProps {
+import RanScriptActivityItem from "./RanScriptActivityItem";
+import LockedHostActivityItem from "./LockedHostActivityItem";
+import UnlockedHostActivityItem from "./UnlockedHostActivityItem";
+
+/** the component props that all host activity items must adhere to */
+export interface IHostActivityItemComponentProps {
   activity: IPastActivity;
   onShowDetails?: ShowActivityDetailsHandler;
 }
@@ -17,9 +21,9 @@ interface IPastActivityFeedProps {
 // eslint-disable-next-line import/prefer-default-export
 export const pastActivityComponentMap: Record<
   IHostPastActivityType,
-  React.FC<IPastActivityFeedProps>
+  React.FC<IHostActivityItemComponentProps>
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
-  [ActivityType.LockedHost]: RanScriptActivityItem,
-  [ActivityType.UnlockedHost]: RanScriptActivityItem,
+  [ActivityType.LockedHost]: LockedHostActivityItem,
+  [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
 };

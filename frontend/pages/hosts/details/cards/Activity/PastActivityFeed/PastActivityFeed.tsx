@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IHostPastActivityType, IPastActivity } from "interfaces/activity";
+import { IPastActivity } from "interfaces/activity";
 import { IPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -57,6 +57,7 @@ const PastActivityFeed = ({
           const ActivityItemComponent = pastActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
+              key={activity.id}
               activity={activity}
               onShowDetails={onDetailsClick}
             />

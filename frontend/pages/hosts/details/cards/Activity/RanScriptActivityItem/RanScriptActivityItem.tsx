@@ -7,19 +7,14 @@ import Button from "components/buttons/Button";
 import Icon from "components/Icon";
 
 import HostActivityItem from "../HostActivityItem";
-import { ShowActivityDetailsHandler } from "../Activity";
+import { IHostActivityItemComponentProps } from "../ActivityConfig";
 
 const baseClass = "ran-script-activity-item";
-
-interface IRanScriptActivityItemProps {
-  activity: IPastActivity;
-  onShowDetails?: ShowActivityDetailsHandler;
-}
 
 const RanScriptActivityItem = ({
   activity,
   onShowDetails,
-}: IRanScriptActivityItemProps) => {
+}: IHostActivityItemComponentProps) => {
   return (
     <HostActivityItem activity={activity}>
       <b>{activity.actor_full_name}</b>

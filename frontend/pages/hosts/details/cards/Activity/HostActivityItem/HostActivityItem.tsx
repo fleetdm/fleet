@@ -1,6 +1,7 @@
 import React from "react";
 import ReactTooltip from "react-tooltip";
 import { formatDistanceToNowStrict } from "date-fns";
+import classnames from "classnames";
 
 import { IActivity } from "interfaces/activity";
 import {
@@ -13,20 +14,24 @@ import Avatar from "components/Avatar";
 
 import { COLORS } from "styles/var/colors";
 
-import { ShowActivityDetailsHandler } from "../Activity";
-
 const baseClass = "host-activity-item";
 
 interface IHostActivityItemProps {
   activity: IActivity;
   children: React.ReactNode;
-  onShowDetails?: ShowActivityDetailsHandler;
+  className?: string;
 }
 
+/**
+ * A wrapper that will render all the common elements of a host activity item.
+ * This includes the avatar, the created at timestamp, and a dash to separate
+ * the activity items. The `children` will be the specific details of the activity
+ * implemented in the component that uses this wrapper.
+ */
 const HostActivityItem = ({
   activity,
   children,
-  onShowDetails,
+  className,
 }: IHostActivityItemProps) => {
   const { actor_email } = activity;
   const { gravatar_url } = actor_email
@@ -34,8 +39,10 @@ const HostActivityItem = ({
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
   const activityCreatedAt = new Date(activity.created_at);
 
+  const classNames = classnames(baseClass, className);
+
   return (
-    <div className={baseClass}>
+    <div className={classNames}>
       <Avatar
         className={`${baseClass}__avatar-image`}
         user={{ gravatar_url }}
