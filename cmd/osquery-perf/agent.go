@@ -14,6 +14,7 @@ import (
 	"io"
 	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
@@ -30,7 +31,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
-	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -334,7 +334,6 @@ type agent struct {
 	liveQueryNoResultsProb float64
 	strings                map[string]string
 	serverAddress          string
-	fastClient             fasthttp.Client
 	stats                  *Stats
 	nodeKeyManager         *nodeKeyManager
 	nodeKey                string
@@ -420,10 +419,6 @@ func newAgent(
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
 	}
-	// #nosec (osquery-perf is only used for testing)
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
-	}
 	serialNumber := mdmtest.RandSerialNumber()
 	if rand.Float64() <= emptySerialProb {
 		serialNumber = ""
@@ -451,12 +446,9 @@ func newAgent(
 		munkiIssueCount:        munkiIssueCount,
 		liveQueryFailProb:      liveQueryFailProb,
 		liveQueryNoResultsProb: liveQueryNoResultsProb,
-		fastClient: fasthttp.Client{
-			TLSConfig: tlsConfig,
-		},
-		templates:       templates,
-		deviceAuthToken: deviceAuthToken,
-		os:              strings.TrimRight(templates.Name(), ".tmpl"),
+		templates:              templates,
+		deviceAuthToken:        deviceAuthToken,
+		os:                     strings.TrimRight(templates.Name(), ".tmpl"),
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
@@ -840,18 +832,19 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	}
 }
 
-func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
-	err := a.fastClient.Do(req, res)
-	for err != nil || res.StatusCode() != http.StatusOK {
+func (a *agent) waitingDo(request *http.Request) *http.Response {
+	response, err := http.DefaultClient.Do(request)
+	for err != nil || response.StatusCode != http.StatusOK {
 		if err != nil {
 			log.Printf("failed to run request: %s", err)
 		} else { // res.StatusCode() != http.StatusOK
-			log.Printf("request failed: %d", res.StatusCode())
+			log.Printf("request failed: %d", response.StatusCode)
 		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		err = a.fastClient.Do(req, res)
+		response, err = http.DefaultClient.Do(request)
 	}
+	return response
 }
 
 // TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
@@ -863,32 +856,23 @@ func (a *agent) orbitEnroll() error {
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
 	}
-
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
 		log.Println("orbit json marshall:", err)
 		return err
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(jsonBytes)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
-	resp := fasthttp.AcquireResponse()
-
-	a.waitingDo(req, resp)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(resp)
-
-	if resp.StatusCode() != http.StatusOK {
-		log.Println("orbit enroll status:", resp.StatusCode())
-		return fmt.Errorf("status code: %d", resp.StatusCode())
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/fleet/orbit/enroll", bytes.NewReader(jsonBytes))
+	if err != nil {
+		return err
 	}
+	request.Header.Add("Content-type", "application/json")
+
+	response := a.waitingDo(request)
+	defer response.Body.Close()
 
 	var parsedResp service.EnrollOrbitResponse
-	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("orbit json parse:", err)
 		return err
 	}
@@ -915,26 +899,22 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return err
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body.Bytes())
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/enroll")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	a.waitingDo(req, res)
+	response := a.waitingDo(request)
+	defer response.Body.Close()
 
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
-	if res.StatusCode() != http.StatusOK {
-		log.Println("enroll status:", res.StatusCode())
-		return fmt.Errorf("status code: %d", res.StatusCode())
+	if response.StatusCode != http.StatusOK {
+		log.Println("enroll status:", response.StatusCode)
+		return fmt.Errorf("status code: %d", response.StatusCode)
 	}
 
 	var parsedResp enrollResponse
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("json parse:", err)
 		return err
 	}
@@ -948,28 +928,21 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 }
 
 func (a *agent) config() error {
-	body := bytes.NewBufferString(`{"node_key": "` + a.nodeKey + `"}`)
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body.Bytes())
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/config")
-	res := fasthttp.AcquireResponse()
-
-	err := a.fastClient.Do(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("config request failed to run: %w", err)
 	}
+	defer response.Body.Close()
 
 	a.stats.IncrementConfigRequests()
 
-	statusCode := res.StatusCode()
+	statusCode := response.StatusCode
 	if statusCode != http.StatusOK {
 		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("config request failed: %d", statusCode)
@@ -980,7 +953,7 @@ func (a *agent) config() error {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
@@ -1139,33 +1112,28 @@ func (a *agent) softwareMacOS() []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	req := fasthttp.AcquireRequest()
-	req.SetBody([]byte(`{"node_key": "` + a.nodeKey + `"}`))
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/read")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	err := a.fastClient.Do(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
 	}
+	defer response.Body.Close()
 
 	a.stats.IncrementDistributedReads()
 
-	statusCode := res.StatusCode()
+	statusCode := response.StatusCode
 	if statusCode != http.StatusOK {
 		a.stats.IncrementDistributedReadErrors()
 		return nil, fmt.Errorf("distributed/read request failed: %d", statusCode)
 	}
 
 	var parsedResp distributedReadResponse
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Printf("json parse: %s", err)
 		return nil, err
 	}
@@ -1596,26 +1564,21 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 		panic(err)
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/5.0.1")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/write")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	err = a.fastClient.Do(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("distributed/write request failed to run: %w", err)
 	}
+	defer response.Body.Close()
 
 	a.stats.IncrementDistributedWrites()
 
-	statusCode := res.StatusCode()
+	statusCode := response.StatusCode
 	if statusCode != http.StatusOK {
 		a.stats.IncrementDistributedWriteErrors()
 		return fmt.Errorf("distributed/write request failed: %d", statusCode)
@@ -1645,6 +1608,13 @@ func scheduledQueryResults(packName, queryName string, numResults int) json.RawM
 }
 
 func (a *agent) submitLogs(results []json.RawMessage) error {
+	// Connection check to prevent unnecessary JSON marshaling when the server is down.
+	conn, err := net.Dial("tcp", strings.TrimPrefix(a.serverAddress, "https://"))
+	if err != nil {
+		return err
+	}
+	conn.Close()
+
 	jsonResults, err := json.Marshal(results)
 	if err != nil {
 		panic(err)
@@ -1654,36 +1624,31 @@ func (a *agent) submitLogs(results []json.RawMessage) error {
 		LogType string          `json:"log_type"`
 		Data    json.RawMessage `json:"data"`
 	}
-	r := submitLogsRequest{
+	slr := submitLogsRequest{
 		NodeKey: a.nodeKey,
 		LogType: "result",
 		Data:    jsonResults,
 	}
-	body, err := json.Marshal(r)
+	body, err := json.Marshal(slr)
 	if err != nil {
 		panic(err)
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/5.0.1")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/log")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	err = a.fastClient.Do(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return fmt.Errorf("log request failed to run: %w", err)
 	}
+	defer response.Body.Close()
 
 	a.stats.IncrementResultLogRequests()
 
-	statusCode := res.StatusCode()
+	statusCode := response.StatusCode
 	if statusCode != http.StatusOK {
 		a.stats.IncrementResultLogErrors()
 		return fmt.Errorf("log request failed: %d", statusCode)
@@ -1723,6 +1688,14 @@ func main() {
 	go func() {
 		log.Println(http.ListenAndServe("localhost:6060", nil))
 	}()
+
+	// #nosec (osquery-perf is only used for testing)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = tlsConfig
+	http.DefaultClient.Transport = tr
 
 	validTemplateNames := map[string]bool{
 		"macos_13.6.2.tmpl":         true,
