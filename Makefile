@@ -128,18 +128,18 @@ fleetctl-dev: fleetctl
 
 fleetctl-darwin-sign-ci:
 	# sign
-	@echo "${APPLE_APPLICATION_CERTIFICATE}" | base64 --decode > certificate.p12
+	@printf "%s" "${APPLE_APPLICATION_CERTIFICATE}"  | base64 --decode > certificate.p12
 	@rcodesign sign --p12-file certificate.p12 \
-		--p12-password ${APPLE_APPLICATION_CERTIFICATE_PASSWORD} \
-		--for-notarization ${FLEETCTL_BINARY_PATH}
+		--p12-password "${APPLE_APPLICATION_CERTIFICATE_PASSWORD}" \
+		--for-notarization "${FLEETCTL_BINARY_PATH}"
 	@rm certificate.p12
 	# notarize
 	@mkdir private_keys
-	@echo "${APPLE_APP_STORE_CONNECT_KEY}" > private_keys/AuthKey_${APPLE_APP_STORE_CONNECT_KEY_ID}.p8
+	@printf "%s" "${APPLE_APP_STORE_CONNECT_KEY}" > "private_keys/AuthKey_${APPLE_APP_STORE_CONNECT_KEY_ID}.p8"
 	@rcodesign notary-submit \
-		--api-issuer ${APPLE_APP_STORE_CONNECT_ISSUER_ID} \
-		--api-key ${APPLE_APP_STORE_CONNECT_KEY_ID} \
-		--staple ${FLEETCTL_BINARY_PATH}
+		--api-issuer "${APPLE_APP_STORE_CONNECT_ISSUER_ID}" \
+		--api-key "${APPLE_APP_STORE_CONNECT_KEY_ID}" \
+		--staple "${FLEETCTL_BINARY_PATH}"
 	@rm -rf private_keys
 
 lint-js:
