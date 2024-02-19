@@ -79,7 +79,7 @@ To trigger these reminders, we will do the following steps:
 
 ### Step 1: force a macOS update scan
 
-Use the request payload below when running a custom MDM command with Fleet. Documentation on how to run a custom command is [here](./MDM-commands#custom-commands).
+Use the request payload below when running a custom MDM command with Fleet. Documentation on how to run a custom command is [here](https://fleetdm.com/docs/using-fleet/mdm-commands#custom-commands).
 
 Request payload:
 
@@ -119,7 +119,7 @@ Request payload:
 </plist>
 ```
 
-2. Copy the `ProductKey` from the command's results. Documentation on how to view a command's results is [here](./MDM-commands#step-4-view-the-commands-results).
+2. Copy the `ProductKey` from the command's results. Documentation on how to view a command's results is [here](https://fleetdm.com/docs/using-fleet/mdm-commands#step-4-view-the-commands-results).
 
 Example product key: `MSU_UPDATE_22F770820d_patch_13.4.1_rsr`
 
