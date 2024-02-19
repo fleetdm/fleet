@@ -195,7 +195,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 		wg.Wait()
 		psc.Unsubscribe(pubSubName) //nolint:errcheck
 		conn.Close()
-		level.Info(logger).Log("msg", "proper close of Redis connection in ReadChannel", "connection", fmt.Sprintf("%p", conn))
+		level.Debug(logger).Log("msg", "proper close of Redis connection in ReadChannel", "connection", fmt.Sprintf("%p", conn))
 	}()
 
 	return outChannel, nil
