@@ -37,7 +37,6 @@ type OrbitClient struct {
 	lastRecordedErr   error
 
 	configCache                 configCache
-	fetchedConfigAtLeastOnce    bool
 	onNetErrOnGetConfigFn       OnNetErrOnGetConfigFunc
 	lastNetErrOnGetConfigLogged time.Time
 
@@ -88,10 +87,13 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
-// OnNetErrOnGetConfigFunc is a function when there are network errors in GetConfig.
-type OnNetErrOnGetConfigFunc func(err error)
+// OnNetErrOnGetConfigFunc is a function executed when there are network errors in GetConfig.
+type OnNetErrOnGetConfigFunc func(err net.Error)
 
-var netErrLogInterval = 5 * time.Minute
+var (
+	netErrInterval            = 5 * time.Minute
+	configRetryOnNetworkError = 30 * time.Second
+)
 
 // NewOrbitClient creates a new OrbitClient.
 //
@@ -130,6 +132,7 @@ func NewOrbitClient(
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
 // Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
 // to reduce traffic to the Fleet server.
+// Upon network errors, this method will retry the get config request (every 30 seconds).
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
@@ -137,19 +140,25 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
+		var (
+			resp fleet.OrbitConfig
+			err  error
+		)
 		verb, path := "POST", "/api/fleet/orbit/config"
-		var resp fleet.OrbitConfig
-		err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
-		var netErr net.Error
-		if err == nil {
-			oc.fetchedConfigAtLeastOnce = true
-		} else if oc.onNetErrOnGetConfigFn != nil && errors.As(err, &netErr) && oc.fetchedConfigAtLeastOnce {
-			if now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrLogInterval)) {
-				oc.onNetErrOnGetConfigFn(err)
-				oc.lastNetErrOnGetConfigLogged = now
+		// Retry until we don't get a network error.
+		retry.Do(func() error {
+			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+			var netErr net.Error
+			if errors.As(err, &netErr) {
+				now := time.Now()
+				if oc.onNetErrOnGetConfigFn != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
+					oc.onNetErrOnGetConfigFn(netErr)
+					oc.lastNetErrOnGetConfigLogged = now
+				}
+				return err // retry on network errors
 			}
-			err = nil
-		}
+			return nil
+		}, retry.WithInterval(configRetryOnNetworkError))
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now

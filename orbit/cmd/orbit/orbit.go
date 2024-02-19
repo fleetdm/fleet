@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -782,7 +783,7 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
-			func(err error) {
+			func(err net.Error) {
 				log.Info().Err(err).Msg("network error")
 			},
 		)
@@ -1057,7 +1058,7 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
-			func(err error) {
+			func(err net.Error) {
 				log.Info().Err(err).Msg("network error")
 			},
 		)
