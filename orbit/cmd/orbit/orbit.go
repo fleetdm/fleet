@@ -797,26 +797,26 @@ func main() {
 			windowsMDMEnrollmentCommandFrequency   = time.Hour
 			windowsMDMBitlockerCommandFrequency    = time.Hour
 		)
-		update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
-		update.ApplyRunScriptsConfigFetcherMiddleware(orbitClient, c.Bool("enable-scripts"), orbitClient)
+		configFetcher := update.ApplyRenewEnrollmentProfileConfigFetcherMiddleware(orbitClient, renewEnrollmentProfileCommandFrequency, fleetURL)
+		configFetcher = update.ApplyRunScriptsConfigFetcherMiddleware(configFetcher, c.Bool("enable-scripts"), orbitClient)
 
 		switch runtime.GOOS {
 		case "darwin":
 			// add middleware to handle nudge installation and updates
 			const nudgeLaunchInterval = 30 * time.Minute
-			update.ApplyNudgeConfigFetcherMiddleware(orbitClient, update.NudgeConfigFetcherOptions{
+			configFetcher = update.ApplyNudgeConfigFetcherMiddleware(configFetcher, update.NudgeConfigFetcherOptions{
 				UpdateRunner: updateRunner, RootDir: c.String("root-dir"), Interval: nudgeLaunchInterval,
 			})
 
-			update.ApplyDiskEncryptionRunnerMiddleware(orbitClient)
-			update.ApplySwiftDialogDownloaderMiddleware(orbitClient, updateRunner)
+			configFetcher = update.ApplyDiskEncryptionRunnerMiddleware(configFetcher)
+			configFetcher = update.ApplySwiftDialogDownloaderMiddleware(configFetcher, updateRunner)
 		case "windows":
-			update.ApplyWindowsMDMEnrollmentFetcherMiddleware(orbitClient, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
-			update.ApplyWindowsMDMBitlockerFetcherMiddleware(orbitClient, windowsMDMBitlockerCommandFrequency, orbitClient)
+			configFetcher = update.ApplyWindowsMDMEnrollmentFetcherMiddleware(configFetcher, windowsMDMEnrollmentCommandFrequency, orbitHostInfo.HardwareUUID, orbitClient)
+			configFetcher = update.ApplyWindowsMDMBitlockerFetcherMiddleware(configFetcher, windowsMDMBitlockerCommandFrequency, orbitClient)
 		}
 
 		const orbitFlagsUpdateInterval = 30 * time.Second
-		flagRunner := update.NewFlagRunner(orbitClient, update.FlagUpdateOptions{
+		flagRunner := update.NewFlagRunner(configFetcher, update.FlagUpdateOptions{
 			CheckInterval: orbitFlagsUpdateInterval,
 			RootDir:       c.String("root-dir"),
 		})
@@ -833,7 +833,7 @@ func main() {
 		if !c.Bool("disable-updates") {
 			const serverOverridesInterval = 30 * time.Second
 			serverOverridesRunner := newServerOverridesRunner(
-				orbitClient,
+				configFetcher,
 				c.String("root-dir"),
 				serverOverridesInterval,
 				fallbackServerOverridesConfig{
@@ -861,7 +861,7 @@ func main() {
 		// and all relevant things for it (like certs, enroll secrets, tls proxy, etc) is configured
 		if !c.Bool("disable-updates") || c.Bool("dev-mode") {
 			const orbitExtensionUpdateInterval = 60 * time.Second
-			extRunner := update.NewExtensionConfigUpdateRunner(orbitClient, update.ExtensionUpdateOptions{
+			extRunner := update.NewExtensionConfigUpdateRunner(configFetcher, update.ExtensionUpdateOptions{
 				CheckInterval: orbitExtensionUpdateInterval,
 				RootDir:       c.String("root-dir"),
 			}, updateRunner)
