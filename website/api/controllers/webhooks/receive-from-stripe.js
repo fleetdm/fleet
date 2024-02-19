@@ -169,10 +169,9 @@ module.exports = {
       // Get the information about the paid invoice from the stripe event.
       let itemsOnThisInvoice = stripeEventData.lines.data;
 
-
       // Find the line item in the new invoice that contains the new information about this subscription.
       let updatedSubscriptionInfo = _.find(itemsOnThisInvoice, (item)=>{
-        // Invoices for updated subscriptions list the new number of hosts list the remaining period
+        // Invoices for updated subscriptions list the new number of hosts with the remaining subscription period
         // e.g., 'Remaining time on 9 × Fleet premium hosts after 17 Feb 2024'
         return _.startsWith(item.description, 'Remaining');
       });
