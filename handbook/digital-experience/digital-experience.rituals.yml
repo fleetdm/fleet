@@ -134,7 +134,7 @@
   task: "Update merged schema JSON"
   startedOn: "2024-02-13" 
   frequency: "Weekly"
-  description: "Run the `generate-merged-schema` script to update the osqueyr schema tables."
+  description: "Run the `generate-merged-schema` script to update the osquery schema tables."
   dri: "eashaw"
   autoIssue:
     labels: [ "#g-digital-experience" ]
