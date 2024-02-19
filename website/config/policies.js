@@ -60,4 +60,5 @@ module.exports.policies = {
   'view-integrations': true,
   'try-fleet/view-explore-data': true,
   'try-fleet/view-query-report': true,
+  'view-grid': true,
 };

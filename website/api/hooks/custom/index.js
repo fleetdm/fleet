@@ -134,7 +134,11 @@ will be disabled and/or hidden in the UI.
                 throw new Error('Cannot attach Sails environment as the view local `_environment`, because this view local already exists!  (Is it being attached somewhere else?)');
               }
               res.locals._environment = sails.config.environment;
-
+              if(sails.config.environment === 'development'){
+                if(_.endsWith(req.url, '?grid')){
+                  res.locals.devMode = true;
+                }
+              }
               // The `me` local is set explicitly to `undefined` here just to avoid having to
               // do `typeof me !== 'undefined'` checks in our views/layouts/partials.
               // > Note that, depending on the request, this may or may not be set to the
@@ -238,6 +242,7 @@ will be disabled and/or hidden in the UI.
             // > Note that we make sure a local named `me` doesn't already exist first.
             // > Also note that we strip off any properties that correspond with protected attributes.
             if (req.method === 'GET') {
+              console.log(req.params);
               if (res.locals.me !== undefined) {
                 throw new Error('Cannot attach logged-in user as the view local `me`, because this view local already exists!  (Is it being attached somewhere else?)');
               }

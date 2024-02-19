@@ -8,6 +8,8 @@
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
+  var devMode;
+  var overlayCols = 1;
 %><!DOCTYPE html>
 <html>
   <head>
@@ -37,6 +39,11 @@
     if (sails.config.environment === 'production') { %>
     <% /* Rollbar */%>
     <script>
+        if(window.location.search){
+          if(window.location.search === '?grid'){
+            devMode = true;
+          }
+        };
     var _rollbarConfig = {
         accessToken: "20a8dbf5d8884b5480e58d99748ec127",
         captureUncaught: true,
@@ -291,7 +298,19 @@
           <%} %>
         </div>
       </div>
-
+      <%
+        if(devMode){
+      %>
+      <%- partial(
+        path.relative(
+          path.dirname(__filename),
+          path.resolve(
+            sails.config.appPath,
+            path.join('views/partials/overlay.ejs')
+          )
+        )
+      ) %>
+      <% }%>
       <%- body %>
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
@@ -472,6 +491,7 @@
     <script src="/js/pages/admin/sandbox-waitlist.page.js"></script>
     <script src="/js/pages/articles/articles.page.js"></script>
     <script src="/js/pages/articles/basic-article.page.js"></script>
+    <script src="/js/pages/compliance.page.js"></script>
     <script src="/js/pages/connect-vanta.page.js"></script>
     <script src="/js/pages/contact.page.js"></script>
     <script src="/js/pages/customers/dashboard.page.js"></script>
@@ -486,7 +506,9 @@
     <script src="/js/pages/entrance/new-password.page.js"></script>
     <script src="/js/pages/entrance/signup.page.js"></script>
     <script src="/js/pages/faq.page.js"></script>
+    <script src="/js/pages/fleet-mdm.page.js"></script>
     <script src="/js/pages/fleetctl-preview.page.js"></script>
+    <script src="/js/pages/grid.page.js"></script>
     <script src="/js/pages/handbook/basic-handbook.page.js"></script>
     <script src="/js/pages/homepage.page.js"></script>
     <script src="/js/pages/imagine/defcon-31.page.js"></script>
@@ -496,8 +518,10 @@
     <script src="/js/pages/imagine/rapid-7-alternative.page.js"></script>
     <script src="/js/pages/imagine/unused-software.page.js"></script>
     <script src="/js/pages/integrations.page.js"></script>
+    <script src="/js/pages/landing.page.js"></script>
     <script src="/js/pages/legal/privacy.page.js"></script>
     <script src="/js/pages/legal/terms.page.js"></script>
+    <script src="/js/pages/osquery-management.page.js"></script>
     <script src="/js/pages/osquery-table-details.page.js"></script>
     <script src="/js/pages/press-kit.page.js"></script>
     <script src="/js/pages/pricing.page.js"></script>
@@ -594,6 +618,7 @@
 
     <% /* Keep footer hidden until the document is ready (prevents flicker that is especially unattractive on mobile) */ %>
     <script>
+
     $(function() {
       $('[data-hide-until-rendered]').removeClass('invisible'); // Note: invisible is a bootstrap 4 class
     });

@@ -301,6 +301,7 @@ module.exports.routes = {
       currentSection: 'platform'
     }
   },
+  'GET /grid': { action: 'view-grid' },
 
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
