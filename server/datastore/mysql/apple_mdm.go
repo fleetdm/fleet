@@ -2862,6 +2862,68 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
+func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
+	fmt.Println("update host dep assign profiles responses called")
+
+	if payload == nil {
+		fmt.Println("update host dep assign profiles responses received nil payload")
+		// caller should not ensure this does not happen
+		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
+		return nil
+	}
+
+	p := fleet.ToHostDEPAssignProfileResponses(payload)
+	if len(p.Failed)+len(p.NotAccessible)+len(p.Success) != len(payload.Devices) {
+		// this should never happen unless Apple changes the response format, so we log it for future debugging
+		level.Debug(ds.logger).Log("msg", "unrecognized assign profile response for one or more devices", "devices", payload.Devices)
+		return nil
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.Success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.NotAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.Failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string, status string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_dep_assignments
+JOIN 
+	hosts ON id = host_id
+SET
+	profile_uuid = ?,
+	assign_profile_response = ?
+WHERE
+	hardware_serial IN (?)
+`
+	stmt, args, err := sqlx.In(stmt, profileUUID, status, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host dep assignments")
+	}
+
+	n, _ := res.RowsAffected()
+	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n)
+
+	return nil
+}
+
 func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// it's okay if we didn't update any rows, `nano_enrollments` entries

@@ -728,6 +728,8 @@ type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
+type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1885,6 +1887,9 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
+	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4510,6 +4515,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+}
+
+func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {
+	s.mu.Lock()
+	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

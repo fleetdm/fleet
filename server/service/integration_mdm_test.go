@@ -1971,6 +1971,20 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		}
 	}
 
+	checkHostDEPAssignProfileResponses := func(deviceSerials []string, expectedProfileUUID string, expectedStatus string) {
+		for _, deviceSerial := range deviceSerials {
+			mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+				var resp string
+				err := sqlx.GetContext(ctx, q, &resp, "SELECT assign_profile_response FROM host_dep_assignments WHERE profile_uuid = ? AND host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)", expectedProfileUUID, deviceSerial)
+				require.NoError(t, err)
+				require.Equal(t, expectedStatus, resp)
+				return nil
+			})
+		}
+	}
+
+	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
+	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		encoder := json.NewEncoder(w)
@@ -1996,8 +2010,23 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.NoError(t, err)
 			var prof profileAssignmentReq
 			require.NoError(t, json.Unmarshal(b, &prof))
+			fmt.Println("PROFILE!!!", prof)
 			profileAssignmentReqs = append(profileAssignmentReqs, prof)
-			_, _ = w.Write([]byte(`{}`))
+			var resp godep.ProfileResponse
+			resp.ProfileUUID = prof.ProfileUUID
+			resp.Devices = make(map[string]string, len(prof.Devices))
+			for _, device := range prof.Devices {
+				switch device {
+				case expectAssignProfileResponseNotAccessible:
+					resp.Devices[device] = "NOT_ACCESSIBLE"
+				case expectAssignProfileResponseFailed:
+					resp.Devices[device] = "FAILED"
+				default:
+					resp.Devices[device] = "SUCCESS"
+				}
+			}
+			err = encoder.Encode(resp)
+			require.NoError(t, err)
 		default:
 			_, _ = w.Write([]byte(`{}`))
 		}
@@ -2030,7 +2059,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// - one when we do the device sync (/device/sync)
 	require.Len(t, profileAssignmentReqs, 2)
 	require.Len(t, profileAssignmentReqs[0].Devices, 1)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
 	require.Len(t, profileAssignmentReqs[1].Devices, len(devices))
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[1].Devices, profileAssignmentReqs[1].ProfileUUID, "success")
 
 	// create a new host
 	nonDEPHost := createHostAndDeviceToken(t, s.ds, "not-dep")
@@ -2154,6 +2185,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// TODO: seems like we're doing this request on each loop?
 	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
 
 	// profileAssignmentReqs[1] and [2] can be in any order
 	ix2Devices, ix1Device := 1, 2
@@ -2166,10 +2198,12 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Len(t, profileAssignmentReqs[ix2Devices].Devices, 2, "%#+v", profileAssignmentReqs)
 	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[ix2Devices].Devices[0])
 	require.Equal(t, addedSerial, profileAssignmentReqs[ix2Devices].Devices[1])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[ix2Devices].Devices, profileAssignmentReqs[ix2Devices].ProfileUUID, "success")
 
 	// - existing device with "modified" and a different team (thus different profile request)
 	require.Len(t, profileAssignmentReqs[ix1Device].Devices, 1)
 	require.Equal(t, devices[1].SerialNumber, profileAssignmentReqs[ix1Device].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[ix1Device].Devices, profileAssignmentReqs[ix1Device].ProfileUUID, "success")
 
 	// entries for all hosts except for the one with OpType = "deleted"
 	assignment, err := s.ds.GetHostDEPAssignment(ctx, deletedHostID)
@@ -2203,6 +2237,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runWorker()
 	require.Equal(t, mdmDevice.SerialNumber, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
 
 	// it should get the post-enrollment commands
 	require.NoError(t, mdmDevice.Enroll())
@@ -2270,6 +2305,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.runDEPSchedule()
 	require.NotEmpty(t, profileAssignmentReqs)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
 
 	// transfer to "no team", we assign a DEP profile to the device
 	profileAssignmentReqs = []profileAssignmentReq{}
@@ -2278,6 +2314,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.runWorker()
 	require.NotEmpty(t, profileAssignmentReqs)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
 
 	// transfer to the team back again, we assign a DEP profile to the device again
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
@@ -2286,6 +2323,17 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	s.runWorker()
 	require.NotEmpty(t, profileAssignmentReqs)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "success")
+
+	// transfer to "no team", but simulate a failed profile assignment
+	expectAssignProfileResponseFailed = eHost.HardwareSerial
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{eHost.ID}}, http.StatusOK)
+	s.runWorker()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, "failed")
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {

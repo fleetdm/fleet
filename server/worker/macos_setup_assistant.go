@@ -113,8 +113,12 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			return ctxerr.Wrap(ctx, err, "worker: run profile changed")
 		}
 	}
 	return nil
@@ -163,8 +167,12 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		if _, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...); err != nil {
+		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
+		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
+		}
+		if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+			return ctxerr.Wrap(ctx, err, "worker: run profile deleted")
 		}
 	}
 	return nil
@@ -205,9 +213,12 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	_, err = m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, args.HostSerialNumbers...)
+	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, args.HostSerialNumbers...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "assign profile")
+	}
+	if err := m.Datastore.UpdateHostDEPAssignProfileResponses(ctx, resp); err != nil {
+		return ctxerr.Wrap(ctx, err, "worker: run hosts transferred")
 	}
 	return nil
 }
