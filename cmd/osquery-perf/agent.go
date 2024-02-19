@@ -377,7 +377,13 @@ type agent struct {
 	scheduledQueriesMu sync.Mutex // protects the below members
 	scheduledQueries   []string
 	scheduledQueryData []scheduledQuery
-	bufferedResults    []resultLog
+	// bufferedResults contains result logs that are buffered when
+	// /api/v1/osquery/log requests to the Fleet server fail.
+	//
+	// NOTE: We use a map instead of a slice to prevent the data structure to
+	// increase indefinitely (we sacrifice accuracy of logs but that's
+	// a-ok for osquery-perf and load testing).
+	bufferedResults map[resultLog]int
 }
 
 type entityCount struct {
@@ -462,6 +468,7 @@ func newAgent(
 		disableScriptExec:   disableScriptExec,
 		disableFleetDesktop: disableFleetDesktop,
 		loggerTLSMaxLines:   loggerTLSMaxLines,
+		bufferedResults:     make(map[resultLog]int),
 	}
 }
 
@@ -562,7 +569,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		var results []resultLog
 		now := time.Now().Unix()
 		a.scheduledQueriesMu.Lock()
-		prevCount := len(a.bufferedResults)
+		prevCount := a.countBuffered()
 		for i, query := range a.scheduledQueryData {
 			if query.nextRun == 0 || now >= int64(query.nextRun) {
 				results = append(results, resultLog{
@@ -573,16 +580,47 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 				a.scheduledQueryData[i].nextRun = float64(now + int64(query.ScheduleInterval))
 			}
 		}
-		a.bufferedResults = append(a.bufferedResults, results...)
-		if len(a.bufferedResults) > 1_000_000 { // osquery buffered_log_max is 1M
-			extra := len(a.bufferedResults) - 1_000_000
-			a.bufferedResults = a.bufferedResults[extra:]
+		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
+			a.addToBuffer(results)
 		}
 		a.sendLogsBatch()
-		newBufferedCount := len(a.bufferedResults) - prevCount
+		newBufferedCount := a.countBuffered() - prevCount
 		a.stats.UpdateBufferedLogs(newBufferedCount)
 		a.scheduledQueriesMu.Unlock()
 	}
+}
+
+func (a *agent) countBuffered() int {
+	var total int
+	for _, count := range a.bufferedResults {
+		total += count
+	}
+	return total
+}
+
+func (a *agent) addToBuffer(results []resultLog) {
+	for _, result := range results {
+		a.bufferedResults[result] += 1
+	}
+}
+
+// getBatch returns a random set of logs from the buffered logs.
+// NOTE: We sacrifice some accuracy in the name of CPU and memory efficiency.
+func (a *agent) getBatch(batchSize int) []resultLog {
+	results := make([]resultLog, 0, batchSize)
+	for result, count := range a.bufferedResults {
+		left := batchSize - len(results)
+		if left <= 0 {
+			return results
+		}
+		if count > left {
+			count = left
+		}
+		for i := 0; i < count; i++ {
+			results = append(results, result)
+		}
+	}
+	return results
 }
 
 type resultLog struct {
@@ -602,18 +640,30 @@ func (a *agent) sendLogsBatch() {
 	}
 
 	batchSize := a.loggerTLSMaxLines
-	if len(a.bufferedResults) < batchSize {
-		batchSize = len(a.bufferedResults)
+	if count := a.countBuffered(); count < batchSize {
+		batchSize = count
 	}
-	batch := a.bufferedResults[:batchSize]
-	batchLogs := make([]json.RawMessage, 0, len(batch))
-	for _, result := range batch {
-		batchLogs = append(batchLogs, result.emit())
-	}
-	if err := a.submitLogs(batchLogs); err != nil {
+	batch := a.getBatch(batchSize)
+	if err := a.submitLogs(batch); err != nil {
 		return
 	}
-	a.bufferedResults = a.bufferedResults[batchSize:]
+	a.removeBuffered(batchSize)
+}
+
+// removeBuffered removes a random set of logs from the buffered logs.
+// NOTE: We sacrifice some accuracy in the name of CPU and memory efficiency.
+func (a *agent) removeBuffered(batchSize int) {
+	for b := batchSize; b > 0; {
+		for result, count := range a.bufferedResults {
+			if count > b {
+				a.bufferedResults[result] -= b
+				return
+			} else {
+				delete(a.bufferedResults, result)
+				b -= count
+			}
+		}
+	}
 }
 
 func (a *agent) runOrbitLoop() {
@@ -1607,7 +1657,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) json.RawM
 }`)
 }
 
-func (a *agent) submitLogs(results []json.RawMessage) error {
+func (a *agent) submitLogs(results []resultLog) error {
 	// Connection check to prevent unnecessary JSON marshaling when the server is down.
 	conn, err := net.Dial("tcp", strings.TrimPrefix(a.serverAddress, "https://"))
 	if err != nil {
@@ -1615,7 +1665,12 @@ func (a *agent) submitLogs(results []json.RawMessage) error {
 	}
 	conn.Close()
 
-	jsonResults, err := json.Marshal(results)
+	resultLogs := make([]json.RawMessage, 0, len(results))
+	for _, result := range results {
+		resultLogs = append(resultLogs, result.emit())
+	}
+
+	jsonResults, err := json.Marshal(resultLogs)
 	if err != nil {
 		panic(err)
 	}
