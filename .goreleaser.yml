@@ -81,7 +81,7 @@ universal_binaries:
     name_template: fleetctl # resulting binary name
     hooks:
       post:
-        - FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh
+        - sh -c "FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh"
 
 archives:
   - id: fleet
