@@ -74,6 +74,16 @@ func (e *FleetError) StackTrace() *runtime.Frames {
 	return runtime.CallersFrames(st)
 }
 
+// StackFrames implements the reflection-based method that Sentry's Go SDK
+// uses to look for a stack trace. It abuses the internals a bit, as it uses
+// the name that sentry looks for, but returns the []uintptr slice (which works
+// because of how they handle the returned value via reflection). A cleaner
+// approach would be if they used an interface detection like APM does.
+// https://github.com/getsentry/sentry-go/blob/master/stacktrace.go#L44-L49
+func (e *FleetError) StackFrames() []uintptr {
+	return e.stack.(stack) // outside of tests, e.stack is always a stack type
+}
+
 // LogFields implements fleet.ErrWithLogFields, so attached error data can be
 // logged along with the error
 func (e *FleetError) LogFields() []any {
@@ -297,12 +307,15 @@ func Handle(ctx context.Context, err error) {
 		cause = ferr
 	}
 
-	// send to elastic APM and to sentry (both are no-ops if not configured)
+	// send to elastic APM
 	apm.CaptureError(ctx, cause).Send()
+
+	// if Sentry is configured, capture the error there
 	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
 		// sentry is configured, add contextual information if available
 		v, _ := viewer.FromContext(ctx)
 		h, _ := host.FromContext(ctx)
+
 		if v.User != nil || h != nil {
 			// we have a viewer (user) or a host in the context, use this to
 			// enrich the error with more context
