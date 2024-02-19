@@ -225,7 +225,11 @@ export const formatConfigDataForServer = (config: any): any => {
   };
 };
 
-export const formatFloatAsPercentage = (float: number): string => {
+export const formatFloatAsPercentage = (float?: number): string => {
+  if (float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
     style: "percent",

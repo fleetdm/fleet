@@ -222,7 +222,7 @@ const QueriesTable = ({
     };
     if (searchQuery) {
       delete emptyQueries.graphicName;
-      emptyQueries.header = "No queries match the current search criteria.";
+      emptyQueries.header = "No queries match the current search criteria";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {

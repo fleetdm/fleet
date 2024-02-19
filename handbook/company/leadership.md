@@ -4,21 +4,29 @@ This page covers the things managers and other leaders at Fleet need to know abo
 
 
 ## CEO flaws
-[Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you speak up to me about them.
+[Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. They are listed here for two reasons. The first one is so that people know it is _not just them_, but actually _my fault_. The second one is so I can improve, I hope that listing them here lets people know I appreciate when you [speak up to me about them](https://fleetdm.com/handbook/company/communications#performance-feedback).
 
 - I often need to talk to think.  If you get lost, you can interrupt me or send a Zoom chat: "Hold up, could you go over that again?"
 - I can speak quickly.  It is ok to say “Mike, hold on a second.” (Noah is good at this.)
 - I can be quick to criticize before I appreciate, especially if something looks almost done.  I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
-- I can hurry to decisions when I think something is time sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
-- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." (Luke is good at this.)
+- I can hurry to decisions when I think something is time-sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback.”  It is ok to say “I’m not yet 70% sure I’m 100% done with this."
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." ([Luke](https://fleetdm.com/handbook/engineering#team) is good at this.)
 - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  You can say: "Would it help if I made a confidential issue about this for you and Sam to go over tonight?"
-- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t in the agenda, its ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?"
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's ok to interrupt by sharing your screen and show me the sprawl visually in the notes you’ve been taking, select the text of the tangent and say: “I’m taking notes, and I noticed that we’ve veered onto a tangent. Do you want me to tag you in a Google Doc comment to follow up later on this?"
+
+
+## Contact the CEO
+**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
 
 
 ## CEO responsibilities
 Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
 
-> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the Apprentice to the CEO so they can be handled promptly.  (It depends on the responsibility and the situation.)
+
+
+
+
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
 
 
 ## Outline of departmental page structure
