@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
 )
 
@@ -295,7 +296,33 @@ func Handle(ctx context.Context, err error) {
 		// (the one from the initial New/Wrap call).
 		cause = ferr
 	}
+
+	// send to elastic APM and to sentry (both are no-ops if not configured)
 	apm.CaptureError(ctx, cause).Send()
+	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
+		// sentry is configured, add contextual information if available
+		v, _ := viewer.FromContext(ctx)
+		h, _ := host.FromContext(ctx)
+		if v.User != nil || h != nil {
+			// we have a viewer (user) or a host in the context, use this to
+			// enrich the error with more context
+			ctxHub := sentry.CurrentHub().Clone()
+			if v.User != nil {
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					scope.SetTag("email", v.User.Email)
+					scope.SetTag("user_id", fmt.Sprint(v.User.ID))
+				})
+			} else if h != nil {
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					scope.SetTag("hostname", h.Hostname)
+					scope.SetTag("host_id", fmt.Sprint(h.ID))
+				})
+			}
+			ctxHub.CaptureException(cause)
+		} else {
+			sentry.CaptureException(cause)
+		}
+	}
 
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)
