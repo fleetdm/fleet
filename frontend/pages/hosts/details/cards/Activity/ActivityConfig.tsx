@@ -8,13 +8,14 @@ import {
 
 import { ShowActivityDetailsHandler } from "./Activity";
 
-import RanScriptActivityItem from "./RanScriptActivityItem";
-import LockedHostActivityItem from "./LockedHostActivityItem";
-import UnlockedHostActivityItem from "./UnlockedHostActivityItem";
+import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
+import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
+import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 
 /** the component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
   activity: IPastActivity;
+  // TODO: two types, one for optional and one for required onShowDetails.
   onShowDetails?: ShowActivityDetailsHandler;
 }
 
