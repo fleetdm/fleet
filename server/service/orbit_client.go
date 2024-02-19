@@ -146,7 +146,7 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 		)
 		verb, path := "POST", "/api/fleet/orbit/config"
 		// Retry until we don't get a network error.
-		retry.Do(func() error {
+		_ = retry.Do(func() error {
 			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
 			var netErr net.Error
 			if errors.As(err, &netErr) {
