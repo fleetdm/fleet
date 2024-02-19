@@ -36,10 +36,10 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
-	configCache              configCache
-	fetchedConfigAtLeastOnce bool
-	logNetErrFn              logNetErrFn
-	lastNetErrLogged         time.Time
+	configCache                 configCache
+	fetchedConfigAtLeastOnce    bool
+	onNetErrOnGetConfigFn       OnNetErrOnGetConfigFunc
+	lastNetErrOnGetConfigLogged time.Time
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
@@ -88,15 +88,18 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
-type logNetErrFn func(err error)
+// OnNetErrOnGetConfigFunc is a function when there are network errors in GetConfig.
+type OnNetErrOnGetConfigFunc func(err error)
 
-var netErrLogInterval = 1 * time.Minute
+var netErrLogInterval = 5 * time.Minute
 
 // NewOrbitClient creates a new OrbitClient.
 //
 //   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
+//   - OnNetErrOnGetConfigFn is called when there's a network error in GetConfig (this method
+//     is rate limited to be executed once every 5 minutes).
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -105,7 +108,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
-	logNetErrFn logNetErrFn,
+	onNetErrOnGetConfigFn OnNetErrOnGetConfigFunc,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -115,12 +118,12 @@ func NewOrbitClient(
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
 	return &OrbitClient{
-		nodeKeyFilePath: nodeKeyFilePath,
-		baseClient:      bc,
-		enrollSecret:    enrollSecret,
-		hostInfo:        orbitHostInfo,
-		enrolled:        false,
-		logNetErrFn:     logNetErrFn,
+		nodeKeyFilePath:       nodeKeyFilePath,
+		baseClient:            bc,
+		enrollSecret:          enrollSecret,
+		hostInfo:              orbitHostInfo,
+		enrolled:              false,
+		onNetErrOnGetConfigFn: onNetErrOnGetConfigFn,
 	}, nil
 }
 
@@ -140,10 +143,10 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 		var netErr net.Error
 		if err == nil {
 			oc.fetchedConfigAtLeastOnce = true
-		} else if errors.As(err, &netErr) && oc.fetchedConfigAtLeastOnce {
-			if now.After(oc.lastNetErrLogged.Add(netErrLogInterval)) {
-				oc.logNetErrFn(err)
-				oc.lastNetErrLogged = now
+		} else if oc.onNetErrOnGetConfigFn != nil && errors.As(err, &netErr) && oc.fetchedConfigAtLeastOnce {
+			if now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrLogInterval)) {
+				oc.onNetErrOnGetConfigFn(err)
+				oc.lastNetErrOnGetConfigLogged = now
 			}
 			err = nil
 		}
