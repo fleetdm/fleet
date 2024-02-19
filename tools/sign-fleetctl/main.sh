@@ -10,8 +10,9 @@ rm certificate.p12
 echo "notarizing binary..."
 mkdir private_keys
 sh -c 'echo "$APPLE_APP_STORE_CONNECT_KEY" > "private_keys/AuthKey_$APPLE_APP_STORE_CONNECT_KEY_ID.p8"'
+zip fletctl.zip "$FLEETCTL_BINARY_PATH"
 rcodesign notary-submit \
        --api-issuer "$APPLE_APP_STORE_CONNECT_ISSUER_ID" \
        --api-key "$APPLE_APP_STORE_CONNECT_KEY_ID" \
-       --staple "$FLEETCTL_BINARY_PATH"
+       --wait fleetctl.zip
 rm -rf private_keys
