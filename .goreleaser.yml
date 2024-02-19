@@ -81,7 +81,7 @@ universal_binaries:
     name_template: fleetctl # resulting binary name
     hooks:
       post:
-        - make fleetctl-darwin-sign-ci FLEETCTL_BINARY_PATH={{ .Path }}
+        - FLEETCTL_BINARY_PATH={{ .Path }} ./tools/sign-fleetctl/main.sh
 
 archives:
   - id: fleet
