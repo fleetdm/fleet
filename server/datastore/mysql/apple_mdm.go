@@ -2863,10 +2863,7 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 }
 
 func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
-	fmt.Println("update host dep assign profiles responses called")
-
 	if payload == nil {
-		fmt.Println("update host dep assign profiles responses received nil payload")
 		// caller should not ensure this does not happen
 		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
 		return nil
