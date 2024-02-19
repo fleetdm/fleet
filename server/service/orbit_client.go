@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +36,10 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
-	configCache configCache
+	configCache              configCache
+	fetchedConfigAtLeastOnce bool
+	logNetErrFn              logNetErrFn
+	lastNetErrLogged         time.Time
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
@@ -84,6 +88,10 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
+type logNetErrFn func(err error)
+
+var netErrLogInterval = 1 * time.Minute
+
 // NewOrbitClient creates a new OrbitClient.
 //
 //   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
@@ -97,6 +105,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
+	logNetErrFn logNetErrFn,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -111,20 +120,33 @@ func NewOrbitClient(
 		enrollSecret:    enrollSecret,
 		hostInfo:        orbitHostInfo,
 		enrolled:        false,
+		logNetErrFn:     logNetErrFn,
 	}, nil
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
-// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live to reduce traffic to the Fleet server.
+// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
+// to reduce traffic to the Fleet server.
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
+
 	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
 		verb, path := "POST", "/api/fleet/orbit/config"
 		var resp fleet.OrbitConfig
 		err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+		var netErr net.Error
+		if err == nil {
+			oc.fetchedConfigAtLeastOnce = true
+		} else if errors.As(err, &netErr) && oc.fetchedConfigAtLeastOnce {
+			if now.After(oc.lastNetErrLogged.Add(netErrLogInterval)) {
+				oc.logNetErrFn(err)
+				oc.lastNetErrLogged = now
+			}
+			err = nil
+		}
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now
