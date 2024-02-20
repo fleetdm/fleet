@@ -87,7 +87,7 @@ Production systems can fail for various reasons, and it can be frustrating to us
 - Conduct an incident post-mortem to determine any additional steps we need (including monitoring) to take to prevent this class of problems from happening in the future.
 
 
-### Check Browser compatibility for fleetdm.com
+### Check browser compatibility for fleetdm.com
 A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be carried out monthly to verify that the website looks and functions as expected across all [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers).
 
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
@@ -153,7 +153,7 @@ You can do this by logging into the crawler dashboard using the login saved in 1
 No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 
-#### Re-run the "Deploy Fleet Website" action
+### Re-run the "Deploy Fleet Website" action
 If the action fails, please complete the following steps:
 1. Head to the fleetdm-website app in the [Heroku dashboard](https://heroku.com) and select the "Activity" tab.
 2. Select "Roll back to here" on the second to most recent deploy.
