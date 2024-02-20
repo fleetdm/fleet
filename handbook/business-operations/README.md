@@ -308,30 +308,6 @@ Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub
 
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
 
-> TODO: Verify each of these points to the correct link above.  Then extrapolate into rituals.yml.  (See CEO handbook page for an example.)
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Key review | every three weeks | Every release cycle, a key review deck is prepared and presented. | Head of Business Operations |
-| Informing managers about hours worked | Weekly |  See [Informing managers about hours worked"](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Head of Business Operations |
-| Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Head of Business Operations |
-| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Head of Business Operations |
-| Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Taylor Hughes |
-| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil. | Taylor Hughes |
-| Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps.  (This process includes fulfill the monthly reporting requirement for SVB.)  | Nathanael Holliday |
-| "The numbers" monthly financial check | Monthly | Each month, update the inputs in ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend. | Head of Business Operations |
-| Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
-| Quartlery finance check | Quartlery | See [Check finances for quirks](https://fleetdm.com/handbook/business-operations#check-finances-for-quirks). |Head of Business Operations |
-| AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
-| Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
-| Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
-| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
-| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
-| KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
-| [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
-| Downgrade unused license seats | Quarterly | Downgrade unused or questionable license seats on the first Wednesday of every quarter. | Head of Business Operations & CEO |
-=======
-
 <rituals :rituals="rituals['handbook/business-operations/business-operations.rituals.yml']"></rituals>
 
 <!--
