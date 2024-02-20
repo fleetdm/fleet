@@ -783,7 +783,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
