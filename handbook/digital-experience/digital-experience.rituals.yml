@@ -1,5 +1,36 @@
 # https://github.com/fleetdm/fleet/pull/13084
 
+
+- 
+  task: "Check Browser compatibility for fleetdm.com"
+  startedOn: "2024-03-01" 
+  frequency: "Monthly"
+  description: "Run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
+  dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
+    repo: fleet
+- 
+  task: "Check production dependencies of fleetdm.com"
+  startedOn: "2023-11-10" 
+  frequency: "Weekly"
+  description: "Check for vulnerabilities on the production dependencies of fleetdm.com."
+  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#check-production-dependencies-of-fleetdm-com"
+  dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
+    repo: fleet
+- 
+  task: "Generate latest schema"
+  startedOn: "2024-02-19" 
+  frequency: "Triweekly"
+  description: "After each sprint, generate the latest tables json file to incorporate any new schema documentation."
+  moreInfoUrl: # TODO tie to a responsibility
+  dri: "eashaw"
+  autoIssue:   # Enables automation of GitHub issues
+    labels: [ "#g-digital-experience" ] # label to be applied to issue
+    repo: fleet
 - 
   task: "Check osquery Slack invitation"
   startedOn: "2023-11-10" 
