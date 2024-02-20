@@ -315,7 +315,7 @@ Please see [handbook/product-groups#customer-feature-requests](https://fleetdm.c
 ##### After the feature is accepted
 Please see [handbook/product-groups#after-the-feature-is-accepted](https://fleetdm.com/handbook/product-groups#after-the-feature-is-accepted)
 
-### Restart Algolia manually
+##### Restart Algolia manually
 Please see [handbook/digital-experience#restart-algolia-manually](https://fleetdm.com/handbook/digital-experience#restart-algolia-manually)
 
 <meta name="maintainedBy" value="noahtalerman">

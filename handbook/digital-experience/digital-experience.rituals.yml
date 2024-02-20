@@ -2,7 +2,7 @@
 
 
 - 
-  task: "Check Browser compatibility for fleetdm.com"
+  task: "Check browser compatibility for fleetdm.com"
   startedOn: "2024-03-01" 
   frequency: "Monthly"
   description: "Run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com."
