@@ -2869,21 +2869,32 @@ func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, pa
 		return nil
 	}
 
-	p := fleet.ToHostDEPAssignProfileResponses(payload)
-	if len(p.Failed)+len(p.NotAccessible)+len(p.Success) != len(payload.Devices) {
-		// this should never happen unless Apple changes the response format, so we log it for future debugging
-		level.Debug(ds.logger).Log("msg", "unrecognized assign profile response for one or more devices", "devices", payload.Devices)
-		return nil
+	success := make([]string, 0, len(payload.Devices))
+	notAccessible := make([]string, 0, len(payload.Devices))
+	failed := make([]string, 0, len(payload.Devices))
+	for serial, status := range payload.Devices {
+		switch strings.ToLower(status) {
+		case string(fleet.DEPAssignProfileResponseSuccess):
+			success = append(success, serial)
+		case string(fleet.DEPAssignProfileResponseNotAccessible):
+			notAccessible = append(notAccessible, serial)
+		case string(fleet.DEPAssignProfileResponseFailed):
+			failed = append(failed, serial)
+		default:
+			// this should never happen unless Apple changes the response format, so we log it for
+			// future debugging
+			level.Debug(ds.logger).Log("msg", "unrecognized assign profile response", "serial", serial, "status", status)
+		}
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.Success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.NotAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
 			return err
 		}
-		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, p.ProfileUUID, p.Failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
 			return err
 		}
 		return nil

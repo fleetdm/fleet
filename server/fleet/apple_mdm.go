@@ -461,30 +461,6 @@ const (
 	DEPAssignProfileResponseFailed        HostDEPAssignProfileResponseStatus = "failed"
 )
 
-type HostDEPAssignProfileResponses struct {
-	ProfileUUID   string `json:"profile_uuid"`
-	Success       []string
-	NotAccessible []string
-	Failed        []string
-}
-
-func ToHostDEPAssignProfileResponses(r *godep.ProfileResponse) HostDEPAssignProfileResponses {
-	res := HostDEPAssignProfileResponses{
-		ProfileUUID: r.ProfileUUID,
-	}
-	for serial, status := range r.Devices {
-		switch strings.ToLower(status) {
-		case string(DEPAssignProfileResponseSuccess):
-			res.Success = append(res.Success, serial)
-		case string(DEPAssignProfileResponseNotAccessible):
-			res.NotAccessible = append(res.NotAccessible, serial)
-		case string(DEPAssignProfileResponseFailed):
-			res.Failed = append(res.Failed, serial)
-		}
-	}
-	return res
-}
-
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
