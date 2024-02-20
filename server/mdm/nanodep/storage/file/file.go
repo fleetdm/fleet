@@ -21,7 +21,7 @@ type FileStorage struct {
 	path string
 }
 
-var _ storage.AllStorage = (*FileStorage)(nil)
+var _ storage.AllDEPStorage = (*FileStorage)(nil)
 
 // New creates a new FileStorage backend.
 func New(path string) (*FileStorage, error) {

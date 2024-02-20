@@ -14,7 +14,7 @@ import (
 )
 
 // Run runs a battery of tests on the storage.AllStorage returned by storageFn.
-func Run(t *testing.T, storageFn func(t *testing.T) storage.AllStorage) {
+func Run(t *testing.T, storageFn func(t *testing.T) storage.AllDEPStorage) {
 	ctx := context.Background()
 
 	// Test retrieval methods on empty storage.
@@ -69,7 +69,7 @@ func Run(t *testing.T, storageFn func(t *testing.T) storage.AllStorage) {
 		}
 	})
 
-	testWithName := func(t *testing.T, name string, s storage.AllStorage) {
+	testWithName := func(t *testing.T, name string, s storage.AllDEPStorage) {
 
 		// PKI storing and retrieval.
 		pemCert, pemKey, err := s.RetrieveTokenPKI(ctx, name)

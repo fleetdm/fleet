@@ -55,11 +55,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	logger := kitlog.NewNopLogger()
 
 	var (
-		failingPolicySet  fleet.FailingPolicySet     = NewMemFailingPolicySet()
-		enrollHostLimiter fleet.EnrollHostLimiter    = nopEnrollHostLimiter{}
-		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
-		mailer            fleet.MailService          = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-		c                 clock.Clock                = clock.C
+		failingPolicySet  fleet.FailingPolicySet        = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter       = nopEnrollHostLimiter{}
+		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
+		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		c                 clock.Clock                   = clock.C
 
 		is          fleet.InstallerStore
 		mdmStorage  fleet.MDMAppleStore
@@ -280,7 +280,7 @@ type TestServerOpts struct {
 	Is                  fleet.InstallerStore
 	FleetConfig         *config.FleetConfig
 	MDMStorage          fleet.MDMAppleStore
-	DEPStorage          nanodep_storage.AllStorage
+	DEPStorage          nanodep_storage.AllDEPStorage
 	SCEPStorage         scep_depot.Depot
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server

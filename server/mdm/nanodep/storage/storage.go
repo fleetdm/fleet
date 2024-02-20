@@ -11,8 +11,10 @@ import (
 // ErrNotFound is returned by AllStorage when a requested resource is not found.
 var ErrNotFound = errors.New("resource not found")
 
-// AllStorage represents all possible required storage used by NanoDEP.
-type AllStorage interface {
+// AllDEPStorage represents all possible required storage used by NanoDEP.
+// Renamed from AllStorage to avoid ambiguity with the nanomdm AllStorage
+// interface, which our mockimpl tool cannot resolve correctly.
+type AllDEPStorage interface {
 	client.AuthTokensRetriever
 	client.ConfigRetriever
 	sync.AssignerProfileRetriever

@@ -8,7 +8,7 @@ import (
 )
 
 func TestFileStorage(t *testing.T) {
-	storagetest.Run(t, func(t *testing.T) storage.AllStorage {
+	storagetest.Run(t, func(t *testing.T) storage.AllDEPStorage {
 		s, err := New(t.TempDir())
 		if err != nil {
 			t.Fatal(err)

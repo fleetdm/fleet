@@ -10,8 +10,8 @@ import (
 )
 
 // Storage parses a storage name and dsn to determine which and return a storage backend.
-func Storage(storageName, dsn string) (storage.AllStorage, error) {
-	var store storage.AllStorage
+func Storage(storageName, dsn string) (storage.AllDEPStorage, error) {
+	var store storage.AllDEPStorage
 	var err error
 	switch storageName {
 	case "file":

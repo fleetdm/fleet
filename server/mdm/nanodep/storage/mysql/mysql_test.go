@@ -20,7 +20,7 @@ func TestMySQLStorage(t *testing.T) {
 		t.Skip("NANODEP_MYSQL_STORAGE_TEST not set")
 	}
 
-	storagetest.Run(t, func(t *testing.T) storage.AllStorage {
+	storagetest.Run(t, func(t *testing.T) storage.AllDEPStorage {
 		dbName := initTestDB(t)
 		testDSN := fmt.Sprintf("nanodep:insecure@tcp(localhost:4242)/%s?charset=utf8mb4&loc=UTC&parseTime=true", dbName)
 		s, err := New(WithDSN(testDSN))

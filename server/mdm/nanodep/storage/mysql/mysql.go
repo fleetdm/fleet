@@ -21,7 +21,7 @@ type MySQLStorage struct {
 	db *sql.DB
 }
 
-var _ storage.AllStorage = (*MySQLStorage)(nil)
+var _ storage.AllDEPStorage = (*MySQLStorage)(nil)
 
 type config struct {
 	driver string

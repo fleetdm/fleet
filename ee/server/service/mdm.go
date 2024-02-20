@@ -69,7 +69,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {

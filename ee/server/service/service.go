@@ -22,7 +22,7 @@ type Service struct {
 	config            config.FleetConfig
 	clock             clock.Clock
 	authz             *authz.Authorizer
-	depStorage        storage.AllStorage
+	depStorage        storage.AllDEPStorage
 	mdmAppleCommander fleet.MDMAppleCommandIssuer
 	mdmPushCertTopic  string
 	ssoSessionStore   sso.SessionStore
@@ -37,7 +37,7 @@ func NewService(
 	config config.FleetConfig,
 	mailService fleet.MailService,
 	c clock.Clock,
-	depStorage storage.AllStorage,
+	depStorage storage.AllDEPStorage,
 	mdmAppleCommander fleet.MDMAppleCommandIssuer,
 	mdmPushCertTopic string,
 	sso sso.SessionStore,

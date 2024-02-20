@@ -54,7 +54,7 @@ type Service struct {
 
 	*fleet.EnterpriseOverrides
 
-	depStorage        nanodep_storage.AllStorage
+	depStorage        nanodep_storage.AllDEPStorage
 	mdmStorage        nanomdm_storage.AllStorage
 	mdmPushService    nanomdm_push.Pusher
 	mdmPushCertTopic  string
@@ -103,7 +103,7 @@ func NewService(
 	failingPolicySet fleet.FailingPolicySet,
 	geoIP fleet.GeoIP,
 	enrollHostLimiter fleet.EnrollHostLimiter,
-	depStorage nanodep_storage.AllStorage,
+	depStorage nanodep_storage.AllDEPStorage,
 	mdmStorage fleet.MDMAppleStore,
 	mdmPushService nanomdm_push.Pusher,
 	mdmPushCertTopic string,

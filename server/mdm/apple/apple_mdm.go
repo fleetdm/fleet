@@ -82,7 +82,7 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 // checks.
 type DEPService struct {
 	ds         fleet.Datastore
-	depStorage nanodep_storage.AllStorage
+	depStorage nanodep_storage.AllDEPStorage
 	syncer     *depsync.Syncer
 	logger     kitlog.Logger
 }
@@ -352,7 +352,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 
 func NewDEPService(
 	ds fleet.Datastore,
-	depStorage nanodep_storage.AllStorage,
+	depStorage nanodep_storage.AllDEPStorage,
 	logger kitlog.Logger,
 ) *DEPService {
 	depClient := NewDEPClient(depStorage, ds, logger)

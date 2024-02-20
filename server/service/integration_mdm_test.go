@@ -78,7 +78,7 @@ type integrationMDMTestSuite struct {
 	fleetCfg             config.FleetConfig
 	fleetDMNextCSRStatus atomic.Value
 	pushProvider         *mock.APNSPushProvider
-	depStorage           nanodep_storage.AllStorage
+	depStorage           nanodep_storage.AllDEPStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
 	onProfileJobDone     func() // function called when profileSchedule.Trigger() job completed
