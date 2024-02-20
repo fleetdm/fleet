@@ -324,6 +324,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.OSVersionFilter = &osVersion
 	}
 
+	cve := r.URL.Query().Get("vulnerability")
+	if cve != "" {
+		hopt.VulnerabilityFilter = &cve
+	}
+
 	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {
 		return hopt, ctxerr.Wrap(
 			r.Context(), badRequest(

@@ -22,13 +22,13 @@ import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 
 import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
-import Fleet404 from "pages/errors/Fleet404";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareVulnerabilitiesTable from "../components/SoftwareVulnerabilitiesTable";
+import DetailsNoHosts from "../components/DetailsNoHosts";
 
 const baseClass = "software-version-details-page";
 
@@ -116,6 +116,7 @@ const SoftwareVersionDetailsPage = ({
     if (!softwareVersion) {
       return null;
     }
+
     return (
       <>
         {isPremiumTier && (
@@ -137,20 +138,29 @@ const SoftwareVersionDetailsPage = ({
           name={softwareVersion.name}
           source={softwareVersion.source}
         />
-        <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={`${baseClass}__vulnerabilities-section`}
-        >
-          <h2 className="section__header">Vulnerabilities</h2>
-          <SoftwareVulnerabilitiesTable
-            data={softwareVersion.vulnerabilities ?? []}
-            itemName="software item"
-            isLoading={isSoftwareVersionLoading}
-            router={router}
-            teamIdForApi={teamIdForApi}
+        {softwareVersion.hosts_count === 0 ? (
+          <DetailsNoHosts
+            header="Software not detected"
+            details={`No hosts ${
+              teamIdForApi ? "on this team " : ""
+            }have this software installed.`}
           />
-        </Card>
+        ) : (
+          <Card
+            borderRadiusSize="large"
+            includeShadow
+            className={`${baseClass}__vulnerabilities-section`}
+          >
+            <h2 className="section__header">Vulnerabilities</h2>
+            <SoftwareVulnerabilitiesTable
+              data={softwareVersion.vulnerabilities ?? []}
+              itemName="software item"
+              isLoading={isSoftwareVersionLoading}
+              router={router}
+              teamIdForApi={teamIdForApi}
+            />
+          </Card>
+        )}
       </>
     );
   };

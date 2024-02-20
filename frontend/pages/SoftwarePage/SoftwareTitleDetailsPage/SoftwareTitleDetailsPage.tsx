@@ -24,6 +24,7 @@ import Card from "components/Card";
 
 import SoftwareDetailsSummary from "../components/SoftwareDetailsSummary";
 import SoftwareTitleDetailsTable from "./SoftwareTitleDetailsTable";
+import DetailsNoHosts from "../components/DetailsNoHosts";
 
 const baseClass = "software-title-details-page";
 
@@ -97,7 +98,6 @@ const SoftwareTitleDetailsPage = ({
     if (!softwareTitle) {
       return null;
     }
-
     return (
       <>
         {isPremiumTier && (
@@ -111,25 +111,34 @@ const SoftwareTitleDetailsPage = ({
         <SoftwareDetailsSummary
           title={softwareTitle.name}
           type={formatSoftwareType(softwareTitle)}
-          versions={softwareTitle.versions.length}
+          versions={softwareTitle.versions?.length ?? 0}
           hosts={softwareTitle.hosts_count}
           queryParams={{ software_title_id: softwareId, team_id: teamIdForApi }}
           name={softwareTitle.name}
           source={softwareTitle.source}
         />
-        <Card
-          borderRadiusSize="large"
-          includeShadow
-          className={`${baseClass}__versions-section`}
-        >
-          <h2>Versions</h2>
-          <SoftwareTitleDetailsTable
-            router={router}
-            data={softwareTitle.versions}
-            isLoading={isSoftwareTitleLoading}
-            teamIdForApi={teamIdForApi}
+        {softwareTitle.hosts_count === 0 ? (
+          <DetailsNoHosts
+            header="Software not detected"
+            details={`No hosts ${teamIdForApi ? "on this team " : ""}have ${
+              softwareTitle.name
+            } installed.`}
           />
-        </Card>
+        ) : (
+          <Card
+            borderRadiusSize="large"
+            includeShadow
+            className={`${baseClass}__versions-section`}
+          >
+            <h2>Versions</h2>
+            <SoftwareTitleDetailsTable
+              router={router}
+              data={softwareTitle.versions ?? []}
+              isLoading={isSoftwareTitleLoading}
+              teamIdForApi={teamIdForApi}
+            />
+          </Card>
+        )}
       </>
     );
   };
