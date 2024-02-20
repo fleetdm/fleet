@@ -334,29 +334,17 @@ The following table lists this department's rituals, frequency, and Directly Res
 
 <rituals :rituals="rituals['handbook/business-operations/business-operations.rituals.yml']"></rituals>
 
-
-
-
 <!--
 Note: These are out of date, but retained for future reference.  TODO: Deal with them and delete them
 
-| Weekly update reminder | Weekly | Early Friday mornings (US time), a Slack bot posts in the `#g-e` channel reminding directly responsible individuals for KPIs to add their metrics for the current week in ["KPIs"](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) before the end of the day. | N/A |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Mike McNeil |
 | 550C update | Annually | File California 550C. | Mike McNeil |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Mike McNeil audits state accounts to ensure TPA is set up or renewed. | Mike McNeil |
-| Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
-| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
-| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
-
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
-| Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
-| Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
-
-
 -->
 
 #### Stubs
