@@ -50,7 +50,7 @@ func loadOrMakeCSR(path string, opts *csrOptions) (*x509.CertificateRequest, err
 		template.ChallengePassword = opts.challenge
 	}
 
-	derBytes, err := x509util.CreateCertificateRequest(rand.Reader, &template, opts.key)
+	derBytes, _ := x509util.CreateCertificateRequest(rand.Reader, &template, opts.key)
 	pemBlock := &pem.Block{
 		Type:  csrPEMBlockType,
 		Bytes: derBytes,
@@ -67,16 +67,6 @@ func subjOrNil(input string) []string {
 		return nil
 	}
 	return []string{input}
-}
-
-// convert DER to PEM format
-func pemCSR(derBytes []byte) []byte {
-	pemBlock := &pem.Block{
-		Type:    csrPEMBlockType,
-		Headers: nil,
-		Bytes:   derBytes,
-	}
-	return pem.EncodeToMemory(pemBlock)
 }
 
 // load PEM encoded CSR from file

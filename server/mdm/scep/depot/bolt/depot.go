@@ -64,7 +64,7 @@ func (db *Depot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 		// get ca_certificate
 		caCert := bucketGetCopy(bucket, []byte("ca_certificate"))
 		if caCert == nil {
-			return fmt.Errorf("no ca_certificate in bucket")
+			return errors.New("no ca_certificate in bucket")
 		}
 		cert, err := x509.ParseCertificate(caCert)
 		if err != nil {
@@ -75,7 +75,7 @@ func (db *Depot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error) {
 		// get ca_key
 		caKey := bucket.Get([]byte("ca_key"))
 		if caKey == nil {
-			return fmt.Errorf("no ca_key in bucket")
+			return errors.New("no ca_key in bucket")
 		}
 		key, err = x509.ParsePKCS1PrivateKey(caKey)
 		if err != nil {
@@ -144,14 +144,14 @@ func (db *Depot) writeSerial(s *big.Int) error {
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)
 		}
-		return bucket.Put([]byte("serial"), []byte(s.Bytes()))
+		return bucket.Put([]byte("serial"), s.Bytes())
 	})
 	return err
 }
 
 func (db *Depot) hasKey(name []byte) bool {
 	var present bool
-	db.View(func(tx *bolt.Tx) error {
+	_ = db.View(func(tx *bolt.Tx) error {
 		bucket := tx.Bucket([]byte(certBucket))
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)
@@ -172,7 +172,7 @@ func (db *Depot) incrementSerial(s *big.Int) error {
 		if bucket == nil {
 			return fmt.Errorf("bucket %q not found!", certBucket)
 		}
-		return bucket.Put([]byte("serial"), []byte(serial.Bytes()))
+		return bucket.Put([]byte("serial"), serial.Bytes())
 	})
 	return err
 }

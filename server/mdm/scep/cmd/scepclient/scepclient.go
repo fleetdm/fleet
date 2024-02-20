@@ -6,6 +6,7 @@ import (
 	_ "crypto/sha256"
 	"crypto/x509"
 	"encoding/hex"
+	"errors"
 	"flag"
 	"fmt"
 	"io/ioutil"
@@ -21,7 +22,6 @@ import (
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 )
 
 // version info
@@ -166,7 +166,7 @@ func run(cfg runCfg) error {
 
 	msg, err := scep.NewCSRRequest(csr, tmpl, scep.WithLogger(logger), scep.WithCertsSelector(cfg.caCertsSelector))
 	if err != nil {
-		return errors.Wrap(err, "creating csr pkiMessage")
+		return errors.Join(err, errors.New("creating csr pkiMessage"))
 	}
 
 	var respMsg *scep.PKIMessage
@@ -177,17 +177,17 @@ func run(cfg runCfg) error {
 
 		respBytes, err := client.PKIOperation(ctx, msg.Raw)
 		if err != nil {
-			return errors.Wrapf(err, "PKIOperation for %s", msgType)
+			return errors.Join(err, fmt.Errorf("PKIOperation for %s", msgType))
 		}
 
 		respMsg, err = scep.ParsePKIMessage(respBytes, scep.WithLogger(logger), scep.WithCACerts(msg.Recipients))
 		if err != nil {
-			return errors.Wrapf(err, "parsing pkiMessage response %s", msgType)
+			return errors.Join(err, fmt.Errorf("parsing pkiMessage response %s", msgType))
 		}
 
 		switch respMsg.PKIStatus {
 		case scep.FAILURE:
-			return errors.Errorf("%s request failed, failInfo: %s", msgType, respMsg.FailInfo)
+			return fmt.Errorf("%s request failed, failInfo: %s", msgType, respMsg.FailInfo)
 		case scep.PENDING:
 			lginfo.Log("pkiStatus", "PENDING", "msg", "sleeping for 30 seconds, then trying again.")
 			time.Sleep(30 * time.Second)
@@ -198,11 +198,11 @@ func run(cfg runCfg) error {
 	}
 
 	if err := respMsg.DecryptPKIEnvelope(signerCert, key); err != nil {
-		return errors.Wrapf(err, "decrypt pkiEnvelope, msgType: %s, status %s", msgType, respMsg.PKIStatus)
+		return errors.Join(err, fmt.Errorf("decrypt pkiEnvelope, msgType: %s, status %s", msgType, respMsg.PKIStatus))
 	}
 
 	respCert := respMsg.CertRepMessage.Certificate
-	if err := ioutil.WriteFile(cfg.certPath, pemCert(respCert.Raw), 0o666); err != nil {
+	if err := ioutil.WriteFile(cfg.certPath, pemCert(respCert.Raw), 0o666); err != nil { // nolint:gosec
 		return err
 	}
 

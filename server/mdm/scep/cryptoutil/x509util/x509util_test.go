@@ -10,7 +10,7 @@ import (
 
 func TestCreateCertificateRequest(t *testing.T) {
 	r := rand.Reader
-	priv, err := rsa.GenerateKey(r, 1024)
+	priv, err := rsa.GenerateKey(r, 1024) // nolint:gosec
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -178,7 +178,7 @@ func main() {
 	errs := make(chan error, 2)
 	go func() {
 		lginfo.Log("transport", "http", "address", httpAddr, "msg", "listening")
-		errs <- http.ListenAndServe(httpAddr, h)
+		errs <- http.ListenAndServe(httpAddr, h) //nolint:gosec
 	}()
 	go func() {
 		c := make(chan os.Signal, 1)
@@ -201,7 +201,7 @@ func caMain(cmd *flag.FlagSet) int {
 		flPassword   = cmd.String("key-password", "", "password to store rsa key")
 		flCountry    = cmd.String("country", "US", "country for CA cert")
 	)
-	cmd.Parse(os.Args[2:])
+	_ = cmd.Parse(os.Args[2:])
 	if *flInit {
 		fmt.Println("Initializing new CA")
 		key, err := createKey(*flKeySize, []byte(*flPassword), *flDepotPath)

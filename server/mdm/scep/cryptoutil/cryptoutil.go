@@ -7,8 +7,7 @@ import (
 	"crypto/rsa"
 	"crypto/sha256"
 	"encoding/asn1"
-
-	"github.com/pkg/errors"
+	"errors"
 )
 
 // GenerateSubjectKeyID generates Subject Key Identifier (SKI) using SHA-256

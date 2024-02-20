@@ -11,13 +11,14 @@ import (
 	"crypto/x509"
 	"encoding/asn1"
 	"encoding/base64"
+	"errors"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
-	"github.com/pkg/errors"
 	"go.mozilla.org/pkcs7"
 )
 
@@ -317,7 +318,7 @@ func (msg *PKIMessage) parseMessageType() error {
 		case PENDING:
 			break
 		default:
-			return errors.Errorf("unknown scep pkiStatus %s", status)
+			return fmt.Errorf("unknown scep pkiStatus %s", status)
 		}
 		msg.CertRepMessage = cr
 		return nil
@@ -366,12 +367,12 @@ func (msg *PKIMessage) DecryptPKIEnvelope(cert *x509.Certificate, key *rsa.Priva
 	case PKCSReq, UpdateReq, RenewalReq:
 		csr, err := x509.ParseCertificateRequest(msg.pkiEnvelope)
 		if err != nil {
-			return errors.Wrap(err, "parse CSR from pkiEnvelope")
+			return errors.Join(err, errors.New("parse CSR from pkiEnvelope"))
 		}
 		// check for challengePassword
 		cp, err := x509util.ParseChallengePassword(msg.pkiEnvelope)
 		if err != nil {
-			return errors.Wrap(err, "scep: parse challenge password in pkiEnvelope")
+			return errors.Join(err, errors.New("scep: parse challenge password in pkiEnvelope"))
 		}
 		msg.CSRReqMessage = &CSRReqMessage{
 			RawDecrypted:      msg.pkiEnvelope,

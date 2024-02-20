@@ -45,7 +45,7 @@ type ExecutableCSRVerifier struct {
 }
 
 func (v *ExecutableCSRVerifier) Verify(data []byte) (bool, error) {
-	cmd := exec.Command(v.executable)
+	cmd := exec.Command(v.executable) // nolint:gosec
 
 	stdin, err := cmd.StdinPipe()
 	if err != nil {
@@ -54,7 +54,7 @@ func (v *ExecutableCSRVerifier) Verify(data []byte) (bool, error) {
 
 	go func() {
 		defer stdin.Close()
-		stdin.Write(data)
+		_, _ = stdin.Write(data)
 	}()
 
 	err = cmd.Run()

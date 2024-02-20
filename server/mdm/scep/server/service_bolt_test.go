@@ -14,7 +14,6 @@ import (
 	"testing"
 	"time"
 
-	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
 	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
@@ -25,7 +24,7 @@ import (
 
 func TestCaCert(t *testing.T) {
 	// init bolt depot CA
-	boltDepot := createDB(0666, nil)
+	boltDepot := createDB(0o666, nil)
 	key, err := boltDepot.CreateOrLoadKey(2048)
 	if err != nil {
 		t.Fatal(err)
@@ -152,23 +151,6 @@ func createDB(mode os.FileMode, options *bolt.Options) *boltdepot.Depot {
 		panic(err.Error())
 	}
 	d, err := boltdepot.NewBoltDepot(db)
-	if err != nil {
-		panic(err.Error())
-	}
-	return d
-}
-
-func createChallengeStore(mode os.FileMode, options *bolt.Options) *challengestore.Depot {
-	// Create temporary path.
-	f, _ := ioutil.TempFile("", "bolt-challenge-")
-	f.Close()
-	os.Remove(f.Name())
-
-	db, err := bolt.Open(f.Name(), mode, options)
-	if err != nil {
-		panic(err.Error())
-	}
-	d, err := challengestore.NewBoltDepot(db)
 	if err != nil {
 		panic(err.Error())
 	}

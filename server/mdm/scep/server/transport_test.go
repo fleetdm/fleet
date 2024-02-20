@@ -24,7 +24,7 @@ func TestCACaps(t *testing.T) {
 	server, _, teardown := newServer(t)
 	defer teardown()
 	url := server.URL + "/scep?operation=GetCACaps"
-	resp, err := http.Get(url)
+	resp, err := http.Get(url) //nolint:gosec
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestPKIOperation(t *testing.T) {
 	pkcsreq := loadTestFile(t, "../scep/testdata/PKCSReq.der")
 	body := bytes.NewReader(pkcsreq)
 	url := server.URL + "/scep?operation=PKIOperation"
-	resp, err := http.Post(url, "", body)
+	resp, err := http.Post(url, "", body) //nolint:gosec
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -240,10 +240,6 @@ func (d *noopDepot) Put(name string, crt *x509.Certificate) error {
 }
 
 /* helpers */
-const (
-	rsaPrivateKeyPEMBlockType = "RSA PRIVATE KEY"
-	certificatePEMBlockType   = "CERTIFICATE"
-)
 
 func loadTestFile(t *testing.T, path string) []byte {
 	data, err := ioutil.ReadFile(path)

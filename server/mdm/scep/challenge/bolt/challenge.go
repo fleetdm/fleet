@@ -3,10 +3,10 @@ package challengestore
 import (
 	"crypto/rand"
 	"encoding/base64"
+	"errors"
 	"fmt"
 
 	"github.com/boltdb/bolt"
-	"github.com/pkg/errors"
 )
 
 type Depot struct {
@@ -54,7 +54,7 @@ func (db *Depot) SCEPChallenge() (string, error) {
 func (db *Depot) HasChallenge(pw string) (bool, error) {
 	tx, err := db.Begin(true)
 	if err != nil {
-		return false, errors.Wrap(err, "begin transaction")
+		return false, errors.Join(err, errors.New("begin transaction"))
 	}
 	bkt := tx.Bucket([]byte(challengeBucket))
 	if bkt == nil {

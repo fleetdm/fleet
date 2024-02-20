@@ -29,7 +29,7 @@ func createDB(mode os.FileMode, options *bolt.Options) *Depot {
 }
 
 func TestDepot_Serial(t *testing.T) {
-	db := createDB(0666, nil)
+	db := createDB(0o666, nil)
 	tests := []struct {
 		name    string
 		want    *big.Int
@@ -53,10 +53,8 @@ func TestDepot_Serial(t *testing.T) {
 }
 
 func TestDepot_writeSerial(t *testing.T) {
-	db := createDB(0666, nil)
-	type args struct {
-		s *big.Int
-	}
+	db := createDB(0o666, nil)
+
 	tests := []struct {
 		name    string
 		args    *big.Int
@@ -77,10 +75,8 @@ func TestDepot_writeSerial(t *testing.T) {
 }
 
 func TestDepot_incrementSerial(t *testing.T) {
-	db := createDB(0666, nil)
-	type args struct {
-		s *big.Int
-	}
+	db := createDB(0o666, nil)
+
 	tests := []struct {
 		name    string
 		args    *big.Int
@@ -108,7 +104,7 @@ func TestDepot_incrementSerial(t *testing.T) {
 }
 
 func TestDepot_CreateOrLoadKey(t *testing.T) {
-	db := createDB(0666, nil)
+	db := createDB(0o666, nil)
 	tests := []struct {
 		bits    int
 		wantErr bool
@@ -128,7 +124,7 @@ func TestDepot_CreateOrLoadKey(t *testing.T) {
 }
 
 func TestDepot_CreateOrLoadCA(t *testing.T) {
-	db := createDB(0666, nil)
+	db := createDB(0o666, nil)
 	tests := []struct {
 		wantErr bool
 	}{

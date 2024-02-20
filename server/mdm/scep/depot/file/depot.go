@@ -22,7 +22,7 @@ import (
 // NewFileDepot returns a new cert depot.
 func NewFileDepot(path string) (*fileDepot, error) {
 	f, err := os.OpenFile(fmt.Sprintf("%s/index.txt", path),
-		os.O_RDONLY|os.O_CREATE, 0666)
+		os.O_RDONLY|os.O_CREATE, 0o666)
 	if err != nil {
 		return nil, err
 	}
@@ -56,9 +56,9 @@ func (d *fileDepot) CA(pass []byte) ([]*x509.Certificate, *rsa.PrivateKey, error
 
 // file permissions
 const (
-	certPerm   = 0444
-	serialPerm = 0400
-	dbPerm     = 0600
+	certPerm   = 0o444
+	serialPerm = 0o400
+	dbPerm     = 0o600
 )
 
 // Put adds a certificate to the depot
@@ -71,7 +71,7 @@ func (d *fileDepot) Put(cn string, crt *x509.Certificate) error {
 	}
 	data := crt.Raw
 
-	if err := os.MkdirAll(d.dirPath, 0755); err != nil {
+	if err := os.MkdirAll(d.dirPath, 0o755); err != nil {
 		return err
 	}
 
@@ -134,13 +134,13 @@ func (d *fileDepot) Serial() (*big.Int, error) {
 	data = strings.TrimSuffix(data, "\n")
 	serial, ok := s.SetString(data, 16)
 	if !ok {
-		return nil, errors.New("could not convert " + string(data) + " to serial number")
+		return nil, errors.New("could not convert " + data + " to serial number")
 	}
 	return serial, nil
 }
 
 func makeOpenSSLTime(t time.Time) string {
-	y := (int(t.Year()) % 100)
+	y := (t.Year() % 100)
 	validDate := fmt.Sprintf("%02d%02d%02d%02d%02d%02dZ", y, t.Month(), t.Day(), t.Hour(), t.Minute(), t.Second())
 	return validDate
 }
@@ -174,13 +174,12 @@ func makeDn(cert *x509.Certificate) string {
 
 // Determine if the cadb already has a valid certificate with the same name
 func (d *fileDepot) HasCN(_ string, allowTime int, cert *x509.Certificate, revokeOldCertificate bool) (bool, error) {
-
 	var addDB bytes.Buffer
 	candidates := make(map[string]string)
 
 	dn := makeDn(cert)
 
-	if err := os.MkdirAll(d.dirPath, 0755); err != nil {
+	if err := os.MkdirAll(d.dirPath, 0o755); err != nil {
 		return false, err
 	}
 
@@ -255,14 +254,13 @@ func (d *fileDepot) HasCN(_ string, allowTime int, cert *x509.Certificate, revok
 }
 
 func (d *fileDepot) writeDB(cn string, serial *big.Int, filename string, cert *x509.Certificate) error {
-
 	var dbEntry bytes.Buffer
 
 	// Revoke old certificate
 	if _, err := d.HasCN(cn, 0, cert, true); err != nil {
 		return err
 	}
-	if err := os.MkdirAll(d.dirPath, 0755); err != nil {
+	if err := os.MkdirAll(d.dirPath, 0o755); err != nil {
 		return err
 	}
 	name := d.path("index.txt")
@@ -306,7 +304,7 @@ func (d *fileDepot) writeDB(cn string, serial *big.Int, filename string, cert *x
 }
 
 func (d *fileDepot) writeSerial(serial *big.Int) error {
-	if err := os.MkdirAll(d.dirPath, 0755); err != nil {
+	if err := os.MkdirAll(d.dirPath, 0o755); err != nil {
 		return err
 	}
 	name := d.path("serial")

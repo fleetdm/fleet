@@ -50,7 +50,7 @@ func (e *Endpoints) Supports(cap string) bool {
 
 	if len(e.capabilities) == 0 {
 		e.mtx.RUnlock()
-		e.GetCACaps(context.Background())
+		_, _ = e.GetCACaps(context.Background())
 		e.mtx.RLock()
 	}
 	return bytes.Contains(e.capabilities, []byte(cap))
@@ -185,7 +185,6 @@ func EndpointLoggingMiddleware(logger log.Logger) endpoint.Middleware {
 				logger.Log(append(keyvals, "error", err, "took", time.Since(begin))...)
 			}(time.Now())
 			return next(ctx, request)
-
 		}
 	}
 }

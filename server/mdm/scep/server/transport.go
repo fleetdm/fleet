@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
-	stderrs "errors"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -15,7 +15,6 @@ import (
 	kithttp "github.com/go-kit/kit/transport/http"
 	"github.com/gorilla/mux"
 	"github.com/groob/finalizer/logutil"
-	"github.com/pkg/errors"
 )
 
 func MakeHTTPHandler(e *Endpoints, svc Service, logger kitlog.Logger) http.Handler {
@@ -68,7 +67,7 @@ func EncodeSCEPRequest(ctx context.Context, r *http.Request, request interface{}
 		rr, err := http.NewRequest("POST", u.String(), body)
 		rr.Header.Set("Content-Type", "application/octet-stream")
 		if err != nil {
-			return errors.Wrapf(err, "creating new POST request for %s", req.Operation)
+			return errors.Join(err, fmt.Errorf("creating new POST request for %s", req.Operation))
 		}
 		*r = *rr
 		return nil
@@ -153,7 +152,7 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 	if resp.Err != nil {
 		status := http.StatusInternalServerError
 		var esc kithttp.StatusCoder
-		if stderrs.As(resp.Err, &esc) {
+		if errors.As(resp.Err, &esc) {
 			status = esc.StatusCode()
 		}
 
@@ -161,7 +160,7 @@ func encodeSCEPResponse(ctx context.Context, w http.ResponseWriter, response int
 		return nil
 	}
 	w.Header().Set("Content-Type", contentHeader(resp.operation, resp.CACertNum))
-	w.Write(resp.Data)
+	_, _ = w.Write(resp.Data)
 	return nil
 }
 
