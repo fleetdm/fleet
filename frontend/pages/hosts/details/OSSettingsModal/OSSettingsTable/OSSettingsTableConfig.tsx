@@ -63,6 +63,15 @@ const generateFormattedTooltip = (detail: string) => {
   const keyValuePairs = detail.split(/, */);
   const formattedElements: JSX.Element[] = [];
 
+  // Special case to handle bitlocker error message. It does not follow the
+  // expected string format so we will just render the error message as is.
+  if (
+    detail.includes("BitLocker") ||
+    detail.includes("preparing volume for encryption")
+  ) {
+    return detail;
+  }
+
   keyValuePairs.forEach((pair, i) => {
     const [key, value] = pair.split(/: */);
     if (key && value) {

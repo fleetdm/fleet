@@ -138,5 +138,4 @@ If this works and the browser is not working then it might be a rendering issue 
 You should also try running the live query on different browsers.
 
 <meta name="pageOrderInSection" value="1800">
-<meta name="description" value="An overview of live queries in Fleet and steps for troubleshooting.">
-<meta name="navSection" value="The basics">
+

@@ -2,6 +2,7 @@ package mysql
 
 import (
 	"context"
+	"sort"
 	"testing"
 	"time"
 
@@ -20,6 +21,7 @@ func TestSoftwareTitles(t *testing.T) {
 	}{
 		{"SyncHostsSoftwareTitles", testSoftwareSyncHostsSoftwareTitles},
 		{"OrderSoftwareTitles", testOrderSoftwareTitles},
+		{"TeamFilterSoftwareTitles", testTeamFilterSoftwareTitles},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -288,7 +290,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	titles, _, _, err := ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "hosts_count",
 		OrderDirection: fleet.OrderDescending,
-	}})
+	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 7)
 	require.Equal(t, "bar", titles[0].Name)
@@ -312,7 +314,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "hosts_count",
 		OrderDirection: fleet.OrderAscending,
-	}})
+	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 7)
 	require.Equal(t, "bar", titles[0].Name)
@@ -336,7 +338,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderAscending,
-	}})
+	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 7)
 	require.Equal(t, "bar", titles[0].Name)
@@ -360,7 +362,7 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 	titles, _, _, err = ds.ListSoftwareTitles(ctx, fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{
 		OrderKey:       "name",
 		OrderDirection: fleet.OrderDescending,
-	}})
+	}}, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, 7)
 	require.Equal(t, "foo", titles[0].Name)
@@ -382,10 +384,85 @@ func testOrderSoftwareTitles(t *testing.T, ds *Datastore) {
 }
 
 func listSoftwareTitlesCheckCount(t *testing.T, ds *Datastore, expectedListCount int, expectedFullCount int, opts fleet.SoftwareTitleListOptions, returnSorted bool) []fleet.SoftwareTitle {
-	titles, count, _, err := ds.ListSoftwareTitles(context.Background(), opts)
+	titles, count, _, err := ds.ListSoftwareTitles(context.Background(), opts, fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
 	require.NoError(t, err)
 	require.Len(t, titles, expectedListCount)
 	require.NoError(t, err)
 	require.Equal(t, expectedFullCount, count)
 	return titles
+}
+
+func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	host1 := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team1.ID, []uint{host1.ID}))
+	host2 := test.NewHost(t, ds, "host2", "", "host2key", "host2uuid", time.Now())
+	require.NoError(t, ds.AddHostsToTeam(ctx, &team2.ID, []uint{host2.ID}))
+
+	user1, err := ds.NewUser(ctx, &fleet.User{Name: "user1", Password: []byte("test"), Email: "test1@email.com", GlobalRole: ptr.String(fleet.RoleAdmin)})
+	require.NoError(t, err)
+	user2, err := ds.NewUser(ctx, &fleet.User{Name: "user2", Password: []byte("test"), Email: "test2@email.com", Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team1.ID}, Role: fleet.RoleAdmin}}})
+	require.NoError(t, err)
+	user3, err := ds.NewUser(ctx, &fleet.User{Name: "user3", Password: []byte("test"), Email: "test3@email.com", Teams: []fleet.UserTeam{{Team: fleet.Team{ID: team2.ID}, Role: fleet.RoleAdmin}}})
+	require.NoError(t, err)
+
+	software1 := []fleet.Software{
+		{Name: "foo", Version: "0.0.3", Source: "chrome_extensions"},
+	}
+	software2 := []fleet.Software{
+		{Name: "foo", Version: "0.0.4", Source: "chrome_extensions"},
+		{Name: "bar", Version: "0.0.3", Source: "deb_packages"},
+	}
+
+	_, err = ds.UpdateHostSoftware(ctx, host1.ID, software1)
+	require.NoError(t, err)
+	_, err = ds.UpdateHostSoftware(ctx, host2.ID, software2)
+	require.NoError(t, err)
+
+	require.NoError(t, ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
+	require.NoError(t, ds.SyncHostsSoftwareTitles(ctx, time.Now()))
+
+	// Testing the global user
+	titles, count, _, err := ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}}, fleet.TeamFilter{
+		User:            user1,
+		IncludeObserver: true,
+	})
+	sortTitlesByName(titles)
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
+	require.Equal(t, uint(2), titles[1].VersionsCount)
+
+	// Testing the team 1 user
+	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team1.ID}, fleet.TeamFilter{
+		User:            user2,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 1)
+	require.Equal(t, 1, count)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
+
+	// Testing the team 2 user
+	titles, count, _, err = ds.ListSoftwareTitles(context.Background(), fleet.SoftwareTitleListOptions{ListOptions: fleet.ListOptions{}, TeamID: &team2.ID}, fleet.TeamFilter{
+		User:            user3,
+		IncludeObserver: true,
+	})
+	require.NoError(t, err)
+	require.Len(t, titles, 2)
+	require.Equal(t, 2, count)
+	require.Equal(t, uint(1), titles[0].VersionsCount)
+	require.Equal(t, uint(1), titles[1].VersionsCount)
+}
+
+func sortTitlesByName(titles []fleet.SoftwareTitle) {
+	sort.Slice(titles, func(i, j int) bool { return titles[i].Name < titles[j].Name })
 }
