@@ -321,6 +321,4 @@ require (
 	gotest.tools/v3 v3.0.3 // indirect
 )
 
-replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
-
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20240111143358-4df608a81afd

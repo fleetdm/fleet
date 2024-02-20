@@ -7,7 +7,7 @@ import (
 	"testing"
 
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/stretchr/testify/require"
 )

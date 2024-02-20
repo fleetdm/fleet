@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/micromdm/nanodep/log"
-	"github.com/micromdm/nanodep/log/ctxlog"
-	"github.com/micromdm/nanodep/sync"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 )
 
 // RetrieveAssignerProfileHandler returns the assigner profile UUID for the

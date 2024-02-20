@@ -5,9 +5,9 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/log"
-	"github.com/micromdm/nanodep/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log/ctxlog"
 )
 
 // RetrieveConfigHandler returns the DEP server config for the DEP

@@ -24,13 +24,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	depclient "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {

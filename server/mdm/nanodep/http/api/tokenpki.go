@@ -6,10 +6,10 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/log"
-	"github.com/micromdm/nanodep/log/ctxlog"
-	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log/ctxlog"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 )
 
 type TokenPKIRetriever interface {

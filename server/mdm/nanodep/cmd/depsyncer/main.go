@@ -12,10 +12,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/micromdm/nanodep/godep"
-	"github.com/micromdm/nanodep/log/stdlogfmt"
-	"github.com/micromdm/nanodep/parse"
-	depsync "github.com/micromdm/nanodep/sync"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log/stdlogfmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/parse"
+	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 )
 
 // overridden by -ldflags -X

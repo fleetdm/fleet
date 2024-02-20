@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
@@ -15,11 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
 
-	nanodepClient "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -28,6 +24,12 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	nanodepClient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/suite"
 )
 
 func TestIntegrationsGitops(t *testing.T) {

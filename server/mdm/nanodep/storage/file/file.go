@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 )
 
 const defaultFileMode = 0644

@@ -10,11 +10,11 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/require"
 )
 

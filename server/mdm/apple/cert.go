@@ -13,7 +13,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/micromdm/scep/v2/depot"
 )
 

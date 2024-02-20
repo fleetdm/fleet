@@ -3,8 +3,8 @@ package file
 import (
 	"testing"
 
-	"github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanodep/storage/storagetest"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/storagetest"
 )
 
 func TestFileStorage(t *testing.T) {

@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 
-	"github.com/micromdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type CarveStore interface {

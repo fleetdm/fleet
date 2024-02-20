@@ -15,15 +15,15 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
-	"github.com/micromdm/nanodep/godep"
 
+	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 	kitlog "github.com/go-kit/kit/log"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
-	depsync "github.com/micromdm/nanodep/sync"
 )
 
 // DEPName is the identifier/name used in nanodep MySQL storage which

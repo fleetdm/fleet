@@ -15,12 +15,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_storage "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	kitlog "github.com/go-kit/kit/log"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
 )
 
 var _ fleet.Service = (*Service)(nil)

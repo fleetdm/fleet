@@ -9,9 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/storagetest"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanodep/storage/storagetest"
 )
 
 func TestMySQLStorage(t *testing.T) {

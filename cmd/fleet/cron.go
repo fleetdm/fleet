@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -36,7 +37,6 @@ import (
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
-	"github.com/micromdm/nanodep/godep"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {

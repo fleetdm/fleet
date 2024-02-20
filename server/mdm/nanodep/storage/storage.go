@@ -3,9 +3,9 @@ package storage
 import (
 	"errors"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/http/api"
-	"github.com/micromdm/nanodep/sync"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/http/api"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
 )
 
 // ErrNotFound is returned by AllStorage when a requested resource is not found.

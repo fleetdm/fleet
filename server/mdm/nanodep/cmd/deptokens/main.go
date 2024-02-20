@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/micromdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 )
 
 const (

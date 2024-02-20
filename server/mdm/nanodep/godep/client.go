@@ -10,7 +10,7 @@ import (
 	"io"
 	"net/http"
 
-	depclient "github.com/micromdm/nanodep/client"
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
 )
 
 const (

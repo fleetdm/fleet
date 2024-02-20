@@ -190,6 +190,4 @@ require (
 	howett.net/plist v1.0.0 // indirect
 )
 
-replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
-
 replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03

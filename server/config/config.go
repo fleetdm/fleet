@@ -18,8 +18,8 @@ import (
 	"testing"
 	"time"
 
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"

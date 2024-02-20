@@ -3,10 +3,10 @@ package parse
 import (
 	"fmt"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/file"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	_ "github.com/go-sql-driver/mysql"
-	"github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanodep/storage/file"
-	"github.com/micromdm/nanodep/storage/mysql"
 )
 
 // Storage parses a storage name and dsn to determine which and return a storage backend.

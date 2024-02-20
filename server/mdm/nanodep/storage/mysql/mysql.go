@@ -7,8 +7,8 @@ import (
 	"errors"
 	"time"
 
-	"github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 )
 
 // Schema contains the MySQL schema for the DEP storage.
@@ -133,9 +133,9 @@ func (s *MySQLStorage) StoreAuthTokens(ctx context.Context, name string, tokens 
 		ctx, `
 INSERT INTO nano_dep_names
 	(name, consumer_key, consumer_secret, access_token, access_secret, access_token_expiry)
-VALUES 
+VALUES
 	(?, ?, ?, ?, ?, ?)
-ON DUPLICATE KEY UPDATE 
+ON DUPLICATE KEY UPDATE
 	consumer_key = VALUES(consumer_key),
 	consumer_secret = VALUES(consumer_secret),
 	access_token = VALUES(access_token),
@@ -183,7 +183,7 @@ func (s *MySQLStorage) StoreConfig(ctx context.Context, name string, config *cli
 		ctx, `
 INSERT INTO nano_dep_names
 	(name, config_base_url)
-VALUES 
+VALUES
 	(?, ?)
 ON DUPLICATE KEY UPDATE
 	config_base_url = VALUES(config_base_url);`,

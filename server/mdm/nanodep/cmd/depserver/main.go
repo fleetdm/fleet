@@ -9,12 +9,12 @@ import (
 	"os"
 	"time"
 
-	"github.com/micromdm/nanodep/client"
-	dephttp "github.com/micromdm/nanodep/http"
-	"github.com/micromdm/nanodep/http/api"
-	"github.com/micromdm/nanodep/log/stdlogfmt"
-	"github.com/micromdm/nanodep/parse"
-	"github.com/micromdm/nanodep/proxy"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	dephttp "github.com/fleetdm/fleet/v4/server/mdm/nanodep/http"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/http/api"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/log/stdlogfmt"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/parse"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/proxy"
 )
 
 // overridden by -ldflags -X
