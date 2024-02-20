@@ -1659,7 +1659,7 @@ func scheduledQueryResults(packName, queryName string, numResults int) json.RawM
 
 func (a *agent) submitLogs(results []resultLog) error {
 	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	conn, err := net.Dial("tcp", strings.TrimPrefix(a.serverAddress, "https://"))
+	conn, err := net.Dial("tcp", strings.TrimPrefix(strings.TrimPrefix(a.serverAddress, "https://"), "http://"))
 	if err != nil {
 		return err
 	}
