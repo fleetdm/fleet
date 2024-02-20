@@ -32,8 +32,8 @@ func TestHostRunScript(t *testing.T) {
 		}
 	}
 
-	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
-	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now(), OrbitNodeKey: ptr.String("def")}
 	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -563,8 +563,8 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "global gitops",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			shouldFailTeamWrite:   true,
-			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+			shouldFailGlobalWrite: false,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,
 		},
@@ -603,7 +603,7 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "team gitops, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailTeamWrite:   true,
+			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: true,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,
@@ -827,52 +827,6 @@ func TestHostScriptDetailsAuth(t *testing.T) {
 					require.True(t, fleet.IsNotFound(err))
 				}
 			})
-		})
-	}
-}
-
-func TestHostScriptDetailsSupportedPlatform(t *testing.T) {
-	ds := new(mock.Store)
-	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
-	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: license, SkipCreateTestUsers: true})
-	ctx = viewer.NewContext(ctx, viewer.Viewer{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}})
-
-	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{}, nil
-	}
-
-	ds.GetHostScriptDetailsFunc = func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
-		return []*fleet.HostScriptDetail{{HostID: hostID, ScriptID: 1337, Name: "some-script.sh"}}, nil, nil
-	}
-
-	for _, tt := range []struct {
-		platform  string
-		supported bool
-	}{
-		{"darwin", true},
-		{"ubuntu", false},
-		{"centos", false},
-		{"rhel", false},
-		{"debian", false},
-		{"windows", true},
-	} {
-		t.Run(tt.platform, func(t *testing.T) {
-			ds.GetHostScriptDetailsFuncInvoked = false
-			ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-				return &fleet.Host{ID: hostID, Platform: tt.platform}, nil
-			}
-
-			res, _, err := svc.GetHostScriptDetails(ctx, 42, fleet.ListOptions{})
-			require.NoError(t, err)
-			if tt.supported {
-				require.NotNil(t, res)
-				require.Len(t, res, 1)
-				require.True(t, ds.GetHostScriptDetailsFuncInvoked)
-			} else {
-				require.NotNil(t, res)
-				require.Len(t, res, 0)
-				require.False(t, ds.GetHostScriptDetailsFuncInvoked)
-			}
 		})
 	}
 }

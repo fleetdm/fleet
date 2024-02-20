@@ -43,8 +43,8 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const formatSeverity = (float: number | null) => {
-  if (float === null) {
+const formatSeverity = (float?: number | null) => {
+  if (float === null || float === undefined) {
     return DEFAULT_EMPTY_CELL_VALUE;
   }
 

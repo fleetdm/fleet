@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -187,6 +188,7 @@ func channelVersionCommand() *cli.Command {
 		channel    string
 		tufURL     string
 		components cli.StringSlice
+		format     string
 	)
 	return &cli.Command{
 		Name:  "channel-version",
@@ -195,20 +197,31 @@ func channelVersionCommand() *cli.Command {
 			urlFlag(&tufURL),
 			&cli.StringFlag{
 				Name:        "channel",
-				EnvVars:     []string{"CHANNEL"},
+				EnvVars:     []string{"TUF_STATUS_CHANNEL"},
 				Value:       "stable",
 				Destination: &channel,
 				Usage:       "Channel name",
 			},
 			&cli.StringSliceFlag{
 				Name:        "components",
-				EnvVars:     []string{"COMPONENTS"},
+				EnvVars:     []string{"TUF_STATUS_COMPONENTS"},
 				Value:       cli.NewStringSlice("orbit", "desktop", "osqueryd", "nudge", "swiftDialog"),
 				Destination: &components,
 				Usage:       "List of components",
 			},
+			&cli.StringFlag{
+				Name:        "format",
+				EnvVars:     []string{"TUF_STATUS_FORMAT"},
+				Value:       "json",
+				Destination: &format,
+				Usage:       "Output format (json, markdown)",
+			},
 		},
 		Action: func(c *cli.Context) error {
+			if format != "json" && format != "markdown" {
+				return errors.New("supported formats are: json, markdown")
+			}
+
 			res, err := http.Get(tufURL) //nolint
 			if err != nil {
 				return err
@@ -284,11 +297,49 @@ func channelVersionCommand() *cli.Command {
 				}
 			}
 
-			b, err := json.MarshalIndent(outputMap, "", "  ")
-			if err != nil {
-				return err
+			if format == "json" {
+				b, err := json.MarshalIndent(outputMap, "", "  ")
+				if err != nil {
+					return err
+				}
+				fmt.Printf("%s\n", b)
+			} else if format == "markdown" {
+				table := tablewriter.NewWriter(os.Stdout)
+				table.SetHeader([]string{"Component\\OS", "macOS", "Linux", "Windows"})
+				table.SetAutoFormatHeaders(false)
+				table.SetCenterSeparator("|")
+				table.SetHeaderLine(true)
+				table.SetRowLine(false)
+				table.SetTablePadding("\t")
+				table.SetColumnSeparator("|")
+				table.SetNoWhiteSpace(false)
+				table.SetAutoWrapText(true)
+				table.SetBorders(tablewriter.Border{
+					Left:   true,
+					Top:    false,
+					Bottom: false,
+					Right:  true,
+				})
+				var rows [][]string
+				componentsInOrder := []string{"orbit", "desktop", "osqueryd", "nudge", "swiftDialog"}
+				setIfEmpty := func(m map[string]string, k string) string {
+					v := m[k]
+					if v == "" {
+						v = "-"
+					}
+					return v
+				}
+				for _, component := range componentsInOrder {
+					oss := outputMap[component]
+					row := []string{component}
+					for _, os := range []string{"macos", "linux", "windows"} {
+						row = append(row, setIfEmpty(oss, os))
+					}
+					rows = append(rows, row)
+				}
+				table.AppendBulk(rows)
+				table.Render()
 			}
-			fmt.Printf("%s\n", b)
 
 			return nil
 		},

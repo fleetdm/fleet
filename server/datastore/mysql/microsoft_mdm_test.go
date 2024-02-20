@@ -1255,6 +1255,7 @@ func testMDMWindowsCommandResults(t *testing.T, ds *Datastore) {
 	require.Equal(t, cmdTarget, results[0].RequestType)
 	require.Equal(t, statusCode, results[0].Status)
 	require.Empty(t, results[0].Hostname) // populated only at the service layer
+	require.Equal(t, rawCmd, string(results[0].Payload))
 
 	p, err = ds.GetMDMCommandPlatform(ctx, "unknown-cmd-uuid")
 	require.True(t, fleet.IsNotFound(err))

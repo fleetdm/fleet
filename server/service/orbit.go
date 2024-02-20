@@ -586,6 +586,8 @@ func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.Host
 			}
 			scriptName = scr.Name
 		}
+
+		// TODO(sarah): We may need to special case lock/unlock script results here?
 		if err := svc.ds.NewActivity(
 			ctx,
 			user,

@@ -28,8 +28,7 @@ const getFileRenderDetails = (
     case "py":
       return { graphicName: "file-py", platform: null };
     case "sh":
-      // TODO: what about .sh files that are for linux?
-      return { graphicName: "file-sh", platform: "macOS" };
+      return { graphicName: "file-sh", platform: "macOS & Linux" };
     case "ps1":
       return { graphicName: "file-ps1", platform: "Windows" };
     default:

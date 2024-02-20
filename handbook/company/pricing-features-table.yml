@@ -523,17 +523,17 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Remotely enforce OS settings
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings
-  tier: Free
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
+  tier: Free
   waysToUse:
-    - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-30). #Customer-preston
+    - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
     - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
-    - description: Automatically re-deploy configuration profiles on macOS they're not installed.
+    - description: Automatically re-deploy configuration profiles when they're not installed.
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -573,8 +573,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
@@ -585,7 +585,7 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
-    - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
+    - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Encrypt macOS hard disks with FileVault
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   tier: Premium
@@ -734,11 +734,6 @@
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Vanta integration
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
 - industryName: Trigger a workflow based on a failing policy
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
@@ -850,3 +845,9 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+- industryName: Asset discovery* #Coming soon (TBD)
+  tier: Premium
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  comingSoonOn: 2024-06-30

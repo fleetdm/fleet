@@ -5,7 +5,6 @@ import { Link } from "react-router";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
-import { IEmptyTableProps } from "interfaces/empty_table";
 import { IApiError } from "interfaces/errors";
 import { INewTeamUsersBody, ITeam } from "interfaces/team";
 import { IUpdateUserFormData, IUser, IUserFormErrors } from "interfaces/user";
@@ -16,12 +15,9 @@ import inviteAPI from "services/entities/invites";
 import teamsAPI, { ILoadTeamsResponse } from "services/entities/teams";
 import { DEFAULT_CREATE_USER_ERRORS } from "utilities/constants";
 
-import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
-import EmptyTable from "components/EmptyTable";
 import Spinner from "components/Spinner";
-import CustomLink from "components/CustomLink";
 import CreateUserModal from "pages/admin/UserManagementPage/components/CreateUserModal";
 import EditUserModal from "../../../UserManagementPage/components/EditUserModal";
 import {
@@ -29,6 +25,7 @@ import {
   NewUserType,
 } from "../../../UserManagementPage/components/UserForm/UserForm";
 import userManagementHelpers from "../../../UserManagementPage/helpers";
+import EmptyMembersTable from "./components/EmptyUsersTable";
 import AddUsersModal from "./components/AddUsersModal/AddUsersModal";
 import RemoveUserModal from "./components/RemoveUserModal/RemoveUserModal";
 
@@ -354,63 +351,30 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
     ]
   );
 
-  const onActionSelection = (action: string, user: IUser): void => {
-    switch (action) {
-      case "edit":
-        toggleEditUserModal(user);
-        break;
-      case "remove":
-        toggleRemoveUserModal(user);
-        break;
-      default:
-    }
-  };
+  const onActionSelection = useCallback(
+    (action: string, user: IUser): void => {
+      switch (action) {
+        case "edit":
+          toggleEditUserModal(user);
+          break;
+        case "remove":
+          toggleRemoveUserModal(user);
+          break;
+        default:
+      }
+    },
+    [toggleEditUserModal, toggleRemoveUserModal]
+  );
 
-  const emptyState = () => {
-    const emptyUsers: IEmptyTableProps = {
-      graphicName: "empty-users",
-      header: "No users on this team",
-      info: (
-        <>
-          <CustomLink url={PATHS.ADMIN_USERS} text="Global users" /> can still
-          access this team.
-        </>
-      ),
-    };
-    if (searchString !== "") {
-      delete emptyUsers.graphicName;
-      emptyUsers.header = "We couldn’t find any users.";
-      emptyUsers.info =
-        "Expecting to see users? Try again in a few seconds as the system catches up.";
-    } else if (isGlobalAdmin) {
-      emptyUsers.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${noUsersClass}__create-button`}
-          onClick={toggleAddUserModal}
-        >
-          Add users
-        </Button>
-      );
-    } else if (isTeamAdmin) {
-      emptyUsers.primaryButton = (
-        <Button
-          variant="brand"
-          className={`${noUsersClass}__create-button`}
-          onClick={toggleCreateUserModal}
-        >
-          Create user
-        </Button>
-      );
-    }
-    return emptyUsers;
-  };
+  const columnConfigs = useMemo(
+    () => generateColumnConfigs(onActionSelection),
+    [onActionSelection]
+  );
 
   if (!isRouteOk) {
     return <Spinner />;
   }
 
-  const columnConfigs = generateColumnConfigs(onActionSelection);
   const userIds = teamUsers ? teamUsers.map((user) => user.id) : [];
 
   return (
@@ -446,14 +410,16 @@ const UsersPage = ({ location, router }: ITeamSubnavProps): JSX.Element => {
           }}
           onQueryChange={({ searchQuery }) => setSearchString(searchQuery)}
           inputPlaceHolder={"Search"}
-          emptyComponent={() =>
-            EmptyTable({
-              graphicName: emptyState().graphicName,
-              header: emptyState().header,
-              info: emptyState().info,
-              primaryButton: emptyState().primaryButton,
-            })
-          }
+          emptyComponent={() => (
+            <EmptyMembersTable
+              className={noUsersClass}
+              isGlobalAdmin={!!isGlobalAdmin}
+              isTeamAdmin={!!isTeamAdmin}
+              searchString={searchString}
+              toggleAddUserModal={toggleAddUserModal}
+              toggleCreateMemberModal={toggleCreateUserModal}
+            />
+          )}
           showMarkAllPages={false}
           isAllPagesSelected={false}
           searchable={userIds.length > 0 || searchString !== ""}

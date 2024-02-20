@@ -1,0 +1,1 @@
+- Windows OS Vulnerabilities now include a `resolved_in_version` in the `/os_versions` API response 
