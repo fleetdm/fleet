@@ -4,7 +4,7 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -19,6 +19,7 @@ import hostsCountAPI, {
   IHostsCountResponse,
 } from "services/entities/host_count";
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
+import { ignoreAxiosError } from "interfaces/errors";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -78,9 +79,7 @@ const SoftwareVersionDetailsPage = ({
     {
       select: (data) => data.software,
       onError: (error) => {
-        // 403s returned for both non-existent and non-accessable entities
-        // which we intentionally handle with the same empty state for security
-        if (isAxiosError(error) && error.response?.status !== 403) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },
@@ -128,7 +127,6 @@ const SoftwareVersionDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        {/* at this point, error can only be 403 per above handling */}
         {isSoftwareVersionError ? (
           <DetailsNoHosts
             header="Software not detected"

@@ -4,11 +4,13 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
+
+import { ignoreAxiosError } from "interfaces/errors";
 
 import osVersionsAPI, {
   IOSVersionResponse,
@@ -103,9 +105,7 @@ const SoftwareOSDetailsPage = ({
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
       onError: (error) => {
-        // 403s returned for both non-existent and non-accessable entities
-        // which we intentionally handle with the same empty state for security
-        if (isAxiosError(error) && error.response?.status !== 403) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },
@@ -161,7 +161,6 @@ const SoftwareOSDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        {/* at this point, error can only be 403 per above handling */}
         {isOsVersionError ? (
           <DetailsNoHosts
             header="OS not detected"
