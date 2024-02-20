@@ -738,13 +738,10 @@ const ManagePolicyPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           {showTeamDescription ? (
-            <p>
-              Add additional policies for <b>all hosts assigned to this team</b>
-              .
-            </p>
+            <p>Add additional policies for all hosts assigned to this team.</p>
           ) : (
             <p>
-              Add policies for <b>all of your hosts</b> to see which pass your
+              Add policies for all of your hosts to see which pass your
               organization’s standards.
             </p>
           )}
