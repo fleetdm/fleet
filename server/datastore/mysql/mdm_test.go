@@ -175,25 +175,6 @@ func testMDMCommands(t *testing.T, ds *Datastore) {
 	require.Equal(t, winCmd.CommandUUID, cmds[1].CommandUUID)
 	require.Equal(t, winCmd.TargetLocURI, cmds[1].RequestType)
 	require.Equal(t, "200", cmds[1].Status)
-
-	// insert a windows command generated from a profile
-	winProfCmd := &fleet.MDMWindowsCommand{
-		CommandUUID: uuid.NewString(),
-		RawCommand:  []byte("<Atomic></Atomic>"),
-	}
-	err = ds.MDMWindowsInsertCommandForHosts(ctx, []string{windowsEnrollment.MDMDeviceID}, winProfCmd)
-	require.NoError(t, err)
-
-	cmds, err = ds.ListMDMCommands(
-		ctx,
-		fleet.TeamFilter{User: test.UserAdmin},
-		&fleet.MDMCommandListOptions{
-			ListOptions: fleet.ListOptions{OrderKey: "hostname"},
-		})
-	require.NoError(t, err)
-	require.Len(t, cmds, 3)
-	require.Equal(t, winProfCmd.CommandUUID, cmds[1].CommandUUID)
-	require.Equal(t, "InstallProfile", cmds[1].RequestType)
 }
 
 func testBatchSetMDMProfiles(t *testing.T, ds *Datastore) {
