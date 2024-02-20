@@ -719,6 +719,44 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	})
 }
 
+// WipeHostViaScript creates the script execution request and updates the
+// host_mdm_actions table in a single transaction.
+func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+	var res *fleet.HostScriptResult
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		res, err = newHostScriptExecutionRequest(ctx, request, tx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
+		}
+
+		// on duplicate we don't clear any other existing state because at this
+		// point in time, this is just a request to wipe the host that is recorded,
+		// it is pending execution, so if it was locked, it is still locked (so the
+		// lock_ref info must still be there).
+		const stmt = `
+	INSERT INTO host_mdm_actions
+	(
+		host_id,
+		wipe_ref
+	)
+	VALUES (?,?)
+	ON DUPLICATE KEY UPDATE
+		wipe_ref = VALUES(wipe_ref)
+	`
+
+		_, err = tx.ExecContext(ctx, stmt,
+			request.HostID,
+			res.ExecutionID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "wipe host via script update mdm actions")
+		}
+
+		return err
+	})
+}
+
 func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
 	const stmt = `
 	INSERT INTO host_mdm_actions
