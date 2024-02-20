@@ -163,6 +163,7 @@ export type HostMdmPendingAction = "unlock" | "lock" | "";
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  dep_profile_error?: boolean;
   name?: string;
   id?: number;
   server_url: string | null;

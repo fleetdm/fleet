@@ -9,6 +9,7 @@ import { IDeviceUser, IHost } from "interfaces/host";
 import Checkbox from "components/forms/fields/Checkbox";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
+import HostMdmStatusCell from "components/TableContainer/DataTable/HostMdmStatusCell/HostMdmStatusCell";
 import IssueCell from "components/TableContainer/DataTable/IssueCell/IssueCell";
 import LinkCell from "components/TableContainer/DataTable/LinkCell/LinkCell";
 import StatusIndicator from "components/StatusIndicator";
@@ -402,15 +403,7 @@ const allHostTableHeaders: IDataColumn[] = [
     disableSortBy: true,
     accessor: "mdm.enrollment_status",
     id: "mdm_enrollment_status",
-    Cell: (cellProps: ICellProps) => {
-      if (cellProps.row.original.platform === "chrome") {
-        return NotSupported;
-      }
-      if (cellProps.cell.value) {
-        return <TextCell value={cellProps.cell.value} />;
-      }
-      return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
-    },
+    Cell: HostMdmStatusCell,
   },
   {
     title: "MDM server URL",
