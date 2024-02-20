@@ -1,2 +1,0 @@
-Added fleetctl gitops command:
-- Synchronize Fleet configuration with provided file. This command is intended to be used in a GitOps workflow.

@@ -1,5 +1,0 @@
-* Return 405 when receiving `POST` requests on the root path.
-WARNING: 
-We found that misconfigured (empty `logger_tls_endpoint`) osquery instances were sending log results (`POST` requests) to the root path and Fleet was incorrectly returning HTTP 200 responses on such root path.
-This version will now return HTTP 405 (Method Not Allowed) when receiving `POST` requests on the root path so that this misconfiguration can be detected by administrators.
-If you deploy this version of Fleet and there's log traffic on the root path it could cause increased network usage on your infrastructure because osquery will retry sending the logs and these will accumulate (up to a limit configured by logger flags). Thus, before upgrading, make sure there's no osquery traffic (`POST` requests) to Fleet's root path.
