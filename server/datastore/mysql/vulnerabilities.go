@@ -16,44 +16,59 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 	var vuln fleet.VulnerabilityWithMetadata
 
 	eeSelectStmt := `
-		SELECT
-			vhc.cve,
-			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+		SELECT DISTINCT
+			cm.cve,
+			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
 			cm.published,
-			COALESCE(cm.description, '') AS description,
-			vhc.host_count,
-			vhc.updated_at as host_count_updated_at
-		FROM
-			vulnerability_host_counts vhc
-		LEFT JOIN cve_meta cm ON cm.cve = vhc.cve
-		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
-		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
-		WHERE vhc.cve = ?
-	`
-	eeGroupBy := " GROUP BY vhc.cve, source, cm.cvss_score, cm.epss_probability, cm.cisa_known_exploit, cm.published, description, vhc.host_count, host_count_updated_at"
+			cm.description,
+			COALESCE(vhc.host_count, 0) as host_count,
+			COALESCE(vhc.updated_at, NOW()) as host_count_updated_at
+		FROM cve_meta cm
+		JOIN (
+			SELECT cve
+			FROM software_cve
+			WHERE cve = ?
+			
+			UNION
+			
+			SELECT cve
+			FROM operating_system_vulnerabilities
+			WHERE cve = ?
+		) AS cve_table ON cm.cve = cve_table.cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = cm.cve
+		LEFT JOIN software_cve sc ON sc.cve = cm.cve
+		LEFT JOIN vulnerability_host_counts vhc ON cm.cve = vhc.cve
+`
 
 	freeSelectStmt := `
-		SELECT
-			vhc.cve,
-			MIN(COALESCE(osv.created_at, sc.created_at, NOW())) AS created_at,
+		SELECT DISTINCT
+			union_cve.cve,
+			COALESCE(LEAST(osv.created_at, sc.created_at), NOW()) AS created_at,
 			COALESCE(osv.source, sc.source, 0) AS source,
-			vhc.host_count,
-			vhc.updated_at as host_count_updated_at
-		FROM
-			vulnerability_host_counts vhc
-		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = vhc.cve
-		LEFT JOIN software_cve sc ON sc.cve = vhc.cve
-		WHERE vhc.cve = ?
+			COALESCE(vhc.host_count, 0) as host_count,
+			COALESCE(vhc.updated_at, NOW()) as host_count_updated_at
+		FROM (
+			SELECT cve, created_at, source
+			FROM operating_system_vulnerabilities
+			WHERE cve = ?
+			
+			UNION
+			
+			SELECT cve, created_at, source
+			FROM software_cve
+			WHERE cve = ?
+		) AS union_cve
+		LEFT JOIN operating_system_vulnerabilities osv ON osv.cve = union_cve.cve
+		LEFT JOIN software_cve sc ON sc.cve = union_cve.cve
+		LEFT JOIN vulnerability_host_counts vhc ON vhc.cve = union_cve.cve
 	`
 
-	freeGroupBy := " GROUP BY vhc.cve, source, vhc.host_count, host_count_updated_at"
-
 	var args []interface{}
-	args = append(args, cve)
+	args = append(args, cve, cve)
 
 	if teamID != nil {
 		eeSelectStmt += " AND vhc.team_id = ?"
@@ -63,9 +78,6 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		eeSelectStmt += " AND vhc.team_id = 0"
 		freeSelectStmt += " AND vhc.team_id = 0"
 	}
-
-	eeSelectStmt += eeGroupBy
-	freeSelectStmt += freeGroupBy
 
 	var selectStmt string
 	if includeCVEScores {
@@ -81,13 +93,24 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 		}
 		return nil, ctxerr.Wrap(ctx, err, "fetching vulnerability")
 	}
+
+	if vuln.HostCount == 0 {
+		var msg string
+		if teamID == nil {
+			msg = "global"
+		} else {
+			msg = fmt.Sprintf("team %d", *teamID)
+		}
+		return nil, ctxerr.Wrap(ctx, notFound(fmt.Sprintf("Vulnerability for %s", msg)).WithName(cve))
+	}
+
 	return &vuln, nil
 }
 
 func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
 	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
-	if err != nil {
-		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+	if err != nil && !fleet.IsNotFound(err) {
+		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
 	}
 
 	updatedAt = osvs.CountsUpdatedAt
@@ -108,7 +131,7 @@ func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *ui
 		if err == sql.ErrNoRows {
 			return nil, updatedAt, ctxerr.Wrap(ctx, notFound("Vulnerability").WithName(cve))
 		}
-		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS versions by CVE")
+		return vos, updatedAt, ctxerr.Wrap(ctx, err, "fetching OS version and resolved version by CVE")
 	}
 
 	for _, osv := range osvs.OSVersions {

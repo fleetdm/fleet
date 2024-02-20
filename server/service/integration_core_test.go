@@ -7425,10 +7425,10 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		LabelUpdatedAt:  time.Now(),
 		PolicyUpdatedAt: time.Now(),
 		SeenTime:        time.Now(),
-		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
-		UUID:            t.Name() + "2",
-		Hostname:        t.Name() + "foo2.local",
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo1.local",
 		PrimaryIP:       "192.168.1.2",
 		PrimaryMac:      "30-65-EC-6F-C4-59",
 		Platform:        "windows",
@@ -7474,12 +7474,40 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	})
 	require.NoError(t, err)
 
-	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
-	require.NoError(t, err)
-
 	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
 		SoftwareID: sw.ID,
 		CVE:        "CVE-2021-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+
+	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	res2, err := s.ds.UpdateHostSoftware(context.Background(), host2.ID, []fleet.Software{
+		{Name: "Firefox", Version: "0.0.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	sw2 := res2.Inserted[0]
+
+	// insert software vuln outside of host scope
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw2.ID,
+		CVE:        "CVE-2021-1236",
 	}, fleet.NVDSource)
 	require.NoError(t, err)
 
@@ -7502,6 +7530,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 			Published:        ptr.Time(mockTime),
 			Description:      "Test CVE 2021-1235",
 		},
+		{
+			CVE:              "CVE-2021-1236",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1236",
+		},
 	})
 	require.NoError(t, err)
 
@@ -7510,8 +7546,8 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
 	require.Empty(t, resp.Err)
-	require.Len(s.T(), resp.Vulnerabilities, 2)
-	require.Equal(t, resp.Count, uint(2))
+	require.Len(s.T(), resp.Vulnerabilities, 3)
+	require.Equal(t, resp.Count, uint(3))
 	require.False(t, resp.Meta.HasPreviousResults)
 	require.False(t, resp.Meta.HasNextResults)
 
@@ -7528,6 +7564,10 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 		"CVE-2021-1235": {
 			HostCount:   1,
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+		},
+		"CVE-2021-1236": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1236",
 		},
 	}
 
@@ -7567,6 +7607,16 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}
 
 	var gResp getVulnerabilityResponse
+	// invalid cve
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
+
+	// Valid CVE but not in team scope
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+
+	// Invalid TeamID
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+
+	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
 	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
