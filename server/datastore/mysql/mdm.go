@@ -61,7 +61,7 @@ SELECT
     wmc.command_uuid,
     COALESCE(NULLIF(wmcr.status_code, ''), 'Pending') as status,
     COALESCE(wmc.updated_at, wmc.created_at) as updated_at,
-	wmc.target_loc_uri as request_type,
+    wmc.target_loc_uri as request_type,
     h.hostname,
     h.team_id
 FROM windows_mdm_commands wmc
@@ -82,6 +82,7 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
+
 	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand

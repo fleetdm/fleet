@@ -1451,10 +1451,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// make the new Apple host a member of labels[0] and [1]
 	// make the new Windows host a member of labels[3] and [4]
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[0].ID, darwinHosts[3].ID},
-		{labels[1].ID, darwinHosts[3].ID},
-		{labels[3].ID, windowsHosts[3].ID},
-		{labels[4].ID, windowsHosts[3].ID},
+		{labels[0].ID, darwinHosts[3].ID}, {labels[1].ID, darwinHosts[3].ID},
+		{labels[3].ID, windowsHosts[3].ID}, {labels[4].ID, windowsHosts[3].ID},
 	})
 	require.NoError(t, err)
 
@@ -1518,18 +1516,10 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// make the darwinHosts[2] host a member of all labels
 	// make the windowsHosts[2] host a member of all labels
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[0].ID, darwinHosts[2].ID},
-		{labels[1].ID, darwinHosts[2].ID},
-		{labels[2].ID, darwinHosts[2].ID},
-		{labels[3].ID, darwinHosts[2].ID},
-		{labels[4].ID, darwinHosts[2].ID},
-		{labels[5].ID, darwinHosts[2].ID},
-		{labels[0].ID, windowsHosts[2].ID},
-		{labels[1].ID, windowsHosts[2].ID},
-		{labels[2].ID, windowsHosts[2].ID},
-		{labels[3].ID, windowsHosts[2].ID},
-		{labels[4].ID, windowsHosts[2].ID},
-		{labels[5].ID, windowsHosts[2].ID},
+		{labels[0].ID, darwinHosts[2].ID}, {labels[1].ID, darwinHosts[2].ID}, {labels[2].ID, darwinHosts[2].ID},
+		{labels[3].ID, darwinHosts[2].ID}, {labels[4].ID, darwinHosts[2].ID}, {labels[5].ID, darwinHosts[2].ID},
+		{labels[0].ID, windowsHosts[2].ID}, {labels[1].ID, windowsHosts[2].ID}, {labels[2].ID, windowsHosts[2].ID},
+		{labels[3].ID, windowsHosts[2].ID}, {labels[4].ID, windowsHosts[2].ID}, {labels[5].ID, windowsHosts[2].ID},
 	})
 	require.NoError(t, err)
 
@@ -1663,10 +1653,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 	// update darwin/windows[2] so they are not members of labels[1][2] and [4][5], which
 	// should remove the G7 label-based profile, but not G6 as it is broken.
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, darwinHosts[2].ID},
-		{labels[2].ID, darwinHosts[2].ID},
-		{labels[4].ID, windowsHosts[2].ID},
-		{labels[5].ID, windowsHosts[2].ID},
+		{labels[1].ID, darwinHosts[2].ID}, {labels[2].ID, darwinHosts[2].ID},
+		{labels[4].ID, windowsHosts[2].ID}, {labels[5].ID, windowsHosts[2].ID},
 	})
 	require.NoError(t, err)
 
@@ -1871,10 +1859,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// make darwinHosts[1] and windowsHosts[1] members of the required labels
 	err = ds.AsyncBatchInsertLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, darwinHosts[1].ID},
-		{labels[2].ID, darwinHosts[1].ID},
-		{labels[4].ID, windowsHosts[1].ID},
-		{labels[5].ID, windowsHosts[1].ID},
+		{labels[1].ID, darwinHosts[1].ID}, {labels[2].ID, darwinHosts[1].ID},
+		{labels[4].ID, windowsHosts[1].ID}, {labels[5].ID, windowsHosts[1].ID},
 	})
 	require.NoError(t, err)
 
@@ -2005,10 +1991,8 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 
 	// remove team 2 hosts membership from labels
 	err = ds.AsyncBatchDeleteLabelMembership(ctx, [][2]uint{
-		{labels[1].ID, darwinHosts[1].ID},
-		{labels[2].ID, darwinHosts[1].ID},
-		{labels[4].ID, windowsHosts[1].ID},
-		{labels[5].ID, windowsHosts[1].ID},
+		{labels[1].ID, darwinHosts[1].ID}, {labels[2].ID, darwinHosts[1].ID},
+		{labels[4].ID, windowsHosts[1].ID}, {labels[5].ID, windowsHosts[1].ID},
 	})
 	require.NoError(t, err)
 
