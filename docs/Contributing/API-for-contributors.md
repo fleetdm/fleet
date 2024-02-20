@@ -1412,6 +1412,33 @@ If the `label_membership_type` is set to `manual`, the `hosts` property must als
 
 `Status: 200`
 
+### Update labels
+
+Updates existing labels. You must specify `name` properties and other properties that are changing. If the `label_membership_type` is set to `dynamic`, the `query` property can't be updated.
+
+`PATCH /api/v1/fleet/spec/labels`
+
+#### Example
+
+`PATCH /api/v1/fleet/spec/labels`
+
+##### Request body
+
+```json
+{
+  "specs": [
+    {
+      "name": "local_machine",
+      "hosts": ["8B0B5F5D", "098EDF26", "115E876A"]
+    }
+  ]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
 ### Get labels
 
 `GET /api/v1/fleet/spec/labels`
