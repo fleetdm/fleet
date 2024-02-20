@@ -396,11 +396,11 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 
 	switch wipeStatus.HostFleetPlatform {
 	case "darwin":
-		// TODO(mna): must update host_mdm_actions accordingly...
 		wipeCommandUUID := uuid.NewString()
-		if err := svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, wipeCommandUUID); err != nil {
+		if err := svc.mdmAppleCommander.EraseDevice(ctx, host, wipeCommandUUID); err != nil {
 			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for darwin")
 		}
+
 	case "windows":
 		panic("unimplemented")
 	case "linux":

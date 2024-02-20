@@ -118,7 +118,7 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 	return nil
 }
 
-func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error {
+func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
 	// TODO(mna): do we need this PIN, and if so should it be saved somewhere? It
 	// doesn't appear in the Wipe host's spec/figma like we need one and it
 	// doesn't look like it is required by Apple:
@@ -144,7 +144,21 @@ func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, hostUUIDs []strin
     </dict>
   </dict>
 </plist>`, uuid, pin)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+
+	cmd, err := mdm.DecodeCommand([]byte(raw))
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "decoding command")
+	}
+
+	if err := svc.storage.EnqueueDeviceWipeCommand(ctx, host, cmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "enqueuing for DeviceWipe")
+	}
+
+	if err := svc.sendNotifications(ctx, []string{host.UUID}); err != nil {
+		return ctxerr.Wrap(ctx, err, "sending notifications for DeviceWipe")
+	}
+
+	return nil
 }
 
 func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error {

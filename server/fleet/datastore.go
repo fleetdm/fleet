@@ -1296,6 +1296,7 @@ type Datastore interface {
 type MDMAppleStore interface {
 	storage.AllStorage
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
+	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

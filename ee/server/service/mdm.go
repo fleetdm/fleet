@@ -139,7 +139,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 		return err
 	}
 
-	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
