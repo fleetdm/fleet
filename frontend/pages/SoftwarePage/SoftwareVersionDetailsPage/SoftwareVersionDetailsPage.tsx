@@ -4,7 +4,7 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError } from "axios";
+import { AxiosError, isAxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -21,7 +21,6 @@ import hostsCountAPI, {
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
 
 import Spinner from "components/Spinner";
-import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 import TeamsHeader from "components/TeamsHeader";
 import Card from "components/Card";
@@ -78,7 +77,13 @@ const SoftwareVersionDetailsPage = ({
     ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
       select: (data) => data.software,
-      onError: (error) => handlePageError(error),
+      onError: (error) => {
+        // 403s returned for both non-existent and non-accessable entities
+        // which we intentionally handle with the same empty state for security
+        if (isAxiosError(error) && error.response?.status !== 403) {
+          handlePageError(error);
+        }
+      },
     }
   );
 
@@ -109,11 +114,7 @@ const SoftwareVersionDetailsPage = ({
       return <Spinner />;
     }
 
-    if (isSoftwareVersionError) {
-      return <TableDataError className={`${baseClass}__table-error`} />;
-    }
-
-    if (!softwareVersion) {
+    if (!softwareVersion && !isSoftwareVersionError) {
       return null;
     }
 
@@ -127,18 +128,8 @@ const SoftwareVersionDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        <SoftwareDetailsSummary
-          title={`${softwareVersion.name}, ${softwareVersion.version}`}
-          type={formatSoftwareType(softwareVersion)}
-          hosts={hostsCount ?? 0}
-          queryParams={{
-            software_version_id: softwareVersion.id,
-            team_id: teamIdForApi,
-          }}
-          name={softwareVersion.name}
-          source={softwareVersion.source}
-        />
-        {softwareVersion.hosts_count === 0 ? (
+        {/* at this point, error can only be 403 per above handling */}
+        {isSoftwareVersionError ? (
           <DetailsNoHosts
             header="Software not detected"
             details={`No hosts ${
@@ -146,20 +137,33 @@ const SoftwareVersionDetailsPage = ({
             }have this software installed.`}
           />
         ) : (
-          <Card
-            borderRadiusSize="large"
-            includeShadow
-            className={`${baseClass}__vulnerabilities-section`}
-          >
-            <h2 className="section__header">Vulnerabilities</h2>
-            <SoftwareVulnerabilitiesTable
-              data={softwareVersion.vulnerabilities ?? []}
-              itemName="software item"
-              isLoading={isSoftwareVersionLoading}
-              router={router}
-              teamIdForApi={teamIdForApi}
+          <>
+            <SoftwareDetailsSummary
+              title={`${softwareVersion.name}, ${softwareVersion.version}`}
+              type={formatSoftwareType(softwareVersion)}
+              hosts={hostsCount ?? 0}
+              queryParams={{
+                software_version_id: softwareVersion.id,
+                team_id: teamIdForApi,
+              }}
+              name={softwareVersion.name}
+              source={softwareVersion.source}
             />
-          </Card>
+            <Card
+              borderRadiusSize="large"
+              includeShadow
+              className={`${baseClass}__vulnerabilities-section`}
+            >
+              <h2 className="section__header">Vulnerabilities</h2>
+              <SoftwareVulnerabilitiesTable
+                data={softwareVersion.vulnerabilities ?? []}
+                itemName="software item"
+                isLoading={isSoftwareVersionLoading}
+                router={router}
+                teamIdForApi={teamIdForApi}
+              />
+            </Card>
+          </>
         )}
       </>
     );
