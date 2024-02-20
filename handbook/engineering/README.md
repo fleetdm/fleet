@@ -292,7 +292,7 @@ At Fleet, we take customer incidents very seriously. After working with customer
 At Fleet, we do postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
 - **Postmortem documentation**
-Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation. 
+Before running the postmortem meeting, copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation. 
 
 - **Postmortem meeting**
 Invite all stakeholders, typically the team involved and QA representatives.
