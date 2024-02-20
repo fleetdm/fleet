@@ -45,7 +45,7 @@ func VersionHandler(version string) http.HandlerFunc {
 	bodyBytes := []byte(`{"version":"` + version + `"}`)
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Write(bodyBytes)
+		_, _ = w.Write(bodyBytes)
 	}
 }
 

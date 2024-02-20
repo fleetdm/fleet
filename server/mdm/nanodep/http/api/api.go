@@ -13,5 +13,5 @@ func jsonError(w http.ResponseWriter, err error) {
 	}{Err: err.Error()}
 	w.Header().Set("Content-type", "application/json")
 	w.WriteHeader(http.StatusInternalServerError)
-	json.NewEncoder(w).Encode(jsonErr)
+	_ = json.NewEncoder(w).Encode(jsonErr)
 }

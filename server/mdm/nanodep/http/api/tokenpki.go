@@ -57,7 +57,7 @@ func GetCertTokenPKIHandler(store TokenPKIStorer, logger log.Logger) http.Handle
 		}
 		w.Header().Set("Content-Type", "application/x-pem-file")
 		w.Header().Set("Content-Disposition", `attachment; filename="`+r.URL.Path+`.pem"`)
-		w.Write(pemCert)
+		_, _ = w.Write(pemCert)
 	}
 }
 

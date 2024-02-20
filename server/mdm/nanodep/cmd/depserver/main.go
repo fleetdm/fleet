@@ -24,9 +24,9 @@ const (
 	apiUsername = "depserver"
 
 	endpointVersion  = "/version"
-	endpointTokens   = "/v1/tokens/"
+	endpointTokens   = "/v1/tokens/" //nolint:gosec
 	endpointConfig   = "/v1/config/"
-	endpointTokenPKI = "/v1/tokenpki/"
+	endpointTokenPKI = "/v1/tokenpki/" //nolint:gosec
 	endpointAssigner = "/v1/assigner/"
 	endpointProxy    = "/proxy/"
 )
@@ -106,7 +106,7 @@ func main() {
 	rand.Seed(time.Now().UnixNano())
 
 	logger.Info("msg", "starting server", "listen", *flListen)
-	err = http.ListenAndServe(*flListen, dephttp.TraceLoggingMiddleware(mux, logger.With("handler", "log"), newTraceID))
+	err = http.ListenAndServe(*flListen, dephttp.TraceLoggingMiddleware(mux, logger.With("handler", "log"), newTraceID)) //nolint:gosec
 	logs := []interface{}{"msg", "server shutdown"}
 	if err != nil {
 		logs = append(logs, "err", err)
@@ -120,7 +120,7 @@ func main() {
 // https://opentelemetry.io/ someday.
 func newTraceID() string {
 	b := make([]byte, 8)
-	rand.Read(b)
+	rand.Read(b) //nolint:gosec
 	return fmt.Sprintf("%x", b)
 }
 

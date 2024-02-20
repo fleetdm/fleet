@@ -44,7 +44,7 @@ func newErrorHandler(logger log.Logger) func(http.ResponseWriter, *http.Request,
 			)
 			// write the same body content to try and give some clue of what
 			// happened to the proxy user
-			rw.Write([]byte(depErr.Body))
+			_, _ = rw.Write(depErr.Body)
 			return
 		}
 

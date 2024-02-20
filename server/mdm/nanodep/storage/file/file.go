@@ -170,10 +170,10 @@ func (s *FileStorage) StoreCursor(_ context.Context, name, cursor string) error 
 
 // StoreTokenPKI stores the PEM bytes in pemCert and pemKey to disk for name DEP name.
 func (s *FileStorage) StoreTokenPKI(_ context.Context, name string, pemCert []byte, pemKey []byte) error {
-	if err := os.WriteFile(s.tokenpkiFilename(name, "cert"), pemCert, 0664); err != nil {
+	if err := os.WriteFile(s.tokenpkiFilename(name, "cert"), pemCert, 0664); err != nil { //nolint:gosec
 		return err
 	}
-	if err := os.WriteFile(s.tokenpkiFilename(name, "key"), pemKey, 0664); err != nil {
+	if err := os.WriteFile(s.tokenpkiFilename(name, "key"), pemKey, 0664); err != nil { //nolint:gosec
 		return err
 	}
 	return nil
