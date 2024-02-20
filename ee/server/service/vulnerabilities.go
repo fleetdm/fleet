@@ -8,7 +8,7 @@ import (
 
 var eeValidVulnSortColumns = []string{
 	"cve",
-	"host_count",
+	"hosts_count",
 	"created_at",
 	"cvss_score",
 	"epss_probability",

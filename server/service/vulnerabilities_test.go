@@ -24,8 +24,8 @@ func TestListVulnerabilities(t *testing.T) {
 					CVE:         "CVE-2019-1234",
 					Description: "A vulnerability",
 				},
-				CreatedAt: time.Now(),
-				HostCount: 10,
+				CreatedAt:  time.Now(),
+				HostsCount: 10,
 			},
 		}, nil, nil
 	}
