@@ -78,8 +78,10 @@ const SoftwareVersionDetailsPage = ({
     {
       select: (data) => data.software,
       onError: (error) => {
-        if (isAxiosError(error) && ) {
+        if (
+          isAxiosError(error) &&
           ![403, 404].includes(error.response?.status ?? 0)
+        ) {
           handlePageError(error);
         }
       },
