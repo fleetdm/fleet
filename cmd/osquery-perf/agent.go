@@ -240,7 +240,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logz: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
