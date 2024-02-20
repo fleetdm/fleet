@@ -215,13 +215,13 @@ Fleet records the last 10,000 characters to prevent downtime.
 			if ident != "host1" || c.expectNotFound {
 				return nil, &notFoundError{}
 			}
-			return &fleet.Host{ID: 42, SeenTime: time.Now()}, nil
+			return &fleet.Host{ID: 42, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}, nil
 		}
 		ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 			if hid != 42 || c.expectNotFound {
 				return nil, &notFoundError{}
 			}
-			h := fleet.Host{ID: hid, SeenTime: time.Now()}
+			h := fleet.Host{ID: hid, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}
 			if c.expectOffline {
 				h.SeenTime = time.Now().Add(-time.Hour)
 			}
