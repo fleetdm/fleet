@@ -37,7 +37,14 @@ const HostActivityItem = ({
   const { gravatar_url } = actor_email
     ? addGravatarUrlToResource({ email: actor_email })
     : { gravatar_url: DEFAULT_GRAVATAR_LINK };
-  const activityCreatedAt = new Date(activity.created_at);
+
+  // wrapped just in case the date string does not parse correctly
+  let activityCreatedAt: Date | null = null;
+  try {
+    activityCreatedAt = new Date(activity.created_at);
+  } catch (e) {
+    activityCreatedAt = null;
+  }
 
   const classNames = classnames(baseClass, className);
 
@@ -60,20 +67,23 @@ const HostActivityItem = ({
             data-tip
             data-for={`activity-${activity.id}`}
           >
-            {formatDistanceToNowStrict(activityCreatedAt, {
-              addSuffix: true,
-            })}
+            {activityCreatedAt &&
+              formatDistanceToNowStrict(activityCreatedAt, {
+                addSuffix: true,
+              })}
           </span>
-          <ReactTooltip
-            className="date-tooltip"
-            place="top"
-            type="dark"
-            effect="solid"
-            id={`activity-${activity.id}`}
-            backgroundColor={COLORS["tooltip-bg"]}
-          >
-            {internationalTimeFormat(activityCreatedAt)}
-          </ReactTooltip>
+          {activityCreatedAt && (
+            <ReactTooltip
+              className="date-tooltip"
+              place="top"
+              type="dark"
+              effect="solid"
+              id={`activity-${activity.id}`}
+              backgroundColor={COLORS["tooltip-bg"]}
+            >
+              {internationalTimeFormat(activityCreatedAt)}
+            </ReactTooltip>
+          )}
         </div>
       </div>
       <div className={`${baseClass}__dash`} />

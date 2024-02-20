@@ -11,7 +11,7 @@ const baseClass = "show-details-button";
 
 interface IShowDetailsButtonProps {
   activity: IActivity;
-  onShowDetails?: ShowActivityDetailsHandler;
+  onShowDetails: ShowActivityDetailsHandler;
 }
 
 const ShowDetailsButton = ({

@@ -12,16 +12,21 @@ import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 
-/** the component props that all host activity items must adhere to */
+/** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
   activity: IPastActivity;
-  // TODO: two types, one for optional and one for required onShowDetails.
-  onShowDetails?: ShowActivityDetailsHandler;
+}
+
+/** Used for activity items component that need a show details handler */
+export interface IHostActivityItemComponentPropsWithShowDetails
+  extends IHostActivityItemComponentProps {
+  onShowDetails: ShowActivityDetailsHandler;
 }
 
 export const pastActivityComponentMap: Record<
   IHostPastActivityType,
-  React.FC<IHostActivityItemComponentProps>
+  | React.FC<IHostActivityItemComponentProps>
+  | React.FC<IHostActivityItemComponentPropsWithShowDetails>
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,

@@ -3,7 +3,7 @@ import React from "react";
 import { formatScriptNameForActivityItem } from "utilities/helpers";
 
 import HostActivityItem from "../../HostActivityItem";
-import { IHostActivityItemComponentProps } from "../../ActivityConfig";
+import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityConfig";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
 const baseClass = "ran-script-activity-item";
@@ -11,7 +11,7 @@ const baseClass = "ran-script-activity-item";
 const RanScriptActivityItem = ({
   activity,
   onShowDetails,
-}: IHostActivityItemComponentProps) => {
+}: IHostActivityItemComponentPropsWithShowDetails) => {
   return (
     <HostActivityItem className={baseClass} activity={activity}>
       <b>{activity.actor_full_name}</b>
