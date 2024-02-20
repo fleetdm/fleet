@@ -17,6 +17,7 @@ import (
 	"net"
 	"net/http"
 	_ "net/http/pprof"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -1659,7 +1660,19 @@ func scheduledQueryResults(packName, queryName string, numResults int) json.RawM
 
 func (a *agent) submitLogs(results []resultLog) error {
 	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	conn, err := net.Dial("tcp", strings.TrimPrefix(strings.TrimPrefix(a.serverAddress, "https://"), "http://"))
+	serverAddress, err := url.Parse(a.serverAddress)
+	if err != nil {
+		panic(err)
+	}
+	tcpAddr := serverAddress.Host
+	if serverAddress.Port() == "" {
+		if serverAddress.Scheme == "https" {
+			tcpAddr = serverAddress.Host + ":" + "443"
+		} else { // http://
+			tcpAddr = serverAddress.Host + ":" + "80"
+		}
+	}
+	conn, err := net.Dial("tcp", tcpAddr)
 	if err != nil {
 		return err
 	}
