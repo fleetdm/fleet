@@ -233,7 +233,7 @@ Within 60 days of the end of the year, follow these steps:
 - A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
 - BizOps will upgrade or add the license seat as needed and let the requesting team member know they did it.
 
-### Downgrading unused license seats
+### Downgrade an unused license seat
 - On the first Wednesday of every quarter, the CEO, head of BizOps and apprentice to the CEO will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
 - During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
 - Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
