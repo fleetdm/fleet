@@ -3,10 +3,6 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IVulnerability } from "interfaces/vulnerability";
 import { buildQueryStringFromParams } from "utilities/url";
-import {
-  createMockVulnerabilitiesResponse,
-  createMockVulnerabilityResponse,
-} from "__mocks__/vulnerabilitiesMock";
 
 export interface IGetVulnerabilitiesQueryParams {
   teamId?: number;
@@ -70,10 +66,7 @@ export const getVulnerabilities = ({
 
   if (queryString) path += `?${queryString}`;
 
-  // return sendRequest("GET", path); // TODO: API INTEGRATION: uncomment when API is ready
-  return new Promise((resolve, reject) => {
-    resolve(createMockVulnerabilitiesResponse());
-  });
+  return sendRequest("GET", path);
 };
 
 const getVulnerability = ({
@@ -83,10 +76,7 @@ const getVulnerability = ({
   const endpoint = endpoints.VULNERABILITY(cve);
   const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
-  // return sendRequest("GET", path); // TODO: API INTEGRATION: uncomment when API is ready
-  return new Promise((resolve, reject) => {
-    resolve(createMockVulnerabilityResponse());
-  });
+  return sendRequest("GET", path);
 };
 
 export default {
