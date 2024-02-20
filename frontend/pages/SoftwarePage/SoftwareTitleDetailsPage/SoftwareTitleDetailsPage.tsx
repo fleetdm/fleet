@@ -75,9 +75,9 @@ const SoftwareTitleDetailsPage = ({
     {
       select: (data) => data.software_title,
       onError: (error) => {
-        // 404s returned for both non-existent and non-accessable entities
+        // 403s returned for both non-existent and non-accessable entities
         // which we intentionally handle with the same empty state for security
-        if (isAxiosError(error) && error.response?.status !== 404) {
+        if (isAxiosError(error) && error.response?.status !== 403) {
           handlePageError(error);
         }
       },
@@ -109,7 +109,7 @@ const SoftwareTitleDetailsPage = ({
             onTeamChange={onTeamChange}
           />
         )}
-        {/* at this point, error can only be 404 per above handling */}
+        {/* at this point, error can only be 403 per above handling */}
         {isSoftwareTitleError ? (
           <DetailsNoHosts
             header="Software not detected"
