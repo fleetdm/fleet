@@ -3185,6 +3185,7 @@ This report includes a subset of host vitals, and simplified policy and vulnerab
     "updated_at": "2023-09-16T18:52:19Z",
     "os_version": "CentOS Linux 8.3.2011",
     "disk_encryption_enabled": true,
+    "failing_policies_count": 1,
     "failing_critical_policies_count": 1, // Fleet Premium only
     "failing_policies": [
       {
