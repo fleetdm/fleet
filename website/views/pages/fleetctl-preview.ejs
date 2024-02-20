@@ -26,10 +26,7 @@
       <div v-if="selectedPlatform === 'macos'">
         <div purpose="numbered-steps">
           <div purpose="step">
-              <div class="d-flex flex-row justify-content-between">
-                <p>Install the <code>fleetctl</code> command line tool:</p>
-                <a purpose="view-script-link" href="/resources/install-fleet.sh" download="install-fleet.sh" target="_blank"> View script <img src="/images/icon-external-link-13x13@2x.png" alt="view script"></a>
-              </div>
+              <p>Install the <code>fleetctl</code> command line tool:</p>
               <div purpose="terminal-commands"> <p>curl -SsLO https://fleetdm.com/resources/install-fleet.sh -o install_fleet.sh && shasum -a 256 install_fleet.sh</p></div>
           </div>
           <div purpose="step">
@@ -47,10 +44,7 @@
       <div v-else-if="selectedPlatform === 'linux'">
         <div purpose="numbered-steps">
           <div purpose="step">
-              <div class="d-flex flex-row justify-content-between">
-                <p>Install the <code>fleetctl</code> command line tool:</p>
-                <a purpose="view-script-link" href="/resources/install-fleet.sh" download="install-fleet.sh" target="_blank"> View script <img src="/images/icon-external-link-13x13@2x.png" alt="view script"></a>
-              </div>
+              <p>Install the <code>fleetctl</code> command line tool:</p>
               <div purpose="terminal-commands"> <p>curl -SsLO https://fleetdm.com/resources/install-fleet.sh -o install_fleet.sh && shasum -a 256 install_fleet.sh</p></div>
           </div>
           <div purpose="step">
@@ -68,9 +62,7 @@
       <div v-else-if="selectedPlatform === 'windows'">
         <div purpose="numbered-steps">
           <div purpose="step">
-              <div class="d-flex flex-row justify-content-between">
-                <p>Install the <code>fleetctl</code> command line tool:</p>
-              </div>
+              <p>Install the <code>fleetctl</code> command line tool:</p>
               <div purpose="terminal-commands"><p>for /f "tokens=1,* delims=:" %a in ('curl -s https://api.github.com/repos/fleetdm/fleet/releases/latest ^| findstr "browser_download_url" ^| findstr "_windows.zip"') do (curl -kOL %b) && if not exist "%USERPROFILE%\.fleetctl" mkdir "%USERPROFILE%\.fleetctl" && for /f "delims=" %a in ('dir /b fleetctl_*_windows.zip') do tar -xf "%a" --strip-components=1 -C "%USERPROFILE%\.fleetctl" && del "%a"</p></div>
           </div>
           <div purpose="step">
@@ -95,10 +87,8 @@
             </a>
           </div>
           <div purpose="step">
-              <div class="d-flex flex-row justify-content-between">
-                <p>Install the <code>fleetctl</code> command line tool:</p>
-              </div>
-              <div purpose="terminal-commands"> <p>npm install fleetctl -g</p></div>
+            <p>Install the <code>fleetctl</code> command line tool:</p>
+            <div purpose="terminal-commands"> <p>npm install fleetctl -g</p></div>
           </div>
           <div purpose="step">
             <p>Run a local demo of the Fleet server:</p>
