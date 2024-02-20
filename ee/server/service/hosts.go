@@ -55,10 +55,6 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO(mna): error messages are subtly different in the figma for CLI and
-	// UI, they should be the same as they come from the same place (the API).
-	// I used the CLI messages for the implementation.
-
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin":
@@ -94,7 +90,6 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		}
 
 	default:
-		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
@@ -161,7 +156,6 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		}
 
 	default:
-		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
@@ -299,6 +293,27 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	}
 
 	return unlockPIN, nil
+}
+
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement and is what happens for macOS platforms.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	panic("unimplemented")
 }
 
 // TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
