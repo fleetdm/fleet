@@ -181,8 +181,6 @@ github.com/fleetdm/fleet/v4 v4.28.1-0.20230412210146-4e9e8d82e349 h1:+SThTToDqlL
 github.com/fleetdm/fleet/v4 v4.28.1-0.20230412210146-4e9e8d82e349/go.mod h1:P/MT3a24GacjGf/JJRk7O+xE/w2gH6hcSnsdO0Zn3Oo=
 github.com/fleetdm/goose v0.0.0-20221011182040-1d76b1817fd7 h1:AO4VyGsaVCPDt/Tc6uajsQvLDTWJx9XicERbUdCSPfQ=
 github.com/fleetdm/goose v0.0.0-20221011182040-1d76b1817fd7/go.mod h1:d7Q+0eCENnKQUhkfAUVLfGnD4QcgJMF/uB9WRTN9TDI=
-github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24 h1:XhczaxKV3J4NjztroidSnYKyq5xtxF+amBYdBWeik58=
-github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03 h1:oW24iL1GfGWW1VhyWrVdw7VdnyvFePyzR88zvfnTqCo=
 github.com/fleetdm/scep/v2 v2.1.1-0.20220729212655-4f19f0a10a03/go.mod h1:PajjVSF3LaELUh847MlOtanfqrF8R2DOO4oS3NSPemI=
 github.com/fortytw2/leaktest v1.3.0 h1:u8491cBMTQ8ft8aeV+adlcytMZylmA5nnwwkRZjI8vw=
@@ -541,6 +539,8 @@ github.com/matttproud/golang_protobuf_extensions v1.0.4 h1:mmDVorXM7PCGKw94cs5zk
 github.com/matttproud/golang_protobuf_extensions v1.0.4/go.mod h1:BSXmuO+STAnVfrANrmjBb36TMTDstsz7MSK+HVaYKv4=
 github.com/micromdm/micromdm v1.9.0 h1:FAsIKOpnGcq21UQCrHCUxZwSW4NwBLGOoUtzbURxds8=
 github.com/micromdm/micromdm v1.9.0/go.mod h1:YsAtsEvfEIwpjYTUPpWkJXSfH0hhp9mMHW1BgIZgRt8=
+github.com/micromdm/nanodep v0.2.1 h1:AgsX3ntRvGKv2tvC4Mhosy3peji8m5WKxRRSjSEiXg8=
+github.com/micromdm/nanodep v0.2.1/go.mod h1:QzQrCUTmSr9HotzKZAcfmy+czbEGK8Mq26hA+0DN4ag=
 github.com/micromdm/nanomdm v0.3.0 h1:njAC9+sQy9SpgyZhyVAJYzhRD7dt4pv7m9Z8wlUIY2o=
 github.com/micromdm/nanomdm v0.3.0/go.mod h1:03+qFjfaTE6Ye9QvrHfhCKgqjSVSeWzdfNHXCIFRrLg=
 github.com/miekg/dns v1.1.50 h1:DQUfb9uc6smULcREF09Uc+/Gd46YWqJd5DbpPE9xkcA=
