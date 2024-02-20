@@ -16,8 +16,8 @@ import (
 	"strings"
 	"time"
 
-	scepclient "github.com/micromdm/scep/v2/client"
-	"github.com/micromdm/scep/v2/scep"
+	scepclient "github.com/fleetdm/fleet/v4/server/mdm/scep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -202,7 +202,7 @@ func run(cfg runCfg) error {
 	}
 
 	respCert := respMsg.CertRepMessage.Certificate
-	if err := ioutil.WriteFile(cfg.certPath, pemCert(respCert.Raw), 0666); err != nil {
+	if err := ioutil.WriteFile(cfg.certPath, pemCert(respCert.Raw), 0o666); err != nil {
 		return err
 	}
 
@@ -234,10 +234,11 @@ func logCerts(logger log.Logger, certs []*x509.Certificate) {
 
 // validateFingerprint makes sure fingerprint looks like a hash.
 // We remove spaces and colons from fingerprint as it may come in various forms:
-//     e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
-//     E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
-//     e3b0c442 98fc1c14 9afbf4c8 996fb924 27ae41e4 649b934c a495991b 7852b855
-//     e3:b0:c4:42:98:fc:1c:14:9a:fb:f4:c8:99:6f:b9:24:27:ae:41:e4:64:9b:93:4c:a4:95:99:1b:78:52:b8:55
+//
+//	e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+//	E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855
+//	e3b0c442 98fc1c14 9afbf4c8 996fb924 27ae41e4 649b934c a495991b 7852b855
+//	e3:b0:c4:42:98:fc:1c:14:9a:fb:f4:c8:99:6f:b9:24:27:ae:41:e4:64:9b:93:4c:a4:95:99:1b:78:52:b8:55
 func validateFingerprint(fingerprint string) (hash []byte, err error) {
 	fingerprint = strings.NewReplacer(" ", "", ":", "").Replace(fingerprint)
 	hash, err = hex.DecodeString(fingerprint)

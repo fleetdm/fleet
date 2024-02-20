@@ -5,9 +5,9 @@ import (
 	"os"
 	"testing"
 
-	challengestore "github.com/micromdm/scep/v2/challenge/bolt"
-	"github.com/micromdm/scep/v2/scep"
-	scepserver "github.com/micromdm/scep/v2/server"
+	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
 	"github.com/boltdb/bolt"
 )
@@ -78,7 +78,6 @@ func TestDynamicChallenge(t *testing.T) {
 	if err == nil {
 		t.Error("challenge should not be valid twice")
 	}
-
 }
 
 func openTempBolt(prefix string) (*bolt.DB, error) {

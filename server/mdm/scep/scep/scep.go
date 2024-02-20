@@ -12,8 +12,8 @@ import (
 	"encoding/asn1"
 	"encoding/base64"
 
-	"github.com/micromdm/scep/v2/cryptoutil"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -85,7 +85,6 @@ const (
 // reasons:
 type FailInfo string
 
-//
 const (
 	BadAlg          FailInfo = "0"
 	BadMessageCheck          = "1"
@@ -448,7 +447,6 @@ func (msg *PKIMessage) Fail(crtAuth *x509.Certificate, keyAuth *rsa.PrivateKey, 
 	}
 
 	return crepMsg, nil
-
 }
 
 // Success returns a new PKIMessage with CertRep data using an already-issued certificate

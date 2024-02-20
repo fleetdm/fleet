@@ -14,12 +14,12 @@ import (
 	"strconv"
 	"syscall"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/csrverifier"
+	executablecsrverifier "github.com/fleetdm/fleet/v4/server/mdm/scep/csrverifier/executable"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
-	"github.com/micromdm/scep/v2/csrverifier"
-	executablecsrverifier "github.com/micromdm/scep/v2/csrverifier/executable"
-	scepdepot "github.com/micromdm/scep/v2/depot"
-	"github.com/micromdm/scep/v2/depot/file"
-	scepserver "github.com/micromdm/scep/v2/server"
 
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -31,7 +31,7 @@ var (
 )
 
 func main() {
-	var caCMD = flag.NewFlagSet("ca", flag.ExitOnError)
+	caCMD := flag.NewFlagSet("ca", flag.ExitOnError)
 	{
 		if len(os.Args) >= 2 {
 			if os.Args[1] == "ca" {
@@ -41,7 +41,7 @@ func main() {
 		}
 	}
 
-	//main flags
+	// main flags
 	var (
 		flVersion           = flag.Bool("version", false, "prints version information")
 		flHTTPAddr          = flag.String("http-addr", envString("SCEP_HTTP_ADDR", ""), "http listen address. defaults to \":8080\"")
@@ -221,11 +221,11 @@ func caMain(cmd *flag.FlagSet) int {
 // create a key, save it to depot and return it for further usage.
 func createKey(bits int, password []byte, depot string) (*rsa.PrivateKey, error) {
 	// create depot folder if missing
-	if err := os.MkdirAll(depot, 0755); err != nil {
+	if err := os.MkdirAll(depot, 0o755); err != nil {
 		return nil, err
 	}
 	name := filepath.Join(depot, "ca.key")
-	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0400)
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o400)
 	if err != nil {
 		return nil, err
 	}
@@ -268,7 +268,7 @@ func createCertificateAuthority(key *rsa.PrivateKey, years int, commonName strin
 	}
 
 	name := filepath.Join(depot, "ca.pem")
-	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0400)
+	file, err := os.OpenFile(name, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o400)
 	if err != nil {
 		return err
 	}

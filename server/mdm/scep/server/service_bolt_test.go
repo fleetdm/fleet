@@ -14,11 +14,11 @@ import (
 	"testing"
 	"time"
 
-	challengestore "github.com/micromdm/scep/v2/challenge/bolt"
-	scepdepot "github.com/micromdm/scep/v2/depot"
-	boltdepot "github.com/micromdm/scep/v2/depot/bolt"
-	"github.com/micromdm/scep/v2/scep"
-	scepserver "github.com/micromdm/scep/v2/server"
+	challengestore "github.com/fleetdm/fleet/v4/server/mdm/scep/challenge/bolt"
+	scepdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	boltdepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/bolt"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 
 	"github.com/boltdb/bolt"
 )
@@ -139,7 +139,6 @@ func TestCaCert(t *testing.T) {
 		}
 		serCollector = append(serCollector, respCert.SerialNumber)
 	}
-
 }
 
 func createDB(mode os.FileMode, options *bolt.Options) *boltdepot.Depot {

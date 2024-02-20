@@ -6,7 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/micromdm/scep/v2/scep"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 
 	"github.com/go-kit/kit/log"
 )

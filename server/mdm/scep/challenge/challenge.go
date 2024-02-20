@@ -5,8 +5,8 @@ import (
 	"crypto/x509"
 	"errors"
 
-	"github.com/micromdm/scep/v2/scep"
-	scepserver "github.com/micromdm/scep/v2/server"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 )
 
 // Store is a dynamic challenge password cache.

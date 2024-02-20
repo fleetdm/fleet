@@ -10,7 +10,7 @@ import (
 	"io/ioutil"
 	"os"
 
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 )
 
 const (
@@ -23,7 +23,7 @@ type csrOptions struct {
 }
 
 func loadOrMakeCSR(path string, opts *csrOptions) (*x509.CertificateRequest, error) {
-	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0666)
+	file, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_EXCL, 0o666)
 	if err != nil {
 		if os.IsExist(err) {
 			return loadCSRfromFile(path)

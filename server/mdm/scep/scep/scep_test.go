@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/micromdm/scep/v2/cryptoutil"
-	"github.com/micromdm/scep/v2/depot"
-	"github.com/micromdm/scep/v2/scep"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
 )
 
 func testParsePKIMessage(t *testing.T, data []byte) *scep.PKIMessage {
@@ -331,7 +331,6 @@ func loadKeyFromFile(path string) (*rsa.PrivateKey, error) {
 	}
 
 	return x509.ParsePKCS1PrivateKey(pemBlock.Bytes)
-
 }
 
 func decodePEMCert(t *testing.T, data []byte) *x509.Certificate {

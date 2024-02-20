@@ -12,10 +12,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
+	filedepot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot/file"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/gorilla/mux"
-	"github.com/micromdm/scep/v2/depot"
-	filedepot "github.com/micromdm/scep/v2/depot/file"
-	scepserver "github.com/micromdm/scep/v2/server"
 
 	kitlog "github.com/go-kit/kit/log"
 )
@@ -64,10 +64,8 @@ func TestEncodePKCSReq_Request(t *testing.T) {
 					t.Errorf("expected GET PKIOperation to have a non-empty message field")
 				}
 			}
-
 		})
 	}
-
 }
 
 func TestGetCACertMessage(t *testing.T) {
