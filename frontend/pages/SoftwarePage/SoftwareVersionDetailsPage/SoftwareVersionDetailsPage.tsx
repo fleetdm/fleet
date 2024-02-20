@@ -4,7 +4,7 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
@@ -19,6 +19,7 @@ import hostsCountAPI, {
   IHostsCountResponse,
 } from "services/entities/host_count";
 import { ISoftwareVersion, formatSoftwareType } from "interfaces/software";
+import { ignoreAxiosError } from "interfaces/errors";
 
 import Spinner from "components/Spinner";
 import MainContent from "components/MainContent";
@@ -78,10 +79,7 @@ const SoftwareVersionDetailsPage = ({
     {
       select: (data) => data.software,
       onError: (error) => {
-        if (
-          isAxiosError(error) &&
-          ![403, 404].includes(error.response?.status ?? 0)
-        ) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },

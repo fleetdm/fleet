@@ -4,13 +4,14 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
 
 import { ISoftwareTitle, formatSoftwareType } from "interfaces/software";
+import { ignoreAxiosError } from "interfaces/errors";
 import softwareAPI, {
   ISoftwareTitleResponse,
   IGetSoftwareTitleQueryKey,
@@ -75,10 +76,7 @@ const SoftwareTitleDetailsPage = ({
     {
       select: (data) => data.software_title,
       onError: (error) => {
-        if (
-          isAxiosError(error) &&
-          ![403, 404].includes(error.response?.status ?? 0)
-        ) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },

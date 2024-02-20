@@ -4,11 +4,13 @@ import React, { useCallback, useContext } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
 import { RouteComponentProps } from "react-router";
-import { AxiosError, isAxiosError } from "axios";
+import { AxiosError } from "axios";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
 import { AppContext } from "context/app";
+
+import { ignoreAxiosError } from "interfaces/errors";
 
 import osVersionsAPI, {
   IOSVersionResponse,
@@ -103,10 +105,7 @@ const SoftwareOSDetailsPage = ({
       enabled: !!osVersionIdFromURL,
       select: (data) => data.os_version,
       onError: (error) => {
-        if (
-          isAxiosError(error) &&
-          ![403, 404].includes(error.response?.status ?? 0)
-        ) {
+        if (!ignoreAxiosError(error, [403, 404])) {
           handlePageError(error);
         }
       },
