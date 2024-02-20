@@ -56,7 +56,7 @@ export interface ISoftwareTitle {
   versions_count: number;
   source: string;
   hosts_count: number;
-  versions: ISoftwareTitleVersion[];
+  versions: ISoftwareTitleVersion[] | null;
   browser: string;
 }
 

@@ -181,6 +181,9 @@ type HostListOptions struct {
 
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
+
+	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
+	VulnerabilityFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?

@@ -150,7 +150,7 @@ const generateTableHeaders = (
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = getVulnerabilities(
-          cellProps.row.original.versions
+          cellProps.row.original.versions ?? []
         );
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
