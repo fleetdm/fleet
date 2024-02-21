@@ -816,8 +816,15 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts tim
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
 
-func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
-	stmt := `UPDATE host_mdm_actions SET %s WHERE host_id = ?`
+func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart string) string {
+	var alias string
+
+	stmt := `UPDATE host_mdm_actions `
+	if joinPart != "" {
+		stmt += `hma ` + joinPart
+		alias = "hma."
+	}
+	stmt += ` SET `
 
 	if succeeded {
 		switch refCol {
@@ -825,27 +832,49 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 			// Note that this must not clear the unlock_pin, because recording the
 			// lock request does generate the PIN and store it there to be used by an
 			// eventual unlock.
-			stmt = fmt.Sprintf(stmt, "unlock_ref = NULL")
+			stmt += fmt.Sprintf("%sunlock_ref = NULL, %[1]swipe_ref = NULL", alias)
 		case "unlock_ref":
 			// a successful unlock clears itself as well as the lock ref, because
 			// unlock is the default state so we don't need to keep its unlock_ref
 			// around once it's confirmed.
-			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
+			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL, %[1]swipe_ref = NULL", alias)
 		case "wipe_ref":
 			// TODO(mna): can a wiped device still be locked? If so we'd need to keep
 			// the pin/lock_ref, but this would mean that both IsLocked and IsWiped
 			// would be true, we'd need to ensure we check wipe first (I think we
 			// always assumed those 3 states were exclusive).
-			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
-		default:
-			return ctxerr.Errorf(ctx, "unknown reference column %q", refCol)
+			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL", alias)
 		}
 	} else {
 		// if the action failed, then we clear the reference to that action itself so
 		// the host stays in the previous state (it doesn't transition to the new
 		// state).
-		stmt = fmt.Sprintf(stmt, refCol+" = NULL")
+		stmt += fmt.Sprintf("%s"+refCol+" = NULL", alias)
 	}
+	return stmt
+}
+
+func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error {
+	// a bit of MDM protocol leaking in the mysql layer, but it's either that or
+	// the other way around (MDM protocol would translate to database column)
+	var refCol string
+	switch requestType {
+	case "EraseDevice":
+		refCol = "wipe_ref"
+	case "DeviceLock":
+		refCol = "lock_ref"
+	default:
+		return nil
+	}
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`)
+	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, cmdUUID)
+	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from Apple MDM result")
+}
+
+func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "")
+	stmt += ` WHERE host_id = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
 }
