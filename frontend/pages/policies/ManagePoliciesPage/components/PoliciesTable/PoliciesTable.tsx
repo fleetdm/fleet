@@ -82,15 +82,6 @@ const PoliciesTable = ({
         </>
       ),
     };
-    // Does not include all teams
-    if (currentTeam && currentTeam.id !== -1) {
-      emptyPolicies.header = (
-        <>
-          You don&apos;t have any additional policies that check this
-          team&apos;s devices
-        </>
-      );
-    }
     if (canAddOrDeletePolicy) {
       emptyPolicies.primaryButton = (
         <Button
