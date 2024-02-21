@@ -843,9 +843,8 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts tim
 	// entering a PIN on the device). The /unlock endpoint can be called multiple
 	// times, so we record the timestamp of the first time it was requested and
 	// from then on, the host is marked as "pending unlock" until the device is
-	// actually unlocked with the PIN.
-	// TODO(mna): to be determined how we then get notified that it has been
-	// unlocked, so that it can transition to unlocked (not pending).
+	// actually unlocked with the PIN. The actual unlocking happens when the
+	// device sends an Idle MDM request.
 	unlockRef := ts.Format(time.DateTime)
 	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef)
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
