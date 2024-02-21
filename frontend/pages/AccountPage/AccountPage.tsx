@@ -25,7 +25,7 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
 import SecretField from "./APITokenModal/TokenSecretField/SecretField";
-import UserSidePanel from "./AccountSidePanel";
+import AccountSidePanel from "./AccountSidePanel";
 
 const baseClass = "account";
 
@@ -235,7 +235,7 @@ const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
         </>
       </MainContent>
       <SidePanelContent>
-        <UserSidePanel
+        <AccountSidePanel
           currentUser={currentUser}
           onChangePassword={onShowPasswordModal}
           onGetApiToken={onShowApiTokenModal}
