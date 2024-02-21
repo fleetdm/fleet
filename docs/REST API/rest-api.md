@@ -1827,7 +1827,8 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
-- [Update host's labels](#update-hosts-labels)
+- [Add host's labels](#add-hosts-labels)
+- [Delete host's labels](#delete-hosts-labels)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
 - [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
