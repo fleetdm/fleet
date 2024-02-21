@@ -1,5 +1,14 @@
 name: account_policy_data
-description: Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory).
+description: Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory), the identity provider used by Apple.
+columns:
+  - name: uid
+    description: "[User ID](https://superuser.com/a/1108201)"
+    type: BIGINT
+    required: false
+notes: >-
+  - The values in this OpenDirectory table are related to account creation.  In the past, it was fairly common to use OpenDirectory to have a home folder (`~`) on a server, and then log in and get that folder wherever they are.  (These days, this use case is more uncommon.)
+  
+  - To determine who is logged in to the Mac, or for example, to check the record name versus the computer's "short name", consider using the data in [the DSCL table](https://fleetdm.com/tables/dscl).
 examples: >-
   Query the creation date of user accounts. You could also query the date of the
   last failed login attempt or password change.
