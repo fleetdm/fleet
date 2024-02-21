@@ -182,7 +182,7 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
-    'schema': ['rachaelshaw'],// (Osquery table schema)
+    'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
