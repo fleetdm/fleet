@@ -228,7 +228,7 @@ const QueryDetailsPage = ({
                   onClick={onShowQueryModal}
                   variant="text-icon"
                 >
-                  <>Show query</>
+                  Show query
                 </Button>
                 {canEditQuery && (
                   <Button
