@@ -122,7 +122,7 @@ module "main" {
       module.ses.fleet_extra_environment_variables,
       local.extra_environment_variables,
       module.geolite2.extra_environment_variables,
-      # module.vuln-processing.extra_environment_variables
+      module.vuln-processing.extra_environment_variables
     )
     extra_secrets                = merge(module.mdm.extra_secrets, local.sentry_secrets)
     # extra_load_balancers         = [{
@@ -451,17 +451,17 @@ module "geolite2" {
   license_key       = var.geolite2_license
 }
 
-# module "vuln-processing" {
-#   source                 = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.0.0"
-#   ecs_cluster            = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
-#   execution_iam_role_arn = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
-#   subnets                = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
-#   security_groups        = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
-#   fleet_config           = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
-#   task_role_arn          = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
-#   awslogs_config = {
-#     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
-#     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
-#     prefix = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.prefix
-#   }
-# }
+ module "vuln-processing" {
+   source                 = "github.com/fleetdm/fleet//terraform/addons/external-vuln-scans?ref=tf-mod-addon-external-vuln-scans-v2.0.1"
+   ecs_cluster            = module.main.byo-vpc.byo-db.byo-ecs.service.cluster
+   execution_iam_role_arn = module.main.byo-vpc.byo-db.byo-ecs.execution_iam_role_arn
+   subnets                = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].subnets
+   security_groups        = module.main.byo-vpc.byo-db.byo-ecs.service.network_configuration[0].security_groups
+   fleet_config           = module.main.byo-vpc.byo-db.byo-ecs.fleet_config
+   task_role_arn          = module.main.byo-vpc.byo-db.byo-ecs.iam_role_arn
+   awslogs_config = {
+     group  = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.name
+     region = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.region
+     prefix = module.main.byo-vpc.byo-db.byo-ecs.fleet_config.awslogs.prefix
+   }
+ }
