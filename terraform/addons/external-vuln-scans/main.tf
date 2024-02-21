@@ -13,7 +13,9 @@ locals {
     }
   ]
   secrets = [
-    for k, v in var.fleet_config.extra_secrets : {
+    for k, v in merge(var.fleet_config.extra_secrets, {
+      FLEET_MYSQL_PASSWORD = var.fleet_config.database.password_secret_arn
+      }) : {
       name      = k
       valueFrom = v
     }
