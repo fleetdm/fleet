@@ -519,12 +519,16 @@ type ProfileMatcher interface {
 	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
 
+// SCEPIdentityCertificate represents a certificate issued during MDM
+// enrollment.
 type SCEPIdentityCertificate struct {
 	Serial         string    `db:"serial"`
 	NotValidAfter  time.Time `db:"not_valid_after"`
 	CertificatePEM []byte    `db:"certificate_pem"`
 }
 
+// SCEPIdentityAssociation represents an association between an identity
+// certificate an a specific host.
 type SCEPIdentityAssociation struct {
 	HostUUID        string `db:"host_uuid"`
 	EnrollReference string `db:"enroll_reference"`

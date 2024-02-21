@@ -955,6 +955,9 @@ func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 }
 
 func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+	// TODO(roberto): this is not good because we don't have any indexes on
+	// h.uuid and ncaa.sha256, due to time constraints, I'm assuming that this
+	// function is called with a relatively low amount of shas
 	stmt, args, err := sqlx.In(
 		`SELECT
 			ncaa.id as host_uuid,
@@ -973,6 +976,9 @@ func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas [
 
 	var uuids []fleet.SCEPIdentityAssociation
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get matching hostUUIDs by cert SHA")
 	}
 	return uuids, nil
@@ -987,10 +993,10 @@ func (ds *Datastore) GetMDMAppleSCEPCertsCloseToExpiry(ctx context.Context, expi
 	FROM
 		scep_certificates sc
 	WHERE
-		not_valid_after BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+		not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
 		AND NOT revoked
-	LIMIT
-		?`
+	ORDER BY not_valid_after ASC
+	LIMIT ?`
 
 	var certs []fleet.SCEPIdentityCertificate
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &certs, stmt, expiryDays, limit); err != nil {

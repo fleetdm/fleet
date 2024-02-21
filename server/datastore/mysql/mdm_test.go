@@ -2,19 +2,25 @@ package mysql
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"sort"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,6 +41,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
+		{"TestGetMDMAppleSCEPCertsCloseToExpiry", testGetMDMAppleSCEPCertsCloseToExpiry},
+		{"TestGetHostCertAssociationByCertSHA", testGetHostCertAssociationByCertSHA},
 	}
 
 	for _, c := range cases {
@@ -3129,4 +3137,129 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
+}
+
+func testGetMDMAppleSCEPCertsCloseToExpiry(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	scepDepot, err := ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	name := "FleetDM Identity"
+	createSCEPCert := func(notAfter time.Time) *x509.Certificate {
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		return &x509.Certificate{
+			SerialNumber: serial,
+			NotAfter:     notAfter,
+			Subject: pkix.Name{
+				CommonName: name,
+			},
+		}
+	}
+
+	// certs expired at lest 1 year ago
+	require.NoError(t, scepDepot.Put(name, createSCEPCert(time.Now().AddDate(-1, -1, 0))))
+	require.NoError(t, scepDepot.Put(name, createSCEPCert(time.Now().AddDate(-1, 0, 0))))
+	// cert that expires in 1 month
+	require.NoError(t, scepDepot.Put(name, createSCEPCert(time.Now().AddDate(0, 1, 0))))
+	// cert that expires in 1 year
+	require.NoError(t, scepDepot.Put(name, createSCEPCert(time.Now().AddDate(1, 0, 0))))
+
+	// list certs that expire in the next 10 days
+	certs, err := ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 10, 100)
+	require.NoError(t, err)
+	require.Len(t, certs, 2)
+	require.Equal(t, "2", certs[0].Serial)
+	require.Equal(t, "3", certs[1].Serial)
+
+	// list certs that expire in the next 50 days
+	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 50, 100)
+	require.NoError(t, err)
+	require.Len(t, certs, 3)
+	require.Equal(t, "2", certs[0].Serial)
+	require.Equal(t, "3", certs[1].Serial)
+	require.Equal(t, "4", certs[2].Serial)
+
+	// list certs that expire in the next 1000 days
+	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, certs, 4)
+	require.Equal(t, "2", certs[0].Serial)
+	require.Equal(t, "3", certs[1].Serial)
+	require.Equal(t, "4", certs[2].Serial)
+	require.Equal(t, "5", certs[3].Serial)
+
+	// list certs that expire in the next 1000 days with limit = 1
+	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 1000, 1)
+	require.NoError(t, err)
+	require.Len(t, certs, 1)
+	require.Equal(t, "2", certs[0].Serial)
+}
+
+func testGetHostCertAssociationByCertSHA(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	scepDepot, err := ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	var certHashes []string
+	for i := 0; i < 3; i++ {
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+
+		// create a cert + association
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: "FleetDM Identity",
+			},
+			// use the host UUID, just to make sure they're
+			// different from each other, we don't care about the
+			// DER contents here
+			Raw: []byte(h.UUID)}
+		err = scepDepot.Put(cert.Subject.CommonName, cert)
+		require.NoError(t, err)
+		req := mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: h.UUID},
+			Context:  ctx,
+		}
+		certHash := certauth.HashCert(cert)
+		certHashes = append(certHashes, certHash)
+		nanoStorage.AssociateCertHash(&req, certHash)
+		nanoEnroll(t, ds, h, false)
+	}
+
+	assoc, err := ds.GetHostCertAssociationByCertSHA(ctx, certHashes)
+	require.NoError(t, err)
+	require.Len(t, assoc, 3)
+
+	assoc, err = ds.GetHostCertAssociationByCertSHA(ctx, []string{"foo"})
+	require.NoError(t, err)
+	require.Len(t, assoc, 0)
+
+	assoc, err = ds.GetHostCertAssociationByCertSHA(ctx, append([]string{"foo"}, certHashes...))
+	require.NoError(t, err)
+	require.Len(t, assoc, 3)
+
+	assoc, err = ds.GetHostCertAssociationByCertSHA(ctx, certHashes[:2])
+	require.NoError(t, err)
+	require.Len(t, assoc, 2)
 }
