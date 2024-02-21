@@ -1827,6 +1827,7 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Update host's labels](#update-hosts-labels)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
 - [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
@@ -3884,6 +3885,58 @@ Retrieves a list of the configuration profiles assigned to a host.
   }
 }
 ```
+
+### Add host's labels
+
+`POST /api/v1/fleet/hosts/:id/labels`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| labels   | list | body | The list of label names to add to the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/12/labels`
+
+##### Request body
+
+```json
+{
+ labels: ["label1", "label2"]
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+### Delete host's labels
+
+`POST /api/v1/fleet/hosts/:id/labels/delete`
+
+#### Parameters
+
+| Name | Type    | In   | Description                  |
+| ---- | ------- | ---- | ---------------------------- |
+| labels   | list | body | The list of label names to delete from the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/12/labels/delete`
+
+##### Request body
+
+```json
+{
+ labels: ["label3", "label4"]
+}
+```
+
+##### Default response
+
+`Status: 200`
 
 ### Live query one host (ad-hoc)
 
