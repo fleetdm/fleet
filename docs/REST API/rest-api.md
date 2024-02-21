@@ -3889,6 +3889,8 @@ Retrieves a list of the configuration profiles assigned to a host.
 
 ### Add host's labels
 
+The endpoint can be used to add manual labels only.
+
 `POST /api/v1/fleet/hosts/:id/labels`
 
 #### Parameters
@@ -3914,6 +3916,8 @@ Retrieves a list of the configuration profiles assigned to a host.
 `Status: 200`
 
 ### Delete host's labels
+
+The endpoint can be used to add manual labels only.
 
 `POST /api/v1/fleet/hosts/:id/labels/delete`
 
