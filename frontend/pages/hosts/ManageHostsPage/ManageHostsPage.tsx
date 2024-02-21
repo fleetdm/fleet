@@ -1402,7 +1402,7 @@ const ManageHostsPage = ({
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           graphicName: "empty-hosts",
-          header: "Hosts will show up here once they’re added to Fleet.",
+          header: "Hosts will show up here once they’re added to Fleet",
           info:
             "Expecting to see hosts? Try again in a few seconds as the system catches up.",
         };

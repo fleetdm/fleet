@@ -2,11 +2,14 @@ package service
 
 import (
 	"context"
-	"github.com/fleetdm/fleet/v4/server/authz"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -156,9 +159,29 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, inc
 			return nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
 		}
 	}
-	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	software, err := svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 	if err != nil {
-		return nil, err
+		if fleet.IsNotFound(err) {
+			// here we use a global admin as filter because we want
+			// to check if the software version exists
+			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+			if _, err = svc.ds.SoftwareByID(ctx, id, teamID, includeCVEScores, &filter); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			}
+
+			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
 
 	return software, nil

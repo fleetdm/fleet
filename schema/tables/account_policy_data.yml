@@ -1,4 +1,5 @@
 name: account_policy_data
+description: Additional macOS user account data from the AccountPolicy section of [OpenDirectory](https://en.wikipedia.org/wiki/Apple_Open_Directory).
 examples: >-
   Query the creation date of user accounts. You could also query the date of the
   last failed login attempt or password change.

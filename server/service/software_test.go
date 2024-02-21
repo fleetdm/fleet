@@ -61,7 +61,7 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
 		return 0, nil
 	}
-	ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
+	ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 		return &fleet.Software{}, nil
 	}
 	ds.TeamExistsFunc = func(ctx context.Context, teamID uint) (bool, error) { return true, nil }

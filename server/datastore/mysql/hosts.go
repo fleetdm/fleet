@@ -577,6 +577,7 @@ SELECT
   h.updated_at,
   h.detail_updated_at,
   h.node_key,
+  h.orbit_node_key,
   h.hostname,
   h.uuid,
   h.platform,

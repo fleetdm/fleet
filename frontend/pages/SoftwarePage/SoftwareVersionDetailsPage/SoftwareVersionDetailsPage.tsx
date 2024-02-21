@@ -77,6 +77,7 @@ const SoftwareVersionDetailsPage = ({
     [{ scope: "softwareVersion", versionId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareVersion(queryKey[0]),
     {
+      refetchOnWindowFocus: false,
       select: (data) => data.software,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {

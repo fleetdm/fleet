@@ -12,21 +12,26 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*fleet.SoftwareTitle, error) {
-	const selectSoftwareTitleStmt = `
+func (ds *Datastore) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint, tmFilter fleet.TeamFilter) (*fleet.SoftwareTitle, error) {
+	selectSoftwareTitleStmt := fmt.Sprintf(`
 SELECT
 	st.id,
 	st.name,
 	st.source,
 	st.browser,
-	sthc.hosts_count,
-	sthc.updated_at  as counts_updated_at
+	SUM(sthc.hosts_count) as hosts_count,
+	MAX(sthc.updated_at)  as counts_updated_at
 FROM software_titles st
 JOIN software_titles_host_counts sthc ON sthc.software_title_id = st.id
-WHERE st.id = ?
+WHERE st.id = ? AND %s
 AND sthc.team_id = ?
 AND sthc.hosts_count > 0
-	`
+GROUP BY
+	st.id,
+	st.name,
+	st.source,
+	st.browser
+	`, ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "sthc"))
 	teamIDVal := uint(0)
 	if teamID != nil {
 		teamIDVal = *teamID
@@ -39,7 +44,7 @@ AND sthc.hosts_count > 0
 		return nil, ctxerr.Wrap(ctx, err, "get software title")
 	}
 
-	selectSoftwareVersionsStmt, args, err := selectSoftwareVersionsSQL([]uint{id}, teamIDVal, true)
+	selectSoftwareVersionsStmt, args, err := ds.selectSoftwareVersionsSQL([]uint{id}, tmFilter, true)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building versions statement")
 	}
@@ -55,6 +60,7 @@ AND sthc.hosts_count > 0
 func (ds *Datastore) ListSoftwareTitles(
 	ctx context.Context,
 	opt fleet.SoftwareTitleListOptions,
+	tmFilter fleet.TeamFilter,
 ) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
 	if opt.ListOptions.After != "" {
 		return nil, 0, nil, fleet.NewInvalidArgumentError("after", "not supported for software titles")
@@ -109,11 +115,11 @@ func (ds *Datastore) ListSoftwareTitles(
 	// the application logic. This is because we need to support MySQL 5.7
 	// and there's no good way to do an aggregation that builds a structure
 	// (like a JSON) object for nested arrays.
-	var teamID uint
-	if opt.TeamID != nil {
-		teamID = *opt.TeamID
-	}
-	getVersionsStmt, args, err := selectSoftwareVersionsSQL(titleIDs, teamID, false)
+	getVersionsStmt, args, err := ds.selectSoftwareVersionsSQL(
+		titleIDs,
+		tmFilter,
+		false,
+	)
 	if err != nil {
 		return nil, 0, nil, ctxerr.Wrap(ctx, err, "build get versions stmt")
 	}
@@ -223,7 +229,7 @@ GROUP BY st.id`
 	return stmt, args
 }
 
-func selectSoftwareVersionsSQL(titleIDs []uint, teamID uint, withCounts bool) (string, []any, error) {
+func (ds *Datastore) selectSoftwareVersionsSQL(titleIDs []uint, tmFilter fleet.TeamFilter, withCounts bool) (string, []any, error) {
 	selectVersionsStmt := `
 SELECT
 	s.title_id,
@@ -234,7 +240,7 @@ FROM software s
 LEFT JOIN software_host_counts shc ON shc.software_id = s.id
 LEFT JOIN software_cve scve ON shc.software_id = scve.software_id
 WHERE s.title_id IN (?)
-AND shc.team_id = ?
+AND %s
 AND shc.hosts_count > 0
 GROUP BY s.id`
 
@@ -243,10 +249,11 @@ GROUP BY s.id`
 		extraSelect = "MAX(shc.hosts_count) AS hosts_count,"
 	}
 
-	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect)
-	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs, teamID)
+	selectVersionsStmt = fmt.Sprintf(selectVersionsStmt, extraSelect, ds.whereFilterGlobalOrTeamIDByTeams(tmFilter, "shc"))
+
+	selectVersionsStmt, args, err := sqlx.In(selectVersionsStmt, titleIDs)
 	if err != nil {
-		return "", nil, fmt.Errorf("bulding sqlx.In query: %w", err)
+		return "", nil, fmt.Errorf("building sqlx.In query: %w", err)
 	}
 	return selectVersionsStmt, args, nil
 }

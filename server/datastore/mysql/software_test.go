@@ -102,7 +102,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host1Software := getHostSoftware(host1)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, nil, false)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
 	assert.Equal(t, host1Software[0], *soft1ByID)
@@ -293,7 +293,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, nil, false)
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
@@ -1052,7 +1052,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	cmpNameVersionCount(want, team1Counts)
 	checkTableTotalCount(3)
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
-	nilSoftware, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false)
+	nilSoftware, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	assert.Nil(t, nilSoftware)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
@@ -1078,7 +1078,7 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	// composite pk (software_id, team_id), so we expect more rows
 	checkTableTotalCount(8)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
 	require.NoError(t, err)
 	software1[0].ID = host1.HostSoftware.Software[0].ID
 	assert.Equal(t, software1[0], *soft1ByID)
@@ -2010,7 +2010,7 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		}
 
 		for _, s := range hostA.Software {
-			result, err := ds.SoftwareByID(ctx, s.ID, nil, true)
+			result, err := ds.SoftwareByID(ctx, s.ID, nil, true, nil)
 			require.NoError(t, err)
 			require.Len(t, result.Vulnerabilities, 1)
 		}
@@ -2104,7 +2104,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 
 			for _, teamID := range []*uint{nil, &team1.ID} {
 				// Test that scores are not included if includeCVEScores = false
-				withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, false)
+				withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, false, nil)
 				require.NoError(t, err)
 				if tC.hasVuln {
 					require.Len(t, withoutScores.Vulnerabilities, 1)
@@ -2117,7 +2117,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 					require.Empty(t, withoutScores.Vulnerabilities)
 				}
 
-				withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, true)
+				withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, true, nil)
 				require.NoError(t, err)
 				if tC.hasVuln {
 					require.Len(t, withScores.Vulnerabilities, 1)
@@ -2317,7 +2317,7 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
 
-	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, nil, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
@@ -2368,7 +2368,7 @@ func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		test.ElementsMatchSkipID(t, cpes[1:], storedCPEs)
 
-		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, nil, false)
+		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, nil, false, nil)
 		require.NoError(t, err)
 		require.Empty(t, storedSoftware.GenerateCPE)
 	})
@@ -2892,6 +2892,7 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	err := g.Wait()
 	require.NoError(t, err)
 }
+
 func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())

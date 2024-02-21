@@ -1124,7 +1124,7 @@ func (ds *Datastore) DeleteOutOfDateVulnerabilities(ctx context.Context, source 
 	return nil
 }
 
-func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*fleet.Software, error) {
+func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 	q := dialect.From(goqu.I("software").As("s")).
 		Select(
 			"s.id",
@@ -1150,6 +1150,13 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 			goqu.I("software_cve").As("scv"),
 			goqu.On(goqu.I("s.id").Eq(goqu.I("scv.software_id"))),
 		)
+
+	if tmFilter != nil {
+		q = q.LeftJoin(
+			goqu.I("software_host_counts").As("shc"),
+			goqu.On(goqu.I("s.id").Eq(goqu.I("shc.software_id"))),
+		)
+	}
 
 	if includeCVEScores {
 		q = q.
@@ -1178,6 +1185,11 @@ func (ds *Datastore) SoftwareByID(ctx context.Context, id uint, teamID *uint, in
 				"EXISTS (SELECT 1 FROM software_host_counts WHERE software_id = ? AND team_id = ? AND hosts_count > 0)", id, *teamID,
 			),
 		)
+	}
+
+	// filter by teams
+	if tmFilter != nil {
+		q = q.Where(goqu.L(ds.whereFilterGlobalOrTeamIDByTeams(*tmFilter, "shc")))
 	}
 
 	sql, args, err := q.ToSQL()

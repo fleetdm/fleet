@@ -74,6 +74,7 @@ const SoftwareTitleDetailsPage = ({
     [{ scope: "softwareById", softwareId, teamId: teamIdForApi }],
     ({ queryKey }) => softwareAPI.getSoftwareTitle(queryKey[0]),
     {
+      refetchOnWindowFocus: false,
       select: (data) => data.software_title,
       onError: (error) => {
         if (!ignoreAxiosError(error, [403, 404])) {

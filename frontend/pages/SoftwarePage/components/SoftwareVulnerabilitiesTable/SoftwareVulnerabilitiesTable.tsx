@@ -103,16 +103,17 @@ const SoftwareVulnerabilitiesTable = ({
         columnConfigs={tableHeaders}
         data={data}
         defaultSortHeader={isPremiumTier ? "updated_at" : "cve"} // TODO: Change premium to created_at when added to API
-        defaultSortDirection={"desc"}
+        defaultSortDirection="desc"
         emptyComponent={() => <NoVulnsDetected itemName={itemName} />}
         isAllPagesSelected={false}
         isLoading={isLoading}
         isClientSidePagination
         pageSize={20}
-        resultsTitle={"vulnerabilities"}
+        resultsTitle="vulnerabilities"
         showMarkAllPages={false}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
+        disableTableHeader={data.length === 0}
       />
     </div>
   );
