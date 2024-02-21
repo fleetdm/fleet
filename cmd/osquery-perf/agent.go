@@ -883,17 +883,18 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	}
 }
 
-func (a *agent) waitingDo(request *http.Request) *http.Response {
-	response, err := http.DefaultClient.Do(request)
+func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
+	response, err := http.DefaultClient.Do(fn())
 	for err != nil || response.StatusCode != http.StatusOK {
 		if err != nil {
 			log.Printf("failed to run request: %s", err)
 		} else { // res.StatusCode() != http.StatusOK
+			response.Body.Close()
 			log.Printf("request failed: %d", response.StatusCode)
 		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		response, err = http.DefaultClient.Do(request)
+		response, err = http.DefaultClient.Do(fn())
 	}
 	return response
 }
@@ -913,13 +914,14 @@ func (a *agent) orbitEnroll() error {
 		return err
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/fleet/orbit/enroll", bytes.NewReader(jsonBytes))
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Content-type", "application/json")
-
-	response := a.waitingDo(request)
+	response := a.waitingDo(func() *http.Request {
+		request, err := http.NewRequest("POST", a.serverAddress+"/api/fleet/orbit/enroll", bytes.NewReader(jsonBytes))
+		if err != nil {
+			panic(err)
+		}
+		request.Header.Add("Content-type", "application/json")
+		return request
+	})
 	defer response.Body.Close()
 
 	var parsedResp service.EnrollOrbitResponse
@@ -950,13 +952,14 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return err
 	}
 
-	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
-	if err != nil {
-		return err
-	}
-	request.Header.Add("Content-type", "application/json")
-
-	response := a.waitingDo(request)
+	response := a.waitingDo(func() *http.Request {
+		request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
+		if err != nil {
+			panic(err)
+		}
+		request.Header.Add("Content-type", "application/json")
+		return request
+	})
 	defer response.Body.Close()
 
 	if response.StatusCode != http.StatusOK {
