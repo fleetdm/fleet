@@ -6,7 +6,7 @@ locals {
     // and then we pull in the output of fleet ecs module
     for k, v in merge(
       var.fleet_config.extra_environment_variables,
-      { FLEET_VULNERABILITIES_DISABLE_SCHEDULE  = "false"}
+      { FLEET_VULNERABILITIES_DISABLE_SCHEDULE = "false" }
       ) : {
       name  = k
       value = v
@@ -54,12 +54,7 @@ resource "aws_ecs_task_definition" "vuln-processing" {
       image       = var.fleet_config.image
       essential   = true
       networkMode = "awsvpc"
-      secrets = [
-        {
-          name      = "FLEET_MYSQL_PASSWORD"
-          valueFrom = var.fleet_config.database.password_secret_arn
-        }
-      ]
+      secrets     = local.secrets
       ulimits = [
         {
           name      = "nofile"
