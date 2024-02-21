@@ -388,3 +388,13 @@ func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
 	}
 	return response.UnlockPIN, nil
 }
+
+func (c *Client) MDMWipeHost(hostID uint) error {
+	// var response wipeResponse
+	// if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
+	// 	return "", fmt.Errorf("wipe host request: %w", err)
+	// }
+	// return nil
+	fmt.Print("Wiping host...")
+	return nil
+}
