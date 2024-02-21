@@ -544,6 +544,10 @@ type GetHostDiskEncryptionKeyFunc func(ctx context.Context, hostID uint) (*fleet
 
 type SetDiskEncryptionResetStatusFunc func(ctx context.Context, hostID uint, status bool) error
 
+type GetMDMAppleSCEPCertsCloseToExpiryFunc func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityCertificate, error)
+
+type GetHostCertAssociationByCertSHAFunc func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error)
+
 type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error
 
 type GetHostMDMProfilesExpectedForVerificationFunc func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
@@ -1609,6 +1613,12 @@ type DataStore struct {
 
 	SetDiskEncryptionResetStatusFunc        SetDiskEncryptionResetStatusFunc
 	SetDiskEncryptionResetStatusFuncInvoked bool
+
+	GetMDMAppleSCEPCertsCloseToExpiryFunc        GetMDMAppleSCEPCertsCloseToExpiryFunc
+	GetMDMAppleSCEPCertsCloseToExpiryFuncInvoked bool
+
+	GetHostCertAssociationByCertSHAFunc        GetHostCertAssociationByCertSHAFunc
+	GetHostCertAssociationByCertSHAFuncInvoked bool
 
 	UpdateHostMDMProfilesVerificationFunc        UpdateHostMDMProfilesVerificationFunc
 	UpdateHostMDMProfilesVerificationFuncInvoked bool
@@ -3866,6 +3876,20 @@ func (s *DataStore) SetDiskEncryptionResetStatus(ctx context.Context, hostID uin
 	s.SetDiskEncryptionResetStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.SetDiskEncryptionResetStatusFunc(ctx, hostID, status)
+}
+
+func (s *DataStore) GetMDMAppleSCEPCertsCloseToExpiry(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityCertificate, error) {
+	s.mu.Lock()
+	s.GetMDMAppleSCEPCertsCloseToExpiryFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleSCEPCertsCloseToExpiryFunc(ctx, expiryDays, limit)
+}
+
+func (s *DataStore) GetHostCertAssociationByCertSHA(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+	s.mu.Lock()
+	s.GetHostCertAssociationByCertSHAFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCertAssociationByCertSHAFunc(ctx, shas)
 }
 
 func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {

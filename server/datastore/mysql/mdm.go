@@ -953,3 +953,51 @@ func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 	}
 	return nil
 }
+
+func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+	stmt, args, err := sqlx.In(
+		`SELECT
+			ncaa.id as host_uuid,
+			COALESCE(hm.fleet_enroll_ref, '') as enroll_reference
+		 FROM
+			nano_cert_auth_associations ncaa
+			LEFT JOIN hosts h ON h.uuid = ncaa.id
+			LEFT JOIN host_mdm hm ON hm.host_id = h.id
+		 WHERE
+			ncaa.sha256 IN (?)`,
+		shas,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
+	}
+
+	var uuids []fleet.SCEPIdentityAssociation
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get matching hostUUIDs by cert SHA")
+	}
+	return uuids, nil
+}
+
+func (ds *Datastore) GetMDMAppleSCEPCertsCloseToExpiry(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
+	stmt := `
+	SELECT
+		serial,
+		not_valid_after,
+		certificate_pem
+	FROM
+		scep_certificates sc
+	WHERE
+		not_valid_after BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+		AND NOT revoked
+	LIMIT
+		?`
+
+	var certs []fleet.SCEPIdentityCertificate
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &certs, stmt, expiryDays, limit); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get expiring certs")
+	}
+	return certs, nil
+}

@@ -777,6 +777,11 @@ type Datastore interface {
 
 	SetDiskEncryptionResetStatus(ctx context.Context, hostID uint, status bool) error
 
+	// GetMDMAppleSCEPCertsCloseToExpiry fetches SCEP certificates that are close to expiry
+	GetMDMAppleSCEPCertsCloseToExpiry(ctx context.Context, expiryDays, limit int) ([]SCEPIdentityCertificate, error)
+	// GetHostCertAssociationByCertSHA retrieves host certificate associations by SHA
+	GetHostCertAssociationByCertSHA(ctx context.Context, shas []string) ([]SCEPIdentityAssociation, error)
+
 	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given
 	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
 	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,

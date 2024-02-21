@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -1087,16 +1086,9 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL := appConfig.ServerSettings.ServerURL
-	if ref != "" {
-		u, err := url.Parse(enrollURL)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
-		}
-		q := u.Query()
-		q.Add(mobileconfig.FleetEnrollReferenceKey, ref)
-		u.RawQuery = q.Encode()
-		enrollURL = u.String()
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
 	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(

@@ -518,3 +518,14 @@ type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
 	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
 }
+
+type SCEPIdentityCertificate struct {
+	Serial         string    `db:"serial"`
+	NotValidAfter  time.Time `db:"not_valid_after"`
+	CertificatePEM []byte    `db:"certificate_pem"`
+}
+
+type SCEPIdentityAssociation struct {
+	HostUUID        string `db:"host_uuid"`
+	EnrollReference string `db:"enroll_reference"`
+}

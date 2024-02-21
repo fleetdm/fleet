@@ -20,6 +20,8 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -35,6 +37,7 @@ import (
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
+	"github.com/google/uuid"
 	"github.com/hashicorp/go-multierror"
 	"github.com/micromdm/nanodep/godep"
 )
@@ -705,6 +708,7 @@ func newCleanupsAndAggregationSchedule(
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -805,6 +809,12 @@ func newCleanupsAndAggregationSchedule(
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
 			},
 		),
+		schedule.WithJob(
+			"renew_scep_certificates",
+			func(ctx context.Context) error {
+				return renewSCEPCertificates(ctx, logger, ds, config, commander)
+			},
+		),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -872,6 +882,143 @@ func verifyDiskEncryptionKeys(
 	if err := ds.SetHostsDiskEncryptionKeyStatus(ctx, undecryptable, false, latest); err != nil {
 		logger.Log("err", "unable to update decryptable status", "details", err)
 		return err
+	}
+
+	return nil
+}
+
+// scepCertRenewalThresholdDays defines the number of days before a SCEP
+// certificate must be renewed.
+const scepCertRenewalThresholdDays = 470
+
+// maxCertsRenewalPerRun specifies the maximum number of certificates to renew
+// in a single cron run.
+//
+// Assuming that the cron runs every hour, we'll enqueue 24,000 renewals per
+// day, and we have room for 24,000 * scepCertRenewalThresholdDays total
+// renewals.
+//
+// For a default of 30 days as a threshold this gives us room for a fleet of
+// 720,000 devices expiring at the same time.
+const maxCertsRenewalPerRun = 100
+
+func renewSCEPCertificates(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		return nil
+	}
+
+	if commander == nil {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		return nil
+	}
+
+	certs, err := ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, scepCertRenewalThresholdDays, maxCertsRenewalPerRun)
+	if err != nil {
+		logger.Log("err", "unable to get SCEP certificates from database", "details", err)
+		return ctxerr.Wrap(ctx, err, "getting certs close to expire")
+	}
+
+	if len(certs) == 0 {
+		logger.Log("info", "no SCEP certificates to renew")
+		return nil
+	}
+
+	certSHAs := make([]string, len(certs))
+	for i, cert := range certs {
+		parsed, err := apple_mdm.DecodeCertPEM(cert.CertificatePEM)
+		if err != nil {
+			logger.Log("err", "unable to parse SCEP identity certs", "details", err, "cert_serial", cert.Serial)
+			continue
+		}
+		certSHAs[i] = certauth.HashCert(parsed)
+	}
+
+	if len(certSHAs) == 0 {
+		// TODO: should we return an error as well?
+		logger.Log("info", "unable to parse any certificates, skipping run")
+		return nil
+	}
+
+	certAssociations, err := ds.GetHostCertAssociationByCertSHA(ctx, certSHAs)
+	if err != nil {
+		logger.Log("err", "getting host cert associations", "details", err)
+		return ctxerr.Wrap(ctx, err, "getting host cert associations")
+	}
+
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		logger.Log("err", "getting AppConfig", "details", err)
+		return ctxerr.Wrap(ctx, err, "getting AppConfig")
+	}
+
+	apnsCert, _, _, err := config.MDM.AppleAPNs()
+	if err != nil {
+		logger.Log("err", "parsing APNs certificates", "details", err)
+		return ctxerr.Wrap(ctx, err, "parsing APNs certificates")
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
+	if err != nil {
+		logger.Log("err", "extracting topic from APNs certificate", "details", err)
+		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
+	}
+
+	hostsWithRefs := map[string]string{}
+	var hostsWithoutRefs []string
+	for _, assoc := range certAssociations {
+		if assoc.EnrollReference != "" {
+			hostsWithRefs[assoc.EnrollReference] = assoc.HostUUID
+			continue
+		}
+		hostsWithoutRefs = append(hostsWithoutRefs, assoc.HostUUID)
+	}
+
+	if len(hostsWithoutRefs) > 0 {
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			appConfig.ServerSettings.ServerURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			logger.Log("err", "generating enrollment profile for hosts without enroll reference", "details", err)
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+		}
+
+		if err := commander.InstallProfile(ctx, hostsWithoutRefs, profile, uuid.NewString()); err != nil {
+			logger.Log("err", "sending InstallProfile command", "details", err, "hosts", hostsWithoutRefs)
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", hostsWithoutRefs)
+		}
+	}
+
+	for ref, hostUUID := range hostsWithRefs {
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+		if err != nil {
+			logger.Log("err", "adding reference to fleet URL", "details", err)
+			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+		}
+
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			enrollURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			logger.Log("err", "generating enrollment profile for hosts with enroll reference", "details", err)
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
+		}
+		if err := commander.InstallProfile(ctx, []string{hostUUID}, profile, uuid.NewString()); err != nil {
+			logger.Log("err", "sending InstallProfile command", "details", err, "hosts", hostsWithRefs)
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", hostsWithRefs)
+		}
 	}
 
 	return nil

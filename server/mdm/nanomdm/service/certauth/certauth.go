@@ -97,7 +97,7 @@ func New(next service.CheckinAndCommandService, storage storage.CertAuthStore, o
 	return certAuth
 }
 
-func hashCert(cert *x509.Certificate) string {
+func HashCert(cert *x509.Certificate) string {
 	hashed := sha256.Sum256(cert.Raw)
 	b := make([]byte, len(hashed))
 	copy(b, hashed[:])
@@ -112,7 +112,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 		return err
 	}
 	logger := ctxlog.Logger(r.Context, s.logger)
-	hash := hashCert(r.Certificate)
+	hash := HashCert(r.Certificate)
 	if hasHash, err := s.storage.HasCertHash(r, hash); err != nil {
 		return err
 	} else if hasHash {
@@ -157,7 +157,7 @@ func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 		return err
 	}
 	logger := ctxlog.Logger(r.Context, s.logger)
-	hash := hashCert(r.Certificate)
+	hash := HashCert(r.Certificate)
 	if isAssoc, err := s.storage.IsCertHashAssociated(r, hash); err != nil {
 		return err
 	} else if isAssoc {
