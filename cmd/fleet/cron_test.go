@@ -172,8 +172,6 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-					// TODO:
-					// require.Contains(t, "", cmd.Raw)
 					return map[string]error{}, nil
 				}
 
@@ -204,8 +202,6 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
-					// TODO:
-					// require.Contains(t, "", cmd.Raw)
 					return map[string]error{}, nil
 				}
 				t.Cleanup(func() {
