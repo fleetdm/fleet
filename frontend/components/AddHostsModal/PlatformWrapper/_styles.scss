@@ -2,9 +2,14 @@
 
 .platform-wrapper {
   padding: 0; // different to pad sticky subnav properly
-  .react-tabs {
-    &__tab-list {
-      margin: 0 0 1.25rem;
+
+  .component__tabs-wrapper {
+    // negate problematic sticky positioning
+    position: initial;
+    .react-tabs {
+      &__tab-list {
+        margin: 0 0 1.25rem;
+      }
     }
   }
 

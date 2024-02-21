@@ -134,7 +134,7 @@
       height="0" width="0" style="display:none;visibility:hidden"></iframe>
     </noscript>
     <%/* End Google Tag Manager (noscript) */%>
-    <div purpose="page-wrap" style="<%= hideFooterLinks ? 'padding-bottom: 60px;' : '' %>">
+    <div purpose="page-wrap" class="<%= hideFooterLinks ? 'reduced-footer-links' : '' %>">
       <%// Page header%>
       <div class="header" purpose="header-container" data-nosnippet>
         <div purpose="header-background">
@@ -295,55 +295,58 @@
       <%- body %>
 
       <%/* Note: footer is hidden until the page is loaded. See «script» tag at the bottom of this file. */%>
-      <%if( !hideFooterLinks) {%>
-      <div class="invisible" purpose="page-footer" data-hide-until-rendered data-nosnippet>
-        <div purpose="footer-container" class="container-fluid d-flex flex-column flex-sm-row align-items-sm-end justify-content-center justify-content-sm-between">
-          <div class="d-flex flex-column order-first justify-content-start">
-            <div class="d-flex pb-4 pr-4">
-              <a class="pb-3" href="/">
-                <img purpose="footer-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png" style="" />
-              </a>
-            </div>
+      <% if(!hideFooterLinks) { %>
+      <div class="invisible container-fluid" purpose="page-footer" data-hide-until-rendered data-nosnippet>
+        <div purpose="footer-content">
+        <div purpose="footer-nav" class="d-flex flex-row flex-wrap row">
+          <div purpose="footer-nav-column" class="d-lg-flex d-none col-3">
+            <a href="/">
+              <img purpose="footer-logo" alt="Fleet logo" src="/images/logo-blue-118x41@2x.png"/>
+            </a>
           </div>
-          <div class="d-flex flex-grow-1 flex-column">
-            <div purpose="footer-nav" class="justify-content-between justify-content-sm-end order-l pb-xl-2 px-lg-0">
-              <div class="flex-column">
-                <a href="/pricing" class="d-block pr-md-5 pr-sm-3 pb-2">Try it out</a>
-                <a href="/docs" class="d-block pr-md-5 pr-sm-3 pb-2">Docs</a>
-                <a href="/try-fleet" class="d-block pr-md-5 pr-sm-3 pb-2">Explore data</a>
-                <a href="/handbook/company/why-this-way#why-open-source" class="d-block pr-md-5 pr-sm-3 pb-2 pb-xl-0">Why open source?</a>
-              </div>
-              <div class="flex-column">
-                <a href="/integrations" class="d-block px-md-5 px-sm-3 pb-2">Integrations</a>
-                <a href="/customers/register" class="d-block px-md-5 px-sm-3 pb-2">Get your license</a>
-                <a href="/handbook" class="d-block px-md-5 px-sm-3 pb-2">About</a>
-                <a href="/logos" class="d-block px-md-5 px-sm-3 pb-2 pb-xl-0">Logos/artwork</a>
-              </div>
-              <div class="flex-column">
-                <a href="/apply" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Jobs</a>
-                <a href="/blog" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Blog</a>
-                <a href="/docs/contributing" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2">Contribute</a>
-                <a href="/support" class="d-block pr-lg-2 pl-md-5 pl-sm-3 pb-2 pb-xl-0">Live chat</a>
-              </div>
-            </div>
+          <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
+            <strong purpose="footer-nav-header">Platform</strong>
+            <a href="/device-management">Device management</a>
+            <a href="/vulnerability-management">Vulnerability management</a>
+            <a href="/endpoint-ops">Endpoint ops</a>
+            <a href="/integrations">Integrations</a>
+            <a href="/pricing">Pricing</a>
+          </div>
+          <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
+            <strong purpose="footer-nav-header">Documentation</strong>
+            <a href="/support">Support</a>
+            <a href="/docs">Docs</a>
+            <a href="/docs/rest-api">REST API</a>
+            <a href="/customers/register">Get your license</a>
+            <a href="/docs/contributing">Contribute</a>
+          </div>
+          <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
+            <strong purpose="footer-nav-header">Company</strong>
+            <a href="/handbook">About</a>
+            <a href="/blog">Blog</a>
+            <a href="/apply">Jobs</a>
+            <a href="/logos">Logos/artwork</a>
+            <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
           </div>
         </div>
 
         <div purpose="footer-bottom">
-          <div purpose="legal-and-social-nav" class="container-fluid d-flex px-0 flex-md-row flex-column align-items-md-center justify-content-md-between pb-4 pr-3 pb-md-0">
+          <div purpose="legal-and-social-nav" class="d-flex flex-lg-row flex-column align-items-lg-center justify-content-lg-between">
 
-            <div purpose="legal-section" class="d-flex flex-column justify-content-start flex-sm-row pr-sm-0">
-              <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" />
-              <div class="pl-sm-3 pt-sm-0 pt-1 pl-0 text-sm-nowrap d-block d-sm-inline">
+            <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+              <div purpose="license-information" class="d-flex flex-row align-items-center">
+                <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
+                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+              </div>
+              <div class="text-sm-nowrap d-block d-sm-inline">
                 © <%= (new Date()).getFullYear() %> <a href="/handbook">Fleet Device Management Inc.</a>
                 <span purpose="legal-links">
                   <a href="/legal/privacy">Privacy</a>
-                  <a class="pl-3" target="_blank" href="https://osquery.io">What is osquery?</a>
                 </span>
               </div>
             </div>
 
-            <div purpose="footer-socials" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-md-end pl-md-3 py-3">
+            <div purpose="footer-socials" class="flex-row d-inline-flex font-weight-bold order-first order-lg-last justify-content-start justify-content-lg-end pl-lg-3">
               <a target="_blank" href="/slack" class="mr-4">
                 <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png"/>
               </a>
@@ -354,7 +357,7 @@
                 <img alt="LinkedIn logo" src="/images/logo-linkedin-24x24@2x.png" />
               </a>
               <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4">
-                <img alt="Twitter logo" src="/images/logo-twitter-dark-25x20@2x.png"/>
+                <img alt="X (Twitter) logo" src="/images/logo-x-24x24@2x.png"/>
               </a>
               <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4">
                 <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png" />
@@ -365,17 +368,19 @@
             </div>
           </div>
         </div>
+        </div>
       </div>
       <% } else { %>
-        <div purpose="footer" style="position: absolute; bottom:  0px; width: 100%; height:  60px; color: #515774;" data-nosnippet>
-          <div style="max-width: 500px;" class="container-fluid">
-            <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row justify-content-center mr-4 mr-md-auto">
-              <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-160x30@2x.png" style="width: 80px; height: 15px;" class="mr-2 mb-2 mb-sm-0"/>
+        <div purpose="reduced-nav-footer" data-nosnippet>
+            <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row align-items-center justify-content-center">
+              <div class="d-flex flex-row align-items-center pb-2 pb-sm-0">
+                <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" style="width: 80px; height: 15px; margin-right: 8px;"/>
+                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+              </div>
               <div class="d-flex">
                 © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
-                <a style="font-size: 12px; font-weight:  700; text-underline-offset: 5px; text-decoration: underline; color: #515774" class="ml-2" href="/legal/privacy">Privacy</a>
+                <a style="margin-left: 12px; font-size: 12px; text-underline-offset: 2.5px; text-decoration: underline; color: #515774" href="/legal/privacy">Privacy</a>
               </div>
-            </div>
           </div>
         </div>
       <% } %>

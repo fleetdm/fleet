@@ -90,6 +90,17 @@ func testHostScriptResult(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
+	// record a duplicate result for this execution, will be ignored
+	hsr, err := ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+		HostID:      1,
+		ExecutionID: createdScript.ExecutionID,
+		Output:      "foobarbaz",
+		Runtime:     22,
+		ExitCode:    1,
+	})
+	require.NoError(t, err)
+	require.Nil(t, hsr)
+
 	// it is not pending anymore
 	pending, err = ds.ListPendingHostScriptExecutions(ctx, 1)
 	require.NoError(t, err)
