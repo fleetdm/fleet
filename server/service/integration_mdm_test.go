@@ -11323,3 +11323,63 @@ func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
 	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/mdm/manual_enrollment_profile")
 }
+
+func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
+	t := s.T()
+	ctx := context.Background()
+
+	// Create a host and a profile
+	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+	}
+
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// The profile should be associated with the host we made
+	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
+	require.NoError(t, err)
+	require.Len(t, profs, 1)
+	require.Equal(t, "I1", profs[0].Identifier)
+
+	// Mark the profile as verified to simulate it successfully getting set up on the host
+	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
+		{
+			ProfileUUID:       profs[0].ProfileUUID,
+			ProfileIdentifier: "I1",
+			HostUUID:          host.UUID,
+			CommandUUID:       profs[0].CommandUUID,
+			OperationType:     fleet.MDMOperationTypeInstall,
+			Status:            &fleet.MDMDeliveryVerified,
+			Checksum:          []byte("csum"),
+		},
+	})
+	require.NoError(t, err)
+
+	// Check that the profile is marked as verified when fetching the host
+	getHostResp := getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.Profiles)
+	hostProf := (*getHostResp.Host.MDM.Profiles)[0]
+	require.Equal(t, fleet.MDMDeliveryVerified, *hostProf.Status)
+
+	// report a profile removal error
+	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
+		HostUUID:      host.UUID,
+		CommandUUID:   profs[0].CommandUUID,
+		ProfileUUID:   profs[0].ProfileUUID,
+		Status:        &fleet.MDMDeliveryFailed,
+		OperationType: fleet.MDMOperationTypeRemove,
+		Detail:        "MDMClientError (89): Profile with identifier 'I1' not found.",
+	})
+	require.NoError(t, err)
+
+	// get that host - it should report "failed" for the profile and include the error message detail
+	getHostResp = getHostResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	hostProf = (*getHostResp.Host.MDM.Profiles)[0]
+	require.Equal(t, fleet.MDMDeliveryFailed, *hostProf.Status)
+	require.Equal(t, "Failed to remove: MDMClientError (89): Profile with identifier 'I1' not found.", hostProf.Detail)
+}
