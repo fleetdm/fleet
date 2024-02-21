@@ -1,0 +1,1 @@
+Fixed bug where updating policy name can result with multiple policies with the same name in a team.

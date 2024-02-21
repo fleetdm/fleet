@@ -1414,6 +1414,9 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	var globalChecksum []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
 
 	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
@@ -1429,6 +1432,9 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, tp1.Description, payload.Description)
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
+	var teamChecksum []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
 
 	// Change name only of a global query.
 	gp2 := *gp
@@ -1440,6 +1446,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
 	require.Equal(t, &gp2, gp)
+	var globalChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum2, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -1454,6 +1464,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
+	var teamChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, teamChecksum, teamChecksum2, "Checksum should be different since policy name changed")
 
 	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id = ?`, tp2.ID)
 	require.NoError(t, err)
