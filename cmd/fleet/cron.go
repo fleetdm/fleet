@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
-	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -889,7 +888,7 @@ func verifyDiskEncryptionKeys(
 
 // scepCertRenewalThresholdDays defines the number of days before a SCEP
 // certificate must be renewed.
-const scepCertRenewalThresholdDays = 470
+const scepCertRenewalThresholdDays = 30
 
 // maxCertsRenewalPerRun specifies the maximum number of certificates to renew
 // in a single cron run.
@@ -919,9 +918,9 @@ func renewSCEPCertificates(
 		return nil
 	}
 
+	// get a list of certificates that expire within
 	certs, err := ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, scepCertRenewalThresholdDays, maxCertsRenewalPerRun)
 	if err != nil {
-		logger.Log("err", "unable to get SCEP certificates from database", "details", err)
 		return ctxerr.Wrap(ctx, err, "getting certs close to expire")
 	}
 
@@ -930,6 +929,12 @@ func renewSCEPCertificates(
 		return nil
 	}
 
+	// for each certificate, calculate the SHA256 checksum of its DER
+	// contents. This is to match the way nanomdm stores hashes of identity
+	// certificates in the database.
+	//
+	// TODO(roberto): consider pre-calculating these hashes AND/OR adding
+	// efficient indexing.
 	certSHAs := make([]string, len(certs))
 	for i, cert := range certs {
 		parsed, err := apple_mdm.DecodeCertPEM(cert.CertificatePEM)
@@ -941,36 +946,33 @@ func renewSCEPCertificates(
 	}
 
 	if len(certSHAs) == 0 {
-		// TODO: should we return an error as well?
+		// TODO(code reviewer): should we return an error instead?
 		logger.Log("info", "unable to parse any certificates, skipping run")
 		return nil
 	}
 
+	// for each hash, grab the host that uses it as its identity certificate
 	certAssociations, err := ds.GetHostCertAssociationByCertSHA(ctx, certSHAs)
 	if err != nil {
-		logger.Log("err", "getting host cert associations", "details", err)
 		return ctxerr.Wrap(ctx, err, "getting host cert associations")
 	}
 
 	appConfig, err := ds.AppConfig(ctx)
 	if err != nil {
-		logger.Log("err", "getting AppConfig", "details", err)
 		return ctxerr.Wrap(ctx, err, "getting AppConfig")
 	}
 
-	apnsCert, _, _, err := config.MDM.AppleAPNs()
+	mdmPushCertTopic, err := config.MDM.AppleAPNsTopic()
 	if err != nil {
-		logger.Log("err", "parsing APNs certificates", "details", err)
-		return ctxerr.Wrap(ctx, err, "parsing APNs certificates")
+		return ctxerr.Wrap(ctx, err, "getting certificate topic")
 	}
 
-	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
-	if err != nil {
-		logger.Log("err", "extracting topic from APNs certificate", "details", err)
-		return ctxerr.Wrap(ctx, err, "extracting topic from APNs certificate")
-	}
-
+	// hostsWithRefs stores hosts that have enrollment references on their
+	// enrollment profiles. This is the case for ADE-enrolled hosts using
+	// SSO to authenticate.
 	hostsWithRefs := map[string]string{}
+	// hostsWithoutRefs stores hosts that don't have an enrollment
+	// reference in their enrollment profile.
 	var hostsWithoutRefs []string
 	for _, assoc := range certAssociations {
 		if assoc.EnrollReference != "" {
@@ -988,12 +990,10 @@ func renewSCEPCertificates(
 			mdmPushCertTopic,
 		)
 		if err != nil {
-			logger.Log("err", "generating enrollment profile for hosts without enroll reference", "details", err)
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
 		}
 
 		if err := commander.InstallProfile(ctx, hostsWithoutRefs, profile, uuid.NewString()); err != nil {
-			logger.Log("err", "sending InstallProfile command", "details", err, "hosts", hostsWithoutRefs)
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", hostsWithoutRefs)
 		}
 	}
@@ -1001,7 +1001,6 @@ func renewSCEPCertificates(
 	for ref, hostUUID := range hostsWithRefs {
 		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
 		if err != nil {
-			logger.Log("err", "adding reference to fleet URL", "details", err)
 			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 		}
 
@@ -1012,11 +1011,9 @@ func renewSCEPCertificates(
 			mdmPushCertTopic,
 		)
 		if err != nil {
-			logger.Log("err", "generating enrollment profile for hosts with enroll reference", "details", err)
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
 		}
 		if err := commander.InstallProfile(ctx, []string{hostUUID}, profile, uuid.NewString()); err != nil {
-			logger.Log("err", "sending InstallProfile command", "details", err, "hosts", hostsWithRefs)
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", hostsWithRefs)
 		}
 	}
