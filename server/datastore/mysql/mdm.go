@@ -958,16 +958,21 @@ func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas [
 	// TODO(roberto): this is not good because we don't have any indexes on
 	// h.uuid and ncaa.sha256, due to time constraints, I'm assuming that this
 	// function is called with a relatively low amount of shas
+	//
+	// Note that we use GROUP BY because we can't guarantee unique entries
+	// based on uuid in the hosts table.
 	stmt, args, err := sqlx.In(
 		`SELECT
 			ncaa.id as host_uuid,
-			COALESCE(hm.fleet_enroll_ref, '') as enroll_reference
+			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
 		 FROM
 			nano_cert_auth_associations ncaa
 			LEFT JOIN hosts h ON h.uuid = ncaa.id
 			LEFT JOIN host_mdm hm ON hm.host_id = h.id
 		 WHERE
-			ncaa.sha256 IN (?)`,
+			ncaa.sha256 IN (?)
+		GROUP BY
+			host_uuid`,
 		shas,
 	)
 	if err != nil {
