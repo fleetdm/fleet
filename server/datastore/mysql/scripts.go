@@ -536,7 +536,7 @@ ON DUPLICATE KEY UPDATE
 	})
 }
 
-func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 	const stmt = `
 		SELECT
 			lock_ref,
@@ -555,11 +555,12 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 		UnlockRef *string `db:"unlock_ref"`
 		UnlockPIN *string `db:"unlock_pin"`
 	}
+	fleetPlatform := host.FleetPlatform()
 	status := &fleet.HostLockWipeStatus{
 		HostFleetPlatform: fleetPlatform,
 	}
 
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, hostID); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &mdmActions, stmt, host.ID); err != nil {
 		if err == sql.ErrNoRows {
 			// do not return a Not Found error, return the zero-value status, which
 			// will report the correct states.
@@ -587,34 +588,22 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 
 		if mdmActions.LockRef != nil {
 			// the lock reference is an MDM command
-			cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), *mdmActions.LockRef)
+			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.LockRef, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command")
+				return nil, ctxerr.Wrap(ctx, err, "get lock reference")
 			}
 			status.LockMDMCommand = cmd
+			status.LockMDMCommandResult = cmdRes
+		}
 
-			// get the MDM command result, which may be not found (indicating the
-			// command is pending)
-			cmdRes, err := ds.GetMDMAppleCommandResults(ctx, *mdmActions.LockRef)
+		if mdmActions.WipeRef != nil {
+			// the wipe reference is an MDM command
+			cmd, cmdRes, err := ds.getHostMDMAppleCommand(ctx, *mdmActions.WipeRef, host.UUID)
 			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get lock reference MDM command result")
+				return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
 			}
-			// TODO: each item in the slice returned by
-			// GetMDMAppleCommandResults is a result for a
-			// different host. This only works because we're
-			// enqueuing the command with the given UUID for a
-			// single host, but it's the equivalent of doing
-			// cmdRes[0].
-			//
-			// Ideally, and to be super safe, we should try to find
-			// a command with a matching r.HostUUID, but we don't
-			// have the host UUID available.
-			for _, r := range cmdRes {
-				if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
-					status.LockMDMCommandResult = r
-					break
-				}
-			}
+			status.WipeMDMCommand = cmd
+			status.WipeMDMCommandResult = cmdRes
 		}
 
 	case "windows", "linux":
@@ -634,8 +623,52 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fle
 			}
 			status.UnlockScript = hsr
 		}
+
+		// wipe is an MDM command on Windows, a script on Linux
+		if mdmActions.WipeRef != nil {
+			if fleetPlatform == "windows" {
+				panic("unimplemented")
+			} else {
+				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get wipe reference script result")
+				}
+				status.WipeScript = hsr
+			}
+		}
 	}
+
 	return status, nil
+}
+
+func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
+	cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple MDM command")
+	}
+
+	// get the MDM command result, which may be not found (indicating the command
+	// is pending). Note that it doesn't return ErrNoRows if not found, it
+	// returns success and an empty cmdRes slice.
+	cmdResults, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Apple MDM command result")
+	}
+
+	// each item in the slice returned by GetMDMAppleCommandResults is
+	// potentially a result for a different host, we need to find the one for
+	// that specific host.
+	var cmdRes *fleet.MDMCommandResult
+	for _, r := range cmdResults {
+		if r.HostUUID != hostUUID {
+			continue
+		}
+		if r.Status == fleet.MDMAppleStatusAcknowledged || r.Status == fleet.MDMAppleStatusError || r.Status == fleet.MDMAppleStatusCommandFormatError {
+			cmdRes = r
+			break
+		}
+	}
+	return cmd, cmdRes, nil
 }
 
 // LockHostViaScript will create the script execution request and update
@@ -799,7 +832,8 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 			// around once it's confirmed.
 			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
 		case "wipe_ref":
-			// TODO(mna): implement when implementing the wipe story
+			// TODO(mna): can a wiped device still be locked?
+			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
 		default:
 			return ctxerr.Errorf(ctx, "unknown reference column %q", refCol)
 		}

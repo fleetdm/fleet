@@ -1267,7 +1267,7 @@ type Datastore interface {
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
-	GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*HostLockWipeStatus, error)
+	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions

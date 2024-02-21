@@ -11038,7 +11038,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWindowsLinux() {
 			require.Contains(t, errMsg, "Host has pending lock request.")
 
 			// simulate a successful script result for the lock command
-			status, err := s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			status, err := s.ds.GetHostLockWipeStatus(ctx, host)
 			require.NoError(t, err)
 
 			var orbitScriptResp orbitPostScriptResultResponse
@@ -11072,7 +11072,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWindowsLinux() {
 			require.Contains(t, errMsg, "Host has pending unlock request.")
 
 			// simulate a failed script result for the unlock command
-			status, err = s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			status, err = s.ds.GetHostLockWipeStatus(ctx, host)
 			require.NoError(t, err)
 
 			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",

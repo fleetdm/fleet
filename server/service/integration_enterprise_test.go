@@ -6571,7 +6571,7 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 
 	// simulate a successful script result for the lock command
-	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
 	var orbitScriptResp orbitPostScriptResultResponse

@@ -100,7 +100,7 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 
 	// if there's a lock, unlock or wipe action pending, do not accept the lock
 	// request.
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -166,7 +166,7 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -258,7 +258,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	}
 
 	// validations based on host's actions status (pending lock, unlock, wipe)
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -403,6 +403,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 
 	case "windows":
 		panic("unimplemented")
+
 	case "linux":
 		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
 		// part starting with the validation of the script (just in case), the checks

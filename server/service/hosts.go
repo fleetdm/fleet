@@ -1093,7 +1093,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
-	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}

@@ -724,7 +724,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// verify that we have created entries in host_mdm_actions and host_script_results
-	status, err := ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
+	status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: windowsHostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.LockScript)
@@ -745,7 +745,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	status, err = ds.GetHostLockWipeStatus(ctx, windowsHostID, "windows")
+	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: windowsHostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
 	require.True(t, status.IsLocked())
 	require.False(t, status.IsPendingLock())
@@ -775,7 +775,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// verify that we have created entries in host_mdm_actions and host_script_results
-	status, err := ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+	status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
 	require.Equal(t, "windows", status.HostFleetPlatform)
 	require.NotNil(t, status.UnlockScript)
@@ -796,7 +796,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	status, err = ds.GetHostLockWipeStatus(ctx, hostID, "windows")
+	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: "windows", UUID: "uuid"})
 	require.NoError(t, err)
 	require.True(t, status.IsUnlocked())
 	require.False(t, status.IsPendingUnlock())
@@ -811,7 +811,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 		hostID := uint(i + 1)
 
 		t.Run(platform, func(t *testing.T) {
-			status, err := ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 
 			// default state
@@ -826,7 +826,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, true, false)
 
@@ -838,7 +838,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, false, true, false, false, false, false)
 
@@ -851,7 +851,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, false, true, false, true, false, false)
 
@@ -864,7 +864,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// still locked
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, false, true, false, false, false, false)
 
@@ -877,7 +877,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, false, true, false, true, false, false)
 
@@ -890,7 +890,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 
 			// host is now unlocked
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, false, false)
 
@@ -903,7 +903,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, true, false)
 
@@ -915,7 +915,7 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			})
 			require.NoError(t, err)
 
-			status, err = ds.GetHostLockWipeStatus(ctx, hostID, platform)
+			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, false, false)
 		})
@@ -930,7 +930,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 	err := ds.UnlockHostManually(ctx, 1, twoDaysAgo)
 	require.NoError(t, err)
 
-	status, err := ds.GetHostLockWipeStatus(ctx, 1, "darwin")
+	status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 1, Platform: "darwin", UUID: "uuid"})
 	require.NoError(t, err)
 	require.False(t, status.UnlockRequestedAt.IsZero())
 	require.WithinDuration(t, twoDaysAgo, status.UnlockRequestedAt, 1*time.Second)
@@ -939,7 +939,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 	// requests
 	err = ds.UnlockHostManually(ctx, 1, today)
 	require.NoError(t, err)
-	status, err = ds.GetHostLockWipeStatus(ctx, 1, "darwin")
+	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 1, Platform: "darwin", UUID: "uuid"})
 	require.NoError(t, err)
 	require.False(t, status.UnlockRequestedAt.IsZero())
 	require.WithinDuration(t, twoDaysAgo, status.UnlockRequestedAt, 1*time.Second)
@@ -952,7 +952,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 	})
 	err = ds.UnlockHostManually(ctx, 2, today)
 	require.NoError(t, err)
-	status, err = ds.GetHostLockWipeStatus(ctx, 2, "darwin")
+	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 2, Platform: "darwin", UUID: "uuid"})
 	require.NoError(t, err)
 	require.False(t, status.UnlockRequestedAt.IsZero())
 	require.WithinDuration(t, today, status.UnlockRequestedAt, 1*time.Second)
