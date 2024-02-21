@@ -53,31 +53,6 @@ import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
-/**
- *
- * @param count The number of items.
- * @param root The root of the word, omitting any suffixs.
- * @param pluralSuffix The suffix to add to the root if the count is not 1.
- * @param singularSuffix The suffix to add to the root if the count is 1.
- * @returns A string with the root and the appropriate suffix.
- *
- * @example
- * pluralize(1, "hero", "es", "") // "hero"
- * pluralize(0, "hero", "es", "") // "heroes"
- * pluralize(1, "fair", "ies", "y") // "fairy"
- * pluralize(2, "fair", "ies", "y") // "fairies"
- * pluralize(1, "dragon") // "dragon"
- * pluralize(2, "dragon") // "dragons"
- */
-export const pluralize = (
-  count: number,
-  root: string,
-  pluralSuffix: string,
-  singularSuffix: string
-) => {
-  return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
-};
-
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
   const gravatarAvailable =
@@ -887,7 +862,6 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   );
 
 export default {
-  pluralize,
   addGravatarUrlToResource,
   formatConfigDataForServer,
   formatLabelResponse,
