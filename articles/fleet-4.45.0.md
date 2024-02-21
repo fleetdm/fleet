@@ -1,4 +1,4 @@
-# Fleet 4.45.0 | Remote lock, osquery storage location, Linux script library.
+# Fleet 4.45.0 | Remote lock, Linux script library, osquery storage location.
 
 ![Fleet 4.45.0](../website/assets/images/articles/fleet-4.45.0-1600x900@2x.png)
 
@@ -7,14 +7,9 @@ For upgrade instructions, see our [upgrade guide](https://fleetdm.com/docs/deplo
 
 ## Highlights
 
-* Customizable osquery data storage location
 * Remote lock for macOS, Windows, and Linux
 * Linux script library
-
-
-### Customizable osquery data storage location
-
-Fleet introduces a new `--osquery-db` flag to the `fleetctl` package command, catering to a unique requirement for virtual machine (VM) environments. This feature allows users to specify or update the osquery database directory for `fleetd` at the time of packaging or through an environment variable. By enabling the customization of the osquery data storage location, users can direct `fleetd` to utilize directories with more available space, optimizing resource use in VM setups. This enhancement demonstrates Fleet's commitment to ownership by giving users greater control over their Fleet configuration and results and facilitating more efficient data management in resource-constrained environments.
+* Customizable osquery data storage location
 
 
 ### Remote lock for macOS, Windows, and Linux
@@ -27,6 +22,9 @@ Fleet expands its device management capabilities with remote lock functionalitie
 A script library specifically designed for Linux hosts has been added. This complements Fleet's existing script execution functionalities and script libraries for macOS and Windows. The script library for Linux allows administrators to store, manage, and execute scripts efficiently using the Fleet UI or API, facilitating streamlined operations and maintenance tasks on Linux-based systems. This addition underscores Fleet's commitment to adaptability and inclusiveness, ensuring users can leverage the platform's full potential regardless of their operating system environment. By providing a dedicated script library for Linux, Fleet reinforces its dedication to delivering versatile and user-centric solutions that cater to the diverse needs of IT and security professionals.
 
 
+### Customizable osquery data storage location
+
+Fleet introduces a new `--osquery-db` flag to the `fleetctl` package command, catering to a unique requirement for virtual machine (VM) environments. This feature allows users to specify or update the osquery database directory for `fleetd` at the time of packaging or through an environment variable. By enabling the customization of the osquery data storage location, users can direct `fleetd` to utilize directories with more available space, optimizing resource use in VM setups. This enhancement demonstrates Fleet's commitment to ownership by giving users greater control over their Fleet configuration and results and facilitating more efficient data management in resource-constrained environments.
 
 
 
@@ -118,5 +116,5 @@ Visit our [Upgrade guide](https://fleetdm.com/docs/deploying/upgrading-fleet) in
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
 <meta name="publishedOn" value="2024-02-21">
-<meta name="articleTitle" value="Fleet 4.45.0 | Remote lock, osquery storage location, Linux script library.">
+<meta name="articleTitle" value="Fleet 4.45.0 | Remote lock, Linux script library, osquery storage location.">
 <meta name="articleImageUrl" value="../website/assets/images/articles/fleet-4.45.0-1600x900@2x.png">
