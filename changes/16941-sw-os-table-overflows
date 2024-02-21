@@ -1,1 +1,0 @@
-- Fix a bug where long OS names caused the table to render outside its bounds with smaller viewports
