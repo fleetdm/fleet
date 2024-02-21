@@ -29,7 +29,7 @@ func TestScripts(t *testing.T) {
 		{"BatchSetScripts", testBatchSetScripts},
 		{"TestLockHostViaScript", testLockHostViaScript},
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
-		{"TestLockUnlockViaScripts", testLockUnlockViaScripts},
+		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
 		{"TestLockUnlockManually", testLockUnlockManually},
 	}
 	for _, c := range cases {
@@ -803,7 +803,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 	require.False(t, status.IsLocked())
 }
 
-func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
+func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user := test.NewUser(t, ds, "Bob", "bob@example.com", true)
 
@@ -918,6 +918,59 @@ func testLockUnlockViaScripts(t *testing.T, ds *Datastore) {
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, false, false)
+
+			// on Linux only (because Windows Wipe uses MDM commands), test the Wipe
+			if platform == "linux" {
+				// record a request to wipe the host
+				err = ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+					HostID:         hostID,
+					ScriptContents: "wipe",
+					UserID:         &user.ID,
+					SyncRequest:    false,
+				})
+				require.NoError(t, err)
+
+				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
+				require.NoError(t, err)
+				checkLockWipeState(t, status, true, false, false, false, false, true)
+
+				// simulate a failed result for the wipe script execution
+				_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+					HostID:      hostID,
+					ExecutionID: status.WipeScript.ExecutionID,
+					ExitCode:    1,
+				})
+				require.NoError(t, err)
+
+				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
+				require.NoError(t, err)
+				checkLockWipeState(t, status, true, false, false, false, false, false)
+
+				// record another request to wipe the host
+				err = ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+					HostID:         hostID,
+					ScriptContents: "wipe2",
+					UserID:         &user.ID,
+					SyncRequest:    false,
+				})
+				require.NoError(t, err)
+
+				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
+				require.NoError(t, err)
+				checkLockWipeState(t, status, true, false, false, false, false, true)
+
+				// simulate a successful result for the wipe script execution
+				_, err = ds.SetHostScriptExecutionResult(ctx, &fleet.HostScriptResultPayload{
+					HostID:      hostID,
+					ExecutionID: status.WipeScript.ExecutionID,
+					ExitCode:    0,
+				})
+				require.NoError(t, err)
+
+				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
+				require.NoError(t, err)
+				checkLockWipeState(t, status, false, false, true, false, false, false)
+			}
 		})
 	}
 }

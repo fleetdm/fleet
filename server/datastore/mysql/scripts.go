@@ -832,7 +832,10 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 			// around once it's confirmed.
 			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
 		case "wipe_ref":
-			// TODO(mna): can a wiped device still be locked?
+			// TODO(mna): can a wiped device still be locked? If so we'd need to keep
+			// the pin/lock_ref, but this would mean that both IsLocked and IsWiped
+			// would be true, we'd need to ensure we check wipe first (I think we
+			// always assumed those 3 states were exclusive).
 			stmt = fmt.Sprintf(stmt, "lock_ref = NULL, unlock_ref = NULL, unlock_pin = NULL")
 		default:
 			return ctxerr.Errorf(ctx, "unknown reference column %q", refCol)

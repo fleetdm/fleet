@@ -4400,15 +4400,6 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 
-	checkState := func(t *testing.T, status *fleet.HostLockWipeStatus, unlocked, locked, wiped, pendingUnlock, pendingLock, pendingWipe bool) {
-		require.Equal(t, unlocked, status.IsUnlocked(), "unlocked")
-		require.Equal(t, locked, status.IsLocked(), "locked")
-		require.Equal(t, wiped, status.IsWiped(), "wiped")
-		require.Equal(t, pendingLock, status.IsPendingLock(), "pending lock")
-		require.Equal(t, pendingUnlock, status.IsPendingUnlock(), "pending unlock")
-		require.Equal(t, pendingWipe, status.IsPendingWipe(), "pending wipe")
-	}
-
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
 		OsqueryHostID: ptr.String("1337"),
@@ -4424,7 +4415,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// default state
-	checkState(t, status, true, false, false, false, false, false)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 
 	appleStore, err := ds.NewMDMAppleMDMStorage(nil, nil)
 	require.NoError(t, err)
@@ -4441,7 +4432,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	// it is now pending lock
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, true, false, false, false, true, false)
+	checkLockWipeState(t, status, true, false, false, false, true, false)
 
 	// record a command result to simulate locked state
 	err = appleStore.StoreCommandReport(&mdm.Request{
@@ -4458,7 +4449,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	// it is now locked
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, false, true, false, false, false, false)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
 
 	// request an unlock, to make it pending unlock
 	err = ds.UnlockHostManually(ctx, host.ID, time.Now().UTC())
@@ -4467,7 +4458,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	// it is now locked pending unlock
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, false, true, false, true, false, false)
+	checkLockWipeState(t, status, false, true, false, true, false, false)
 
 	// execute CleanMacOSMDMLock to simulate successful unlock
 	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
@@ -4476,7 +4467,7 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	// it is back to unlocked state
 	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, true, false, false, false, false, false)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 	require.Empty(t, status.UnlockPIN)
 }
 
