@@ -738,12 +738,11 @@ const ManagePolicyPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           {showTeamDescription ? (
-            <p>Add additional policies for all hosts assigned to this team.</p>
-          ) : (
             <p>
-              Add policies for all of your hosts to see which pass your
-              organization’s standards.
+              Detect device health issues for all hosts assigned to this team.
             </p>
+          ) : (
+            <p>Detect device health issues for all hosts.</p>
           )}
         </div>
         {renderMainTable()}
