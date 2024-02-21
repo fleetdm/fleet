@@ -25,17 +25,15 @@ import SidePanelContent from "components/SidePanelContent";
 import CustomLink from "components/CustomLink";
 
 import SecretField from "./APITokenModal/TokenSecretField/SecretField";
-import UserSidePanel from "./UserSidePanel";
+import UserSidePanel from "./AccountSidePanel";
 
-const baseClass = "user-settings";
+const baseClass = "account";
 
-interface IUserSettingsPageProps {
+interface IAccountPageProps {
   router: InjectedRouter;
 }
 
-const UserSettingsPage = ({
-  router,
-}: IUserSettingsPageProps): JSX.Element | null => {
+const AccountPage = ({ router }: IAccountPageProps): JSX.Element | null => {
   const { config, currentUser } = useContext(AppContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -247,4 +245,4 @@ const UserSettingsPage = ({
   );
 };
 
-export default UserSettingsPage;
+export default AccountPage;
