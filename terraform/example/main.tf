@@ -57,16 +57,6 @@ data "aws_route53_zone" "main" {
   private_zone = false
 }
 
-module "firehose-logging" {
-  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.0.0"
-  osquery_results_s3_bucket = {
-    name = "${random_pet.main.id}-results"
-  }
-  osquery_status_s3_bucket = {
-    name = "${random_pet.main.id}-status"
-  }
-}
-
 module "vulnprocessing" {
   source          = "github.com/fleetdm/fleet//terraform/addons/vuln-processing?ref=tf-mod-addon-vuln-processing-v1.0.0"
   customer_prefix = "fleet"
