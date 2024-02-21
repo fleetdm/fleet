@@ -14,6 +14,7 @@ import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
   IActivitiesResponse,
+  IPastActivitiesResponse,
   IUpcomingActivitiesResponse,
 } from "services/entities/activities";
 import hostAPI from "services/entities/hosts";
@@ -368,9 +369,9 @@ const HostDetailsPage = ({
     isError: pastActivitiesIsError,
     refetch: refetchPastActivities,
   } = useQuery<
-    IActivitiesResponse,
+    IPastActivitiesResponse,
     Error,
-    IActivitiesResponse,
+    IPastActivitiesResponse,
     Array<{
       scope: string;
       pageIndex: number;
