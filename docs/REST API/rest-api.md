@@ -5475,6 +5475,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
+      "targeted_host_count": 2310,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     },
     {
@@ -5493,6 +5494,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2022-02-10T20:59:35Z",
       "passing_host_count": 2300,
       "failing_host_count": 0,
+      "targeted_host_count": 2300,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
   ]
@@ -5563,6 +5565,7 @@ For example, a policy might ask “Is Gatekeeper enabled on macOS devices?“ Th
       "updated_at": "2021-12-15T15:23:57Z",
       "passing_host_count": 2000,
       "failing_host_count": 300,
+      "targeted_host_count": 2310,
       "host_count_updated_at": "2023-12-20T15:23:57Z"
     }
 }
