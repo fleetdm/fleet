@@ -67,9 +67,9 @@ To deliver on this mission, we need a clear, repeatable process for turning an i
 > Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 To make a change to Fleet:
-- First, [get it prioritized](https://fleetdm.com/handbook/product).
-- Then, it will be [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) (planned).
-- Next, it will be [implemented](https://fleetdm.com/handbook/company/development-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
+- First, [get it prioritized](https://fleetdm.com/handbook/product-design).
+- Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
+- Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
 ### Planned and unplanned changes
 Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release sprint _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
@@ -143,6 +143,7 @@ User stories are small and independently valuable.
 
 
 #### Engineering-initiated stories
+<!-- TODO: Move steps to "Create an Engineering-initiated story" to handbook/engineering#responsibilities -->
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
@@ -405,7 +406,7 @@ Once the bug is properly labeled, assign it to the [relevant engineering manager
 #### In product drafting (as needed)
 If a bug requires input from product the `:product` label is added, the `:release` label is removed, and the PM is assigned to the issue. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
-#### In engineering
+#### In engineering 
 A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
 During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.  
@@ -480,6 +481,7 @@ How to escalate:
 1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
 
 2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@zwass` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Zach will work with you to craft an appropriate answer or find another team member who can help.
+
 
 ### Changing of the guard
 The on-call developer changes each week on Wednesday.
@@ -579,7 +581,7 @@ OPTIONS
 
 ## Meetings
 
-<!--
+<!-- TODO: Find out what to do with this stuff. Delete?
 ### Eng Together
 This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 

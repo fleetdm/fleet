@@ -28,7 +28,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
 
   name                  = "${local.name}-mysql"
   engine                = "aurora-mysql"
-  engine_version        = "8.0.mysql_aurora.3.02.2"
+  engine_version        = "8.0.mysql_aurora.3.03.3"
   instance_class         = var.db_instance_type
 
   instances = {
@@ -64,7 +64,7 @@ module "aurora_mysql" { #tfsec:ignore:aws-rds-enable-performance-insights-encryp
     }
   ]
 
-  snapshot_identifier = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned"
+  snapshot_identifier = "arn:aws:rds:us-east-2:917007347864:cluster-snapshot:cleaned-8-0"
 
   monitoring_interval           = 60
   iam_role_name                 = "${local.name}-rds"

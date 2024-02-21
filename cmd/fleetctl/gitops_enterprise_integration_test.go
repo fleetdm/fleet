@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	appleMdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/go-git/go-git/v5"
@@ -16,22 +17,23 @@ import (
 	"github.com/stretchr/testify/suite"
 	"os"
 	"path"
+	"path/filepath"
 	"testing"
 )
 
-func TestIntegrationsGitops(t *testing.T) {
-	testingSuite := new(integrationGitopsTestSuite)
+func TestEnterpriseIntegrationsGitops(t *testing.T) {
+	testingSuite := new(enterpriseIntegrationGitopsTestSuite)
 	testingSuite.suite = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
-type integrationGitopsTestSuite struct {
+type enterpriseIntegrationGitopsTestSuite struct {
 	suite.Suite
 	withServer
 	fleetCfg config.FleetConfig
 }
 
-func (s *integrationGitopsTestSuite) SetupSuite() {
+func (s *enterpriseIntegrationGitopsTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("integrationGitopsTestSuite")
 
 	appConf, err := s.ds.AppConfig(context.Background())
@@ -61,7 +63,7 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 
 	serverConfig := service.TestServerOpts{
 		License: &fleet.LicenseInfo{
-			Tier: fleet.TierFree,
+			Tier: fleet.TierPremium,
 		},
 		FleetConfig: &fleetCfg,
 		MDMStorage:  mdmStorage,
@@ -83,7 +85,7 @@ func (s *integrationGitopsTestSuite) SetupSuite() {
 	require.NoError(s.T(), err)
 }
 
-func (s *integrationGitopsTestSuite) TearDownSuite() {
+func (s *enterpriseIntegrationGitopsTestSuite) TearDownSuite() {
 	appConf, err := s.ds.AppConfig(context.Background())
 	require.NoError(s.T(), err)
 	appConf.MDM.EnabledAndConfigured = false
@@ -93,15 +95,24 @@ func (s *integrationGitopsTestSuite) TearDownSuite() {
 
 // TestFleetGitops runs `fleetctl gitops` command on configs in https://github.com/fleetdm/fleet-gitops repo.
 // Changes to that repo may cause this test to fail.
-func (s *integrationGitopsTestSuite) TestFleetGitops() {
+func (s *enterpriseIntegrationGitopsTestSuite) TestFleetGitops() {
 	t := s.T()
 	const fleetGitopsRepo = "https://github.com/fleetdm/fleet-gitops"
+
+	// Create GitOps user
+	user := fleet.User{
+		Name:       "GitOps User",
+		Email:      "fleetctl-gitops@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, user.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(context.Background(), &user)
+	require.NoError(t, err)
 
 	// Create a temporary fleetctl config file
 	fleetctlConfig, err := os.CreateTemp(t.TempDir(), "*.yml")
 	require.NoError(t, err)
-	// GitOps user is a premium feature, so we simply use an admin user.
-	token := s.getTestToken("admin1@example.com", test.GoodPassword)
+	token := s.getTestToken(user.Email, test.GoodPassword)
 	configStr := fmt.Sprintf(
 		`
 contexts:
@@ -130,13 +141,27 @@ contexts:
 	// Set the required environment variables
 	t.Setenv("FLEET_SSO_METADATA", "sso_metadata")
 	t.Setenv("FLEET_GLOBAL_ENROLL_SECRET", "global_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_ENROLL_SECRET", "workstations_enroll_secret")
+	t.Setenv("FLEET_WORKSTATIONS_CANARY_ENROLL_SECRET", "workstations_canary_enroll_secret")
 	globalFile := path.Join(repoDir, "default.yml")
+	teamsDir := path.Join(repoDir, "teams")
+	teamFiles, err := os.ReadDir(teamsDir)
 	require.NoError(t, err)
 
 	// Dry run
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile, "--dry-run"})
+	for _, file := range teamFiles {
+		if filepath.Ext(file.Name()) == ".yml" {
+			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name()), "--dry-run"})
+		}
+	}
 
 	// Real run
 	_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", globalFile})
+	for _, file := range teamFiles {
+		if filepath.Ext(file.Name()) == ".yml" {
+			_ = runAppForTest(t, []string{"gitops", "--config", fleetctlConfig.Name(), "-f", path.Join(teamsDir, file.Name())})
+		}
+	}
 
 }
