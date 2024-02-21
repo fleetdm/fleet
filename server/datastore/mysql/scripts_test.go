@@ -11,6 +11,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/require"
 )
@@ -919,8 +920,39 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 			require.NoError(t, err)
 			checkLockWipeState(t, status, true, false, false, false, false, false)
 
-			// on Linux only (because Windows Wipe uses MDM commands), test the Wipe
-			if platform == "linux" {
+			switch platform {
+			case "windows":
+				// need a real MDM-enrolled host for MDM commands
+				h, err := ds.NewHost(ctx, &fleet.Host{
+					Hostname:      "test-host-windows",
+					OsqueryHostID: ptr.String("osquery-windows"),
+					NodeKey:       ptr.String("nodekey-windows"),
+					UUID:          "test-uuid-windows",
+					Platform:      "windows",
+				})
+				require.NoError(t, err)
+				windowsEnroll(t, ds, h)
+
+				// record a request to wipe the host
+				wipeCmdUUID := uuid.NewString()
+				wipeCmd := &fleet.MDMWindowsCommand{
+					CommandUUID:  wipeCmdUUID,
+					RawCommand:   []byte(`<Exec></Exec>`),
+					TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+				}
+				err = ds.WipeHostViaWindowsMDM(ctx, h, wipeCmd)
+				require.NoError(t, err)
+
+				status, err = ds.GetHostLockWipeStatus(ctx, h)
+				require.NoError(t, err)
+				checkLockWipeState(t, status, true, false, false, false, false, true)
+
+				// TODO: we don't seem to have an easy way to simulate a Windows MDM
+				// protocol response, and there are lots of validations happening so we
+				// can't just send a simple XML. Will test the rest via integration
+				// tests.
+
+			case "linux":
 				// record a request to wipe the host
 				err = ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{
 					HostID:         hostID,

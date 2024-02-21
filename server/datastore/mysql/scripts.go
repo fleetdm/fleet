@@ -627,7 +627,12 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 		// wipe is an MDM command on Windows, a script on Linux
 		if mdmActions.WipeRef != nil {
 			if fleetPlatform == "windows" {
-				panic("unimplemented")
+				cmd, cmdRes, err := ds.getHostMDMWindowsCommand(ctx, *mdmActions.WipeRef, host.UUID)
+				if err != nil {
+					return nil, ctxerr.Wrap(ctx, err, "get wipe reference")
+				}
+				status.WipeMDMCommand = cmd
+				status.WipeMDMCommandResult = cmdRes
 			} else {
 				hsr, err := ds.getHostScriptExecutionResultDB(ctx, ds.reader(ctx), *mdmActions.WipeRef)
 				if err != nil {
@@ -639,6 +644,36 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 	}
 
 	return status, nil
+}
+
+func (ds *Datastore) getHostMDMWindowsCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {
+	cmd, err := ds.getMDMCommand(ctx, ds.reader(ctx), cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command")
+	}
+
+	// get the MDM command result, which may be not found (indicating the command
+	// is pending). Note that it doesn't return ErrNoRows if not found, it
+	// returns success and an empty cmdRes slice.
+	cmdResults, err := ds.GetMDMWindowsCommandResults(ctx, cmdUUID)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "get Windows MDM command result")
+	}
+
+	// each item in the slice returned by GetMDMWindowsCommandResults is
+	// potentially a result for a different host, we need to find the one for
+	// that specific host.
+	var cmdRes *fleet.MDMCommandResult
+	for _, r := range cmdResults {
+		if r.HostUUID != hostUUID {
+			continue
+		}
+		// all statuses for Windows indicate end of processing of the command
+		// (there is no equivalent of "NotNow" or "Idle" as for Apple).
+		cmdRes = r
+		break
+	}
+	return cmd, cmdRes, nil
 }
 
 func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUUID string) (*fleet.MDMCommand, *fleet.MDMCommandResult, error) {

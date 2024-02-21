@@ -368,13 +368,20 @@ func (s HostLockWipeStatus) IsUnlocked() bool {
 }
 
 func (s HostLockWipeStatus) IsWiped() bool {
-	if s.HostFleetPlatform == "linux" {
+	switch s.HostFleetPlatform {
+	case "linux":
 		// wiped if script was sent and succeeded
 		return s.WipeScript != nil && s.WipeScript.ExitCode != nil &&
 			*s.WipeScript.ExitCode == 0
+	case "windows":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
+	case "darwin":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
 	}
-	// wiped if an MDM command was sent and succeeded
-	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
-		// TODO(mna): what's the success status on Windows, I think it's 200?
-		s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
 }
