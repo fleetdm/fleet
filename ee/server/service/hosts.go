@@ -404,22 +404,8 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 	case "windows":
 		wipeCmdUUID := uuid.NewString()
 		wipeCmd := &fleet.MDMWindowsCommand{
-			CommandUUID: wipeCmdUUID,
-			RawCommand: []byte(fmt.Sprintf(`
-				<Exec>
-					<CmdID>%s</CmdID>
-					<Item>
-						<Target>
-							<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
-						</Target>
-						<Meta>
-							<Format xmlns="syncml:metinf">chr</Format>
-							<Type>text/plain</Type>
-						</Meta>
-						<Data></Data>
-					</Item>
-				</Exec>
-		`, wipeCmdUUID)),
+			CommandUUID:  wipeCmdUUID,
+			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID)),
 			TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
 		}
 		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
@@ -472,4 +458,19 @@ var (
 	linuxUnlockScript []byte
 	//go:embed embedded_scripts/linux_wipe.sh
 	linuxWipeScript []byte
+
+	windowsWipeCommand = `
+		<Exec>
+			<CmdID>%s</CmdID>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+				</Target>
+				<Meta>
+					<Format xmlns="syncml:metinf">chr</Format>
+					<Type>text/plain</Type>
+				</Meta>
+				<Data></Data>
+			</Item>
+		</Exec>`
 )

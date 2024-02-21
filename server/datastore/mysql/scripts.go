@@ -117,7 +117,7 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 				return ctxerr.Wrap(ctx, err, "lookup host script corresponding mdm action")
 			}
 			if refCol != "" {
-				err = ds.updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, refCol, result.ExitCode == 0)
+				err = updateHostLockWipeStatusFromResult(ctx, tx, result.HostID, refCol, result.ExitCode == 0)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "update host mdm action based on script result")
 				}
@@ -866,13 +866,17 @@ func (ds *Datastore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Cont
 	default:
 		return nil
 	}
-	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`)
-	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, cmdUUID)
-	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from Apple MDM result")
+	return updateHostLockWipeStatusFromResultAndHostUUID(ctx, ds.writer(ctx), hostUUID, refCol, cmdUUID, succeeded)
 }
 
-func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
+func updateHostLockWipeStatusFromResultAndHostUUID(ctx context.Context, tx sqlx.ExtContext, hostUUID, refCol, cmdUUID string, succeeded bool) error {
+	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, `JOIN hosts h ON hma.host_id = h.id`)
+	stmt += ` WHERE h.uuid = ? AND hma.` + refCol + ` = ?`
+	_, err := tx.ExecContext(ctx, stmt, hostUUID, cmdUUID)
+	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result via host uuid")
+}
+
+func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext, hostID uint, refCol string, succeeded bool) error {
 	stmt := buildHostLockWipeStatusUpdateStmt(refCol, succeeded, "")
 	stmt += ` WHERE host_id = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostID)

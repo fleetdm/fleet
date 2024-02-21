@@ -232,20 +232,20 @@ func (ds *Datastore) MDMWindowsSaveResponse(ctx context.Context, deviceID string
 		return ctxerr.New(ctx, "empty raw response")
 	}
 
-	const findCommandsStmt = `SELECT command_uuid, raw_command FROM windows_mdm_commands WHERE command_uuid IN (?)`
+	const (
+		findCommandsStmt    = `SELECT command_uuid, raw_command, target_loc_uri FROM windows_mdm_commands WHERE command_uuid IN (?)`
+		saveFullRespStmt    = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
+		dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
 
-	const saveFullRespStmt = `INSERT INTO windows_mdm_responses (enrollment_id, raw_response) VALUES (?, ?)`
-
-	const dequeueCommandsStmt = `DELETE FROM windows_mdm_command_queue WHERE command_uuid IN (?)`
-
-	const insertResultsStmt = `
+		insertResultsStmt = `
 INSERT INTO windows_mdm_command_results
     (enrollment_id, command_uuid, raw_result, response_id, status_code)
 VALUES %s
 ON DUPLICATE KEY UPDATE
     raw_result = COALESCE(VALUES(raw_result), raw_result),
     status_code = COALESCE(VALUES(status_code), status_code)
-	`
+`
+	)
 
 	enrollment, err := ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
 	if err != nil {
@@ -305,9 +305,15 @@ ON DUPLICATE KEY UPDATE
 
 		// for all the matching UUIDs, try to find any <Status> or
 		// <Result> entries to track them as responses.
-		var args []any
-		var sb strings.Builder
-		var potentialProfilePayloads []*fleet.MDMWindowsProfilePayload
+		var (
+			args                     []any
+			sb                       strings.Builder
+			potentialProfilePayloads []*fleet.MDMWindowsProfilePayload
+
+			wipeCmdUUID   string
+			wipeCmdStatus string
+		)
+
 		for _, cmd := range matchingCmds {
 			statusCode := ""
 			if status, ok := uuidsToStatus[cmd.CommandUUID]; ok && status.Data != nil {
@@ -331,6 +337,13 @@ ON DUPLICATE KEY UPDATE
 			}
 			args = append(args, enrollment.ID, cmd.CommandUUID, rawResult, responseID, statusCode)
 			sb.WriteString("(?, ?, ?, ?, ?),")
+
+			// if the command is a Wipe, keep track of it so we can update
+			// host_mdm_actions accordingly.
+			if strings.Contains(cmd.TargetLocURI, "/Device/Vendor/MSFT/RemoteWipe/") {
+				wipeCmdUUID = cmd.CommandUUID
+				wipeCmdStatus = statusCode
+			}
 		}
 
 		if err := updateMDMWindowsHostProfileStatusFromResponseDB(ctx, tx, potentialProfilePayloads); err != nil {
@@ -341,6 +354,14 @@ ON DUPLICATE KEY UPDATE
 		stmt = fmt.Sprintf(insertResultsStmt, strings.TrimSuffix(sb.String(), ","))
 		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting command results")
+		}
+
+		// if we received a Wipe command result, update the host's status
+		if wipeCmdUUID != "" {
+			if err := updateHostLockWipeStatusFromResultAndHostUUID(ctx, tx, enrollment.HostUUID,
+				"wipe_ref", wipeCmdUUID, strings.HasPrefix(wipeCmdStatus, "2")); err != nil {
+				return ctxerr.Wrap(ctx, err, "updating wipe command result in host_mdm_actions")
+			}
 		}
 
 		// dequeue the commands
