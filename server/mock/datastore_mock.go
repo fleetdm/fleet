@@ -822,6 +822,8 @@ type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
 
 type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
 
+type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
+
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
 type DataStore struct {
@@ -2030,6 +2032,9 @@ type DataStore struct {
 
 	WipeHostViaScriptFunc        WipeHostViaScriptFunc
 	WipeHostViaScriptFuncInvoked bool
+
+	WipeHostViaWindowsMDMFunc        WipeHostViaWindowsMDMFunc
+	WipeHostViaWindowsMDMFuncInvoked bool
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
@@ -4849,6 +4854,13 @@ func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostSc
 	s.WipeHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
 	return s.WipeHostViaScriptFunc(ctx, request)
+}
+
+func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.WipeHostViaWindowsMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaWindowsMDMFunc(ctx, host, cmd)
 }
 
 func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error {

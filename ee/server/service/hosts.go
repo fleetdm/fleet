@@ -402,7 +402,29 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 		}
 
 	case "windows":
-		panic("unimplemented")
+		wipeCmdUUID := uuid.NewString()
+		wipeCmd := &fleet.MDMWindowsCommand{
+			CommandUUID: wipeCmdUUID,
+			RawCommand: []byte(fmt.Sprintf(`
+				<Exec>
+					<CmdID>%s</CmdID>
+					<Item>
+						<Target>
+							<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+						</Target>
+						<Meta>
+							<Format xmlns="syncml:metinf">chr</Format>
+							<Type>text/plain</Type>
+						</Meta>
+						<Data></Data>
+					</Item>
+				</Exec>
+		`, wipeCmdUUID)),
+			TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+		}
+		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
+		}
 
 	case "linux":
 		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the

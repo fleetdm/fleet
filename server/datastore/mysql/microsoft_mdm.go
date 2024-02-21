@@ -142,26 +142,30 @@ func (ds *Datastore) MDMWindowsInsertCommandForHosts(ctx context.Context, hostUU
 	}
 
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		// first, create the command entry
-		stmt := `
-  INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
-  VALUES (?, ?, ?)
-  `
-		if _, err := tx.ExecContext(ctx, stmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
-			if isDuplicate(err) {
-				return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
-			}
-			return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
-		}
-
-		// create the command execution queue entries, one per host
-		for _, hostUUIDOrDeviceID := range hostUUIDsOrDeviceIDs {
-			if err := ds.mdmWindowsInsertHostCommandDB(ctx, tx, hostUUIDOrDeviceID, cmd.CommandUUID); err != nil {
-				return err
-			}
-		}
-		return nil
+		return ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, hostUUIDsOrDeviceIDs, cmd)
 	})
+}
+
+func (ds *Datastore) mdmWindowsInsertCommandForHostsDB(ctx context.Context, tx sqlx.ExecerContext, hostUUIDsOrDeviceIDs []string, cmd *fleet.MDMWindowsCommand) error {
+	// first, create the command entry
+	stmt := `
+		INSERT INTO windows_mdm_commands (command_uuid, raw_command, target_loc_uri)
+		VALUES (?, ?, ?)
+  `
+	if _, err := tx.ExecContext(ctx, stmt, cmd.CommandUUID, cmd.RawCommand, cmd.TargetLocURI); err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMWindowsCommand", cmd.CommandUUID))
+		}
+		return ctxerr.Wrap(ctx, err, "inserting MDMWindowsCommand")
+	}
+
+	// create the command execution queue entries, one per host
+	for _, hostUUIDOrDeviceID := range hostUUIDsOrDeviceIDs {
+		if err := ds.mdmWindowsInsertHostCommandDB(ctx, tx, hostUUIDOrDeviceID, cmd.CommandUUID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (ds *Datastore) mdmWindowsInsertHostCommandDB(ctx context.Context, tx sqlx.ExecerContext, hostUUIDOrDeviceID, commandUUID string) error {
@@ -1873,4 +1877,27 @@ host_uuid = ? AND profile_name NOT IN(?) AND NOT (operation_type = '%s' AND COAL
 		return nil, err
 	}
 	return profiles, nil
+}
+
+func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := ds.mdmWindowsInsertCommandForHostsDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
+			return err
+		}
+
+		stmt := `
+			INSERT INTO host_mdm_actions (
+				host_id,
+				wipe_ref
+			)
+			VALUES (?, ?)
+			ON DUPLICATE KEY UPDATE
+				wipe_ref   = VALUES(wipe_ref)`
+
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for wipe_ref")
+		}
+
+		return nil
+	})
 }
