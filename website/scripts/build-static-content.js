@@ -1001,18 +1001,37 @@ module.exports = {
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. Invalid ritual: "${ritual.task}" indicates frequency "${ritual.frequency}", but that isn't supported with automations turned on.  Supported frequencies: ${KNOWN_AUTOMATABLE_FREQUENCIES}`);
               }
               if(!skipGithubRequests){ // If the ritual has an autoIssue value, we'll validate that the DRI value is a GitHub username.
-                await sails.helpers.http.get.with({
-                  url: 'https://api.github.com/users/' + encodeURIComponent(ritual.dri),
-                  headers: baseHeadersForGithubRequests
-                }).intercept((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
-                  if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
-                    return new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
-                  } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
-                    return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
-                  } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
-                    return err;
+                if(typeof ritual.dri === 'string'){
+                  await sails.helpers.http.get.with({
+                    url: 'https://api.github.com/users/' + encodeURIComponent(ritual.dri),
+                    headers: baseHeadersForGithubRequests
+                  }).intercept((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+                    if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                      return new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+                    } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
+                      return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${ritual.dri}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
+                    } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
+                      return err;
+                    }
+                  });
+                } else if(Array.isArray(ritual.dri)) {
+                  for(let assignee of ritual.dri){
+                    await sails.helpers.http.get.with({
+                      url: 'https://api.github.com/users/' + encodeURIComponent(assignee),
+                      headers: baseHeadersForGithubRequests
+                    }).intercept((err)=>{// If the above GET requests return a non 200 response we'll look for signs that the user has hit their GitHub API rate limit.
+                      if (err.raw.statusCode === 403 && err.raw.headers['x-ratelimit-remaining'] === '0') {// If the user has reached their GitHub API rate limit, we'll throw an error that suggest they run this script with the `--skipGithubRequests` flag.
+                        return new Error('GitHub API rate limit exceeded. If you\'re running this script in a development environment, use the `--skipGithubRequests` flag to skip querying the GitHub API. See full error for more details:\n'+err);
+                      } else if(err.raw.statusCode === 404) {// If the GitHub API responds with a 404, we'll throw an error with a message about the invalid GitHub username.
+                        return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid GitHub username (${assignee}). To resolve, make sure the DRI value for this ritual is a valid GitHub username.`);
+                      } else {// If the error was not a 404 and not because of the user's API rate limit, we'll display the full error
+                        return err;
+                      }
+                    });
                   }
-                });
+                } else {
+                  return new Error(`Could not build rituals from ${ritualsYamlFilePath}. The DRI value of a ritual (${ritual.task}) contains an invalid DRI value (${ritual.dri} type: ${typeof ritual.dri}). To resolve, make sure the DRI value for this ritual is either a valid GitHub username or an array of valid GitHub usernames.`);
+                }
               }
               if(!ritual.autoIssue.labels || !_.isArray(ritual.autoIssue.labels)){ // If the autoIssue value exists, but does not contain an array of labels, throw an error
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" contains an invalid autoIssue value. To resolve, add a "labels" value (An array of strings) to the autoIssue value.`);

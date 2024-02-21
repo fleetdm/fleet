@@ -103,12 +103,18 @@ module.exports = {
         // Create an issue with right labels and assignee, in the right repo.
         if (!dry) {
           let owner = 'fleetdm';
+          let issueAssignee;
+          if(Array.isArray(ritual.dri)){// If there are multiple DRIs for this ritual, we'll send the array of assignees in the request to create the issue.
+            issueAssignee = ritual.dri;
+          } else {// Otherwise, wrap the DRI value in an array.
+            issueAssignee = [ritual.dri];
+          }
           // [?] https://docs.github.com/en/rest/issues/issues#create-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${ritual.autoIssue.repo}/issues`, {
             title: ritual.task,
             body: ritual.description + (ritual.moreInfoUrl ? ('\n\n> Read more at '+ritual.moreInfoUrl) : ''),
             labels: ritual.autoIssue.labels,
-            assignees: [ ritual.dri ]
+            assignees: issueAssignee
           }, baseHeaders);
         } else {
           sails.log('Dry run: Would have created an issue for ritual:', ritual);
