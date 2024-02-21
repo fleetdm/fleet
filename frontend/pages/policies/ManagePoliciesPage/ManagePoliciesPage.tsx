@@ -249,6 +249,7 @@ const ManagePolicyPage = ({
     data: globalPoliciesCount,
 
     isFetching: isFetchingGlobalCount,
+    refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
       {
@@ -303,7 +304,11 @@ const ManagePolicyPage = ({
     }
   );
 
-  const { data: teamPoliciesCount, isFetching: isFetchingTeamCount } = useQuery<
+  const {
+    data: teamPoliciesCount,
+    isFetching: isFetchingTeamCount,
+    refetch: refetchTeamPoliciesCount,
+  } = useQuery<
     IPoliciesCountResponse,
     Error,
     number,
@@ -364,8 +369,10 @@ const ManagePolicyPage = ({
   const refetchPolicies = (teamId?: number) => {
     if (teamId) {
       refetchTeamPolicies();
+      refetchTeamPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
+      refetchGlobalPoliciesCount();
     }
   };
 
