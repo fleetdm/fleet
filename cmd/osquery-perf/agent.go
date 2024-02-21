@@ -630,7 +630,7 @@ type resultLog struct {
 	numRows   int
 }
 
-func (r resultLog) emit() json.RawMessage {
+func (r resultLog) emit() []byte {
 	return scheduledQueryResults(r.packName, r.queryName, r.numRows)
 }
 
@@ -1008,6 +1008,7 @@ func (a *agent) config() error {
 		} `json:"packs"`
 	}{}
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+		a.stats.IncrementConfigErrors()
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
@@ -1188,6 +1189,7 @@ func (a *agent) DistributedRead() (*distributedReadResponse, error) {
 
 	var parsedResp distributedReadResponse
 	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+		a.stats.IncrementDistributedReadErrors()
 		log.Printf("json parse: %s", err)
 		return nil, err
 	}
@@ -1642,8 +1644,8 @@ func (a *agent) DistributedWrite(queries map[string]string) error {
 	return nil
 }
 
-func scheduledQueryResults(packName, queryName string, numResults int) json.RawMessage {
-	return json.RawMessage(`{
+func scheduledQueryResults(packName, queryName string, numResults int) []byte {
+	return []byte(`{
   "snapshot": [` + rows(numResults) + `
   ],
   "action": "snapshot",
@@ -1681,30 +1683,15 @@ func (a *agent) submitLogs(results []resultLog) error {
 	}
 	conn.Close()
 
-	resultLogs := make([]json.RawMessage, 0, len(results))
-	for _, result := range results {
-		resultLogs = append(resultLogs, result.emit())
+	var resultLogs []byte
+	for i, result := range results {
+		if i > 0 {
+			resultLogs = append(resultLogs, ',')
+		}
+		resultLogs = append(resultLogs, result.emit()...)
 	}
 
-	jsonResults, err := json.Marshal(resultLogs)
-	if err != nil {
-		panic(err)
-	}
-	type submitLogsRequest struct {
-		NodeKey string          `json:"node_key"`
-		LogType string          `json:"log_type"`
-		Data    json.RawMessage `json:"data"`
-	}
-	slr := submitLogsRequest{
-		NodeKey: a.nodeKey,
-		LogType: "result",
-		Data:    jsonResults,
-	}
-	body, err := json.Marshal(slr)
-	if err != nil {
-		panic(err)
-	}
-
+	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
 	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
 	if err != nil {
 		return err
