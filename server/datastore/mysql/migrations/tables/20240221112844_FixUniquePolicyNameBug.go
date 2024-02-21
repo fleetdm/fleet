@@ -49,9 +49,8 @@ func Up_20240221112844(tx *sql.Tx) error {
 		var driverErr *mysql.MySQLError
 		if errors.As(err, &driverErr) && driverErr.Number == mysqlerr.ER_DUP_ENTRY {
 			return true
-		} else {
-			return false
 		}
+		return false
 	}
 
 	duplicateExists := false
@@ -68,16 +67,20 @@ func Up_20240221112844(tx *sql.Tx) error {
 		rows, err := tx.Query("SELECT id FROM policies")
 		if err != nil {
 			return fmt.Errorf("failed to query policies table: %w", err)
+		} else if rows.Err() != nil {
+			return fmt.Errorf("failed to query policies table: %w", rows.Err())
 		}
 		var ids []uint64
-		for rows.Next() {
-			var id uint64
-			if err := rows.Scan(&id); err != nil {
-				return fmt.Errorf("failed to scan policies table: %w", err)
+		{
+			defer rows.Close()
+			for rows.Next() {
+				var id uint64
+				if err := rows.Scan(&id); err != nil {
+					return fmt.Errorf("failed to scan policies table: %w", err)
+				}
+				ids = append(ids, id)
 			}
-			ids = append(ids, id)
 		}
-		rows.Close()
 		for _, id := range ids {
 			_, err = tx.Exec(updateStmt+" WHERE id = ?", id)
 			if err != nil && isDuplicate(err) {
