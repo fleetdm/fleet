@@ -1445,15 +1445,20 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	}
 }
 
-func TestLockUnlockHostAuth(t *testing.T) {
+func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	const (
+		teamHostID   = 1
+		globalHostID = 2
+	)
 
 	teamHost := &fleet.Host{TeamID: ptr.Uint(1), Platform: "darwin"}
 	globalHost := &fleet.Host{Platform: "darwin"}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-		if identifier == "1" {
+		if identifier == fmt.Sprint(teamHostID) {
 			return teamHost, nil
 		}
 
@@ -1490,7 +1495,7 @@ func TestLockUnlockHostAuth(t *testing.T) {
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-		if hostID == 1 {
+		if hostID == teamHostID {
 			return teamHost, nil
 		}
 
@@ -1596,9 +1601,9 @@ func TestLockUnlockHostAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			err := svc.LockHost(ctx, 2)
+			err := svc.LockHost(ctx, globalHostID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			err = svc.LockHost(ctx, 1)
+			err = svc.LockHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Pretend we locked the host
@@ -1606,15 +1611,20 @@ func TestLockUnlockHostAuth(t *testing.T) {
 				return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform(), LockMDMCommand: &fleet.MDMCommand{}, LockMDMCommandResult: &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}}, nil
 			}
 
-			_, err = svc.UnlockHost(ctx, 2)
+			_, err = svc.UnlockHost(ctx, globalHostID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			_, err = svc.UnlockHost(ctx, 1)
+			_, err = svc.UnlockHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Reset so we're now pretending host is unlocked
 			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
+
+			err = svc.WipeHost(ctx, globalHostID)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.WipeHost(ctx, teamHostID)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 		})
 	}
 }
