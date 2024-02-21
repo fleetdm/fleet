@@ -3243,7 +3243,8 @@ func testGetHostCertAssociationByCertSHA(t *testing.T, ds *Datastore) {
 		}
 		certHash := certauth.HashCert(cert)
 		certHashes = append(certHashes, certHash)
-		nanoStorage.AssociateCertHash(&req, certHash)
+		err = nanoStorage.AssociateCertHash(&req, certHash)
+		require.NoError(t, err)
 		nanoEnroll(t, ds, h, false)
 	}
 
