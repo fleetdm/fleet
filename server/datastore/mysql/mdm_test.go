@@ -3173,31 +3173,31 @@ func testGetMDMAppleSCEPCertsCloseToExpiry(t *testing.T, ds *Datastore) {
 	certs, err := ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 10, 100)
 	require.NoError(t, err)
 	require.Len(t, certs, 2)
-	require.Equal(t, "2", certs[0].Serial)
-	require.Equal(t, "3", certs[1].Serial)
+	require.Equal(t, "1", certs[0].Serial)
+	require.Equal(t, "2", certs[1].Serial)
 
 	// list certs that expire in the next 50 days
 	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 50, 100)
 	require.NoError(t, err)
 	require.Len(t, certs, 3)
-	require.Equal(t, "2", certs[0].Serial)
-	require.Equal(t, "3", certs[1].Serial)
-	require.Equal(t, "4", certs[2].Serial)
+	require.Equal(t, "1", certs[0].Serial)
+	require.Equal(t, "2", certs[1].Serial)
+	require.Equal(t, "3", certs[2].Serial)
 
 	// list certs that expire in the next 1000 days
 	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 1000, 100)
 	require.NoError(t, err)
 	require.Len(t, certs, 4)
-	require.Equal(t, "2", certs[0].Serial)
-	require.Equal(t, "3", certs[1].Serial)
-	require.Equal(t, "4", certs[2].Serial)
-	require.Equal(t, "5", certs[3].Serial)
+	require.Equal(t, "1", certs[0].Serial)
+	require.Equal(t, "2", certs[1].Serial)
+	require.Equal(t, "3", certs[2].Serial)
+	require.Equal(t, "4", certs[3].Serial)
 
 	// list certs that expire in the next 1000 days with limit = 1
 	certs, err = ds.GetMDMAppleSCEPCertsCloseToExpiry(ctx, 1000, 1)
 	require.NoError(t, err)
 	require.Len(t, certs, 1)
-	require.Equal(t, "2", certs[0].Serial)
+	require.Equal(t, "1", certs[0].Serial)
 }
 
 func testGetHostCertAssociationByCertSHA(t *testing.T, ds *Datastore) {
