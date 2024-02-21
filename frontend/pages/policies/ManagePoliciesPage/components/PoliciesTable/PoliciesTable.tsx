@@ -82,7 +82,7 @@ const PoliciesTable = ({
         </>
       ),
     };
-    console.log("currentTeam", currentTeam);
+    // Does not include all teams
     if (currentTeam && currentTeam.id !== -1) {
       emptyPolicies.header = (
         <>
