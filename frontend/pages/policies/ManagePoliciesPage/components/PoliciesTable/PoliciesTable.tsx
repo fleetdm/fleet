@@ -75,34 +75,19 @@ const PoliciesTable = ({
   const emptyState = () => {
     const emptyPolicies: IEmptyTableProps = {
       graphicName: "empty-policies",
-      header: (
-        <>
-          Ask yes or no questions about{" "}
-          <a href={PATHS.MANAGE_HOSTS}>all your hosts</a>
-        </>
-      ),
+      header: <>You don&apos;t have any policies</>,
       info: (
         <>
-          - Verify whether or not your hosts have security features turned on.
-          <br />- Track your efforts to keep installed software up to date on
-          your hosts.
-          <br />- Provide owners with a list of hosts that still need changes.
+          Add policies to detect device health issues and trigger automations.
         </>
       ),
     };
-
-    if (currentTeam) {
+    console.log("currentTeam", currentTeam);
+    if (currentTeam && currentTeam.id !== -1) {
       emptyPolicies.header = (
         <>
-          Ask yes or no questions about hosts assigned to{" "}
-          <a
-            href={
-              PATHS.MANAGE_HOSTS +
-              TAGGED_TEMPLATES.hostsByTeamRoute(currentTeam.id)
-            }
-          >
-            {currentTeam.name}
-          </a>
+          You don&apos;t have any additional policies that check this
+          team&apos;s devices
         </>
       );
     }
@@ -113,7 +98,7 @@ const PoliciesTable = ({
           className={`${baseClass}__select-policy-button`}
           onClick={onAddPolicyClick}
         >
-          Add a policy
+          Add policy
         </Button>
       );
     }
