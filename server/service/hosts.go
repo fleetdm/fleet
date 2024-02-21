@@ -1104,10 +1104,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.PendingAction = ptr.String("")
 	// device status
 	switch {
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
 	case mdmActions.IsWiped():
 		host.MDM.DeviceStatus = ptr.String("wiped")
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
 	}
 
 	// pending action, if any
