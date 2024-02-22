@@ -1,11 +1,13 @@
 import React from "react";
 
+import strUtils from "utilities/strings";
+
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import TooltipWrapper from "components/TooltipWrapper";
 
 const pluralizeHost = (count: number) => {
-  return count > 1 ? "hosts" : "host";
+  return strUtils.pluralize(count, "host");
 };
 
 const baseClass = "query-results-heading";

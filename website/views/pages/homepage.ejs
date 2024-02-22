@@ -86,15 +86,8 @@
         </div>
       </div>
 
-      <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
-        <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'device-management' ? 'selected' : '']" @click="selectedCategory = 'device-management'">Device management</div>
-        <div purpose="category-switch-option" class="all" :class="[selectedCategory === 'endpoint-ops' ? 'selected' : '']" @click="selectedCategory = 'endpoint-ops'">Endpoint ops</div>
-        <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vulnerability-management'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
-        <div purpose="category-tier-switch" :class="selectedCategory+'-selected'"></div>
-      </div>
-
       <%/* Device management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'device-management' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'device-management'">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h4>Device management</h4>
           <h3>Manage everything in one place</h3>
@@ -109,7 +102,10 @@
       </div>
 
       <%/* Endpoint ops block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'endpoint-ops' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'endpoint-ops'">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
+        <div purpose="endpoint-ops-image">
+          <img alt="Endpoint ops" src="images/endpoint-operations-hero-image-380x383@2x.png">
+        </div>
         <div purpose="category-text-block" class="d-flex flex-column">
           <h4>Endpoint ops</h4>
           <h3>Focus on data, not vendors</h3>
@@ -118,13 +114,10 @@
             <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
           </div>
         </div>
-        <div purpose="endpoint-ops-image">
-          <img alt="Endpoint ops" src="images/endpoint-operations-hero-image-380x383@2x.png">
-        </div>
       </div>
 
       <%/* Vulnerability management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'vulnerability-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'vulnerability-management'">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h4>Vulnerability management</h4>
           <h3>Build the vulnerability program you actually want</h3>

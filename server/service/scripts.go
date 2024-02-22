@@ -142,6 +142,13 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, ctxerr.Wrap(ctx, err, "get host lite")
 	}
 
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		// fleetd is required to run scripts so if the host is enrolled via plain osquery we return
+		// an error
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
 	maxPending := maxPendingScripts
 
 	// must check that only one of script id or contents is provided before

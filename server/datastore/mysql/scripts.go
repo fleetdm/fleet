@@ -54,6 +54,17 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 }
 
 func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *fleet.HostScriptResultPayload) (*fleet.HostScriptResult, error) {
+	const resultExistsStmt = `
+	SELECT
+		1
+	FROM
+		host_script_results
+	WHERE
+	 	host_id = ? AND
+		execution_id = ? AND
+		exit_code IS NOT NULL
+`
+
 	const updStmt = `
   UPDATE host_script_results SET
     output = ?,
@@ -91,6 +102,16 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 
 	var hsr *fleet.HostScriptResult
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var resultExists bool
+		err := sqlx.GetContext(ctx, tx, &resultExists, resultExistsStmt, result.HostID, result.ExecutionID)
+		if err != nil && !errors.Is(err, sql.ErrNoRows) {
+			return ctxerr.Wrap(ctx, err, "check if host script result exists")
+		}
+		if resultExists {
+			// succeed but leave hsr nil
+			return nil
+		}
+
 		res, err := tx.ExecContext(ctx, updStmt,
 			output,
 			result.Runtime,

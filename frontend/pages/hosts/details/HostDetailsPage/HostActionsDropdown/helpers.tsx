@@ -112,10 +112,8 @@ const canLockHost = ({
   isFleetMdm,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
   // macOS hosts can be locked if they are enrolled in MDM and the MDM is enabled
@@ -131,12 +129,7 @@ const canLockHost = ({
     (hostPlatform === "windows" ||
       isLinuxLike(hostPlatform) ||
       canLockDarwin) &&
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver)
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
   );
 };
 
@@ -180,10 +173,8 @@ const canUnlock = ({
   isPremiumTier,
   isGlobalAdmin,
   isGlobalMaintainer,
-  isGlobalObserver,
   isTeamAdmin,
   isTeamMaintainer,
-  isTeamObserver,
   isFleetMdm,
   isEnrolledInMdm,
   isMdmEnabledAndConfigured,
@@ -206,12 +197,7 @@ const canUnlock = ({
   return (
     isPremiumTier &&
     isValidState &&
-    (isGlobalAdmin ||
-      isGlobalMaintainer ||
-      isGlobalObserver ||
-      isTeamAdmin ||
-      isTeamMaintainer ||
-      isTeamObserver) &&
+    (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
     (canLockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };

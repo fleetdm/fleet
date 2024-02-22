@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -782,6 +783,9 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			func(err net.Error) {
+				log.Info().Err(err).Msg("network error")
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1054,6 +1058,9 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			func(err net.Error) {
+				log.Info().Err(err).Msg("network error")
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -1563,7 +1570,7 @@ func (f *capabilitiesChecker) execute() error {
 	// Do an initial ping to store the initial capabilities if needed
 	if len(f.client.GetServerCapabilities()) == 0 {
 		if err := f.client.Ping(); err != nil {
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+			logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 		}
 	}
 
@@ -1573,7 +1580,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+				logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()
