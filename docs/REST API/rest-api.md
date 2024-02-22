@@ -1825,7 +1825,6 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
-- [Wipe host](#wipe-host)
 
 ### On the different timestamps in the host data structure
 
@@ -3694,26 +3693,6 @@ Sends a command to unlock the specified Windows or Linux host, or retrieves the 
 }
 ```
 
-
-### Wipe host
-
-Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
-
-`POST /api/v1/fleet/hosts/:id/wipe`
-
-#### Parameters
-
-| Name       | Type              | In   | Description                                                                   |
-| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
-| id | integer | path | **Required**. ID of the host to be wiped. |
-
-#### Example
-
-`POST /api/v1/fleet/hosts/123/wipe`
-
-##### Default response
-
-`Status: 200`
 
 ---
 
