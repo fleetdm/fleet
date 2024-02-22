@@ -90,6 +90,11 @@
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
     }
+
+    // Overrides icon location only when a label exists e.g. TargetsInput.tsx
+    ~ .input-icon-field__icon {
+      top: 40px;
+    }
   }
 
   &__errors {
