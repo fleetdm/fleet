@@ -1,0 +1,2 @@
+- Fixes issue where the "Type" column was empty for Windows MDM profile commands when running
+  `fleetctl get mdm-commands` and `fleetctl get mdm-command-results`.

@@ -13,7 +13,7 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Contact us
 - To **make a request** of this department, [create an issue](https://github.com/fleetdm/confidential/issues/new?labels=%3Aproduct&title=Product%20design%20request%C2%BB______________________&template=custom-request.md) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5).
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
-  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board) for this department, including pending tasks and the status of new requests.
+  - Any Fleet team member can [view the kanban board](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none) for this department, including pending tasks and the status of new requests.
 
 ## Responsibilities
 The Product Design department is responsible for reviewing and collecting feedback from users, would-be users, and future users, prioritizing changes, designing the changes, and delivering these changes to the engineering team. Product Design prioritizes and shapes all changes involving functionality or usage, including the UI, REST API, command line, and webhooks. 
@@ -67,6 +67,7 @@ When starting a new draft:
 > As drafting occurs, inevitably, the requirements will change. The main description of the issue should be the single source of truth for the problem to be solved and the required outcome. The product manager is responsible for keeping the main description of the issue up-to-date. Comments and other items can and should be kept in the issue for historical record-keeping.
 
 ### Ensure story drafting is complete
+<!--TODO update responsibility to reflect reality (e.g. line 75 == "Bugs board"?)-->
 Once a story has gone through design and is considered "Settled", it moves to the "Settled" column on the drafting board and assign to the Engineering Manager (EM).
 
 Before assigning an EM to [estimate](https://fleetdm.com/handbook/engineering#sprint-ceremonies) a user story, the product designer ensures the product section of the user story [checklist](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story&projects=&template=story.md&title=) is complete. 
@@ -110,10 +111,10 @@ After aligning with the Director of Product Development on the outcomes, The Hea
 - **De-prioritized**: The Head of Product Design should close the issue and, as the DRI, ensure all follow-up actions are finalized.
 
 ### Write a user story
-Product Managers [write user stories](https://fleetdm.com/handbook/company/development-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
+Product Managers [write user stories](https://fleetdm.com/handbook/company/product-groups#writing-a-good-user-story) in the [drafting board](https://app.zenhub.com/workspaces/-product-backlog-coming-soon-6192dd66ea2562000faea25c/board). The drafting board is shared by every [product group](https://fleetdm.com/handbook/company/development-groups).
 
 ### Draft a user story
-Product Designers [draft user stories](https://fleetdm.com/handbook/company/development-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
+Product Designers [draft user stories](https://fleetdm.com/handbook/company/product-groups#drafting) that have been prioritized by PMs. If the estimated user stories for a product group exceed [that group's capacity](https://fleetdm.com/handbook/company/product-groups#current-product-groups), all new design work for that group is paused, and the designer will contribute in other ways (documentation & handbook work, Figma maintenance, QA, etc.) until the PM deprioritizes estimated stories to make room, or until the next sprint begins. (If the designer has existing work-in-progress, they will continue to review and iterate on those designs and see the stories through to estimation.)
 
 If an issue's title or user story summary (_"as a…I want to…so that"_) does not match the intended change being discussed, the designer will move the issue to the "Needs clarity" column of the drafting board and assign the group product manager.  The group product manager will revisit ASAP and edit the issue title and user story summary, then reassign the designer and move the issue back to the "Prioritized" column.
 
@@ -179,14 +180,6 @@ usage](https://docs.google.com/spreadsheets/d/1Mh7Vf4kJL8b5TWlHxcX7mYwaakZMg_ZGN
 available in Google Drive.
 
 Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7pb-63g-xty/usage-statistics?from_ts=1682952132131&to_ts=1685630532131&live=true) and is available to Fleeties.
-
-### Restart Algolia manually
-At least once every hour, an Algolia crawler reindexes the Fleet website's content. If an error occurs while the website is being indexed, Algolia will block our crawler and respond to requests with this message: `"This action cannot be executed on a blocked crawler"`.
-
-When this happens, you'll need to manually start the crawler in the [Algolia crawler dashboard](https://crawler.algolia.com/admin/) to unblock it. 
-You can do this by logging into the crawler dashboard using the login saved in 1password and clicking the "Restart crawling" button on our crawler's "overview" page](https://crawler.algolia.com/admin/crawlers/497dd4fd-f8dd-4ffb-85c9-2a56b7fafe98/overview).
-
-No further action is needed if the crawler successfully reindexes the Fleet website. If another error occurs while the crawler is running, take a screenshot of the error and add it to the GitHub issue created for the alert and @mention `eashaw` for help.
 
 
 ## Rituals
@@ -321,6 +314,9 @@ Please see [handbook/product-groups#customer-feature-requests](https://fleetdm.c
 
 ##### After the feature is accepted
 Please see [handbook/product-groups#after-the-feature-is-accepted](https://fleetdm.com/handbook/product-groups#after-the-feature-is-accepted)
+
+##### Restart Algolia manually
+Please see [handbook/digital-experience#restart-algolia-manually](https://fleetdm.com/handbook/digital-experience#restart-algolia-manually)
 
 <meta name="maintainedBy" value="noahtalerman">
 <meta name="title" value="🦢 Product design">

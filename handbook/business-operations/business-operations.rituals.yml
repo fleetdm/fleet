@@ -18,6 +18,13 @@
   autoIssue:   
     labels: [ "#g-business-operations" ] 
     repo: "confidential"
+#-
+#   task: "Review ongoing articles"
+#   startedOn: "2023-10-02"
+#   frequency: "Daily"
+#   description: "Check 📃 Planned articles and complete steps in each issue"
+#   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
+#   dri: "spokanemac"
 -
   task: "Check ongoing events"
   startedOn: "2024-02-09"
@@ -116,6 +123,13 @@
     labels: [ "#g-business-operations" ] 
     repo: "confidential" 
 -
+  task: "Downgrade unused license seats" 
+  startedOn: "2024-03-31" 
+  frequency: "Quarterly"
+  description: "Downgrade unused or questionable license seats on the first Wednesday of every quarter" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#downgrade-an-unused-license-seat"
+  dri: "joStableford"
+-
   task: "Investor reporting" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
@@ -150,10 +164,4 @@
   description: "Provide information to tax team with Deloitte and assist with filing and paying state and federal returns" 
   moreInfoUrl: 
   dri: "hollidayn"
-#-
-#   task: "Review ongoing articles"
-#   startedOn: "2023-10-02"
-#   frequency: "Daily"
-#   description: "Check 📃 Planned articles and complete steps in each issue"
-#   moreInfoUrl: "https://fleetdm.com/handbook/demand#review-ongoing-articles"
-#   dri: "spokanemac"
+

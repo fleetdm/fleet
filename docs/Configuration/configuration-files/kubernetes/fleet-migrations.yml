@@ -9,7 +9,7 @@ spec:
     spec:
       containers:
         - name: fleet
-          image: fleetdm/fleet:4.0.1
+          image: fleetdm/fleet:v4.43.3
           command: ["fleet", "prepare", "db"]
           env:
             - name: FLEET_MYSQL_ADDRESS

@@ -1,0 +1,4 @@
+* Fixed issues with how errors were captured in Sentry:
+	- The stack trace is now more precise.
+	- More error paths will now get captured in Sentry.
+	- **NOTE: Many more entries could be generated in Sentry compared to earlier Fleet versions.** Sentry capacity should be planned accordingly.
