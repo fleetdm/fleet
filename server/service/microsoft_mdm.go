@@ -680,14 +680,37 @@ func NewDMClientProvisioningData() mdm_types.Characteristic {
 			newCharacteristic(syncml.DocProvisioningAppProviderID,
 				[]mdm_types.Param{}, []mdm_types.Characteristic{
 					newCharacteristic("Poll", []mdm_types.Param{
-						newParm("NumberOfFirstRetries", syncml.DmClientCSPNumberOfFirstRetries, syncml.DmClientIntType),
-						newParm("IntervalForFirstSetOfRetries", syncml.DmClientCSPIntervalForFirstSetOfRetries, syncml.DmClientIntType),
-						newParm("NumberOfSecondRetries", syncml.DmClientCSPNumberOfSecondRetries, syncml.DmClientIntType),
-						newParm("IntervalForSecondSetOfRetries", syncml.DmClientCSPIntervalForSecondSetOfRetries, syncml.DmClientIntType),
-						newParm("NumberOfRemainingScheduledRetries", syncml.DmClientCSPNumberOfRemainingScheduledRetries, syncml.DmClientIntType),
-						newParm("IntervalForRemainingScheduledRetries", syncml.DmClientCSPIntervalForRemainingScheduledRetries, syncml.DmClientIntType),
-						newParm("PollOnLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
-						newParm("AllUsersPollOnFirstLogin", syncml.DmClientCSPPollOnLogin, syncml.DmClientBoolType),
+						// AllUsersPollOnFirstLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
+						newParm("AllUsersPollOnFirstLogin", "true", syncml.DmClientBoolType),
+
+						// PollOnLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollpollonlogin
+						newParm("PollOnLogin", "true", syncml.DmClientBoolType),
+
+						// NumberOfFirstRetries - 0 (meaning repeat infinitely, Second and Remaining retries will not be used)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollnumberoffirstretries
+						//
+						// Note that the docs do mention:
+						//
+						//   The total time for first set of retries shouldn't be more than
+						//   a few hours. The server shouldn't set NumberOfFirstRetries to
+						//   be 0. RemainingScheduledRetries is used for the long run
+						//   device polling schedule.
+						//
+						// but we really want to keep polling regularly at short intervals
+						// and it seems like the way to do it (and they do support infinite
+						// retries, so...).
+						newParm("NumberOfFirstRetries", "0", syncml.DmClientIntType),
+						// IntervalForFirstSetOfRetries - 1 minute (we can't go lower than that)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollintervalforfirstsetofretries
+						newParm("IntervalForFirstSetOfRetries", "1", syncml.DmClientIntType),
+
+						// Second and Remaining retries are disabled (0).
+						newParm("NumberOfSecondRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForSecondSetOfRetries", "0", syncml.DmClientIntType),
+						newParm("NumberOfRemainingScheduledRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForRemainingScheduledRetries", "0", syncml.DmClientIntType),
 					}, nil),
 				}),
 		}),
@@ -1454,7 +1477,7 @@ func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string,
 		}
 
 		// CmdStatusOK is returned for the rest of the operations
-		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID, protoCMD.Verb, syncml.CmdStatusOK))
+		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
 	}
 
 	return responseCmds, nil
@@ -2055,7 +2078,9 @@ func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode
 		Cmd:     &cmdOrig,
 		Data:    &statusCode,
 		Items:   nil,
-		CmdID:   uuid.NewString(),
+		CmdID: mdm_types.CmdID{
+			Value: uuid.NewString(),
+		},
 	}
 }
 
@@ -2190,10 +2215,16 @@ func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fle
 		return nil, fmt.Errorf("unmarshalling profile: %w", err)
 	}
 	// set the CmdID for the <Atomic> command
-	cmd.CmdID = commandUUID
+	cmd.CmdID = mdm_types.CmdID{
+		Value:               commandUUID,
+		IncludeFleetComment: true,
+	}
 	// generate a CmdID for any nested <Replace>
 	for i := range cmd.ReplaceCommands {
-		cmd.ReplaceCommands[i].CmdID = uuid.NewString()
+		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
+		}
 	}
 
 	rawCommand, err := xml.Marshal(cmd)

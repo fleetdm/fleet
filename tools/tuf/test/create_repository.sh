@@ -29,7 +29,7 @@ SWIFT_DIALOG_MACOS_APP_VERSION=2.2.1
 SWIFT_DIALOG_MACOS_APP_BUILD_VERSION=4591
 
 if [[ -z "$OSQUERY_VERSION" ]]; then
-    OSQUERY_VERSION=5.10.2
+    OSQUERY_VERSION=5.11.0
 fi
 
 mkdir -p $TUF_PATH/tmp
@@ -115,8 +115,7 @@ for system in $SYSTEMS; do
 
     # Add swiftDialog on macos (if enabled).
     if [[ $system == "macos" && -n "$SWIFT_DIALOG" ]]; then
-	# For now we always make swiftDialog (until it's uploaded to our TUF repo)
-        make swift-dialog-app-tar-gz version=$SWIFT_DIALOG_MACOS_APP_VERSION build=$SWIFT_DIALOG_MACOS_APP_BUILD_VERSION out-path=.
+        curl https://tuf.fleetctl.com/targets/swiftDialog/macos/stable/swiftDialog.app.tar.gz --output swiftDialog.app.tar.gz
 
         ./build/fleetctl updates add \
             --path $TUF_PATH \

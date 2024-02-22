@@ -1,2 +1,0 @@
-Added `gigs_total_disk_space` to host endpoint responses.
-- Now user will know host disk size even when disk is full (percent_disk_space_available==0)

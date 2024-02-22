@@ -173,11 +173,13 @@ var hostDetailQueries = map[string]DetailQuery{
 	},
 	"os_version_windows": {
 		Query: `
-	SELECT
-		os.name,
-		os.version
-	FROM
-		os_version os`,
+		SELECT os.name, r.data as display_version, k.version
+		FROM 
+			registry r,
+			os_version os,
+			kernel_info k
+		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -186,17 +188,11 @@ var hostDetailQueries = map[string]DetailQuery{
 				return nil
 			}
 
-			version := rows[0]["version"]
-			if version == "" {
-				level.Debug(logger).Log(
-					"msg", "unable to identify windows version",
-					"host", host.Hostname,
-				)
-			}
-
-			s := fmt.Sprintf("%v %v", rows[0]["name"], version)
+			s := fmt.Sprintf("%s %s", rows[0]["name"], rows[0]["display_version"])
 			// Shorten "Microsoft Windows" to "Windows" to facilitate display and sorting in UI
 			s = strings.Replace(s, "Microsoft Windows", "Windows", 1)
+			s = strings.TrimSpace(s)
+			s += " " + rows[0]["version"]
 			host.OSVersion = s
 
 			return nil
@@ -461,32 +457,34 @@ var extraDetailQueries = map[string]DetailQuery{
 		//
 		// For more information, refer to issue #15362
 		Query: `
-			WITH registry_keys AS (
-			    SELECT *
-			    FROM registry
-			    WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
-			),
-			enrollment_info AS (
-			    SELECT
-			        MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-			        MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
-			        MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-			        MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
-			    FROM registry_keys
-			    GROUP BY key
-			)
-			SELECT
-			    e.is_federated,
-			    e.discovery_service_url,
-			    e.provider_id,
-			    (
-			        SELECT data
-			        FROM registry
-			        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-			    ) AS installation_type
-			FROM enrollment_info e
-			WHERE e.upn IS NOT NULL
-			LIMIT 1;
+                    WITH registry_keys AS (
+                        SELECT *
+                        FROM registry
+                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                    ),
+                    enrollment_info AS (
+                        SELECT
+                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
+                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+                        FROM registry_keys
+                        GROUP BY key
+                    ),
+                    installation_info AS (
+                        SELECT data AS installation_type
+                        FROM registry
+                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                        LIMIT 1
+                    )
+                    SELECT
+                        e.is_federated,
+                        e.discovery_service_url,
+                        e.provider_id,
+                        i.installation_type
+                    FROM installation_info i
+                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+                    LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,
 		Platforms:        []string{"windows"},
@@ -526,10 +524,14 @@ var extraDetailQueries = map[string]DetailQuery{
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version
+		os.version,
+		r.data as display_version
 	FROM
 		os_version os,
-		kernel_info k`,
+		kernel_info k,
+		registry r
+	WHERE
+		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1008,16 +1010,14 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		Arch:          rows[0]["arch"],
 		KernelVersion: rows[0]["kernel_version"],
 		Platform:      rows[0]["platform"],
+		Version:       rows[0]["kernel_version"],
 	}
 
-	version := rows[0]["version"]
-	if version == "" {
-		level.Debug(logger).Log(
-			"msg", "unable to identify windows version",
-			"host", host.Hostname,
-		)
+	displayVersion := rows[0]["display_version"]
+	if displayVersion != "" {
+		hostOS.Name += " " + displayVersion
+		hostOS.DisplayVersion = displayVersion
 	}
-	hostOS.Version = version
 
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
@@ -1194,6 +1194,14 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 		}
 		packName, scheduledName := parts[0], parts[1]
 
+		// Handle rare case when wall_time_ms is missing (for osquery < 5.3.0)
+		wallTimeMs := cast.ToUint64(row["wall_time_ms"])
+		if wallTimeMs == 0 {
+			wallTime := cast.ToUint64(row["wall_time"])
+			if wallTime != 0 {
+				wallTimeMs = wallTime * 1000
+			}
+		}
 		stats := fleet.ScheduledQueryStats{
 			ScheduledQueryName: scheduledName,
 			PackName:           packName,
@@ -1206,7 +1214,7 @@ func directIngestScheduledQueryStats(ctx context.Context, logger log.Logger, hos
 			OutputSize:   cast.ToUint64(row["output_size"]),
 			SystemTime:   cast.ToUint64(row["system_time"]),
 			UserTime:     cast.ToUint64(row["user_time"]),
-			WallTime:     cast.ToUint64(row["wall_time"]),
+			WallTimeMs:   wallTimeMs,
 		}
 		packs[packName] = append(packs[packName], stats)
 	}
@@ -1267,6 +1275,10 @@ func directIngestSoftware(ctx context.Context, logger log.Logger, host *fleet.Ho
 
 		sanitizeSoftware(host, s, logger)
 
+		if shouldRemoveSoftware(host, s) {
+			continue
+		}
+
 		software = append(software, *s)
 
 		installedPath := strings.TrimSpace(row["installed_path"])
@@ -1307,10 +1319,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 		// "Microsoft Teams" on macOS defines the `bundle_short_version` (CFBundleShortVersionString) in a different
 		// unexpected version format. Thus here we transform the version string to the expected format
 		// (see https://learn.microsoft.com/en-us/officeupdates/teams-app-versioning).
-		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed to `1.6.00.22155`.
+		// E.g. `bundle_short_version` comes with `1.00.622155` and instead it should be transformed
+		// to `1.6.00.22155` || s.Name == "Microsoft Teams (work or school).app".
+
+		// Note: in December 2023, Microsoft released "New Teams" for MacOS. This new version of
+		// Teams uses a completely different versioning scheme, which is documented at the URL
+		// above. Existing versions of Teams on MacOS were renamed to "Microsoft Teams Classic" and still use
+		// the same versioning scheme discussed above.
 		{
 			checkSoftware: func(h *fleet.Host, s *fleet.Software) bool {
-				return h.Platform == "darwin" && s.Name == "Microsoft Teams.app"
+				return h.Platform == "darwin" && (s.Name == "Microsoft Teams.app" || s.Name == "Microsoft Teams classic.app")
 			},
 			mutateSoftware: func(s *fleet.Software) {
 				if matches := macOSMSTeamsVersion.FindStringSubmatch(s.Version); len(matches) > 0 {
@@ -1388,6 +1406,16 @@ func sanitizeSoftware(h *fleet.Host, s *fleet.Software, logger log.Logger) {
 	}
 }
 
+// shouldRemoveSoftware returns whether or not we should remove the given Software item from this
+// host's software list.
+func shouldRemoveSoftware(h *fleet.Host, s *fleet.Software) bool {
+	// Parallels is a common VM software for MacOS. Parallels makes the VM's applications
+	// visible in the host as MacOS applications, which leads to confusing output (e.g. a MacOS
+	// host reporting that it has Notepad installed when this is just an app from the Windows VM
+	// under Parallels). We want to filter out those "applications" to avoid confusion.
+	return h.Platform == "darwin" && strings.HasPrefix(s.BundleIdentifier, "com.parallels.winapp")
+}
+
 func directIngestUsers(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
 	var users []fleet.HostUser
 	for _, row := range rows {
@@ -1433,6 +1461,12 @@ func directIngestMDMMac(ctx context.Context, logger log.Logger, host *fleet.Host
 		logger.Log("component", "service", "method", "ingestMDM", "warn",
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
+
+	if host.RefetchCriticalQueriesUntil != nil {
+		level.Debug(logger).Log("msg", "ingesting macos mdm data during refetch critical queries window", "host_id", host.ID,
+			"data", fmt.Sprintf("%+v", rows))
+	}
+
 	enrolledVal := rows[0]["enrolled"]
 	if enrolledVal == "" {
 		return ctxerr.Wrap(ctx, fmt.Errorf("missing mdm.enrolled value: %d", host.ID))
@@ -1521,11 +1555,6 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 		// assume the extension is not there
 		return nil
-	}
-
-	if len(rows) > 1 {
-		logger.Log("component", "service", "method", "directIngestMDMWindows", "warn",
-			fmt.Sprintf("mdm expected single result got %d", len(rows)))
 	}
 
 	data := rows[0]
@@ -1760,7 +1789,7 @@ func directIngestMDMDeviceIDWindows(ctx context.Context, logger log.Logger, host
 	return ds.UpdateMDMWindowsEnrollmentsHostUUID(ctx, host.UUID, rows[0]["data"])
 }
 
-// go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
+//go:generate go run gen_queries_doc.go "../../../docs/Using Fleet/Understanding-host-vitals.md"
 
 func GetDetailQueries(
 	ctx context.Context,

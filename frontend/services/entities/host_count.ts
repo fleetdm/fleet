@@ -46,7 +46,7 @@ export interface IHostCountLoadOptions {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   munkiIssueId?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   osSettings?: MdmProfileStatus;
@@ -73,7 +73,7 @@ export default {
     const munkiIssueId = options?.munkiIssueId;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const label = getLabelParam(selectedLabels);
-    const osId = options?.osId;
+    const osVersionId = options?.osVersionId;
     const osName = options?.osName;
     const osVersion = options?.osVersion;
     const osSettings = options?.osSettings;
@@ -99,7 +99,7 @@ export default {
         softwareVersionId,
         lowDiskSpaceHosts,
         osName,
-        osId,
+        osVersionId,
         osVersion,
         osSettings,
         diskEncryptionStatus,

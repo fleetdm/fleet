@@ -200,7 +200,11 @@ export const formatConfigDataForServer = (config: any): any => {
   };
 };
 
-export const formatFloatAsPercentage = (float: number): string => {
+export const formatFloatAsPercentage = (float?: number): string => {
+  if (float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
     style: "percent",
@@ -453,6 +457,16 @@ export const formatPackForClient = (pack: IPack): IPack => {
   pack.label_ids ||= [];
   pack.team_ids ||= [];
   return pack;
+};
+
+export const formatScriptNameForActivityItem = (name: string | undefined) => {
+  return name ? (
+    <>
+      the <b>{name}</b> script
+    </>
+  ) : (
+    "a script"
+  );
 };
 
 export const generateRole = (
@@ -744,7 +758,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
@@ -850,6 +868,7 @@ export default {
   formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
+  formatScriptNameForActivityItem,
   formatGlobalScheduledQueryForClient,
   formatGlobalScheduledQueryForServer,
   formatTeamScheduledQueryForClient,

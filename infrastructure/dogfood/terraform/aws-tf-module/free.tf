@@ -15,7 +15,7 @@ locals {
 }
 
 module "free" {
-  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.0"
+  source = "github.com/fleetdm/fleet//terraform/byo-vpc?ref=tf-mod-byo-vpc-v1.8.1"
   vpc_config = {
     name   = local.customer_free
     vpc_id = module.main.vpc.vpc_id
@@ -86,6 +86,7 @@ module "free" {
       prefix  = local.customer_free
       enabled = true
     }
+    idle_timeout = 300
   }
 }
 

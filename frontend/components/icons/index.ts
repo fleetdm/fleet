@@ -51,6 +51,7 @@ import Transfer from "./Transfer";
 import TrashCan from "./TrashCan";
 import Profile from "./Profile";
 import Download from "./Download";
+import Upload from "./Upload";
 import Refresh from "./Refresh";
 
 // a mapping of the usable names of icons to the icon source.
@@ -107,6 +108,7 @@ export const ICON_MAP = {
   "premium-feature": PremiumFeature,
   profile: Profile,
   download: Download,
+  upload: Upload,
   refresh: Refresh,
 };
 

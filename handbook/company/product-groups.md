@@ -1,10 +1,14 @@
 # 🛩️ Product groups
+This page covers what all contributors (fleeties or not) need to know in order to contribute changes to [the core product](https://fleetdm.com/docs).
+
 When creating software, handoffs between teams or contributors are one of the most common sources of miscommunication and waste.  Like [GitLab](https://docs.google.com/document/d/1RxqS2nR5K0vN6DbgaBw7SEgpPLi0Kr9jXNGzpORT-OY/edit#heading=h.7sfw1n9c1i2t), Fleet uses product groups to minimize handoffs and maximize iteration and efficiency in the way we build the product.
+
+> - Write down philosophies and show how the pieces of the development process fit together on this "🛩️ Product groups" page.
+> - Use the dedicated [departmental](https://fleetdm.com/handbook/company#org-chart) handbook pages for [🚀 Engineering](https://fleetdm.com/handbook/engineering) and [🦢 Product Design](https://fleetdm.com/handbook/product) to keep track of specific, rote responsibilities and recurring rituals designed to be read and used only by people within those departments.
 
 
 ## Product roadmap
 Fleet team members can read [Fleet's high-level product goals and planned releases for the current quarter and the next quarter](https://docs.google.com/document/d/11XEb__EJoGQJE9hXwaLrN45_5_k1NCi-zlJKH-OlKKk/edit#heading=h.33k3ii7z7ubc) (confidential Google Doc).
-
 
 ## What are product groups?
 Fleet organizes product development efforts into separate, cross-functional product groups that include product designers, developers, and quality engineers.  These product groups are organized by business goal, and designed to operate in parallel.
@@ -21,14 +25,13 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
 | [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 74       |
 | [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 52       |
-| [Website](#website-group)                               | Make the website wonderful.                             | 13       |
+
 
 \* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
 > _**What happened to "CX"?**  The customer experience (CX) group at Fleet is now [`#g-endpoint-ops`](#endpoint-ops-group)._
 >
 > _Why?  Making users and customers happier and more successful is the goal of _every_ product group.  This includes simpler usage, lovable design + help text + error messages, fixed bugs, responding quickly to incidents, using Fleet's brand standards, more successful customer onboarding, features that drive more win-win meetings with contributors and Fleet's sales team, and "whole product solutions", including professional services, design partnerships, and training._
-
 
 ### Endpoint ops group
 The goal of the endpoint ops group is to increase and exceed [Fleet's product maturity goals in the endpoint operations category](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing).
@@ -43,7 +46,6 @@ The goal of the endpoint ops group is to increase and exceed [Fleet's product ma
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C01EZVBHFHU), [kanban release board](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-endpoint-ops) for this product group is `#g-endpoint-ops`.
 
-
 ### MDM group
 The goal of the MDM group is to increase and exceed [Fleet's product maturity goals](https://drive.google.com/file/d/11yQ_2WG7TbRErUpMBKWu_hQ5wRIZyQhr/view?usp=sharing) in the "MDM" product category.
 
@@ -57,32 +59,17 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
 
-### Website group
-The goal of the website group is to manage and maintain Fleet's website and documentation by prioritizing and actioning meaningful changes to enhance brand awareness and provide visitors with the information they need when they need it. This includes making the content and user experience more beautiful, simple, and easier to understand.
-
-> _**Note:** If a user story involves only changes to fleetdm.com, without changing the core product, then that user story is prioritized, drafted, implemented, and shipped by the [#g-website group](https://fleetdm.com/handbook/company/development-groups#website-group).  Otherwise, if the story **also** involves changes to the core product **as well as** fleetdm.com, then that user story is prioritized, drafted, implemented, and shipped by [the other relevant product group](https://fleetdm.com/handbook/company/development-groups#current-product-groups), and not by `#g-website`._
-
-| Responsibility                    | Human(s)                  |
-|:----------------------------------|:--------------------------|
-| Designer                          | [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_
-| Engineering Manager               | [Eric Shaw](https://www.linkedin.com/in/eric-shaw-1423831a9/) _([@eashaw](https://github.com/eashaw))_
-| Quality Assurance                 | Mike Thomas
-| Product Manager                   | Mike Thomas
-| Developer                         | Eric Shaw
-
-> The [Slack channel](https://fleetdm.slack.com/archives/C058S8PFSK0), [kanban release board](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-website) for this product group is `#g-website`.
-
 ## Making changes
 Fleet's highest product ambition is to create experiences that users want.
 
 To deliver on this mission, we need a clear, repeatable process for turning an idea into a set of cohesively-designed changes in the product. We also need to allow [open source contributions](https://fleetdm.com/handbook/company#open-source) at any point in the process from the wider Fleet community - these won't necessarily follow this process.
 
-> Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way/why-do-we-use-a-wireframe-first-approach).
+> Learn more about Fleet's philosophy and process for making interface changes to the product, and [why we use a wireframe-first approach](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-a-wireframe-first-approach).
 
 To make a change to Fleet:
-- First, [get it prioritized](https://fleetdm.com/handbook/product).
-- Then, it will be [drafted](https://fleetdm.com/handbook/company/development-groups#drafting) (planned).
-- Next, it will be [implemented](https://fleetdm.com/handbook/company/development-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
+- First, [get it prioritized](https://fleetdm.com/handbook/product-design).
+- Then, it will be [drafted](https://fleetdm.com/handbook/company/product-groups#drafting) (planned).
+- Next, it will be [implemented](https://fleetdm.com/handbook/company/product-groups#implementing) and [released](https://fleetdm.com/handbook/engineering#release-process).
 
 ### Planned and unplanned changes
 Most changes to Fleet are planned changes. They are [prioritized](https://fleetdm.com/handbook/product), defined, designed, revised, estimated, and scheduled into a release sprint _prior to starting implementation_.  The process of going from a prioritized goal to an estimated, scheduled, committed user story with a target release is called "drafting", or "the drafting phase".
@@ -154,16 +141,16 @@ User stories are small and independently valuable.
 - Is it small enough? Will this task be likely to fit in 1 sprint when estimated?
 - Is it valuable enough? Will this task drive business value when released, independent of other tasks?
 
-<!--
+
 #### Engineering-initiated stories
+<!-- TODO: Move steps to "Create an Engineering-initiated story" to handbook/engineering#responsibilities -->
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story%2C%3Aproduct&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and work with an EM or PM to progress the story through the drafting process.
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
--->
 
 #### Defining "done"
 To successfully deliver a user story, the people working on it need to know what "done" means.
@@ -377,7 +364,7 @@ The goal of quality assurance is to identify corrections and optimizations befor
 
 Fleet uses a human-oriented quality assurance (QA) process to make sure the product meets the standards of users and organizations. Automated tests are important, but they can't catch everything. Many issues are hard to notice until a human looks empathetically at the user experience, whether in the user interface, the REST API, or the command line.
 
-You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging). All bugs in Fleet are tracked by QA on the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board) in ZenHub.
+You can read our guide to diagnosing issues in Fleet on the [debugging page](https://fleetdm.com/handbook/engineering/debugging). All bugs in Fleet are tracked by QA as [GitHub issues with the "bug" label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3Abug).
 
 - **Bug states:** The lifecycle stages of a bug at Fleet correspond to a set of GitHub labels, assignees, and boards.
   - [Inbox](https://fleetdm.com/handbook/company/product-groups#inbox)
@@ -388,7 +375,6 @@ You can read our guide to diagnosing issues in Fleet on the [debugging page](htt
 
 ### All bugs
 - [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+label%3Abug).
-- [See on ZenHub](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board).
 
 - **Bugs opened this week:** This filter returns all "bug" issues opened after the specified date. Simply replace the date with a YYYY-MM-DD equal to one week ago. [See on GitHub](https://github.com/fleetdm/fleet/issues?q=is%3Aissue+archived%3Afalse+label%3Abug+created%3A%3E%3DREPLACE_ME_YYYY-MM-DD).
 
@@ -406,17 +392,24 @@ Once reproduced, QA documents the reproduction steps in the description and move
 #### Reproduced
 QA has reproduced the issue successfully. It should now be transferred to engineering.
 
-Remove the “reproduce” label, add the label of the relevant team (e.g. #g-endpoint-ops, #g-mdm, #g-infra, #g-website), and assign it to the relevant engineering manager. (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
+Remove the “reproduce” label, add the following labels: 
+
+1. The relevant product group (e.g. `#g-endpoint-ops`, `#g-mdm`, `#g-digital-experience`).
+3. The `~released bug` label if the bug is in a published version of Fleet, or `~unreleased bug` if it is not yet published.
+2. The `:incoming` label indicates to the EM that it is a new bug. 
+3. The `:release` label will place the bug on the team's release board. 
+
+Once the bug is properly labeled, assign it to the [relevant engineering manager](https://fleetdm.com/handbook/company/product-groups#current-product-groups). (Make your best guess as to which team. The EM will re-assign if they think it belongs to another team.) [See on GitHub](https://github.com/fleetdm/fleet/issues?q=archived%3Afalse+org%3Afleetdm+is%3Aissue+is%3Aopen+label%3Abug+label%3A%3Aproduct%2C%3Arelease+-label%3A%3Areproduce+sort%3Aupdated-asc+).
 
 > **Fast track for Fleeties:** Fleeties do not have to wait for QA to reproduce the bug. If you're confident it's reproducible, it's a bug, and the reproduction steps are well-documented, it can be moved directly to the reproduced state.
 
 #### In product drafting (as needed)
-If a bug requires input from product, the `:product` label is added, it is assigned to the product group's PM, and the bug is moved to the "Product drafting" column of the [bugs board](https://app.zenhub.com/workspaces/-bugs-647f6d382e171b003416f51a/board). It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
+If a bug requires input from product the `:product` label is added, the `:release` label is removed, and the PM is assigned to the issue. It will stay in this state until product closes the bug, or removes the `:product` label and assigns to an EM.
 
-#### In engineering
-A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `:release` and `~critical bug` labels are added, and it is moved to the "Current release' column of the bugs board. If the bug is a `~critical bug`, the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
+#### In engineering 
+A bug is in engineering after it has been reproduced and assigned to an EM. If a bug meets the criteria for a [critical bug](https://fleetdm.com/handbook/engineering#critical-bugs), the `~critical bug` label is added, and the EM follows the [critical bug notification process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#critical-bug-notification-process).
 
-If the bug does not meet the criteria of a critical bug, the EM will determine if there is capacity in the current sprint for this bug. If so, the `:release` label is added, and it is moved to the "Current release' column on the bugs board. If there is no available capacity in the current sprint, the EM will move the bug to the "Sprint backlog" column where it will be prioritized for the next sprint.
+During daily standup, the EM will filter the board to only `:incoming` bugs and review with the team. The EM will remove the `:incoming` label, prioritize the bug in the "Ready" coulmn, unassign themselves, and assign an engineer or leave it unassigned for the first available engineer.  
 
 When fixing the bug, if the proposed solution requires changes that would affect the user experience (UI, API, or CLI), notify the EM and PM to align on the acceptability of the change.
 
@@ -430,8 +423,7 @@ For Endpoint ops support on MDM bugs:
 - Remove the `#g-mdm` label and add `#g-endpoint-ops` label.
 - Add `~assisting g-mdm` to clarify the bug’s origin.
 
-
-Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements) into a release within six weeks. If a bug is not prioritized in the current release, and it is not prioritized in the next release, it is removed from the "Sprint backlog" and placed back in the "Product drafting" column with the `:product` label. Product will determine if the bug should be closed as accepted behavior, or if further drafting is necessary.
+Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizing-improvements). 
 
 #### Awaiting QA
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
@@ -489,6 +481,7 @@ How to escalate:
 1. Spend 30 minutes digging into the relevant code ([osquery](https://github.com/osquery/osquery), [Fleet](https://github.com/fleetdm/fleet)) and/or documentation ([osquery](https://osquery.readthedocs.io/en/latest/), [Fleet](https://fleetdm.com/docs)). Even if you don't know the codebase (or even the programming language), you can sometimes find good answers this way. At the least, you'll become more familiar with each project. Try searching the code for relevant keywords, or filenames.
 
 2. Create a new thread in the [#help-engineering channel](https://fleetdm.slack.com/archives/C019WG4GH0A), tagging `@zwass` and provide the information turned up in your research. Please include possibly relevant links (even if you didn't find what you were looking for there). Zach will work with you to craft an appropriate answer or find another team member who can help.
+
 
 ### Changing of the guard
 The on-call developer changes each week on Wednesday.
@@ -588,7 +581,7 @@ OPTIONS
 
 ## Meetings
 
-<!--
+<!-- TODO: Find out what to do with this stuff. Delete?
 ### Eng Together
 This meeting is to disseminate engineering-wide announcements, promote cohesion across groups within the engineering team, and connect with engineers (and the "engineering-curious") in other departments. Held monthly for one hour.
 
@@ -650,14 +643,19 @@ Design consultations are scheduled as needed with the relevant participants, typ
 - Discuss implementation details
 
 ### Design reviews
-Design reviews are [conducted daily by the CEO](https://fleetdm.com/handbook/company/ceo#calendar-audit).
+Design reviews are conducted daily between the [Head of Product Design](https://fleetdm.com/handbook/product-design#team) and contributors proposing changes to Fleet's interfaces, such as the graphical user interface (GUI) or REST API.  This fast cadence shortens the feedback loop, makes progress visible, and encourages early feedback.  This helps Fleet stay intentional about how the product is designed and minimize common issues like UI inconsistencies or accidental breaking changes to the API.
 
-The product designer prepares proposed changes in the form of wireframes for this meeting, and presents them quickly.  Here are some tips for making this meeting effective:
+Product designers or other contributors come prepared to this meeting with their proposed changes in a GitHub issue.  Usually these are in the form of Figma wireframes, a pull request to the API docs showing changes, or a demo of a prototype.  The Head of Product Design and other participants review the changes quickly and give feedback, and then the contributor applies revisions and attends again the next day or as soon as possible for another go-round.  The Head of Product Design is responsible for looping in the right engineers, community members, and other subject-matter experts to iterate on and refine upcoming product changes in the best interest of the business.
+
+Here are some tips for making this meeting effective:
 - Bring 1 key engineer who has been helping out with the user story, when possible and helpful.
 - Say the user story out loud to remind participants of what it is.
+- At the beginning of describing your change, indicate whether you are 70% sure you are 100% done, or are looking for early feedback.
 - Avoid explaining or showing multiple ways it could work.  Show the one way you think it should work and let your work speak for itself.
 - For follow-ups, repeat the user story, but show only what has changed or been added since the last review.
-- Zoom in.
+- Read Fleet's [best practices for meetings](https://fleetdm.com/handbook/company/communications#meetings).
+
+> To allow for asynchronous participation, instead of attending, contributors can alternatively choose to add an agenda item to the "Product design review" meeting with a GitHub link.  Then, the Head of Product Design will review during the meeting and provide feedback.  Every "Product design review" is recorded and automatically transcribed to a Google Doc so that it is searchable by every Fleet team member.
 
 ### Weekly bug review
 QA has weekly check-in with product to go over the inbox items. QA is responsible for proposing “not a bug”, closing due to lack of response (with a nice message), or raising other relevant questions. All requires product agreement

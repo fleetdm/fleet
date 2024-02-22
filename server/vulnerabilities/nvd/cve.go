@@ -124,9 +124,36 @@ func getNVDCVEFeedFiles(vulnPath string) ([]string, error) {
 	return files, nil
 }
 
+// interface for items with NVD Meta Data
+type itemWithNVDMeta interface {
+	GetMeta() *wfn.Attributes
+	GetID() uint
+}
+
 type softwareCPEWithNVDMeta struct {
 	fleet.SoftwareCPE
 	meta *wfn.Attributes
+}
+
+func (s softwareCPEWithNVDMeta) GetMeta() *wfn.Attributes {
+	return s.meta
+}
+
+func (s softwareCPEWithNVDMeta) GetID() uint {
+	return s.SoftwareID
+}
+
+type osCPEWithNVDMeta struct {
+	fleet.OperatingSystem
+	meta *wfn.Attributes
+}
+
+func (o osCPEWithNVDMeta) GetMeta() *wfn.Attributes {
+	return o.meta
+}
+
+func (o osCPEWithNVDMeta) GetID() uint {
+	return o.ID
 }
 
 // TranslateCPEToCVE maps the CVEs found in NVD archive files in the
@@ -168,8 +195,21 @@ func TranslateCPEToCVE(
 		})
 	}
 
-	if len(parsed) == 0 {
+	cpes, err := GetMacOSCPEs(ctx, ds)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(parsed) == 0 && len(cpes) == 0 {
 		return nil, nil
+	}
+
+	var interfaceParsed []itemWithNVDMeta
+	for _, p := range parsed {
+		interfaceParsed = append(interfaceParsed, p)
+	}
+	for _, c := range cpes {
+		interfaceParsed = append(interfaceParsed, c)
 	}
 
 	knownNVDBugRules, err := GetKnownNVDBugRules()
@@ -179,14 +219,15 @@ func TranslateCPEToCVE(
 
 	// we are using a map here to remove any duplicates - a vulnerability can be present in more than one
 	// NVD feed file.
-	vulns := make(map[string]fleet.SoftwareVulnerability)
+	softwareVulns := make(map[string]fleet.SoftwareVulnerability)
+	osVulns := make(map[string]fleet.OSVulnerability)
 	for _, file := range files {
 
-		foundVulns, err := checkCVEs(
+		foundSoftwareVulns, foundOSVulns, err := checkCVEs(
 			ctx,
 			ds,
 			logger,
-			parsed,
+			interfaceParsed,
 			file,
 			collectVulns,
 			knownNVDBugRules,
@@ -195,13 +236,16 @@ func TranslateCPEToCVE(
 			return nil, err
 		}
 
-		for _, e := range foundVulns {
-			vulns[e.Key()] = e
+		for _, e := range foundSoftwareVulns {
+			softwareVulns[e.Key()] = e
+		}
+		for _, e := range foundOSVulns {
+			osVulns[e.Key()] = e
 		}
 	}
 
 	var newVulns []fleet.SoftwareVulnerability
-	for _, vuln := range vulns {
+	for _, vuln := range softwareVulns {
 		ok, err := ds.InsertSoftwareVulnerability(ctx, vuln, fleet.NVDSource)
 		if err != nil {
 			level.Error(logger).Log("cpe processing", "error", "err", err)
@@ -216,6 +260,14 @@ func TranslateCPEToCVE(
 		}
 	}
 
+	for _, vuln := range osVulns {
+		_, err := ds.InsertOSVulnerability(ctx, vuln, fleet.NVDSource)
+		if err != nil {
+			level.Error(logger).Log("cpe processing", "error", "err", err)
+			continue
+		}
+	}
+
 	// Delete any stale vulnerabilities. A vulnerability is stale iff the last time it was
 	// updated was more than `2 * periodicity` ago. This assumes that the whole vulnerability
 	// process completes in less than `periodicity` units of time.
@@ -224,8 +276,52 @@ func TranslateCPEToCVE(
 	if err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
 		level.Error(logger).Log("msg", "error deleting out of date vulnerabilities", "err", err)
 	}
+	if err = ds.DeleteOutOfDateOSVulnerabilities(ctx, fleet.NVDSource, 2*periodicity); err != nil {
+		level.Error(logger).Log("msg", "error deleting out of date OS vulnerabilities", "err", err)
+	}
 
 	return newVulns, nil
+}
+
+// GetMacOSCPEs translates all found macOS Operating Systems to CPEs.
+func GetMacOSCPEs(ctx context.Context, ds fleet.Datastore) ([]osCPEWithNVDMeta, error) {
+	var cpes []osCPEWithNVDMeta
+
+	oses, err := ds.ListOperatingSystemsForPlatform(ctx, "darwin")
+	if err != nil {
+		return cpes, ctxerr.Wrap(ctx, err, "list operating systems")
+	}
+
+	if len(oses) == 0 {
+		return cpes, nil
+	}
+
+	// variants of macOS found in the NVD feed
+	macosVariants := []string{"macos", "mac_os_x"}
+
+	for _, os := range oses {
+		for _, variant := range macosVariants {
+			cpe := osCPEWithNVDMeta{
+				OperatingSystem: os,
+				meta: &wfn.Attributes{
+					Part:      "o",
+					Vendor:    "apple",
+					Product:   variant,
+					Version:   os.Version,
+					Update:    wfn.Any,
+					Edition:   wfn.Any,
+					SWEdition: wfn.Any,
+					TargetSW:  wfn.Any,
+					TargetHW:  wfn.Any,
+					Other:     wfn.Any,
+					Language:  wfn.Any,
+				},
+			}
+			cpes = append(cpes, cpe)
+		}
+	}
+
+	return cpes, nil
 }
 
 func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, configs []*wfn.Attributes) bool {
@@ -245,25 +341,27 @@ func checkCVEs(
 	ctx context.Context,
 	ds fleet.Datastore,
 	logger kitlog.Logger,
-	softwareCPEs []softwareCPEWithNVDMeta,
+	CPEItems []itemWithNVDMeta,
 	jsonFile string,
 	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
-) ([]fleet.SoftwareVulnerability, error) {
+) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
 	// This index consumes too much RAM
 	// cache.Idx = cvefeed.NewIndex(dict)
 
-	softwareCPECh := make(chan softwareCPEWithNVDMeta)
-	var foundVulns []fleet.SoftwareVulnerability
+	CPEItemCh := make(chan itemWithNVDMeta)
+	var foundSoftwareVulns []fleet.SoftwareVulnerability
+	var foundOSVulns []fleet.OSVulnerability
 
 	var wg sync.WaitGroup
-	var mu sync.Mutex
+	var softwareMu sync.Mutex
+	var osMu sync.Mutex
 
 	logger = log.With(logger, "json_file", jsonFile)
 
@@ -278,13 +376,13 @@ func checkCVEs(
 
 			for {
 				select {
-				case softwareCPE, more := <-softwareCPECh:
+				case CPEItem, more := <-CPEItemCh:
 					if !more {
 						level.Debug(logger).Log("msg", "done")
 						return
 					}
 
-					cacheHits := cache.Get([]*wfn.Attributes{softwareCPE.meta})
+					cacheHits := cache.Get([]*wfn.Attributes{CPEItem.GetMeta()})
 					for _, matches := range cacheHits {
 						if len(matches.CPEs) == 0 {
 							continue
@@ -293,7 +391,7 @@ func checkCVEs(
 						if rule, ok := knownNVDBugRules.FindMatch(
 							matches.CVE.ID(),
 						); ok {
-							if !rule.CPEMatches(softwareCPE.meta) {
+							if !rule.CPEMatches(CPEItem.GetMeta()) {
 								continue
 							}
 						}
@@ -305,9 +403,9 @@ func checkCVEs(
 						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
 						// Such rules we want to ignore here to prevent many false positives that do not apply to the
 						// Chrome or Firefox environment.
-						if softwareCPE.meta.TargetSW == "chrome" || softwareCPE.meta.TargetSW == "firefox" {
+						if CPEItem.GetMeta().TargetSW == "chrome" || CPEItem.GetMeta().TargetSW == "firefox" {
 							if !matchesExactTargetSW(
-								softwareCPE.meta.TargetSW,
+								CPEItem.GetMeta().TargetSW,
 								[]string{"chrome", "firefox"},
 								matches.CVE.Config(),
 							) {
@@ -315,20 +413,34 @@ func checkCVEs(
 							}
 						}
 
-						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), softwareCPE.meta, dict, logger)
+						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), CPEItem.GetMeta(), dict, logger)
 						if err != nil {
 							level.Debug(logger).Log("err", err)
 						}
 
-						vuln := fleet.SoftwareVulnerability{
-							SoftwareID:        softwareCPE.SoftwareID,
-							CVE:               matches.CVE.ID(),
-							ResolvedInVersion: ptr.String(resolvedVersion),
-						}
+						if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
 
-						mu.Lock()
-						foundVulns = append(foundVulns, vuln)
-						mu.Unlock()
+							vuln := fleet.SoftwareVulnerability{
+								SoftwareID:        CPEItem.GetID(),
+								CVE:               matches.CVE.ID(),
+								ResolvedInVersion: ptr.String(resolvedVersion),
+							}
+
+							softwareMu.Lock()
+							foundSoftwareVulns = append(foundSoftwareVulns, vuln)
+							softwareMu.Unlock()
+						} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
+
+							vuln := fleet.OSVulnerability{
+								OSID:              CPEItem.GetID(),
+								CVE:               matches.CVE.ID(),
+								ResolvedInVersion: ptr.String(resolvedVersion),
+							}
+
+							osMu.Lock()
+							foundOSVulns = append(foundOSVulns, vuln)
+							osMu.Unlock()
+						}
 
 					}
 				case <-ctx.Done():
@@ -341,14 +453,14 @@ func checkCVEs(
 
 	level.Debug(logger).Log("msg", "pushing cpes")
 
-	for _, cpe := range softwareCPEs {
-		softwareCPECh <- cpe
+	for _, cpe := range CPEItems {
+		CPEItemCh <- cpe
 	}
-	close(softwareCPECh)
+	close(CPEItemCh)
 	level.Debug(logger).Log("msg", "cpes pushed")
 	wg.Wait()
 
-	return foundVulns, nil
+	return foundSoftwareVulns, foundOSVulns, nil
 }
 
 // Returns the versionEndExcluding string for the given CVE and host software meta
@@ -443,26 +555,18 @@ func findCPEMatch(nodes []*schema.NVDCVEFeedJSON10DefNode) []*schema.NVDCVEFeedJ
 
 // checkVersion checks if the host software version matches the CPEMatch rule
 func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch, softwareVersion *semver.Version, cve string) (string, error) {
-	for _, condition := range []struct {
-		startIncluding string
-		startExcluding string
-	}{
-		{rule.VersionStartIncluding, ""},
-		{"", rule.VersionStartExcluding},
-	} {
-		constraintStr := buildConstraintString(condition.startIncluding, condition.startExcluding, rule.VersionEndExcluding)
-		if constraintStr == "" {
-			return rule.VersionEndExcluding, nil
-		}
+	constraintStr := buildConstraintString(rule.VersionStartIncluding, rule.VersionStartExcluding, rule.VersionEndExcluding)
+	if constraintStr == "" {
+		return rule.VersionEndExcluding, nil
+	}
 
-		constraint, err := semver.NewConstraint(constraintStr)
-		if err != nil {
-			return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
-		}
+	constraint, err := semver.NewConstraint(constraintStr)
+	if err != nil {
+		return "", ctxerr.Wrapf(ctx, err, "parsing constraint: %s for cve: %s", constraintStr, cve)
+	}
 
-		if constraint.Check(softwareVersion) {
-			return rule.VersionEndExcluding, nil
-		}
+	if constraint.Check(softwareVersion) {
+		return rule.VersionEndExcluding, nil
 	}
 
 	return "", nil
@@ -471,12 +575,13 @@ func checkVersion(ctx context.Context, rule *schema.NVDCVEFeedJSON10DefCPEMatch,
 // buildConstraintString builds a semver constraint string from the startIncluding,
 // startExcluding, and endExcluding strings
 func buildConstraintString(startIncluding, startExcluding, endExcluding string) string {
-	if startIncluding == "" && startExcluding == "" {
-		return ""
-	}
 	startIncluding = preprocessVersion(startIncluding)
 	startExcluding = preprocessVersion(startExcluding)
 	endExcluding = preprocessVersion(endExcluding)
+
+	if startIncluding == "" && startExcluding == "" {
+		return fmt.Sprintf("< %s", endExcluding)
+	}
 
 	if startIncluding != "" {
 		return fmt.Sprintf(">= %s, < %s", startIncluding, endExcluding)

@@ -166,72 +166,22 @@
       font-size: $large;
       font-weight: $bold;
     }
-
-    .last-fetched {
-      font-size: $xx-small;
-      color: $core-fleet-black;
-      margin: 0;
-      padding-left: $pad-small;
-    }
-
-    .refetch {
-      display: flex;
-      margin-right: $pad-small;
-
-      .refetch-btn {
-        font-size: $x-small;
-        height: 38px;
-        margin-left: $pad-small;
-
-        &:hover {
-          svg {
-            path {
-              fill: $core-vibrant-blue-over;
-            }
-          }
-        }
-      }
-
-      .refetch-offline {
-        opacity: 25%;
-      }
-
-      .refetch-spinner {
-        color: $core-vibrant-blue;
-        cursor: default;
-        font-size: $x-small;
-        height: 38px;
-        opacity: 50%;
-        filter: saturate(100%);
-        margin-left: $pad-small;
-
-        .icon {
-          animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-            transform-origin: center center;
-          }
-          100% {
-            transform: rotate(360deg);
-            transform-origin: center center;
-          }
-        }
-      }
-    }
   }
-  .component__tabs-wrapper {
+
+  &__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
 
-    .react-tabs__tab {
-      padding: 6px 0px 16px 0px;
-      margin-right: $pad-xxlarge;
-    }
-    .react-tabs__tab--selected {
-      background-color: $ui-off-white;
+    // direct descendant of selector allows us to only change the first level of
+    // tab styling and not change the tabs inside the cards.
+    > .react-tabs > .react-tabs__tab-list {
+      .react-tabs__tab {
+        padding: 6px 0px 16px 0px;
+        margin-right: $pad-xxlarge;
+      }
+      .react-tabs__tab--selected {
+        background-color: $ui-off-white;
+      }
     }
 
     .focus-visible {
@@ -242,6 +192,7 @@
       margin-top: $pad-medium;
     }
   }
+
   .col-50 {
     flex: 2;
   }
@@ -305,4 +256,10 @@
       min-height: initial;
     }
   }
+}
+
+// we dont need the margin on the host details page as we are not using grid css
+// for the spacing.
+.host-details__tabs-wrapper .section {
+  margin-top: 0;
 }

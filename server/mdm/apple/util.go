@@ -16,7 +16,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/micromdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
 // Note Apple rejects CSRs if the key size is not 2048.

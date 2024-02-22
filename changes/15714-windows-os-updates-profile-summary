@@ -1,3 +1,0 @@
-- Modified hosts and labels endpoints so that only user-defined Windows MDM profiles are included in
-  filtered results, host details, and profiles summaries API responses (more specifically,
-  "Windows OS updates" is excluded from these responses).

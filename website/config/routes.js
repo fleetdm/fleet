@@ -108,7 +108,8 @@ module.exports.routes = {
   'GET /customers/new-license': {
     action: 'customers/view-new-license',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Get Fleet Premium | Fleet',
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
@@ -116,7 +117,8 @@ module.exports.routes = {
   'GET /customers/register': {
     action: 'entrance/view-signup',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Sign up | Fleet',
       pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
     }
@@ -124,7 +126,8 @@ module.exports.routes = {
   'GET /customers/login': {
     action: 'entrance/view-login',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Log in | Fleet',
       pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
     }
@@ -132,7 +135,8 @@ module.exports.routes = {
   'GET /customers/dashboard': {
     action: 'customers/view-dashboard',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Customer dashboard | Fleet',
       pageDescriptionForMeta: 'View and edit information about your Fleet Premium license.',
     }
@@ -140,7 +144,8 @@ module.exports.routes = {
   'GET /customers/forgot-password': {
     action: 'entrance/view-forgot-password',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Forgot password | Fleet',
       pageDescriptionForMeta: 'Recover the password for your Fleet customer account.',
     }
@@ -148,7 +153,8 @@ module.exports.routes = {
   'GET /customers/new-password': {
     action: 'entrance/view-new-password',
     locals: {
-      layout: 'layouts/layout-customer',
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'New password | Fleet',
       pageDescriptionForMeta: 'Change the password for your Fleet customer account.',
     }
@@ -159,14 +165,13 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'State of device management | Fleet',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
-      headerCTAHidden: true,
     }
   },
 
   'GET /try-fleet/register': {
     action: 'try-fleet/view-register',
     locals: {
-      layout: 'layouts/layout-sandbox',
+      hideFooterLinks: true,
       pageTitleForMeta: 'Try Fleet | Fleet',
       pageDescriptionForMeta: 'Get up and running in minutes to try out Fleet.',
     }
@@ -175,7 +180,7 @@ module.exports.routes = {
   'GET /try-fleet/login': {
     action: 'try-fleet/view-sandbox-login',
     locals: {
-      layout: 'layouts/layout-sandbox',
+      hideFooterLinks: true,
       pageTitleForMeta: 'Sign in | Fleet',
       pageDescriptionForMeta: 'Log in to Fleet.',
     }
@@ -200,7 +205,8 @@ module.exports.routes = {
   'GET /admin/email-preview': {
     action: 'admin/view-email-templates',
     locals: {
-      layout: 'layouts/layout-customer'
+      hideFooterLinks: true,
+      showAdminLinks: true,
     },
   },
 
@@ -208,14 +214,16 @@ module.exports.routes = {
     action: 'admin/view-email-template-preview',
     skipAssets: true,
     locals: {
-      layout: 'layouts/layout-customer'
+      hideFooterLinks: true,
+      showAdminLinks: true,
     },
   },
 
   'GET /admin/sandbox-waitlist': {
     action: 'admin/view-sandbox-waitlist',
     locals: {
-      layout: 'layouts/layout-customer'
+      hideFooterLinks: true,
+      showAdminLinks: true,
     },
   },
 
@@ -229,27 +237,22 @@ module.exports.routes = {
   'GET /admin/generate-license': {
     action: 'admin/view-generate-license',
     locals: {
-      layout: 'layouts/layout-customer'
+      hideFooterLinks: true,
+      showAdminLinks: true,
     }
   },
 
 
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    }
   },
 
   'GET /vanta-authorization': {
     action: 'view-vanta-authorization',
-    locals: {
-      layout: 'layouts/layout-sandbox',
-    }
   },
 
   'GET /device-management': {
-    action: 'view-fleet-mdm',
+    action: 'view-device-management',
     locals: {
       pageTitleForMeta: 'Device management (MDM) | Fleet',
       pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
@@ -379,13 +382,13 @@ module.exports.routes = {
   'GET /handbook/company/ceo-handbook': '/handbook/ceo',
   'GET /handbook/growth': '/handbook/marketing#growth',
   'GET /handbook/community': '/handbook/marketing#community',
-  'GET /handbook/digital-experience': '/handbook/marketing#digital-experience',
   'GET /handbook/digital-experience/article-formatting-guide': '/handbook/marketing/article-formatting-guide',
   'GET /handbook/marketing/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
+  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
   'GET /handbook/digital-experience/commonly-used-terms': '/handbook/company/communications#commonly-used-terms',
   'GET /handbook/digital-experience/how-to-submit-and-publish-an-article': '/handbook/marketing/how-to-submit-and-publish-an-article',
-  'GET /handbook/marketing/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
   'GET /handbook/digital-experience/markdown-guide': '/handbook/company/communications#writing-in-fleet-flavored-markdown',
+  'GET /handbook/ceo': '/handbook/digital-experience',
   'GET /handbook/marketing/content-style-guide': '/handbook/company/communications#writing',
   'GET /handbook/marketing/editor-guide/': '/handbook/company/communications#github',
   'GET /handbook/marketing/docs-handbook/': '/handbook/company/communications#docs',
@@ -406,6 +409,7 @@ module.exports.routes = {
   'GET /handbook/business-operations/people-operations': '/handbook/company/communications#hiring',
   'GET /handbook/marketing': '/handbook/demand/',
   'GET /handbook/customers': '/handbook/sales/',
+  'GET /handbook/product': '/handbook/product-design',
 
   'GET /docs': '/docs/get-started/why-fleet',
   'GET /docs/get-started': '/docs/get-started/why-fleet',
@@ -417,6 +421,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/faq': '/docs/get-started/faq',
   'GET /docs/using-fleet/monitoring-fleet': '/docs/deploy/monitoring-fleet',
   'GET /docs/using-fleet/adding-hosts': '/docs/using-fleet/enroll-hosts',
+  'GET /docs/using-fleet/fleetd': '/docs/using-fleet/enroll-hosts',
   'GET /docs/using-fleet/teams': '/docs/using-fleet/segment-hosts',
   'GET /docs/using-fleet/permissions': '/docs/using-fleet/manage-access',
   'GET /docs/using-fleet/chromeos': '/docs/using-fleet/enroll-chromebooks',
@@ -427,7 +432,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/process-file-events': '/guides/querying-process-file-events-table-on-centos-7',
   'GET /docs/using-fleet/audit-activities': '/docs/using-fleet/audit-logs',
   'GET /docs/using-fleet/detail-queries-summary': '/docs/using-fleet/understanding-host-vitals',
-  'GET /docs/using-fleet/orbit': '/docs/using-fleet/fleetd',
+  'GET /docs/using-fleet/orbit': '/docs/using-fleet/enroll-hosts',
   'GET /docs/deploying': '/docs/deploy',
   'GET /docs/deploying/faq': '/docs/get-started/faq',
   'GET /docs/deploying/introduction': '/docs/deploy/introduction',
@@ -461,6 +466,10 @@ module.exports.routes = {
   'GET /handbook/company/software-engineer': '/handbook/company/open-positions/software-engineer',
   'GET /handbook/company/software-engineer-windows-go': '/handbook/company/open-positions/software-engineer-windows-go',
   'GET /osquery-management': '/endpoint-ops',
+  'GET /guides/using-github-actions-to-apply-configuration-profiles-with-fleet': 'https://github.com/fleetdm/fleet-gitops',
+  'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
+  'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
+  'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
 
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
@@ -483,7 +492,7 @@ module.exports.routes = {
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
   'GET /login':                      '/customers/login',
-  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',
+  'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
@@ -499,14 +508,18 @@ module.exports.routes = {
   'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
   'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
   'GET /mdm': '/device-management',// « alias for radio ad
+  'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
 
   // Fleet UI
   // =============================================================================================================
   // Redirects for external links from the Fleet UI & CLI, including to fleetdm.com and to external websites not
   // maintained by Fleet. These help avoid broken links by reducing surface area of links to maintain in the UI.
   'GET /learn-more-about/chromeos-updates': 'https://support.google.com/chrome/a/answer/6220366',
-  'GET /learn-more-about/just-in-time-provisioning': 'https://fleetdm.com/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
+  'GET /learn-more-about/just-in-time-provisioning': '/docs/deploy/single-sign-on-sso#just-in-time-jit-user-provisioning',
+  'GET /learn-more-about/os-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
+  'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
+  'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
 
   // Sitemap
   // =============================================================================================================
@@ -544,7 +557,6 @@ module.exports.routes = {
   'POST /api/v1/webhooks/receive-usage-analytics': { action: 'webhooks/receive-usage-analytics', csrf: false },
   '/api/v1/webhooks/github': { action: 'webhooks/receive-from-github', csrf: false },
   'POST /api/v1/webhooks/receive-from-stripe': { action: 'webhooks/receive-from-stripe', csrf: false },
-  'POST /api/v1/webhooks/receive-from-customer-fleet-instance': { action: 'webhooks/receive-from-customer-fleet-instance', csrf: false},
 
   //  ╔═╗╔═╗╦  ╔═╗╔╗╔╔╦╗╔═╗╔═╗╦╔╗╔╔╦╗╔═╗
   //  ╠═╣╠═╝║  ║╣ ║║║ ║║╠═╝║ ║║║║║ ║ ╚═╗

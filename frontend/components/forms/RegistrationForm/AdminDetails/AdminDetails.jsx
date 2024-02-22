@@ -43,36 +43,33 @@ class AdminDetails extends Component {
 
     return (
       <form onSubmit={handleSubmit} className={className} autoComplete="off">
-        <div className="registration-fields">
-          <InputField
-            {...fields.name}
-            label="Full name"
-            tabIndex={tabIndex}
-            autofocus={currentPage}
-            ref={(input) => {
-              this.firstInput = input;
-            }}
-            inputOptions={{
-              maxLength: "80",
-            }}
-          />
-          <InputField {...fields.email} label="Email" tabIndex={tabIndex} />
-          <InputField
-            {...fields.password}
-            label="Password"
-            type="password"
-            tabIndex={tabIndex}
-            hint={[
-              "Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)",
-            ]}
-          />
-          <InputField
-            {...fields.password_confirmation}
-            type="password"
-            tabIndex={tabIndex}
-            label="Confirm password"
-          />
-        </div>
+        <p>Additional admins can be designated within the Fleet app.</p>
+        <InputField
+          {...fields.name}
+          label="Full name"
+          tabIndex={tabIndex}
+          autofocus={currentPage}
+          ref={(input) => {
+            this.firstInput = input;
+          }}
+          inputOptions={{
+            maxLength: "80",
+          }}
+        />
+        <InputField {...fields.email} label="Email" tabIndex={tabIndex} />
+        <InputField
+          {...fields.password}
+          label="Password"
+          type="password"
+          tabIndex={tabIndex}
+          helpText="Must include 12 characters, at least 1 number (e.g. 0 - 9), and at least 1 symbol (e.g. &*#)"
+        />
+        <InputField
+          {...fields.password_confirmation}
+          type="password"
+          tabIndex={tabIndex}
+          label="Confirm password"
+        />
         <Button
           type="submit"
           tabIndex={tabIndex}

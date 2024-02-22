@@ -90,7 +90,6 @@ const ManageQueriesPage = ({
     filteredQueriesPath,
     isPremiumTier,
     isSandboxMode,
-    isGlobalObserver,
     config,
   } = useContext(AppContext);
   const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
@@ -219,15 +218,9 @@ const ManageQueriesPage = ({
   };
 
   const togglePreviewDataModal = useCallback(() => {
-    // Manage automation modal must close/open every time preview data modal opens/closes
-    setShowManageAutomationsModal(!showManageAutomationsModal);
+    // ManageQueryAutomationsModal will be cosmetically hidden when the preview data modal is open
     setShowPreviewDataModal(!showPreviewDataModal);
-  }, [
-    showPreviewDataModal,
-    setShowPreviewDataModal,
-    showManageAutomationsModal,
-    setShowManageAutomationsModal,
-  ]);
+  }, [showPreviewDataModal, setShowPreviewDataModal]);
 
   const onDeleteQuerySubmit = useCallback(async () => {
     const bulk = selectedQueryIds.length > 1;
@@ -404,8 +397,6 @@ const ManageQueriesPage = ({
     [refetchAllQueries, automatedQueryIds, toggleManageAutomationsModal]
   );
 
-  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
-
   const renderModals = () => {
     return (
       <>
@@ -421,6 +412,7 @@ const ManageQueriesPage = ({
             isUpdatingAutomations={isUpdatingAutomations}
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
+            isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
             availableQueries={curTeamEnhancedQueries}
             automatedQueryIds={automatedQueryIds}
@@ -461,7 +453,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    Add query
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 </>
               )}
@@ -469,8 +461,9 @@ const ManageQueriesPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           <p>
-            Manage and schedule queries to ask questions and collect telemetry
-            for all hosts{isAnyTeamSelected && " assigned to this team"}.
+            {isAnyTeamSelected
+              ? "Gather data about all hosts assigned to this team."
+              : "Gather data about all hosts."}
           </p>
         </div>
         {renderCurrentScopeQueriesTable()}

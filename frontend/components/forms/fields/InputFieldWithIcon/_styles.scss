@@ -1,7 +1,5 @@
 .input-icon-field {
-  margin-top: $pad-medium;
   position: relative;
-  width: 100%;
 
   &__icon {
     position: absolute;
@@ -88,7 +86,6 @@
     display: block;
     font-size: $x-small;
     font-weight: $bold;
-    margin-bottom: $pad-xsmall;
 
     &[data-has-tooltip="true"] {
       margin-bottom: $pad-small;
@@ -97,22 +94,6 @@
 
   &__errors {
     color: $core-vibrant-red;
-  }
-
-  &__hint {
-    font-size: $x-small;
-    font-style: italic;
-    font-weight: $regular;
-    line-height: 20px;
-    display: inline-block;
-    margin-top: $pad-small;
-
-    code {
-      color: $core-vibrant-blue;
-      background-color: $ui-light-grey;
-      padding: $pad-xxsmall;
-      font-family: "SourceCodePro", $monospace;
-    }
   }
 
   // overwrite icon position and input padding

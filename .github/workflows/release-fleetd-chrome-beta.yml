@@ -1,0 +1,67 @@
+name: Release fleetd-chrome beta
+
+on:
+  push:
+   tags:
+     - 'fleetd-chrome-**-beta'
+
+# This allows a subsequently queued workflow run to interrupt previous runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id}}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    # fail-fast using bash -eo pipefail. See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#exit-codes-and-error-action-preference
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  release-fleetd-chrome-beta:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
+
+      - name: Run test
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          npm install && npm run test
+
+      - name: Build & sign extension
+        working-directory: ./ee/fleetd-chrome
+        env:
+          CHROME_SIGNING_KEY: ${{ secrets.FLEETD_CHROME_SIGNING_KEY_BETA }}
+        run: |
+          echo -e 'FLEET_URL=""\nFLEET_ENROLL_SECRET=""' > .env
+          npm install && npm run build
+          echo "$CHROME_SIGNING_KEY" > chrome.pem
+          /usr/bin/google-chrome --pack-extension=./dist --pack-extension-key=chrome.pem
+
+      - name: Upload extension
+        working-directory: ./ee/fleetd-chrome
+        env:
+          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_CHROME_BETA_ACCESS_KEY_ID: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_ID }}
+          R2_CHROME_BETA_ACCESS_KEY_SECRET: ${{ secrets.R2_CHROME_BETA_ACCESS_KEY_SECRET }}
+        run: |
+          sudo apt-get install rclone
+          mkdir -p ~/.config/rclone
+          echo "[r2]
+          type = s3
+          provider = Cloudflare
+          region = auto
+          no_check_bucket = true
+          access_key_id = $R2_CHROME_BETA_ACCESS_KEY_ID
+          secret_access_key = $R2_CHROME_BETA_ACCESS_KEY_SECRET
+          endpoint = $R2_ENDPOINT
+          
+          " > ~/.config/rclone/rclone.conf
+          mv dist.crx fleetd.crx
+          rclone copy fleetd.crx r2:chrome-beta/
+          mv updates-beta.xml updates.xml
+          rclone copy updates.xml r2:chrome-beta/

@@ -5,7 +5,6 @@ import { IHostEncrpytionKeyResponse } from "interfaces/host";
 import hostAPI from "services/entities/hosts";
 
 import Modal from "components/Modal";
-import CustomLink from "components/CustomLink";
 import Button from "components/buttons/Button";
 import InputFieldHiddenContent from "components/forms/fields/InputFieldHiddenContent";
 import DataError from "components/DataError";

@@ -30,9 +30,10 @@ ALTER TABLE mdm_windows_configuration_profiles
 	// add the 'w' prefix to the windows profiles table
 	_, err = tx.Exec(`
 UPDATE
-	mdm_windows_configuration_profiles
+	mdm_windows_configuration_profiles mwcp
 SET
-	profile_uuid = CONCAT('w', profile_uuid)
+	profile_uuid = CONCAT('w', profile_uuid),
+	updated_at = mwcp.updated_at
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update mdm_windows_configuration_profiles table: %w", err)
@@ -61,10 +62,11 @@ ALTER TABLE mdm_apple_configuration_profiles
 	// generate the uuids for the apple profiles table
 	_, err = tx.Exec(`
 UPDATE
-	mdm_apple_configuration_profiles
+	mdm_apple_configuration_profiles macp
 SET
 	-- see https://stackoverflow.com/a/51393124/1094941
-	profile_uuid = CONCAT('a', CONVERT(uuid() USING utf8mb4))
+	profile_uuid = CONCAT('a', CONVERT(uuid() USING utf8mb4)),
+	updated_at = macp.updated_at
 `)
 	if err != nil {
 		return fmt.Errorf("failed to update mdm_apple_configuration_profiles table: %w", err)

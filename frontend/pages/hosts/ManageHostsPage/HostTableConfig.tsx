@@ -383,7 +383,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM status",
-    Header: (cellProps: IHeaderProps): JSX.Element => {
+    Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={
@@ -414,7 +414,7 @@ const allHostTableHeaders: IDataColumn[] = [
   },
   {
     title: "MDM server URL",
-    Header: (cellProps: IHeaderProps): JSX.Element => {
+    Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
           tipContent={

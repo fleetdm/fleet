@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>test</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadIdentifier</key>
+			<string>com.fleetdm.cis-2.6.2-part1.check</string>
+			<key>PayloadUUID</key>
+			<string>9A6BF497-B715-453A-A7F7-D27C325EB5B3</string>
+			<key>allowDiagnosticSubmission</key>
+			<false/>
+		</dict>
+	</array>
+	<key>PayloadDescription</key>
+	<string>test</string>
+	<key>PayloadDisplayName</key>
+	<string>Ensure Ensure Sending Diagnostic and Usage Data to Apple Is Disabled(part 1)</string>
+	<key>PayloadIdentifier</key>
+	<string>com.fleetdm.cis-2.6.2-part1</string>
+	<key>PayloadRemovalDisallowed</key>
+	<false/>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>7D03459B-AA53-41AB-85C4-AAED7CE95EE9</string>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+</dict>
+</plist>

@@ -1,12 +1,14 @@
 # frozen_string_literal: true
 
 require 'spec_helper'
+require_relative '../../lib/puppet/reports/fleetdm.rb'
 
 describe 'Puppet::Util::FleetClient' do
   let(:client) { Puppet::Util::FleetClient.instance }
   let(:host) { 'https://test.example.com' }
   let(:token) { 'supersecret' }
   let(:identifier) { 'test_ident' }
+  let(:rspec_puppet_env) { 'rp_env' }
 
   before(:each) do
     stub_const(
@@ -64,7 +66,7 @@ describe 'Puppet::Util::FleetClient' do
           request_body: { 'external_host_identifier' => identifier },
           response: instance_double(Net::HTTPSuccess, code: 204, body: nil),
         )
-        client.match_profiles(identifier)
+        client.match_profiles(identifier, rspec_puppet_env)
       end
 
       it { expect(result['body']).to eq({}) }
@@ -83,7 +85,7 @@ describe 'Puppet::Util::FleetClient' do
             body: body.to_json,
           ),
         )
-        client.match_profiles(identifier)
+        client.match_profiles(identifier, rspec_puppet_env)
       end
 
       let(:body) do

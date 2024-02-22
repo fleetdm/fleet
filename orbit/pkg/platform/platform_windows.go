@@ -136,16 +136,14 @@ func SignalProcessBeforeTerminate(processName string) error {
 		return fmt.Errorf("get process: %w", err)
 	}
 
-	isRunning, err := foundProcess.IsRunning()
-	if (err == nil) && (isRunning) {
-		if err := foundProcess.Kill(); err != nil {
-			return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
-		}
+	if err := foundProcess.Kill(); err != nil {
+		return fmt.Errorf("kill process %d: %w", foundProcess.Pid, err)
 	}
 	return nil
 }
 
-// GetProcessByName gets a single process object by its name
+// GetProcessByName gets a single running process object by its name.
+// Returns ErrProcessNotFound if the process was not found running.
 func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	if name == "" {
 		return nil, errors.New("process name should not be empty")
@@ -196,6 +194,11 @@ func GetProcessByName(name string) (*gopsutil_process.Process, error) {
 	process, err := gopsutil_process.NewProcess(int32(foundProcessID))
 	if err != nil {
 		return nil, fmt.Errorf("NewProcess: %w", err)
+	}
+
+	isRunning, err := process.IsRunning()
+	if err != nil || !isRunning {
+		return nil, ErrProcessNotFound
 	}
 
 	return process, nil

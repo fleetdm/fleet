@@ -51,7 +51,8 @@ func TestLimitedWithCooldwonDo(t *testing.T) {
 	})
 
 	t.Run("exceed max retries", func(t *testing.T) {
-		lwc := NewLimitedWithCooldown(3, 1*time.Hour)
+		cooldown := 1 * time.Hour
+		lwc := NewLimitedWithCooldown(3, cooldown)
 		hash := "foo"
 
 		for i := 0; i < 3; i++ {
@@ -64,8 +65,9 @@ func TestLimitedWithCooldwonDo(t *testing.T) {
 		err := lwc.Do(hash, func() error {
 			return nil
 		})
-		var rErr *ExcessRetriesError
-		require.ErrorAs(t, err, &rErr)
+		rErr, ok := err.(*ExcessRetriesError)
+		require.True(t, ok)
+		require.WithinDuration(t, time.Now().Add(cooldown), time.Now().Add(rErr.nextRetry), 1*time.Minute)
 	})
 
 	t.Run("cooldown period", func(t *testing.T) {

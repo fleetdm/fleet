@@ -225,11 +225,34 @@ const ManagePolicyAutomationsModal = ({
     //   newPolicyIds = [];
     // }
 
+    const updatedEnabledPoliciesAcrossPages = () => {
+      if (webhook.policy_ids) {
+        // Array of policy ids on the page
+        const availablePoliciesIds = availablePolicies.map(
+          (policy) => policy.id
+        );
+
+        // Array of policy ids enabled NOT on the page
+        const enabledPoliciesOnOtherPages = webhook.policy_ids.filter(
+          (policyId) => !availablePoliciesIds.includes(policyId)
+        );
+
+        // Concatenate with array of policies enabled on the page
+        const allEnabledPolicies = enabledPoliciesOnOtherPages.concat(
+          newPolicyIds
+        );
+
+        return allEnabledPolicies;
+      }
+
+      return [];
+    };
+
     // NOTE: backend uses webhook_settings to store automated policy ids for both webhooks and integrations
     const newWebhook = {
       failing_policies_webhook: {
         destination_url: destinationUrl,
-        policy_ids: newPolicyIds,
+        policy_ids: updatedEnabledPoliciesAcrossPages(),
         enable_failing_policies_webhook:
           isPolicyAutomationsEnabled && isWebhookEnabled,
       },
@@ -261,7 +284,7 @@ const ManagePolicyAutomationsModal = ({
 
   const renderWebhook = () => {
     return (
-      <div className={`${baseClass}__webhook`}>
+      <>
         <InputField
           inputWrapperClass={`${baseClass}__url-input`}
           name="webhook-url"
@@ -270,16 +293,14 @@ const ManagePolicyAutomationsModal = ({
           value={destinationUrl}
           onChange={onChangeUrl}
           error={errors.url}
-          hint={
-            'For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
-          }
+          helpText='For each policy, Fleet will send a JSON payload to this URL with a list of the hosts that updated their answer to "No."'
           placeholder={"https://server.com/example"}
           tooltip="Provide a URL to deliver a webhook request to."
         />
         <Button type="button" variant="text-link" onClick={togglePreviewModal}>
           Preview payload
         </Button>
-      </div>
+      </>
     );
   };
 
@@ -305,18 +326,14 @@ const ManagePolicyAutomationsModal = ({
         </Button>
       </div>
     ) : (
-      <div className={`${baseClass}__no-integrations`}>
-        <div>
-          <b>You have no integrations.</b>
-        </div>
-        <div className={`${baseClass}__no-integration--cta`}>
-          <Link
-            to={PATHS.ADMIN_INTEGRATIONS}
-            className={`${baseClass}__add-integration-link`}
-          >
-            <span>Add integration</span>
-          </Link>
-        </div>
+      <div className={`form-field ${baseClass}__no-integrations`}>
+        <div className="form-field__label">You have no integrations.</div>
+        <Link
+          to={PATHS.ADMIN_INTEGRATIONS}
+          className={`${baseClass}__add-integration-link`}
+        >
+          Add integration
+        </Link>
       </div>
     );
   };
@@ -336,90 +353,80 @@ const ManagePolicyAutomationsModal = ({
   ) : (
     <Modal
       onExit={onExit}
-      title={"Manage automations"}
+      title="Manage automations"
       className={baseClass}
       width="large"
     >
-      <>
-        <div className={`${baseClass}__software-select-items`}>
-          <Slider
-            value={isPolicyAutomationsEnabled}
-            onChange={() => {
-              setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
-              setErrors({});
-            }}
-            inactiveText={"Policy automations disabled"}
-            activeText={"Policy automations enabled"}
-          />
-        </div>
-        <div className={`${baseClass}__overlay-container`}>
-          <div className={`${baseClass}__policy-automation-enabled`}>
-            <div className={`${baseClass}__select`}>
-              {availablePolicies?.length ? (
-                <>
-                  <p>
-                    <strong>
-                      Choose which policies you would like to listen to:
-                    </strong>
-                  </p>
-                  <div className={`${baseClass}__policy-select-items`}>
-                    {policyItems &&
-                      policyItems.map((policyItem) => {
-                        const { isChecked, name, id } = policyItem;
-                        return (
-                          <div key={id}>
-                            <Checkbox
-                              wrapperClassName={`${baseClass}__policy-select-item`}
-                              value={isChecked}
-                              name={name}
-                              onChange={() => {
-                                updatePolicyItems(policyItem.id);
-                                !isChecked &&
-                                  setErrors((errs) =>
-                                    omit(errs, "policyItems")
-                                  );
-                              }}
-                            >
-                              {name}
-                            </Checkbox>
-                          </div>
-                        );
-                      })}
-                  </div>
-                </>
-              ) : (
-                <div className={`${baseClass}__no-policies`}>
-                  <b>You have no policies.</b>
-                  <p>Add a policy to turn on automations.</p>
+      <div className={`${baseClass} form`}>
+        <Slider
+          value={isPolicyAutomationsEnabled}
+          onChange={() => {
+            setIsPolicyAutomationsEnabled(!isPolicyAutomationsEnabled);
+            setErrors({});
+          }}
+          inactiveText={"Policy automations disabled"}
+          activeText={"Policy automations enabled"}
+        />
+        <div
+          className={`form ${baseClass}__policy-automations__${
+            isPolicyAutomationsEnabled ? "enabled" : "disabled"
+          }`}
+        >
+          <div className="form-field">
+            {availablePolicies?.length ? (
+              <>
+                <div className="form-field__label">
+                  Choose which policies you would like to listen to:
                 </div>
-              )}
-            </div>
-            <div className={`${baseClass}__workflow`}>
-              <b>Workflow</b>
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label={"Ticket"}
-                id={"ticket-radio-btn"}
-                checked={!isWebhookEnabled}
-                value={"ticket"}
-                name={"ticket"}
-                onChange={onChangeRadio}
-              />
-              <Radio
-                className={`${baseClass}__radio-input`}
-                label={"Webhook"}
-                id={"webhook-radio-btn"}
-                checked={isWebhookEnabled}
-                value={"webhook"}
-                name={"webhook"}
-                onChange={onChangeRadio}
-              />
-            </div>
-            {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
+                {policyItems &&
+                  policyItems.map((policyItem) => {
+                    const { isChecked, name, id } = policyItem;
+                    return (
+                      <div key={id}>
+                        <Checkbox
+                          value={isChecked}
+                          name={name}
+                          onChange={() => {
+                            updatePolicyItems(policyItem.id);
+                            !isChecked &&
+                              setErrors((errs) => omit(errs, "policyItems"));
+                          }}
+                        >
+                          {name}
+                        </Checkbox>
+                      </div>
+                    );
+                  })}
+              </>
+            ) : (
+              <>
+                <b>You have no policies.</b>
+                <p>Add a policy to turn on automations.</p>
+              </>
+            )}
           </div>
-          {!isPolicyAutomationsEnabled && (
-            <div className={`${baseClass}__overlay`} />
-          )}
+          <div className={`form-field ${baseClass}__workflow`}>
+            <div className="form-field__label">Workflow</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label={"Ticket"}
+              id={"ticket-radio-btn"}
+              checked={!isWebhookEnabled}
+              value={"ticket"}
+              name={"ticket"}
+              onChange={onChangeRadio}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label={"Webhook"}
+              id={"webhook-radio-btn"}
+              checked={isWebhookEnabled}
+              value={"webhook"}
+              name={"webhook"}
+              onChange={onChangeRadio}
+            />
+          </div>
+          {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
         </div>
         <div className="modal-cta-wrap">
           <Button
@@ -435,7 +442,7 @@ const ManagePolicyAutomationsModal = ({
             Cancel
           </Button>
         </div>
-      </>
+      </div>
     </Modal>
   );
 };

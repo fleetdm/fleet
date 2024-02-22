@@ -4,8 +4,10 @@ import { render, screen } from "@testing-library/react";
 
 import ReportUpdatedCell from "./ReportUpdatedCell";
 
+const HUMAN_READABLE_DATETIME_REGEX = /\d{1,2}\/\d{1,2}\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}\s(A|P)M/;
+
 describe("ReportUpdatedCell component", () => {
-  it("Renders '---' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
+  it("Renders 'No report' with tooltip and no link when run on an interval with discard data and automations enabled", () => {
     render(
       <ReportUpdatedCell
         interval={1000}
@@ -15,12 +17,12 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(screen.getByText(/---/)).toBeInTheDocument();
+    expect(screen.getByText(/No report/)).toBeInTheDocument();
     expect(screen.getByText(/Results from this query/)).toBeInTheDocument();
     expect(screen.queryByText(/View report/)).toBeNull();
   });
 
-  it("Renders 'Never with tooltip and link to report when run on an interval with discard data off and no last_fetched time", () => {
+  it("Renders '---' with tooltip and link to report when run on an interval with discard data off and no last_fetched time", () => {
     render(
       <ReportUpdatedCell
         interval={1000}
@@ -30,9 +32,11 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(screen.getByText(/Never/)).toBeInTheDocument();
-    expect(screen.getByText(/This query has not run/)).toBeInTheDocument();
-    expect(screen.getByText(/View report/)).toBeInTheDocument();
+    expect(screen.getByText(/---/)).toBeInTheDocument();
+    expect(
+      screen.getByText(/Fleet is collecting query results\./)
+    ).toBeInTheDocument();
+    expect(screen.getByText(/Check back later./)).toBeInTheDocument();
   });
 
   it("Renders a last-updated timestamp with tooltip and link to report when a last_fetched date is present", () => {
@@ -48,9 +52,7 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(
-      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });
@@ -67,9 +69,7 @@ describe("ReportUpdatedCell component", () => {
       />
     );
 
-    expect(
-      screen.getByText(/\d\d\/\d\d\/\d\d\d\d, \d{1,2}:\d{1,2}:\d{1,2}( AM|PM)?/)
-    ).toBeInTheDocument();
+    expect(screen.getByText(HUMAN_READABLE_DATETIME_REGEX)).toBeInTheDocument();
     expect(screen.getByText(/\d+.+ago/)).toBeInTheDocument();
     expect(screen.getByText(/View report/)).toBeInTheDocument();
   });

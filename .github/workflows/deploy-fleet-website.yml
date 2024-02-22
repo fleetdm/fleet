@@ -87,7 +87,7 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile browser assets & markdown content into generated collateral
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod
 
     # Build the go binary we use to sign APNS certificates in the website/.tools/ folder.
     - run: cd ee/tools/mdm/ && GOOS=linux GOARCH=amd64 go build -o ../../../website/.tools/mdm-gen-cert .

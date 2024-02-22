@@ -558,108 +558,110 @@ module.exports = {
 
         let openPositionsYaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find open positions YAML file at "${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let openPositionsToCreatePartialsFor = YAML.parse(openPositionsYaml, {prettyErrors: true});
-
-        for(let openPosition of openPositionsToCreatePartialsFor){
-          // Make sure all open positions have the required values.
-          if(!openPosition.jobTitle){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "jobTitle". To resolve, add a "jobTitle" value and try running this script again.`);
-          }
-
-          if(!openPosition.department){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "department" value. To resolve, add a "department" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          if(!openPosition.hiringManagerName){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerName" value. To resolve, add a "hiringManagerName" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          if(!openPosition.hiringManagerLinkedInUrl){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerLinkedInUrl" value. To resolve, add a "hiringManagerLinkedInUrl" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          if(!openPosition.hiringManagerGithubUsername){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerGithubUsername" value. To resolve, add a "hiringManagerGithubUsername" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          if(!openPosition.responsibilities){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "responsibilities" value. To resolve, add a "responsibilities" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          if(!openPosition.experience){
-            throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing an "experience" value. To resolve, add an "experience" value to the "${openPosition.jobTitle}" position and try running this script again.`);
-          }
-
-          let pageTitle = openPosition.jobTitle;
-
-          let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
-
-
-          let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
-
-          // Modify links in the generated html string.
-          htmlStringForThisPosition = htmlStringForThisPosition.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
-            // Check if this is an external link (like https://google.com) but that is ALSO not a link
-            // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
-            // If external, add target="_blank" so the link will open in a new tab.
-            // Note: links to blog.fleetdm.com will be treated as an external link.
-            let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
-            // Check if this link is to fleetdm.com or www.fleetdm.com.
-            let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
-            if (isExternal) {
-
-              return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
-            } else {
-              // Otherwise, change the link to be web root relative.
-              // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
-              // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
-              if (isBaseUrl) {
-                return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
-              } else {
-                return hrefString.replace(/href="https?:\/\//, '').replace(/^([^\.]+\.)*fleetdm\.com/, 'href="');
-              }
+        // If the open positions yaml file is empty, the YAML parser will return it as null, and we can skip validating this file.
+        if(openPositionsToCreatePartialsFor !== null) {
+          for(let openPosition of openPositionsToCreatePartialsFor){
+            // Make sure all open positions have the required values.
+            if(!openPosition.jobTitle){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "jobTitle". To resolve, add a "jobTitle" value and try running this script again.`);
             }
-          });//∞
 
-          // Determine the htmlId for the generated page.
-          let htmlId = (
-            'handbook'+
-            '--'+
-            _.kebabCase(openPosition.jobTitle)+
-            '--'+
-            sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
-          ).replace(/[^a-z0-9\-]/ig,'');
+            if(!openPosition.department){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "department" value. To resolve, add a "department" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
 
-          // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
-          let rootRelativeUrlPath = '/handbook/company/open-positions/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+            if(!openPosition.hiringManagerName){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerName" value. To resolve, add a "hiringManagerName" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
 
-          // If there is an existing page with the generated url, throw an error.
-          if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
-            throw new Error(`Failed compiling markdown content: The "jobTitle" of an open position in ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO} matches an existing page in the company handbook folder, and named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ${rootRelativeUrlPath}`);
-          }//•
+            if(!openPosition.hiringManagerLinkedInUrl){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerLinkedInUrl" value. To resolve, add a "hiringManagerLinkedInUrl" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
 
-          // Generate ejs partial
-          let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
-          if (dry) {
-            sails.log('Dry run: Would have generated file:', htmlOutputPath);
-          } else {
-            await sails.helpers.fs.write(htmlOutputPath, htmlStringForThisPosition);
+            if(!openPosition.hiringManagerGithubUsername){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "hiringManagerGithubUsername" value. To resolve, add a "hiringManagerGithubUsername" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
+
+            if(!openPosition.responsibilities){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing a "responsibilities" value. To resolve, add a "responsibilities" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
+
+            if(!openPosition.experience){
+              throw new Error(`Error: could not build open position handbook pages from ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO}. An open position in the YAML is missing an "experience" value. To resolve, add an "experience" value to the "${openPosition.jobTitle}" position and try running this script again.`);
+            }
+
+            let pageTitle = openPosition.jobTitle;
+
+            let mdStringForThisOpenPosition = `# ${openPosition.jobTitle}\n\n## Let's start with why we exist. 📡\n\nEver wondered if your employer is monitoring your work computer?\n\nOrganizations make huge investments every year to keep their laptops and servers online, secure, compliant, and usable from anywhere. This is called "device management".\n\nAt Fleet, we think it's time device management became [transparent](https://fleetdm.com/transparency) and [open source](https://fleetdm.com/handbook/company#open-source).\n\n\n## About the company 🌈\n\nYou can read more about the company in our [handbook](https://fleetdm.com/handbook/company), which is public and open to the world.\n\ntldr; Fleet Device Management Inc. is a [recently-funded](https://techcrunch.com/2022/04/28/fleet-nabs-20m-to-enable-enterprises-to-manage-their-devices/) Series A startup founded and backed by the same people who created osquery, the leading open source security agent. Today, osquery is installed on millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).\n\n\n## Your primary responsibilities 🔭\n${openPosition.responsibilities}\n\n## Are you our new team member? 🧑‍🚀\nIf most of these qualities sound like you, we would love to chat and see if we're a good fit.\n\n${openPosition.experience}\n\n## Why should you join us? 🛸\n\nLearn more about the company and [why you should join us here](https://fleetdm.com/handbook/company#is-it-any-good).\n\n<div purpose="open-position-quote-card"><div><img alt="Deloitte logo" src="/images/logo-deloitte-166x36@2x.png"></div><div purpose="open-position-quote"><div purpose="quote-text"><p>“One of the best teams out there to go work for and help shape security platforms.”</p></div><div purpose="quote-attribution"><strong>Dhruv Majumdar</strong><p>Director Of Cyber Risk & Advisory</p></div></div></div>\n\n\n## Want to join the team?\n\nWant to join the team?\n\nReach out to [${openPosition.hiringManagerName} on Linkedin](${openPosition.hiringManagerLinkedInUrl}).`;
+
+
+            let htmlStringForThisPosition = await sails.helpers.strings.toHtml.with({mdString: mdStringForThisOpenPosition});
+
+            // Modify links in the generated html string.
+            htmlStringForThisPosition = htmlStringForThisPosition.replace(/(href="https?:\/\/([^"]+)")/g, (hrefString)=>{// « Modify links that are potentially external
+              // Check if this is an external link (like https://google.com) but that is ALSO not a link
+              // to some page on the destination site where this will be hosted, like `(*.)?fleetdm.com`.
+              // If external, add target="_blank" so the link will open in a new tab.
+              // Note: links to blog.fleetdm.com will be treated as an external link.
+              let isExternal = ! hrefString.match(/^href=\"https?:\/\/([^\.|blog]+\.)*fleetdm\.com/g);// « FUTURE: make this smarter with sails.config.baseUrl + _.escapeRegExp()
+              // Check if this link is to fleetdm.com or www.fleetdm.com.
+              let isBaseUrl = hrefString.match(/^(href="https?:\/\/)([^\.]+\.)*fleetdm\.com"$/g);
+              if (isExternal) {
+
+                return hrefString.replace(/(href="https?:\/\/([^"]+)")/g, '$1 target="_blank"');
+              } else {
+                // Otherwise, change the link to be web root relative.
+                // (e.g. 'href="http://sailsjs.com/documentation/concepts"'' becomes simply 'href="/documentation/concepts"'')
+                // > Note: See the Git version history of "compile-markdown-content.js" in the sailsjs.com website repo for examples of ways this can work across versioned subdomains.
+                if (isBaseUrl) {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/([^\.]+\.)*fleetdm\.com/, 'href="/');
+                } else {
+                  return hrefString.replace(/href="https?:\/\//, '').replace(/^([^\.]+\.)*fleetdm\.com/, 'href="');
+                }
+              }
+            });//∞
+
+            // Determine the htmlId for the generated page.
+            let htmlId = (
+              'handbook'+
+              '--'+
+              _.kebabCase(openPosition.jobTitle)+
+              '--'+
+              sails.helpers.strings.random.with({len:10})// if two files in different folders happen to have the same filename, there is a 1/16^10 chance of a collision (this is small enough- worst case, the build fails at the uniqueness check and we rerun it.)
+            ).replace(/[^a-z0-9\-]/ig,'');
+
+            // Determine the rootRelativeUrlPath for this open position, this will be used as the page's URL and to check if a markdown page already exists with this page's URL
+            let rootRelativeUrlPath = '/handbook/company/open-positions/'+encodeURIComponent(_.kebabCase(openPosition.jobTitle));
+
+            // If there is an existing page with the generated url, throw an error.
+            if (rootRelativeUrlPathsSeen.includes(rootRelativeUrlPath)) {
+              throw new Error(`Failed compiling markdown content: The "jobTitle" of an open position in ${RELATIVE_PATH_TO_OPEN_POSITIONS_YML_IN_FLEET_REPO} matches an existing page in the company handbook folder, and named would result in colliding (duplicate) URLs for the website.  To resolve, rename the pages whose names are too similar.  Duplicate detected: ${rootRelativeUrlPath}`);
+            }//•
+
+            // Generate ejs partial
+            let htmlOutputPath = path.resolve(sails.config.appPath, path.join(APP_PATH_TO_COMPILED_PAGE_PARTIALS, htmlId+'.ejs'));
+            if (dry) {
+              sails.log('Dry run: Would have generated file:', htmlOutputPath);
+            } else {
+              await sails.helpers.fs.write(htmlOutputPath, htmlStringForThisPosition);
+            }
+
+            builtStaticContent.markdownPages.push({
+              url: rootRelativeUrlPath,
+              title: pageTitle,
+              lastModifiedAt: lastModifiedAt,
+              htmlId: htmlId,
+              sectionRelativeRepoPath: 'company/open-positions.yml', // This is used to create the url for the "Edit this page" link
+              meta: {maintainedBy: openPosition.hiringManagerGithubUsername},// Set the page maintainer to be the position's hiring manager.
+            });
+            // Add the positon to builtStaticContent.openPositions
+            builtStaticContent.openPositions.push({
+              jobTitle: openPosition.jobTitle,
+              url: rootRelativeUrlPath,
+            });
           }
 
-          builtStaticContent.markdownPages.push({
-            url: rootRelativeUrlPath,
-            title: pageTitle,
-            lastModifiedAt: lastModifiedAt,
-            htmlId: htmlId,
-            sectionRelativeRepoPath: 'company/open-positions.yml', // This is used to create the url for the "Edit this page" link
-            meta: {maintainedBy: openPosition.hiringManagerGithubUsername},// Set the page maintainer to be the position's hiring manager.
-          });
-          // Add the positon to builtStaticContent.openPositions
-          builtStaticContent.openPositions.push({
-            jobTitle: openPosition.jobTitle,
-            url: rootRelativeUrlPath,
-          });
         }
-
         // After we build the Markdown pages, we'll merge the osquery schema with the Fleet schema overrides, then create EJS partials for each table in the merged schema.
         let expandedTables = await sails.helpers.getExtendedOsquerySchema.with({includeLastModifiedAtValue: true});
 
@@ -865,13 +867,13 @@ module.exports = {
       async()=>{
         // Validate the pricing table yaml and add it to builtStaticContent.pricingTable.
         let RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO = 'handbook/company/testimonials.yml';
-        // let url = require('url');
+        let VALID_PRODUCT_CATEGORIES = ['Endpoint operations', 'Device management', 'Vulnerability management'];
         let yaml = await sails.helpers.fs.read(path.join(topLvlRepoPath, RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO)).intercept('doesNotExist', (err)=>new Error(`Could not find testimonials YAML file at "${RELATIVE_PATH_TO_TESTIMONIALS_YML_IN_FLEET_REPO}".  Was it accidentally moved?  Raw error: `+err.message));
         let testimonials = YAML.parse(yaml, {prettyErrors: true});
         for(let testimonial of testimonials){
           // Throw an error if any value in the testimonial yaml is not a string.
-          for(let key of _.keys(testimonial)){
-            if(typeof testimonial[key] !== 'string'){
+          for(let key of _.keys(testimonial)) {
+            if(typeof testimonial[key] !== 'string' && key !== 'productCategories'){
               throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial contains a ${key} with a non-string value. Please make sure all values in testimonials.yml are strings, and try running this script again. Invalid (${typeof testimonial[key]}) ${key} value: ${testimonial[key]}`);
             }
           }
@@ -882,10 +884,28 @@ module.exports = {
           if(!testimonial.quoteAuthorName) {
             throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorName". To resolve, make sure all testimonials have a "quoteAuthorName", and try running this script again. Testimonial with missing "quoteAuthorName": ${testimonial} `);
           }
-          // If quoteAuthorSocialHandle is provided, quoteLinkUrl is required.
-          if(testimonial.quoteAuthorSocialHandle) {
-            if(!testimonial.quoteLinkUrl){
-              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a "quoteAuthorSocialHandle" value is missing a "quoteLinkUrl". To resolve, make sure all testimonials with a "quoteAuthorSocialHandle" have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
+          if(!testimonial.quoteLinkUrl){
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteLinkUrl" (A link to the quote author's LinkedIn profile). To resolve, make sure all testimonials have a "quoteLinkUrl", and try running this script again. Testimonial with missing "quoteLinkUrl": ${testimonial} `);
+          }
+          if(!testimonial.quoteAuthorProfileImageFilename){
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a "quoteAuthorProfileImageFilename" (The quote author's LinkedIn profile picture). To resolve, make sure all testimonials have a "quoteAuthorProfileImageFilename", and try running this script again. Testimonial with missing "quoteAuthorProfileImageFilename": ${testimonial} `);
+          } else {
+            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', testimonial.quoteAuthorProfileImageFilename));
+            if(!imageFileExists){
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteAuthorProfileImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
+            }
+          }
+          if(!testimonial.productCategories) {
+            throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial is missing a 'productCategories' value. Please add an array of product categories to this testimonial and try running this script again`);
+          } else {
+            if(!_.isArray(testimonial.productCategories)){
+              throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a has an invalid 'productCategories' value. Please change the productCategories for this testimonial to be an array of product categories`);
+            } else {
+              for(let category of testimonial.productCategories){
+                if(!_.contains(VALID_PRODUCT_CATEGORIES, category)){
+                  throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial has a 'productCategories' with an an invalid product category (${category}). Please change the values in this array to be one of: ${VALID_PRODUCT_CATEGORIES.join(', ')}`);
+                }
+              }
             }
           }
           // If the testimonial has a youtubeVideoUrl, we'll validate the link and add the video ID so we can embed the video in a modal.
@@ -919,13 +939,13 @@ module.exports = {
               throw new Error(`Could not build testimonial config from testimonials.yml. A testimonial with a 'quoteImageFilename' value is missing a 'quoteLinkUrl'. If providing a 'quoteImageFilename', a quoteLinkUrl (The link that the image will go to) is required. Testimonial missing a quoteLinkUrl: ${testimonial}`);
             }
             // Check if the image used for the testimonials exists.
-            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/'+testimonial.quoteImageFilename));
+            let imageFileExists = await sails.helpers.fs.exists(path.join(topLvlRepoPath, 'website/assets/images/', testimonial.quoteImageFilename));
             if(!imageFileExists){
               throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a 'quoteImageFilename' value that points to an image that doesn't exist. Please make sure the file exists in the /website/assets/images/ folder. Invalid quoteImageFilename value: ${testimonial.quoteImageFilename}`);
             }
             let imageFilenameMatchesWebsiteConventions = testimonial.quoteImageFilename.match(/\d+x\d+@2x\.png|jpg|jpeg$/g);
-            if(!imageFilenameMatchesWebsiteConventions){
-              throw new Error('image naming conventions (but secretly, we\'ll be relying on this to set the images height in frontend land)');
+            if(!imageFilenameMatchesWebsiteConventions) {
+              throw new Error(`Could not build testimonials config from testimonials.yml. A testimonial has a quoteImageFilename that does not match the website\'s naming conventions. To resolve, make sure that the images dimensions are added to the filename, and that the filename ends with @2x. Filename that does not match the Fleet website's naming conventions: ${testimonial.quoteImageFilename}`);
             }
             // Strip the 2x from the filename, using image dimensions we matched when we checked if the filename matches website conventions.
             let extensionlessFilenameWithPostfixRemoved = imageFilenameMatchesWebsiteConventions[0].split('@2x')[0];
@@ -949,8 +969,8 @@ module.exports = {
           return _.endsWith(filePath, 'rituals.yml');
         });
 
-        let githubLabelsToCheck = [];
-        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly'];
+        let githubLabelsToCheck = {};
+        let KNOWN_AUTOMATABLE_FREQUENCIES = ['Daily', 'Weekly', 'Triweekly', 'Monthly'];
         // Process each rituals YAML file. These will be added to the builtStaticContent as JSON
         for(let ritualsYamlFilePath of ritualTablesYamlFiles){
           // Get this rituals.yml file's parent folder name, we'll use this as the key for this section's rituals in the ritualsTables dictionary
@@ -997,13 +1017,23 @@ module.exports = {
               if(!ritual.autoIssue.labels || !_.isArray(ritual.autoIssue.labels)){ // If the autoIssue value exists, but does not contain an array of labels, throw an error
                 throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" contains an invalid autoIssue value. To resolve, add a "labels" value (An array of strings) to the autoIssue value.`);
               }
+              if(!ritual.autoIssue.repo || typeof ritual.autoIssue.repo !== 'string') {
+                throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. "${ritual.task}" has an 'autoIssue' value that is missing a 'repo'. Please add the name of the repo that issues will be created in to the "autoIssue.repo" value and try running this script again.`);
+              }
+              if(!_.contains(['fleet', 'confidential'], ritual.autoIssue.repo)) {
+                throw new Error(`Could not built rituals from ${ritualsYamlFilePath}. The "autoIssue.repo" value of "${ritual.task}" contains an invalid GitHub repo (${ritual.autoIssue.repo}). Please change this value to be either "fleet" or "confidential" and try running this script again.`);
+              }
               // Check each label in the labels array
               for(let label of ritual.autoIssue.labels) {
                 if(typeof label !== 'string') {
                   throw new Error(`Could not build rituals from ${ritualsYamlFilePath}. A ritual (${ritual.task}) in the YAML file contains an invalid value in the labels array of the autoIssue value. To resolve, ensure every value in the nested labels array of the autoIssue value is a string.`);
                 }
+                if(!githubLabelsToCheck[ritual.autoIssue.repo]){
+                  // Create an empty array if an array does not exist for this repo.
+                  githubLabelsToCheck[ritual.autoIssue.repo] = [];
+                }
                 // Add this label to the array of labels to check. We'll check to see if all labels are valid at the after we've processed all rituals YAML files.
-                githubLabelsToCheck.push({
+                githubLabelsToCheck[ritual.autoIssue.repo].push({
                   label: label,
                   ritualUsingLabel: ritual.task,
                   ritualsYamlFilePath: relativeRepoPathForThisRitualsFile
@@ -1017,28 +1047,31 @@ module.exports = {
 
         }//∞
         // Validate all GitHub labels used in all ritual yaml files. Note: We check these here to minimize requests to the GitHub API. We'll send requests to get all existing labels in the Fleet repo, and will throw an error if a label in a rituals YAML file does not exist in the repo.
-        if(!skipGithubRequests) {
-          let allExistingLabelsInFleetRepo = [];
-          let pageOfResultsReturned = 1;
-          // Get all the labels in the fleetdm/fleet repo. Note: We use sails.helpers.flow.until() here so we can build
-          await sails.helpers.flow.until(async ()=>{
-            let pageOfLabels = await sails.helpers.http.get.with({
-              url: `https://api.github.com/repos/fleetdm/fleet/labels?per_page=100&page=${pageOfResultsReturned}`,
-              headers: baseHeadersForGithubRequests
-            });
-            allExistingLabelsInFleetRepo = allExistingLabelsInFleetRepo.concat(pageOfLabels);
-            pageOfResultsReturned++;
-            return pageOfLabels.length < 100;
-          });//∞
-          // Get an array containing only the names of labels.
-          let allLabelNames = _.pluck(allExistingLabelsInFleetRepo, 'name');
-          // Validate each label, if a label does not exist in the fleetdm/fleet repo, throw an error.
-          await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck, async(labelInfo)=>{
-            if(!_.contains(allLabelNames, labelInfo.label)){
-              throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the fleetdm/fleet repo.`);
-            }
-          });//∞
-        }//ﬁ
+        if(!skipGithubRequests){
+          for(let repo in githubLabelsToCheck){
+            let allExistingLabelsInSpecifiedRepo = [];
+            let pageOfResultsReturned = 0;
+            // Get all the labels in the specified repo.
+            await sails.helpers.flow.until(async ()=>{
+              let pageOfLabels = await sails.helpers.http.get.with({
+                url: `https://api.github.com/repos/fleetdm/${repo}/labels?per_page=100&page=${pageOfResultsReturned}`,
+                headers: baseHeadersForGithubRequests
+              });
+              allExistingLabelsInSpecifiedRepo = allExistingLabelsInSpecifiedRepo.concat(pageOfLabels);
+              pageOfResultsReturned++;
+              // This will stop running once all pages of labels in the specified GitHub repo have been returned.
+              return pageOfLabels.length < 100;
+            }, 10000);//∞   (maximum of 10s before giving up)
+            // Get an array containing only the names of labels.
+            let allLabelNamesInSpecifiedRepo = _.pluck(allExistingLabelsInSpecifiedRepo, 'name');
+            // Validate each label, if a label does not exist in the specified repo, throw an error.
+            await sails.helpers.flow.simultaneouslyForEach(githubLabelsToCheck[repo], async(labelInfo)=>{
+              if(!_.contains(allLabelNamesInSpecifiedRepo, labelInfo.label)){
+                throw new Error(`Could not build rituals from ${labelInfo.ritualsYamlFilePath}. The labels array nested within the autoIssue value of a ritual (${labelInfo.ritualUsingLabel}) contains an invalid GitHub label (${labelInfo.label}). To resolve, make sure all labels in the labels array are labels that exist in the repo that is soecificed in the .`);
+              }
+            });//∞
+          }
+        }
 
         // Add the rituals dictionary to builtStaticContent.rituals
         builtStaticContent.rituals = rituals;

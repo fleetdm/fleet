@@ -18,13 +18,21 @@ class YamlAce extends Component {
   };
 
   renderLabel = () => {
-    const { error, label } = this.props;
+    const { name, error, label } = this.props;
 
-    const labelClassName = classnames(`${baseClass}__label`, {
-      [`${baseClass}__label--error`]: error,
-    });
+    const labelClassName = classnames(
+      `${baseClass}__label`,
+      "form-field__label",
+      {
+        "form-field__label--error": error,
+      }
+    );
 
-    return <p className={labelClassName}>{error || label}</p>;
+    return (
+      <label className={labelClassName} htmlFor={name}>
+        {error || label}
+      </label>
+    );
   };
 
   render() {
@@ -39,7 +47,7 @@ class YamlAce extends Component {
 
     const { renderLabel } = this;
 
-    const wrapperClass = classnames(wrapperClassName, {
+    const wrapperClass = classnames(wrapperClassName, "form-field", {
       [`${baseClass}__wrapper--error`]: error,
     });
 

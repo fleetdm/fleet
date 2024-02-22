@@ -73,7 +73,6 @@ module.exports = {
       'ghernandez345',
       'rfairburn',
       'zayhanlon',
-      'bradmacd',
       'alexmitchelliii',
       'jostableford',
       'sampfluger88',
@@ -88,6 +87,7 @@ module.exports = {
       'phtardif1',
       'pintomi1989',
       'nonpunctual',
+      'hughestaylor',
     ];
 
     let GREEN_LABEL_COLOR = 'C2E0C6';// « Used in multiple places below.  (FUTURE: Use the "+" prefix for this instead of color.  2022-05-05)
@@ -329,7 +329,7 @@ module.exports = {
         // Look up already-requested reviewers
         // (for use later in minimizing extra notifications for editing PRs to contain new changes
         // while also still doing appropriate review requests.  Also for determining whether
-        // to apply the #g-ceo label)
+        // to apply the ~ceo label)
         //
         // The "requested_reviewers" key in the pull request object:
         //   - https://developer.github.com/v3/activity/events/types
@@ -421,16 +421,16 @@ module.exports = {
         // Add the appropriate label to PRs awaiting review from the CEO so that these PRs show up in kanban.
         // [?] https://docs.github.com/en/webhooks-and-events/webhooks/webhook-events-and-payloads?actionType=edited#pull_request
         let isPRStillDependentOnAndReadyForCeoReview = expectedReviewers.includes('mikermcneil') && !issueOrPr.draft;
-        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('#g-ceo')) {
+        if (isPRStillDependentOnAndReadyForCeoReview && !existingLabels.includes('~ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels#add-labels-to-an-issue
           await sails.helpers.http.post(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels`, {
-            labels: ['#g-ceo']
+            labels: ['~ceo']
           }, baseHeaders);
-        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('#g-ceo')) {
+        } else if (!isPRStillDependentOnAndReadyForCeoReview && existingLabels.includes('~ceo')) {
           // [?] https://docs.github.com/en/rest/issues/labels?apiVersion=2022-11-28#remove-a-label-from-an-issue
-          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('#g-ceo')}`, {}, baseHeaders)
+          await sails.helpers.http.del(`https://api.github.com/repos/${owner}/${repo}/issues/${prNumber}/labels/${encodeURIComponent('~ceo')}`, {}, baseHeaders)
           .tolerate({ exit: 'non200Response', raw: {statusCode: 404} }, (err)=>{// if the PR has gone missing, swallow the error and warn instead.
-            sails.log.warn(`When trying to send a request to remove the #g-ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
+            sails.log.warn(`When trying to send a request to remove the ~ceo label from PR #${prNumber} in the ${owner}/${repo} repo, an error occured. Raw error: ${require('util').inspect(err)}`);
           });
         }//ﬁ
 
@@ -616,8 +616,10 @@ module.exports = {
 
       // Only continue if this release came from the fleetdm/fleet repo,
       if(owner === 'fleetdm' && repo === 'fleet') {
-        // Only send requests for releases with tag names that start with 'fleet'
-        if(release && _.startsWith(release.tag_name, 'fleet-v')) {
+        if(release
+          && _.startsWith(release.tag_name, 'fleet-v')// Only send requests for releases with tag names that start with 'fleet'
+          && _.endsWith(release.tag_name, '.0')// Only send requests if the release is a major or minor version. This works because all Fleet semvers have 2 periods.
+        ) {
           // Send a POST request to Zapier with the release object.
           await sails.helpers.http.post.with({
             url: 'https://hooks.zapier.com/hooks/catch/3627242/3ozw6bk/',

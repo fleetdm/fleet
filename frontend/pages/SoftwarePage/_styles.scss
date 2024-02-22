@@ -56,4 +56,15 @@
       font-style: italic;
     }
   }
+
+  &__wrapper {
+    .table-container {
+      .software-icon {
+        width: 24px;
+        height: 24px;
+        border: 1px solid $ui-fleet-black-10;
+        border-radius: 8px;
+      }
+    }
+  }
 }

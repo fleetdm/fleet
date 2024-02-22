@@ -861,27 +861,32 @@ func (ds *Datastore) SearchLabels(ctx context.Context, filter fleet.TeamFilter, 
 	return matches, nil
 }
 
-func (ds *Datastore) LabelIDsByName(ctx context.Context, labels []string) ([]uint, error) {
-	if len(labels) == 0 {
-		return []uint{}, nil
+func (ds *Datastore) LabelIDsByName(ctx context.Context, names []string) (map[string]uint, error) {
+	if len(names) == 0 {
+		return map[string]uint{}, nil
 	}
 
 	sqlStatement := `
-		SELECT id FROM labels
+		SELECT id, name FROM labels
 		WHERE name IN (?)
 	`
 
-	sql, args, err := sqlx.In(sqlStatement, labels)
+	sql, args, err := sqlx.In(sqlStatement, names)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get label IDs")
+		return nil, ctxerr.Wrap(ctx, err, "building query to get label ids by name")
 	}
 
-	var labelIDs []uint
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labelIDs, sql, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get label IDs")
+	var labels []fleet.Label
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, sql, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get label ids by name")
 	}
 
-	return labelIDs, nil
+	result := make(map[string]uint, len(labels))
+	for _, label := range labels {
+		result[label.Name] = label.ID
+	}
+
+	return result, nil
 }
 
 // AsyncBatchInsertLabelMembership inserts into the label_membership table the

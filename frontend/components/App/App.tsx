@@ -24,7 +24,6 @@ import Fleet404 from "pages/errors/Fleet404";
 import Fleet500 from "pages/errors/Fleet500";
 import Spinner from "components/Spinner";
 import { QueryParams } from "utilities/url";
-import { DOCUMENT_TITLE_SUFFIX } from "utilities/constants";
 
 interface IAppProps {
   children: JSX.Element;
@@ -118,14 +117,6 @@ const App = ({ children, location }: IAppProps): JSX.Element => {
     const curTitle = page_titles.find((item) =>
       location?.pathname.includes(item.path)
     );
-
-    // Override Controls page title if MDM not configured
-    if (
-      !config?.mdm.enabled_and_configured &&
-      curTitle?.path === "/controls/os-updates"
-    ) {
-      curTitle.title = `Manage OS hosts | ${DOCUMENT_TITLE_SUFFIX}`;
-    }
 
     if (curTitle && curTitle.title) {
       document.title = curTitle.title;

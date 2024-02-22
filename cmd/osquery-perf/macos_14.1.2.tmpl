@@ -1,0 +1,219 @@
+{{ define "enroll" -}}
+{
+    "enroll_secret": "{{ .EnrollSecret  }}",
+    "host_details": {
+        "os_version": {
+            "build": "23B92",
+            "major": "14",
+            "minor": "1",
+            "name": "Mac OS X",
+            "patch": "2",
+            "platform": "darwin",
+            "platform_like": "darwin",
+            "version": "14.1.2"
+        },
+        "osquery_info": {
+            "build_distro": "10.12",
+            "build_platform": "darwin",
+            "config_hash": "",
+            "config_valid": "0",
+            "extensions": "inactive",
+            "instance_id": "{{ .UUID }}",
+            "pid": "12947",
+            "platform_mask": "21",
+            "start_time": "1580931224",
+            "uuid": "{{ .UUID }}",
+            "version": "4.6.0",
+            "watcher": "12946"
+        },
+        "platform_info": {
+            "address": "0xff990000",
+            "date": "12/16/2019 ",
+            "extra": "MBP114; 196.0.0.0.0; root@xapp160; Mon Dec 16 15:55:18 PST 2019; 196 (B&I); F000_B00; Official Build, Release; Apple LLVM version 5.0 (clang-500.0.68) (based on LLVM 3.3svn)",
+            "revision": "196 (B&I)",
+            "size": "8388608",
+            "vendor": "Apple Inc. ",
+            "version": "196.0.0.0.0 ",
+            "volume_size": "1507328"
+        },
+        "system_info": {
+            "computer_name": "{{ .CachedString "hostname" }}",
+            "cpu_brand": "Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+            "cpu_logical_cores": "8",
+            "cpu_physical_cores": "4",
+            "cpu_subtype": "Intel x86-64h Haswell",
+            "cpu_type": "x86_64h",
+            "hardware_model": "MacBookPro11,4",
+            "hardware_serial": "{{ .SerialNumber }}",
+            "hardware_vendor": "Apple Inc.",
+            "hardware_version": "1.0",
+            "hostname": "{{ .CachedString "hostname" }}",
+            "local_hostname": "{{ .CachedString "hostname" }}",
+            "physical_memory": "17179869184",
+            "uuid": "{{ .UUID }}"
+        }
+    },
+    "host_identifier": "{{ .UUID }}",
+    "platform_type": "16"
+}
+{{- end }}
+
+{{ define "fleet_detail_query_network_interface_unix" -}}
+[
+  {
+    "address":"fe80::8cb:112d:ff51:1e5d%en0",
+    "mac":"f8:2d:88:93:56:5c"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_version" -}}
+[
+  {
+    "name":"macOS",
+    "version":"14.1.2",
+    "major":"14",
+    "minor":"1",
+    "patch":"2",
+    "build":"23B92",
+    "platform":"darwin",
+    "platform_like":"darwin",
+    "codename":"",
+    "arch":"x86_64"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_os_unix_like" -}}
+[
+  {
+    "name":"macOS",
+    "version":"14.1.2",
+    "major":"14",
+    "minor":"1",
+    "patch":"2",
+    "build":"23B92",
+    "platform":"darwin",
+    "arch":"x86_64",
+    "kernel_version":"18.7.0"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_flags" -}}
+[
+  {
+    "name":"config_refresh",
+    "value":"{{ printf "%.0f" .ConfigInterval.Seconds }}"
+  },
+  {
+    "name":"distributed_interval",
+    "value":"{{ printf "%.0f" .QueryInterval.Seconds }}"
+  },
+  {
+    "name":"logger_tls_period",
+    "value":"99999"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_osquery_info" -}}
+[
+  {
+    "pid":"11287",
+    "uuid":"{{ .UUID }}",
+    "instance_id":"{{ .UUID }}",
+    "version":"4.1.2",
+    "config_hash":"b01efbf375ac6767f259ae98751154fef727ce35",
+    "config_valid":"1",
+    "extensions":"inactive",
+    "build_platform":"darwin",
+    "build_distro":"10.12",
+    "start_time":"1582857555",
+    "watcher":"11286",
+    "platform_mask":"21"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_system_info" -}}
+[
+  {
+    "hostname":"{{ .CachedString "hostname" }}",
+    "uuid": "{{ .UUID }}",
+    "cpu_type":"x86_64h",
+    "cpu_subtype":"Intel x86-64h Haswell",
+    "cpu_brand":"Intel(R) Core(TM) i7-4770HQ CPU @ 2.20GHz",
+    "cpu_physical_cores":"4",
+    "cpu_logical_cores":"8",
+    "cpu_microcode":"",
+    "physical_memory":"17179869184",
+    "hardware_vendor":"Apple Inc.",
+    "hardware_model":"MacBookPro11,4",
+    "hardware_version":"1.0",
+    "hardware_serial":"{{ .SerialNumber }}",
+    "computer_name":"{{ .CachedString "hostname" }}",
+    "local_hostname":"{{ .CachedString "hostname" }}"
+  }
+]
+{{- end }}
+{{ define "fleet_detail_query_uptime" -}}
+[
+  {
+    "days":"0",
+    "hours":"4",
+    "minutes":"38",
+    "seconds":"11",
+    "total_seconds":"16691"
+  }
+]
+{{- end }}
+
+{{ define "fleet_detail_query_disk_encryption_key_darwin" -}}
+{{- if .DiskEncryptionEnabled }}
+[
+  {"line": "MIAGCSqGSIb3DQEHA6CAMIACAQAxggFtMIIBaQIBADBRMEgxHzAdBgNVBAMMFkZpbGVWYXVsdCBSZWNvdmVyeSBLZXkxJTAjBgNVBA0MHFJvYmVydG9zLU1hY0Jvb2stUHJvLTIubG9jYWwCBQCovxm3MA0GCSqGSIb3DQEBAQUABIIBAHiz8IGpXp+vqfTes7ejbvS11XpnaHCxDeaMYjmEJgZKtwdQhOJZy9clsypwqFv6h/Cva3/SuOEcwBoS2N/YY766jDP8nU4OcUaZWqEcMhRsSs1mil4T+rTnUfQEUKU9xW1j/iFq3xVWDTaBY+5cBgwUmdZb8XoWhXUVoF73OD0NpitnXxsxHokXv+UZzPoydlsCzhfAngl11hELAuFe6/mfq801E1hT+zvzDEDvfwSBMDC14OGDoFORVe/HCBS3NFGpVV+IrqpIpT1wbNx2dazmngduviErpXTgZG2vrCMQN1rN0OeLRtOMcjE6rer+ruuc5hfvTGMwWOgteqd2YQUwgAYJKoZIhvcNAQcBMBQGCCqGSIb3DQMHBAhwRO3eyigWMaCABBhy88Lm9qisQ9sOaf8u8GSzoWFdw2LkjRMECAKJG0H5K6iTAAAAAAAAAAAAAA=="},
+]
+{{- else }}
+[]
+{{- end }}
+{{- end }}
+
+{{/* all hosts */}}
+{{ define "fleet_label_query_6" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All macOS hosts */}}
+{{ define "fleet_label_query_7" -}}
+[
+  {
+    "1": "1"
+  }
+]
+{{- end }}
+
+{{/* All Ubuntu hosts */}}
+{{ define "fleet_label_query_8" -}}
+[]
+{{- end }}
+
+{{/* All CentOS hosts */}}
+{{ define "fleet_label_query_9" -}}
+[]
+{{- end }}
+
+{{/* All Windows hosts */}}
+{{ define "fleet_label_query_10" -}}
+[]
+{{- end }}
+
+{{/* All Red Hat hosts */}}
+{{ define "fleet_label_query_11" -}}
+[]
+{{- end }}
+
+{{/* All Linux distributions */}}
+{{ define "fleet_label_query_12" -}}
+[]
+{{- end }}
+

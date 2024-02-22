@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"html/template"
 	"net/http"
 	"time"
@@ -57,6 +58,26 @@ func (svc *Service) CreateUser(ctx context.Context, p fleet.UserPayload) (*fleet
 
 	if err := p.VerifyAdminCreate(); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "verify user payload")
+	}
+
+	if teams != nil {
+		// Validate that the teams exist
+		teamsSummary, err := svc.ds.TeamsSummary(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "fetching teams in attempt to verify team exists")
+		}
+		teamIDs := map[uint]struct{}{}
+		for _, team := range teamsSummary {
+			teamIDs[team.ID] = struct{}{}
+		}
+		for _, userTeam := range teams {
+			_, ok := teamIDs[userTeam.Team.ID]
+			if !ok {
+				return nil, ctxerr.Wrap(
+					ctx, fleet.NewInvalidArgumentError("teams.id", fmt.Sprintf("team with id %d does not exist", userTeam.Team.ID)),
+				)
+			}
+		}
 	}
 
 	if invite, err := svc.ds.InviteByEmail(ctx, *p.Email); err == nil && invite != nil {

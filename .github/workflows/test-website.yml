@@ -62,4 +62,4 @@ jobs:
     - run: cd website/ && npm test
 
     # Compile assets
-    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_RELEASE_GITHUB_PAT }}" npm run build-for-prod
+    - run: cd website/ && BUILD_SCRIPT_ARGS="--githubAccessToken=${{ secrets.FLEET_GITHUB_TOKEN_FOR_WEBSITE_TEST }}" npm run build-for-prod

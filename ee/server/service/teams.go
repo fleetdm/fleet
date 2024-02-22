@@ -90,6 +90,10 @@ func (svc *Service) NewTeam(ctx context.Context, p fleet.TeamPayload) (*fleet.Te
 		team.Secrets = []*fleet.EnrollSecret{{Secret: secret}}
 	}
 
+	if p.HostExpirySettings != nil && p.HostExpirySettings.HostExpiryEnabled && p.HostExpirySettings.HostExpiryWindow <= 0 {
+		return nil, fleet.NewInvalidArgumentError("host_expiry_window", "must be greater than 0")
+	}
+
 	team, err = svc.ds.NewTeam(ctx, team)
 	if err != nil {
 		return nil, err
@@ -181,6 +185,11 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 				return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication",
 					`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 			}
+
+			if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+				return nil, err
+			}
+
 			team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = payload.MDM.MacOSSetup.EnableEndUserAuthentication
 		}
 	}
@@ -213,6 +222,13 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		if invalid.HasErrors() {
 			return nil, ctxerr.Wrap(ctx, invalid)
 		}
+	}
+
+	if payload.HostExpirySettings != nil {
+		if payload.HostExpirySettings.HostExpiryEnabled && payload.HostExpirySettings.HostExpiryWindow <= 0 {
+			return nil, fleet.NewInvalidArgumentError("host_expiry_window", "must be greater than 0")
+		}
+		team.Config.HostExpirySettings = *payload.HostExpirySettings
 	}
 
 	team, err = svc.ds.SaveTeam(ctx, team)
@@ -788,24 +804,22 @@ func (svc *Service) ApplyTeamSpecs(ctx context.Context, specs []*fleet.TeamSpec,
 		})
 	}
 
-	if applyOpts.DryRun {
-		return nil, nil
-	}
-
 	idsByName := make(map[string]uint, len(details))
 	if len(details) > 0 {
 		for _, tm := range details {
 			idsByName[tm.Name] = tm.ID
 		}
 
-		if err := svc.ds.NewActivity(
-			ctx,
-			authz.UserFromContext(ctx),
-			fleet.ActivityTypeAppliedSpecTeam{
-				Teams: details,
-			},
-		); err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "create activity for team spec")
+		if !applyOpts.DryRun {
+			if err := svc.ds.NewActivity(
+				ctx,
+				authz.UserFromContext(ctx),
+				fleet.ActivityTypeAppliedSpecTeam{
+					Teams: details,
+				},
+			); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "create activity for team spec")
+			}
 		}
 	}
 	return idsByName, nil
@@ -857,6 +871,19 @@ func (svc *Service) createTeamFromSpec(
 			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 	}
 
+	var hostExpirySettings fleet.HostExpirySettings
+	if spec.HostExpirySettings != nil {
+		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
+			return nil, ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_expiry_settings.host_expiry_window",
+					`When enabling host expiry, host expiry window must be a positive number.`,
+				),
+			)
+		}
+		hostExpirySettings = *spec.HostExpirySettings
+	}
+
 	if dryRun {
 		return &fleet.Team{Name: spec.Name}, nil
 	}
@@ -873,6 +900,7 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSettings:        macOSSettings,
 				MacOSSetup:           macOSSetup,
 			},
+			HostExpirySettings: hostExpirySettings,
 		},
 		Secrets: secrets,
 	})
@@ -983,12 +1011,17 @@ func (svc *Service) editTeamFromSpec(
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`))
 		}
 	}
+	if didUpdateMacOSEndUserAuth {
+		if err := svc.validateEndUserAuthenticationAndSetupAssistant(ctx, &team.ID); err != nil {
+			return err
+		}
+	}
 	team.Config.MDM.MacOSSetup.EnableEndUserAuthentication = spec.MDM.MacOSSetup.EnableEndUserAuthentication
 
 	if spec.MDM.WindowsSettings.CustomSettings.Set {
 		if !appCfg.MDM.WindowsEnabledAndConfigured &&
 			len(spec.MDM.WindowsSettings.CustomSettings.Value) > 0 &&
-			!server.SliceStringsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
+			!fleet.MDMProfileSpecsMatch(team.Config.MDM.WindowsSettings.CustomSettings.Value, spec.MDM.WindowsSettings.CustomSettings.Value) {
 			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("windows_settings.custom_settings",
 				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
 		}
@@ -1002,6 +1035,19 @@ func (svc *Service) editTeamFromSpec(
 
 	if len(secrets) > 0 {
 		team.Secrets = secrets
+	}
+
+	// if host_expiry_settings are not provided, do not change them
+	if spec.HostExpirySettings != nil {
+		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
+			return ctxerr.Wrap(
+				ctx, fleet.NewInvalidArgumentError(
+					"host_expiry_settings.host_expiry_window",
+					`When enabling host expiry, host expiry window must be a positive number.`,
+				),
+			)
+		}
+		team.Config.HostExpirySettings = *spec.HostExpirySettings
 	}
 
 	if dryRun {
@@ -1078,7 +1124,7 @@ func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.Team
 
 	customSettingsChanged := setFields["custom_settings"] &&
 		len(applyUpon.CustomSettings) > 0 &&
-		!server.SliceStringsMatch(applyUpon.CustomSettings, oldCustomSettings)
+		!fleet.MDMProfileSpecsMatch(applyUpon.CustomSettings, oldCustomSettings)
 
 	if customSettingsChanged || (setFields["enable_disk_encryption"] && *applyUpon.DeprecatedEnableDiskEncryption) {
 		field := "custom_settings"
@@ -1179,5 +1225,18 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 			}
 		}
 	}
+	return nil
+}
+
+func (svc *Service) validateEndUserAuthenticationAndSetupAssistant(ctx context.Context, tmID *uint) error {
+	hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, tmID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "checking setup assistant configuration web url")
+	}
+
+	if hasCustomConfigurationWebURL {
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+	}
+
 	return nil
 }

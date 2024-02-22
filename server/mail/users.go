@@ -3,17 +3,20 @@ package mail
 import (
 	"bytes"
 	"html/template"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
 )
 
 type ChangeEmailMailer struct {
-	BaseURL  template.URL
-	AssetURL template.URL
-	Token    string
+	BaseURL     template.URL
+	AssetURL    template.URL
+	Token       string
+	CurrentYear int
 }
 
 func (cem *ChangeEmailMailer) Message() ([]byte, error) {
+	cem.CurrentYear = time.Now().Year()
 	t, err := server.GetTemplate("server/mail/templates/change_email_confirmation.html", "email_template")
 	if err != nil {
 		return nil, err
@@ -33,9 +36,12 @@ type PasswordResetMailer struct {
 	AssetURL template.URL
 	// Token password reset token
 	Token string
+	// Current year for copyright year
+	CurrentYear int
 }
 
 func (r PasswordResetMailer) Message() ([]byte, error) {
+	r.CurrentYear = time.Now().Year()
 	t, err := server.GetTemplate("server/mail/templates/password_reset.html", "email_template")
 	if err != nil {
 		return nil, err

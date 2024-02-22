@@ -1,1 +1,0 @@
-- resolved issue where some query results were still reporting after Discard Data is enabled on a Query

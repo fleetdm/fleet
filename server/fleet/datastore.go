@@ -12,6 +12,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/health"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
+
 	"github.com/micromdm/nanodep/godep"
 )
 
@@ -189,8 +192,8 @@ type Datastore interface {
 
 	SearchLabels(ctx context.Context, filter TeamFilter, query string, omit ...uint) ([]*Label, error)
 
-	// LabelIDsByName Retrieve the IDs associated with the given labels
-	LabelIDsByName(ctx context.Context, labels []string) ([]uint, error)
+	// LabelIDsByName retrieves the IDs associated with the given label names
+	LabelIDsByName(ctx context.Context, labels []string) (map[string]uint, error)
 
 	// Methods used for async processing of host label query results.
 	AsyncBatchInsertLabelMembership(ctx context.Context, batch [][2]uint) error
@@ -255,6 +258,11 @@ type Datastore interface {
 	// HostByIdentifier returns one host matching the provided identifier. Possible matches can be on
 	// osquery_host_identifier, node_key, UUID, or hostname.
 	HostByIdentifier(ctx context.Context, identifier string) (*Host, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
+	// The identifier string will be matched against the hostname, osquery_host_id, node_key, uuid and hardware_serial columns.
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
@@ -302,6 +310,7 @@ type Datastore interface {
 	GetMDMSolution(ctx context.Context, mdmID uint) (*MDMSolution, error)
 
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*OSVersions, error)
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*OSVersion, *time.Time, error)
 	UpdateOSVersions(ctx context.Context) error
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -449,8 +458,8 @@ type Datastore interface {
 	///////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
-	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
-	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions, tmFilter TeamFilter) ([]SoftwareTitle, int, *PaginationMetadata, error)
+	SoftwareTitleByID(ctx context.Context, id uint, tmFilter TeamFilter) (*SoftwareTitle, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// SoftwareStore
@@ -473,7 +482,7 @@ type Datastore interface {
 	// case it will return true) or if a matching record already exists it will update its
 	// updated_at timestamp (in which case it will return false).
 	InsertSoftwareVulnerability(ctx context.Context, vuln SoftwareVulnerability, source VulnerabilitySource) (bool, error)
-	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool, tmFilter *TeamFilter) (*Software, error)
 	// ListSoftwareByHostIDShort lists software by host ID, but does not include CPEs or vulnerabilites.
 	// It is meant to be used when only minimal software fields are required eg when updating host software.
 	ListSoftwareByHostIDShort(ctx context.Context, hostID uint) ([]Software, error)
@@ -511,6 +520,9 @@ type Datastore interface {
 
 	// ListOperationsSystems returns all operating systems (id, name, version)
 	ListOperatingSystems(ctx context.Context) ([]OperatingSystem, error)
+	// ListOperatingSystemsForPlatform returns all operating systems for the given platform.
+	// Supported values for platform are: "darwin" and "windows"
+	ListOperatingSystemsForPlatform(ctx context.Context, platform string) ([]OperatingSystem, error)
 	// UpdateHostOperatingSystem updates the `host_operating_system` table
 	// for the given host ID with the ID of the operating system associated
 	// with the given name, version, arch, and kernel version in the
@@ -534,6 +546,9 @@ type Datastore interface {
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
 	MarkActivitiesAsStreamed(ctx context.Context, activityIDs []uint) error
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore
@@ -711,6 +726,9 @@ type Datastore interface {
 	// UpdateHostRefetchRequested updates a host's refetch requested field.
 	UpdateHostRefetchRequested(ctx context.Context, hostID uint, value bool) error
 
+	// UpdateHostRefetchCriticalQueriesUntil updates a host's refetch critical queries until field.
+	UpdateHostRefetchCriticalQueriesUntil(ctx context.Context, hostID uint, until *time.Time) error
+
 	// FlippingPoliciesForHost fetches the policies with incoming results and returns:
 	//	- a list of "new" failing policies; "new" here means those that fail on their first
 	//	run, and those that were passing on the previous run and are failing on the incoming execution.
@@ -822,9 +840,17 @@ type Datastore interface {
 
 	///////////////////////////////////////////////////////////////////////////////
 	// OperatingSystemVulnerabilities Store
-	ListOSVulnerabilities(ctx context.Context, hostID []uint) ([]OSVulnerability, error)
+	ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) ([]OSVulnerability, error)
+	ListVulnsByOsNameAndVersion(ctx context.Context, name, version string, includeCVSS bool) (Vulnerabilities, error)
 	InsertOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability, source VulnerabilitySource) (int64, error)
 	DeleteOSVulnerabilities(ctx context.Context, vulnerabilities []OSVulnerability) error
+	// InsertOSVulnerability will either insert a new vulnerability in the datastore (in which
+	// case it will return true) or if a matching record already exists it will update its
+	// updated_at timestamp (in which case it will return false).
+	InsertOSVulnerability(ctx context.Context, vuln OSVulnerability, source VulnerabilitySource) (bool, error)
+	// DeleteOutOfDateVulnerabilities deletes 'operating_system_vulnerabilities' entries from the provided source where
+	// the updated_at timestamp is older than the provided duration
+	DeleteOutOfDateOSVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Apple MDM
@@ -1034,17 +1060,17 @@ type Datastore interface {
 	// GetHostMDMMacOSSetup returns the MDM macOS setup information for the specified host id.
 	GetHostMDMMacOSSetup(ctx context.Context, hostID uint) (*HostMDMMacOSSetup, error)
 
-	// MDMAppleGetEULAMetadata returns metadata information about the EULA
+	// MDMGetEULAMetadata returns metadata information about the EULA
 	// filed stored in the database.
-	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
-	// MDMAppleGetEULABytes returns the bytes of the EULA file stored in
+	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
+	// MDMGetEULABytes returns the bytes of the EULA file stored in
 	// the database. A token is required since this file is publicly
 	// accessible by anyone with the token.
-	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
-	// MDMAppleInsertEULA inserts a new EULA in the database
-	MDMAppleInsertEULA(ctx context.Context, eula *MDMAppleEULA) error
-	// MDMAppleDeleteEULA deletes the EULA file from the database
-	MDMAppleDeleteEULA(ctx context.Context, token string) error
+	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
+	// MDMInsertEULA inserts a new EULA in the database
+	MDMInsertEULA(ctx context.Context, eula *MDMEULA) error
+	// MDMDeleteEULA deletes the EULA file from the database
+	MDMDeleteEULA(ctx context.Context, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -1202,18 +1228,19 @@ type Datastore interface {
 	// NewHostScriptExecutionRequest creates a new host script result entry with
 	// just the script to run information (result is not yet available).
 	NewHostScriptExecutionRequest(ctx context.Context, request *HostScriptRequestPayload) (*HostScriptResult, error)
-	// SetHostScriptExecutionResult stores the result of a host script execution.
-	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) error
+	// SetHostScriptExecutionResult stores the result of a host script execution
+	// and returns the updated host script result record. Note that it does not
+	// fail if the script execution request does not exist, in this case it will
+	// return nil, nil.
+	SetHostScriptExecutionResult(ctx context.Context, result *HostScriptResultPayload) (*HostScriptResult, error)
 	// GetHostScriptExecutionResult returns the result of a host script
 	// execution. It returns the host script results even if no results have been
 	// received, it is the caller's responsibility to check if that was the case
 	// (with ExitCode being null).
 	GetHostScriptExecutionResult(ctx context.Context, execID string) (*HostScriptResult, error)
 	// ListPendingHostScriptExecutions returns all the pending host script
-	// executions, which are those that have yet to record a result. Entries
-	// older than the ignoreOlder duration are ignored, considered too old to be
-	// pending.
-	ListPendingHostScriptExecutions(ctx context.Context, hostID uint, ignoreOlder time.Duration) ([]*HostScriptResult, error)
+	// executions, which are those that have yet to record a result.
+	ListPendingHostScriptExecutions(ctx context.Context, hostID uint) ([]*HostScriptResult, error)
 
 	// NewScript creates a new saved script.
 	NewScript(ctx context.Context, script *Script) (*Script, error)
@@ -1238,6 +1265,33 @@ type Datastore interface {
 
 	// BatchSetScripts sets the scripts for the given team or no team.
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
+
+	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
+	GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*HostLockWipeStatus, error)
+
+	// LockHostViaScript sends a script to lock a host and updates the
+	// states in host_mdm_actions
+	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+
+	// UnlockHostViaScript sends a script to unlock a host and updates the
+	// states in host_mdm_actions
+	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+
+	// UnlockHostmanually records a request to unlock a host that requires manual
+	// intervention (such as for macOS). It indicates the an unlock request is
+	// pending.
+	UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error
+
+	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
+	// after it has been unlocked.
+	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
+}
+
+// MDMAppleStore wraps nanomdm's storage and adds methods to deal with
+// Fleet-specific use cases.
+type MDMAppleStore interface {
+	storage.AllStorage
+	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

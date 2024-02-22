@@ -7,10 +7,10 @@
   display: flex;
   gap: $pad-medium;
 
-  &__icon {
+  .software-icon {
     width: 96px;
     height: 96px;
-    border: 1px solid #e2e4ea;
+    border: 1px solid $ui-fleet-black-10;
     border-radius: 8px;
   }
 

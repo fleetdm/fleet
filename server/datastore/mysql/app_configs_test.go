@@ -3,7 +3,9 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
@@ -114,7 +116,7 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 
 	verify, err = ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
-	assert.False(t, verify.SSOEnabled)
+	assert.True(t, verify.SSOEnabled) // SSO stays enabled for user even when globally disabled
 }
 
 func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
@@ -319,8 +321,9 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	const secret = "one_secret"
 	expectedSecrets := []*fleet.EnrollSecret{
-		{Secret: "one_secret"},
+		{Secret: secret},
 	}
 	err = ds.ApplyEnrollSecrets(context.Background(), &team1.ID, expectedSecrets)
 	require.NoError(t, err)
@@ -328,6 +331,7 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	// Same secret at global level should not be allowed
 	err = ds.ApplyEnrollSecrets(context.Background(), nil, expectedSecrets)
 	require.Error(t, err)
+	assert.False(t, strings.Contains(err.Error(), secret), fmt.Sprintf("error should not contain secret in plaintext: %s", err.Error()))
 }
 
 func testAppConfigDefaults(t *testing.T, ds *Datastore) {

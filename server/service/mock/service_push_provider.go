@@ -5,8 +5,8 @@ package mock
 import (
 	"sync"
 
-	"github.com/micromdm/nanomdm/mdm"
-	"github.com/micromdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 )
 
 var _ push.PushProvider = (*APNSPushProvider)(nil)

@@ -13,6 +13,8 @@ import (
 
 	"github.com/docker/go-units"
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
+	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -108,12 +110,179 @@ func runScriptSyncEndpoint(ctx context.Context, request interface{}, svc fleet.S
 	}, nil
 }
 
-func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+const maxPendingScripts = 1000
 
-	return nil, fleet.ErrMissingLicense
+func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScriptRequestPayload, waitForResult time.Duration) (*fleet.HostScriptResult, error) {
+	// First check if scripts are disabled globally. If so, no need for further processing.
+	cfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, err
+	}
+
+	if cfg.ServerSettings.ScriptsDisabled {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptScriptsDisabledGloballyErrMsg), http.StatusForbidden)
+	}
+
+	// must load the host to get the team (cannot use lite, the last seen time is
+	// required to check if it is online) to authorize with the proper team id.
+	// We cannot first authorize if the user can list hosts, in case we
+	// eventually allow a write-only role (e.g. gitops).
+	host, err := svc.ds.Host(ctx, request.HostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionWrite); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	if host.OrbitNodeKey == nil || *host.OrbitNodeKey == "" {
+		// fleetd is required to run scripts so if the host is enrolled via plain osquery we return
+		// an error
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewUserMessageError(errors.New(fleet.RunScriptDisabledErrMsg), http.StatusUnprocessableEntity)
+	}
+
+	maxPending := maxPendingScripts
+
+	// must check that only one of script id or contents is provided before
+	// authorization, as the permissions are not the same if a script id is
+	// provided. There's no harm in returning the error if this validation fails,
+	// since both values are user-provided it doesn't leak any internal
+	// information.
+	if request.ScriptID != nil && request.ScriptContents != "" {
+		svc.authz.SkipAuthorization(ctx)
+		return nil, fleet.NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
+	}
+
+	// authorize with the host's team and the script id provided, as both affect
+	// the permissions.
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID, ScriptID: request.ScriptID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
+
+	if request.ScriptID != nil {
+		script, err := svc.ds.Script(ctx, *request.ScriptID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`).
+					WithStatus(http.StatusNotFound)
+			}
+			return nil, err
+		}
+		var scriptTmID, hostTmID uint
+		if script.TeamID != nil {
+			scriptTmID = *script.TeamID
+		}
+		if host.TeamID != nil {
+			hostTmID = *host.TeamID
+		}
+		if scriptTmID != hostTmID {
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script does not belong to the same team (or no team) as the host.`)
+		}
+
+		r, err := svc.ds.IsExecutionPendingForHost(ctx, request.HostID, *request.ScriptID)
+		if err != nil {
+			return nil, err
+		}
+
+		if len(r) > 0 {
+			return nil, fleet.NewInvalidArgumentError("script_id", `The script is already queued on the given host.`).WithStatus(http.StatusConflict)
+		}
+
+		contents, err := svc.ds.GetScriptContents(ctx, *request.ScriptID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return nil, fleet.NewInvalidArgumentError("script_id", `No script exists for the provided "script_id".`).
+					WithStatus(http.StatusNotFound)
+			}
+			return nil, err
+		}
+		request.ScriptContents = string(contents)
+	}
+
+	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
+	}
+
+	asyncExecution := waitForResult <= 0
+
+	if !asyncExecution && host.Status(time.Now()) != fleet.StatusOnline {
+		return nil, fleet.NewInvalidArgumentError("host_id", fleet.RunScriptHostOfflineErrMsg)
+	}
+
+	pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, request.HostID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "list host pending script executions")
+	}
+	if len(pending) > maxPending {
+		return nil, fleet.NewInvalidArgumentError(
+			"script_id", "cannot queue more than 1000 scripts per host",
+		).WithStatus(http.StatusConflict)
+	}
+
+	if !asyncExecution && len(pending) > 0 {
+		return nil, fleet.NewInvalidArgumentError("script_id", fleet.RunScriptAlreadyRunningErrMsg).WithStatus(http.StatusConflict)
+	}
+
+	// create the script execution request, the host will be notified of the
+	// script execution request via the orbit config's Notifications mechanism.
+	if ctxUser := authz.UserFromContext(ctx); ctxUser != nil {
+		request.UserID = &ctxUser.ID
+	}
+	request.SyncRequest = !asyncExecution
+	script, err := svc.ds.NewHostScriptExecutionRequest(ctx, request)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "create script execution request")
+	}
+	script.Hostname = host.DisplayName()
+
+	if asyncExecution {
+		// async execution, return
+		return script, nil
+	}
+
+	ctx, cancel := context.WithTimeout(ctx, waitForResult)
+	defer cancel()
+
+	// if waiting for a result times out, we still want to return the script's
+	// execution request information along with the error, so that the caller can
+	// use the execution id for later checks.
+	timeoutResult := script
+	checkInterval := time.Second
+	after := time.NewTimer(checkInterval)
+	for {
+		select {
+		case <-ctx.Done():
+			return timeoutResult, ctx.Err()
+		case <-after.C:
+			result, err := svc.ds.GetHostScriptExecutionResult(ctx, script.ExecutionID)
+			if err != nil {
+				// is that due to the context being canceled during the DB access?
+				if ctxErr := ctx.Err(); ctxErr != nil {
+					return timeoutResult, ctxErr
+				}
+				return nil, ctxerr.Wrap(ctx, err, "get script execution result")
+			}
+			if result.ExitCode != nil {
+				// a result was received from the host, return
+				result.Hostname = host.DisplayName()
+				return result, nil
+			}
+
+			// at a second to every attempt, until it reaches 5s (then check every 5s)
+			if checkInterval < 5*time.Second {
+				checkInterval += time.Second
+			}
+			after.Reset(checkInterval)
+		}
+	}
 }
 
 // //////////////////////////////////////////////////////////////////////////////
@@ -147,7 +316,8 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 		return getScriptResultResponse{Err: err}, nil
 	}
 
-	// check if a minute has passed since the script was created at
+	// TODO: move this logic out of the endpoint function and consolidate in either the service
+	// method or the fleet package
 	hostTimeout := scriptResult.HostTimeout(scripts.MaxServerWaitTime)
 	scriptResult.Message = scriptResult.UserMessage(hostTimeout)
 
@@ -166,11 +336,36 @@ func getScriptResultEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) GetScriptResult(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	scriptResult, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script result")
+	}
 
-	return nil, fleet.ErrMissingLicense
+	host, err := svc.ds.HostLite(ctx, scriptResult.HostID)
+	if err != nil {
+		// if error is because the host does not exist, check first if the user
+		// had access to run a script (to prevent leaking valid host ids).
+		if fleet.IsNotFound(err) {
+			if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{}, fleet.ActionRead); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get host lite")
+	}
+	if err := svc.authz.Authorize(ctx, &fleet.HostScriptResult{TeamID: host.TeamID}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	scriptResult.Hostname = host.DisplayName()
+
+	return scriptResult, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -235,11 +430,60 @@ func createScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r io.Reader) (*fleet.Script, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return nil, err
+	}
 
-	return nil, fleet.ErrMissingLicense
+	b, err := io.ReadAll(r)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "read script contents")
+	}
+
+	script := &fleet.Script{
+		TeamID:         teamID,
+		Name:           name,
+		ScriptContents: string(b),
+	}
+	if err := script.Validate(); err != nil {
+		return nil, fleet.NewInvalidArgumentError("script", err.Error())
+	}
+
+	savedScript, err := svc.ds.NewScript(ctx, script)
+	if err != nil {
+		var (
+			existsErr fleet.AlreadyExistsError
+			fkErr     fleet.ForeignKeyError
+		)
+		if errors.As(err, &existsErr) {
+			err = fleet.NewInvalidArgumentError("script", "A script with this name already exists.").WithStatus(http.StatusConflict)
+		} else if errors.As(err, &fkErr) {
+			err = fleet.NewInvalidArgumentError("team_id", "The team does not exist.").WithStatus(http.StatusNotFound)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "create script")
+	}
+
+	var teamName *string
+	if teamID != nil && *teamID != 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team name for create script activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeAddedScript{
+			TeamID:     teamID,
+			TeamName:   teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "new activity for create script")
+	}
+
+	return savedScript, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -267,11 +511,37 @@ func deleteScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 func (svc *Service) DeleteScript(ctx context.Context, scriptID uint) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionWrite)
+	if err != nil {
+		return err
+	}
 
-	return fleet.ErrMissingLicense
+	if err := svc.ds.DeleteScript(ctx, script.ID); err != nil {
+		return ctxerr.Wrap(ctx, err, "delete script")
+	}
+
+	var teamName *string
+	if script.TeamID != nil && *script.TeamID != 0 {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, script.TeamID, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get team name for delete script activity")
+		}
+		teamName = &tm.Name
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		authz.UserFromContext(ctx),
+		fleet.ActivityTypeDeletedScript{
+			TeamID:     script.TeamID,
+			TeamName:   teamName,
+			ScriptName: script.Name,
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "new activity for delete script")
+	}
+
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -304,11 +574,21 @@ func listScriptsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) ListScripts(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
 
-	return nil, nil, fleet.ErrMissingLicense
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for scripts
+	opt.IncludeMetadata = true
+
+	return svc.ds.ListScripts(ctx, teamID, opt)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -373,11 +653,19 @@ func getScriptEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 }
 
 func (svc *Service) GetScript(ctx context.Context, scriptID uint, withContent bool) (*fleet.Script, []byte, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	script, err := svc.authorizeScriptByID(ctx, scriptID, fleet.ActionRead)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	return nil, nil, fleet.ErrMissingLicense
+	var content []byte
+	if withContent {
+		content, err = svc.ds.GetScriptContents(ctx, scriptID)
+		if err != nil {
+			return nil, nil, err
+		}
+	}
+	return script, content, nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -410,11 +698,33 @@ func getHostScriptDetailsEndpoint(ctx context.Context, request interface{}, svc 
 }
 
 func (svc *Service) GetHostScriptDetails(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
-	svc.authz.SkipAuthorization(ctx)
+	h, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// if error is because the host does not exist, check first if the user
+			// had global access (to prevent leaking valid host ids).
+			if err := svc.authz.Authorize(ctx, &fleet.Script{}, fleet.ActionRead); err != nil {
+				return nil, nil, err
+			}
+		}
+		return nil, nil, err
+	}
 
-	return nil, nil, fleet.ErrMissingLicense
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: h.TeamID}, fleet.ActionRead); err != nil {
+		return nil, nil, err
+	}
+
+	// cursor-based pagination is not supported for scripts
+	opt.After = ""
+	// custom ordering is not supported, always by name
+	opt.OrderKey = "name"
+	opt.OrderDirection = fleet.OrderAscending
+	// no matching query support
+	opt.MatchQuery = ""
+	// always include metadata for scripts
+	opt.IncludeMetadata = true
+
+	return svc.ds.GetHostScriptDetails(ctx, h.ID, h.TeamID, opt, h.Platform)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -445,9 +755,172 @@ func batchSetScriptsEndpoint(ctx context.Context, request interface{}, svc fleet
 }
 
 func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []fleet.ScriptPayload, dryRun bool) error {
+	if maybeTmID != nil && maybeTmName != nil {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("team_name", "cannot specify both team_id and team_name"))
+	}
+
+	var teamID *uint
+	var teamName *string
+
+	if maybeTmID != nil || maybeTmName != nil {
+		team, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, maybeTmID, maybeTmName)
+		if err != nil {
+			// If this is a dry run, the team may not have been created yet
+			if dryRun && fleet.IsNotFound(err) {
+				return nil
+			}
+			return err
+		}
+		teamID = &team.ID
+		teamName = &team.Name
+	}
+
+	if err := svc.authz.Authorize(ctx, &fleet.Script{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	// any duplicate name in the provided set results in an error
+	scripts := make([]*fleet.Script, 0, len(payloads))
+	byName := make(map[string]bool, len(payloads))
+	for i, p := range payloads {
+		script := &fleet.Script{
+			ScriptContents: string(p.ScriptContents),
+			Name:           p.Name,
+			TeamID:         teamID,
+		}
+
+		if err := script.Validate(); err != nil {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
+		}
+
+		if byName[script.Name] {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), fmt.Sprintf("Couldn’t edit scripts. More than one script has the same file name: %q", script.Name)),
+				"duplicate script by name")
+		}
+		byName[script.Name] = true
+		scripts = append(scripts, script)
+	}
+
+	if dryRun {
+		return nil
+	}
+
+	if err := svc.ds.BatchSetScripts(ctx, teamID, scripts); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch saving scripts")
+	}
+
+	if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeEditedScript{
+		TeamID:   teamID,
+		TeamName: teamName,
+	}); err != nil {
+		return ctxerr.Wrap(ctx, err, "logging activity for edited scripts")
+	}
+	return nil
+}
+
+func (svc *Service) authorizeScriptByID(ctx context.Context, scriptID uint, authzAction string) (*fleet.Script, error) {
+	// first, get the script because we don't know which team id it is for.
+	script, err := svc.ds.Script(ctx, scriptID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			// couldn't get the script to have its team, authorize with a no-team
+			// script as a fallback - the requested script does not exist so there's
+			// no way to know what team it would be for, and returning a 404 without
+			// authorization would leak the existing/non existing ids.
+			if err := svc.authz.Authorize(ctx, &fleet.Script{}, authzAction); err != nil {
+				return nil, err
+			}
+		}
+		svc.authz.SkipAuthorization(ctx)
+		return nil, ctxerr.Wrap(ctx, err, "get script")
+	}
+
+	// do the actual authorization with the script's team id
+	if err := svc.authz.Authorize(ctx, script, authzAction); err != nil {
+		return nil, err
+	}
+	return script, nil
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Lock host
+////////////////////////////////////////////////////////////////////////////////
+
+type lockHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type lockHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r lockHostResponse) Status() int  { return http.StatusNoContent }
+func (r lockHostResponse) error() error { return r.Err }
+
+func lockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*lockHostRequest)
+	if err := svc.LockHost(ctx, req.HostID); err != nil {
+		return lockHostResponse{Err: err}, nil
+	}
+	return lockHostResponse{}, nil
+}
+
+func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
 
 	return fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Unlock host
+////////////////////////////////////////////////////////////////////////////////
+
+type unlockHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type unlockHostResponse struct {
+	HostID    *uint  `json:"host_id,omitempty"`
+	UnlockPIN string `json:"unlock_pin,omitempty"`
+	Err       error  `json:"error,omitempty"`
+}
+
+func (r unlockHostResponse) Status() int {
+	if r.HostID != nil {
+		// there is a response body
+		return http.StatusOK
+	}
+	// no response body
+	return http.StatusNoContent
+}
+func (r unlockHostResponse) error() error { return r.Err }
+
+func unlockHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*unlockHostRequest)
+	pin, err := svc.UnlockHost(ctx, req.HostID)
+	if err != nil {
+		return unlockHostResponse{Err: err}, nil
+	}
+
+	var resp unlockHostResponse
+	// only macOS hosts return an unlock PIN, for other platforms the UnlockHost
+	// call triggers the unlocking without further user action.
+	if pin != "" {
+		resp.HostID = &req.HostID
+		resp.UnlockPIN = pin
+	}
+	return resp, nil
+}
+
+func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return "", fleet.ErrMissingLicense
 }

@@ -586,7 +586,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Can't create a team policy with an existing name.
+	// Can't create a team policy with same team id and name.
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:  "query1",
 		Query: "select 1;",
@@ -597,16 +597,8 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	}
 	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
 
-	// Can't create a global policy with an existing name.
+	// Can't create a global policy with an existing global name.
 	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:  "query1",
-		Query: "select 1;",
-	})
-	require.Error(t, err)
-	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
-
-	// Can't create a team policy with an existing global name.
-	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:  "existing-query-global-1",
 		Query: "select 1;",
 	})
@@ -1019,55 +1011,64 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.Len(t, queries, 1)
 	assert.Equal(t, q.Query, queries[fmt.Sprint(q.ID)])
 
+	// Team policy ran with failing result.
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host1, map[uint]*bool{tp.ID: ptr.Bool(false), gp.ID: nil}, time.Now(), false))
 
 	policies, err := ds.ListPoliciesForHost(context.Background(), host1)
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
-	checkGlobaPolicy := func(policies []*fleet.HostPolicy) {
-		assert.Equal(t, "query1", policies[0].Name)
-		assert.Equal(t, "select 1;", policies[0].Query)
-		assert.Equal(t, "query1 desc", policies[0].Description)
-		require.NotNil(t, policies[0].AuthorID)
-		assert.Equal(t, user1.ID, *policies[0].AuthorID)
-		assert.Equal(t, "Alice", policies[0].AuthorName)
-		assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
-		assert.NotNil(t, policies[0].Resolution)
-		assert.Equal(t, "some gp resolution", *policies[0].Resolution)
+	checkGlobaPolicy := func(policy *fleet.HostPolicy) {
+		assert.Equal(t, "query1", policy.Name)
+		assert.Equal(t, "select 1;", policy.Query)
+		assert.Equal(t, "query1 desc", policy.Description)
+		require.NotNil(t, policy.AuthorID)
+		assert.Equal(t, user1.ID, *policy.AuthorID)
+		assert.Equal(t, "Alice", policy.AuthorName)
+		assert.Equal(t, "alice@example.com", policy.AuthorEmail)
+		assert.NotNil(t, policy.Resolution)
+		assert.Equal(t, "some gp resolution", *policy.Resolution)
 	}
-	checkGlobaPolicy(policies)
 
-	assert.Equal(t, "query2", policies[1].Name)
-	assert.Equal(t, "select 42;", policies[1].Query)
-	assert.Equal(t, "query2 desc", policies[1].Description)
-	require.NotNil(t, policies[1].AuthorID)
-	assert.Equal(t, user1.ID, *policies[1].AuthorID)
-	assert.Equal(t, "Alice", policies[1].AuthorName)
-	assert.Equal(t, "alice@example.com", policies[1].AuthorEmail)
-	assert.NotNil(t, policies[1].Resolution)
-	assert.Equal(t, "some other gp resolution", *policies[1].Resolution)
+	// Failing policy is listed first.
+	assert.Equal(t, "fail", policies[0].Response)
+	assert.Equal(t, "query2", policies[0].Name)
+	assert.Equal(t, "select 42;", policies[0].Query)
+	assert.Equal(t, "query2 desc", policies[0].Description)
+	require.NotNil(t, policies[0].AuthorID)
+	assert.Equal(t, user1.ID, *policies[0].AuthorID)
+	assert.Equal(t, "Alice", policies[0].AuthorName)
+	assert.Equal(t, "alice@example.com", policies[0].AuthorEmail)
+	assert.NotNil(t, policies[0].Resolution)
+	assert.Equal(t, "some other gp resolution", *policies[0].Resolution)
+
+	checkGlobaPolicy(policies[1])
+	assert.Equal(t, "", policies[1].Response)
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
-	checkGlobaPolicy(policies)
-
+	checkGlobaPolicy(policies[0])
 	assert.Equal(t, "", policies[0].Response)
 
+	// Global policy ran with passing result.
 	require.NoError(t, ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{gp.ID: ptr.Bool(true)}, time.Now(), false))
 
 	policies, err = ds.ListPoliciesForHost(context.Background(), host2)
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
-	checkGlobaPolicy(policies)
+	checkGlobaPolicy(policies[0])
 
 	assert.Equal(t, "pass", policies[0].Response)
 
 	// Manually insert a global policy with null resolution.
-	res, err := ds.writer(context.Background()).ExecContext(context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description)
+	res, err := ds.writer(context.Background()).ExecContext(
+		context.Background(),
+		fmt.Sprintf(`INSERT INTO policies (name, query, description, checksum) VALUES (?, ?, ?, %s)`, policiesChecksumComputedColumn()),
+		q.Name+"2", q.Query, q.Description+"2",
+	)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
@@ -1077,12 +1078,13 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 2)
 
-	assert.Equal(t, "query1 desc", policies[0].Description)
+	// Global policy with null resolution is listed first, followed by passing policy.
+	assert.Equal(t, "query1 desc2", policies[0].Description)
 	assert.NotNil(t, policies[0].Resolution)
-	assert.Equal(t, "some gp resolution", *policies[0].Resolution)
+	assert.Empty(t, *policies[0].Resolution)
 
 	assert.NotNil(t, policies[1].Resolution)
-	assert.Empty(t, *policies[1].Resolution)
+	assert.Equal(t, "some gp resolution", *policies[1].Resolution)
 }
 
 func testPoliciesByID(t *testing.T, ds *Datastore) {
@@ -1367,17 +1369,19 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
 
-	// Test error when modifying team on existing policy
-	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:        "query1",
-			Query:       "select 1 from updated again;",
-			Description: "query1 desc updated again",
-			Resolution:  "some resolution updated again",
-			Team:        "team1", // Modifying teams on existing policies is not allowed
-			Platform:    "",
-		},
-	}))
+	// Creating the same policy for a different team is allowed.
+	require.NoError(
+		t, ds.ApplyPolicySpecs(
+			ctx, user1.ID, []*fleet.PolicySpec{
+				{
+					Name:        "query1",
+					Query:       "select 1 from updated again;",
+					Description: "query1 desc updated again",
+					Resolution:  "some resolution updated again",
+					Team:        "team1",
+					Platform:    "",
+				},
+			}))
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -2036,7 +2040,10 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 		hosts[i] = h
 	}
 
-	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
+	createPolStmt := fmt.Sprintf(
+		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum) VALUES (?, ?, '', ?, ?, ?, ?, %s)`,
+		policiesChecksumComputedColumn(),
+	)
 	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
@@ -2131,8 +2138,10 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	}
 
 	// create some policies, using direct insert statements to control the timestamps
-	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at)
-                    VALUES (?, ?, '', ?, ?, ?, ?)`
+	createPolStmt := fmt.Sprintf(
+		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum)
+                    VALUES (?, ?, '', ?, ?, ?, ?, %s)`, policiesChecksumComputedColumn(),
+	)
 
 	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -2248,11 +2257,13 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 }
 
 func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts time.Time) {
-	sql := `
+	sqlStmt := `
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
 			WHERE id = ?`
-	_, err := ds.writer(context.Background()).ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
+	_, err := ds.writer(context.Background()).ExecContext(
+		context.Background(), sqlStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID,
+	)
 	require.NoError(t, err)
 }
 

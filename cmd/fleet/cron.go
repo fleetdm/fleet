@@ -269,12 +269,13 @@ func checkWinVulnerabilities(
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
 			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
+				"display version", o.DisplayVersion,
 				"elapsed", elapsed,
 				"found new", len(r))
 			results = append(results, r...)

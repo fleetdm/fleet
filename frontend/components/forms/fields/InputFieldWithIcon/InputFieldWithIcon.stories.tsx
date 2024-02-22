@@ -10,7 +10,7 @@ import "../../../../index.scss";
 interface IInputFieldWithIconProps {
   autofocus?: boolean;
   error?: string;
-  hint?: string | string[];
+  helpText?: string | string[];
   iconName?: string;
   label?: string;
   name?: string;
@@ -63,7 +63,7 @@ export default {
         "all-hosts",
         "alerts",
         "logout",
-        "user-settings",
+        "account",
         "clipboard",
         "list-select",
         "grid-select",
@@ -125,7 +125,7 @@ export default {
     label: "Email",
     placeholder: "Type here...",
     error: "",
-    hint: "",
+    helpText: "",
     name: "",
     tabIndex: "",
     type: "",

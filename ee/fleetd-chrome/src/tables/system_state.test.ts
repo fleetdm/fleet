@@ -14,7 +14,7 @@ describe("screenlock", () => {
           idle_state: "active",
         },
       ],
-      warnings: undefined,
+      warnings: null,
     });
   });
 });

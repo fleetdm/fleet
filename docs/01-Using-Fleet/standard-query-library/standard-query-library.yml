@@ -880,7 +880,7 @@ apiVersion: v1
 kind: policy
 spec:
   name: No 1Password emergency kit stored on desktop or in downloads (macOS)
-  query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
+  query: SELECT EXISTS (SELECT 1 FROM file WHERE filename LIKE '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%'));
   description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
@@ -1051,7 +1051,7 @@ kind: query
 spec:
   name: Get a list of Visual Studio Code extensions
   platform: darwin
-  description: Get a list of installed VS Code extensions. Requires [fleetd](https://fleetdm.com/docs/using-fleet/fleetd).
+  description: Get a list of installed VS Code extensions.
   query: |
     SELECT  split(user_path, '/', 1) as username,
         json_extract(value, '$.identifier.id') as id,

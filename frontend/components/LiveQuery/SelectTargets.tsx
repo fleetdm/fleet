@@ -416,7 +416,7 @@ const SelectTargets = ({
 
   if (isLoadingLabels || (isPremiumTier && isLoadingTeams)) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <div className={`${baseClass}__page-loading`}>
           <Spinner />
@@ -427,7 +427,7 @@ const SelectTargets = ({
 
   if (errorLabels || errorTeams) {
     return (
-      <div className={`${baseClass}__wrapper body-wrap`}>
+      <div className={`${baseClass}__wrapper`}>
         <h1>Select targets</h1>
         <PageError />
       </div>

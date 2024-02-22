@@ -48,9 +48,9 @@ const AddIntegrationModal = ({
 
   return (
     <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
-      <>
+      <div className="form">
         {!testingConnection && (
-          <div className={`${baseClass}__info-header`}>
+          <>
             <Dropdown
               label="Ticket destination"
               name="destination"
@@ -65,7 +65,7 @@ const AddIntegrationModal = ({
               text="Suggest a new destination"
               newTab
             />
-          </div>
+          </>
         )}
         <IntegrationForm
           onCancel={onCancel}
@@ -74,7 +74,7 @@ const AddIntegrationModal = ({
           destination={destination}
           testingConnection={testingConnection}
         />
-      </>
+      </div>
     </Modal>
   );
 };

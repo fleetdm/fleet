@@ -15,7 +15,6 @@ import (
 	"net/url"
 
 	"github.com/fleetdm/fleet/v4/pkg/rawjson"
-	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
@@ -380,7 +379,9 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledFailingPoliciesIntegrations(appConfig.WebhookSettings.FailingPoliciesWebhook, appConfig.Integrations, invalid)
 	fleet.ValidateEnabledHostStatusIntegrations(appConfig.WebhookSettings.HostStatusWebhook, invalid)
-	svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid)
+	if err := svc.validateMDM(ctx, license, &oldAppConfig.MDM, &appConfig.MDM, invalid); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating MDM config")
+	}
 
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -628,13 +629,36 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	return obfuscatedAppConfig, nil
 }
 
+func (svc *Service) HasCustomSetupAssistantConfigurationWebURL(ctx context.Context, teamID *uint) (bool, error) {
+	az, ok := authz_ctx.FromContext(ctx)
+	if !ok || !az.Checked() {
+		return false, fleet.NewAuthRequiredError("method requires previous authorization")
+	}
+
+	asst, err := svc.ds.GetMDMAppleSetupAssistant(ctx, teamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return false, nil
+		}
+		return false, err
+	}
+
+	var m map[string]any
+	if err := json.Unmarshal(asst.Profile, &m); err != nil {
+		return false, err
+	}
+
+	_, ok = m["configuration_web_url"]
+	return ok, nil
+}
+
 func (svc *Service) validateMDM(
 	ctx context.Context,
 	license *fleet.LicenseInfo,
 	oldMdm *fleet.MDM,
 	mdm *fleet.MDM,
 	invalid *fleet.InvalidArgumentError,
-) {
+) error {
 	if mdm.EnableDiskEncryption.Value && !license.IsPremium() {
 		invalid.Append("macos_settings.enable_disk_encryption", ErrMissingLicense.Error())
 	}
@@ -651,7 +675,7 @@ func (svc *Service) validateMDM(
 	// we want to use `oldMdm` here as this boolean is set by the fleet
 	// server at startup and can't be modified by the user
 	if !oldMdm.EnabledAndConfigured {
-		if len(mdm.MacOSSettings.CustomSettings) > 0 && !server.SliceStringsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
+		if len(mdm.MacOSSettings.CustomSettings) > 0 && !fleet.MDMProfileSpecsMatch(mdm.MacOSSettings.CustomSettings, oldMdm.MacOSSettings.CustomSettings) {
 			invalid.Append("macos_settings.custom_settings",
 				`Couldn't update macos_settings because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`)
 		}
@@ -674,7 +698,7 @@ func (svc *Service) validateMDM(
 	if !mdm.WindowsEnabledAndConfigured {
 		if mdm.WindowsSettings.CustomSettings.Set &&
 			len(mdm.WindowsSettings.CustomSettings.Value) > 0 &&
-			!server.SliceStringsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
+			!fleet.MDMProfileSpecsMatch(mdm.WindowsSettings.CustomSettings.Value, oldMdm.WindowsSettings.CustomSettings.Value) {
 			invalid.Append("windows_settings.custom_settings",
 				`Couldn’t edit windows_settings.custom_settings. Windows MDM isn’t turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}
@@ -683,7 +707,7 @@ func (svc *Service) validateMDM(
 	if name := mdm.AppleBMDefaultTeam; name != "" && name != oldMdm.AppleBMDefaultTeam {
 		if !license.IsPremium() {
 			invalid.Append("mdm.apple_bm_default_team", ErrMissingLicense.Error())
-			return
+			return nil
 		}
 		if _, err := svc.ds.TeamByName(ctx, name); err != nil {
 			invalid.Append("apple_bm_default_team", "team name not found")
@@ -701,7 +725,7 @@ func (svc *Service) validateMDM(
 
 		if !license.IsPremium() {
 			invalid.Append("macos_updates.minimum_version", ErrMissingLicense.Error())
-			return
+			return nil
 		}
 	}
 	if err := mdm.MacOSUpdates.Validate(); err != nil {
@@ -715,7 +739,7 @@ func (svc *Service) validateMDM(
 
 		if !license.IsPremium() {
 			invalid.Append("windows_updates.deadline_days", ErrMissingLicense.Error())
-			return
+			return nil
 		}
 	}
 	if err := mdm.WindowsUpdates.Validate(); err != nil {
@@ -725,13 +749,10 @@ func (svc *Service) validateMDM(
 	// EndUserAuthentication
 	// only validate SSO settings if they changed
 	if mdm.EndUserAuthentication.SSOProviderSettings != oldMdm.EndUserAuthentication.SSOProviderSettings {
-		// TODO: Should we validate MDM configured on here too?
-
 		if !license.IsPremium() {
 			invalid.Append("end_user_authentication", ErrMissingLicense.Error())
-			return
+			return nil
 		}
-
 		validateSSOProviderSettings(mdm.EndUserAuthentication.SSOProviderSettings, oldMdm.EndUserAuthentication.SSOProviderSettings, invalid)
 	}
 
@@ -743,7 +764,16 @@ func (svc *Service) validateMDM(
 			invalid.Append("macos_setup.enable_end_user_authentication",
 				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
 		}
-		// TODO: Should we validate MDM configured on here too?
+	}
+
+	if mdm.MacOSSetup.EnableEndUserAuthentication != oldMdm.MacOSSetup.EnableEndUserAuthentication {
+		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, nil)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking setup assistant configuration web url")
+		}
+		if hasCustomConfigurationWebURL {
+			invalid.Append("end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg)
+		}
 	}
 
 	updatingMacOSMigration := mdm.MacOSMigration.Enable != oldMdm.MacOSMigration.Enable ||
@@ -757,7 +787,7 @@ func (svc *Service) validateMDM(
 		if mdm.MacOSMigration.Enable {
 			if license.Tier != fleet.TierPremium {
 				invalid.Append("macos_migration.enable", ErrMissingLicense.Error())
-				return
+				return nil
 			}
 			if !mdm.MacOSMigration.Mode.IsValid() {
 				invalid.Append("macos_migration.mode", "mode must be one of 'voluntary' or 'forced'")
@@ -775,7 +805,7 @@ func (svc *Service) validateMDM(
 	if !svc.config.MDM.IsMicrosoftWSTEPSet() {
 		if mdm.WindowsEnabledAndConfigured {
 			invalid.Append("mdm.windows_enabled_and_configured", "Couldn't turn on Windows MDM. Please configure Fleet with a certificate and key pair first.")
-			return
+			return nil
 		}
 	}
 
@@ -786,6 +816,8 @@ func (svc *Service) validateMDM(
 				`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`)
 		}
 	}
+
+	return nil
 }
 
 func validateSSOProviderSettings(incoming, existing fleet.SSOProviderSettings, invalid *fleet.InvalidArgumentError) {
