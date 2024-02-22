@@ -740,7 +740,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
-
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
@@ -755,7 +754,6 @@ func TestMDMWipeCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
-
 	winEnrolledWP := &fleet.Host{
 		ID:       12,
 		UUID:     "win-enrolled-wp",
@@ -766,7 +764,21 @@ func TestMDMWipeCommand(t *testing.T) {
 	macEnrolledWP := &fleet.Host{
 		ID:       13,
 		UUID:     "mac-enrolled-wp",
+		Platform: "darwin",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	winEnrolledWiped := &fleet.Host{
+		ID:       14,
+		UUID:     "win-enrolled-wiped",
 		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	macEnrolledWiped := &fleet.Host{
+		ID:       15,
+		UUID:     "mac-enrolled-wiped",
+		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
@@ -785,6 +797,10 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
+		winEnrolledWP,
+		macEnrolledWP,
+		winEnrolledWiped,
+		macEnrolledWiped,
 	} {
 		hostByUUID[h.UUID] = h
 		hostsByID[h.ID] = h
@@ -808,6 +824,11 @@ func TestMDMWipeCommand(t *testing.T) {
 	wipePending := map[uint]*fleet.Host{
 		winEnrolledWP.ID: winEnrolledWP,
 		macEnrolledWP.ID: macEnrolledWP,
+	}
+
+	wiped := map[uint]*fleet.Host{
+		winEnrolledWiped.ID: winEnrolledWiped,
+		macEnrolledWiped.ID: macEnrolledWiped,
 	}
 
 	ds := setupTestServer(t)
@@ -849,12 +870,36 @@ func TestMDMWipeCommand(t *testing.T) {
 		}
 
 		if _, ok := wipePending[host.ID]; ok {
-			if fleetPlatform == "darwin" {
-				status.WipeMDMCommand = &fleet.MDMCommand{}
+			if fleetPlatform == "linux" {
+				status.WipeScript = &fleet.HostScriptResult{ExitCode: nil}
 				return &status, nil
 			}
 
-			status.WipeScript = &fleet.HostScriptResult{}
+			status.WipeMDMCommand = &fleet.MDMCommand{}
+			status.WipeMDMCommandResult = nil
+			return &status, nil
+		}
+
+		if _, ok := wiped[host.ID]; ok {
+			if fleetPlatform == "linux" {
+				status.WipeScript = &fleet.HostScriptResult{ExitCode: ptr.Int64(0)}
+			}
+
+			if fleetPlatform == "darwin" {
+				status.WipeMDMCommand = &fleet.MDMCommand{}
+				status.WipeMDMCommandResult = &fleet.MDMCommandResult{
+					Status: fleet.MDMAppleStatusAcknowledged,
+				}
+			}
+
+			if fleetPlatform == "windows" {
+				status.WipeMDMCommand = &fleet.MDMCommand{}
+				status.WipeMDMCommandResult = &fleet.MDMCommandResult{
+					Status: "200",
+				}
+			}
+
+			return &status, nil
 		}
 
 		return &status, nil
@@ -890,18 +935,18 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid linux", []string{"--host", linuxEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid windows but no mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
-		{appCfgMacMDM, "valid macos but not enrolled", []string{"--host", macNotEnrolled.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
-		{appCfgWinMDM, "valid windows but not enrolled", []string{"--host", winNotEnrolled.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
-		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
-		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
+		{appCfgMacMDM, "valid macos but not enrolled", []string{"--host", macNotEnrolled.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
+		{appCfgWinMDM, "valid windows but not enrolled", []string{"--host", winNotEnrolled.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
+		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
+		{appCfgMacMDM, "valid macos but pending mdm enroll", []string{"--host", macPending.UUID}, `Can't wipe the host because it doesn't have MDM turned on.`},
 		{appCfgAllMDM, "valid windows but pending unlock", []string{"--host", winEnrolledUP.UUID}, "Host has pending unlock request."},
-		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
+		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.UUID}, "Host has pending wipe request."},
-		{appCfgAllMDM, "valid windows but host wiped", []string{"--host", winEnrolledLP.UUID}, "Host is already wiped."},
-		{appCfgAllMDM, "valid macos but host wiped", []string{"--host", macEnrolledLP.UUID}, "Host is already wiped."},
+		{appCfgAllMDM, "valid windows but host wiped", []string{"--host", winEnrolledWiped.UUID}, "Host is already wiped."},
+		{appCfgAllMDM, "valid macos but host wiped", []string{"--host", macEnrolledWiped.UUID}, "Host is already wiped."},
 	}
 
 	successfulOutput := func(ident string) string {
@@ -970,6 +1015,10 @@ func setupTestServer(t *testing.T) *mock.Store {
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	enqueuer.EnqueueDeviceLockCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command, pin string) error {
+		return nil
+	}
+
+	enqueuer.EnqueueDeviceWipeCommandFunc = func(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
 		return nil
 	}
 

@@ -277,11 +277,11 @@ func mdmWipeCommand() *cli.Command {
 			}
 
 			fmt.Fprintf(c.App.Writer, `
-			The host will wipe when it comes online.
+		The host will wipe when it comes online.
 
-			Copy and run this command to see results:
+		Copy and run this command to see results:
 
-			fleetctl get host %s`, hostIdent)
+		fleetctl get host %s`, hostIdent)
 
 			return nil
 		},
@@ -305,6 +305,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if err != nil {
 		var nfe service.NotFoundErr
 		if errors.As(err, &nfe) {
+			fmt.Println(hostIdent)
 			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
 		}
 
