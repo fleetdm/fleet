@@ -11371,6 +11371,27 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, automaticHostWithRef.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "foo"))
 	require.NoError(t, err)
 
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	// run without expired certs, no command enqueued
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 	// expire all the certs we just created
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
@@ -11382,11 +11403,6 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	})
 
 	// generate a new config here so we can manipulate the certs.
-	cert, key, err := generateCertWithAPNsTopic()
-	require.NoError(t, err)
-	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
-	logger := kitlog.NewJSONLogger(os.Stdout)
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
@@ -11413,11 +11429,15 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
 
-	cmd, err := manualEnrolledDevice.Idle()
+	cmd, err = manualEnrolledDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
 	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 }
