@@ -67,6 +67,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestResetMDMAppleEnrollment", testResetMDMAppleEnrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
+		{"CleanMacOSMDMLock", testCleanMacOSMDMLock},
 	}
 
 	for _, c := range cases {
@@ -4394,6 +4395,61 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 			require.ElementsMatch(t, tt.want, got)
 		})
 	}
+}
+
+func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	checkState := func(t *testing.T, status *fleet.HostLockWipeStatus, unlocked, locked, wiped, pendingUnlock, pendingLock, pendingWipe bool) {
+		require.Equal(t, unlocked, status.IsUnlocked())
+		require.Equal(t, locked, status.IsLocked())
+		require.Equal(t, wiped, status.IsWiped())
+		require.Equal(t, pendingLock, status.IsPendingLock())
+		require.Equal(t, pendingUnlock, status.IsPendingUnlock())
+		require.Equal(t, pendingWipe, status.IsPendingWipe())
+	}
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+	nanoEnroll(t, ds, host, false)
+
+	status, err := ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
+	require.NoError(t, err)
+
+	// default state
+	checkState(t, status, true, false, false, false, false, false)
+
+	appleStore, err := ds.NewMDMAppleMDMStorage(nil, nil)
+	require.NoError(t, err)
+
+	// record a request to lock the host
+	cmd := &mdm.Command{
+		CommandUUID: "command-uuid",
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "DeviceLock"
+	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456")
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	require.NoError(t, err)
+	checkState(t, status, true, false, false, false, true, false)
+
+	// execute CleanMacOSMDMLock to simulate successful unlock
+	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
+	require.NoError(t, err)
+
+	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
+	require.NoError(t, err)
+	checkState(t, status, true, false, false, false, false, false)
+	require.Empty(t, status.UnlockPIN)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {

@@ -18,7 +18,7 @@ import (
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
-	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	DeviceLock(ctx context.Context, host *Host, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
@@ -517,4 +517,21 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
 	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
+}
+
+// SCEPIdentityCertificate represents a certificate issued during MDM
+// enrollment.
+type SCEPIdentityCertificate struct {
+	Serial         string    `db:"serial"`
+	NotValidAfter  time.Time `db:"not_valid_after"`
+	CertificatePEM []byte    `db:"certificate_pem"`
+}
+
+// SCEPIdentityAssociation represents an association between an identity
+// certificate an a specific host.
+type SCEPIdentityAssociation struct {
+	HostUUID         string `db:"host_uuid"`
+	SHA256           string `db:"sha256"`
+	EnrollReference  string `db:"enroll_reference"`
+	RenewCommandUUID string `db:"renew_command_uuid"`
 }

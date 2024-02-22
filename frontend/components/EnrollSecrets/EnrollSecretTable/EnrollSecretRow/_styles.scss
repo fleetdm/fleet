@@ -30,6 +30,7 @@
     .input-field {
       &--disabled {
         letter-spacing: 0;
+        padding-right: 66px; // Text box does not overlap with icons
       }
 
       &--password {

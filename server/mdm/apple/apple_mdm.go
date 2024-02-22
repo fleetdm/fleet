@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"strings"
 	"text/template"
 	"time"
@@ -14,9 +15,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/godep"
@@ -368,7 +369,13 @@ func NewDEPService(
 		depStorage,
 		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			return depSvc.processDeviceResponse(ctx, depClient, resp)
+			// the nanodep syncer just logs the error of the callback, so in order to
+			// capture it we need to do this here.
+			err := depSvc.processDeviceResponse(ctx, depClient, resp)
+			if err != nil {
+				ctxerr.Handle(ctx, err)
+			}
+			return err
 		}),
 	)
 
@@ -443,7 +450,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(ctx, err)
 	case n > 0:
 		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 	case n == 0:
@@ -734,6 +741,21 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
+	if reference == "" {
+		return fleetURL, nil
+	}
+
+	u, err := url.Parse(fleetURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing configured server URL: %w", err)
+	}
+	q := u.Query()
+	q.Add(mobileconfig.FleetEnrollReferenceKey, reference)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility

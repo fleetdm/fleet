@@ -30,7 +30,7 @@ import EditUserModal from "../EditUserModal";
 
 const EmptyUsersTable = () => (
   <EmptyTable
-    header="No users match the current criteria."
+    header="No users match the current criteria"
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
 );
@@ -151,9 +151,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
-  const goToUserSettingsPage = useCallback(() => {
-    const { USER_SETTINGS } = paths;
-    router.push(USER_SETTINGS);
+  const goToAccountPage = useCallback(() => {
+    const { ACCOUNT } = paths;
+    router.push(ACCOUNT);
   }, [router]);
 
   const onActionSelect = useCallback(
@@ -172,7 +172,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
           toggleResetSessionsUserModal(user);
           break;
         case "editMyAccount":
-          goToUserSettingsPage();
+          goToAccountPage();
           break;
         default:
           return null;
@@ -184,7 +184,7 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
       toggleDeleteUserModal,
       toggleResetPasswordUserModal,
       toggleResetSessionsUserModal,
-      goToUserSettingsPage,
+      goToAccountPage,
     ]
   );
 

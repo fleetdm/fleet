@@ -32,8 +32,8 @@ func TestHostRunScript(t *testing.T) {
 		}
 	}
 
-	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now()}
-	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now()}
+	teamHost := &fleet.Host{ID: 1, Hostname: "host-team", TeamID: ptr.Uint(1), SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}
+	noTeamHost := &fleet.Host{ID: 2, Hostname: "host-no-team", TeamID: nil, SeenTime: time.Now(), OrbitNodeKey: ptr.String("def")}
 	nonExistingHost := &fleet.Host{ID: 3, Hostname: "no-such-host", TeamID: nil}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{}, nil
@@ -563,8 +563,8 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "global gitops",
 			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			shouldFailTeamWrite:   true,
-			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+			shouldFailGlobalWrite: false,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,
 		},
@@ -603,7 +603,7 @@ func TestSavedScripts(t *testing.T) {
 		{
 			name:                  "team gitops, belongs to team",
 			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
-			shouldFailTeamWrite:   true,
+			shouldFailTeamWrite:   false,
 			shouldFailGlobalWrite: true,
 			shouldFailTeamRead:    true,
 			shouldFailGlobalRead:  true,

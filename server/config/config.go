@@ -18,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/spf13/cast"
@@ -592,6 +593,20 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 		m.appleAPNsPEMKey = pair.keyBytes
 	}
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
+}
+
+func (m *MDMConfig) AppleAPNsTopic() (string, error) {
+	apnsCert, _, _, err := m.AppleAPNs()
+	if err != nil {
+		return "", fmt.Errorf("parsing APNs certificates: %w", err)
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
+	if err != nil {
+		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
+	}
+
+	return mdmPushCertTopic, nil
 }
 
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
