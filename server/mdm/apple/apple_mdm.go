@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
+	"net/url"
 	"strings"
 	"text/template"
 	"time"
@@ -14,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/logging"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/log/level"
@@ -739,6 +741,21 @@ func GenerateEnrollmentProfileMobileconfig(orgName, fleetURL, scepChallenge, top
 		return nil, fmt.Errorf("execute template: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func AddEnrollmentRefToFleetURL(fleetURL, reference string) (string, error) {
+	if reference == "" {
+		return fleetURL, nil
+	}
+
+	u, err := url.Parse(fleetURL)
+	if err != nil {
+		return "", fmt.Errorf("parsing configured server URL: %w", err)
+	}
+	q := u.Query()
+	q.Add(mobileconfig.FleetEnrollReferenceKey, reference)
+	u.RawQuery = q.Encode()
+	return u.String(), nil
 }
 
 // ProfileBimap implements bidirectional mapping for profiles, and utility

@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
 	"github.com/go-kit/log"
@@ -131,6 +132,54 @@ func TestDEPService(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, url, serverURL+"api/mdm/apple/enroll?token=token")
 	})
+}
+
+func TestAddEnrollmentRefToFleetURL(t *testing.T) {
+	const (
+		baseFleetURL = "https://example.com"
+		reference    = "enroll-ref"
+	)
+
+	tests := []struct {
+		name           string
+		fleetURL       string
+		reference      string
+		expectedOutput string
+		expectError    bool
+	}{
+		{
+			name:           "empty Reference",
+			fleetURL:       baseFleetURL,
+			reference:      "",
+			expectedOutput: baseFleetURL,
+			expectError:    false,
+		},
+		{
+			name:           "valid URL and Reference",
+			fleetURL:       baseFleetURL,
+			reference:      reference,
+			expectedOutput: baseFleetURL + "?" + mobileconfig.FleetEnrollReferenceKey + "=" + reference,
+			expectError:    false,
+		},
+		{
+			name:        "invalid URL",
+			fleetURL:    "://invalid-url",
+			reference:   reference,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			output, err := AddEnrollmentRefToFleetURL(tc.fleetURL, tc.reference)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expectedOutput, output)
+			}
+		})
+	}
 }
 
 type notFoundError struct{}
