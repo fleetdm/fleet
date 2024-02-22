@@ -1,7 +1,5 @@
 # Scripts
 
-_Available in Fleet Premium_
-
 In Fleet you can execute a custom script to remediate an issue on your macOS, Windows, and Linux hosts.
 
 Shell scripts are supported on macOS and Linux. All scripts will run in the host's (root) default shell (`/bin/sh`). Other interpreters are not supported yet.
