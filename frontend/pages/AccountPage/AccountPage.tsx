@@ -27,7 +27,7 @@ import CustomLink from "components/CustomLink";
 import SecretField from "./APITokenModal/TokenSecretField/SecretField";
 import AccountSidePanel from "./AccountSidePanel";
 
-const baseClass = "account";
+const baseClass = "account-page";
 
 interface IAccountPageProps {
   router: InjectedRouter;

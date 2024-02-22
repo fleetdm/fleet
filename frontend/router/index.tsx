@@ -263,7 +263,7 @@ const routes = (
             <Route path=":id" component={PolicyPage} />
           </Route>
           <Redirect from="profile" to="account" /> {/* deprecated URL */}
-          <Route path="account" component={AccountPage as RouteComponent} />
+          <Route path="account" component={AccountPage} />
         </Route>
       </Route>
       <Route path="device">
