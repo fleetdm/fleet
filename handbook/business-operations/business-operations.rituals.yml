@@ -76,7 +76,7 @@
   task: "The numbers" # TODO tie this to a responsibility
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "Each month, update the inputs in "The numbers" spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend" 
+  description: "Each month, update the inputs in ＂The numbers＂ spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend" 
   moreInfoUrl: "https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278"
   dri: "joStableford" 
   autoIssue:   
