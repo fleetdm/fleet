@@ -34,7 +34,7 @@ It is important to frame engineering-initiated user stories the same way we fram
 
 To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
 
-> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users.
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
