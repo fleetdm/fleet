@@ -67,18 +67,16 @@ func Up_20240221112844(tx *sql.Tx) error {
 			return fmt.Errorf("failed to query policies table: %w", err)
 		}
 		var ids []uint64
-		{
-			defer rows.Close()
-			for rows.Next() {
-				var id uint64
-				if err := rows.Scan(&id); err != nil {
-					return fmt.Errorf("failed to scan policies table: %w", err)
-				}
-				ids = append(ids, id)
+		defer rows.Close()
+		for rows.Next() {
+			var id uint64
+			if err := rows.Scan(&id); err != nil {
+				return fmt.Errorf("failed to scan policies table: %w", err)
 			}
-			if rows.Err() != nil {
-				return fmt.Errorf("failed during row iteration of policies table: %w", rows.Err())
-			}
+			ids = append(ids, id)
+		}
+		if rows.Err() != nil {
+			return fmt.Errorf("failed during row iteration of policies table: %w", rows.Err())
 		}
 		for _, id := range ids {
 			_, err = tx.Exec(updateStmt+" WHERE id = ?", id)
