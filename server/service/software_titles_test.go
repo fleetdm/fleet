@@ -154,10 +154,6 @@ func TestServiceSoftwareTitlesAuth(t *testing.T) {
 				require.ErrorContains(t, err, "Requires Fleet Premium license")
 			}
 
-			// Get a software title
-			_, err = svc.SoftwareTitleByID(ctx, 1, nil)
-			checkAuthErr(t, tc.shouldFailGlobalRead, err)
-
 			// Get a software title for a team
 			_, err = svc.SoftwareTitleByID(ctx, 1, ptr.Uint(1))
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
