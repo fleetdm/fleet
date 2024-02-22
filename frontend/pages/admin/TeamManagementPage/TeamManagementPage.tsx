@@ -19,7 +19,7 @@ import SandboxMessage from "components/Sandbox/SandboxMessage";
 
 import CreateTeamModal from "./components/CreateTeamModal";
 import DeleteTeamModal from "./components/DeleteTeamModal";
-import EditTeamModal from "./components/EditTeamModal";
+import RenameTeamModal from "./components/RenameTeamModal";
 import EmptyTeamsTable from "./components/EmptyTeamsTable";
 
 import { generateTableHeaders, generateDataSet } from "./TeamTableConfig";
@@ -38,7 +38,7 @@ const TeamManagementPage = (): JSX.Element => {
   const [isUpdatingTeams, setIsUpdatingTeams] = useState(false);
   const [showCreateTeamModal, setShowCreateTeamModal] = useState(false);
   const [showDeleteTeamModal, setShowDeleteTeamModal] = useState(false);
-  const [showEditTeamModal, setShowEditTeamModal] = useState(false);
+  const [showRenameTeamModal, setShowRenameTeamModal] = useState(false);
   const [teamEditing, setTeamEditing] = useState<ITeam>();
   const [backendValidators, setBackendValidators] = useState<{
     [key: string]: string;
@@ -84,15 +84,15 @@ const TeamManagementPage = (): JSX.Element => {
     [showDeleteTeamModal, setShowDeleteTeamModal, setTeamEditing]
   );
 
-  const toggleEditTeamModal = useCallback(
+  const toggleRenameTeamModal = useCallback(
     (team?: ITeam) => {
-      setShowEditTeamModal(!showEditTeamModal);
+      setShowRenameTeamModal(!showRenameTeamModal);
       setBackendValidators({});
       team ? setTeamEditing(team) : setTeamEditing(undefined);
     },
     [
-      showEditTeamModal,
-      setShowEditTeamModal,
+      showRenameTeamModal,
+      setShowRenameTeamModal,
       setTeamEditing,
       setBackendValidators,
     ]
@@ -161,10 +161,10 @@ const TeamManagementPage = (): JSX.Element => {
     toggleDeleteTeamModal,
   ]);
 
-  const onEditSubmit = useCallback(
+  const onRenameSubmit = useCallback(
     (formData: ITeamFormData) => {
       if (formData.name === teamEditing?.name) {
-        toggleEditTeamModal();
+        toggleRenameTeamModal();
       } else if (teamEditing) {
         setIsUpdatingTeams(true);
         teamsAPI
@@ -175,7 +175,7 @@ const TeamManagementPage = (): JSX.Element => {
               `Successfully updated team name to ${formData.name}.`
             );
             setBackendValidators({});
-            toggleEditTeamModal();
+            toggleRenameTeamModal();
             refetchTeams();
           })
           .catch((updateError: { data: IApiError }) => {
@@ -187,7 +187,7 @@ const TeamManagementPage = (): JSX.Element => {
             } else {
               renderFlash(
                 "error",
-                `Could not edit ${teamEditing.name}. Please try again.`
+                `Could not rename ${teamEditing.name}. Please try again.`
               );
             }
           })
@@ -196,14 +196,14 @@ const TeamManagementPage = (): JSX.Element => {
           });
       }
     },
-    [teamEditing, toggleEditTeamModal, refetchTeams, renderFlash]
+    [teamEditing, toggleRenameTeamModal, refetchTeams, renderFlash]
   );
 
   const onActionSelection = useCallback(
     (action: string, team: ITeam): void => {
       switch (action) {
-        case "edit":
-          toggleEditTeamModal(team);
+        case "rename":
+          toggleRenameTeamModal(team);
           break;
         case "delete":
           toggleDeleteTeamModal(team);
@@ -211,7 +211,7 @@ const TeamManagementPage = (): JSX.Element => {
         default:
       }
     },
-    [toggleEditTeamModal, toggleDeleteTeamModal]
+    [toggleRenameTeamModal, toggleDeleteTeamModal]
   );
 
   const tableHeaders = useMemo(() => generateTableHeaders(onActionSelection), [
@@ -280,10 +280,10 @@ const TeamManagementPage = (): JSX.Element => {
             isUpdatingTeams={isUpdatingTeams}
           />
         )}
-        {showEditTeamModal && (
-          <EditTeamModal
-            onCancel={toggleEditTeamModal}
-            onSubmit={onEditSubmit}
+        {showRenameTeamModal && (
+          <RenameTeamModal
+            onCancel={toggleRenameTeamModal}
+            onSubmit={onRenameSubmit}
             defaultName={teamEditing?.name || ""}
             backendValidators={backendValidators}
             isUpdatingTeams={isUpdatingTeams}

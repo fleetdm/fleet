@@ -85,6 +85,7 @@ type integrationMDMTestSuite struct {
 	onDEPScheduleDone    func() // function called when depSchedule.Trigger() job completed
 	mdmStorage           *mysql.NanoMDMStorage
 	worker               *worker.Worker
+	mdmCommander         *apple_mdm.MDMAppleCommander
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -200,6 +201,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
 	s.mdmStorage = mdmStorage
+	s.mdmCommander = mdmCommander
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
@@ -7092,8 +7094,13 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	require.NoError(t, err)
 	require.Equal(t, len(body), headerLen)
 
+	return s.verifyEnrollmentProfile(body, "")
+}
+
+func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
+	t := s.T()
 	var profile enrollmentProfile
-	require.NoError(t, plist.Unmarshal(body, &profile))
+	require.NoError(t, plist.Unmarshal(rawProfile, &profile))
 
 	for _, p := range profile.PayloadContent {
 		switch p.PayloadType {
@@ -7101,8 +7108,10 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.SCEPPath, p.PayloadContent.URL)
 			require.Equal(t, s.fleetCfg.MDM.AppleSCEPChallenge, p.PayloadContent.Challenge)
 		case "com.apple.mdm":
-			// Use Contains as the url may have query params
 			require.Contains(t, p.ServerURL, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath)
+			if enrollmentRef != "" {
+				require.Contains(t, p.ServerURL, enrollmentRef)
+			}
 		default:
 			require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
 		}
@@ -11398,4 +11407,113 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 		require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
 		require.Equal(t, expectedErrs[hm.Name], hm.Detail)
 	}
+}
+
+func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
+	t := s.T()
+	ctx := context.Background()
+	// ensure there's a token for automatic enrollments
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+	}))
+	s.runDEPSchedule()
+
+	// add a device that's manually enrolled
+	desktopToken := uuid.New().String()
+	manualHost := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	err := s.ds.SetOrUpdateDeviceAuthToken(context.Background(), manualHost.ID, desktopToken)
+	require.NoError(t, err)
+	manualEnrolledDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	manualEnrolledDevice.UUID = manualHost.UUID
+	err = manualEnrolledDevice.Enroll()
+	require.NoError(t, err)
+
+	// add a device that's automatically enrolled
+	automaticHost := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	automaticEnrolledDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	automaticEnrolledDevice.UUID = automaticHost.UUID
+	automaticEnrolledDevice.SerialNumber = automaticHost.HardwareSerial
+	err = automaticEnrolledDevice.Enroll()
+	require.NoError(t, err)
+
+	// add a device that's automatically enrolled with a server ref
+	automaticHostWithRef := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
+	automaticEnrolledDeviceWithRef := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	automaticEnrolledDeviceWithRef.UUID = automaticHostWithRef.UUID
+	automaticEnrolledDeviceWithRef.SerialNumber = automaticHostWithRef.HardwareSerial
+	err = automaticEnrolledDeviceWithRef.Enroll()
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, automaticHostWithRef.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "foo"))
+	require.NoError(t, err)
+
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	// run without expired certs, no command enqueued
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// expire all the certs we just created
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  UPDATE nano_cert_auth_associations
+                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                  WHERE id IN (?, ?, ?)
+		`, manualHost.UUID, automaticHost.UUID, automaticHostWithRef.UUID)
+		return err
+	})
+
+	// generate a new config here so we can manipulate the certs.
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string) {
+		var renewCmd *micromdm.CommandPayload
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				renewCmd = cmd
+			}
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.NotNil(t, renewCmd)
+		s.verifyEnrollmentProfile(renewCmd.Command.InstallProfile.Payload, enrollRef)
+	}
+
+	checkRenewCertCommand(manualEnrolledDevice, "")
+	checkRenewCertCommand(automaticEnrolledDevice, "")
+	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo")
+
+	// another cron run shouldn't enqueue more commands
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	cmd, err = manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 }

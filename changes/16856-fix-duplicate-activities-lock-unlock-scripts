@@ -1,1 +1,0 @@
-* Fixed generating duplicate activities when locking or unlocking a host with scripts disabled.
