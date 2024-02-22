@@ -14,10 +14,8 @@ import (
 	"io"
 	"log"
 	"math/rand"
-	"net"
 	"net/http"
 	_ "net/http/pprof"
-	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -1663,25 +1661,27 @@ func scheduledQueryResults(packName, queryName string, numResults int) []byte {
 }`)
 }
 
-func (a *agent) submitLogs(results []resultLog) error {
-	// Connection check to prevent unnecessary JSON marshaling when the server is down.
-	serverAddress, err := url.Parse(a.serverAddress)
+func (a *agent) connCheck() error {
+	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
 	if err != nil {
 		panic(err)
 	}
-	tcpAddr := serverAddress.Host
-	if serverAddress.Port() == "" {
-		if serverAddress.Scheme == "https" {
-			tcpAddr = serverAddress.Host + ":" + "443"
-		} else { // http://
-			tcpAddr = serverAddress.Host + ":" + "80"
-		}
-	}
-	conn, err := net.Dial("tcp", tcpAddr)
+	response, err := http.DefaultClient.Do(request)
 	if err != nil {
 		return err
 	}
-	conn.Close()
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return errors.New(http.StatusText(response.StatusCode))
+	}
+	return nil
+}
+
+func (a *agent) submitLogs(results []resultLog) error {
+	// Connection check to prevent unnecessary JSON marshaling when the server is down.
+	if err := a.connCheck(); err != nil {
+		return fmt.Errorf("/version check failed: %w", err)
+	}
 
 	var resultLogs []byte
 	for i, result := range results {
