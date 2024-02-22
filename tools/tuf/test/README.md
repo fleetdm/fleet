@@ -35,6 +35,7 @@ GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
+DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
 
