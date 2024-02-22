@@ -3644,6 +3644,9 @@ _Available in Fleet Premium_
 
 Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
 
+To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+
 `POST /api/v1/fleet/hosts/:id/lock`
 
 #### Parameters
@@ -3665,6 +3668,8 @@ Sends a command to lock the specified macOS, Linux, or Windows host. The host is
 _Available in Fleet Premium_
 
 Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+
+To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
 
 `POST /api/v1/fleet/hosts/:id/unlock`
 
