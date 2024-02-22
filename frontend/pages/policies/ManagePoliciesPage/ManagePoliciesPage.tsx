@@ -567,8 +567,6 @@ const ManagePolicyPage = ({
     }`;
   };
 
-  const showTeamDescription = isPremiumTier && isAnyTeamSelected;
-
   const showInheritedPoliciesButton =
     isAnyTeamSelected &&
     !isFetchingTeamPolicies &&
@@ -737,7 +735,7 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          {showTeamDescription ? (
+          {isAnyTeamSelected ? (
             <p>
               Detect device health issues for all hosts assigned to this team.
             </p>
