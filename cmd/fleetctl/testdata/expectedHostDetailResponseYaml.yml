@@ -32,9 +32,11 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    device_status: unlocked
     encryption_key_available: false
     enrollment_status: null
     name: ""
+    pending_action: ""
     server_url: null
   memory: 0
   os_version: ""

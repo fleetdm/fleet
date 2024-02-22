@@ -114,10 +114,6 @@ const SoftwareTitles = ({
     }
   );
 
-  if (isTitlesFetching) {
-    return <Spinner />;
-  }
-
   if (isTitlesError || isVersionsError) {
     return <TableDataError className={`${baseClass}__table-error`} />;
   }

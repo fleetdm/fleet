@@ -1369,17 +1369,19 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
 
-	// Test error when modifying team on existing policy
-	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:        "query1",
-			Query:       "select 1 from updated again;",
-			Description: "query1 desc updated again",
-			Resolution:  "some resolution updated again",
-			Team:        "team1", // Modifying teams on existing policies is not allowed
-			Platform:    "",
-		},
-	}))
+	// Creating the same policy for a different team is allowed.
+	require.NoError(
+		t, ds.ApplyPolicySpecs(
+			ctx, user1.ID, []*fleet.PolicySpec{
+				{
+					Name:        "query1",
+					Query:       "select 1 from updated again;",
+					Description: "query1 desc updated again",
+					Resolution:  "some resolution updated again",
+					Team:        "team1",
+					Platform:    "",
+				},
+			}))
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {

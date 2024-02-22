@@ -85,7 +85,7 @@ const PackQueriesTable = ({
           resultsTitle="queries"
           emptyComponent={() =>
             EmptyTable({
-              header: "No queries match your search criteria.",
+              header: "No queries match your search criteria",
               info: "Try a different search.",
             })
           }

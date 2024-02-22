@@ -5,6 +5,7 @@ This handbook page details processes specific to working [with](#what-we-do) and
 | Role                          | Contributor(s)           |
 |:------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Business Operations   | [Joanne Stableford](https://www.linkedin.com/in/joanne-stableford/) _([@jostableford](https://github.com/JoStableford))_
+| Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 | Business Operations Engineer  | [Nathan Holliday](https://www.linkedin.com/in/nathanael-holliday/) _([@hollidayn](https://github.com/hollidayn))_, [Isabell Reedy](https://www.linkedin.com/in/isabell-reedy-202aa3123/) _([@ireedy](https://github.com/ireedy))_
 
 ## Contact us
@@ -35,7 +36,7 @@ Recurring monthly or annual expenses, such as the tools we use throughout Fleet,
 > Use this spreadsheet as the source of truth.  Always make changes to it first before adding or removing a recurring expense. Only track significant expenses. (Other things besides amount can make a payment significant; like it being an individualized expense, for example.)
 
 ### Register a domain for Fleet
-Domain name registrations are handled through Namecheap. Access is managed via 1Password. <!-- TODO: Move into "tools we use" sheet --> 
+Domain name registrations are handled through Namecheap. Access is managed via 1Password.
 
 ### Access a background check
 Fleet team members with access to Fleet's infrastructure undergo a background check provided through [Vetty](https://vetty.co/). Only the most recent background checks appear on the home page of Vetty's dashboard. To access a complete list of background checks run in Vetty, scroll down to the bottom of the candidates page and click "View Historical".
@@ -228,6 +229,16 @@ Within 60 days of the end of the year, follow these steps:
   - Provide SVB with our board-approved annual operating budgets and projections (on a quarterly granularity) for the new year.
   - Deliver this as early as possible in case they have questions.
 
+### Process a tool upgrade request from a team member
+- A Fleetie may request an upgraded license seat for Fleet tools by submitting an issue through ZenHub.
+- BizOps will upgrade or add the license seat as needed and let the requesting team member know they did it.
+
+### Downgrade an unused license seat
+- On the first Wednesday of every quarter, the CEO, head of BizOps and apprentice to the CEO will meet for 30 minutes to audit license seats in Figma, Slack, GitHub, Salesforce and other tools.
+- During this meeting, as many seats will be downgraded as possible. When doubt exists, downgrade.
+- Afterward, post in #random letting folks know that the quarterly tool reconciliation and seat clearing is complete, and that any members who lost access to anything they still need can submit a ZenHub issue to BizOps to have their access restored.
+- The goal is to build deep, integrated knowledge of tool usage across Fleet and cut costs whenever possible. It will also force conversations on redundancies and decisions that aren't helping the business that otherwise might not be looked at a second time.  
+
 ### Update weekly KPIs
 - Create the weekly update issue from the template in ZenHub every Friday and update the [KPIs for BizOps](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) by 5pm US central time.
 - Check the KPI sheet at 5pm US central time to ensure all departments have updated their KPIs on time.  If any departments are delinquent, notify the department head and let the [Apprentice to the CEO](https://fleetdm.com/handbook/ceo#team) know so they can put it on the agenda for their next one-on-one with the CEO.
@@ -273,51 +284,43 @@ ChromeOS devices are automatically enrolled in dogfood after the IT admin sets u
   - Enter disk encryption key on laptop. This should prompt you to create a new password.
 - You will then be logged into the default device profile, and can complete any needed actions (wipe, recover data).
 
+
+### Book an event
+The Business Operations department is responsible for booking events that Fleet has chosen to attend and/or sponsor. To book an event, complete the steps in each event issue. Contact the [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) as needed with any questions or blockers to booking an event.
+
+> Note: The Demand department [settles all event strategy](https://fleetdm.com/handbook/demand#settle-event-strategy) prior to booking an event. 
+
+<!-- TODO Create Article issue template and update this section of the handbook to reflect reality and add corresponding rituals to business-operations.rituals.yml
+
+### Create an article
+Article creation begins with creation of an issue using the "Article request" template.
+
+1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
+2. Move the issue into the "📃 Planned articles" column.
+
+
+### Review ongoing articles
+Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
+-->
+
+
 ## Rituals
+
 The following table lists this department's rituals, frequency, and Directly Responsible Individual (DRI).
 
-> TODO: Verify each of these points to the correct link above.  Then extrapolate into rituals.yml.  (See CEO handbook page for an example.)
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Key review | every three weeks | Every release cycle, a key review deck is prepared and presented. | Head of Business Operations |
-| Informing managers about hours worked | Weekly |  See [Informing managers about hours worked"](https://fleetdm.com/handbook/business-operations#informing-managers-about-hours-worked). | Head of Business Operations |
-| Payroll | Monthly before payroll runs | Every month, Mike McNeil audits the payroll platforms for accuracy. | Head of Business Operations |
-| US contractor payroll | Monthly | Sync contractor hours to payments in Gusto and run payroll for the month. | Head of Business Operations |
-| Commission payroll | Monthly | Use the [commission calculator](https://docs.google.com/spreadsheets/d/1vw6Q7kCC7-FdG5Fgx3ghgUdQiF2qwxk6njgK6z8_O9U/edit#gid=0) to determine the commission payroll to be run in Gusto. | Taylor Hughes |
-| Revenue report | Weekly | At the start of every week, check the Salesforce reports for past due invoices, non-invoiced opportunities, and past due renewals.  Report any findings to in the `#g-sales` channel by mentioning Alex Mitchell and Mike McNeil. | Taylor Hughes |
-| Monthly accounting | Monthly | Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps.  (This process includes fulfill the monthly reporting requirement for SVB.)  | Nathanael Holliday |
-| "The numbers" monthly financial check | Monthly | Each month, update the inputs in ["The numbers"](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend. | Head of Business Operations |
-| Quarterly grants | Quarterly | Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps. | Nathanael Holliday |
-| Quartlery finance check | Quartlery | See [Check finances for quirks](https://fleetdm.com/handbook/business-operations#check-finances-for-quirks). |Head of Business Operations |
-| AP invoice monitoring | Weekly | Look for new accounts payable invoices and make sure that Fleet's suppliers are paid. | Nathanael Holliday | 
-| Tax preparation | Annually on the first week of March | Provide information to tax team with Deloitte and assist with filing and paying state and federal returns | Nathanael Holliday | 
-| Vanta check | Monthly | Look for any new actions in Vanta due in the upcoming months and create issues to ensure they're done on time. | Nathan Holliday |
-| Investor reporting | Quarterly | Provide updated metrics for CRV in Chronograph. | Nathanael Holliday |
-| Applicant forwarding | Daily | Whenever an application notification arrives in the BizOps slack channel, forward this notification to the hiring channel for that position. | Joanne Stableford |
-| KPI roundup + weekly update | Weekly | Update KPI spreadsheet with BizOps KPI data by 5pm US central time every Friday.  At 5pm check other department KPIs to make sure they have been updated, and if not, notify DRIs and the apprentice to the CEO which KPIs have not been updated. | Nathanael Holliday |
-| [Deliver annual report for venture line](https://fleetdm.com/handbook/business-operations#deliver-annual-report-for-venture-line) | Annually | Within 60 days of the new year, provide financial statements to SVB, along with board-approved projections for the new year. | Joanne Stableford |
-
+<rituals :rituals="rituals['handbook/business-operations/business-operations.rituals.yml']"></rituals>
 
 <!--
 Note: These are out of date, but retained for future reference.  TODO: Deal with them and delete them
 
-| Weekly update reminder | Weekly | Early Friday mornings (US time), a Slack bot posts in the `#g-e` channel reminding directly responsible individuals for KPIs to add their metrics for the current week in ["KPIs"](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit) before the end of the day. | N/A |
 | Access revalidation | Quarterly | Review critical access groups to make sure they contain only relevant people. | Mike McNeil |
 | 550C update | Annually | File California 550C. | Mike McNeil |
 | TPA verifications | Quarterly | Every quarter before tax filing due dates, Mike McNeil audits state accounts to ensure TPA is set up or renewed. | Mike McNeil |
-| Brex reconciliation | Monthly | Make sure all company-issued credit card transactions include memos. | Nathanael Holliday |
-| Hours update | Weekly | Screenshots of contractor hours as shown in Gusto are sent via Slack to each contractor's manager with no further action necessary if everything appears normal. | Mike McNeil |
-| QBO check | Quarterly | The first month after the previous quarter has closed, make sure that QBO is accurate compared to Fleet's records. | Nathanael Holliday | 
-
 | YubiKey adoption | Monthly | Track YubiKey adoption in Google workspace and follow up with those that aren't using it. | Mike McNeil |
 | Security policy update | Annually | Update security policies and have them approved by the CEO. | Nathanael Holliday |
 | Security notifications check | Daily | Check Slack, Google, Vanta, and Fleet dogfood for security-related notifications. | Nathanael Holliday |
 | Changeset for onboarding issue template | Quarterly | pull up the changeset in the onboarding issue template and send out a link to the diff to all team members by posting in Slack's `#general` channel. | Mike McNeil |
-| Recruiting progress checkup | Weekly | Mike McNeil looks in the [Fleeties spreadsheet](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) and reports on each open position. | Mike McNeil |
-| Investor and advisor updates | PRN | Mike McNeil tracks the last contact with investors and coordinates outreach with CEO. | Mike McNeil |
 | MDM device enrollment | Quarterly | Provide export of MDM enrolled devices to the ops team. | Luke Heath |
-
 -->
 
 #### Stubs

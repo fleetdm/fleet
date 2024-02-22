@@ -101,7 +101,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host1Software := getHostSoftware(host1)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
 	assert.Equal(t, host1Software[0], *soft1ByID)
@@ -292,7 +292,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false)
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
@@ -2000,7 +2000,7 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		}
 
 		for _, s := range hostA.Software {
-			result, err := ds.SoftwareByID(ctx, s.ID, true)
+			result, err := ds.SoftwareByID(ctx, s.ID, true, nil)
 			require.NoError(t, err)
 			require.Len(t, result.Vulnerabilities, 1)
 		}
@@ -2089,7 +2089,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 			require.NotEqual(t, -1, idx, "software not found")
 
 			// Test that scores are not included if includeCVEScores = false
-			withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, false)
+			withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, false, nil)
 			require.NoError(t, err)
 			if tC.hasVuln {
 				require.Len(t, withoutScores.Vulnerabilities, 1)
@@ -2102,7 +2102,7 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 				require.Empty(t, withoutScores.Vulnerabilities)
 			}
 
-			withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, true)
+			withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, true, nil)
 			require.NoError(t, err)
 			if tC.hasVuln {
 				require.Len(t, withScores.Vulnerabilities, 1)
@@ -2301,7 +2301,7 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
 
-	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, false)
+	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, false, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
@@ -2352,7 +2352,7 @@ func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		test.ElementsMatchSkipID(t, cpes[1:], storedCPEs)
 
-		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, false)
+		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, false, nil)
 		require.NoError(t, err)
 		require.Empty(t, storedSoftware.GenerateCPE)
 	})

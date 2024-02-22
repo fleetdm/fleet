@@ -30,7 +30,7 @@ import EditUserModal from "../EditUserModal";
 
 const EmptyUsersTable = () => (
   <EmptyTable
-    header="No users match the current criteria."
+    header="No users match the current criteria"
     info="Expecting to see users? Try again in a few seconds as the system catches up."
   />
 );

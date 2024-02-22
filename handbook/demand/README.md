@@ -6,7 +6,6 @@ This handbook page details processes specific to working [with](#contact-us) and
 |:--------------------------------|:------------------------------------------------------------------------------------------------------------------------|
 | 🫧 Head of Demand Generation       | [Dustin Gerdes](https://www.linkedin.com/in/dustingerdes/) _([@3kindsoffish](https://github.com/3kindsoffish))_
 | 🫧 Field Marketer                  | [Drew Baker](https://www.linkedin.com/in/andrew-baker-51547179/) _([@drewbakerfdm](https://github.com/drewbakerfdm))_
-| 🫧 Community Advocate              | [JD Strong](https://www.linkedin.com/in/jackdaniyelstrong/) _([@spokanemac](https://github.com/spokanemac/spokanemac))_
 | _🎐 Head of Brand &amp; Product Marketing (CEO)_ | [Mike McNeil](https://www.linkedin.com/in/mikermcneil) _([@mikermcneil](https://github.com/mikermcneil))_
 
 
@@ -20,14 +19,29 @@ This handbook page details processes specific to working [with](#contact-us) and
 ## Responsibilities
 The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other [programs](https://fleetdm.com/handbook/company/communications#programs).
 
+### Respond to a "Contact us" submission
+1. Check the [_from-prospective-customers](https://fleetdm.slack.com/archives/C01HE9GQW6B) Slack channel for "Contact us" submissions. 
+2. Mark submission as seen with the "👀" emoji.
+3. Within 4 business hours, use the [best practices template (private Google doc)](https://docs.google.com/document/d/1D02k0tc5v-sEJ4uahAouuqnvZ6phxA_gP-IqmkBdMTE/edit) to respond to general asks.
+4. Answer any technical questions to the best of your ability. If you are unable to answer a technical/product question, ask a Solutions Consultant in [#help-solutions-consulting](https://fleetdm.slack.com/archives/C05HZ2LHEL8). If an SC is unavailable, post in [#help-product-design](https://fleetdm.slack.com/archives/C02A8BRABB5) or [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) and notify @on-call.
+5. log in to [Salesforce](https://fleetdm.lightning.force.com/lightning/o/Lead/list?filterName=00B4x00000DtaRDEAZ) and search the lead list by first name and match the corresponding email to find the right lead.
+6. Enrich each lead with company information and buying situation.
+7. If a lead is completed or out of ICP, update the lead status in Salesforce to "Closed" or "Disqualified". If within ICP at-mention the [Head of Revenue Operations](https://fleetdm.com/handbook/digital-experience#team) in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) Slack channel and move lead to their name in SFDC.
+8. Mark the Slack message as complete with the "✅" emoji.
+
+> For any support-related questions, forward the submission to [Fleet's support team](https://docs.google.com/document/d/1tE-NpNfw1icmU2MjYuBRib0VWBPVAdmq4NiCrpuI0F0/edit#heading=h.wqalwz1je6rq).
+
+
 ### Begin or modify an advertising campaign
 Any new ads or changes to current running ads are approved in ["🦢🗣 Design review (#g-digital-experience)"](https://app.zenhub.com/workspaces/-g-digital-experience-6451748b4eb15200131d4bab/board?sprints=none).
 
 To propose an ad, or a change to an ad:
-1. Add your change for review to the "Design review" agenda and attend the next scheduled website design review.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
-2. Make revisions and re-attend the meeting as needed until the planned change is settled.
-3. Execute the planned change.
-4. Create a calendar reminder to check ad performance two weeks from the date changes were made.
+1. Evaluate the buying situation before proposing any changes to ads. This determines the audience that will see each ad and which campaign it will be placed in. (Device management, vuln management, endpoint ops - security, endpoint ops - IT)
+2. Experiment campaigns must follow the YYYY-MM-DD._{buying_situation}-{ad_name}_ format. (2024-01-12.mdm - Cross-platform MDM waitlist)
+3. Image ads should follow the recommended size, centering, and asset guidelines. These are available on [Figma](https://www.figma.com/file/1J2yxqH8Q7u8V7YTtA1iej/Social-media-(logos%2C-covers%2C-banners)?type=design&node-id=2078-100840&mode=design&t=cHriEw2E7hLxgwuG-0).
+4. Add your proposed ads to the ["🧫 Experiment review" agenda](https://docs.google.com/document/d/1e2TFsV0JFFym7MvCUrJR1Wr2DVmqUgboKYFUXBEmCyI/edit#heading=h.kvp9pcc0kkq) (private Google doc) and attend the next episode.  During the meeting, existing ads will be compared against the newly proposed ads within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
+5. Make revisions and re-attend the meeting as needed until the planned change is executed.
+7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
 ### Settle event strategy
 The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
@@ -66,7 +80,6 @@ Fleet improves click-through rates in their campaigns to make the most of their 
 7. Repeat this process
 
 
-
 ### Process pending swag requests from the website
 On a weekly basis, log in to [Printful](https://www.printful.com/) and complete any draft orders so that they are sent. We currently only ship within the 48 contiguous United States and approve one free order per household under normal circumstances.
 To do this:
@@ -85,11 +98,13 @@ There are many times in which community members, customers, and contributors are
 3. Attach tracking number to the issue and tag the requestor.
 4. Confirm delivery and close issue.
 
+
 ### Send swag for community contributions to Fleet
 - Reach out to the contributor to thank them for their contribution
 - Consider sharing the contribution on social media
 - Ask if we could send the contributor any swag
 - If yes, follow the steps to fufuill a swag request.
+
 
 ### Run a new ad or change an existing ad
 Any changes to the current running ads visible to a user, including designs, keywords, or targeting, are approved in 🦢🗣 Design review (#g-digital-experience), which [occurs regularly](https://fleetdm.com/handbook/company/product-groups#design-reviews) and is open to all fleeties.
@@ -97,8 +112,8 @@ Any changes to the current running ads visible to a user, including designs, key
 2. During the call, they compare existing ads against the planned updates within the corresponding ad platform. ([Google Ads](https://ads.google.com/home/), [LinkedIn Campaign Manager](https://www.linkedin.com/campaignmanager/), etc.)
 3. [Head of Demand Generation](https://fleetdm.com/handbook/demand#team) makes changes and creates a calendar reminder to check performance either two weeks or four weeks from the date changes were made.
 
-
 > **Do changes to keywords or targeting require a design review?** Currently, all changes to these things require discussion with our product marketer.
+
 
 ### Engage with the community
 Public conversations on social media create valuable opportunities for contributors to answer technical questions and collect feedback.
@@ -112,27 +127,6 @@ Here are some links that filter relevant conversations on each platform:
 3. Leave a like on threads and posts that are interesting, cool, celebratory, funny, etc. within our communities.
 4. If a post is helpful to our audience, reshare it.
 
-### Book an event
-For an event to be considered, booked, and scheduled, we follow the event issue template.
-
-1. Create a [new GitHub issue for the #g-demand board using the "Book event" issue template](https://github.com/fleetdm/confidential/issues/new/choose).
-2. Drag the issue into the "🗓 Ideas for future events" column.
-
-Once approval has been received, move the event into the "🗓 Planned events" column.
-
-Eventbrite pages for planned events are brought to design review or CEO office minutes before being published. Pages are checked for alignment with branding standards and accurate information.
-
-### Review ongoing events
-Check the "🗓 Planned events" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
-
-### Create an article
-Article creation begins with creation of an issue using the "🫧 Article request" template.
-
-1. Create a [new GitHub issue for the #g-demand board](https://github.com/fleetdm/confidential/issues/new?assignees=spokanemac&labels=%23g-demand=&template=custom-request.md&title=Article%20Idea%3A+_______________________) and select the "Event-preparation" template..
-2. Move the issue into the "📃 Planned articles" column.
-
-### Review ongoing articles
-Check the "📃 Planned articles" column in [#g-demand board](https://app.zenhub.com/workspaces/g-demand-64e6c8e2d35c7f001a457b7f/board) and continue to work through steps in each event's issue.
 
 ### Respond to  a "Talk to an expert" request
 When a community member has a question about getting started with Fleet, they can [book a 15-minute call](https://calendly.com/jd-fleet/let-s-talk-fleet) with the Community Advocate.

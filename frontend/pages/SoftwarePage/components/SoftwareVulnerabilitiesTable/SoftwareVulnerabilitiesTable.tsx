@@ -71,6 +71,7 @@ const SoftwareVulnerabilitiesTable = ({
         pageSize={20}
         resultsTitle="vulnerabilities"
         showMarkAllPages={false}
+        disableTableHeader={data.length === 0}
       />
     </div>
   );

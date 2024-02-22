@@ -447,6 +447,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         linuxCount={linuxCount}
         chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
+        builtInLabels={labels}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}

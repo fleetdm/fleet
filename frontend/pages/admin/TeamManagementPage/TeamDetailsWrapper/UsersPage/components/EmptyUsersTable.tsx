@@ -66,7 +66,7 @@ const EmptyMembersTable = ({
   if (searchString !== "") {
     return (
       <EmptyTable
-        header="We couldn’t find any users."
+        header="We couldn't find any users"
         info="Expecting to see users? Try again in a few seconds as the system catches up."
       />
     );

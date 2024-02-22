@@ -29,14 +29,14 @@ module.exports = {
     });
 
     // Specify an order for the testimonials on this page using the last names of quote authors
-    let testimonialOrderForThisPage = ['Gomez', 'Fohs', 'Grzelak', 'Botelho', 'Whetstone', 'Carr'];
+    let testimonialOrderForThisPage = ['Erik Gomez', 'Nick Fohs', 'Dan Grzelak', 'Kenny Botelho', 'Wes Whetstone', 'Matt Carr'];
     testimonialsForScrollableTweets.sort((a, b)=>{
-      if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName.split(' ')[1]) === -1){
+      if(testimonialOrderForThisPage.indexOf(a.quoteAuthorName) === -1){
         return 1;
-      } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName.split(' ')[1]) === -1) {
+      } else if(testimonialOrderForThisPage.indexOf(b.quoteAuthorName) === -1) {
         return -1;
       }
-      return testimonialOrderForThisPage.indexOf(a.quoteAuthorName.split(' ')[1]) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName.split(' ')[1]);
+      return testimonialOrderForThisPage.indexOf(a.quoteAuthorName) - testimonialOrderForThisPage.indexOf(b.quoteAuthorName);
     });
 
     // Respond with view.

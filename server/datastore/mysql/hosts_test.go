@@ -99,6 +99,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByName", testHostsIDsByName},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -420,10 +421,12 @@ func testSaveHostPackStatsDB(t *testing.T, ds *Datastore) {
 			OutputSize:    134,
 			SystemTime:    1656,
 			UserTime:      18453,
-			WallTime:      10,
+			WallTime:      10000,
 		},
 	})
 	assert.Equal(t, host.PackStats[1].PackName, "test2")
+	// Server calculates WallTimeMs if WallTimeMs==0 coming in. (osquery wall_time -> wall_time_ms -> DB wall_time)
+	stats2[0].WallTime = stats2[0].WallTime * 1000
 	assert.ElementsMatch(t, host.PackStats[1].QueryStats, stats2)
 }
 
@@ -2481,8 +2484,76 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
-	require.Error(t, err)
-	require.Nil(t, h)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+}
+
+func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 10; i++ {
+		_, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				OsqueryHostID:   ptr.String(fmt.Sprintf("osquery_host_id_%d", i)),
+				NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
+				UUID:            fmt.Sprintf("uuid_%d", i),
+				Hostname:        fmt.Sprintf("hostname_%d", i),
+				HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	var (
+		h   *fleet.HostLite
+		err error
+	)
+	identifier := "uuid_1"
+	h, err = ds.HostLiteByIdentifier(context.Background(), identifier)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	// Also test fetching host by ID
+	h, err = ds.HostLiteByID(context.Background(), h.ID)
+	require.NoError(t, err)
+	assert.Equal(t, identifier, h.UUID)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
+	require.NoError(t, err)
+	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "serial_9")
+	require.NoError(t, err)
+	assert.Equal(t, uint(9), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "foobar")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByID(context.Background(), 0)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -4248,7 +4319,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		OutputSize:         1337,
 		SystemTime:         150,
 		UserTime:           180,
-		WallTime:           0,
+		WallTimeMs:         0,
 	}}
 	globalStatsHost2 := []fleet.ScheduledQueryStats{{
 		ScheduledQueryName: userSQuery.Name,
@@ -4264,7 +4335,7 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		OutputSize:         1338,
 		SystemTime:         151,
 		UserTime:           181,
-		WallTime:           1,
+		WallTimeMs:         1,
 	}}
 
 	// Reload the hosts and set the scheduled queries stats.
@@ -4309,6 +4380,9 @@ func testHostsPackStatsMultipleHosts(t *testing.T, ds *Datastore) {
 		packStats := host.PackStats
 		require.Len(t, packStats, 1)
 		require.Len(t, packStats[0].QueryStats, 1)
+		// Update wall time.
+		tc.expectedStats[0].WallTime = tc.expectedStats[0].WallTimeMs
+		tc.expectedStats[0].WallTimeMs = 0
 		require.ElementsMatch(t, packStats[0].QueryStats, tc.expectedStats)
 	}
 }
@@ -4445,7 +4519,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1338,
 			SystemTime:         151,
 			UserTime:           181,
-			WallTime:           1,
+			WallTimeMs:         1,
 		},
 		{
 			ScheduledQueryName: userSQuery3.Name,
@@ -4461,7 +4535,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1339,
 			SystemTime:         152,
 			UserTime:           182,
-			WallTime:           2,
+			WallTimeMs:         2,
 		},
 		{
 			ScheduledQueryName: userSQuery4.Name,
@@ -4477,7 +4551,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1340,
 			SystemTime:         153,
 			UserTime:           183,
-			WallTime:           3,
+			WallTimeMs:         3,
 		},
 		{
 			ScheduledQueryName: userSQuery5.Name,
@@ -4493,7 +4567,7 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 			OutputSize:         1340,
 			SystemTime:         153,
 			UserTime:           183,
-			WallTime:           3,
+			WallTimeMs:         3,
 		},
 	}
 
@@ -4541,6 +4615,11 @@ func testHostsPackStatsForPlatform(t *testing.T, ds *Datastore) {
 	sort.Slice(globalStats, func(i, j int) bool {
 		return globalStats[i].ScheduledQueryID < globalStats[j].ScheduledQueryID
 	})
+	// Update wall time
+	for i := range globalStats {
+		globalStats[i].WallTime = globalStats[i].WallTimeMs
+		globalStats[i].WallTimeMs = 0
+	}
 	require.ElementsMatch(t, packStats[0].QueryStats, globalStats)
 
 	// host2 should only return scheduled query stats only for the scheduled queries
@@ -6380,8 +6459,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Update the host_mdm_actions table
 	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref, suspended)
-          VALUES (?, uuid(), uuid(), false)
+          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref)
+          VALUES (?, uuid(), uuid())
 	`, host.ID)
 	require.NoError(t, err)
 
