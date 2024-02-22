@@ -304,6 +304,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.OSIDFilter = &sid
 	}
 
+	osVersionID := r.URL.Query().Get("os_version_id")
+	if osVersionID != "" {
+		id, err := strconv.ParseUint(osVersionID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid os_version_id: %s", osVersionID)))
+		}
+		sid := uint(id)
+		hopt.OSVersionIDFilter = &sid
+	}
+
 	osName := r.URL.Query().Get("os_name")
 	if osName != "" {
 		hopt.OSNameFilter = &osName
@@ -482,6 +492,14 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 			)
 		}
 		hopt.LowDiskSpaceFilter = &v
+	}
+	populateSoftware := r.URL.Query().Get("populate_software")
+	if populateSoftware != "" {
+		ps, err := strconv.ParseBool(populateSoftware)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid populate_software: %s", populateSoftware)))
+		}
+		hopt.PopulateSoftware = ps
 	}
 
 	// cannot combine software_id, software_version_id, and software_title_id

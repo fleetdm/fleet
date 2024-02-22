@@ -94,6 +94,7 @@ const CurrentVersionSection = ({
       <SectionHeader
         title="Current versions"
         subTitle={generateSubTitleText()}
+        className={`${baseClass}__header`}
       />
       {renderTable()}
     </div>

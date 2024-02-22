@@ -34,7 +34,10 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Description = q.Description
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
 		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
 	)
 	switch {
@@ -52,6 +55,18 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
 }
 
+func policiesChecksumComputedColumn() string {
+	// concatenate with separator \x00
+	return ` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				COALESCE(team_id, ''),
+				name
+			)
+		)
+	) `
+}
+
 func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	return policyDB(ctx, ds.reader(ctx), id, nil)
 }
@@ -62,6 +77,7 @@ func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Poli
 		fmt.Sprint(`SELECT `+policyCols+`,
 		COALESCE(u.name, '<deleted>') AS author_name,
 		COALESCE(u.email, '') AS author_email,
+		ps.updated_at as host_count_updated_at,
 		COALESCE(ps.passing_host_count, 0) as passing_host_count,
 		COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
@@ -93,6 +109,7 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 		SELECT %s,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
 			COALESCE(ps.passing_host_count, 0) as passing_host_count,
 			COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
@@ -312,6 +329,7 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		SELECT ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
 			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
 			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
@@ -348,6 +366,7 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
             ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
             COALESCE(ps.passing_host_count, 0) as passing_host_count,
             COALESCE(ps.failing_host_count, 0) as failing_host_count
         FROM policies p
@@ -400,6 +419,7 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
 	  COALESCE(u.email, '') AS author_email,
+	  ps.updated_at as host_count_updated_at,
 	  COALESCE(ps.passing_host_count, 0) as passing_host_count,
 	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
@@ -515,7 +535,10 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Description = q.Description
 	}
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
 		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical)
 	switch {
 	case err == nil:
@@ -562,7 +585,8 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query := `
+		query := fmt.Sprintf(
+			`
 		INSERT INTO policies (
 			name,
 			query,
@@ -571,24 +595,19 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution,
 			team_id,
 			platforms,
-			critical
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?)
+			critical,
+			checksum
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
-			name = VALUES(name),
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
 			critical = VALUES(critical)
-		`
+		`, policiesChecksumComputedColumn(),
+		)
 		for _, spec := range specs {
-
-			// Validate that the team is not being changed
-			err := validatePolicyTeamChange(ctx, ds, spec)
-			if err != nil {
-				return err
-			}
 
 			res, err := tx.ExecContext(ctx,
 				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
@@ -609,44 +628,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 		return nil
 	})
-}
-
-// Changing the team of a policy is not allowed, so check if the policy exists
-// and return an error if the team is changing
-func validatePolicyTeamChange(ctx context.Context, ds *Datastore, spec *fleet.PolicySpec) error {
-	policy, err := ds.PolicyByName(ctx, spec.Name)
-	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "Error fetching policy by name")
-		}
-		// If no rows found there is no policy to validate against
-		return nil
-	}
-
-	// If the policy exists
-	if policy != nil {
-		// Check if the policy is global
-		if policy.TeamID == nil {
-			if spec.Team != "" {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("cannot change the team of an existing global policy"),
-				})
-			}
-		} else {
-			// If it's not global, fetch the team name and compare
-			team, err := ds.Team(ctx, *policy.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "Error fetching team by ID")
-			}
-
-			if spec.Team != team.Name {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("cannot change the team of an existing policy"),
-				})
-			}
-		}
-	}
-	return nil
 }
 
 func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
@@ -1123,6 +1104,10 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 }
 
 func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
+	// NOTE these queries are duplicated in the below migration.  Updates
+	// to these queries should be reflected there as well.
+	// https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/migrations/tables/20231215122713_InsertPolicyStatsData.go#L12
+
 	// Update Counts for Inherited Global Policies for each Team
 	_, err := ds.writer(ctx).ExecContext(ctx, `
 		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
@@ -1146,6 +1131,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		WHERE p.team_id IS NULL
 		GROUP BY p.id, t.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `)
@@ -1165,6 +1151,7 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
 		GROUP BY p.id
 		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
 			passing_host_count = VALUES(passing_host_count),
 			failing_host_count = VALUES(failing_host_count);
     `)

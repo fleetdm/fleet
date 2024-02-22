@@ -74,7 +74,7 @@ const PacksTable = ({
     };
     if (searchString) {
       delete emptyPacks.graphicName;
-      emptyPacks.header = "No packs match the current search criteria.";
+      emptyPacks.header = "No packs match the current search criteria";
       emptyPacks.info =
         "Expecting to see packs? Try again in a few seconds as the system catches up.";
       delete emptyPacks.primaryButton;
@@ -104,7 +104,7 @@ const PacksTable = ({
     <div className={`${baseClass}`}>
       <TableContainer
         resultsTitle={"packs"}
-        columns={tableHeaders}
+        columnConfigs={tableHeaders}
         data={generateDataSet(filteredPacks)}
         isLoading={isLoading}
         defaultSortHeader={"pack"}

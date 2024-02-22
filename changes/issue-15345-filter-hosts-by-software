@@ -1,1 +1,0 @@
-* Added ability to filter hosts by `software_version_id` and `software_title_id` for the "list hosts", "count hosts" and "get hosts report in CSV" endpoints.

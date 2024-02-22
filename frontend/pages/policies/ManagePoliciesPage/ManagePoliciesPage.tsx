@@ -41,7 +41,7 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import PoliciesTable from "./components/PoliciesTable";
-import ManageAutomationsModal from "./components/ManageAutomationsModal";
+import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 
@@ -368,10 +368,6 @@ const ManagePolicyPage = ({
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
     }
   };
-
-  // const findAvailableTeam = (id: number) => {
-  //   return availableTeams?.find((t) => t.id === id);
-  // };
 
   const onTeamChange = useCallback(
     (teamId: number) => {
@@ -742,13 +738,10 @@ const ManagePolicyPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           {showTeamDescription ? (
-            <p>
-              Add additional policies for <b>all hosts assigned to this team</b>
-              .
-            </p>
+            <p>Add additional policies for all hosts assigned to this team.</p>
           ) : (
             <p>
-              Add policies for <b>all of your hosts</b> to see which pass your
+              Add policies for all of your hosts to see which pass your
               organization’s standards.
             </p>
           )}
@@ -767,9 +760,13 @@ const ManagePolicyPage = ({
               globalPoliciesCount
             )}
             caretPosition={"before"}
-            tooltipHtml={`"All teams" policies are checked ${(
-              <br />
-            )} for this team's hosts.`}
+            tooltipContent={
+              <>
+                &quot;All teams&quot; policies are checked
+                <br />
+                for this team&apos;s hosts.
+              </>
+            }
             onClick={toggleShowInheritedPolicies}
           />
         )}
@@ -797,7 +794,7 @@ const ManagePolicyPage = ({
           </div>
         )}
         {config && automationsConfig && showManageAutomationsModal && (
-          <ManageAutomationsModal
+          <ManagePolicyAutomationsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}

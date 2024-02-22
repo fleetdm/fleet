@@ -1,2 +1,0 @@
-- Enabled targeting hosts by serial number in the `fleetctl run-script` and `fleetctl mdm run-command commands`.
-- Expanded `GET /hosts/identifier` endpoint to include host serial number as a potential identifier.

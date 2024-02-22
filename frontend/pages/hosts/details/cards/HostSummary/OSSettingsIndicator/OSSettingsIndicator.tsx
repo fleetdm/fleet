@@ -6,6 +6,7 @@ import { IHostMdmProfile, MdmProfileStatus } from "interfaces/mdm";
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
 import { IconNames } from "components/icons";
+import { COLORS } from "styles/var/colors";
 
 const baseClass = "os-settings-indicator";
 
@@ -145,7 +146,7 @@ const OSSettingsIndicator = ({
       <ReactTooltip
         place="bottom"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={`${baseClass}-tooltip`}
         data-html
       >

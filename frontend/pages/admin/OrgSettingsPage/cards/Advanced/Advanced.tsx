@@ -4,6 +4,7 @@ import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
+import SectionHeader from "components/SectionHeader";
 
 import {
   IAppConfigFormProps,
@@ -28,6 +29,7 @@ const Advanced = ({
     disableLiveQuery: appConfig.server_settings.live_query_disabled || false,
     disableQueryReports:
       appConfig.server_settings.query_reports_disabled || false,
+    disableScripts: appConfig.server_settings.scripts_disabled || false,
   });
 
   const {
@@ -37,6 +39,7 @@ const Advanced = ({
     enableHostExpiry,
     hostExpiryWindow,
     disableLiveQuery,
+    disableScripts,
     disableQueryReports,
   } = formData;
 
@@ -68,6 +71,7 @@ const Advanced = ({
         live_query_disabled: disableLiveQuery,
         enable_analytics: appConfig.server_settings.enable_analytics,
         query_reports_disabled: disableQueryReports,
+        scripts_disabled: disableScripts,
       },
       smtp_settings: {
         enable_smtp: appConfig.smtp_settings.enable_smtp || false,
@@ -94,165 +98,173 @@ const Advanced = ({
   };
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Advanced options</h2>
-        <div className={`${baseClass}__advanced-options`}>
+        <SectionHeader title="Advanced options" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Most users do not need to modify these options.
           </p>
-          <div className={`${baseClass}__inputs`}>
-            <div className={`${baseClass}__form-fields`}>
-              <InputField
-                label="Domain"
-                onChange={handleInputChange}
-                name="domain"
-                value={domain}
-                parseTarget
-                tooltip={
-                  <p>
-                    If you need to specify a HELO domain, <br />
-                    you can do it here{" "}
-                    <em className="hint hint--brand">
-                      (Default: <strong>Blank</strong>)
-                    </em>
-                  </p>
-                }
-              />
-              <Checkbox
-                onChange={handleInputChange}
-                name="verifySSLCerts"
-                value={verifySSLCerts}
-                parseTarget
-                tooltipContent={
-                  <p>
-                    Turn this off (not recommended) <br />
-                    if you use a self-signed certificate{" "}
-                    <em className="hint hint--brand">
-                      <br />
-                      (Default: <strong>On</strong>)
-                    </em>
-                  </p>
-                }
-              >
-                Verify SSL certs
-              </Checkbox>
-              <Checkbox
-                onChange={handleInputChange}
-                name="enableStartTLS"
-                value={enableStartTLS}
-                parseTarget
-                tooltipContent={
-                  <p>
-                    Detects if STARTTLS is enabled <br />
-                    in your SMTP server and starts <br />
-                    to use it.{" "}
-                    <em className="hint hint--brand">
-                      (Default: <strong>On</strong>)
-                    </em>
-                  </p>
-                }
-              >
-                Enable STARTTLS
-              </Checkbox>
-              <Checkbox
-                onChange={handleInputChange}
-                name="enableHostExpiry"
-                value={enableHostExpiry}
-                parseTarget
-                tooltipContent={
-                  <>
-                    When enabled, allows automatic cleanup of
-                    <br />
-                    hosts that have not communicated with Fleet in
-                    <br />
-                    the number of days specified in the{" "}
-                    <strong>
-                      Host expiry
-                      <br />
-                      window
-                    </strong>{" "}
-                    setting.{" "}
-                    <em className="hint hint--brand">
-                      (Default: <strong>Off</strong>)
-                    </em>
-                  </>
-                }
-              >
-                Host expiry
-              </Checkbox>
-              {enableHostExpiry && (
-                <InputField
-                  label="Host expiry window"
-                  type="number"
-                  onChange={handleInputChange}
-                  name="hostExpiryWindow"
-                  value={hostExpiryWindow}
-                  parseTarget
-                  error={formErrors.host_expiry_window}
-                />
-              )}
-              <Checkbox
-                onChange={handleInputChange}
-                name="disableLiveQuery"
-                value={disableLiveQuery}
-                parseTarget
-                tooltipContent={
-                  <p>
-                    When enabled, disables the ability to run live queries{" "}
-                    <br />
-                    (ad hoc queries executed via the UI or fleetctl).{" "}
-                    <em className="hint hint--brand">
-                      (Default: <strong>Off</strong>)
-                    </em>
-                  </p>
-                }
-              >
-                Disable live queries
-              </Checkbox>
-              <Checkbox
-                onChange={handleInputChange}
-                name="disableQueryReports"
-                value={disableQueryReports}
-                parseTarget
-                // TODO - once refactor is merged, have this and bove tooltips disappear more
-                // quickly to get out of users' way
-                tooltipContent={
-                  <>
-                    <p>
-                      Disabling query reports will decrease database usage,{" "}
-                      <br />
-                      but will prevent you from accessing query results in
-                      <br />
-                      Fleet and will delete existing reports. This can also be{" "}
-                      <br />
-                      disabled on a per-query basis by enabling &quot;Discard{" "}
-                      <br />
-                      data&quot;.{" "}
-                      <em>
-                        (Default: <b>Off</b>)
-                      </em>
-                    </p>
-                  </>
-                }
-                helpText="Enabling this setting will delete all existing query reports in Fleet."
-              >
-                Disable query reports
-              </Checkbox>
-            </div>
-          </div>
-        </div>
+          <InputField
+            label="Domain"
+            onChange={handleInputChange}
+            name="domain"
+            value={domain}
+            parseTarget
+            tooltip={
+              <p>
+                If you need to specify a HELO domain, <br />
+                you can do it here{" "}
+                <em>
+                  (Default: <strong>Blank</strong>)
+                </em>
+              </p>
+            }
+          />
+          <Checkbox
+            onChange={handleInputChange}
+            name="verifySSLCerts"
+            value={verifySSLCerts}
+            parseTarget
+            tooltipContent={
+              <p>
+                Turn this off (not recommended) <br />
+                if you use a self-signed certificate{" "}
+                <em>
+                  <br />
+                  (Default: <strong>On</strong>)
+                </em>
+              </p>
+            }
+          >
+            Verify SSL certs
+          </Checkbox>
+          <Checkbox
+            onChange={handleInputChange}
+            name="enableStartTLS"
+            value={enableStartTLS}
+            parseTarget
+            tooltipContent={
+              <p>
+                Detects if STARTTLS is enabled <br />
+                in your SMTP server and starts <br />
+                to use it.{" "}
+                <em>
+                  (Default: <strong>On</strong>)
+                </em>
+              </p>
+            }
+          >
+            Enable STARTTLS
+          </Checkbox>
+          <Checkbox
+            onChange={handleInputChange}
+            name="enableHostExpiry"
+            value={enableHostExpiry}
+            parseTarget
+            tooltipContent={
+              <>
+                When enabled, allows automatic cleanup of
+                <br />
+                hosts that have not communicated with Fleet in
+                <br />
+                the number of days specified in the{" "}
+                <strong>
+                  Host expiry
+                  <br />
+                  window
+                </strong>{" "}
+                setting.{" "}
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </>
+            }
+          >
+            Host expiry
+          </Checkbox>
+          {enableHostExpiry && (
+            <InputField
+              label="Host expiry window"
+              type="number"
+              onChange={handleInputChange}
+              name="hostExpiryWindow"
+              value={hostExpiryWindow}
+              parseTarget
+              error={formErrors.host_expiry_window}
+            />
+          )}
+          <Checkbox
+            onChange={handleInputChange}
+            name="disableLiveQuery"
+            value={disableLiveQuery}
+            parseTarget
+            tooltipContent={
+              <p>
+                When enabled, disables the ability to run live queries <br />
+                (ad hoc queries executed via the UI or fleetctl).{" "}
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </p>
+            }
+          >
+            Disable live queries
+          </Checkbox>
+          <Checkbox
+            onChange={handleInputChange}
+            name="disableScripts"
+            value={disableScripts}
+            parseTarget
+            tooltipContent={
+              <p>
+                Disabling scripts will block access to run scripts. Scripts{" "}
+                <br /> may still be added and removed in the UI and API. <br />
+                <em>
+                  (Default: <strong>Off</strong>)
+                </em>
+              </p>
+            }
+          >
+            Disable scripts
+          </Checkbox>
+          <Checkbox
+            onChange={handleInputChange}
+            name="disableQueryReports"
+            value={disableQueryReports}
+            parseTarget
+            tooltipContent={
+              <>
+                <p>
+                  Disabling query reports will decrease database usage, <br />
+                  but will prevent you from accessing query results in
+                  <br />
+                  Fleet and will delete existing reports. This can also be{" "}
+                  <br />
+                  disabled on a per-query basis by enabling &quot;Discard <br />
+                  data&quot;.{" "}
+                  <em>
+                    (Default: <b>Off</b>)
+                  </em>
+                </p>
+              </>
+            }
+            helpText="Enabling this setting will delete all existing query reports in Fleet."
+          >
+            Disable query reports
+          </Checkbox>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="save-loading button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

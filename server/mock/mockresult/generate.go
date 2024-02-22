@@ -1,3 +1,3 @@
 package mock
 
-//go:generate mockimpl -o datastore_query_results.go "s *QueryResultStore" "fleet.QueryResultStore"
+//go:generate go run ../mockimpl/impl.go -o datastore_query_results.go "s *QueryResultStore" "fleet.QueryResultStore"

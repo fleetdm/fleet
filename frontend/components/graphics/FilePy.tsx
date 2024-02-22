@@ -3,7 +3,7 @@ import React from "react";
 const FilePy = () => {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
-      <g clipPath="url(#a)">
+      <g clipPath="url(#filepy_clippath)">
         <path
           fill="#fff"
           stroke="#192147"
@@ -46,7 +46,7 @@ const FilePy = () => {
         />
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="filepy_clippath">
           <path fill="#fff" d="M0 0h34v40H0z" />
         </clipPath>
       </defs>

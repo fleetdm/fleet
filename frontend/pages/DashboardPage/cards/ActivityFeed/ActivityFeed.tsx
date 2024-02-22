@@ -7,6 +7,7 @@ import activitiesAPI, {
 } from "services/entities/activities";
 
 import { ActivityType, IActivityDetails } from "interfaces/activity";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 
 import ShowQueryModal from "components/modals/ShowQueryModal";
 import DataError from "components/DataError";
@@ -35,6 +36,7 @@ const ActivityFeed = ({
   const [showShowQueryModal, setShowShowQueryModal] = useState(false);
   const [showScriptDetailsModal, setShowScriptDetailsModal] = useState(false);
   const queryShown = useRef("");
+  const queryImpact = useRef<string | undefined>(undefined);
   const scriptExecutionId = useRef("");
 
   const {
@@ -58,7 +60,7 @@ const ActivityFeed = ({
     {
       keepPreviousData: true,
       staleTime: 5000,
-      onSuccess: (data) => {
+      onSuccess: () => {
         setShowActivityFeedTitle(true);
       },
       onError: () => {
@@ -82,6 +84,9 @@ const ActivityFeed = ({
     switch (activityType) {
       case ActivityType.LiveQuery:
         queryShown.current = details.query_sql ?? "";
+        queryImpact.current = details.stats
+          ? getPerformanceImpactDescription(details.stats)
+          : undefined;
         setShowShowQueryModal(true);
         break;
       case ActivityType.RanScript:
@@ -169,6 +174,7 @@ const ActivityFeed = ({
       {showShowQueryModal && (
         <ShowQueryModal
           query={queryShown.current}
+          impact={queryImpact.current}
           onCancel={() => setShowShowQueryModal(false)}
         />
       )}

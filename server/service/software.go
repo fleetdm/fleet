@@ -4,7 +4,10 @@ import (
 	"context"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 )
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -29,7 +32,7 @@ func (r listSoftwareResponse) error() error { return r.Err }
 // DEPRECATED: use listSoftwareVersionsEndpoint instead
 func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
-	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+	resp, _, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareResponse{Err: err}, nil
 	}
@@ -50,17 +53,23 @@ func listSoftwareEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 }
 
 type listSoftwareVersionsResponse struct {
-	Count           int              `json:"count"`
-	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
-	Software        []fleet.Software `json:"software,omitempty"`
-	Err             error            `json:"error,omitempty"`
+	Count           int                       `json:"count"`
+	CountsUpdatedAt *time.Time                `json:"counts_updated_at"`
+	Software        []fleet.Software          `json:"software,omitempty"`
+	Meta            *fleet.PaginationMetadata `json:"meta"`
+	Err             error                     `json:"error,omitempty"`
 }
 
 func (r listSoftwareVersionsResponse) error() error { return r.Err }
 
 func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*listSoftwareRequest)
-	resp, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
+
+	// always include pagination for new software versions endpoint (not included by default in
+	// legacy endpoint for backwards compatibility)
+	req.SoftwareListOptions.ListOptions.IncludeMetadata = true
+
+	resp, meta, err := svc.ListSoftware(ctx, req.SoftwareListOptions)
 	if err != nil {
 		return listSoftwareVersionsResponse{Err: err}, nil
 	}
@@ -72,7 +81,7 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 			latest = sw.CountsUpdatedAt
 		}
 	}
-	listResp := listSoftwareVersionsResponse{Software: resp}
+	listResp := listSoftwareVersionsResponse{Software: resp, Meta: meta}
 	if !latest.IsZero() {
 		listResp.CountsUpdatedAt = &latest
 	}
@@ -86,11 +95,11 @@ func listSoftwareVersionsEndpoint(ctx context.Context, request interface{}, svc 
 	return listResp, nil
 }
 
-func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{
 		TeamID: opt.TeamID,
 	}, fleet.ActionRead); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// default sort order to hosts_count descending
@@ -100,12 +109,12 @@ func (svc *Service) ListSoftware(ctx context.Context, opt fleet.SoftwareListOpti
 	}
 	opt.WithHostCounts = true
 
-	softwares, err := svc.ds.ListSoftware(ctx, opt)
+	softwares, meta, err := svc.ds.ListSoftware(ctx, opt)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	return softwares, nil
+	return softwares, meta, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -139,9 +148,29 @@ func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores 
 		return nil, err
 	}
 
-	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores)
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
+	software, err := svc.ds.SoftwareByID(ctx, id, includeCVEScores, &fleet.TeamFilter{
+		User:            vc.User,
+		IncludeObserver: true,
+	})
 	if err != nil {
-		return nil, err
+		if fleet.IsNotFound(err) {
+			// here we use a global admin as filter because we want
+			// to check if the software version exists
+			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+			if _, err = svc.ds.SoftwareByID(ctx, id, includeCVEScores, &filter); err != nil {
+				return nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			}
+
+			return nil, fleet.NewPermissionError("Error: You don’t have permission to view specified software. It is installed on hosts that belong to team you don’t have permissions to view.")
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "getting software version by id")
 	}
 
 	return software, nil

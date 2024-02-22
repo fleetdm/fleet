@@ -45,24 +45,27 @@ const HostDetailsBanners = ({
     mdmName === "Fleet" &&
     diskEncryptionStatus === "action_required";
 
-  return (
-    <div className={baseClass}>
-      {showTurnOnMdmInfoBanner && (
-        <InfoBanner color="yellow">
-          To change settings and install software, ask the end user to follow
-          the <strong>Turn on MDM</strong> instructions on their{" "}
-          <strong>My device</strong> page.
-        </InfoBanner>
-      )}
-      {showDiskEncryptionUserActionRequired && (
-        <InfoBanner color="yellow">
-          Disk encryption: Requires action from the end user. Ask the end user
-          to follow <b>Disk encryption</b> instructions on their{" "}
-          <b>My device</b> page.
-        </InfoBanner>
-      )}
-    </div>
-  );
+  if (showTurnOnMdmInfoBanner || showDiskEncryptionUserActionRequired) {
+    return (
+      <div className={baseClass}>
+        {showTurnOnMdmInfoBanner && (
+          <InfoBanner color="yellow">
+            To change settings and install software, ask the end user to follow
+            the <strong>Turn on MDM</strong> instructions on their{" "}
+            <strong>My device</strong> page.
+          </InfoBanner>
+        )}
+        {showDiskEncryptionUserActionRequired && (
+          <InfoBanner color="yellow">
+            Disk encryption: Requires action from the end user. Ask the end user
+            to follow <b>Disk encryption</b> instructions on their{" "}
+            <b>My device</b> page.
+          </InfoBanner>
+        )}
+      </div>
+    );
+  }
+  return null;
 };
 
 export default HostDetailsBanners;

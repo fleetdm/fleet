@@ -1,9 +1,7 @@
 import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
-import InfoBanner from "components/InfoBanner";
 import TableContainer from "components/TableContainer";
-import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import {
@@ -11,7 +9,6 @@ import {
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
-import { isValidPolicyResponse } from "../../../ManageHostsPage/helpers";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -33,7 +30,6 @@ const Policies = ({
         <EmptyTable
           header={
             <>
-              {" "}
               No policies are checked{" "}
               {deviceUser ? `on your device` : `for this host`}
             </>
@@ -55,10 +51,6 @@ const Policies = ({
     // Remove view all hosts link
     tableHeaders.pop();
   }
-  const noResponses: IHostPolicy[] =
-    policies.filter(
-      (policy: IHostPolicy) => !isValidPolicyResponse(policy.response)
-    ) || [];
   const failingResponses: IHostPolicy[] =
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
 
@@ -71,26 +63,11 @@ const Policies = ({
           {failingResponses?.length > 0 && (
             <PolicyFailingCount policyList={policies} deviceUser={deviceUser} />
           )}
-          {noResponses?.length > 0 && !deviceUser && (
-            <InfoBanner>
-              <p>
-                This host is not updating the response for some policies. Check
-                out the Fleet documentation on&nbsp;
-                <CustomLink
-                  url="https://fleetdm.com/docs/using-fleet/faq#why-is-my-host-not-updating-a-policys-response"
-                  text="why the response might not be updating"
-                  newTab
-                  multiline
-                />
-              </p>
-            </InfoBanner>
-          )}
           <TableContainer
-            columns={tableHeaders}
+            columnConfigs={tableHeaders}
             data={generatePolicyDataSet(policies)}
             isLoading={isLoading}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
+            manualSortBy
             resultsTitle={"policy items"}
             emptyComponent={() => <></>}
             showMarkAllPages={false}

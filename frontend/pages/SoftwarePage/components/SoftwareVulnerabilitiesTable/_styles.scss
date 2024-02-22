@@ -1,0 +1,18 @@
+.software-vulnerabilities-table {
+  // keeps table data within the table container at smaller screen sizes
+  .data-table {
+    &__wrapper {
+      overflow-x: auto;
+    }
+  }
+
+  .empty-table__container {
+    margin: 1.5rem auto;
+  }
+
+  // used to position header text with premium icon correctly
+  .column-header {
+    display: flex;
+    gap: $pad-small;
+  }
+}

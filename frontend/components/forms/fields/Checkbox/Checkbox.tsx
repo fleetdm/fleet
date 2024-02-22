@@ -21,7 +21,7 @@ export interface ICheckboxProps {
   parseTarget?: boolean;
   tooltipContent?: React.ReactNode;
   isLeftLabel?: boolean;
-  helpText?: string;
+  helpText?: React.ReactNode;
 }
 
 const Checkbox = (props: ICheckboxProps) => {
@@ -56,7 +56,7 @@ const Checkbox = (props: ICheckboxProps) => {
     baseClass
   );
   const formFieldProps = {
-    ...pick(props, ["hint", "label", "error", "name"]),
+    ...pick(props, ["helpText", "label", "error", "name"]),
     className: wrapperClassName,
     type: "checkbox",
   } as IFormFieldProps;
@@ -91,9 +91,6 @@ const Checkbox = (props: ICheckboxProps) => {
             <span className={`${baseClass}__label`}>{children} </span>
           )}
         </label>
-        {helpText && (
-          <span className={`${baseClass}__help-text`}>{helpText}</span>
-        )}
       </>
     </FormField>
   );

@@ -1,46 +1,18 @@
 # Fleet server configuration
 
-## Configuring the Fleet binary
+Fleet server configuration options update the internals of the Fleet server (MySQL database, Redis, etc.). Modifying these options requires restarting your Fleet server.
 
-For information on how to run the `fleet` binary, find detailed usage information by running `fleet --help`. This document is a more detailed version of the data presented in the help output text. If you prefer to use a CLI instead of a web browser, we hope  you like the binary interface of the Fleet application!
+Only self-managed users and customers can modify this configuration. If you're a managed-cloud customer, please reach out to Fleet about modifying the configuration.
 
-### High-level configuration overview
+You can specify configuration options in the following formats:
 
-In order to get the most out of running the Fleet server, it is helpful to establish a mutual understanding of what the desired architecture looks like and what it's trying to accomplish.
+1. YAML file
+2. Environment variables
+3. Command-line flags
 
-Your Fleet server's two main purposes are:
+All duration-based settings accept valid time units of `s`, `m`, `h`.
 
-- To serve as your [osquery TLS server](https://osquery.readthedocs.io/en/stable/deployment/remote/)
-- To serve the Fleet web UI, which allows you to manage osquery configuration, query hosts, etc.
-
-The Fleet server allows you to persist configuration, manage users, etc. Thus, it needs a database. Fleet uses MySQL and requires you to supply configurations to connect to a MySQL server. It is also possible to configure your connection to a MySQL replica in addition to the primary. This is for reading only. Fleet also uses Redis to perform more high-speed data access action throughout the applications lifecycle (for example, distributed query result ingestion). Thus, Fleet also requires that you supply Redis connection configurations.
-
-Fleet can scale to hundreds of thousands of devices with a single Redis instance and is also compatible with Redis Cluster. Fleet does not support Redis Sentinel.
-
-Since Fleet is a web application, when you run it there are other configurations that must be defined, such as:
-
-- The TLS certificates that Fleet should use to terminate TLS.
-
-When deploying Fleet, mitigate DoS attacks as you would when deploying any app.
-
-Since Fleet is an osquery TLS server, you are also able to define configurations that can customize your experience there, such as:
-
-- The destination of the osquery status and result logs on the local filesystem
-- Various details about the refresh/check-in intervals for your hosts
-
-### Options
-
-#### How do you specify options?
-
-You can specify options in the order of precedence via
-
-1. a configuration file (in YAML format)
-2. environment variables
-3. command-line flags
-
-For example, all of the following ways of launching Fleet are equivalent:
-
-##### 1. Using a YAML config file
+## YAML file
 
 ```sh
 echo '
@@ -61,9 +33,7 @@ logging:
 fleet serve --config /tmp/fleet.yml
 ```
 
-For more information on using YAML configuration files with fleet, please see the [configuration files](https://fleetdm.com/docs/using-fleet/configuration-files) documentation.
-
-##### 2. Using only environment variables
+## Environment variables
 
 ```sh
 FLEET_MYSQL_ADDRESS=127.0.0.1:3306 \
@@ -77,7 +47,7 @@ FLEET_LOGGING_JSON=true \
 /usr/bin/fleet serve
 ```
 
-##### 3. Using only CLI flags
+## Command-line flags
 
 ```sh
 /usr/bin/fleet serve \
@@ -92,25 +62,7 @@ FLEET_LOGGING_JSON=true \
 ```
 
 
-### What are the options?
-
-Note that all option names can be converted consistently from flag name to environment variable and visa-versa. For example, the `--mysql_address` flag would be the `FLEET_MYSQL_ADDRESS`. Further, specifying the `mysql_address` option in the config would follow the pattern:
-
-```yaml
-mysql:
-  address: 127.0.0.1:3306
-```
-
-And `mysql_read_replica_address` would be:
-
-```yaml
-mysql_read_replica:
-  address: 127.0.0.1:3307
-```
-
-Basically, just capitalize the option and prepend `FLEET_` to it to get the environment variable. The conversion works the same the opposite way.
-
-All duration-based settings accept valid time units of `s`, `m`, `h`.
+## Configuration options
 
 #### MySQL
 
@@ -249,6 +201,14 @@ The maximum open connections to the database.
   mysql:
     max_open_conns: 50
   ```
+
+- Note: Fleet server uses SQL prepared statements, and the default setting of MySQL DB server's [max_prepared_stmt_count](https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_prepared_stmt_count)
+may need to be adjusted for large deployments. This setting should be greater than or equal to:
+```
+FLEET_MYSQL_MAX_OPEN_CONNS * (max number of fleet servers) * 4
+```
+
+> Fleet uses 3 prepared statements for authentication (used by Fleet API) + each database connection can be using 1 additional prepared statement.
 
 ##### mysql_max_idle_conns
 
@@ -748,6 +708,12 @@ The bcrypt cost to use when hashing user passwords.
 
 The key size of the salt which is generated when hashing user passwords.
 
+> Note: Fleet uses the `bcrypt` hashing algorithm for hashing passwords, which has a [72 character
+> input limit](https://en.wikipedia.org/wiki/Bcrypt#Maximum_password_length). This means that the
+> plaintext password (i.e. the password input by the user) length + the value of
+> `auth_salt_key_size` cannot exceed 72. In the default case, the max length of a plaintext password
+> is 48 (72 - 24).
+
 - Default value: `24`
 - Environment variable: `FLEET_AUTH_SALT_KEY_SIZE`
 - Config file format:
@@ -792,7 +758,9 @@ How long invite tokens should be valid for.
 
 ##### app_enable_scheduled_query_stats
 
-Determines whether Fleet gets scheduled query statistics from hosts or not.
+Determines whether Fleet collects performance impact statistics for scheduled queries.
+
+If set to `false`, stats are still collected for live queries.
 
 - Default value: `true`
 - Environment variable: `FLEET_APP_ENABLE_SCHEDULED_QUERY_STATS`
@@ -2791,9 +2759,9 @@ The content of the Simple Certificate Enrollment Protocol (SCEP) certificate. An
       -----END CERTIFICATE-----
   ```
 
-The SCEP certificate/key pair [generated by Fleet](../Using%20Fleet/MDM-setup.md#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
+The SCEP certificate/key pair [generated by Fleet](https://fleetdm.com/docs/using-fleet/MDM-setup#step-1-generate-the-required-files) expires every 10 years. It's recommended to never change these unless they were compromised. 
 
-If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](../Using%20Fleet/MDM-migration-guide.md#how-to-turn-on-disk-encryption).
+If your certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on and the keys are [reset by the end user](https://fleetdm.com/docs/using-fleet/MDM-migration-guide#how-to-turn-on-disk-encryption).
 
 ##### mdm.apple_scep_key_bytes
 
@@ -2905,7 +2873,6 @@ The duration between DEP device syncing (fetching and setting of DEP profiles). 
     apple_dep_sync_periodicity: 10m
   ```
 ##### mdm.windows_wstep_identity_cert_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM-encoded.
 - Default value: ""
@@ -2922,7 +2889,6 @@ The content of the Windows WSTEP identity certificate. An X.509 certificate, PEM
 If your WSTEP certificate/key pair was compromised and you change the pair, the disk encryption keys will no longer be viewable on all macOS hosts' **Host details** page until you turn disk encryption off and back on.
 
 ##### mdm.windows_wstep_identity_key_bytes
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
 
 The content of the Windows WSTEP identity key. An RSA private key, PEM-encoded.
 - Default value: ""

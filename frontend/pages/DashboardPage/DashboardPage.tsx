@@ -447,6 +447,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         linuxCount={linuxCount}
         chromeCount={chromeCount}
         isLoadingHostsSummary={isHostSummaryFetching}
+        builtInLabels={labels}
         showHostsUI={showHostsUI}
         selectedPlatform={selectedPlatform}
         errorHosts={!!errorHosts}
@@ -465,11 +466,11 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const onSoftwareTabChange = (index: number) => {
-    const { MANAGE_SOFTWARE } = paths;
+    const { SOFTWARE_TITLES } = paths;
     setSoftwareNavTabIndex(index);
     setSoftwareActionUrl &&
       setSoftwareActionUrl(
-        index === 1 ? `${MANAGE_SOFTWARE}?vulnerable=true` : MANAGE_SOFTWARE
+        index === 1 ? `${SOFTWARE_TITLES}?vulnerable=true` : SOFTWARE_TITLES
       );
   };
 

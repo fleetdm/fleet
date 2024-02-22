@@ -2,6 +2,7 @@ import React, { useState } from "react";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import { IAppConfigFormProps, IFormField } from "../constants";
@@ -41,10 +42,10 @@ const Statistics = ({
   };
 
   return (
-    <>
-      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`${baseClass}__section`}>
-          <h2>Usage statistics</h2>
+    <div className={baseClass}>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Usage statistics" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__section-description`}>
             Help us improve Fleet by sending us anonymous usage statistics.
             <br />
@@ -61,32 +62,30 @@ const Statistics = ({
               newTab
             />
           </p>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--usage`}>
-            <Checkbox
-              onChange={handleInputChange}
-              name="enableUsageStatistics"
-              value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
-              parseTarget
-              wrapperClassName={
-                isPremiumTier
-                  ? `${baseClass}__disabled-usage-statistics-checkbox`
-                  : ""
-              }
-            >
-              Enable usage statistics
-            </Checkbox>
-          </div>
-        </div>
-        <Button
-          type="submit"
-          variant="brand"
-          className="save-loading"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      </form>
-    </>
+          <Checkbox
+            onChange={handleInputChange}
+            name="enableUsageStatistics"
+            value={isPremiumTier ? true : enableUsageStatistics} // Set to true for all premium customers
+            parseTarget
+            wrapperClassName={
+              isPremiumTier
+                ? `${baseClass}__disabled-usage-statistics-checkbox`
+                : ""
+            }
+          >
+            Enable usage statistics
+          </Checkbox>
+          <Button
+            type="submit"
+            variant="brand"
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
+      </div>
+    </div>
   );
 };
 

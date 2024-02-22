@@ -8,6 +8,7 @@ import Dropdown from "components/forms/fields/Dropdown";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import Modal from "components/Modal";
 import {
@@ -139,29 +140,27 @@ const HostStatusWebhook = ({
   };
 
   return (
-    <>
-      <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
-        <div className={`${baseClass}__section`}>
-          <h2>Host status webhook</h2>
-          <div className={`${baseClass}__host-status-webhook`}>
-            <p className={`${baseClass}__section-description`}>
-              Send an alert if a portion of your hosts go offline.
-            </p>
-            <Checkbox
-              onChange={handleInputChange}
-              name="enableHostStatusWebhook"
-              value={enableHostStatusWebhook}
-              parseTarget
-            >
-              Enable host status webhook
-            </Checkbox>
+    <div className={baseClass}>
+      <div className={`${baseClass}__section`}>
+        <SectionHeader title="Host status webhook" />
+        <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+          <p className={`${baseClass}__section-description`}>
+            Send an alert if a portion of your hosts go offline.
+          </p>
+          <Checkbox
+            onChange={handleInputChange}
+            name="enableHostStatusWebhook"
+            value={enableHostStatusWebhook}
+            parseTarget
+          >
+            Enable host status webhook
+          </Checkbox>
+          <div>
             <p className={`${baseClass}__section-description`}>
               A request will be sent to your configured <b>Destination URL</b>{" "}
               if the configured <b>Percentage of hosts</b> have not checked into
               Fleet for the configured <b>Number of days</b>.
             </p>
-          </div>
-          <div className={`${baseClass}__inputs ${baseClass}__inputs--webhook`}>
             <Button
               type="button"
               variant="inverse"
@@ -170,80 +169,74 @@ const HostStatusWebhook = ({
               Preview request
             </Button>
           </div>
-          <div className={`${baseClass}__inputs`}>
-            <InputField
-              placeholder="https://server.com/example"
-              label="Destination URL"
-              onChange={handleInputChange}
-              name="hostStatusWebhookDestinationUrl"
-              value={hostStatusWebhookDestinationUrl}
-              parseTarget
-              onBlur={validateForm}
-              error={formErrors.destination_url}
-              tooltip={
-                <p>
-                  Provide a URL to deliver <br />
-                  the webhook request to.
-                </p>
-              }
-            />
-          </div>
-          <div className={`${baseClass}__inputs ${baseClass}__host-percentage`}>
-            <Dropdown
-              label="Percentage of hosts"
-              options={percentageOfHosts}
-              onChange={handleInputChange}
-              name="hostStatusWebhookHostPercentage"
-              value={hostStatusWebhookHostPercentage}
-              parseTarget
-              onBlur={validateForm}
-              tooltip={
-                <p>
-                  Select the minimum percentage of hosts that
-                  <br />
-                  must fail to check into Fleet in order to trigger
-                  <br />
-                  the webhook request.
-                </p>
-              }
-            />
-          </div>
-          <div className={`${baseClass}__inputs ${baseClass}__days-count`}>
-            <Dropdown
-              label="Number of days"
-              options={numberOfDays}
-              onChange={handleInputChange}
-              name="hostStatusWebhookDaysCount"
-              value={hostStatusWebhookDaysCount}
-              parseTarget
-              onBlur={validateForm}
-              tooltip={
-                <p>
-                  Select the minimum number of days that the
-                  <br />
-                  configured <b>Percentage of hosts</b> must fail to
-                  <br />
-                  check into Fleet in order to trigger the
-                  <br />
-                  webhook request.
-                </p>
-              }
-            />
-          </div>
-        </div>
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={Object.keys(formErrors).length > 0}
-          className="save-loading"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      </form>
+          <InputField
+            placeholder="https://server.com/example"
+            label="Destination URL"
+            onChange={handleInputChange}
+            name="hostStatusWebhookDestinationUrl"
+            value={hostStatusWebhookDestinationUrl}
+            parseTarget
+            onBlur={validateForm}
+            error={formErrors.destination_url}
+            tooltip={
+              <p>
+                Provide a URL to deliver <br />
+                the webhook request to.
+              </p>
+            }
+          />
+          <Dropdown
+            label="Percentage of hosts"
+            options={percentageOfHosts}
+            onChange={handleInputChange}
+            name="hostStatusWebhookHostPercentage"
+            value={hostStatusWebhookHostPercentage}
+            parseTarget
+            onBlur={validateForm}
+            tooltip={
+              <p>
+                Select the minimum percentage of hosts that
+                <br />
+                must fail to check into Fleet in order to trigger
+                <br />
+                the webhook request.
+              </p>
+            }
+          />
+          <Dropdown
+            label="Number of days"
+            options={numberOfDays}
+            onChange={handleInputChange}
+            name="hostStatusWebhookDaysCount"
+            value={hostStatusWebhookDaysCount}
+            parseTarget
+            onBlur={validateForm}
+            tooltip={
+              <p>
+                Select the minimum number of days that the
+                <br />
+                configured <b>Percentage of hosts</b> must fail to
+                <br />
+                check into Fleet in order to trigger the
+                <br />
+                webhook request.
+              </p>
+            }
+          />
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
+      </div>
       {showHostStatusWebhookPreviewModal &&
         renderHostStatusWebhookPreviewModal()}
-    </>
+    </div>
   );
 };
 

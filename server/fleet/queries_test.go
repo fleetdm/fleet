@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"database/sql"
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -231,7 +230,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 					HostID:      1,
 					Hostname:    sql.NullString{String: "macOS host", Valid: true},
 					LastFetched: macOSUSBDevicesLastFetched,
-					Data: json.RawMessage(`{
+					Data: ptr.RawMessage([]byte(`{
 						"class": "9",
 						"model": "AppleUSBVHCIBCE Root Hub Simulation",
 						"model_id": "8000",
@@ -244,13 +243,13 @@ func TestMapQueryReportResultRows(t *testing.T) {
 						"vendor": "Apple Inc.",
 						"vendor_id": "05bc",
 						"version": "0.0"
-					}`),
+					}`)),
 				},
 				{
 					HostID:      1,
 					Hostname:    sql.NullString{String: "macOS host", Valid: true},
 					LastFetched: macOSUSBDevicesLastFetched,
-					Data: json.RawMessage(`{
+					Data: ptr.RawMessage([]byte(`{
 						"class": "9",
 						"model": "AppleUSBXHCI Root Hub Simulation",
 						"model_id": "8007",
@@ -263,13 +262,13 @@ func TestMapQueryReportResultRows(t *testing.T) {
 						"vendor": "Apple Inc.",
 						"vendor_id": "05ac",
 						"version": "0.0"
-					}`),
+					}`)),
 				},
 				{
 					HostID:      2,
 					Hostname:    sql.NullString{String: "ubuntu host", Valid: true},
 					LastFetched: ubuntuUSBDevicesLastFetched,
-					Data: json.RawMessage(`{
+					Data: ptr.RawMessage([]byte(`{
 						"class": "9",
 						"model": "1.1 root hub",
 						"model_id": "0001",
@@ -282,7 +281,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 						"vendor": "Linux Foundation",
 						"vendor_id": "1d6b",
 						"version": "0602"
-					}`),
+					}`)),
 				},
 			},
 			expected: []HostQueryResultRow{
@@ -353,7 +352,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 					HostID:      1,
 					Hostname:    sql.NullString{String: "macOS host", Valid: true},
 					LastFetched: macOSOsqueryInfoLastFetched,
-					Data: json.RawMessage(`{
+					Data: ptr.RawMessage([]byte(`{
 						"build_distro": "10.14",
 						"build_platform": "darwin",
 						"config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
@@ -366,7 +365,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 						"uuid": "589966AE-074A-503B-B17B-54B05684A120",
 						"version": "5.9.1",
 						"watcher": "96729"
-					}`),
+					}`)),
 				},
 			},
 			expected: []HostQueryResultRow{
@@ -399,7 +398,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 					HostID:      3,
 					Hostname:    sql.NullString{String: "bar", Valid: true},
 					LastFetched: time.Now(),
-					Data:        json.RawMessage(`invalid JSON`),
+					Data:        ptr.RawMessage([]byte(`invalid JSON`)),
 				},
 			},
 			shouldFail: true,
@@ -411,7 +410,7 @@ func TestMapQueryReportResultRows(t *testing.T) {
 					HostID:      3,
 					Hostname:    sql.NullString{String: "bar", Valid: true},
 					LastFetched: time.Now(),
-					Data:        json.RawMessage(`{"foobar": 1}`),
+					Data:        ptr.RawMessage([]byte(`{"foobar": 1}`)),
 				},
 			},
 			shouldFail: true,

@@ -67,6 +67,9 @@ func TestHostDetails(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return dsBats, nil
 	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 	// Health should be replaced at the service layer with custom values determined by the cycle count. See https://github.com/fleetdm/fleet/issues/6763.
 	expectedBats := []*fleet.HostBattery{{HostID: host.ID, SerialNumber: "a", CycleCount: 999, Health: "Normal"}, {HostID: host.ID, SerialNumber: "b", CycleCount: 1001, Health: "Replacement recommended"}}
 
@@ -104,6 +107,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	}
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
 	}
 
 	cases := []struct {
@@ -379,6 +385,9 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 
 	type testCase struct {
 		name        string
@@ -488,6 +497,9 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
 	hostDetail, err := svc.getHostDetails(test.UserContext(ctx, test.UserAdmin), &fleet.Host{ID: 42, Platform: "windows"}, fleet.HostDetailOptions{
@@ -582,6 +594,15 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostsLiteByIDsFunc = func(ctx context.Context, ids []uint) ([]*fleet.Host, error) {
 		return nil, nil
 	}
+	ds.SetOrUpdateCustomHostDeviceMappingFunc = func(ctx context.Context, hostID uint, email, source string) ([]*fleet.HostDeviceMapping, error) {
+		return nil, nil
+	}
+	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+		return nil, nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 
 	testCases := []struct {
 		name                  string
@@ -616,6 +637,14 @@ func TestHostAuth(t *testing.T) {
 			false,
 		},
 		{
+			"team admin, belongs to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			false,
+			false,
+		},
+		{
 			"team maintainer, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
 			true,
@@ -630,6 +659,14 @@ func TestHostAuth(t *testing.T) {
 			true,
 			true,
 			false,
+		},
+		{
+			"team admin, DOES NOT belong to team",
+			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 2}, Role: fleet.RoleAdmin}}},
+			true,
+			true,
+			true,
+			true,
 		},
 		{
 			"team maintainer, DOES NOT belong to team",
@@ -659,13 +696,25 @@ func TestHostAuth(t *testing.T) {
 			_, err := svc.GetHost(ctx, 1, opts)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
+			_, err = svc.GetHostLite(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
 			_, err = svc.HostByIdentifier(ctx, "1", opts)
+			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, _, err = svc.ListHostUpcomingActivities(ctx, 1, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
 
 			_, err = svc.GetHost(ctx, 2, opts)
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
+			_, err = svc.GetHostLite(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
 			_, err = svc.HostByIdentifier(ctx, "2", opts)
+			checkAuthErr(t, tt.shouldFailGlobalRead, err)
+
+			_, _, err = svc.ListHostUpcomingActivities(ctx, 2, fleet.ListOptions{})
 			checkAuthErr(t, tt.shouldFailGlobalRead, err)
 
 			err = svc.DeleteHost(ctx, 1)
@@ -688,6 +737,12 @@ func TestHostAuth(t *testing.T) {
 
 			err = svc.RefetchHost(ctx, 1)
 			checkAuthErr(t, tt.shouldFailTeamRead, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 1, "a@b.c")
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			_, err = svc.SetCustomHostDeviceMapping(ctx, 2, "a@b.c")
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 		})
 	}
 
@@ -958,25 +1013,110 @@ func TestEmptyTeamOSVersions(t *testing.T) {
 		return nil, newNotFoundError()
 	}
 
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+		return fleet.Vulnerabilities{}, nil
+	}
+
 	// team exists with stats
-	vers, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil)
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(1), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Len(t, vers.OSVersions, 1)
 
 	// team exists but no stats
-	vers, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil)
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(2), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.NoError(t, err)
 	assert.Empty(t, vers.OSVersions)
 
 	// team does not exist
-	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(3), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "not found", fmt.Sprint(err))
 
 	// some unknown error
-	_, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil)
+	_, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), ptr.Uint(4), ptr.String("darwin"), nil, nil, fleet.ListOptions{}, false)
 	require.Error(t, err)
 	require.Equal(t, "some unknown error", fmt.Sprint(err))
+}
+
+func TestOSVersionsListOptions(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+
+	testVersions := []fleet.OSVersion{
+		{HostsCount: 4, NameOnly: "Windows 11 Pro 22H2", Platform: "windows"},
+		{HostsCount: 1, NameOnly: "macOS 12.1", Platform: "darwin"},
+		{HostsCount: 2, NameOnly: "macOS 12.2", Platform: "darwin"},
+		{HostsCount: 3, NameOnly: "Windows 11 Pro 21H2", Platform: "windows"},
+		{HostsCount: 5, NameOnly: "Ubuntu 20.04", Platform: "ubuntu"},
+		{HostsCount: 6, NameOnly: "Ubuntu 21.04", Platform: "ubuntu"},
+	}
+
+	ds.OSVersionsFunc = func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+		return &fleet.OSVersions{CountsUpdatedAt: time.Now(), OSVersions: testVersions}, nil
+	}
+
+	ds.ListVulnsByOsNameAndVersionFunc = func(ctx context.Context, name, version string, includeCVSS bool) (fleet.Vulnerabilities, error) {
+		return fleet.Vulnerabilities{}, nil
+	}
+
+	// test default descending count sort
+	opts := fleet.ListOptions{}
+	vers, _, _, err := svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[2].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[3].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[4].NameOnly)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[5].NameOnly)
+
+	// test ascending count sort
+	opts = fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[2].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[3].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[4].NameOnly)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[5].NameOnly)
+
+	// pagination
+	opts = fleet.ListOptions{Page: 0, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "Ubuntu 21.04", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Ubuntu 20.04", vers.OSVersions[1].NameOnly)
+
+	opts = fleet.ListOptions{Page: 1, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "Windows 11 Pro 22H2", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "Windows 11 Pro 21H2", vers.OSVersions[1].NameOnly)
+
+	// pagination + ascending hosts_count sort
+	opts = fleet.ListOptions{Page: 0, PerPage: 2, OrderKey: "hosts_count", OrderDirection: fleet.OrderAscending}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 2)
+	assert.Equal(t, "macOS 12.1", vers.OSVersions[0].NameOnly)
+	assert.Equal(t, "macOS 12.2", vers.OSVersions[1].NameOnly)
+
+	// per page too high
+	opts = fleet.ListOptions{Page: 0, PerPage: 1000}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 6)
+
+	// Page number too high
+	opts = fleet.ListOptions{Page: 1000, PerPage: 2}
+	vers, _, _, err = svc.OSVersions(test.UserContext(ctx, test.UserAdmin), nil, nil, nil, nil, opts, false)
+	require.NoError(t, err)
+	assert.Len(t, vers.OSVersions, 0)
 }
 
 func TestHostEncryptionKey(t *testing.T) {
@@ -1243,6 +1383,9 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			MDM: fleet.MDM{
@@ -1298,6 +1441,180 @@ func TestHostMDMProfileDetail(t *testing.T) {
 			profs := *h.MDM.Profiles
 			require.Len(t, profs, 1)
 			require.Equal(t, tt.expectedDetail, profs[0].Detail)
+		})
+	}
+}
+
+func TestLockUnlockHostAuth(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	teamHost := &fleet.Host{TeamID: ptr.Uint(1), Platform: "darwin"}
+	globalHost := &fleet.Host{Platform: "darwin"}
+
+	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
+		if identifier == "1" {
+			return teamHost, nil
+		}
+
+		return globalHost, nil
+	}
+	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
+		return nil
+	}
+	ds.ListPacksForHostFunc = func(ctx context.Context, hid uint) (packs []*fleet.Pack, err error) {
+		return nil, nil
+	}
+	ds.ListHostBatteriesFunc = func(ctx context.Context, id uint) ([]*fleet.HostBattery, error) {
+		return nil, nil
+	}
+	ds.ListPoliciesForHostFunc = func(ctx context.Context, host *fleet.Host) ([]*fleet.HostPolicy, error) {
+		return nil, nil
+	}
+	ds.ListLabelsForHostFunc = func(ctx context.Context, hid uint) ([]*fleet.Label, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMAppleProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMAppleProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, hostUUID string) ([]fleet.HostMDMWindowsProfile, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
+		return nil, nil
+	}
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+		return nil
+	}
+	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
+		if hostID == 1 {
+			return teamHost, nil
+		}
+
+		return globalHost, nil
+	}
+	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
+		return nil, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		return &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet}, nil
+	}
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
+		return nil
+	}
+
+	cases := []struct {
+		name                  string
+		user                  *fleet.User
+		shouldFailGlobalWrite bool
+		shouldFailTeamWrite   bool
+	}{
+		{
+			name:                  "global observer",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team observer",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserver}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global observer plus",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleObserverPlus)},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team observer plus",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleObserverPlus}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global admin",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team admin",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "global maintainer",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			shouldFailGlobalWrite: false,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team maintainer",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   false,
+		},
+		{
+			name:                  "team admin wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleAdmin}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team maintainer wrong team",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 42}, Role: fleet.RoleMaintainer}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "global gitops",
+			user:                  &fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+		{
+			name:                  "team gitops",
+			user:                  &fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
+			shouldFailGlobalWrite: true,
+			shouldFailTeamWrite:   true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true, WindowsEnabledAndConfigured: true}}, nil
+			}
+			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
+
+			err := svc.LockHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.LockHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			// Pretend we locked the host
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{HostFleetPlatform: fleetPlatform, LockMDMCommand: &fleet.MDMCommand{}, LockMDMCommandResult: &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}}, nil
+			}
+
+			_, err = svc.UnlockHost(ctx, 2)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			_, err = svc.UnlockHost(ctx, 1)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+
+			// Reset so we're now pretending host is unlocked
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{}, nil
+			}
 		})
 	}
 }

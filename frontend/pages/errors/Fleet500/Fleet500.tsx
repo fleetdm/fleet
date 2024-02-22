@@ -36,7 +36,7 @@ const Fleet500 = () => (
       <p>Please file an issue if you believe this is a bug.</p>
       <div className={`${baseClass}__button-wrapper`}>
         <a
-          href="https://osquery.slack.com/join/shared_invite/zt-h29zm0gk-s2DBtGUTW4CFel0f0IjTEw#/"
+          href="https://fleetdm.com/support"
           target="_blank"
           rel="noopener noreferrer"
         >

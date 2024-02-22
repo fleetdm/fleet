@@ -8,7 +8,7 @@ const EmptyPolicies = () => {
       height="176"
       fill="none"
     >
-      <g clipPath="url(#a)">
+      <g clipPath="url(#emptypolicies_clippath)">
         <path
           fill="#F1F0FF"
           d="M162 176c41.421 0 75-33.579 75-75s-33.579-75-75-75-75 33.579-75 75 33.579 75 75 75Z"
@@ -19,7 +19,7 @@ const EmptyPolicies = () => {
           d="M162 48c13.255 0 24-10.745 24-24S175.255 0 162 0s-24 10.745-24 24 10.745 24 24 24Z"
         />
         <mask
-          id="b"
+          id="emptypolicies_mask"
           width={23}
           height={26}
           x={150}
@@ -31,7 +31,7 @@ const EmptyPolicies = () => {
         >
           <path fill="#fff" d="M150 11h23v26h-23V11Z" />
         </mask>
-        <g mask="url(#b)">
+        <g mask="url(#emptypolicies_mask)">
           <path
             stroke="#fff"
             strokeWidth={1.869}
@@ -42,7 +42,7 @@ const EmptyPolicies = () => {
             d="m165.608 19.313-5.056 5.606-3.318-2.156c-.474-.288-.948-.288-1.264.143-.316.432-.316.863.158 1.15l4.74 3.163 6.162-6.9c.316-.431.316-.863-.158-1.15-.316-.288-.948-.288-1.264.144Z"
           />
         </g>
-        <g filter="url(#c)">
+        <g filter="url(#emptypolicies_filter)">
           <path
             fill="#fff"
             d="M312.5 61H9.5a8 8 0 0 0-8 8v64a8 8 0 0 0 8 8h303a8 8 0 0 0 8-8V69a8 8 0 0 0-8-8Z"
@@ -97,11 +97,11 @@ const EmptyPolicies = () => {
         />
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="emptypolicies_clippath">
           <path fill="#fff" d="M0 0h322v176H0z" />
         </clipPath>
         <filter
-          id="c"
+          id="emptypolicies_filter"
           width={327}
           height={92}
           x={-2.5}

@@ -1,8 +1,6 @@
 output "extra_environment_variables" {
   value = merge(var.enable_apple_mdm == false ? {} : {
     FLEET_MDM_APPLE_SERVER_ADDRESS = var.public_domain_name
-    }, var.enable_windows_mdm == false ? {} : {
-    FLEET_DEV_MDM_ENABLED = "1"
   })
 }
 

@@ -18,7 +18,7 @@ import (
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
-	DeviceLock(ctx context.Context, hostUUIDs []string, uuid string) error
+	DeviceLock(ctx context.Context, host *Host, uuid string) error
 	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
@@ -80,6 +80,15 @@ type MDMAppleEnrollmentProfile struct {
 // AuthzType implements authz.AuthzTyper.
 func (m MDMAppleEnrollmentProfile) AuthzType() string {
 	return "mdm_apple_enrollment_profile"
+}
+
+// MDMAppleManualEnrollmentProfile is used for authorization checks to get the standard Fleet manual
+// enrollment profile. The actual data is returned as raw bytes.
+type MDMAppleManualEnrollmentProfile struct{}
+
+// AuthzType implements authz.AuthzTyper
+func (m MDMAppleManualEnrollmentProfile) AuthzType() string {
+	return "mdm_apple_manual_enrollment_profile"
 }
 
 // MDMAppleDEPKeyPair contains the DEP public key certificate and private key pair. Both are PEM encoded.
@@ -195,9 +204,23 @@ type MDMAppleConfigProfile struct {
 	// representation of the configuration profile. It must be XML or PKCS7 parseable.
 	Mobileconfig mobileconfig.Mobileconfig `db:"mobileconfig" json:"-"`
 	// Checksum is an MD5 hash of the Mobileconfig bytes
-	Checksum  []byte    `db:"checksum" json:"checksum,omitempty"`
-	CreatedAt time.Time `db:"created_at" json:"created_at"`
-	UpdatedAt time.Time `db:"updated_at" json:"updated_at"`
+	Checksum []byte `db:"checksum" json:"checksum,omitempty"`
+	// Labels are the associated labels for this profile
+	Labels     []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
+	CreatedAt  time.Time                   `db:"created_at" json:"created_at"`
+	UploadedAt time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+}
+
+// ConfigurationProfileLabel represents the many-to-many relationship between
+// profiles and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within profile responses.
+type ConfigurationProfileLabel struct {
+	ProfileUUID string `db:"profile_uuid" json:"-"`
+	LabelName   string `db:"label_name" json:"name"`
+	LabelID     uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
+	Broken      bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
 func NewMDMAppleConfigProfile(raw []byte, teamID *uint) (*MDMAppleConfigProfile, error) {
@@ -341,6 +364,12 @@ type MDMAppleFleetdConfig struct {
 	FleetURL      string
 	EnrollSecret  string
 	EnableScripts bool
+}
+
+// MDMCustomEnrollmentProfileItem represents an MDM enrollment profile item that
+// contains custom fields.
+type MDMCustomEnrollmentProfileItem struct {
+	EndUserEmail string
 }
 
 // MDMApplePreassignProfilePayload is the payload accepted by the endpoint that

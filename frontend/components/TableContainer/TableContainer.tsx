@@ -9,6 +9,7 @@ import SearchField from "components/forms/fields/SearchField";
 import Pagination from "components/Pagination";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import { COLORS } from "styles/var/colors";
 
 import DataTable from "./DataTable/DataTable";
 import TableContainerUtils from "./TableContainerUtils";
@@ -28,11 +29,12 @@ export interface ITableQueryData {
 interface IRowProps extends Row {
   original: {
     id?: number;
+    os_version_id?: string; // Required for onSelectSingleRow of SoftwareOSTable.tsx
   };
 }
 
 interface ITableContainerProps {
-  columns: any; // TODO: Figure out type
+  columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
   isLoading: boolean;
   manualSortBy?: boolean;
@@ -99,7 +101,7 @@ const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
 const TableContainer = ({
-  columns,
+  columnConfigs,
   data,
   filters,
   isLoading,
@@ -347,43 +349,45 @@ const TableContainer = ({
               {customControl && customControl()}
             </span>
           </div>
-          <div className={`${baseClass}__search`}>
-            {/* Render search bar only if not empty component */}
-            {searchable && !wideSearch && (
-              <>
-                <div
-                  className={`${baseClass}__search-input ${
-                    stackControls ? "stack-table-controls" : ""
-                  }`}
-                  data-tip
-                  data-for="search-tooltip"
-                  data-tip-disable={!searchToolTipText}
-                >
-                  <SearchField
-                    placeholder={inputPlaceHolder}
-                    defaultValue={searchQuery}
-                    onChange={onSearchQueryChange}
-                  />
-                </div>
-                <ReactTooltip
-                  effect="solid"
-                  backgroundColor="#3e4771"
-                  id="search-tooltip"
-                  data-html
-                >
-                  <span className={`tooltip ${baseClass}__tooltip-text`}>
-                    {searchToolTipText}
-                  </span>
-                </ReactTooltip>
-              </>
-            )}
-          </div>
+
+          {/* Render search bar only if not empty component */}
+          {searchable && !wideSearch && (
+            <div className={`${baseClass}__search`}>
+              <div
+                className={`${baseClass}__search-input ${
+                  stackControls ? "stack-table-controls" : ""
+                }`}
+                data-tip
+                data-for="search-tooltip"
+                data-tip-disable={!searchToolTipText}
+              >
+                <SearchField
+                  placeholder={inputPlaceHolder}
+                  defaultValue={searchQuery}
+                  onChange={onSearchQueryChange}
+                />
+              </div>
+              <ReactTooltip
+                effect="solid"
+                backgroundColor={COLORS["tooltip-bg"]}
+                id="search-tooltip"
+                data-html
+              >
+                <span className={`tooltip ${baseClass}__tooltip-text`}>
+                  {searchToolTipText}
+                </span>
+              </ReactTooltip>
+            </div>
+          )}
         </div>
       )}
       <div className={`${baseClass}__data-table-block`}>
         {/* No entities for this result. */}
         {(!isLoading && data.length === 0 && !isMultiColumnFilter) ||
-        (searchQuery.length && data.length === 0 && !isMultiColumnFilter) ? (
+        (searchQuery.length &&
+          data.length === 0 &&
+          !isMultiColumnFilter &&
+          !isLoading) ? (
           <>
             <EmptyComponent pageIndex={pageIndex} />
             {pageIndex !== 0 && (
@@ -403,7 +407,7 @@ const TableContainer = ({
           <>
             {/* TODO: Fix this hacky solution to clientside search being 0 rendering emptycomponent but
             no longer accesses rows.length because DataTable is not rendered */}
-            {clientFilterCount === 0 && !isMultiColumnFilter && (
+            {!isLoading && clientFilterCount === 0 && !isMultiColumnFilter && (
               <EmptyComponent pageIndex={pageIndex} />
             )}
             <div
@@ -415,7 +419,7 @@ const TableContainer = ({
             >
               <DataTable
                 isLoading={isLoading}
-                columns={columns}
+                columns={columnConfigs}
                 data={data}
                 filters={filters}
                 manualSortBy={manualSortBy}

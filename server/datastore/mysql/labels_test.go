@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -286,17 +285,17 @@ func testLabelsListHostsInLabel(t *testing.T, db *Datastore) {
 		Platform:        "darwin",
 	})
 	require.Nil(t, err)
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10))
-	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h1.ID, 10, 5, 200.0))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h2.ID, 20, 10, 200.1))
+	require.NoError(t, db.SetOrUpdateHostDisksSpace(context.Background(), h3.ID, 30, 15, 200.2))
 
 	ctx := context.Background()
 	const simpleMDM, kandji = "https://simplemdm.com", "https://kandji.io"
-	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h1.ID, false, true, simpleMDM, true, fleet.WellKnownMDMSimpleMDM, "") // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji) // enrollment: automatic
+	err = db.SetOrUpdateMDMData(ctx, h2.ID, false, true, kandji, true, fleet.WellKnownMDMKandji, "") // enrollment: automatic
 	require.NoError(t, err)
-	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM) // enrollment: unenrolled
+	err = db.SetOrUpdateMDMData(ctx, h3.ID, false, false, simpleMDM, false, fleet.WellKnownMDMSimpleMDM, "") // enrollment: unenrolled
 	require.NoError(t, err)
 
 	var simpleMDMID uint
@@ -747,8 +746,7 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
 	require.Nil(t, err)
-	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
-	assert.Equal(t, []uint{1, 2, 3}, labels)
+	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {
@@ -1394,7 +1392,7 @@ func testLabelsListHostsInLabelOSSettings(t *testing.T, db *Datastore) {
 
 	// add two hosts to MDM to enforce disk encryption, fleet doesn't enforce settings on centos so h3 is not included
 	for _, h := range []*fleet.Host{h1, h2} {
-		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet))
+		require.NoError(t, db.SetOrUpdateMDMData(context.Background(), h.ID, false, true, "https://example.com", false, fleet.WellKnownMDMFleet, ""))
 	}
 	// add disk encryption key for h1
 	require.NoError(t, db.SetOrUpdateHostDiskEncryptionKey(context.Background(), h1.ID, "test-key", "", ptr.Bool(true)))

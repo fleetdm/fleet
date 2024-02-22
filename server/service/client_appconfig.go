@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/kolide/kit/version"
+	"github.com/fleetdm/fleet/v4/server/version"
 )
 
 // ApplyAppConfig sends the application config to be applied to the Fleet instance.
@@ -14,9 +14,16 @@ func (c *Client) ApplyAppConfig(payload interface{}, opts fleet.ApplySpecOptions
 
 // ApplyNoTeamProfiles sends the list of profiles to be applied for the hosts
 // in no team.
-func (c *Client) ApplyNoTeamProfiles(profiles map[string][]byte, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyNoTeamProfiles(profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplySpecOptions, assumeEnabled bool) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
-	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, opts.RawQuery())
+	query := opts.RawQuery()
+	if assumeEnabled {
+		if query != "" {
+			query += "&"
+		}
+		query += "assume_enabled=true"
+	}
+	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query)
 }
 
 // GetAppConfig fetches the application config from the server API

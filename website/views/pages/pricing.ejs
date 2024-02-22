@@ -12,7 +12,7 @@
           <div purpose="pricing-tier-title">
             <div class="d-flex flex-row justify-content-center">
               <div class="d-flex flex-column justify-content-center">
-                <h2>Community</h2>
+                <h2>Free</h2>
                 <h3>Unlimited hosts</h3>
                 <div class="d-flex flex-row align-items-center">
                   <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
@@ -20,7 +20,7 @@
               </div>
             </div>
           </div>
-          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" href="/try-fleet">Get started free</a>
+          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" target="_blank" href="https://github.com/fleetdm/fleet">View source code</a>
         </div>
         <%// Fleet Premium tier card %>
         <div purpose="premium-card" class="d-flex flex-column justify-content-center">
@@ -29,7 +29,7 @@
               <div class="d-flex flex-column justify-content-between">
                 <div class="d-flex flex-column justify-content-center">
                   <h2>Premium</h2>
-                  <h3>Unlimited hosts</h3>
+                  <h3>Unlimited baselines</h3>
                   <div class="d-flex flex-row align-items-center justify-content-center">
                     <h4>From </h4><h1 class="mb-2"><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                   </div>
@@ -37,8 +37,8 @@
               </div>
             </div>
             <div>
-              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/customers/register">Get started</a>
-              <p purpose="contact-sales-link">Have a large deployment? <a @click="clickOpenChatWidget()">Contact sales</a>.</p>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" @click="clickOpenChatWidget()">Show me</a>
+              <p purpose="contact-sales-link">Have a large deployment? <a @click="clickOpenChatWidget()">Start here</a>.</p>
             </div>
           </div>
         </div>
@@ -120,11 +120,11 @@
       </div>
     </div>
     <%// Filtered features %>
-    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'Security'">
       <div class="d-flex flex-column justify-content-center p-0">
         <%// Desktop filtered features tables %>
         <div class="d-none d-md-block">
-          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTable">
+          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForSecurity">
            <thead>
               <tr>
                 <td><h4>{{category.categoryName}}</h4></td>
@@ -139,7 +139,7 @@
               </tr>
             </thead>
             <tbody>
-              <tr v-for="feature in category.features" v-if="feature.usualDepartment === pricingMode">
+              <tr v-for="feature in category.features">
                 <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
                   <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                   <td purpose="table-checkmark" v-else></td>
@@ -150,9 +150,59 @@
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
         <%// Mobile filtered features tables %>
-          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
             <h4>{{category.categoryName}}</h4>
-              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features" v-if="feature.usualDepartment === pricingMode">
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
+                  <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
+              </div>
+          </div>
+          <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
+      </div>
+    </div>
+    <%// IT features %>
+    <div purpose="features-table" class="d-flex flex-column justify-content-center mx-auto px-0" v-else-if="pricingMode === 'IT'">
+      <div class="d-flex flex-column justify-content-center p-0">
+        <%// Desktop filtered features tables %>
+        <div class="d-none d-md-block">
+          <table purpose="pricing-categories-table" class="table" v-for="(category, index) in pricingTableForIt">
+           <thead>
+              <tr>
+                <td><h4>{{category.categoryName}}</h4></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Free</strong>
+                </td>
+                <td v-else></td>
+                <td class="text-center" v-if="index === 0">
+                  <strong>Premium</strong>
+                </td>
+                <td v-else></td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="feature in category.features">
+                <td purpose="feature-name">{{feature.name}}{{feature.comingSoon ? '*' : ''}}</td>
+                  <td purpose="table-checkmark" v-if="feature.tier === 'Free'"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+                  <td purpose="table-checkmark" v-else></td>
+                <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
+              </tr>
+            </tbody>
+          </table>
+          <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
+        </div>
+        <%// Mobile filtered features tables %>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
+            <h4>{{category.categoryName}}</h4>
+              <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" >
                   <strong>{{feature.name}}{{ feature.comingSoon ? '*' : ''}}</strong>
                 </div>
@@ -214,7 +264,7 @@
             <span style="color: #6A67FE; right: 0; top: 24px;" class="position-absolute fa fa-angle-down"></span>
           </p>
           <p id="faq__answer4" class="collapse" aria-labelledby="faq__question4">
-            If you opt not to renew Fleet Premium, you can continue using Fleet Community Edition (same code base, just unconfigure the license key.)
+            If you opt not to renew Fleet Premium, you can continue using Fleet Free (same code base, just unconfigure the license key.)
           </p>
         </div>
         <div style="border-bottom: 1px solid #E2E4EA; padding-right: 20px;" class="position-relative">
@@ -282,7 +332,7 @@
           Ask us anything
         </a>
         <a style="max-width: 250px" class="btn btn-block btn-lg btn-white my-3 mx-sm-2 mx-auto" purpose="cta-button" @click="clickOpenChatWidget()">
-          Talk to an expert
+          Call us
         </a>
       </div>
     </div>

@@ -16,6 +16,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime"
 	"strings"
 	"time"
 
@@ -62,6 +63,14 @@ func (e *FleetError) Unwrap() error {
 // Stack returns a call stack for the error
 func (e *FleetError) Stack() []string {
 	return e.stack.List()
+}
+
+// StackTrace implements the runtimeStackTracer interface understood by the
+// elastic APM package to reuse already-captured stack traces.
+// https://github.com/elastic/apm-agent-go/blob/main/stacktrace/errors.go#L45-L47
+func (e *FleetError) StackTrace() *runtime.Frames {
+	st := e.stack.(stack) // outside of tests, e.stack is always a stack type
+	return runtime.CallersFrames(st)
 }
 
 // LogFields implements fleet.ErrWithLogFields, so attached error data can be
@@ -153,10 +162,6 @@ func wrapError(ctx context.Context, msg string, cause error, data map[string]int
 	}
 
 	edata := encodeData(ctx, data, !isFleetError)
-
-	// As a final step, report error to APM.
-	// This is safe to to even if APM is not enabled.
-	apm.CaptureError(ctx, cause).Send()
 	return &FleetError{msg, stack, cause, edata}
 }
 
@@ -274,7 +279,8 @@ func fromContext(ctx context.Context) handler {
 }
 
 // Handle handles err by passing it to the registered error handler,
-// deduplicating it and storing it for a configured duration.
+// deduplicating it and storing it for a configured duration. It also takes
+// care of sending it to the configured APM, if any.
 func Handle(ctx context.Context, err error) {
 	// as a last resource, wrap the error if there isn't
 	// a FleetError in the chain
@@ -282,6 +288,14 @@ func Handle(ctx context.Context, err error) {
 	if !errors.As(err, &ferr) {
 		err = Wrap(ctx, err, "missing FleetError in chain")
 	}
+
+	cause := err
+	if ferr := FleetCause(err); ferr != nil {
+		// use the FleetCause error so we send the most relevant stacktrace to APM
+		// (the one from the initial New/Wrap call).
+		cause = ferr
+	}
+	apm.CaptureError(ctx, cause).Send()
 
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)

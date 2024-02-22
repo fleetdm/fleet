@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router";
-import { size } from "lodash";
 import { AxiosError } from "axios";
 
 import paths from "router/paths";
@@ -62,21 +61,17 @@ const LoginPage = ({ router, location }: ILoginPageProps) => {
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const {
-    data: ssoSettings,
-    isLoading: isLoadingSSOSettings,
-    error: errorSSOSettings,
-  } = useQuery<ISSOSettingsResponse, Error, ISSOSettings>(
-    ["ssoSettings"],
-    () => sessionsAPI.ssoSettings(),
-    {
-      enabled: !currentUser,
-      onError: (err) => {
-        console.error(err);
-      },
-      select: (data) => data.settings,
-    }
-  );
+  const { data: ssoSettings, isLoading: isLoadingSSOSettings } = useQuery<
+    ISSOSettingsResponse,
+    Error,
+    ISSOSettings
+  >(["ssoSettings"], () => sessionsAPI.ssoSettings(), {
+    enabled: !currentUser,
+    onError: (err) => {
+      console.error(err);
+    },
+    select: (data) => data.settings,
+  });
 
   useEffect(() => {
     // this only needs to run once so we can wrap it in useEffect to avoid unneccesary third-party

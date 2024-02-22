@@ -55,29 +55,17 @@ func newVulnerabilitiesSchedule(
 	const name = string(fleet.CronVulnerabilities)
 	interval := config.Periodicity
 	vulnerabilitiesLogger := kitlog.With(logger, "cron", name)
-	s := schedule.New(
-		ctx, name, instanceID, interval, ds, ds,
-		schedule.WithLogger(vulnerabilitiesLogger),
-		schedule.WithJob(
-			"cron_vulnerabilities",
-			func(ctx context.Context) error {
-				// TODO(lucas): Decouple cronVulnerabilities into multiple jobs.
-				return cronVulnerabilities(ctx, ds, vulnerabilitiesLogger, config)
-			},
-		),
-		schedule.WithJob(
-			"cron_sync_host_software",
-			func(ctx context.Context) error {
-				return ds.SyncHostsSoftware(ctx, time.Now())
-			},
-		),
-		schedule.WithJob(
-			"cron_reconcile_software_titles",
-			func(ctx context.Context) error {
-				return ds.ReconcileSoftwareTitles(ctx)
-			},
-		),
-	)
+
+	var options []schedule.Option
+
+	options = append(options, schedule.WithLogger(vulnerabilitiesLogger))
+
+	vulnFuncs := getVulnFuncs(ctx, ds, vulnerabilitiesLogger, config)
+	for _, fn := range vulnFuncs {
+		options = append(options, schedule.WithJob(fn.Name, fn.VulnFunc))
+	}
+
+	s := schedule.New(ctx, name, instanceID, interval, ds, ds, options...)
 
 	return s, nil
 }
@@ -281,12 +269,13 @@ func checkWinVulnerabilities(
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
 			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
 				"os name", o.Name,
 				"os version", o.Version,
+				"display version", o.DisplayVersion,
 				"elapsed", elapsed,
 				"found new", len(r))
 			results = append(results, r...)
@@ -828,6 +817,10 @@ func newCleanupsAndAggregationSchedule(
 				}
 			}
 
+			if err = ds.CleanupDiscardedQueryResults(ctx); err != nil {
+				return err
+			}
+
 			return nil
 		}),
 	)
@@ -842,7 +835,7 @@ func verifyDiskEncryptionKeys(
 	config *config.FleetConfig,
 ) error {
 	if !config.MDM.IsAppleSCEPSet() {
-		logger.Log("inf", "skipping verification of encryption keys as MDM is not fully configured")
+		logger.Log("inf", "skipping verification of macOS encryption keys as MDM is not fully configured")
 		return nil
 	}
 

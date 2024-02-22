@@ -3,6 +3,7 @@ package fleet
 import (
 	"errors"
 	"strings"
+	"time"
 )
 
 // PolicyPayload holds data for policy creation.
@@ -168,7 +169,8 @@ type Policy struct {
 	// PassingHostCount is the number of hosts this policy passes on.
 	PassingHostCount uint `json:"passing_host_count" db:"passing_host_count"`
 	// FailingHostCount is the number of hosts this policy fails on.
-	FailingHostCount uint `json:"failing_host_count" db:"failing_host_count"`
+	FailingHostCount   uint       `json:"failing_host_count" db:"failing_host_count"`
+	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
 }
 
 func (p Policy) AuthzType() string {
@@ -226,14 +228,18 @@ func (p PolicySpec) Verify() error {
 	return nil
 }
 
-// return first duplicate name of policies or empty string if no duplicates found
+// FirstDuplicatePolicySpecName returns first duplicate name of policies (in a team) or empty string if no duplicates found
 func FirstDuplicatePolicySpecName(specs []*PolicySpec) string {
-	names := make(map[string]struct{})
+	teams := make(map[string]map[string]struct{})
 	for _, spec := range specs {
-		if _, ok := names[spec.Name]; ok {
-			return spec.Name
+		if team, ok := teams[spec.Team]; ok {
+			if _, ok = team[spec.Name]; ok {
+				return spec.Name
+			}
+			team[spec.Name] = struct{}{}
+		} else {
+			teams[spec.Team] = map[string]struct{}{spec.Name: {}}
 		}
-		names[spec.Name] = struct{}{}
 	}
 	return ""
 }

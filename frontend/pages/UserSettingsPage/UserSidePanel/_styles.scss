@@ -59,8 +59,7 @@
     margin: 0 0 $pad-xsmall;
   }
 
-  &__button-wrap {
-    display: flex;
+  &.button-wrap {
     justify-content: flex-end;
   }
 

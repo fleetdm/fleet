@@ -1,1 +1,0 @@
-* Fixed logging of results for scheduled queries configured outside of Fleet, when `server_settings.query_reports_disabled` is set to `true`.

@@ -16,6 +16,7 @@ type FilteredQueryValues = string | number | boolean;
 type FilteredQueryParams = Record<string, FilteredQueryValues>;
 
 interface IMutuallyInclusiveHostParams {
+  label?: string;
   teamId?: number;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   osSettings?: MdmProfileStatus;
@@ -30,7 +31,9 @@ interface IMutuallyExclusiveHostParams {
   munkiIssueId?: number;
   lowDiskSpaceHosts?: number;
   softwareId?: number;
-  osId?: number;
+  softwareVersionId?: number;
+  softwareTitleId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   osSettings?: MdmProfileStatus;
@@ -74,18 +77,27 @@ export const buildQueryStringFromParams = (queryParams: QueryParams) => {
 };
 
 export const reconcileMutuallyInclusiveHostParams = ({
+  label,
   teamId,
   macSettingsStatus,
   osSettings,
 }: IMutuallyInclusiveHostParams) => {
-  // ensure macos_settings filter is always applied in
-  // conjuction with a team_id, 0 (no teams) by default
   const reconciled: Record<string, unknown> = { team_id: teamId };
+
+  if (label) {
+    // if label is present, include team_id in the query but exclude others
+    return reconciled;
+  }
+
   if (macSettingsStatus) {
+    // ensure macos_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled.macos_settings = macSettingsStatus;
     reconciled.team_id = teamId ?? 0;
   }
   if (osSettings) {
+    // ensure os_settings filter is always applied in
+    // conjuction with a team_id, 0 (no teams) by default
     reconciled[HOSTS_QUERY_PARAMS.OS_SETTINGS] = osSettings;
     reconciled.team_id = teamId ?? 0;
   }
@@ -100,7 +112,9 @@ export const reconcileMutuallyExclusiveHostParams = ({
   munkiIssueId,
   lowDiskSpaceHosts,
   softwareId,
-  osId,
+  softwareVersionId,
+  softwareTitleId,
+  osVersionId,
   osName,
   osVersion,
   osSettings,
@@ -131,17 +145,20 @@ export const reconcileMutuallyExclusiveHostParams = ({
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
+    case !!softwareTitleId:
+      return { software_title_id: softwareTitleId };
+    case !!softwareVersionId:
+      return { software_version_id: softwareVersionId };
     case !!softwareId:
       return { software_id: softwareId };
-    case !!osId:
-      return { os_id: osId };
+    case !!osVersionId:
+      return { os_version_id: osVersionId };
     case !!osName && !!osVersion:
       return { os_name: osName, os_version: osVersion };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
     case !!osSettings:
       return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
-
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
     case !!bootstrapPackageStatus:

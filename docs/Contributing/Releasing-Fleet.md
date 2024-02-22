@@ -1,162 +1,168 @@
 # Releasing Fleet
 
-## Release process
+This section outlines the release process at Fleet. The current release cadence is once every three weeks. Patch versions are released as needed.
 
-This section outlines the release process at Fleet after all EMs have certified that they are ready for release. 
-
-The current release cadence is once every three weeks. Patch versions are released as needed.
-#### Release candidate process
-
-Major, minor, and patch releases go through the same release candidate and smoke testing process prior to release. 
-
-1. The release ritual or patch release DRI creates a release candidate branch. If this is a major or minor version, they prepend the branch name with `prepare-v`. If it is a patch version, they prepend the branch name with `patch-v`. For example, `prepare-v4.0.0` or `patch-v4.0.1`.
-
-> When a `prepare-*` or `patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will be invoked to push a container image for smoke testing with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
-
-2. The release DRI pushes the branch to github.com/fleetdm/fleet:
-   ```
-   git push origin prepare-fleet-v4.0.0
-   ```
-
-3. The release DRI checks in the GitHub UI that Actions ran successfully for this branch.
-
-4. The release DRI adds a comment to the related smoke testing issue [created during the freeze ritual](https://fleetdm.com/handbook/engineering#create-release-qa-issue) confirming that the release candidate is ready for testing. 
-
-5. QA is conducted on the release candidate following the steps in the smoke testing issue. If smoke testing passes successfully, the EM for each relevant product group adds a comment to the issue certifying that their product group has completed smoke testing. 
-
-6. When the smoke testing issue has been certified, the release DRI publishes the release. 
-
-
-
-### Preparing a minor or major release
+### Prepare a new version of Fleet
 
 Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, Helm charts, and NPM configs.
 
-1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes you made since the last
-   Fleet release. Use `make changelog` to pull the changes files into `CHANGELOG.md`, then manually
-   edit. When editing, order the most relevant/important changes at the time and try to make the
-   tone and syntax of the written language match throughout the document. `make changelog` will stage all changes
-   file entries for deletion with the commit.
+1. Update the [CHANGELOG](https://github.com/fleetdm/fleet/blob/main/CHANGELOG.md) with the changes you made since the last Fleet release. Use `make changelog` to pull the change files into `CHANGELOG.md`, then manually edit. When editing, order the most relevant/important changes at the top and make sure each line is in the past tense. `make changelog` will stage all change file entries for deletion with the commit.
 
-   Add a "Performance" section below the list of changes. This section should summarize the number of
-   hosts that the Fleet server can handle, call out if this number has
-   changed since the last release, and list the infrastructure used in the load testing environment.
+2. Update version numbers in the relevant files:
 
-   Update version numbers in the relevant files:
+- [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
+- [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
+- Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
+- [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploying-Fleet-on-Kubernetes.md)
+- All Terraform (*.tf) files referencing the previous version of Fleet.
 
-   - [fleetctl package.json](https://github.com/fleetdm/fleet/blob/main/tools/fleetctl-npm/package.json) (do not yet `npm publish`)
-   - [Helm chart.yaml](https://github.com/fleetdm/fleet/blob/main/charts/fleet/Chart.yaml) and [values file](https://github.com/fleetdm/fleet/blob/main/charts/fleet/values.yaml)
-   - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
-   - [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploying-Fleet-on-Kubernetes.md)
+Commit these changes via Pull Request and pull the changes on the `main` branch locally.
 
-   Commit these changes via Pull Request and pull the changes on the `main` branch locally. Check that
-   `HEAD` of the `main` branch points to the commit with these changes.
+### Prepare a minor or major release
 
-2. Create release candidate branch and conduct smoke testing as documented above. 
+1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
-3. Tag and push the new release in Git:
-   ```sh
-   git tag fleet-v<VERSION>
-   git push origin fleet-v<VERSION>
-   ```
+2. Create a new branch. Minor or major release branches should be prefixed with `prepare-`. In this example we are creating `v4.3.0`:
 
-   Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
-   is to push the new tag to the `github.com/fleetdm/fleet` repository.
+```sh
+git checkout main
+git checkout --branch prepare-fleet-v4.3.0
+```
 
-   After the tag is pushed, GitHub Actions will automatically begin building the new release.
+3. [Create release candidate](#create-release-candidate). 
 
-   ***
+4. [Complete release QA](#complete-release-qa). 
 
-   Wait while GitHub Actions creates and uploads the artifacts.
+5. Tag and push the new release:
 
-   ***
+```sh
+git tag fleet-v<VERSION>
+git push origin fleet-v<VERSION>
+```
 
-   When the Actions Workflow has been completed:
+Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
+is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-4. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).
-   Use the version number as the release title. Use the below template for the release description
-   (replace items in <> with the appropriate values):
-   ```md
-   ### Changes
+After the tag is pushed, GitHub Actions will automatically begin building the new release.
 
-   <COPY FROM CHANGELOG>
+***
 
-   ### Upgrading
+Wait while GitHub Actions creates and uploads the artifacts.
 
-   Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
+***
 
-   ### Documentation
+When the Actions Workflow has been completed, [publish the new version of Fleet](#publish-a-new-version-of-fleet).
 
-   Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
+### Prepare a patch release
 
-   ### Binary Checksum
+We issue scheduled patch releases every Monday between minor releases if any bug fixes have merged. We issue patches immediately for critical bugs as defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
-   **SHA256**
+1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
-   <COPY FROM checksums.txt>
-   ```
+2. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
+   
+```sh
+git checkout fleet-v4.3.0
+git checkout --branch patch-fleet-v4.3.1
+```
 
-   When editing is complete, publish the release.
+3. Cherry picks the necessary commits from `main` into the new branch:
+  
+```sh
+git cherry-pick d34db33f
+```
 
-5. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the
-   [fleetctl-npm](https://github.com/fleetdm/fleet/tree/main/tools/fleetctl-npm) directory. Note that NPM does not allow replacing a
-   package without creating a new version number. Take care to get things correct before running
-   `npm publish`!
+> Commits must be cherry-picked in the order they appear on `main` to avoid conflicts. Make sure to also cherry-pick the commit containing changelog and version number updates.
 
-> If releasing a "prerelease" of Fleet, run `npm publish --tag prerelease`. This way, you can
-> publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public
-> download, is still the latest _official_ release.
+4. **Important!** Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
 
-6. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
+5. [Create release candidate](#create-release-candidate). 
 
-7. In the #g-infra Slack channel, notify the @infrastructure-oncall of the release. This way, the @infrastructure-oncall individual can deploy the new version.
+6. [Complete release QA](#complete-release-qa). 
 
-8. Announce the release in the #general channel. 
+7. Tag and push the new release in Git:
+  
+```sh
+git tag fleet-v4.3.1
+git push origin fleet-v4.3.1
+```
 
-9. Announce the release in the #fleet channel of [osquery
-   Slack](https://fleetdm.com/slack) and
-   update the channel's topic with the link to this release. Using `@here` requires admin
-   permissions, so typically this announcement will be done by `@zwass`.
+Note that `origin` may be `upstream` depending on your `git remote` configuration. The intent here
+is to push the new tag to the `github.com/fleetdm/fleet` repository.
 
-   Announce the release via blog post (on Medium) and Twitter (linking to blog post).
+After the tag is pushed, GitHub Actions will automatically begin building the new release.
 
-### Preparing a patch release
+***
 
-A patch release is required when a critical bug is found. Critical bugs are defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
+Wait while GitHub Actions creates and uploads the artifacts.
 
-#### Process
+***
 
-1. The DRI for release testing/QA notifies the [directly responsible individual (DRI) for creating the patch release branch](https://fleetdm.com/handbook/engineering#rituals) to create the new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `4.3.1`:
-   ```sh
-   git checkout fleet-v4.3.0
-   git checkout --branch patch-fleet-v4.3.1
-   ```
+When the Actions Workflow has been completed, [publish the new version of Fleet](#publish-a-new-version-of-fleet).
 
-2. The DRI for creating the patch release branch cherry picks the necessary commits into the new branch:
-   ```sh
-   git cherry-pick d34db33f
-   ```
+### Create release candidate
 
-3. The DRI for creating the patch release branch pushes the branch to github.com/fleetdm/fleet:
+1. Push a branch containing new commits to [fleetdm/fleet](https://github.com/fleetdm/fleet) that begins with `prepare-*` or `patch-*`. 
    ```sh
    git push origin patch-fleet-v4.3.1
    ```
 
-   When a `patch-*` branch is pushed, the [Docker publish
-   Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will
-   be invoked to push a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
+   > When a `prepare-*` or `patch-*` branch is pushed, the [Docker publish Action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) will run and create a container image for QA with `fleetctl preview` (eg. `fleetctl preview --tag patch-fleet-v4.3.1`).
 
-4. The patch release DRI checks in the GitHub UI that Actions ran successfully for this branch.
+2. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
-5. The patch release DRI notifies the [DRI for release testing/QA](https://fleetdm.com/handbook/product#rituals) that the branch is available for completing [smoke tests](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md).
+3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
-6. The DRI for release testing/QA makes sure the standard release instructions at the top of this document are followed. Be sure that modifications to the changelog and config files are commited _on the `patch-*` branch_.
+4. Notify QA that the release candidate is ready for (release QA)[#complete-release-qa].
 
-7. The DRI for release testing/QA notifies the [DRI for the release ritual](https://fleetdm.com/handbook/engineering#rituals) that the patch release is ready. The DRI for the release ritual releases the patch.
+### Complete release QA
 
-8. The DRI for creating the patch release branch cherry-picks the commit containing the changelog updates into a new branch, and merges that commit into `main` through a Pull Request.
+1. Move the release QA issue into the "In progress" column on the release board. 
 
-9. **Important!** The DRI for creating the patch release branch manually checks the database migrations. Any migrations that are not cherry-picked in a patch must have a _later_ timestamp than migrations that were cherry-picked. If there are new migrations that were not cherry-picked, verify that those migrations have later timestamps. If they do not, submit a new Pull Request to increase the timestamps and ensure that migrations are run in the appropriate order.
+2. Complete each item listed in the release QA issue. 
+
+3. If bugs are found, file bug tickets and notify your EM.
+
+4. When all items are completed with no bugs remaining, move the issue to the "Ready for release" column on the release board and notify your EM.
+
+### Publish a new version of Fleet
+
+1. Edit the draft release on the [GitHub releases page](https://github.com/fleetdm/fleet/releases).Use the version number as the release title. Use the below template for the release description
+(replace items in <> with the appropriate values):
+   
+```md
+### Changes
+
+<COPY FROM CHANGELOG>
+
+### Upgrading
+
+Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions.
+
+### Documentation
+
+Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs).
+
+### Binary Checksum
+
+**SHA256**
+
+<COPY FROM checksums.txt>
+```
+
+When editing is complete, publish the release.
+
+2. Publish the new version of `fleetctl` on NPM. Run `npm publish` in the [fleetctl-npm](https://github.com/fleetdm/fleet/tree/main/tools/fleetctl-npm) directory. Note that NPM does not allow replacing a package without creating a new version number. Take care to get things correct before running `npm publish`!
+
+> If releasing a "prerelease" of Fleet, run `npm publish --tag prerelease`. This way, you can publish a prerelease of fleetctl while the most recent fleetctl npm package, available for public download, is still the latest _official_ release.
+
+3. Deploy the new version to Fleet's internal dogfood instance: https://fleetdm.com/handbook/engineering#deploying-to-dogfood.
+
+4. In the #help-infrastructure Slack channel, notify the @infrastructure-oncall of the release. The @infrastructure-oncall will schedule time to upgrade our managed cloud to the new version.
+
+5. Announce the release in the #fleet channel of [osquery Slack](https://fleetdm.com/slack) by updating the channel topic with the link to this release. 
+
+6. Announce the release in the #general channel by copying and pasting the osquery Slack channel topic.
 
 <meta name="pageOrderInSection" value="500">
-<meta name="description" value="Learn how new versions of Fleet are tested and released.">
+<meta name="description" value="Learn how new versions of Fleet are created, tested, and released.">

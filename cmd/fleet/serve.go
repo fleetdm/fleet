@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/ee/server/licensing"
 	eeservice "github.com/fleetdm/fleet/v4/ee/server/service"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	configpkg "github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -41,21 +42,21 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/buford"
+	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/async"
 	"github.com/fleetdm/fleet/v4/server/service/redis_policy_set"
 	"github.com/fleetdm/fleet/v4/server/sso"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	kitprometheus "github.com/go-kit/kit/metrics/prometheus"
 	"github.com/go-kit/log"
-	"github.com/kolide/kit/version"
-	"github.com/micromdm/nanomdm/cryptoutil"
-	"github.com/micromdm/nanomdm/push"
-	"github.com/micromdm/nanomdm/push/buford"
-	nanomdm_pushsvc "github.com/micromdm/nanomdm/push/service"
 	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	"github.com/prometheus/client_golang/prometheus"
@@ -553,8 +554,8 @@ the way that the Fleet server works.
 				wstepCertManager microsoft_mdm.CertManager
 			)
 
-			// Configuring WSTEP certs if Windows MDM feature flag is enabled
-			if configpkg.IsMDMFeatureFlagEnabled() && config.MDM.IsMicrosoftWSTEPSet() {
+			// Configuring WSTEP certs
+			if config.MDM.IsMicrosoftWSTEPSet() {
 				_, crtPEM, keyPEM, err := config.MDM.MicrosoftWSTEP()
 				if err != nil {
 					initFatal(err, "validate Microsoft WSTEP certificate and key")
@@ -871,7 +872,26 @@ the way that the Fleet server works.
 				}
 			}
 
-			rootMux.Handle("/api/", apiHandler)
+			// We must wrap the Handler here to set special per-endpoint Write
+			// timeouts, so that we have access to the raw http.ResponseWriter.
+			// Otherwise, the handler is wrapped by the promhttp response delegator,
+			// which does not support the Unwrap call needed to work with
+			// ResponseController.
+			//
+			// See https://pkg.go.dev/net/http#NewResponseController which explains
+			// the Unwrap method that the prometheus wrapper of http.ResponseWriter
+			// does not implement.
+			rootMux.HandleFunc("/api/", func(rw http.ResponseWriter, req *http.Request) {
+				if req.Method == http.MethodPost && strings.HasSuffix(req.URL.Path, "/fleet/scripts/run/sync") {
+					rc := http.NewResponseController(rw)
+					// add an additional 30 seconds to prevent race conditions where the
+					// request is terminated early.
+					if err := rc.SetWriteDeadline(time.Now().Add(scripts.MaxServerWaitTime + (30 * time.Second))); err != nil {
+						level.Error(logger).Log("msg", "http middleware failed to override endpoint write timeout", "err", err)
+					}
+				}
+				apiHandler.ServeHTTP(rw, req)
+			})
 			rootMux.Handle("/", frontendHandler)
 
 			debugHandler := &debugMux{

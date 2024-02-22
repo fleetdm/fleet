@@ -174,10 +174,7 @@ type MDM struct {
 // AtLeastOnePlatformEnabledAndConfigured returns true if at least one supported platform
 // (macOS or Windows) has MDM enabled and configured.
 func (m MDM) AtLeastOnePlatformEnabledAndConfigured() bool {
-	// explicitly check for the feature flag to account for the edge case of:
-	// 1. FF enabled, windows is turned on
-	// 2. FF disabled on server restart
-	return m.EnabledAndConfigured || (config.IsMDMFeatureFlagEnabled() && m.WindowsEnabledAndConfigured)
+	return m.EnabledAndConfigured || m.WindowsEnabledAndConfigured
 }
 
 // versionStringRegex is used to validate that a version string is in the x.y.z
@@ -301,8 +298,8 @@ type MacOSSettings struct {
 	//
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings                 []string `json:"custom_settings"`
-	DeprecatedEnableDiskEncryption *bool    `json:"enable_disk_encryption,omitempty"`
+	CustomSettings                 []MDMProfileSpec `json:"custom_settings"`
+	DeprecatedEnableDiskEncryption *bool            `json:"enable_disk_encryption,omitempty"`
 
 	// NOTE: make sure to update the ToMap/FromMap methods when adding/updating fields.
 }
@@ -327,20 +324,37 @@ func (s *MacOSSettings) FromMap(m map[string]interface{}) (map[string]bool, erro
 
 		vals, ok := v.([]interface{})
 		if v == nil || ok {
-			strs := make([]string, 0, len(vals))
+			csSpecs := make([]MDMProfileSpec, 0, len(vals))
 			for _, v := range vals {
-				str, ok := v.(string)
-				if !ok {
-					// error, must be a []string
+				if m, ok := v.(map[string]interface{}); ok {
+					var spec MDMProfileSpec
+					// extract the Path field
+					if path, ok := m["path"].(string); ok {
+						spec.Path = path
+					}
+
+					// extract the Labels field (if they are not provided, labels are
+					// cleared for that profile)
+					if labels, ok := m["labels"].([]interface{}); ok {
+						for _, label := range labels {
+							if strLabel, ok := label.(string); ok {
+								spec.Labels = append(spec.Labels, strLabel)
+							}
+						}
+					}
+
+					csSpecs = append(csSpecs, spec)
+				} else if m, ok := v.(string); ok { // for backwards compatibility with the old way to define profiles
+					csSpecs = append(csSpecs, MDMProfileSpec{Path: m})
+				} else {
 					return nil, &json.UnmarshalTypeError{
 						Value: fmt.Sprintf("%T", v),
 						Type:  reflect.TypeOf(s.CustomSettings),
 						Field: "macos_settings.custom_settings",
 					}
 				}
-				strs = append(strs, str)
 			}
-			s.CustomSettings = strs
+			s.CustomSettings = csSpecs
 		}
 	}
 
@@ -556,8 +570,14 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
-		clone.MDM.MacOSSettings.CustomSettings = make([]string, len(c.MDM.MacOSSettings.CustomSettings))
-		copy(clone.MDM.MacOSSettings.CustomSettings, c.MDM.MacOSSettings.CustomSettings)
+		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
+		for i, mps := range c.MDM.MacOSSettings.CustomSettings {
+			clone.MDM.MacOSSettings.CustomSettings[i] = *mps.Copy()
+		}
+	}
+	if c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption != nil {
+		b := *c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption
+		clone.MDM.MacOSSettings.DeprecatedEnableDiskEncryption = &b
 	}
 
 	if c.Scripts.Set {
@@ -567,8 +587,10 @@ func (c *AppConfig) Copy() *AppConfig {
 	}
 
 	if c.MDM.WindowsSettings.CustomSettings.Set {
-		windowsSettings := make([]string, len(c.MDM.WindowsSettings.CustomSettings.Value))
-		copy(windowsSettings, c.MDM.WindowsSettings.CustomSettings.Value)
+		windowsSettings := make([]MDMProfileSpec, len(c.MDM.WindowsSettings.CustomSettings.Value))
+		for i, mps := range c.MDM.WindowsSettings.CustomSettings.Value {
+			windowsSettings[i] = *mps.Copy()
+		}
 		clone.MDM.WindowsSettings.CustomSettings = optjson.SetSlice(windowsSettings)
 	}
 
@@ -843,6 +865,7 @@ type ServerSettings struct {
 	DebugHostIDs         []uint `json:"debug_host_ids,omitempty"`
 	DeferredSaveHost     bool   `json:"deferred_save_host"`
 	QueryReportsDisabled bool   `json:"query_reports_disabled"`
+	ScriptsDisabled      bool   `json:"scripts_disabled"`
 }
 
 // HostExpirySettings contains settings pertaining to automatic host expiry.
@@ -970,8 +993,7 @@ type ListQueryOptions struct {
 	// team.
 	TeamID *uint
 	// IsScheduled filters queries that are meant to run at a set interval.
-	IsScheduled        *bool
-	OnlyObserverCanRun bool
+	IsScheduled *bool
 }
 
 type ListActivitiesOptions struct {
@@ -1208,5 +1230,5 @@ func (v *Version) AuthzType() string {
 type WindowsSettings struct {
 	// NOTE: These are only present here for informational purposes.
 	// (The source of truth for profiles is in MySQL.)
-	CustomSettings optjson.Slice[string] `json:"custom_settings"`
+	CustomSettings optjson.Slice[MDMProfileSpec] `json:"custom_settings"`
 }

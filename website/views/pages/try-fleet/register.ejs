@@ -1,14 +1,11 @@
 <div id="register" v-cloak>
   <div style="max-width:  800px; padding-top: 80px; padding-bottom: 80px;" class="container d-flex flex-md-row flex-column justify-content-center align-items-center mx-auto px-4 px-md-3">
-    <div>
-      <img purpose="sandbox-image" style="width: 300px; height: auto;" src="/images/fleet-sandbox-300x244@2x.png" alt="Try Fleet">
-    </div>
     <div style="max-width: 400px;" class="flex-column d-flex">
-      <h2>Try Fleet</h2>
-      <p class="pt-3">
-        The fastest way to test Fleet. Get up and running in minutes.
+      <h2>Explore real data</h2>
+      <p class="mb-4">
+        See live data collected from a real device enrolled in Fleet.
       </p>
-      <div class="pt-3">
+      <div>
         <ajax-form :handle-submitting="handleSubmittingRegisterForm" class="sandbox-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedRegisterForm()">
           <div class="form-group mb-3">
             <div class="d-flex flex-row">
@@ -35,13 +32,13 @@
             <div class="invalid-feedback mt-2" v-if="formErrors.password === 'minLength'">Password too short.</div>
             <div class="invalid-feedback mt-2" v-if="formErrors.password === 'required'">Please enter a password.</div>
           </div>
-          <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info" v-if="!cloudError">Sign up</ajax-button>
+          <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary" v-if="!cloudError">Sign up</ajax-button>
           <div class="d-flex flex-column" v-if="cloudError === 'emailAlreadyInUse'">
             <cloud-error class="my-0">
               <p purpose="error-message">This email is already linked to a Fleet account.</p>
             </cloud-error>
             <a class="mx-auto font-weight-bold d-flex align-items-center py-3" href="/try-fleet/login">Sign in with existing account <img alt="A blue arrow pointing right" style="height: 10px; margin-left: 6px;" src="/images/arrow-right-blue-18x10@2x.png"></a>
-            <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-info">Try again</ajax-button>
+            <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary">Try again</ajax-button>
           </div>
           <cloud-error purpose="cloud-error" v-else-if="cloudError === 'requestToProvisionerTimedOut'">
             <p purpose="error-message">Fleet Sandbox is experiencing unusually high activity. Please refresh the page in 13 seconds and try signing up again.</p>
@@ -50,8 +47,8 @@
         </ajax-form>
       </div>
       <div class="d-flex flex-column" v-if="!cloudError">
-        <a class="mx-auto d-flex py-3" href="/try-fleet/login">I have an account</a>
-        <p class="pt-4">By continuing you agree to the<br><a href="https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y" target="_blank">terms of service</a> and <a href="https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE" target="_blank">privacy policy</a>.</p>
+        <a class="mx-auto d-flex py-3" :href="loginSlug">I have an account</a>
+        <p purpose="legal-text" class="pt-4">By signing in you agree to the <a href="https://docs.google.com/document/d/1OM6YDVIs7bP8wg6iA3VG13X086r64tWDqBSRudG4a0Y" target="_blank">terms of service</a> and <a href="https://docs.google.com/document/d/17i_g1aGpnuSmlqj35-yHJiwj7WRrLdC_Typc1Yb7aBE" target="_blank">privacy policy</a>.</p>
       </div>
     </div>
   </div>

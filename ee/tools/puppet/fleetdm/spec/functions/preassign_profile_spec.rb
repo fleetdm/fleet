@@ -13,6 +13,7 @@ describe 'fleetdm::preassign_profile' do
   let(:run_identifier) { "#{catalog_uuid}-#{node_name}" }
   let(:profile_identifier) { 'test.example.com' }
   let(:host_response) { { 'host' => { 'id' => 1 } } }
+  let(:rspec_puppet_env) { 'rp_env' }
 
   before(:each) do
     fleet_client_class = class_spy('Puppet::Util::FleetClient')
@@ -26,15 +27,15 @@ describe 'fleetdm::preassign_profile' do
   it 'performs an API call to Fleet with the right parameters' do
     expect(fleet_client_mock)
       .to receive(:get_host_by_identifier)
-      .with(device_uuid)
+      .with(device_uuid, rspec_puppet_env)
       .and_return({ 'error' => '', 'body' => host_response })
     expect(fleet_client_mock)
       .to receive(:get_host_profiles)
-      .with(host_response['host']['id'])
+      .with(host_response['host']['id'], rspec_puppet_env)
       .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
     expect(fleet_client_mock)
       .to receive(:preassign_profile)
-      .with(run_identifier, device_uuid, template, group, ensure_profile)
+      .with(run_identifier, device_uuid, template, group, ensure_profile, rspec_puppet_env)
       .and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template, group, ensure_profile)
   end
@@ -42,16 +43,18 @@ describe 'fleetdm::preassign_profile' do
   it 'has default values for `group` and `ensure`' do
     expect(fleet_client_mock)
       .to receive(:get_host_by_identifier)
-      .with(device_uuid)
+      .with(device_uuid, rspec_puppet_env)
       .and_return({ 'error' => '', 'body' => host_response })
     expect(fleet_client_mock)
       .to receive(:get_host_profiles)
-      .with(host_response['host']['id'])
+      .with(host_response['host']['id'], rspec_puppet_env)
       .and_return({ 'error' => '', 'body' => { 'profiles' => [] } })
     expect(fleet_client_mock)
       .to receive(:preassign_profile)
-      .with(run_identifier, device_uuid, template, 'default', 'present')
+      .with(run_identifier, device_uuid, template, 'default', 'present', rspec_puppet_env)
       .and_return({ 'error' => '' })
     is_expected.to run.with_params(profile_identifier, device_uuid, template)
   end
+
+  #   TODO: add coverage for early exits, error handling, and resource_changed
 end

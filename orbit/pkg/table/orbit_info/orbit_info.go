@@ -3,6 +3,7 @@ package orbit_info
 import (
 	"context"
 	"strconv"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	orbit_table "github.com/fleetdm/fleet/v4/orbit/pkg/table"
@@ -13,6 +14,7 @@ import (
 
 // Extension implements an extension table that provides info about Orbit.
 type Extension struct {
+	startTime       time.Time
 	orbitClient     *service.OrbitClient
 	orbitChannel    string
 	osquerydChannel string
@@ -22,8 +24,9 @@ type Extension struct {
 
 var _ orbit_table.Extension = (*Extension)(nil)
 
-func New(orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, trw *token.ReadWriter) *Extension {
+func New(orbitClient *service.OrbitClient, orbitChannel, osquerydChannel, desktopChannel string, trw *token.ReadWriter, startTime time.Time) *Extension {
 	return &Extension{
+		startTime:       startTime,
 		orbitClient:     orbitClient,
 		orbitChannel:    orbitChannel,
 		osquerydChannel: osquerydChannel,
@@ -47,6 +50,7 @@ func (o Extension) Columns() []table.ColumnDefinition {
 		table.TextColumn("orbit_channel"),
 		table.TextColumn("osqueryd_channel"),
 		table.TextColumn("desktop_channel"),
+		table.BigIntColumn("uptime"),
 	}
 }
 
@@ -77,5 +81,6 @@ func (o Extension) GenerateFunc(_ context.Context, _ table.QueryContext) ([]map[
 		"orbit_channel":       o.orbitChannel,
 		"osqueryd_channel":    o.osquerydChannel,
 		"desktop_channel":     o.desktopChannel,
+		"uptime":              strconv.FormatInt(int64(time.Since(o.startTime).Seconds()), 10),
 	}}, nil
 }

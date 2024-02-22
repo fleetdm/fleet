@@ -203,7 +203,13 @@ jobs:
     strategy:
       matrix:
         go-version: ['${{ vars.GO_VERSION }}']
-    runs-on: macos-latest
+    # Set macOS version to '12' (current equivalent to macos-latest) for
+    # building the binary. This ensures compatibility with macOS version 13 and
+    # later, avoiding runtime errors on systems using macOS 13 or newer.
+    #
+    # Note: Update this version to '13' once GitHub marks macOS 13 as stable
+    # or if we revise our minimum supported macOS version.
+    runs-on: macos-12
     steps:
 
     - name: Install Go

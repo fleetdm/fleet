@@ -3,14 +3,14 @@ import React from "react";
 const FilePkg = () => {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="34" height="40" fill="none">
-      <g clipPath="url(#a)">
+      <g clipPath="url(#filepkg_clippath__a)">
         <path
           fill="#fff"
           stroke="#192147"
           strokeWidth={0.5}
           d="M29.333 39.75H4.667a2.417 2.417 0 0 1-2.417-2.416V2.667A2.417 2.417 0 0 1 4.667.25h19.562c.64 0 1.255.255 1.709.708l5.104 5.105c.453.453.708 1.068.708 1.709v29.562a2.417 2.417 0 0 1-2.417 2.416Z"
         />
-        <g clipPath="url(#b)">
+        <g clipPath="url(#filepkg_clippath__b)">
           <path
             fill="#533006"
             d="m16.685 30.474 7.826-4.518-7.826-4.518-7.826 4.518 7.826 4.518Z"
@@ -131,10 +131,10 @@ const FilePkg = () => {
         />
       </g>
       <defs>
-        <clipPath id="a">
+        <clipPath id="filepkg_clippath__a">
           <path fill="#fff" d="M0 0h34v40H0z" />
         </clipPath>
-        <clipPath id="b">
+        <clipPath id="filepkg_clippath__b">
           <path fill="#fff" d="M6.5 11h21v21h-21z" />
         </clipPath>
       </defs>

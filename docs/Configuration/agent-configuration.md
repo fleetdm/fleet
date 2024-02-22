@@ -176,7 +176,7 @@ spec:
 
 ## Extensions
 
-> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server.
+> This feature requires [Fleetd, the Fleet agent manager](https://fleetdm.com/announcements/introducing-orbit-your-fleet-agent-manager), along with a custom TUF auto-update server (a Fleet Premium feature).
 
 The `extensions` key inside of `agent_options` allows you to remotely manage and deploy osquery extensions. Just like other `agent_options` the `extensions` key can be applied either to a team specific one or the global one.
 
@@ -271,6 +271,53 @@ spec:
 In the above example:
 - the `hello_world_macos` extension is deployed to macOS hosts that are members of the 'Zoom installed' label.
 - the `hello_world_linux` extension is deployed to Linux hosts that are members of the 'Ubuntu Linux' **and** 'Zoom installed' labels.
+
+### Configure fleetd update channels
+
+_Available in Fleet Premium v4.43.0 and fleetd v1.20.0_
+
+Users can configure fleetd component TUF auto-update channels from Fleet's agent options. The components that can be configured are `orbit`, `osqueryd` and `desktop` (Fleet Desktop). When one of these components is omitted in `update_channels` then `stable` is assumed as the value for such component.
+
+Examples:
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's osquery installer
+      orbit: stable
+      osqueryd: '5.10.2'
+      desktop: edge
+```
+```yaml
+apiVersion: v1
+kind: config
+spec:
+  agent_options:
+    update_channels: # requires Fleet's osquery installer
+      orbit: edge
+      osqueryd: '5.10.2'
+      # in this configuration `desktop` is assumed to be "stable"
+```
+
+- If a configured channel doesn't exist in the TUF repository, then fleetd will log errors on the hosts and will not auto-update the component/s until the channel is changed to a valid value in Fleet's `update_channels` configuration or until the user pushes the component to the channel (which effectively creates the channel).
+- If the `update_channels` setting is removed from the agent settings, the devices will continue to use the last configured channels.
+- If Fleet Desktop is disabled in fleetd, then the `desktop` channel setting is ignored by the host.
+
+#### Auto update startup loop
+
+Following we document an edge case scenario that could happen when using this feature.
+
+After upgrading `orbit` on your devices to `1.20.0` using this feature, beware of downgrading `orbit` by changing it to a channel that's older than `1.20.0`. The auto-update system in orbit could end up in an update startup loop (where orbit starts, changes its channel and restarts over and over).
+
+Following are the conditions (to avoid) that lead to the auto-update loop:
+1. fleetd with `orbit` < `1.20.0` was packaged/configured to run with orbit channel `A`.
+2. `orbit`'s channel `A` is updated to >= `1.20.0`.
+3. `orbit`'s channel in the Fleet agent settings is configured to `B`, where channel `B` has orbit version < `1.20.0`.
+
+This update startup loop can be fixed by any one of these actions:
+A. Downgrading channel `A` to < `1.20.0`.
+B. Upgrading channel `B` to >= `1.20.0`.
 
 ## Config
 
@@ -443,20 +490,6 @@ overrides:
             - "service"
             - "client"
             - "last_modified"
-```
-
-## Command line flags
-
-> Requires Fleet v4.22.0 or later and Orbit v1.3.0 or later**
-
-In the `command_line_flags` key, you can update the osquery flags of your Orbit enrolled agents.
-
-```yaml
-agent_options:
-  config:
-  overrides:
-  command_line_flags:
-    enable_file_events: true
 ```
 
 ## Update agent options in Fleet UI

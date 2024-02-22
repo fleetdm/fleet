@@ -46,7 +46,7 @@ const EnrollSecretModal = ({
     setSelectedSecret(undefined);
     toggleSecretEditorModal();
   };
-
+  const team = renderTeam();
   return (
     <Modal
       onExit={onReturnToApp}
@@ -54,21 +54,19 @@ const EnrollSecretModal = ({
       title={"Manage enroll secrets"}
       className={baseClass}
     >
-      <div className={baseClass}>
-        {renderTeam()?.secrets?.length ? (
+      <div className={`${baseClass} form`}>
+        {team?.secrets?.length ? (
           <>
             <div className={`${baseClass}__description`}>
               Use these secret(s) to enroll hosts to <b>{renderTeam()?.name}</b>
               :
             </div>
-            <div className={`${baseClass}__secret-wrapper`}>
-              <EnrollSecretTable
-                secrets={renderTeam()?.secrets}
-                toggleSecretEditorModal={toggleSecretEditorModal}
-                toggleDeleteSecretModal={toggleDeleteSecretModal}
-                setSelectedSecret={setSelectedSecret}
-              />
-            </div>
+            <EnrollSecretTable
+              secrets={team?.secrets}
+              toggleSecretEditorModal={toggleSecretEditorModal}
+              toggleDeleteSecretModal={toggleDeleteSecretModal}
+              setSelectedSecret={setSelectedSecret}
+            />
           </>
         ) : (
           <>

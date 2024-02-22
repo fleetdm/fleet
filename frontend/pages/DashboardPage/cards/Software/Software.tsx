@@ -11,7 +11,7 @@ import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
 import TableDataError from "components/DataError";
 import Spinner from "components/Spinner";
-import EmptySoftwareTable from "pages/software/components/EmptySoftwareTable";
+import EmptySoftwareTable from "pages/SoftwarePage/components/EmptySoftwareTable";
 
 import generateTableHeaders from "./SoftwareTableConfig";
 
@@ -89,7 +89,7 @@ const Software = ({
                 <TableDataError />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
+                  columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_DIRECTION}
@@ -116,7 +116,7 @@ const Software = ({
                 <TableDataError />
               ) : (
                 <TableContainer
-                  columns={tableHeaders}
+                  columnConfigs={tableHeaders}
                   data={(isSoftwareEnabled && software?.software) || []}
                   isLoading={isSoftwareFetching}
                   defaultSortHeader={SOFTWARE_DEFAULT_SORT_HEADER}

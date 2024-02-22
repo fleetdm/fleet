@@ -64,7 +64,7 @@ func (c *Client) ApplyTeams(specs []json.RawMessage, opts fleet.ApplySpecOptions
 
 // ApplyTeamProfiles sends the list of profiles to be applied for the specified
 // team.
-func (c *Client) ApplyTeamProfiles(tmName string, profiles map[string][]byte, opts fleet.ApplySpecOptions) error {
+func (c *Client) ApplyTeamProfiles(tmName string, profiles []fleet.MDMProfileBatchPayload, opts fleet.ApplySpecOptions) error {
 	verb, path := "POST", "/api/latest/fleet/mdm/profiles/batch"
 	query, err := url.ParseQuery(opts.RawQuery())
 	if err != nil {
@@ -72,15 +72,6 @@ func (c *Client) ApplyTeamProfiles(tmName string, profiles map[string][]byte, op
 	}
 	query.Add("team_name", tmName)
 	return c.authenticatedRequestWithQuery(map[string]interface{}{"profiles": profiles}, verb, path, nil, query.Encode())
-}
-
-// ApplyPolicies sends the list of Policies to be applied to the
-// Fleet instance.
-func (c *Client) ApplyPolicies(specs []*fleet.PolicySpec) error {
-	req := applyPolicySpecsRequest{Specs: specs}
-	verb, path := "POST", "/api/latest/fleet/spec/policies"
-	var responseBody applyPolicySpecsResponse
-	return c.authenticatedRequest(req, verb, path, &responseBody)
 }
 
 // ApplyTeamScripts sends the list of scripts to be applied for the specified

@@ -7,8 +7,6 @@ import { IQuery } from "interfaces/query";
 import { IEmptyTableProps } from "interfaces/empty_table";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import PATHS from "router/paths";
-import { isEmpty } from "lodash";
-
 import { getNextLocationPath } from "utilities/helpers";
 import Button from "components/buttons/Button";
 import TableContainer from "components/TableContainer";
@@ -16,7 +14,7 @@ import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
-import generateTableHeaders from "./QueriesTableConfig";
+import generateColumnConfigs from "./QueriesTableConfig";
 
 const baseClass = "queries-table";
 
@@ -224,7 +222,7 @@ const QueriesTable = ({
     };
     if (searchQuery) {
       delete emptyQueries.graphicName;
-      emptyQueries.header = "No queries match the current search criteria.";
+      emptyQueries.header = "No queries match the current search criteria";
       emptyQueries.info =
         "Expecting to see queries? Try again in a few seconds as the system catches up.";
     } else if (!isOnlyObserver || isObserverPlus || isAnyTeamObserverPlus) {
@@ -278,22 +276,22 @@ const QueriesTable = ({
     );
   };
 
-  const tableHeaders = useMemo(
+  const columnConfigs = useMemo(
     () =>
       currentUser &&
-      generateTableHeaders({ currentUser, isInherited, currentTeamId }),
+      generateColumnConfigs({ currentUser, isInherited, currentTeamId }),
     [currentUser, isInherited, currentTeamId]
   );
 
   const searchable =
     !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
 
-  return tableHeaders && !isLoading ? (
+  return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
         disableCount={isInherited}
         resultsTitle="queries"
-        columns={tableHeaders}
+        columnConfigs={columnConfigs}
         data={queriesList}
         filters={{ name: isInherited ? "" : searchQuery }}
         isLoading={isLoading}

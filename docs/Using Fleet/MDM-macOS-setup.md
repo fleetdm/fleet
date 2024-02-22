@@ -225,8 +225,8 @@ Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized
 1. Log in to [Apple Business Manager](https://business.apple.com)
 2. Click your profile icon in the bottom left
 3. Click **Preferences**
-4. Click **MDM Server Assignment**
-5. Switch Macs to the new Fleet instance.
+4. Click **MDM Server Assignment** and click **Edit** next to **Default Server Assignment**.
+5. Switch **Mac** to Fleet.
 
 ### Step 6: set the default team for hosts enrolled via ABM
 

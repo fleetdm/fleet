@@ -51,7 +51,7 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The hosts will receive the MDM command to turn on disk encryption " +
             "when the hosts come online."
-          : "The host will receive the MDM command to apply the settung when the " +
+          : "The host will receive the MDM command to apply the setting when the " +
             "host comes online.",
     },
     action_required: {

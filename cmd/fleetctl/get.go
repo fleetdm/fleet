@@ -343,7 +343,7 @@ func queryToTableRow(query fleet.Query, teamName string) []string {
 
 func printInheritedQueriesMsg(client *service.Client, teamID *uint) error {
 	if teamID != nil {
-		globalQueries, err := client.GetQueries(nil)
+		globalQueries, err := client.GetQueries(nil, nil)
 		if err != nil {
 			return fmt.Errorf("could not list global queries: %w", err)
 		}
@@ -410,7 +410,7 @@ func getQueriesCommand() *cli.Command {
 
 			// if name wasn't provided, list either all global queries or all team queries...
 			if name == "" {
-				queries, err := client.GetQueries(teamID)
+				queries, err := client.GetQueries(teamID, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -559,7 +559,7 @@ func getPacksCommand() *cli.Command {
 				}
 
 				// Get global queries (teamID==nil), because 2017 packs reference global queries.
-				queries, err := client.GetQueries(nil)
+				queries, err := client.GetQueries(nil, nil)
 				if err != nil {
 					return fmt.Errorf("could not list queries: %w", err)
 				}
@@ -1497,20 +1497,34 @@ func getMDMCommandResultsCommand() *cli.Command {
 				// unformatted command
 				if err != nil {
 					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+						log(c, fmt.Sprintf("error formatting command result: %s\n", err))
 					}
 					formattedResult = r.Result
+				}
+				formattedPayload, err := formatXML(r.Payload)
+				// if we get an error, just log it and use the
+				// unformatted payload
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command payload: %s\n", err))
+					}
+					formattedPayload = r.Payload
+				}
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
 				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
+					string(formattedPayload),
 					string(formattedResult),
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			printTableWithXML(c, columns, data)
 
 			return nil
@@ -1551,10 +1565,14 @@ func getMDMCommandsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range results {
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
+				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
 				})

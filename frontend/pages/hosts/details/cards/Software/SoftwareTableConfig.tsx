@@ -211,12 +211,12 @@ export const generateSoftwareTableHeaders = ({
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
           setFilteredSoftwarePath(pathname);
-          router?.push(PATHS.SOFTWARE_DETAILS(id.toString()));
+          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_DETAILS(id.toString())}
+            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
             customOnClick={onClickSoftware}
             value={name}
             tooltipContent={
@@ -293,7 +293,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`vulnerabilities__${cellProps.row.original.id}`}
               data-html
             >
@@ -333,7 +333,7 @@ export const generateSoftwareTableHeaders = ({
             </span>
             <ReactTooltip
               effect="solid"
-              backgroundColor="#3e4771"
+              backgroundColor={COLORS["tooltip-bg"]}
               id={`last_used__${cellProps.row.original.id}`}
               className="last_used_tooltip"
               data-tip-disable={hasLastUsed}

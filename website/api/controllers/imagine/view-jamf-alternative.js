@@ -17,10 +17,12 @@ module.exports = {
 
 
   fn: async function () {
-
+    // Get testimonials for the <scrolalble-tweets> component.
+    let testimonialsForScrollableTweets = sails.config.builtStaticContent.testimonials;
     // Respond with view.
-    return {};
-
+    return {
+      testimonialsForScrollableTweets,
+    };
   }
 
 

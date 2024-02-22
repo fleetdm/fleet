@@ -138,9 +138,10 @@ type HostListOptions struct {
 	// version.
 	SoftwareTitleIDFilter *uint
 
-	OSIDFilter      *uint
-	OSNameFilter    *string
-	OSVersionFilter *string
+	OSIDFilter        *uint
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -177,6 +178,9 @@ type HostListOptions struct {
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
 	LowDiskSpaceFilter *int
+
+	// PopulateSoftware adds the `Software` field to all Hosts returned.
+	PopulateSoftware bool
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -278,6 +282,7 @@ type Host struct {
 
 	GigsDiskSpaceAvailable    float64 `json:"gigs_disk_space_available" db:"gigs_disk_space_available" csv:"gigs_disk_space_available"`
 	PercentDiskSpaceAvailable float64 `json:"percent_disk_space_available" db:"percent_disk_space_available" csv:"percent_disk_space_available"`
+	GigsTotalDiskSpace        float64 `json:"gigs_total_disk_space" db:"gigs_total_disk_space" csv:"gigs_total_disk_space"`
 
 	// DiskEncryptionEnabled is only returned by GET /host/{id} and so is not
 	// exportable as CSV (which is the result of List Hosts endpoint). It is
@@ -399,6 +404,13 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -833,6 +845,18 @@ func ExpandPlatform(platform string) []string {
 	}
 }
 
+// List of valid sources for HostDeviceMapping (host_emails table in the
+// database).
+const (
+	DeviceMappingGoogleChromeProfiles = "google_chrome_profiles"
+	DeviceMappingMDMIdpAccounts       = "mdm_idp_accounts"
+	DeviceMappingCustomInstaller      = "custom_installer" // set by fleetd via device-authenticated API
+	DeviceMappingCustomOverride       = "custom_override"  // set by user via user-authenticated API
+
+	DeviceMappingCustomPrefix      = "custom_" // if host_emails.source starts with this, replace with DeviceMappingCustomReplacement
+	DeviceMappingCustomReplacement = "custom"  // replaces a source that starts with CustomPrefix - in the UI, we want to display those as only "custom"
+)
+
 // HostDeviceMapping represents a mapping of a user email address to a host,
 // as reported by the specified source (e.g. Google Chrome Profiles).
 type HostDeviceMapping struct {
@@ -1102,6 +1126,10 @@ type OSVersions struct {
 }
 
 type OSVersion struct {
+	// ID is the unique id of the operating system.
+	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1114,8 +1142,12 @@ type OSVersion struct {
 	Version string `json:"version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
-	// ID is the unique id of the operating system.
-	ID uint `json:"os_id,omitempty"`
+	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
+	// It is currently only generated for Operating Systems scanned for vulnerabilities
+	// in NVD (macOS only)
+	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
+	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
@@ -1136,6 +1168,7 @@ type HostMDMCheckinInfo struct {
 	DisplayName        string `json:"display_name" db:"display_name"`
 	TeamID             uint   `json:"team_id" db:"team_id"`
 	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
 }
 
 type HostDiskEncryptionKey struct {
@@ -1167,4 +1200,18 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostLite contains a subset of Host fields.
+type HostLite struct {
+	ID                  uint      `db:"id"`
+	TeamID              *uint     `db:"team_id"`
+	Hostname            string    `db:"hostname"`
+	OsqueryHostID       string    `db:"osquery_host_id"`
+	NodeKey             string    `db:"node_key"`
+	UUID                string    `db:"uuid"`
+	HardwareSerial      string    `db:"hardware_serial"`
+	SeenTime            time.Time `db:"seen_time"`
+	DistributedInterval uint      `db:"distributed_interval"`
+	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }

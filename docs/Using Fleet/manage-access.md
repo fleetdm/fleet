@@ -50,10 +50,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Run queries designated "**observer can run**" as live queries against all hosts                                                            | ✅       | ✅         | ✅         | ✅    |         |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query) against all hosts                                 |          | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete queries                                                                                                           |          |            | ✅         | ✅    | ✅      |
-| View all queries and their reports\**                                                                                                      | ✅       | ✅         | ✅         | ✅    |         |
+| View all queries and their reports                                                                                                         | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                                 |          |            | ✅         | ✅    | ✅      |
 | Create, edit, view, and delete packs                                                                                                       |          |            | ✅         | ✅    | ✅      |
-| View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    |         |
+| View all policies                                                                                                                          | ✅       | ✅         | ✅         | ✅    | ✅      |
 | Run all policies                                                                                                                           |          | ✅         | ✅         | ✅    |         |
 | Filter hosts using policies                                                                                                                | ✅       | ✅         | ✅         | ✅    |         |
 | Create, edit, and delete policies for all hosts                                                                                            |          |            | ✅         | ✅    | ✅      |
@@ -64,10 +64,10 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            | ✅         | ✅    |         |
-| Read organization settings\***                                                                                                             | ✅       | ✅         | ✅         | ✅    |         |
-| Read Single Sign-On settings\***                                                                                                           |          |            |            | ✅    |         |
-| Read SMTP settings\***                                                                                                                     |          |            |            | ✅    |         |
-| Read osquery agent options\***                                                                                                             |          |            |            | ✅    |         |
+| Read organization settings\**                                                                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
+| Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
+| Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
 | Edit [organization settings](https://fleetdm.com/docs/using-fleet/configuration-files#organization-settings)                               |          |            |            | ✅    | ✅      |
 | Edit [agent options](https://fleetdm.com/docs/using-fleet/configuration-files#agent-options)                                               |          |            |            | ✅    | ✅      |
 | Edit [agent options for hosts assigned to teams](https://fleetdm.com/docs/using-fleet/configuration-files#team-agent-options)\*            |          |            |            | ✅    | ✅      |
@@ -77,9 +77,9 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | View Apple business manager (BM) information                                                                                               |          |            |            | ✅    |         |
 | Generate Apple mobile device management (MDM) certificate signing request (CSR)                                                            |          |            |            | ✅    |         |
 | View disk encryption key for macOS and Windows hosts                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Create edit and delete configuration profiles for macOS and Windows hosts                                                                  |          |            | ✅         | ✅    | ✅      |
-| Execute MDM commands on macOS and Windows hosts***                                                                                         |          |            | ✅         | ✅    |         |
-| View results of MDM commands executed on macOS and Windows hosts***                                                                        | ✅       | ✅         | ✅         | ✅    |         |
+| Create edit and delete configuration profiles for macOS and Windows hosts                                                                              |          |            | ✅         | ✅    | ✅      |
+| Execute MDM commands on macOS and Windows hosts\**                                                                                        |          |            | ✅         | ✅    |         |
+| View results of MDM commands executed on macOS and Windows hosts\**                                               | ✅       | ✅         | ✅         | ✅    |         |
 | Edit [MDM settings](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                               |          |            |            | ✅    | ✅      |
 | Edit [MDM settings for teams](https://fleetdm.com/docs/using-fleet/mdm-macos-settings)                                                     |          |            |            | ✅    | ✅      |
 | Upload an EULA file for MDM automatic enrollment\*                                                                                         |          |            |            | ✅    |         |
@@ -90,14 +90,13 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Enable/disable MDM macOS setup end user authentication\*                                                                                   |          |            | ✅         | ✅    | ✅      |
 | Run arbitrary scripts on hosts\*                                                                                                           |          |            | ✅         | ✅    |         |
 | View saved scripts\*                                                                                                                       | ✅       | ✅         | ✅         | ✅    |         |
-| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    |         |
+| Edit/upload saved scripts\*                                                                                                                |          |            | ✅         | ✅    | ✅      |
 | Run saved scripts on hosts\*                                                                                                               | ✅       | ✅         | ✅         | ✅    |         |
+| Lock, unlock, and wipe hosts\*                                                                                                             |          |            | ✅         | ✅    |         |
 
 \* Applies only to Fleet Premium
 
-\** Global observers can view all queries via the API. The UI and fleetctl only list the ones they can run (**observer can run**).
-
-\*** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
+\** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
 ## Team member permissions
 
@@ -128,7 +127,8 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Run queries designated "**observer can run**" as live queries against hosts                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Run any query as [live query](https://fleetdm.com/docs/using-fleet/fleet-ui#run-a-query)                                         |               | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete only **self authored** queries                                                                          |               |                | ✅              | ✅         | ✅          |
-| View all queries and their reports\**                                                                                            | ✅            | ✅             | ✅              | ✅         |             |
+| View team queries and their reports                                                                                              | ✅            | ✅             | ✅              | ✅         |             |
+| View global (inherited) queries and their reports\**                                                                             | ✅            | ✅             | ✅              | ✅         |             |
 | Manage [query automations](https://fleetdm.com/docs/using-fleet/fleet-ui#schedule-a-query)                                       |               |                | ✅              | ✅         | ✅          |
 | View team policies                                                                                                               | ✅            | ✅             | ✅              | ✅         |             |
 | Run team policies as a live policy                                                                                               |               | ✅             | ✅              | ✅         |             |
@@ -159,11 +159,12 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Edit/upload saved scripts                                                                                                        |               |                | ✅              | ✅         |             |
 | Run saved scripts on hosts                                                                                                       | ✅            | ✅             | ✅              | ✅         |             |
 | View script details by host                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
+| Lock, unlock, and wipe hosts                                                                                                     |               |                | ✅              | ✅         |             |
 
 
 \* Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-\** Team observers can view all queries via the API. The UI and fleetctl only list the ones they can run (**observer can run**).
+\** Team-level users only see global query results for hosts on teams where they have access.
 
 <meta name="pageOrderInSection" value="900">
 <meta name="description" value="Learn about the different roles and permissions in Fleet.">

@@ -15,7 +15,11 @@ import {
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 
-import { humanHostLastSeen, internallyTruncateText } from "utilities/helpers";
+import {
+  getUniqueColumnNamesFromRows,
+  humanHostLastSeen,
+  internallyTruncateText,
+} from "utilities/helpers";
 
 type IHeaderProps = HeaderProps<TableInstance> & {
   column: ColumnInstance & IDataColumn;
@@ -52,12 +56,7 @@ const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
   /* Results include an array of objects, each representing a table row
   Each key value pair in an object represents a column name and value
   To create headers, use JS set to create an array of all unique column names */
-  const uniqueColumnNames = Array.from(
-    results.reduce(
-      (s, o) => Object.keys(o).reduce((t, k) => t.add(k), s),
-      new Set() // Set prevents listing duplicate headers
-    )
-  );
+  const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
 
   const columnConfigs = uniqueColumnNames.map((key) => {
     return {
@@ -89,6 +88,7 @@ const generateReportColumnConfigsFromResults = (results: any[]): Column[] => {
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",
       disableSortBy: false,
+      sortType: "caseInsensitive",
     };
   });
   return _unshiftHostname(columnConfigs);

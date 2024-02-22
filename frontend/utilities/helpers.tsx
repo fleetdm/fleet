@@ -11,8 +11,6 @@ import {
   trimEnd,
   union,
 } from "lodash";
-import { buildQueryStringFromParams } from "utilities/url";
-
 import md5 from "js-md5";
 import {
   formatDistanceToNow,
@@ -23,6 +21,7 @@ import {
 } from "date-fns";
 import yaml from "js-yaml";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import { IHost } from "interfaces/host";
 import { ILabel } from "interfaces/label";
 import { IPack } from "interfaces/pack";
@@ -201,7 +200,11 @@ export const formatConfigDataForServer = (config: any): any => {
   };
 };
 
-export const formatFloatAsPercentage = (float: number): string => {
+export const formatFloatAsPercentage = (float?: number): string => {
+  if (float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
   const formatter = Intl.NumberFormat("en-US", {
     maximumSignificantDigits: 2,
     style: "percent",
@@ -456,6 +459,16 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
+export const formatScriptNameForActivityItem = (name: string | undefined) => {
+  return name ? (
+    <>
+      the <b>{name}</b> script
+    </>
+  ) : (
+    "a script"
+  );
+};
+
 export const generateRole = (
   teams: ITeam[],
   globalRole: UserRole | null
@@ -643,9 +656,9 @@ export const readableDate = (date: string) => {
   }).format(dateString);
 };
 
-export const performanceIndicator = (
+export const getPerformanceImpactDescription = (
   scheduledQueryStats: IScheduledQueryStats
-): string => {
+) => {
   if (
     !scheduledQueryStats.total_executions ||
     scheduledQueryStats.total_executions === 0 ||
@@ -745,7 +758,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
@@ -828,6 +845,22 @@ export const internallyTruncateText = (
   </>
 );
 
+export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+  // rows of type {col:val, col:val, ...}[]
+  // cannot type more narrowly due to loose typing of websocket API and use of this function
+  // by QueryResultsTableConfig, where results come from that API
+  // TODO – narrow this entire chain down to the websocket API level
+  Array.from(
+    rows.reduce(
+      (accOuter, row) =>
+        Object.keys(row).reduce(
+          (accInner, colNameInRow) => accInner.add(colNameInRow),
+          accOuter
+        ),
+      new Set()
+    )
+  );
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -835,6 +868,7 @@ export default {
   formatFloatAsPercentage,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
+  formatScriptNameForActivityItem,
   formatGlobalScheduledQueryForClient,
   formatGlobalScheduledQueryForServer,
   formatTeamScheduledQueryForClient,
@@ -843,6 +877,7 @@ export default {
   formatPackTargetsForApi,
   generateRole,
   generateTeam,
+  getUniqueColumnNamesFromRows,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,

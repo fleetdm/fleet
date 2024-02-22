@@ -80,3 +80,9 @@ func FleetReservedProfileNames() map[string]struct{} {
 		FleetWindowsOSUpdatesProfileName: {},
 	}
 }
+
+// ListFleetReservedWindowsProfileNames returns a list of PayloadDisplayName strings
+// that are reserved by Fleet for Windows.
+func ListFleetReservedWindowsProfileNames() []string {
+	return []string{FleetWindowsOSUpdatesProfileName}
+}

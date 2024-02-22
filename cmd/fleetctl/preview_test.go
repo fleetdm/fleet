@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -27,7 +28,9 @@ func TestPreview(t *testing.T) {
 	require.NoError(t, nettest.RunWithNetRetry(t, func() error {
 		var err error
 		output, err = runAppNoChecks([]string{
-			"preview", "--config", configPath,
+			"preview",
+			"--config", configPath,
+			"--preview-config-path", filepath.Join(gitRootPath(t), "tools", "osquery", "in-a-box"),
 			"--tag", "main",
 			"--disable-open-browser",
 		})
@@ -62,6 +65,12 @@ func TestPreview(t *testing.T) {
 	// a vulnerability database path must be set
 	ok = strings.Contains(appConf, `databases_path: /vulndb`)
 	require.True(t, ok, appConf)
+}
+
+func gitRootPath(t *testing.T) string {
+	path, err := exec.Command("git", "rev-parse", "--show-toplevel").Output()
+	require.NoError(t, err)
+	return strings.TrimSpace(string(path))
 }
 
 func TestDockerCompose(t *testing.T) {

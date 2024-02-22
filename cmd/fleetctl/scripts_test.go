@@ -16,13 +16,16 @@ import (
 )
 
 func TestRunScriptCommand(t *testing.T) {
-	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
-		License: &fleet.LicenseInfo{
-			Tier: fleet.TierPremium,
+	_, ds := runServerWithMockedDS(t,
+		&service.TestServerOpts{
+			License: &fleet.LicenseInfo{
+				Tier: fleet.TierPremium,
+			},
 		},
-		// increase the default timeout to 90 seconds to match the production server
-		HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
-	})
+		&service.TestServerOpts{
+			HTTPServerConfig: &http.Server{WriteTimeout: 90 * time.Second}, // nolint:gosec
+		},
+	)
 
 	ds.LoadHostSoftwareFunc = func(ctx context.Context, host *fleet.Host, includeCVEScores bool) error {
 		return nil
@@ -39,9 +42,8 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hid uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
-	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
-		require.IsType(t, fleet.ActivityTypeRanScript{}, activity)
-		return nil
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
 
 	generateValidPath := func() string {
@@ -150,10 +152,10 @@ Output:
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-1),
 				Output:   "Oh no!",
-				Message:  "Timeout. Fleet stopped the script after 30 seconds to protect host performance.",
+				Message:  fleet.RunScriptScriptTimeoutErrMsg,
 			},
 			expectOutput: `
-Error: Timeout. Fleet stopped the script after 30 seconds to protect host performance.
+Error: Timeout. Fleet stopped the script after 5 minutes to protect host performance.
 
 Output before timeout:
 
@@ -170,10 +172,10 @@ Oh no!
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(-2),
 				Output:   "",
-				Message:  "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.",
+				Message:  fleet.RunScriptDisabledErrMsg,
 			},
 			expectOutput: `
-Error: Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled.
+Error: Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled.
 
 `,
 		},
@@ -198,11 +200,14 @@ Fleet records the last 10,000 characters to prevent downtime.
 -------------------------------------------------------------------------------------
 `, maxChars),
 		},
-		{
-			name:         "host timeout",
-			scriptPath:   generateValidPath,
-			expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
-		},
+		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
+		// but can be useful to have around for manual testing.
+		//{
+		//	name:         "host timeout",
+		//	scriptPath:   generateValidPath,
+		//	expectErrMsg: fleet.RunScriptHostTimeoutErrMsg,
+		//},
+		{name: "disabled scripts globally", scriptPath: generateValidPath, expectErrMsg: fleet.RunScriptScriptsDisabledGloballyErrMsg},
 	}
 
 	setupDS := func(t *testing.T, c testCase) {
@@ -210,19 +215,19 @@ Fleet records the last 10,000 characters to prevent downtime.
 			if ident != "host1" || c.expectNotFound {
 				return nil, &notFoundError{}
 			}
-			return &fleet.Host{ID: 42, SeenTime: time.Now()}, nil
+			return &fleet.Host{ID: 42, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}, nil
 		}
 		ds.HostFunc = func(ctx context.Context, hid uint) (*fleet.Host, error) {
 			if hid != 42 || c.expectNotFound {
 				return nil, &notFoundError{}
 			}
-			h := fleet.Host{ID: hid, SeenTime: time.Now()}
+			h := fleet.Host{ID: hid, SeenTime: time.Now(), OrbitNodeKey: ptr.String("abc")}
 			if c.expectOffline {
 				h.SeenTime = time.Now().Add(-time.Hour)
 			}
 			return &h, nil
 		}
-		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint, maxAge time.Duration) ([]*fleet.HostScriptResult, error) {
+		ds.ListPendingHostScriptExecutionsFunc = func(ctx context.Context, hid uint) ([]*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), hid)
 			if c.expectPending {
 				return []*fleet.HostScriptResult{{HostID: uint(42)}}, nil
@@ -235,6 +240,9 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 			return &fleet.HostScriptResult{}, nil
 		}
+		ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+			return &fleet.HostLockWipeStatus{}, nil
+		}
 		ds.NewHostScriptExecutionRequestFunc = func(ctx context.Context, req *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
 			require.Equal(t, uint(42), req.HostID)
 			return &fleet.HostScriptResult{
@@ -242,6 +250,11 @@ Fleet records the last 10,000 characters to prevent downtime.
 				HostID:         req.HostID,
 				ScriptContents: req.ScriptContents,
 			}, nil
+		}
+		if c.name == "disabled scripts globally" {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
+			}
 		}
 	}
 

@@ -66,7 +66,6 @@ To automatically add hosts to a team in Fleet, check out the ["Adding hosts" doc
 
 ## Transfer hosts to a team
 
-Hosts can be transferred to a different team they've has been enrolled to Fleet.
 
 To transfer a host to a team:
 

@@ -1,0 +1,2 @@
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Path	string
+github.com/fleetdm/fleet/v4/server/fleet/MDMProfileSpec	Labels	[]string

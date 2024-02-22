@@ -23,8 +23,13 @@ import Button from "components/buttons/Button";
 import TabsWrapper from "components/TabsWrapper";
 import InfoBanner from "components/InfoBanner";
 import Icon from "components/Icon/Icon";
-import { normalizeEmptyValues, wrapFleetHelper } from "utilities/helpers";
+import { normalizeEmptyValues } from "utilities/helpers";
 import PATHS from "router/paths";
+import {
+  DOCUMENT_TITLE_SUFFIX,
+  HOST_ABOUT_DATA,
+  HOST_SUMMARY_DATA,
+} from "utilities/constants";
 
 import HostSummaryCard from "../cards/HostSummary";
 import AboutCard from "../cards/About";
@@ -204,39 +209,9 @@ const DeviceUserPage = ({
     }
   );
 
-  const titleData = normalizeEmptyValues(
-    pick(host, [
-      "id",
-      "status",
-      "issues",
-      "memory",
-      "cpu_type",
-      "os_version",
-      "osquery_version",
-      "enroll_secret_name",
-      "detail_updated_at",
-      "percent_disk_space_available",
-      "gigs_disk_space_available",
-      "team_name",
-      "platform",
-      "mdm",
-    ])
-  );
+  const summaryData = normalizeEmptyValues(pick(host, HOST_SUMMARY_DATA));
 
-  const aboutData = normalizeEmptyValues(
-    pick(host, [
-      "seen_time",
-      "uptime",
-      "last_enrolled_at",
-      "hardware_model",
-      "hardware_serial",
-      "primary_ip",
-      "public_ip",
-      "geolocation",
-      "batteries",
-      "detail_updated_at",
-    ])
-  );
+  const aboutData = normalizeEmptyValues(pick(host, HOST_ABOUT_DATA));
 
   const toggleInfoModal = useCallback(() => {
     setShowInfoModal(!showInfoModal);
@@ -293,23 +268,7 @@ const DeviceUserPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    const hostTab = () => {
-      if (location.pathname.includes("software")) {
-        return "software";
-      }
-      if (location.pathname.includes("schedule")) {
-        return "schedule";
-      }
-      if (location.pathname.includes("policies")) {
-        return "policies";
-      }
-      return "";
-    };
-
-    // e.g., Rachel's Macbook Pro schedule details | Fleet for osquery
-    document.title = `My device ${hostTab()} details | ${
-      host?.display_name || "Unknown host"
-    } | Fleet for osquery`;
+    document.title = `My device | ${DOCUMENT_TITLE_SUFFIX}`;
   }, [location.pathname, host]);
 
   const renderActionButtons = () => {
@@ -374,11 +333,11 @@ const DeviceUserPage = ({
       findIndex(tabPaths, (x) => x.startsWith(pathname.split("?")[0]));
 
     return (
-      <div className="fleet-desktop-wrapper">
+      <div className="core-wrapper">
         {isLoadingHost ? (
           <Spinner />
         ) : (
-          <div className={`${baseClass} body-wrap`}>
+          <div className={`${baseClass} main-content`}>
             {host?.platform === "darwin" &&
               isMdmUnenrolled &&
               globalConfig?.mdm.enabled_and_configured && (
@@ -407,8 +366,7 @@ const DeviceUserPage = ({
               </InfoBanner>
             )}
             <HostSummaryCard
-              titleData={titleData}
-              diskEncryptionEnabled={host?.disk_encryption_enabled}
+              summaryData={summaryData}
               bootstrapPackageData={bootstrapPackageData}
               isPremiumTier={isPremiumTier}
               toggleOSSettingsModal={toggleOSSettingsModal}
@@ -420,7 +378,7 @@ const DeviceUserPage = ({
               osSettings={host?.mdm.os_settings}
               deviceUser
             />
-            <TabsWrapper>
+            <TabsWrapper className={`${baseClass}__tabs-wrapper`}>
               <Tabs
                 selectedIndex={findSelectedTab(location.pathname)}
                 onSelect={(i) => router.push(tabPaths[i])}

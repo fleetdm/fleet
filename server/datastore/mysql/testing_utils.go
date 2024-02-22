@@ -16,6 +16,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
@@ -44,7 +45,16 @@ func connectMySQL(t testing.TB, testName string, opts *DatastoreTestOptions) *Da
 		replicaConf.Database += testReplicaDatabaseSuffix
 		replicaOpt = Replica(&replicaConf)
 	}
-	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI_QUOTES"))
+	// set SQL mode to ANSI, as it's a special mode equivalent to:
+	// REAL_AS_FLOAT, PIPES_AS_CONCAT, ANSI_QUOTES, IGNORE_SPACE, and
+	// ONLY_FULL_GROUP_BY
+	//
+	// Per the docs:
+	// > This mode changes syntax and behavior to conform more closely to
+	// standard SQL.
+	//
+	// https://dev.mysql.com/doc/refman/8.0/en/sql-mode.html#sqlmode_ansi
+	ds, err := New(config, clock.NewMockClock(), Logger(log.NewNopLogger()), LimitAttempts(1), replicaOpt, SQLMode("ANSI"))
 	require.Nil(t, err)
 
 	if opts.Replica {
@@ -284,6 +294,10 @@ func ExecAdhocSQL(tb testing.TB, ds *Datastore, fn func(q sqlx.ExtContext) error
 	require.NoError(tb, err)
 }
 
+func ExecAdhocSQLWithError(ds *Datastore, fn func(q sqlx.ExtContext) error) error {
+	return fn(ds.primary)
+}
+
 // TruncateTables truncates the specified tables, in order, using ds.writer.
 // Note that the order is typically not important because FK checks are
 // disabled while truncating. If no table is provided, all tables (except
@@ -435,4 +449,20 @@ func InsertWindowsProfileForTest(t *testing.T, ds *Datastore, teamID uint) strin
 		return err
 	})
 	return profUUID
+}
+
+// GetAggregatedStats retrieves aggregated stats for the given query
+func GetAggregatedStats(ctx context.Context, ds *Datastore, aggregate fleet.AggregatedStatsType, id uint) (fleet.AggregatedStats, error) {
+	result := fleet.AggregatedStats{}
+	stmt := `
+	SELECT
+		   JSON_EXTRACT(json_value, '$.user_time_p50') as user_time_p50,
+		   JSON_EXTRACT(json_value, '$.user_time_p95') as user_time_p95,
+		   JSON_EXTRACT(json_value, '$.system_time_p50') as system_time_p50,
+		   JSON_EXTRACT(json_value, '$.system_time_p95') as system_time_p95,
+		   JSON_EXTRACT(json_value, '$.total_executions') as total_executions
+	FROM aggregated_stats WHERE id=? AND type=?
+	`
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &result, stmt, id, aggregate)
+	return result, err
 }

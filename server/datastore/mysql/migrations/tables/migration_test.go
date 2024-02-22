@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/jmoiron/sqlx"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -134,14 +135,14 @@ func insertQuery(t *testing.T, db *sqlx.DB) uint {
 	return uint(id)
 }
 
-func insertHost(t *testing.T, db *sqlx.DB) uint {
+func insertHost(t *testing.T, db *sqlx.DB, teamID *uint) uint {
 	// Insert a minimal record into hosts table
 	insertHostStmt := `
 		INSERT INTO hosts (
 			hostname, uuid, platform, osquery_version, os_version, build, platform_like, code_name,
 			cpu_type, cpu_subtype, cpu_brand, hardware_vendor, hardware_model, hardware_version,
-			hardware_serial, computer_name
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+			hardware_serial, computer_name, team_id
+		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	hostName := "Dummy Hostname"
@@ -161,11 +162,18 @@ func insertHost(t *testing.T, db *sqlx.DB) uint {
 	hwSerial := "ABCDEFGHIJ"
 	computerName := "DESKTOP-TEST"
 
-	res, err := db.Exec(insertHostStmt, hostName, hostUUID, hostPlatform, osqueryVer, osVersion, buildVersion, platformLike, codeName, cpuType, cpuSubtype, cpuBrand, hwVendor, hwModel, hwVersion, hwSerial, computerName)
+	res, err := db.Exec(insertHostStmt, hostName, hostUUID, hostPlatform, osqueryVer, osVersion, buildVersion, platformLike, codeName, cpuType, cpuSubtype, cpuBrand, hwVendor, hwModel, hwVersion, hwSerial, computerName, teamID)
 	require.NoError(t, err)
 
 	id, err := res.LastInsertId()
 	require.NoError(t, err)
 
 	return uint(id)
+}
+
+func assertRowCount(t *testing.T, db *sqlx.DB, table string, count int) {
+	var n int
+	err := db.Get(&n, fmt.Sprintf("SELECT COUNT(*) FROM %s", table))
+	require.NoError(t, err)
+	assert.Equal(t, count, n)
 }

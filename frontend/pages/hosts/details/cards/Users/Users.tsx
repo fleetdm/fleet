@@ -51,7 +51,7 @@ const Users = ({
       <p className="section__header">Users</p>
       {users?.length ? (
         <TableContainer
-          columns={tableHeaders}
+          columnConfigs={tableHeaders}
           data={usersState}
           isLoading={isLoading}
           defaultSortHeader={"username"}

@@ -9,7 +9,7 @@ import {
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 import { SelectedPlatform } from "interfaces/platform";
-import { ISoftware } from "interfaces/software";
+import { ISoftwareTitle, ISoftware } from "interfaces/software";
 import {
   DiskEncryptionStatus,
   BootstrapPackageStatus,
@@ -25,10 +25,18 @@ export interface ISortOption {
 
 export interface ILoadHostsResponse {
   hosts: IHost[];
-  software: ISoftware;
+  software: ISoftware | undefined;
+  software_title: ISoftwareTitle | undefined;
   munki_issue: IMunkiIssuesAggregate;
   mobile_device_management_solution: IMdmSolution;
 }
+
+export type IUnlockHostResponse =
+  | {
+      host_id: number;
+      unlock_pin: string;
+    }
+  | Record<string, never>;
 
 // the source of truth for the filter option names.
 // there are used on many other pages but we define them here.
@@ -55,11 +63,13 @@ export interface ILoadHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   munkiIssueId?: number;
@@ -82,6 +92,8 @@ export interface IExportHostsOptions {
   policyResponse?: string;
   macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
+  softwareTitleId?: number;
+  softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
   munkiIssueId?: number;
@@ -177,6 +189,8 @@ export default {
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse || "passing";
     const softwareId = options?.softwareId;
+    const softwareTitleId = options?.softwareTitleId;
+    const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
     const status = options?.status;
     const mdmId = options?.mdmId;
@@ -197,6 +211,7 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -209,6 +224,8 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
         osSettings,
         diskEncryptionStatus,
@@ -234,12 +251,14 @@ export default {
     policyResponse = "passing",
     macSettingsStatus,
     softwareId,
+    softwareTitleId,
+    softwareVersionId,
     status,
     mdmId,
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     device_mapping,
@@ -261,6 +280,7 @@ export default {
       order_direction: sortParams.order_direction,
       status,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -273,8 +293,10 @@ export default {
         mdmEnrollmentStatus,
         munkiIssueId,
         softwareId,
+        softwareTitleId,
+        softwareVersionId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         diskEncryptionStatus,
@@ -363,5 +385,14 @@ export default {
   getEncryptionKey: (id: number) => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  lockHost: (id: number) => {
+    const { HOST_LOCK } = endpoints;
+    return sendRequest("POST", HOST_LOCK(id));
+  },
+  unlockHost: (id: number): Promise<IUnlockHostResponse> => {
+    const { HOST_UNLOCK } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK(id));
   },
 };

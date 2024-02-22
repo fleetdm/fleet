@@ -151,16 +151,22 @@ type ScheduledQueryStats struct {
 	PackID   uint   `json:"pack_id,omitempty" db:"pack_id"`
 
 	// From osquery directly
-	AverageMemory int  `json:"average_memory" db:"average_memory"`
-	Denylisted    bool `json:"denylisted" db:"denylisted"`
-	Executions    int  `json:"executions" db:"executions"`
+	AverageMemory uint64 `json:"average_memory" db:"average_memory"`
+	Denylisted    bool   `json:"denylisted" db:"denylisted"`
+	Executions    uint64 `json:"executions" db:"executions"`
 	// Note schedule_interval is used for DB since "interval" is a reserved word in MySQL
-	Interval     int       `json:"interval" db:"schedule_interval"`
-	LastExecuted time.Time `json:"last_executed" db:"last_executed"`
-	OutputSize   int       `json:"output_size" db:"output_size"`
-	SystemTime   int       `json:"system_time" db:"system_time"`
-	UserTime     int       `json:"user_time" db:"user_time"`
-	WallTime     int       `json:"wall_time" db:"wall_time"`
+	Interval           int        `json:"interval" db:"schedule_interval"`
+	DiscardData        bool       `json:"discard_data" db:"discard_data"`
+	LastFetched        *time.Time `json:"last_fetched" db:"last_fetched"`
+	AutomationsEnabled bool       `json:"automations_enabled" db:"automations_enabled"`
+	LastExecuted       time.Time  `json:"last_executed" db:"last_executed"`
+	OutputSize         uint64     `json:"output_size" db:"output_size"`
+	SystemTime         uint64     `json:"system_time" db:"system_time"`
+	UserTime           uint64     `json:"user_time" db:"user_time"`
+	// WallTimeMs from osquery maps to WallTime in the DB.
+	WallTime uint64 `json:"wall_time" db:"wall_time"`
+	// WallTimeMs should always be hidden (0-value) in the Fleet API response since it does not map to a field in the DB.
+	WallTimeMs uint64 `json:"wall_time_ms,omitempty"`
 }
 
 // TeamID returns the team id if the stat is for a team query stat result

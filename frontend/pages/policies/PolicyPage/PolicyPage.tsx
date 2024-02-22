@@ -19,7 +19,7 @@ import globalPoliciesAPI from "services/entities/global_policies";
 import teamPoliciesAPI from "services/entities/team_policies";
 import hostAPI from "services/entities/hosts";
 import statusAPI from "services/entities/status";
-import { LIVE_POLICY_STEPS } from "utilities/constants";
+import { DOCUMENT_TITLE_SUFFIX, LIVE_POLICY_STEPS } from "utilities/constants";
 
 import QuerySidePanel from "components/side_panels/QuerySidePanel";
 import QueryEditor from "pages/policies/PolicyPage/screens/QueryEditor";
@@ -147,7 +147,7 @@ const PolicyPage = ({
     error: storedPolicyError,
   } = useQuery<IStoredPolicyResponse, Error, IPolicy>(
     ["policy", policyId],
-    () => globalPoliciesAPI.load(policyId as number), // Note: Team members have access to policies through global API
+    () => globalPoliciesAPI.load(policyId as number), // Note: Team users have access to policies through global API
     {
       enabled: isRouteOk && !!policyId, // Note: this justifies the number type assertions above
       refetchOnWindowFocus: false,
@@ -206,8 +206,12 @@ const PolicyPage = ({
 
   // Updates title that shows up on browser tabs
   useEffect(() => {
-    // e.g., Policy details | Antivirus healthy (Linux) | Fleet for osquery
-    document.title = `Policy details | ${storedPolicy?.name} | Fleet for osquery`;
+    // e.g., Antivirus healthy (Linux) | Policies | Fleet
+    if (storedPolicy?.name) {
+      document.title = `${storedPolicy.name} | Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    } else {
+      document.title = `Policies | ${DOCUMENT_TITLE_SUFFIX}`;
+    }
   }, [location.pathname, storedPolicy?.name]);
 
   useEffect(() => {

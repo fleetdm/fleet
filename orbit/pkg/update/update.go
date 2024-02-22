@@ -15,12 +15,14 @@ import (
 	"runtime"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/orbit/pkg/build"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/platform"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/pkg/retry"
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/rs/zerolog/log"
 	"github.com/theupdateframework/go-tuf/client"
@@ -40,9 +42,10 @@ const (
 // Updater supports updating plain executables and
 // .tar.gz compressed executables.
 type Updater struct {
-	opt    Options
-	client *client.Client
-	mu     sync.Mutex
+	opt     Options
+	client  *client.Client
+	retryer *retry.LimitedWithCooldown
+	mu      sync.Mutex
 }
 
 // Options are the options that can be provided when creating an Updater.
@@ -171,6 +174,9 @@ func NewUpdater(opt Options) (*Updater, error) {
 	updater := &Updater{
 		opt:    opt,
 		client: tufClient,
+		// per product spec, retry up to three consecutive times, then
+		// wait 24 hours to try again.
+		retryer: retry.NewLimitedWithCooldown(3, 24*time.Hour),
 	}
 
 	if err := updater.initializeDirectories(); err != nil {
@@ -315,6 +321,37 @@ func (u *Updater) Targets() (data.TargetFiles, error) {
 
 // Get downloads (if it doesn't exist) a target and returns its local information.
 func (u *Updater) Get(target string) (*LocalTarget, error) {
+	meta, err := u.Lookup(target)
+	if err != nil {
+		return nil, err
+	}
+
+	// use the specific target hash as the key for retries. This allows new
+	// updates to the TUF server to be downloaded immediately without
+	// having to wait the cooldown.
+	key := target
+	if _, metaHash, err := selectHashFunction(meta); err == nil {
+		key = fmt.Sprintf("%x", metaHash)
+	}
+
+	var localTarget *LocalTarget
+	err = u.retryer.Do(key, func() error {
+		var err error
+		localTarget, err = u.get(target)
+		return err
+	})
+	if err != nil {
+		var rErr *retry.ExcessRetriesError
+		if errors.As(err, &rErr) {
+			return nil, fmt.Errorf("skipped getting target: %w", err)
+		}
+
+		return nil, fmt.Errorf("getting target: %w", err)
+	}
+	return localTarget, nil
+}
+
+func (u *Updater) get(target string) (*LocalTarget, error) {
 	if target == "" {
 		return nil, errors.New("target is required")
 	}

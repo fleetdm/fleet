@@ -6,7 +6,7 @@
     }
   }
 
-  &__disabled-discard-data-checkbox {
+  &__disabled-discard-data-checkbox > .fleet-checkbox {
     @include disabled;
   }
 

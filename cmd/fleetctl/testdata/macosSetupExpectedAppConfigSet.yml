@@ -56,6 +56,7 @@ spec:
     live_query_disabled: false
     query_reports_disabled: false
     server_url: https://example.org
+    scripts_disabled: false
   smtp_settings:
     authentication_method: ""
     authentication_type: ""

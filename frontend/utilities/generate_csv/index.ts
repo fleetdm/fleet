@@ -18,13 +18,14 @@ export const generateCSVFilename = (descriptor: string) => {
 export const generateCSVQueryResults = (
   rows: Row[],
   filename: string,
-  tableHeaders: Column[] | string[]
+  tableHeaders: Column[] | string[],
+  omitHostDisplayName?: boolean
 ) => {
   return new global.window.File(
     [
       convertToCSV({
         objArray: rows.map((r) => r.original),
-        fieldSortFunc: reorderCSVFields,
+        fieldSortFunc: omitHostDisplayName ? undefined : reorderCSVFields,
         tableHeaders,
       }),
     ],

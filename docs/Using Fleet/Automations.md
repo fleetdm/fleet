@@ -15,7 +15,7 @@ percentage of hosts have not checked in to Fleet for a configured number of days
 
 Vulnerability automations are triggered if Fleet detects a new vulnerability (CVE) on at least one host. 
 
-> Note that a CVE is treated as "new" by Fleet if it was published to the national vulnerability database (NVD) within the preceding 30 days by default. This setting can be changed through the [`recent_vulnerabilities_max_age` configuration option](https://fleetdm.com/docs/deploying/configuration#recent-vulnerability-max-age).
+> Note that a CVE is treated as "new" by Fleet if it was published to the national vulnerability database (NVD) within the preceding 30 days by default. This setting can be changed through the [`recent_vulnerability_max_age` configuration option](https://fleetdm.com/docs/deploying/configuration#recent-vulnerability-max-age).
 
 Fleet can be configured either to send a webhook request or to create a ticket in Jira or Zendesk. Fleet checks whether to trigger vulnerability automations once per hour by default. This period can be changed through the [`vulnerabilities_periodicity` configuration option](https://fleetdm.com/docs/deploying/configuration#periodicity). 
 
@@ -58,7 +58,7 @@ POST https://server.com/example
 ```
 
 
-For ticket automations, one ticket is created per CVE regardless of the number of hosts on which such CVE is detected.
+For ticket automations, only one ticket per CVE is created even if a CVE is detected on multiple hosts.
 
 Follow the steps below to configure Jira or Zendesk as a ticket destination:
 

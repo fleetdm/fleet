@@ -15,6 +15,7 @@ interface INudgeDescriptionProps {
 const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
   return platform === "darwin" ? (
     <>
+      <h3>End user experience on macOS</h3>
       <p>
         When a minimum version is saved, the end user sees the below window
         until their macOS version is at or above the minimum version.
@@ -22,22 +23,22 @@ const NudgeDescription = ({ platform }: INudgeDescriptionProps) => {
       <p>As the deadline gets closer, Fleet provides stronger encouragement.</p>
       <CustomLink
         text="Learn more about macOS updates in Fleet"
-        url="https://fleetdm.com/docs/using-fleet/mdm-macos-updates"
+        url="https://fleetdm.com/learn-more-about/os-updates"
         newTab
       />
     </>
   ) : (
     <>
+      <h3>End user experience on Windows</h3>
       <p>
-        When a new Windows update is published, the update will be downloaded
-        and installed automatically before 8am and after 5pm (end user’s local
-        time). Before the deadline passes, users will be able to defer restarts.
-        After the deadline passes restart will be forced regardless of active
-        hours.
+        When a Windows host becomes aware of a new update, end users are able to
+        defer restarts. Automatic restarts happen before 8am and after 5pm (end
+        user’s local time). After the deadline, restarts are forced regardless
+        of active hours.
       </p>
       <CustomLink
         text="Learn more about Windows updates in Fleet"
-        url="Links to: https://fleetdm.com/docs/using-fleet/mdm-windows-updates"
+        url="https://fleetdm.com/learn-more-about/os-updates"
         newTab
       />
     </>
@@ -63,9 +64,11 @@ interface INudgePreviewProps {
 }
 
 const NudgePreview = ({ platform }: INudgePreviewProps) => {
+  // FIXME: on slow connection the image loads after the text which looks weird and can cause a
+  // mismatch between the text and the image when switching between platforms. We should load the
+  // image first and then the text.
   return (
     <div className={baseClass}>
-      <h2>End user experience</h2>
       <NudgeDescription platform={platform} />
       <NudgeImage platform={platform} />
     </div>

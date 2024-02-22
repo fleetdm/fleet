@@ -26,6 +26,14 @@ import (
 
 type devicePingRequest struct{}
 
+type deviceAuthPingRequest struct {
+	Token string `url:"token"`
+}
+
+func (r *deviceAuthPingRequest) deviceAuthToken() string {
+	return r.Token
+}
+
 type devicePingResponse struct{}
 
 func (r devicePingResponse) error() error { return nil }
