@@ -14,7 +14,7 @@ Fleetd is a bundle of agents provided by Fleet to gather information about your 
 Osquery is an open-source tool for gathering information about the state of any device that the osquery agent has been installed on. [Learn more](https://www.osquery.io/).
 
 ## Orbit
-Orbit is an osquery version and configuration manager, built by Fleet. [Docs](https://fleetdm.com/docs/using-fleet/orbit).
+Orbit is an osquery version and configuration manager, built by Fleet. [Docs](https://github.com/fleetdm/fleet/blob/main/orbit/README.md).
 
 ## Fleet Desktop
 Fleet Desktop is a menu bar icon that gives end users visibility into the security and status of their machine. [Docs](https://fleetdm.com/docs/using-fleet/fleet-desktop).
@@ -37,7 +37,7 @@ A policy is a specific “yes” or “no” query. Use policies to manage secur
 ## Host vitals
 Host vitals are the hard-coded queries Fleet uses to populate device details.
 
-## Software library 
+## Software library
 An inventory of each host’s installed software, including information about detected vulnerabilities (CVEs).
 
 <meta name="pageOrderInSection" value="200">
