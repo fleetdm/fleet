@@ -234,6 +234,9 @@ spec:
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    host_expiry_settings: 
+      host_expiry_enabled: true 
+      host_expiry_window: 14
     mdm:
       macos_updates:
         minimum_version: "12.3.1"
