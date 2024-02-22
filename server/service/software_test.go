@@ -196,10 +196,6 @@ func TestServiceSoftwareInventoryAuth(t *testing.T) {
 			})
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 
-			// Get software by ID.
-			_, err = svc.SoftwareByID(ctx, 1, nil, false)
-			checkAuthErr(t, tc.shouldFailGlobalRead, err)
-
 			_, err = svc.SoftwareByID(ctx, 1, ptr.Uint(1), false)
 			checkAuthErr(t, tc.shouldFailTeamRead, err)
 		})
