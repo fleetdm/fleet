@@ -202,16 +202,101 @@ func (s *integrationTestSuite) TestUserEmailValidation() {
 }
 
 func (s *integrationTestSuite) TestUserPasswordLengthValidation() {
-	params := fleet.UserPayload{
-		Name:  ptr.String("user_invalid_email"),
-		Email: ptr.String("test@example.com"),
+	t := s.T()
+	longPwError := "Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config."
+
+	// test when creating a new user
+
+	newUPars := fleet.UserPayload{
+		Name:  ptr.String("Justin A Test"),
+		Email: ptr.String("justin@test.com"),
 		// This is 73 characters long
 		Password:   ptr.String("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaX@1"),
 		GlobalRole: ptr.String(fleet.RoleObserver),
 	}
 
-	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(s.T(), resp, "Could not create user. Password is over the 48 characters limit. If the password is under 48 characters, please check the auth_salt_key_size in your Fleet server config.")
+	respNew := s.Do("POST", "/api/latest/fleet/users/admin", &newUPars, http.StatusUnprocessableEntity)
+
+	assertBodyContains(s.T(), respNew, longPwError)
+
+	// test admin-required password reset
+
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	newUParams := fleet.UserPayload{
+		Name:       ptr.String("Justin A Test"),
+		Email:      ptr.String("justin@test.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", newUParams, http.StatusOK, &createResp)
+
+	assert.NotZero(t, createResp.User.ID)
+	assert.True(t, createResp.User.AdminForcedPasswordReset)
+
+	u := *createResp.User
+	s.token = s.getTestToken(u.Email, userRawPwd)
+	// 52-byte password (too long)
+	longPw := "password123#password123#password123#password123#!!!!"
+	// 48-byte password (just right)
+	justRightPw := "password123#password123#password123#password123#"
+
+	badReqResetPars := performRequiredPasswordResetRequest{Password: longPw, ID: u.ID}
+	badRespReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &badReqResetPars, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), badRespReset, longPwError)
+
+	goodReqResetPars := performRequiredPasswordResetRequest{Password: justRightPw, ID: u.ID}
+
+	goodRespReset := s.Do("POST", "/api/latest/fleet/perform_required_password_reset", &goodReqResetPars, http.StatusOK)
+	assertBodyContains(s.T(), goodRespReset, "email")
+	// reset test token with updated password
+	s.token = s.getTestToken(u.Email, justRightPw)
+
+	// test voluntary change password
+
+	longPwParams := changePasswordRequest{
+		OldPassword: justRightPw,
+		NewPassword: longPw,
+	}
+	changePwPath := "/api/latest/fleet/change_password" // #nosec G101
+
+	badRespChangePw := s.Do("POST", changePwPath, &longPwParams, http.StatusUnprocessableEntity)
+	assertBodyContains(s.T(), badRespChangePw, longPwError)
+
+	// with updated salt length, should now allow 52-byte password from the user
+	fleetConfig := config.TestConfig()
+	fleetConfig.Auth.SaltKeySize = 20
+	_, server := RunServerForTestsWithDS(
+		t,
+		s.ds,
+		&TestServerOpts{
+			SkipCreateTestUsers: true,
+			//nolint:gosec // G112: server is just run for testing this explicit config.
+			HTTPServerConfig: &http.Server{ReadTimeout: 2 * time.Second},
+			EnableCachedDS:   true,
+			FleetConfig:      &fleetConfig,
+		},
+	)
+	t.Cleanup(func() {
+		server.Close()
+	})
+
+	body, err := json.Marshal(longPwParams)
+	require.NoError(t, err)
+	req, err := http.NewRequest("POST", server.URL+changePwPath, bytes.NewReader(body))
+	require.NoError(t, err)
+	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", s.token))
+	client := fleethttp.NewClient()
+	resp, err := client.Do(req)
+	require.NoError(t, err)
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	var goodRespChangePw changePasswordResponse
+	responseBody, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	err = json.Unmarshal(responseBody, &goodRespChangePw)
+	require.NoError(t, err)
+	assert.NoError(t, goodRespChangePw.Err)
 }
 
 func (s *integrationTestSuite) TestUserWithWrongRoleErrors() {
