@@ -35,7 +35,6 @@
     .edit-link {
       margin: 0; // override margin intended for buttons being used as form-fields, which these are not
       cursor: pointer;
-      padding-left: $pad-small;
       height: 18px;
     }
 
@@ -47,6 +46,7 @@
       .query-name-wrapper {
         display: flex;
         align-items: center;
+        gap: 0.5rem;
 
         &:not(.edit-query-form--editing) {
           textarea:hover {
@@ -57,8 +57,6 @@
         .edit-query-form__query-name,
         .input-sizer::after {
           font-size: $large;
-        }
-        .component__auto-size-input-field {
           letter-spacing: -0.5px;
           line-height: 2.3rem;
         }
@@ -76,7 +74,6 @@
         width: 14px;
         height: 14px;
         opacity: 1;
-        transition: opacity 0.2s;
         &.hide {
           opacity: 0;
         }
@@ -105,9 +102,13 @@
     }
   }
 
+  &__textarea-content-display {
+    display: flex;
+    align-items: center;
+  }
+
   &__query-name,
   &__query-description {
-    width: 100%;
     margin: 0;
     padding: 0;
     border: 0;
