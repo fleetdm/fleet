@@ -452,7 +452,7 @@ func testTeamFilterSoftwareTitles(t *testing.T, ds *Datastore) {
 	assert.Equal(t, titles[0], *title)
 
 	// Testing with team filter -- this team does not contain this software title
-	title, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, globalTeamFilter)
+	_, err = ds.SoftwareTitleByID(context.Background(), titles[0].ID, &team1.ID, globalTeamFilter)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 
 	// Testing with team filter -- this team does contain this software title
