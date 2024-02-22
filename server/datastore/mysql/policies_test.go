@@ -2,7 +2,7 @@ package mysql
 
 import (
 	"context"
-	"crypto/md5" // nolint:gosec (only used for tests)
+	"crypto/md5" //nolint:gosec (only used for tests)
 	"database/sql"
 	"encoding/hex"
 	"errors"
