@@ -1417,7 +1417,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
 	computeChecksum := func(policy fleet.Policy) string {
-		h := md5.New()
+		h := md5.New() //nolint:gosec // (only used for tests)
 		// Compute the same way as DB does.
 		teamStr := ""
 		if policy.TeamID != nil {

@@ -27,7 +27,7 @@ func TestUp_20240221112844(t *testing.T) {
 	) `
 	}
 	computeChecksum := func(policy fleet.Policy) string {
-		h := md5.New()
+		h := md5.New() //nolint:gosec // (only used for tests)
 		// Compute the same way as DB does.
 		teamStr := ""
 		if policy.TeamID != nil {
