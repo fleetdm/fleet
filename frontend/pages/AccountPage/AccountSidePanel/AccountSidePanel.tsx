@@ -18,19 +18,19 @@ import {
   readableDate,
 } from "utilities/helpers";
 
-interface IUserSidePanelProps {
+interface IAccountSidePanelProps {
   currentUser: IUser;
   onChangePassword: () => void;
   onGetApiToken: () => void;
 }
 
-const baseClass = "user-side-panel";
+const baseClass = "account-side-panel";
 
-const UserSidePanel = ({
+const AccountSidePanel = ({
   currentUser,
   onChangePassword,
   onGetApiToken,
-}: IUserSidePanelProps): JSX.Element => {
+}: IAccountSidePanelProps): JSX.Element => {
   const { isPremiumTier, config } = useContext(AppContext);
   const [versionData, setVersionData] = useState<IVersionData>();
 
@@ -143,4 +143,4 @@ const UserSidePanel = ({
   );
 };
 
-export default UserSidePanel;
+export default AccountSidePanel;
