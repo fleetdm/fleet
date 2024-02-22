@@ -2,7 +2,7 @@ package tables
 
 import (
 	"context"
-	"crypto/md5" //nolint:gosec (only used for tests)
+	"crypto/md5" //nolint:gosec // (only used for tests)
 	"encoding/hex"
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/fleet"
