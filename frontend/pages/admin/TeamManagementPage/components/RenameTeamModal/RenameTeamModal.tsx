@@ -9,7 +9,7 @@ import Button from "components/buttons/Button";
 
 const baseClass = "edit-team-modal";
 
-interface IEditTeamModalProps {
+interface IRenameTeamModalProps {
   onCancel: () => void;
   onSubmit: (formData: ITeamFormData) => void;
   defaultName: string;
@@ -17,13 +17,13 @@ interface IEditTeamModalProps {
   isUpdatingTeams: boolean;
 }
 
-const EditTeamModal = ({
+const RenameTeamModal = ({
   onCancel,
   onSubmit,
   defaultName,
   backendValidators,
   isUpdatingTeams,
-}: IEditTeamModalProps): JSX.Element => {
+}: IRenameTeamModalProps): JSX.Element => {
   const [name, setName] = useState(defaultName);
   const [errors, setErrors] = useState<{ [key: string]: string }>(
     backendValidators
@@ -47,7 +47,7 @@ const EditTeamModal = ({
   };
 
   return (
-    <Modal title={"Edit team"} onExit={onCancel} className={baseClass}>
+    <Modal title={"Rename team"} onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}
@@ -82,4 +82,4 @@ const EditTeamModal = ({
   );
 };
 
-export default EditTeamModal;
+export default RenameTeamModal;
