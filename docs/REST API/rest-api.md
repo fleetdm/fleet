@@ -1825,6 +1825,8 @@ None.
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Lock host](#lock-host)
+- [Unlock host](#unlock-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
@@ -2019,7 +2021,9 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null
+        "server_url": null,
+        "device_status": "unlocked",
+        "pending_action": ""
       },
       "software": [
         {
@@ -2451,6 +2455,8 @@ Returns the information of the specified host.
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "device_status": "unlocked",
+      "pending_action": "",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2660,6 +2666,8 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "device_status": "unlocked",
+      "pending_action": "lock",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -3757,6 +3765,67 @@ Retrieves a list of the configuration profiles assigned to a host.
   ]
 }
 ```
+
+### Lock host
+
+_Available in Fleet Premium_
+
+Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+
+To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+
+`POST /api/v1/fleet/hosts/:id/lock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be locked. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/lock`
+
+##### Default response
+
+`Status: 204`
+
+### Unlock host
+
+_Available in Fleet Premium_
+
+Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+
+To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+`POST /api/v1/fleet/hosts/:id/unlock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be unlocked. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/:id/unlock`
+
+##### Default response (Windows or Linux hosts)
+
+`Status: 204`
+
+##### Default response (macOS hosts)
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "unlock_pin": "123456"
+}
+```
+
 
 ### Get host's past activity
 

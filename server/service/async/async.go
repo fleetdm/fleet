@@ -10,7 +10,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	redigo "github.com/gomodule/redigo/redis"
@@ -47,7 +46,6 @@ func NewTask(ds fleet.Datastore, pool fleet.RedisPool, clck clock.Clock, conf co
 func (t *Task) StartCollectors(ctx context.Context, logger kitlog.Logger) {
 	collectorErrHandler := func(name string, err error) {
 		level.Error(logger).Log("err", fmt.Sprintf("%s collector", name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(ctx, err)
 	}
 
