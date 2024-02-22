@@ -681,7 +681,11 @@ the way that the Fleet server works.
 			}()
 
 			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config)
+				var commander *apple_mdm.MDMAppleCommander
+				if appCfg.MDM.EnabledAndConfigured {
+					commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
+				}
+				return newCleanupsAndAggregationSchedule(ctx, instanceID, ds, logger, redisWrapperDS, &config, commander)
 			}); err != nil {
 				initFatal(err, "failed to register cleanups_then_aggregations schedule")
 			}

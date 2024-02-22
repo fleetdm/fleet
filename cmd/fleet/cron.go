@@ -703,6 +703,7 @@ func newCleanupsAndAggregationSchedule(
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -801,6 +802,12 @@ func newCleanupsAndAggregationSchedule(
 			"verify_disk_encryption_keys",
 			func(ctx context.Context) error {
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+			},
+		),
+		schedule.WithJob(
+			"renew_scep_certificates",
+			func(ctx context.Context) error {
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
 			},
 		),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
