@@ -418,26 +418,26 @@ Fleet [always prioritizes bugs](https://fleetdm.com/handbook/product#prioritizin
 Bugs will be verified as fixed by QA when they are placed in the "Awaiting QA" column of the relevant product group's sprint board. If the bug is verified as fixed, it is moved to the "Ready for release" column of the sprint board. Otherwise, the remaining issues are noted in a comment, and it is moved back to the "In progress" column of the sprint board.
 
 ## High priority user stories and bugs
-All issues are treated as standard priority by default, but some user stories and bugs are assigned a priority level as a GitHub label to indicate urgency for the business.
+All issues are treated as standard priority by default. Some issues are assigned a priority label to indicate urgency for the business.
 
 1. Emergency: `P0`
-- Examples: Customer outage, security vulnerability, a new feature is required to address an immediate business emergency.
-- Response: Immediately stop all other work to swarm the issue. Work 24/7 in shifts until resolved.
+- Examples: Customer outage, confirmed security vulnerability ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a new feature is needed to address an immediate business emergency.
+- Response: Immediately stop other work to swarm the issue. Work 24/7 in shifts until resolved.
 - Impact: Significant impact. May void current sprint.
 
 2. Critical: `P1`
-- Examples: A supported workflow is broken, a potential security vulnerability, a new feature is required to address an immediate critical business need.
+- Examples: A supported workflow is broken ([critical bug](https://fleetdm.com/handbook/company/product-groups#release-testing)), a potential security vulnerability, a new feature is required to address an immediate critical business need.
 - Response: Issue brought to next standup for estimation and immediately brought into the sprint. Necessary team members are assigned as their top priority.
 - Impact: High impact. Does not void sprint, but reduces overall velocity and requires deprioritizing other work.
 
 3. Urgent: `P2`
 - Examples: A supported workflow is not functioning as intended, a newly drafted feature has an associated urgent business need.
 - Response: Issue is prioritized at the top of the next sprint. If opporunity cost of waiting for the next sprint is too high, it may be considered for current sprint.
-- Impact: Low to medium impact. If prioritized into current sprint, reduces overall velocity and requires deprioritizing other work.
+- Impact: Low to medium impact. If prioritized into current sprint, may reduce overall velocity and require deprioritizing other work.
 
-Add as much context as possible to the issue to help the team understand the problem and what is driving the urgency. All issues with a `P0`, `P1`, or `P2` label should be assigned to the (DRI for what goes in a release)[https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris]. For immediate action, follow up on Slack or by phone.
+Add as much context as possible to the issue description and assign labels to help the team understand the problem and what is driving the urgency. All issues with a `P0`, `P1`, or `P2` label should be assigned to the (DRI for what goes in a release)[https://fleetdm.com/handbook/company/communications#directly-responsible-individuals-dris]. For immediate action, follow up on Slack or by phone.
 
-Once the release DRI is aware of the issue, they will determine if the ticket qualifies for the assigned priority level, then contact the PM and EM of the appropriate product group to immediately action the issue.
+Once the release DRI is aware of the issue, they will adjust the labels as needed and assign to the PM and EM of the appropriate product group. If they disagree with the priority label applied to the issue, they will contact the requestor to discuss further.
 
 ## How to reach the developer on-call
 Oncall engineers do not need to actively monitor Slack channels, except when called in by the Community or Customer teams. Members of those teams are instructed to `@oncall` in `#help-engineering` to get the attention of the on-call engineer to continue discussing any issues that come up. In some cases, the Community or Customer representative will continue to communicate with the requestor. In others, the on-call engineer will communicate directly (team members should use their judgment and discuss on a case-by-case basis how to best communicate with community members and customers).
