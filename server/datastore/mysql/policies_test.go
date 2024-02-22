@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -1414,9 +1416,23 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	computeChecksum := func(policy fleet.Policy) string {
+		h := md5.New()
+		// Compute the same way as DB does.
+		teamStr := ""
+		if policy.TeamID != nil {
+			teamStr = fmt.Sprint(*policy.TeamID)
+		}
+		cols := []string{teamStr, policy.Name}
+		_, _ = fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
+	}
+
 	var globalChecksum []uint8
 	err = ds.writer(context.Background()).Get(&globalChecksum, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
 	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum))
 
 	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
@@ -1435,6 +1451,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
 	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum))
 
 	// Change name only of a global query.
 	gp2 := *gp
@@ -1450,6 +1467,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	err = ds.writer(context.Background()).Get(&globalChecksum2, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
 	require.NoError(t, err)
 	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -1465,9 +1483,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
 	var teamChecksum2 []uint8
-	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	err = ds.writer(context.Background()).Get(&teamChecksum2, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
 	require.NoError(t, err)
 	assert.NotEqual(t, teamChecksum, teamChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum2))
 
 	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id = ?`, tp2.ID)
 	require.NoError(t, err)

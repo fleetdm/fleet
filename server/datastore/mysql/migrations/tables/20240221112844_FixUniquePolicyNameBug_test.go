@@ -2,9 +2,13 @@ package tables
 
 import (
 	"context"
+	"crypto/md5"
+	"encoding/hex"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strings"
 	"testing"
 )
 
@@ -21,6 +25,18 @@ func TestUp_20240221112844(t *testing.T) {
 			)
 		)
 	) `
+	}
+	computeChecksum := func(policy fleet.Policy) string {
+		h := md5.New()
+		// Compute the same way as DB does.
+		teamStr := ""
+		if policy.TeamID != nil {
+			teamStr = fmt.Sprint(*policy.TeamID)
+		}
+		cols := []string{teamStr, policy.Name}
+		_, _ = fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
 	}
 
 	// Insert 3 policies with the same name but different checksums (which is the bug)
@@ -65,7 +81,7 @@ func TestUp_20240221112844(t *testing.T) {
 			assert.Equal(t, "policy2", pc.Name) // name was not changed
 		}
 		gotIDs[i] = pc.ID
-		assert.NotEmpty(t, pc.Checksum)
+		assert.Equal(t, computeChecksum(fleet.Policy{PolicyData: fleet.PolicyData{Name: pc.Name}}), strings.ToLower(pc.Checksum))
 		assert.Len(t, pc.Checksum, 32)
 	}
 	assert.Equal(t, wantIDs, gotIDs)
