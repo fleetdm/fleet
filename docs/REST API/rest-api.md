@@ -3929,7 +3929,7 @@ The endpoint can be used to add manual labels only.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/12/labels/delete`
+`DELETE /api/v1/fleet/hosts/12/labels`
 
 ##### Request body
 
