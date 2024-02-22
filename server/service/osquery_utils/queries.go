@@ -1543,9 +1543,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 	if serverURL == "" {
 		return ""
 	}
-	if name := data["provider_id"]; name != "" {
-		return name
-	}
+
 	return fleet.MDMNameFromServerURL(serverURL)
 }
 

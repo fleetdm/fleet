@@ -684,6 +684,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		wantInstalledFromDep bool
 		wantIsServer         bool
 		wantServerURL        string
+		wantMDMSolName       string
 	}{
 		{
 			name: "off empty server URL",
@@ -772,6 +773,89 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantIsServer:         true,
 			wantServerURL:        "https://example.com",
 		},
+
+		// Test that names are being calculated correctly
+
+		{
+			name: "on manual jumpcloud",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://jumpcloud.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://jumpcloud.com",
+			wantMDMSolName:       fleet.WellKnownMDMJumpCloud,
+		},
+		{
+			name: "on manual airwatch",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://airwatch.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://airwatch.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual awmdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://awmdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://awmdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual microsoft",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://microsoft.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://microsoft.com",
+			wantMDMSolName:       fleet.WellKnownMDMIntune,
+		},
+		{
+			name: "on manual fleetdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://fleetdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
 	}
 
 	for _, c := range cases {
@@ -781,6 +865,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
