@@ -137,7 +137,7 @@ func (s *CertAuth) associateNewEnrollment(r *mdm.Request) error {
 			}
 		}
 	}
-	if err := s.storage.AssociateCertHash(r, hash); err != nil {
+	if err := s.storage.AssociateCertHash(r, hash, r.Certificate.NotAfter); err != nil {
 		return err
 	}
 	logger.Info(
@@ -211,7 +211,7 @@ func (s *CertAuth) validateAssociateExistingEnrollment(r *mdm.Request) error {
 	if s.warnOnly {
 		return nil
 	}
-	if err := s.storage.AssociateCertHash(r, hash); err != nil {
+	if err := s.storage.AssociateCertHash(r, hash, r.Certificate.NotAfter); err != nil {
 		return err
 	}
 	logger.Info(

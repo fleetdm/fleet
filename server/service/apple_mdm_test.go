@@ -2756,36 +2756,18 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		expectedError      bool
 	}{
 		{
-			name: "GetMDMAppleSCEPCertsCloseToExpiry Errors",
-			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetMDMAppleSCEPCertsCloseToExpiryFunc = func(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
-					return nil, errors.New("database error")
-				}
-			},
-			expectedError: true,
-		},
-		{
 			name: "No Certs to Renew",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetMDMAppleSCEPCertsCloseToExpiryFunc = func(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
-					return []fleet.SCEPIdentityCertificate{}, nil
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return nil, nil
 				}
 			},
 			expectedError: false,
 		},
 		{
-			name: "DecodeCertPEM Errors",
+			name: "GetHostCertAssociationsToExpire Errors",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetMDMAppleSCEPCertsCloseToExpiryFunc = func(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
-					return []fleet.SCEPIdentityCertificate{{CertificatePEM: []byte("invalid PEM data")}}, nil
-				}
-			},
-			expectedError: false,
-		},
-		{
-			name: "GetHostCertAssociationByCertSHA Errors",
-			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return nil, errors.New("database error")
 				}
 			},
@@ -2803,17 +2785,26 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		{
 			name: "InstallProfile for hostsWithoutRefs",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+				var wantCommandUUID string
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
 				}
 
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID1", assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUID)
+					return nil
 				}
 
 				t.Cleanup(func() {
 					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
 				})
 			},
 			expectedError: false,
@@ -2821,7 +2812,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		{
 			name: "InstallProfile for hostsWithoutRefs fails",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
 				}
 
@@ -2834,15 +2825,24 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		{
 			name: "InstallProfile for hostsWithRefs",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+				var wantCommandUUID string
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID2", EnrollReference: "ref1"}}, nil
 				}
 				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
 					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
 					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID2", assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUID)
+					return nil
 				}
 				t.Cleanup(func() {
 					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
 				})
 			},
 			expectedError: false,
@@ -2850,7 +2850,7 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		{
 			name: "InstallProfile for hostsWithRefs fails",
 			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
-				ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: "ref1"}}, nil
 				}
 
@@ -2866,12 +2866,6 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
 
-			ds.GetMDMAppleSCEPCertsCloseToExpiryFunc = func(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
-				cert, _, err := apple_mdm.NewDEPKeyPairPEM()
-				require.NoError(t, err)
-				return []fleet.SCEPIdentityCertificate{{CertificatePEM: cert}}, nil
-			}
-
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				appCfg := &fleet.AppConfig{}
 				appCfg.OrgInfo.OrgName = "fl33t"
@@ -2879,8 +2873,12 @@ func TestRenewSCEPCertificatesBranches(t *testing.T) {
 				return appCfg, nil
 			}
 
-			ds.GetHostCertAssociationByCertSHAFunc = func(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 				return []fleet.SCEPIdentityAssociation{}, nil
+			}
+
+			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+				return nil
 			}
 
 			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {

@@ -954,27 +954,30 @@ func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
 	return nil
 }
 
-func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas []string) ([]fleet.SCEPIdentityAssociation, error) {
+func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityAssociation, error) {
 	// TODO(roberto): this is not good because we don't have any indexes on
-	// h.uuid and ncaa.sha256, due to time constraints, I'm assuming that this
+	// h.uuid, due to time constraints, I'm assuming that this
 	// function is called with a relatively low amount of shas
 	//
 	// Note that we use GROUP BY because we can't guarantee unique entries
 	// based on uuid in the hosts table.
 	stmt, args, err := sqlx.In(
 		`SELECT
-			ncaa.id as host_uuid,
+			h.uuid as host_uuid,
+			ncaa.sha256 as sha256,
 			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
 		 FROM
 			nano_cert_auth_associations ncaa
 			LEFT JOIN hosts h ON h.uuid = ncaa.id
 			LEFT JOIN host_mdm hm ON hm.host_id = h.id
 		 WHERE
-			ncaa.sha256 IN (?)
+			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+			AND renew_command_uuid IS NULL
 		GROUP BY
-			host_uuid`,
-		shas,
-	)
+			host_uuid, ncaa.sha256, cert_not_valid_after
+		ORDER BY cert_not_valid_after ASC
+		LIMIT ?
+		`, expiryDays, limit)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
 	}
@@ -984,31 +987,46 @@ func (ds *Datastore) GetHostCertAssociationByCertSHA(ctx context.Context, shas [
 		if err == sql.ErrNoRows {
 			return nil, nil
 		}
-		return nil, ctxerr.Wrap(ctx, err, "get matching hostUUIDs by cert SHA")
+		return nil, ctxerr.Wrap(ctx, err, "get identity certs close to expiry")
 	}
 	return uuids, nil
 }
 
-func (ds *Datastore) GetMDMAppleSCEPCertsCloseToExpiry(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityCertificate, error) {
-	stmt := `
-	SELECT
-		serial,
-		not_valid_after,
-		certificate_pem
-	FROM
-		scep_certificates sc
-	WHERE
-		not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
-		AND NOT revoked
-	ORDER BY not_valid_after ASC
-	LIMIT ?`
-
-	var certs []fleet.SCEPIdentityCertificate
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &certs, stmt, expiryDays, limit); err != nil {
-		if err == sql.ErrNoRows {
-			return nil, nil
-		}
-		return nil, ctxerr.Wrap(ctx, err, "get expiring certs")
+func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+	if len(assocs) == 0 {
+		return nil
 	}
-	return certs, nil
+
+	var sb strings.Builder
+	args := make([]any, len(assocs)*3)
+	for i, assoc := range assocs {
+		sb.WriteString("(?, ?, ?),")
+		args[i*3] = assoc.HostUUID
+		args[i*3+1] = assoc.SHA256
+		args[i*3+2] = cmdUUID
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO nano_cert_auth_associations (id, sha256, renew_command_uuid) VALUES %s
+		ON DUPLICATE KEY UPDATE
+			renew_command_uuid = VALUES(renew_command_uuid)
+	`, strings.TrimSuffix(sb.String(), ","))
+
+	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := ds.writer(ctx).Exec(stmt, args...)
+		if err != nil {
+			return fmt.Errorf("failed to update cert associations: %w", err)
+		}
+
+		// NOTE: we can't use insertOnDuplicateDidInsert because the
+		// LastInsertId check only works tables that have an
+		// auto-incrementing primary key. See notes in that function
+		// and insertOnDuplicateDidUpdate to understand the mechanism.
+		affected, _ := res.RowsAffected()
+		if affected == 1 {
+			return errors.New("this function can only be used to update existing associations")
+		}
+
+		return nil
+	})
 }

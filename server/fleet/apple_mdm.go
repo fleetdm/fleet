@@ -530,6 +530,8 @@ type SCEPIdentityCertificate struct {
 // SCEPIdentityAssociation represents an association between an identity
 // certificate an a specific host.
 type SCEPIdentityAssociation struct {
-	HostUUID        string `db:"host_uuid"`
-	EnrollReference string `db:"enroll_reference"`
+	HostUUID         string `db:"host_uuid"`
+	SHA256           string `db:"sha256"`
+	EnrollReference  string `db:"enroll_reference"`
+	RenewCommandUUID string `db:"renew_command_uuid"`
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"crypto/tls"
 	"sync"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
@@ -47,7 +48,7 @@ type EnrollmentHasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 
 type IsCertHashAssociatedFunc func(r *mdm.Request, hash string) (bool, error)
 
-type AssociateCertHashFunc func(r *mdm.Request, hash string) error
+type AssociateCertHashFunc func(r *mdm.Request, hash string, certNotValidAfter time.Time) error
 
 type RetrieveMigrationCheckinsFunc func(p0 context.Context, p1 chan<- interface{}) error
 
@@ -241,11 +242,11 @@ func (fs *MDMAppleStore) IsCertHashAssociated(r *mdm.Request, hash string) (bool
 	return fs.IsCertHashAssociatedFunc(r, hash)
 }
 
-func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string) error {
+func (fs *MDMAppleStore) AssociateCertHash(r *mdm.Request, hash string, certNotValidAfter time.Time) error {
 	fs.mu.Lock()
 	fs.AssociateCertHashFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.AssociateCertHashFunc(r, hash)
+	return fs.AssociateCertHashFunc(r, hash, certNotValidAfter)
 }
 
 func (fs *MDMAppleStore) RetrieveMigrationCheckins(p0 context.Context, p1 chan<- interface{}) error {
