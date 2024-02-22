@@ -1,9 +1,0 @@
-{{- if .Values.gke.ingress.useManagedCertificate }}
-apiVersion: networking.gke.io/v1
-kind: ManagedCertificate
-metadata:
-  name: {{ .Values.fleetName }}
-spec:
-  domains:
-  - {{ .Values.hostName }}
-{{- end }}

@@ -85,10 +85,10 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
 5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
-- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/blob/main/orbit/desktop/) since the last `orbit-*` tag was published.
+- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
 - Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
 
-If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Create and assign the release QA issue to a corresponding [GitHub milestone](https://github.com/fleetdm/fleet/milestones) for each tag that will be issued (`fleet-`, `orbit-`, `fleetd-chrome-`).
+If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Delete the top section for Fleet core, and retain the bottom section for `fleetd`. Populate the necessary version changes for each `fleetd` component.
 
 ### Create release QA issue
 Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=release-qa.md). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.

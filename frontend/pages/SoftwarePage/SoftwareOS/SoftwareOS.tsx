@@ -10,6 +10,7 @@ import {
 } from "services/entities/operating_systems";
 
 import TableDataError from "components/DataError";
+import Spinner from "components/Spinner";
 
 import SoftwareOSTable from "./SoftwareOSTable";
 
@@ -42,7 +43,7 @@ const SoftwareOS = ({
     teamId,
   };
 
-  const { data, isFetching, isError } = useQuery<
+  const { data, isFetching, isLoading, isError } = useQuery<
     IOSVersionsResponse,
     Error,
     IOSVersionsResponse,
@@ -60,6 +61,10 @@ const SoftwareOS = ({
       staleTime: 30000,
     }
   );
+
+  if (isLoading) {
+    return <Spinner />;
+  }
 
   if (isError) {
     return <TableDataError className={`${baseClass}__table-error`} />;

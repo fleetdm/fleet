@@ -1,1 +1,0 @@
-- Fix a bug where checkboxes within a hidden modal would not be hidden with the rest of the modal content.

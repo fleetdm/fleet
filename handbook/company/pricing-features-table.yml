@@ -39,7 +39,7 @@
   friendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
   description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
   documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
-  tier: Premium
+  tier: Free
   dri: mikermcneil
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]

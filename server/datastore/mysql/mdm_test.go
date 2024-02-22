@@ -2,19 +2,25 @@ package mysql
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"fmt"
 	"sort"
 	"strconv"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
+	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/require"
 )
 
@@ -35,6 +41,8 @@ func TestMDMShared(t *testing.T) {
 		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
 		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
 		{"TestMDMEULA", testMDMEULA},
+		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
+		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 	}
 
 	for _, c := range cases {
@@ -3129,4 +3137,134 @@ func testMDMEULA(t *testing.T, ds *Datastore) {
 
 	err = ds.MDMInsertEULA(ctx, eula)
 	require.NoError(t, err)
+}
+
+func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	testCert, testKey, err := apple_mdm.NewSCEPCACertKey()
+	require.NoError(t, err)
+	testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
+	testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
+	scepDepot, err := ds.NewSCEPDepot(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	nanoStorage, err := ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
+	require.NoError(t, err)
+
+	var i int
+	setHost := func(notAfter time.Time) *fleet.Host {
+		i++
+		h, err := ds.NewHost(ctx, &fleet.Host{
+			Hostname:      fmt.Sprintf("test-host%d-name", i),
+			OsqueryHostID: ptr.String(fmt.Sprintf("osquery-%d", i)),
+			NodeKey:       ptr.String(fmt.Sprintf("nodekey-%d", i)),
+			UUID:          fmt.Sprintf("test-uuid-%d", i),
+			Platform:      "darwin",
+		})
+		require.NoError(t, err)
+
+		// create a cert + association
+		serial, err := scepDepot.Serial()
+		require.NoError(t, err)
+		cert := &x509.Certificate{
+			SerialNumber: serial,
+			Subject: pkix.Name{
+				CommonName: "FleetDM Identity",
+			},
+			NotAfter: notAfter,
+			// use the host UUID, just to make sure they're
+			// different from each other, we don't care about the
+			// DER contents here
+			Raw: []byte(h.UUID)}
+		err = scepDepot.Put(cert.Subject.CommonName, cert)
+		require.NoError(t, err)
+		req := mdm.Request{
+			EnrollID: &mdm.EnrollID{ID: h.UUID},
+			Context:  ctx,
+		}
+		certHash := certauth.HashCert(cert)
+		err = nanoStorage.AssociateCertHash(&req, certHash, notAfter)
+		require.NoError(t, err)
+		nanoEnroll(t, ds, h, false)
+		return h
+	}
+
+	// certs expired at lest 1 year ago
+	h1 := setHost(time.Now().AddDate(-1, -1, 0))
+	h2 := setHost(time.Now().AddDate(-1, 0, 0))
+	// cert that expires in 1 month
+	h3 := setHost(time.Now().AddDate(0, 1, 0))
+	// cert that expires in 1 year
+	h4 := setHost(time.Now().AddDate(1, 0, 0))
+
+	// list assocs that expire in the next 10 days
+	assocs, err := ds.GetHostCertAssociationsToExpire(ctx, 10, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 2)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+
+	// list certs that expire in the next 1000 days with limit = 1
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 1)
+	require.NoError(t, err)
+	require.Len(t, assocs, 1)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+
+	// list certs that expire in the next 50 days
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 50, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 3)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+
+	// list certs that expire in the next 1000 days
+	assocs, err = ds.GetHostCertAssociationsToExpire(ctx, 1000, 100)
+	require.NoError(t, err)
+	require.Len(t, assocs, 4)
+	require.Equal(t, h1.UUID, assocs[0].HostUUID)
+	require.Equal(t, h2.UUID, assocs[1].HostUUID)
+	require.Equal(t, h3.UUID, assocs[2].HostUUID)
+	require.Equal(t, h4.UUID, assocs[3].HostUUID)
+
+	checkSCEPRenew := func(assoc fleet.SCEPIdentityAssociation, want *string) {
+		var got *string
+		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+			return sqlx.GetContext(ctx, q, &got, `SELECT renew_command_uuid FROM nano_cert_auth_associations WHERE id = ?`, assoc.HostUUID)
+		})
+		require.EqualValues(t, want, got)
+	}
+
+	// insert dummy nano commands
+	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
+		_, err = q.ExecContext(ctx, `
+          INSERT INTO nano_commands (command_uuid, request_type, command)
+          VALUES ('foo', 'foo', '<?xml'), ('bar', 'bar', '<?xml')
+	`)
+		return err
+	})
+
+	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{}, "foo")
+	checkSCEPRenew(assocs[0], nil)
+	checkSCEPRenew(assocs[1], nil)
+	checkSCEPRenew(assocs[2], nil)
+	checkSCEPRenew(assocs[3], nil)
+	require.NoError(t, err)
+
+	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assocs[0]}, "foo")
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], ptr.String("foo"))
+	checkSCEPRenew(assocs[1], nil)
+	checkSCEPRenew(assocs[2], nil)
+	checkSCEPRenew(assocs[3], nil)
+
+	err = ds.SetCommandForPendingSCEPRenewal(ctx, assocs, "bar")
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], ptr.String("bar"))
+	checkSCEPRenew(assocs[1], ptr.String("bar"))
+	checkSCEPRenew(assocs[2], ptr.String("bar"))
+	checkSCEPRenew(assocs[3], ptr.String("bar"))
+
+	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
+	require.ErrorContains(t, err, "this function can only be used to update existing associations")
 }

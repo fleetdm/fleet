@@ -9,15 +9,12 @@
     labels: [ "#g-customer-success" ] # label to be applied to issue
     repo: "confidential"
 -
-  task: "Upgrade Managed Cloud" # Title that will actually show in rituals table
-  startedOn: "2024-02-08" # Needs to align with frequency e.g. if frequency is every thrid Thursday startedOn === any third thursday
-  frequency: "Weekly" # must be supported by
-  description: "Upgrade each Managed Cloud instance to the latest version of Fleet" # example of a longer thing: description: "[Prioritizing next sprint](https://fleetdm.com/handbook/company/communication)"
-  moreInfoUrl: "https://github.com/fleetdm/fleet/releases" #URL used to highlight "description:" test in table
-  dri: "rfairburn" # DRI for ritual (assignee if autoIssue) (TODO display GitHub proflie pic instead of name or title)
-  autoIssue:   # Enables automation of GitHub issues
-    labels: [ "#g-customer-success" ] # label to be applied to issue
-    repo: "confidential"
+  task: "Process new requests" 
+  startedOn: "2023-09-04" 
+  frequency: "Daily" 
+  description: "Prioritize all new requests including issues and PRs within one business day." 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#process-new-requests" 
+  dri: "zayhanlon" 
 -
   task: "Overnight customer feedback"
   startedOn: "2024-02-08"
@@ -25,4 +22,52 @@
   description: "Respond to messages and alerts" 
   moreInfoUrl: "https://fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts" 
   dri: "ksatter" 
-  
+-
+  task: "Monitor customer Slack channels "
+  startedOn: "2024-02-08"
+  frequency: "Daily" 
+  description: "Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour." 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas" # TODO: add responsibility on customer-success readme
+  dri: "ksatter" 
+-
+  task: "Follow-up on unresolved customer questions and concerns"
+  startedOn: "2024-02-08"
+  frequency: "Daily" 
+  description: "Follow-up with and tag appropriate personnel on customer issues and bugs in progress and items that remain unresolved." 
+  moreInfoUrl: "https://fleetdm.com/handbook/company/communications#customer-support-service-level-agreements-slas" # TODO: add responsibility on customer-success readme
+  dri: "ksatter" 
+-
+  task: "Prepare for customer voice" 
+  startedOn: "2024-02-23" 
+  frequency: "Weekly" 
+  description: "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs)." 
+  moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
+  dri: "patagonia121"
+-
+  task: "Prepare customer requests for feature fest" 
+  startedOn: "2024-02-12" 
+  frequency: "Triweekly" 
+  description: "Check-in before the 🗣️ Product Feature Requests meeting to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team." 
+  moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
+  dri: "patagonia121"
+-
+  task: "Present customer requests at feature fest" 
+  startedOn: "2024-02-15" 
+  frequency: "Triweekly" 
+  description: "Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective." 
+  moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
+  dri: "patagonia121"
+-
+  task: "Communicate release notes to stakeholders" 
+  startedOn: "2024-02-21" 
+  frequency: "Triweekly" 
+  description: "Update customers on new features and resolved bugs in an upcoming release." 
+  moreInfoUrl: "" # TODO: add responsibility on customer-success readme starting point == "Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more."
+  dri: "patagonia121"
+-
+  task: "Upgrade Managed Cloud" 
+  startedOn: "2024-02-08" 
+  frequency: "Weekly" 
+  description: "Upgrade each Managed Cloud instance to the latest version of Fleet" 
+  moreInfoUrl: "https://github.com/fleetdm/fleet/releases" 
+  dri: "rfairburn" 

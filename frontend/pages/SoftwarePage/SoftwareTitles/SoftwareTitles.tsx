@@ -63,6 +63,7 @@ const SoftwareTitles = ({
   const {
     data: titlesData,
     isFetching: isTitlesFetching,
+    isLoading: isTitlesLoading,
     isError: isTitlesError,
   } = useQuery<
     ISoftwareTitlesResponse,
@@ -93,6 +94,7 @@ const SoftwareTitles = ({
   const {
     data: versionsData,
     isFetching: isVersionsFetching,
+    isLoading: isVersionsLoading,
     isError: isVersionsError,
   } = useQuery<
     ISoftwareVersionsResponse,
@@ -118,6 +120,10 @@ const SoftwareTitles = ({
       enabled: location.pathname === PATHS.SOFTWARE_VERSIONS,
     }
   );
+
+  if (isTitlesLoading || isVersionsLoading) {
+    return <Spinner />;
+  }
 
   if (isTitlesError || isVersionsError) {
     return <TableDataError className={`${baseClass}__table-error`} />;

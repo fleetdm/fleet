@@ -20,11 +20,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -1339,7 +1339,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+				{
+					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1372,7 +1373,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<integer>1</integer>
 			</dict>
 			</plist>`),
-				}},
+				},
+			},
 			"unsupported PayloadType(s)",
 		},
 	}

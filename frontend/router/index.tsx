@@ -45,7 +45,7 @@ import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
-import UserSettingsPage from "pages/UserSettingsPage";
+import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
@@ -201,7 +201,6 @@ const routes = (
               component={HostQueryReport}
             />
           </Route>
-
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
               <IndexRedirect to="os-updates" />
@@ -218,7 +217,6 @@ const routes = (
               </Route>
             </Route>
           </Route>
-
           <Route path="software">
             <IndexRedirect to="titles" />
             <Route component={SoftwarePage}>
@@ -274,10 +272,8 @@ const routes = (
             </Route>
             <Route path=":id" component={PolicyPage} />
           </Route>
-          <Route
-            path="profile"
-            component={UserSettingsPage as RouteComponent}
-          />
+          <Redirect from="profile" to="account" /> {/* deprecated URL */}
+          <Route path="account" component={AccountPage} />
         </Route>
       </Route>
       <Route path="device">

@@ -167,6 +167,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };
