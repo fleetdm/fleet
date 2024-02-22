@@ -2,9 +2,9 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"net/http"
 	"time"
-
-	"github.com/fleetdm/fleet/v4/server/authz"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
@@ -134,7 +134,8 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+			return nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
 		}
 	}
 
@@ -149,7 +150,7 @@ func (svc *Service) SoftwareTitleByID(ctx context.Context, id uint, teamID *uint
 		IncludeObserver: true,
 	})
 	if err != nil {
-		if fleet.IsNotFound((err)) {
+		if fleet.IsNotFound(err) && teamID == nil {
 			// here we use a global admin as filter because we want to check if the software exists
 			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
 			_, err = svc.ds.SoftwareTitleByID(ctx, id, nil, filter)

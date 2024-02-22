@@ -38,7 +38,7 @@ import (
 
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -6860,7 +6860,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 
 	// Non-existent team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusForbidden, &stResp,
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", "99999",
 	)
 
