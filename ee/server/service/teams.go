@@ -538,7 +538,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 
 		if len(mdmHostSerials) > 0 {
-			if err := worker.QueueMacosSetupAssistantJob(
+			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
 				svc.logger,

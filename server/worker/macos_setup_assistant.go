@@ -3,6 +3,7 @@ package worker
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -113,7 +114,21 @@ func (m *MacosSetupAssistant) runProfileChanged(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
+		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "run profile changed")
+		}
+		if len(skipSerials) > 0 {
+			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
+			// after the cooldown period is over
+			level.Info(m.Log).Log("msg", "run profile changed: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+		}
+		if len(assignSerials) == 0 {
+			level.Info(m.Log).Log("msg", "run profile changed: no devices to assign profile")
+			return nil
+		}
+
+		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
@@ -167,7 +182,21 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in team")
 	}
 	if len(serials) > 0 {
-		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
+		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "run profile deleted")
+		}
+		if len(skipSerials) > 0 {
+			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
+			// after the cooldown period is over
+			level.Info(m.Log).Log("msg", "run profile deleted: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+		}
+		if len(assignSerials) == 0 {
+			level.Info(m.Log).Log("msg", "run profile deleted: no devices to assign profile")
+			return nil
+		}
+
+		resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "assign profile")
 		}
@@ -213,7 +242,21 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, args.HostSerialNumbers...)
+	skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "run hosts transferred")
+	}
+	if len(skipSerials) > 0 {
+		// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
+		// after the cooldown period is over
+		level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+	}
+	if len(assignSerials) == 0 {
+		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
+		return nil
+	}
+
+	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "assign profile")
 	}
@@ -236,7 +279,7 @@ func (m *MacosSetupAssistant) runUpdateAllProfiles(ctx context.Context, args mac
 			teamID = &team.ID
 		}
 
-		if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantUpdateProfile, teamID); err != nil {
 			return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 		}
 		return nil
@@ -265,7 +308,7 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 		if fleet.IsNotFound(err) {
 			// no setup assistant for that team, enqueue a profile deleted task so
 			// the default profile is assigned to the hosts.
-			if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, args.TeamID); err != nil {
+			if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileDeleted, args.TeamID); err != nil {
 				return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile deleted job")
 			}
 			return nil
@@ -275,7 +318,7 @@ func (m *MacosSetupAssistant) runUpdateProfile(ctx context.Context, args macosSe
 
 	// no error means that the setup assistant existed for that team, enqueue a profile
 	// changed task so the custom profile is assigned to the hosts.
-	if err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileChanged, args.TeamID); err != nil {
+	if _, err := QueueMacosSetupAssistantJob(ctx, m.Datastore, m.Log, MacosSetupAssistantProfileChanged, args.TeamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant profile changed job")
 	}
 	return nil
@@ -302,7 +345,7 @@ func QueueMacosSetupAssistantJob(
 	task MacosSetupAssistantTask,
 	teamID *uint,
 	serialNumbers ...string,
-) error {
+) (uint, error) {
 	attrs := []interface{}{
 		"enabled", "true",
 		macosSetupAssistantJobName, task,
@@ -320,8 +363,8 @@ func QueueMacosSetupAssistantJob(
 	}
 	job, err := QueueJob(ctx, ds, macosSetupAssistantJobName, args)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "queueing job")
+		return 0, ctxerr.Wrap(ctx, err, "queueing job")
 	}
 	level.Debug(logger).Log("job_id", job.ID)
-	return nil
+	return job.ID, nil
 }

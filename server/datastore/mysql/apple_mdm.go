@@ -2913,7 +2913,9 @@ JOIN
 	hosts ON id = host_id
 SET
 	profile_uuid = ?,
-	assign_profile_response = ?
+	assign_profile_response = ?,
+	response_updated_at = CURRENT_TIMESTAMP,
+	retry_job_id = 0
 WHERE
 	hardware_serial IN (?)
 `
@@ -2927,7 +2929,148 @@ WHERE
 	}
 
 	n, _ := res.RowsAffected()
-	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n)
+	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials))
+
+	return nil
+}
+
+// DEPCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
+const DEPCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
+
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+	// 	stmt := `
+	// SELECT
+	// 	JSON_ARRAYAGG(t.cooldown) as cooldown,
+	// 	JSON_ARRAYAGG(t.ready) as ready
+	// FROM (
+	// 	SELECT
+	// 		CASE WHEN assign_profile_response = ?
+	// 			AND response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) THEN
+	// 			hardware_serial
+	// 		END AS cooldown,
+	// 		CASE WHEN assign_profile_response IS NULL
+	// 			OR assign_profile_response != ?
+	// 			OR response_updated_at IS NULL
+	// 			OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND) THEN
+	// 			hardware_serial
+	// 		END AS ready
+	// 	FROM
+	// 		host_dep_assignments
+	// 		JOIN hosts ON id = host_id
+	// 	WHERE
+	// 		hardware_serial IN(?)) t`
+
+	stmt := `
+SELECT
+	CASE WHEN assign_profile_response = ?
+		AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND)) THEN
+		'skip'
+	ELSE
+		'assign'
+	END AS status,
+	GROUP_CONCAT(hardware_serial) AS serials
+FROM
+	host_dep_assignments
+	JOIN hosts ON id = host_id
+WHERE 
+	hardware_serial IN (?)	
+GROUP BY
+	status`
+
+	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), DEPCooldownPeriod.Seconds(), serials)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
+	}
+
+	var rows []struct {
+		Status  string `db:"status"`
+		Serials string `db:"serials"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
+	}
+
+	if len(rows) > 2 {
+		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: expected 2 rows but got %d", len(rows)))
+	}
+
+	for _, r := range rows {
+		// TODO: Should we worry that a serial might include the split char? Is there a better way to do this?
+		switch r.Status {
+		case "assign":
+			assignSerials = strings.Split(r.Serials, ",")
+		case "skip":
+			skipSerials = strings.Split(r.Serials, ",")
+		default:
+			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: unrecognized status: %s", r.Status))
+		}
+	}
+
+	return skipSerials, assignSerials, nil
+}
+
+func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]fleet.DEPTeamSerials, error) {
+	// TODO: How should we account for the remote possibility of a 'failed' response but a null response_updated_at?
+	const stmt = `
+	SELECT
+		MAX(COALESCE(team_id, 0)) AS team_id,
+		GROUP_CONCAT(hardware_serial) AS serials
+	FROM
+		host_dep_assignments
+		JOIN hosts ON id = host_id
+	WHERE
+		assign_profile_response = ?
+		AND(retry_job_id = 0 OR EXISTS (SELECT 1 FROM jobs WHERE id = retry_job_id AND state = ?))
+		AND(response_updated_at IS NULL
+			OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))
+	GROUP BY
+		team_id`
+
+	var dest []struct {
+		TeamID  uint   `db:"team_id"`
+		Serials string `db:"serials"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), DEPCooldownPeriod.Seconds()); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
+	}
+
+	var res []fleet.DEPTeamSerials
+	for _, r := range dest {
+		res = append(res, fleet.DEPTeamSerials{
+			TeamID:  r.TeamID,
+			Serials: strings.Split(r.Serials, ","), // TODO: Should we worry that a serial might include the split char? Is there a better way to do this?
+
+		})
+	}
+	return res, nil
+}
+
+func (ds *Datastore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+	stmt := `
+UPDATE
+	host_dep_assignments
+JOIN
+	hosts ON id = host_id
+SET
+	retry_job_id = ?
+WHERE
+	hardware_serial IN (?)`
+
+	stmt, args, err := sqlx.In(stmt, jobID, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update dep assign profile retry pending")
+	}
+
+	n, _ := res.RowsAffected()
+	level.Info(ds.logger).Log("msg", "update dep assign profile retry pending", "job_id", jobID, "devices", n, "serials", fmt.Sprintf("%s", serials))
 
 	return nil
 }

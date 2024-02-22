@@ -1106,6 +1106,16 @@ type Datastore interface {
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
 	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
 
+	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
+	// ones that are ready to be assigned a profile.
+	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
+	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
+	// cooldowns, grouped by team.
+	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]DEPTeamSerials, error)
+	// UpdateDEPAssignProfileRetryPending sets the retry_pending flag for the hosts with the given
+	// serials.
+	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

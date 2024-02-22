@@ -730,6 +730,12 @@ type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) er
 
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
+type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
+
+type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) ([]fleet.DEPTeamSerials, error)
+
+type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1890,6 +1896,15 @@ type DataStore struct {
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
+
+	ScreenDEPAssignProfileSerialsForCooldownFunc        ScreenDEPAssignProfileSerialsForCooldownFunc
+	ScreenDEPAssignProfileSerialsForCooldownFuncInvoked bool
+
+	GetDEPAssignProfileExpiredCooldownsFunc        GetDEPAssignProfileExpiredCooldownsFunc
+	GetDEPAssignProfileExpiredCooldownsFuncInvoked bool
+
+	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
+	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4522,6 +4537,27 @@ func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, res
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostDEPAssignProfileResponsesFunc(ctx, resp)
+}
+
+func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+	s.mu.Lock()
+	s.ScreenDEPAssignProfileSerialsForCooldownFuncInvoked = true
+	s.mu.Unlock()
+	return s.ScreenDEPAssignProfileSerialsForCooldownFunc(ctx, serials)
+}
+
+func (s *DataStore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]fleet.DEPTeamSerials, error) {
+	s.mu.Lock()
+	s.GetDEPAssignProfileExpiredCooldownsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetDEPAssignProfileExpiredCooldownsFunc(ctx)
+}
+
+func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error {
+	s.mu.Lock()
+	s.UpdateDEPAssignProfileRetryPendingFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

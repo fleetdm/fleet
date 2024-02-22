@@ -519,6 +519,12 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
 }
 
+// DEPTeamSerials represents a list of DEP serials associated with a team.
+type DEPTeamSerials struct {
+	TeamID  uint
+	Serials []string
+}
+
 // ProfileMatcher defines the methods required to preassign and retrieve MDM
 // profiles for matching with teams and associating with hosts. A Redis-based
 // implementation is used in production.
