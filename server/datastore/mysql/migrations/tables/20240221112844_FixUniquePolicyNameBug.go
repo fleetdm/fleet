@@ -54,12 +54,10 @@ func Up_20240221112844(tx *sql.Tx) error {
 	}
 
 	duplicateExists := false
-	if err != nil {
-		if isDuplicate(err) {
-			duplicateExists = true
-		} else {
-			return fmt.Errorf("failed to update policies table to fill the checksum column: %w", err)
-		}
+	if isDuplicate(err) {
+		duplicateExists = true
+	} else if err != nil {
+		return fmt.Errorf("failed to update policies table to fill the checksum column: %w", err)
 	}
 
 	// Since there is a duplicate name somewhere in the table (should be rare), we update table 1 row at a time
@@ -67,8 +65,6 @@ func Up_20240221112844(tx *sql.Tx) error {
 		rows, err := tx.Query("SELECT id FROM policies")
 		if err != nil {
 			return fmt.Errorf("failed to query policies table: %w", err)
-		} else if rows.Err() != nil {
-			return fmt.Errorf("failed to query policies table: %w", rows.Err())
 		}
 		var ids []uint64
 		{
@@ -80,17 +76,22 @@ func Up_20240221112844(tx *sql.Tx) error {
 				}
 				ids = append(ids, id)
 			}
+			if rows.Err() != nil {
+				return fmt.Errorf("failed during row iteration of policies table: %w", rows.Err())
+			}
 		}
 		for _, id := range ids {
 			_, err = tx.Exec(updateStmt+" WHERE id = ?", id)
-			if err != nil && isDuplicate(err) {
+			if isDuplicate(err) {
 				for i := 2; i < 10000; i++ {
 					_, err = tx.Exec(fmt.Sprintf(updateNameStmt, i), id)
-					if err != nil && isDuplicate(err) {
+					if isDuplicate(err) {
 						continue
+					} else if err != nil {
+						// We do not update this row -- it can be updated next time the policy is modified. This should be very rare.
+						// Lack of update can happen if duplicate name is 255 characters, or all of the nearly 10000 names we tried are already taken.
+						logger.Warn.Printf("failed to update policy id %d", id)
 					}
-					// We do not update this row -- it can be updated next time the policy is modified. This should be very rare.
-					// Lack of update can happen if duplicate name is 255 characters, or all of the nearly 10000 names we tried are already taken.
 					break
 				}
 			} else if err != nil {
