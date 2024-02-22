@@ -1013,7 +1013,7 @@ func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs
 	`, strings.TrimSuffix(sb.String(), ","))
 
 	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := ds.writer(ctx).Exec(stmt, args...)
+		res, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
 			return fmt.Errorf("failed to update cert associations: %w", err)
 		}
