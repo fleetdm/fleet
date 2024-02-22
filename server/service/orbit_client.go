@@ -37,7 +37,7 @@ type OrbitClient struct {
 	lastRecordedErr   error
 
 	configCache                 configCache
-	onNetErrOnGetConfigFn       OnNetErrOnGetConfigFunc
+	onGetConfigErrFns           *OnGetConfigErrFuncs
 	lastNetErrOnGetConfigLogged time.Time
 
 	// TestNodeKey is used for testing only.
@@ -87,8 +87,14 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
-// OnNetErrOnGetConfigFunc is a function executed when there are network errors in GetConfig.
-type OnNetErrOnGetConfigFunc func(err net.Error)
+// OnGetConfigErrFuncs defines functions to be executed on GetConfig errors.
+type OnGetConfigErrFuncs struct {
+	// OnNetErrFunc receives network and 5XX errors on GetConfig requests.
+	// These errors are rate limited to once every 5 minutes.
+	OnNetErrFunc func(err error)
+	// DebugErrFunc receives all errors on GetConfig requests.
+	DebugErrFunc func(err error)
+}
 
 var (
 	netErrInterval            = 5 * time.Minute
@@ -100,8 +106,7 @@ var (
 //   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
-//   - OnNetErrOnGetConfigFn is called when there's a network error in GetConfig (this method
-//     is rate limited to be executed once every 5 minutes).
+//   - onGetConfigErrFns can be used to handle errors in the GetConfig request.
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -110,7 +115,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
-	onNetErrOnGetConfigFn OnNetErrOnGetConfigFunc,
+	onGetConfigErrFns *OnGetConfigErrFuncs,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -120,12 +125,12 @@ func NewOrbitClient(
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
 	return &OrbitClient{
-		nodeKeyFilePath:       nodeKeyFilePath,
-		baseClient:            bc,
-		enrollSecret:          enrollSecret,
-		hostInfo:              orbitHostInfo,
-		enrolled:              false,
-		onNetErrOnGetConfigFn: onNetErrOnGetConfigFn,
+		nodeKeyFilePath:   nodeKeyFilePath,
+		baseClient:        bc,
+		enrollSecret:      enrollSecret,
+		hostInfo:          orbitHostInfo,
+		enrolled:          false,
+		onGetConfigErrFns: onGetConfigErrFns,
 	}, nil
 }
 
@@ -140,22 +145,28 @@ func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
+		verb, path := "POST", "/api/fleet/orbit/config"
 		var (
 			resp fleet.OrbitConfig
 			err  error
 		)
-		verb, path := "POST", "/api/fleet/orbit/config"
-		// Retry until we don't get a network error.
+		// Retry until we don't get a network error or a 5XX error.
 		_ = retry.Do(func() error {
 			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
-			var netErr net.Error
-			if errors.As(err, &netErr) {
+			var (
+				netErr        net.Error
+				statusCodeErr *statusCodeErr
+			)
+			if err != nil && oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.DebugErrFunc != nil {
+				oc.onGetConfigErrFns.DebugErrFunc(err)
+			}
+			if errors.As(err, &netErr) || (errors.As(err, &statusCodeErr) && statusCodeErr.code >= 500) {
 				now := time.Now()
-				if oc.onNetErrOnGetConfigFn != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
-					oc.onNetErrOnGetConfigFn(netErr)
+				if oc.onGetConfigErrFns != nil && oc.onGetConfigErrFns.OnNetErrFunc != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
+					oc.onGetConfigErrFns.OnNetErrFunc(err)
 					oc.lastNetErrOnGetConfigLogged = now
 				}
-				return err // retry on network errors
+				return err // retry on network or server 5XX errors
 			}
 			return nil
 		}, retry.WithInterval(configRetryOnNetworkError))

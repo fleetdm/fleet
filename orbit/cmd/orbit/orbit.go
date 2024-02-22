@@ -9,7 +9,6 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -783,8 +782,13 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
-			func(err net.Error) {
-				log.Info().Err(err).Msg("network error")
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
 			},
 		)
 		if err != nil {
@@ -1058,8 +1062,13 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
-			func(err net.Error) {
-				log.Info().Err(err).Msg("network error")
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
 			},
 		)
 		if err != nil {
