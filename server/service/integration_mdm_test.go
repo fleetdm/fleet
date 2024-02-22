@@ -11374,18 +11374,10 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	// expire all the certs we just created
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `
-                  UPDATE scep_certificates
-                  SET not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
-                  WHERE serial IN (
-                      SELECT serial
-                      FROM (
-                          SELECT serial
-                          FROM scep_certificates
-                          ORDER BY created_at DESC
-                          LIMIT 3
-                      ) AS subquery
-                  )
-		`)
+                  UPDATE nano_cert_auth_associations
+                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                  WHERE id IN (?, ?, ?)
+		`, manualHost.UUID, automaticHost.UUID, automaticHostWithRef.UUID)
 		return err
 	})
 
@@ -11416,4 +11408,16 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	checkRenewCertCommand(manualEnrolledDevice, "")
 	checkRenewCertCommand(automaticEnrolledDevice, "")
 	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo")
+
+	// another cron run shouldn't enqueue more commands
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 }
