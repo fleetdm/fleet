@@ -1188,8 +1188,6 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// time of the Exec call, and the result simply returns the integers it
 	// already holds:
 	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
-	//
-	// TODO(mna): would that work on mariadb too?
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()
