@@ -2493,7 +2493,9 @@ Returns the information of the specified host.
 ### Get host by identifier
 
 Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
-`node_key` as an identifier
+`node_key` as an identifier.
+
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
