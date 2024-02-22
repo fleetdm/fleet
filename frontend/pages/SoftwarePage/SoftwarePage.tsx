@@ -20,6 +20,7 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import Button from "components/buttons/Button";
 import MainContent from "components/MainContent";
@@ -256,10 +257,14 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
 
   const navigateToNav = useCallback(
     (i: number): void => {
-      const navPath = softwareSubNav[i].pathname;
-      router.replace(
-        navPath.concat(location?.search || "").concat(location?.hash || "")
-      );
+      // Only query param to persist between tabs is team id
+      const teamIdParam = buildQueryStringFromParams({
+        team_id: location?.query.team_id,
+      });
+
+      const navPath = softwareSubNav[i].pathname.concat(`?${teamIdParam}`);
+
+      router.replace(navPath);
     },
     [location, router]
   );
@@ -294,11 +299,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
-        <b>
-          {isPremiumTier && isAnyTeamSelected
-            ? "all hosts assigned to this team"
-            : "all of your hosts"}
-        </b>
+        {isPremiumTier && isAnyTeamSelected
+          ? "all hosts assigned to this team"
+          : "all of your hosts"}
         .
       </p>
     );

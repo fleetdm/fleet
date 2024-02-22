@@ -1,1 +1,0 @@
-Fixed unreleased fleetd-chrome bug with sticky errors showing up after querying privacy_preferences table.

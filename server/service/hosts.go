@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
 )
@@ -1092,6 +1093,33 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
+	}
+
+	// unlocked with no pending action is the default state
+	// TODO(mna): make constants for those values
+	host.MDM.DeviceStatus = ptr.String("unlocked")
+	host.MDM.PendingAction = ptr.String("")
+	// device status
+	switch {
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
+	case mdmActions.IsWiped():
+		host.MDM.DeviceStatus = ptr.String("wiped")
+	}
+
+	// pending action, if any
+	switch {
+	case mdmActions.IsPendingLock():
+		host.MDM.PendingAction = ptr.String("lock")
+	case mdmActions.IsPendingUnlock():
+		host.MDM.PendingAction = ptr.String("unlock")
+	case mdmActions.IsPendingWipe():
+		host.MDM.PendingAction = ptr.String("wipe")
+	}
+
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
@@ -1809,31 +1837,9 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, err
 	}
 
-	for i, os := range osVersions.OSVersions {
-
-		// populate OSVersion.GeneratedCPEs
-		if os.Platform == "darwin" {
-			osVersions.OSVersions[i].GeneratedCPEs = []string{
-				fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", os.Version),
-				fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", os.Version),
-			}
-		}
-
-		// populate OSVersion.Vulnerabilities
-		vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, os.NameOnly, os.Version, includeCVSS)
-		if err != nil {
+	for i := range osVersions.OSVersions {
+		if err := svc.populateOSVersionDetails(ctx, &osVersions.OSVersions[i], includeCVSS); err != nil {
 			return nil, count, nil, err
-		}
-
-		osVersions.OSVersions[i].Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
-		for _, vuln := range vulns {
-			switch os.Platform {
-			case "darwin":
-				vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
-			case "windows":
-				vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
-			}
-			osVersions.OSVersions[i].Vulnerabilities = append(osVersions.OSVersions[i].Vulnerabilities, vuln)
 		}
 	}
 
@@ -1877,6 +1883,76 @@ func paginateOSVersions(slice []fleet.OSVersion, opts fleet.ListOptions) ([]flee
 	}
 
 	return slice[start:end], metaData
+}
+
+type getOSVersionRequest struct {
+	ID     uint  `url:"id"`
+	TeamID *uint `query:"team_id,optional"`
+}
+
+type getOSVersionResponse struct {
+	CountsUpdatedAt *time.Time       `json:"counts_updated_at"`
+	OSVersion       *fleet.OSVersion `json:"os_version"`
+	Err             error            `json:"error,omitempty"`
+}
+
+func (r getOSVersionResponse) error() error { return r.Err }
+
+func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getOSVersionRequest)
+
+	osVersion, updateTime, err := svc.OSVersion(ctx, req.ID, req.TeamID, false)
+	if err != nil {
+		return getOSVersionResponse{Err: err}, nil
+	}
+
+	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
+}
+
+func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, nil, err
+	}
+
+	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+		return nil, nil, err
+	}
+
+	return osVersion, updateTime, nil
+}
+
+// PopulateOSVersionDetails populates the GeneratedCPEs and Vulnerabilities for an OSVersion.
+func (svc *Service) populateOSVersionDetails(ctx context.Context, osVersion *fleet.OSVersion, includeCVSS bool) error {
+	// Populate GeneratedCPEs
+	if osVersion.Platform == "darwin" {
+		osVersion.GeneratedCPEs = []string{
+			fmt.Sprintf("cpe:2.3:o:apple:macos:%s:*:*:*:*:*:*:*", osVersion.Version),
+			fmt.Sprintf("cpe:2.3:o:apple:mac_os_x:%s:*:*:*:*:*:*:*", osVersion.Version),
+		}
+	}
+
+	// Populate Vulnerabilities
+	vulns, err := svc.ds.ListVulnsByOsNameAndVersion(ctx, osVersion.NameOnly, osVersion.Version, includeCVSS)
+	if err != nil {
+		return err
+	}
+
+	osVersion.Vulnerabilities = make(fleet.Vulnerabilities, 0) // avoid null in JSON
+	for _, vuln := range vulns {
+		switch osVersion.Platform {
+		case "darwin":
+			vuln.DetailsLink = fmt.Sprintf("https://nvd.nist.gov/vuln/detail/%s", vuln.CVE)
+		case "windows":
+			vuln.DetailsLink = fmt.Sprintf("https://msrc.microsoft.com/update-guide/en-US/vulnerability/%s", vuln.CVE)
+		}
+		osVersion.Vulnerabilities = append(osVersion.Vulnerabilities, vuln)
+	}
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2020,4 +2096,42 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 	}
 
 	return hh, nil
+}
+
+func (svc *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
+}
+
+func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByID(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
 }

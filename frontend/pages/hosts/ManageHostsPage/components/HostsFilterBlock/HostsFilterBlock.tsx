@@ -58,9 +58,9 @@ interface IHostsFilterBlockProps {
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
-    osId?: any;
-    osName?: any;
-    osVersion?: any;
+    osVersionId?: string;
+    osName?: string;
+    osVersion?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: { name: string; version?: string } | null;
@@ -101,7 +101,7 @@ const HostsFilterBlock = ({
     mdmId,
     mdmEnrollmentStatus,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     munkiIssueId,
@@ -159,10 +159,12 @@ const HostsFilterBlock = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!osId && !(osName && osVersion)) return null;
-
     let os: IOperatingSystemVersion | undefined;
-    if (osName && osVersion) {
+    if (osVersionId) {
+      os = osVersions?.find(
+        (v) => v.os_version_id === parseInt(osVersionId, 10)
+      );
+    } else if (osName && osVersion) {
       const name: string = osName;
       const vers: string = osVersion;
 
@@ -172,6 +174,7 @@ const HostsFilterBlock = ({
           version.toLowerCase() === vers.toLowerCase()
       );
     }
+
     if (!os) return null;
 
     const { name, name_only, version } = os;
@@ -193,7 +196,9 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={TooltipDescription}
-        onClear={() => handleClearFilter(["os_id", "os_name", "os_version"])}
+        onClear={() =>
+          handleClearFilter(["os_version_id", "os_name", "os_version"])
+        }
       />
     );
   };
@@ -449,7 +454,7 @@ const HostsFilterBlock = ({
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
-    osId ||
+    osVersionId ||
     (osName && osVersion) ||
     munkiIssueId ||
     osSettingsStatus ||
@@ -491,14 +496,13 @@ const HostsFilterBlock = ({
           return renderMDMSolutionFilterBlock();
         case !!mdmEnrollmentStatus:
           return renderMDMEnrollmentFilterBlock();
-        case !!osId || (!!osName && !!osVersion):
+        case !!osVersionId || (!!osName && !!osVersion):
           return renderOSFilterBlock();
         case !!munkiIssueId:
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
         case !!osSettingsStatus:
-          console.log("renderOsSettingsBlock");
           return renderOsSettingsBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();

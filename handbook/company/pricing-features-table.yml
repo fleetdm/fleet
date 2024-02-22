@@ -20,7 +20,7 @@
   waysToUse:
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
     - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
-    - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API. Coming soon (2023-12-31)
+    - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14920
     - description: Control and restore access to applications by automatically restricting access when devices do not meet particular security requirements.
       moreInfoUrl: https://duo.com/docs/device-health
@@ -60,6 +60,8 @@
       moreInfoUrl: https://help.zscaler.com/deception/downloading-and-running-remediation-script
     - description: Deploy custom scripts
       moreInfoUrl: https://scalefusion.com/custom-scripting
+    - description: Run scripts on online/offline hosts
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15529
 #
 #  ╔═╗╦ ╦╔╦╗╔═╗╔╦╗╔═╗╔╦╗╦╔═╗  ╔═╗╔═╗╔═╗╔╦╗╦ ╦╦═╗╔═╗  ╔═╗╔═╗╔═╗╔═╗╔═╗╔═╗╔╦╗╔═╗╔╗╔╔╦╗
 #  ╠═╣║ ║ ║ ║ ║║║║╠═╣ ║ ║║    ╠═╝║ ║╚═╗ ║ ║ ║╠╦╝║╣   ╠═╣╚═╗╚═╗║╣ ╚═╗╚═╗║║║║╣ ║║║ ║
@@ -324,7 +326,7 @@
 #  ╠╦╝║╣ ║║║║ ║ ║ ║╣   ╚═╗║╣  ║  ║ ║║║║║ ╦╚═╗
 #  ╩╚═╚═╝╩ ╩╚═╝ ╩ ╚═╝  ╚═╝╚═╝ ╩  ╩ ╩╝╚╝╚═╝╚═╝
 - industryName: Remote settings
-  description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.). Fleetd startup flags coming soon (2023-12-31) #customer-blanco
+  description: Configure agent options remotely, over the air.  (Includes osquery config, and osquery startup flags.).
   documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/13825
   tier: Free
@@ -352,6 +354,13 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   usualDepartment: Security
+- industryName: Variable agent versions
+  descrption: Manage agents remotely by setting different versions per-baseline.
+  documentationUrl: https://fleetdm.com/docs/configuration/agent-configuration#configure-fleetd-update-channels
+  tier: Premium
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
+  usualDepartment: IT
 #  ╔═╗╦ ╦╔═╗╔╦╗╔═╗╔╦╗  ╔╦╗╔═╗╔╗ ╦  ╔═╗╔═╗
 #  ║  ║ ║╚═╗ ║ ║ ║║║║   ║ ╠═╣╠╩╗║  ║╣ ╚═╗
 #  ╚═╝╚═╝╚═╝ ╩ ╚═╝╩ ╩   ╩ ╩ ╩╚═╝╩═╝╚═╝╚═╝
@@ -514,17 +523,17 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Remotely enforce OS settings
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-macos-settings
-  tier: Free
+  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-custom-os-settings
   usualDepartment: IT
+  tier: Free
   waysToUse:
-    - description: Deploy configuration profiles on macOS and verify that they're installed. Windows coming soon (2023-12-30). #Customer-preston
+    - description: Deploy configuration profiles on macOS and Windows and verify that they're installed.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/13281
     - description: Deploy custom declaration (DDM) profiles on macOS. Coming soon (2024-03-31).
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
-    - description: Target profiles to specific hosts using SQL. Coming soon (2023-12-31)
+    - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
-    - description: Automatically re-deploy configuration profiles on macOS they're not installed.
+    - description: Automatically re-deploy configuration profiles when they're not installed.
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -546,6 +555,9 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
+  waysToUse:
+    - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
 - industryName: Native macOS update reminders
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
   tier: Free
@@ -559,8 +571,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup. Coming soon (2023-12-30) #Customer-preston
+    - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
@@ -571,24 +583,29 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
-    - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
+    - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Encrypt macOS hard disks with FileVault
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Remotely lock and wipe macOS computers
+- industryName: Cross-platform remote lock and wipe
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
+  waysToUse:
+    - description: High-level remote lock for macOS, Windows, and Linux. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9949
+    - description: High-level remote wipe for macOS, Windows, and Linux. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/9951
   tier: Premium
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Install apps and packages on macOS and Windows computers.
+- industryName: Deploy apps and packages on macOS, Windows, and Linux computers.
   description:
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  comingSoonOn: 2023-12-30 #Customer-reedtimmer and customer-preston
+  comingSoonOn: 2024-03-31 #Customer-reedtimmer
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -607,7 +624,7 @@
     - description: Implement software inventory recommendations from the SANS 20 / CIS 18.
       moreInfoUrl: https://docs.google.com/document/d/1E6EQMMqrsRc6Z3YsR6Q33OaF9eAa8zLNaz4K2YzFdyo/edit#heading=h.7en766pueek4
     - description: View a list of all software and their versions installed on all your hosts.
-    - description: View a list of software rolled up by title. Coming soon (2023-12-31)
+    - description: View a list of software rolled up by title.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14674
 - industryName: Hardware inventory
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -715,11 +732,6 @@
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Vanta integration
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
 - industryName: Trigger a workflow based on a failing policy
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
@@ -749,15 +761,16 @@
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔╦╗╔═╗╔═╗╦ ╦╔╗ ╔═╗╔═╗╦═╗╔╦╗
 #  ╚╗╔╝║ ║║  ║║║║╣ ╠╦╝╠═╣╠╩╗║║  ║ ║ ╚╦╝   ║║╠═╣╚═╗╠═╣╠╩╗║ ║╠═╣╠╦╝ ║║
 #   ╚╝ ╚═╝╩═╝╝╚╝╚═╝╩╚═╩ ╩╚═╝╩╩═╝╩ ╩  ╩   ═╩╝╩ ╩╚═╝╩ ╩╚═╝╚═╝╩ ╩╩╚══╩╝
-- industryName: OT/ICS compliance and cyber risk visibility 
+- industryName: Vulnerability dashboard 
   friendlyName: Vulnerability dashboard
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
   usualDepartment: Security
   tier: Premium
   demos:
-    - description: 
-      moreInfoUrl: 
+    - description: See a list of all vulneribilities across your hosts. Coming soon (2024-03-31)
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/15919
+    - description: AI generated CVSS v4 context. Coming soon (2024-03-31)
   waysToUse:
     - description: Easily communicate to executives regarding the progress of patching vulnerable software. Only show vulnerabilities that you care about. Coming soon (2024-03-31) #Customer-faltona and customer-rialto
 #  ╦  ╦╦ ╦╦  ╔╗╔╔═╗╦═╗╔═╗╔╗ ╦╦  ╦╔╦╗╦ ╦  ╔═╗╔═╗╔═╗╦═╗╔═╗╔═╗       ╔═╗╔═╗╔═╗╔═╗  ╔═╗╔╗╔╔╦╗  ╔═╗╦  ╦╔═╗╔═╗
@@ -777,7 +790,7 @@
     - description: By leveraging EPSS (Exploit Prediction Scoring System), security professionals gain insight on the true risk behind rated CVEs. 
     - description: An Introduction to EPSS, The Exploit Prediction Scoring System
     - moreInfoUrl: https://www.youtube.com/watch?v=vw1RlZCSRcQ
-    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable. 
+    - description: By extracting metadata from the National Vulnerability Database (NVD) and Microsoft Security Response Center (MSRC), we can determine which version of software is no longer vulnerable.
 #  ╔═╗╦╔═╗╔═╗  ╦╔═╔═╗╦  ╦╔═╗
 #  ║  ║╚═╗╠═╣  ╠╩╗║╣ ╚╗╔╝╚═╗
 #  ╚═╝╩╚═╝╩ ╩  ╩ ╩╚═╝ ╚╝ ╚═╝
@@ -804,7 +817,7 @@
       moreInfoUrl: https://docs.google.com/document/d/1WzMc8GJCRU6tTBb6gLsSTzFysqtXO8CtP2sXMPKgYSk/edit?disco=AAAA6xuVxGg
   waysToUse:
     - description: Monitor performance for automated queries.
-    - description: Monitor performance for live queries. Coming soon (2024-01-26) #Customer-blanco
+    - description: Monitor performance for live queries.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/467
 - industryName: Detect and surface issues with devices (policies)
   productCategories: [Endpoint operations,Device management]
@@ -830,3 +843,9 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+- industryName: Asset discovery* #Coming soon (TBD)
+  tier: Premium
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  comingSoonOn: 2024-06-30

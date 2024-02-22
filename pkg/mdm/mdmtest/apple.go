@@ -23,15 +23,15 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/scep"
+	scepserver "github.com/fleetdm/fleet/v4/server/mdm/scep/server"
 	"github.com/go-kit/kit/log"
 	kitlog "github.com/go-kit/kit/log"
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
-	"github.com/micromdm/scep/v2/scep"
-	scepserver "github.com/micromdm/scep/v2/server"
 	"go.mozilla.org/pkcs7"
 )
 

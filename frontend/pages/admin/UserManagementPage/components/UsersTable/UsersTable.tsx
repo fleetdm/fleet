@@ -28,6 +28,13 @@ import { NewUserType } from "../UserForm/UserForm";
 import CreateUserModal from "../CreateUserModal";
 import EditUserModal from "../EditUserModal";
 
+const EmptyUsersTable = () => (
+  <EmptyTable
+    header="No users match the current criteria"
+    info="Expecting to see users? Try again in a few seconds as the system catches up."
+  />
+);
+
 interface IUsersTableProps {
   router: InjectedRouter; // v3
 }
@@ -94,6 +101,10 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     }
   );
 
+  // TODO: Cleanup useCallbacks, add missing dependencies, use state setter functions, e.g.,
+  // `setShowCreateUserModal((prevState) => !prevState)`, instead of including state
+  // variables as dependencies for toggles, etc.
+
   // TOGGLE MODALS
 
   const toggleCreateUserModal = useCallback(() => {
@@ -140,40 +151,54 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   // FUNCTIONS
 
-  const combineUsersAndInvites = useCallback(
-    (usersData, invitesData, currentUserId) => {
-      return combineDataSets(usersData, invitesData, currentUserId);
+  const goToAccountPage = useCallback(() => {
+    const { ACCOUNT } = paths;
+    router.push(ACCOUNT);
+  }, [router]);
+
+  const onActionSelect = useCallback(
+    (value: string, user: IUser | IInvite) => {
+      switch (value) {
+        case "edit":
+          toggleEditUserModal(user);
+          break;
+        case "delete":
+          toggleDeleteUserModal(user);
+          break;
+        case "passwordReset":
+          toggleResetPasswordUserModal(user);
+          break;
+        case "resetSessions":
+          toggleResetSessionsUserModal(user);
+          break;
+        case "editMyAccount":
+          goToAccountPage();
+          break;
+        default:
+          return null;
+      }
+      return null;
     },
-    []
+    [
+      toggleEditUserModal,
+      toggleDeleteUserModal,
+      toggleResetPasswordUserModal,
+      toggleResetSessionsUserModal,
+      goToAccountPage,
+    ]
   );
 
-  const goToUserSettingsPage = () => {
-    const { USER_SETTINGS } = paths;
-    router.push(USER_SETTINGS);
-  };
+  const onTableQueryChange = useCallback(
+    (queryData: ITableQueryData) => {
+      const { searchQuery } = queryData;
 
-  const onActionSelect = (value: string, user: IUser | IInvite) => {
-    switch (value) {
-      case "edit":
-        toggleEditUserModal(user);
-        break;
-      case "delete":
-        toggleDeleteUserModal(user);
-        break;
-      case "passwordReset":
-        toggleResetPasswordUserModal(user);
-        break;
-      case "resetSessions":
-        toggleResetSessionsUserModal(user);
-        break;
-      case "editMyAccount":
-        goToUserSettingsPage();
-        break;
-      default:
-        return null;
-    }
-    return null;
-  };
+      setQuerySearchText(searchQuery);
+
+      refetchUsers();
+      refetchInvites();
+    },
+    [refetchUsers, refetchInvites]
+  );
 
   const getUser = (type: string, id: number) => {
     let userData;
@@ -501,9 +526,9 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
     );
   };
 
-  const tableHeaders = generateTableHeaders(
-    onActionSelect,
-    isPremiumTier || false
+  const tableHeaders = useMemo(
+    () => generateTableHeaders(onActionSelect, isPremiumTier || false),
+    [onActionSelect, isPremiumTier]
   );
 
   const loadingTableData =
@@ -513,72 +538,42 @@ const UsersTable = ({ router }: IUsersTableProps): JSX.Element => {
 
   const tableData = useMemo(
     () =>
-      !loadingTableData && !tableDataError
-        ? combineUsersAndInvites(users, invites, currentUser?.id)
+      !loadingTableData &&
+      !tableDataError &&
+      users &&
+      invites &&
+      currentUser?.id
+        ? combineDataSets(users, invites, currentUser.id)
         : [],
-    [
-      loadingTableData,
-      tableDataError,
-      users,
-      invites,
-      currentUser?.id,
-      combineUsersAndInvites,
-    ]
+    [loadingTableData, tableDataError, users, invites, currentUser?.id]
   );
-
-  const renderTable = useCallback(() => {
-    // NOTE: this is called once on the initial rendering. The initial render of
-    // the TableContainer child component calls this handler.
-    const onTableQueryChange = (queryData: ITableQueryData) => {
-      const { searchQuery } = queryData;
-
-      setQuerySearchText(searchQuery);
-
-      refetchUsers();
-      refetchInvites();
-    };
-
-    const emptyState = {
-      header: "No users match the current criteria.",
-      info:
-        "Expecting to see users? Try again in a few seconds as the system catches up.",
-    };
-
-    return (
-      <TableContainer
-        columnConfigs={tableHeaders}
-        data={tableData}
-        isLoading={loadingTableData}
-        defaultSortHeader={"name"}
-        defaultSortDirection={"asc"}
-        inputPlaceHolder={"Search by name or email"}
-        actionButton={{
-          name: "create user",
-          buttonText: "Create user",
-          onActionButtonClick: toggleCreateUserModal,
-        }}
-        onQueryChange={onTableQueryChange}
-        resultsTitle={"users"}
-        emptyComponent={() => EmptyTable(emptyState)}
-        searchable
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        isClientSidePagination
-      />
-    );
-  }, [
-    tableHeaders,
-    tableData,
-    loadingTableData,
-    toggleCreateUserModal,
-    refetchUsers,
-    refetchInvites,
-  ]);
 
   return (
     <>
-      {/* TODO: find a way to move these controls into the table component */}
-      {tableDataError ? <TableDataError /> : renderTable()}
+      {tableDataError ? (
+        <TableDataError />
+      ) : (
+        <TableContainer
+          columnConfigs={tableHeaders}
+          data={tableData}
+          isLoading={loadingTableData}
+          defaultSortHeader={"name"}
+          defaultSortDirection={"asc"}
+          inputPlaceHolder={"Search by name or email"}
+          actionButton={{
+            name: "create user",
+            buttonText: "Create user",
+            onActionButtonClick: toggleCreateUserModal,
+          }}
+          onQueryChange={onTableQueryChange}
+          resultsTitle={"users"}
+          emptyComponent={EmptyUsersTable}
+          searchable
+          showMarkAllPages={false}
+          isAllPagesSelected={false}
+          isClientSidePagination
+        />
+      )}
       {showCreateUserModal && renderCreateUserModal()}
       {showEditUserModal && renderEditUserModal()}
       {showDeleteUserModal && renderDeleteUserModal()}

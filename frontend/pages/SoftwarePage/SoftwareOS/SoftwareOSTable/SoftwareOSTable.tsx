@@ -23,8 +23,7 @@ const baseClass = "software-os-table";
 
 interface IRowProps extends Row {
   original: {
-    version?: string;
-    name_only?: string;
+    os_version_id?: string;
   };
 }
 
@@ -116,8 +115,7 @@ const SoftwareOSTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
-      os_version: row.original.version,
-      os_name: row.original.name_only,
+      os_version_id: row.original.os_version_id,
       team_id: teamId,
     };
 

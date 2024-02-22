@@ -45,10 +45,10 @@ import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
-import UserSettingsPage from "pages/UserSettingsPage";
+import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
-import MembersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/MembersPage";
+import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
 import AgentOptionsPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/AgentOptionsPage";
 import OSUpdates from "pages/ManageControlsPage/OSUpdates";
 import OSSettings from "pages/ManageControlsPage/OSSettings";
@@ -157,12 +157,13 @@ const routes = (
               component={WindowsAutomaticEnrollmentPage}
             />
             <Route path="teams" component={TeamDetailsWrapper}>
-              <Route path="members" component={MembersPage} />
+              <Redirect from="members" to="users" />
+              <Route path="users" component={UsersPage} />
               <Route path="options" component={AgentOptionsPage} />
               <Route path="settings" component={TeamSettings} />
             </Route>
             <Redirect from="teams/:team_id" to="teams" />
-            <Redirect from="teams/:team_id/members" to="teams" />
+            <Redirect from="teams/:team_id/users" to="teams" />
             <Redirect from="teams/:team_id/options" to="teams" />
           </Route>
           <Route path="labels">
@@ -198,7 +199,6 @@ const routes = (
               component={HostQueryReport}
             />
           </Route>
-
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
               <IndexRedirect to="os-updates" />
@@ -215,7 +215,6 @@ const routes = (
               </Route>
             </Route>
           </Route>
-
           <Route path="software">
             <IndexRedirect to="titles" />
             <Route component={SoftwarePage}>
@@ -227,7 +226,7 @@ const routes = (
             </Route>
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
-            <Route path="os/details" component={SoftwareOSDetailsPage} />
+            <Route path="os/:id" component={SoftwareOSDetailsPage} />
           </Route>
           <Route component={AuthGlobalAdminMaintainerRoutes}>
             <Route path="packs">
@@ -263,10 +262,8 @@ const routes = (
             </Route>
             <Route path=":id" component={PolicyPage} />
           </Route>
-          <Route
-            path="profile"
-            component={UserSettingsPage as RouteComponent}
-          />
+          <Redirect from="profile" to="account" /> {/* deprecated URL */}
+          <Route path="account" component={AccountPage} />
         </Route>
       </Route>
       <Route path="device">

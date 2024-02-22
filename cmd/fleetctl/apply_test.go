@@ -23,7 +23,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mock"
-	nanomdm_mock "github.com/fleetdm/fleet/v4/server/mock/nanomdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -265,7 +264,7 @@ spec:
 		},
 	}
 
-	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 teams\n")
 	// enroll secret not provided, so left unchanged
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
 	assert.False(t, ds.ApplyEnrollSecretsFuncInvoked)
@@ -379,7 +378,7 @@ spec:
 		},
 	}
 
-	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", filename}), "[+] applied 1 teams\n")
 	// agent options still cleared
 	assert.Nil(t, teamsByName["team1"].Config.AgentOptions)
 	// macos settings and updates are now cleared.
@@ -869,12 +868,12 @@ func TestApplyPolicies(t *testing.T) {
 func TestApplyPoliciesValidation(t *testing.T) {
 	// Team Policy Spec
 	filename := writeTmpYml(t, duplicateTeamPolicySpec)
-	errorMsg := `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	errorMsg := `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
 	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 
 	// Global Policy Spec
 	filename = writeTmpYml(t, duplicateGlobalPolicySpec)
-	errorMsg = `applying policies: policy names must be globally unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
+	errorMsg = `applying policies: policy names must be unique. Please correct policy "Is Gatekeeper enabled on macOS devices?" and try again.`
 	runAppCheckErr(t, []string{"apply", "-f", filename}, errorMsg)
 }
 
@@ -901,7 +900,7 @@ func mobileconfigForTest(name, identifier string) []byte {
 }
 
 func TestApplyAsGitOps(t *testing.T) {
-	enqueuer := new(nanomdm_mock.Storage)
+	enqueuer := new(mock.MDMAppleStore)
 	license := &fleet.LicenseInfo{Tier: fleet.TierPremium, Expiration: time.Now().Add(24 * time.Hour)}
 
 	// mdm test configuration must be set so that activating windows MDM works.
@@ -1168,10 +1167,10 @@ spec:
 `, mobileConfigPath))
 
 	// first apply with dry-run
-	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
 
 	// then apply for real
-	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
 	assert.JSONEq(t, string(json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)), string(*savedTeam.Config.AgentOptions))
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,
@@ -1204,10 +1203,10 @@ spec:
 `, emptySetupAsst))
 
 	// first apply with dry-run
-	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
 
 	// then apply for real
-	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
 	require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	require.True(t, ds.NewJobFuncInvoked)
@@ -1243,10 +1242,10 @@ spec:
 `, bootstrapURL))
 
 	// first apply with dry-run
-	require.Equal(t, "[+] would've applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name, "--dry-run"}), "[+] would've applied 1 teams\n")
 
 	// then apply for real
-	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", name}), "[+] applied 1 teams\n")
 	// all left untouched, only bootstrap package added
 	assert.Equal(t, fleet.TeamMDM{
 		EnableDiskEncryption: false,

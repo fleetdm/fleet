@@ -1,8 +1,9 @@
 import React from "react";
 import { useQuery } from "react-query";
+import { RouteComponentProps } from "react-router/lib/Router";
 
 import osVersionsAPI, {
-  IOSVersionsResponse,
+  IOSVersionResponse,
 } from "services/entities/operating_systems";
 import { IOperatingSystemVersion } from "interfaces/operating_system";
 import { SUPPORT_LINK } from "utilities/constants";
@@ -37,23 +38,30 @@ const NotSupportedVuln = ({ platform }: INotSupportedVulnProps) => {
   );
 };
 
-interface ISoftwareOSDetailsPageProps {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  location: { query: { name: string; version: string } }; // no type in react-router v3
+interface ISoftwareOSDetailsRouteParams {
+  id: string;
 }
 
-const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
-  const name = location.query.name;
-  const osVersion = location.query.version;
+type ISoftwareOSDetailsPageProps = RouteComponentProps<
+  undefined,
+  ISoftwareOSDetailsRouteParams
+>;
+
+const SoftwareOSDetailsPage = ({
+  routeParams,
+}: ISoftwareOSDetailsPageProps) => {
+  const osVersionIdFromURL = parseInt(routeParams.id, 10);
+
   const { data: osVersionDetails, isLoading, isError } = useQuery<
-    IOSVersionsResponse,
+    IOSVersionResponse,
     Error,
     IOperatingSystemVersion
   >(
-    ["osVersionDetails", name, osVersion],
-    () => osVersionsAPI.getOSVersion({ os_name: name, os_version: osVersion }),
+    ["osVersionDetails", osVersionIdFromURL],
+    () => osVersionsAPI.getOSVersion(osVersionIdFromURL),
     {
-      select: (res) => res.os_versions[0],
+      enabled: !!osVersionIdFromURL,
+      select: (data) => data.os_version,
     }
   );
 
@@ -100,7 +108,7 @@ const SoftwareOSDetailsPage = ({ location }: ISoftwareOSDetailsPageProps) => {
             os_name: osVersionDetails.name_only,
             os_version: osVersionDetails.version,
           }}
-          name={osVersionDetails.name}
+          name={osVersionDetails.platform}
         />
         {/* TODO: can we use Card here for card styles */}
         <div className={`${baseClass}__vulnerabilities-section`}>

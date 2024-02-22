@@ -53,6 +53,8 @@ const DEFAULT_HOST_MDM_DATA: IHostMdmData = {
     details: "",
     bootstrap_package_name: "",
   },
+  device_status: "unlocked",
+  pending_action: "",
 };
 
 export const createMockHostMdmData = (

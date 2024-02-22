@@ -233,7 +233,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	teams := []fleet.UserTeam{
 		{
 			Team: fleet.Team{
-				ID: 9999,
+				ID: 9999, // non-existent team
 			},
 			Role: fleet.RoleObserver,
 		},
@@ -246,7 +246,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452`)
+	assertBodyContains(t, resp, `team with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -5349,6 +5349,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
 		"team_id", "1",
 	)
+
+	// lock/unlock a host
+	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -7367,16 +7371,16 @@ func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
 	testOSes := []fleet.OperatingSystem{
-		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
-		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
-		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"},
+		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},                             // os_version_id=1
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
 	}
 
 	var platforms []string
@@ -7398,7 +7402,6 @@ func (s *integrationTestSuite) TestOSVersions() {
 	// get OS versions
 	osv, err := s.ds.ListOperatingSystems(context.Background())
 	require.NoError(t, err)
-	require.Len(t, osv, 6) // includes fooOS from another test
 
 	osvMap := make(map[string]fleet.OperatingSystem)
 	for _, os := range osv {
@@ -7410,11 +7413,15 @@ func (s *integrationTestSuite) TestOSVersions() {
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOSes[1].Name, "os_version", testOSes[1].Version)
 	require.Len(t, resp.Hosts, 2)
 
-	expected := resp.Hosts[0]
+	expected := hosts[1].Hostname
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].ID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
 	require.Len(t, resp.Hosts, 2)
-	require.Equal(t, expected, resp.Hosts[0])
+	require.Equal(t, expected, resp.Hosts[0].Hostname)
+
+	countResp := countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
+	require.Equal(t, 2, countResp.Count)
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
@@ -7445,12 +7452,13 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
 
 	// Default sort is by hosts count, descending
-	require.Equal(t, fleet.OSVersion{
-		HostsCount: 4,
-		Name:       "Windows 11 Pro 21H2 10.0.22000.2",
-		NameOnly:   "Windows 11 Pro 21H2",
-		Version:    "10.0.22000.2",
-		Platform:   "windows",
+	expectedVersion := fleet.OSVersion{
+		HostsCount:  4,
+		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
+		NameOnly:    "Windows 11 Pro 21H2",
+		Version:     "10.0.22000.2",
+		Platform:    "windows",
+		OSVersionID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
 		Vulnerabilities: fleet.Vulnerabilities{
 			{
 				CVE:         "CVE-2021-1234",
@@ -7461,7 +7469,24 @@ func (s *integrationTestSuite) TestOSVersions() {
 				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
 			},
 		},
-	}, osVersionsResp.OSVersions[0])
+	}
+
+	// Default sort is by hosts count, descending
+	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+
+	// get OS version by id
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+
+	// invalid id
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
+
+	// name and version filters
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
 
 	// name without version
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_name", "Windows 11 Pro 21H2")
@@ -8318,7 +8343,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -8383,7 +8408,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
@@ -9763,7 +9788,7 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	})
 	require.NoError(t, err)
 
-	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A"})
+	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A", SyncRequest: true})
 	require.NoError(t, err)
 	h1A := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "B"})
@@ -9772,12 +9797,19 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "C"})
 	require.NoError(t, err)
 	h1C := hsr.ExecutionID
-	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D"})
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D", SyncRequest: true})
 	require.NoError(t, err)
 	h1D := hsr.ExecutionID
 	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "E"})
 	require.NoError(t, err)
 	h1E := hsr.ExecutionID
+
+	// modify the timestamp h1D to simulate an script that has
+	// been pending for a long time
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		return err
+	})
 
 	cases := []struct {
 		queries   []string // alternate query name and value
@@ -9785,32 +9817,32 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 		wantMeta  *fleet.PaginationMetadata
 	}{
 		{
-			wantExecs: []string{h1A, h1B, h1C, h1D, h1E},
+			wantExecs: []string{h1B, h1C, h1D, h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2"},
-			wantExecs: []string{h1A, h1B},
+			wantExecs: []string{h1B, h1C},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "1"},
-			wantExecs: []string{h1C, h1D},
-			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: true},
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "2", "page", "2"},
-			wantExecs: []string{h1E},
+			wantExecs: nil,
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
 			queries:   []string{"per_page", "3"},
-			wantExecs: []string{h1A, h1B, h1C},
+			wantExecs: []string{h1B, h1C, h1D},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
 		},
 		{
 			queries:   []string{"per_page", "3", "page", "1"},
-			wantExecs: []string{h1D, h1E},
+			wantExecs: []string{h1E},
 			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
 		},
 		{
@@ -9821,10 +9853,11 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 	}
 	for _, c := range cases {
 		t.Run(fmt.Sprintf("%#v", c.queries), func(t *testing.T) {
-			var listResp listActivitiesResponse
+			var listResp listHostUpcomingActivitiesResponse
 			queryArgs := c.queries
 			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
 
+			require.Equal(t, uint(5), listResp.Count)
 			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
 			require.Equal(t, c.wantMeta, listResp.Meta)
 
@@ -9845,4 +9878,24 @@ func (s *integrationTestSuite) TestListHostUpcomingActivities() {
 			require.Equal(t, c.wantExecs, gotExecs)
 		})
 	}
+
+	// Test with a host that has no upcoming activities
+	host2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host2.ID), nil, http.StatusOK, &listResp)
+	require.Equal(t, uint(0), listResp.Count)
+	require.Empty(t, listResp.Activities)
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}, listResp.Meta)
 }

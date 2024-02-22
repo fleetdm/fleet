@@ -8,7 +8,6 @@ Following is a summary of the detail queries hardcoded in Fleet used to populate
 - Platforms: darwin
 
 - Query:
-
 ```sql
 SELECT serial_number, cycle_count, health FROM battery;
 ```
@@ -18,7 +17,6 @@ SELECT serial_number, cycle_count, health FROM battery;
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT email FROM users
 ```
@@ -28,7 +26,6 @@ SELECT email FROM users
 - Platforms: darwin
 
 - Query:
-
 ```sql
 SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1
 ```
@@ -38,7 +35,6 @@ SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = '
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
-
 ```sql
 SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_alias = de.name;
 ```
@@ -48,7 +44,6 @@ SELECT de.encrypted, m.path FROM disk_encryption de JOIN mounts m ON m.device_al
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1;
 ```
@@ -58,10 +53,10 @@ SELECT 1 FROM bitlocker_info WHERE drive_letter = 'C:' AND protection_status = 1
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT (blocks_available * 100 / blocks) AS percent_disk_space_available,
-       round((blocks_available * blocks_size *10e-10),2) AS gigs_disk_space_available
+       round((blocks_available * blocks_size * 10e-10),2) AS gigs_disk_space_available,
+       round((blocks           * blocks_size * 10e-10),2) AS gigs_total_disk_space
 FROM mounts WHERE path = '/' LIMIT 1;
 ```
 
@@ -70,10 +65,10 @@ FROM mounts WHERE path = '/' LIMIT 1;
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT ROUND((sum(free_space) * 100 * 10e-10) / (sum(size) * 10e-10)) AS percent_disk_space_available,
-       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available
+       ROUND(sum(free_space) * 10e-10) AS gigs_disk_space_available,
+       ROUND(sum(size)       * 10e-10) AS gigs_total_disk_space
 FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 ```
 
@@ -82,13 +77,11 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'google_chrome_profiles';
 ```
 
 - Query:
-
 ```sql
 SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 ```
@@ -98,13 +91,11 @@ SELECT email FROM google_chrome_profiles WHERE NOT ephemeral AND email <> ''
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'kubernetes_info';
 ```
 
 - Query:
-
 ```sql
 SELECT * from kubernetes_info
 ```
@@ -114,13 +105,11 @@ SELECT * from kubernetes_info
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'mdm';
 ```
 
 - Query:
-
 ```sql
 select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 ```
@@ -130,13 +119,11 @@ select enrolled, server_url, installed_from_dep, payload_identifier from mdm;
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'macos_profiles';
 ```
 
 - Query:
-
 ```sql
 SELECT display_name, identifier, install_date FROM macos_profiles where type = "Configuration";
 ```
@@ -146,13 +133,11 @@ SELECT display_name, identifier, install_date FROM macos_profiles where type = "
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk';
 ```
 
 - Query:
-
 ```sql
 WITH
 		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
@@ -165,15 +150,13 @@ WITH
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 WHERE EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'file_lines') AND NOT EXISTS (SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'filevault_prk');
 ```
 
 - Query:
-
 ```sql
-WITH 
+WITH
 		de AS (SELECT IFNULL((SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1), 0) as encrypted),
 		fl AS (SELECT line FROM file_lines WHERE path = '/var/db/FileVaultPRK.dat')
 	SELECT encrypted, hex(line) as hex_line FROM de LEFT JOIN fl;
@@ -184,32 +167,35 @@ WITH
 - Platforms: windows
 
 - Query:
-
 ```sql
-SELECT * FROM (
-				SELECT "provider_id" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\ProviderID'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "discovery_service_url" AS "key", data as "value" FROM registry
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\DiscoveryServiceFullURL'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "is_federated" AS "key", data as "value" FROM registry 
-				WHERE path LIKE 'HKEY_LOCAL_MACHINE\Software\Microsoft\Enrollments\%\IsFederated'
-				LIMIT 1
-			)
-			UNION ALL
-			SELECT * FROM (
-				SELECT "installation_type" AS "key", data as "value" FROM registry
-				WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
-				LIMIT 1
-			)
-			;
+WITH registry_keys AS (
+                        SELECT *
+                        FROM registry
+                        WHERE path LIKE 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\%%'
+                    ),
+                    enrollment_info AS (
+                        SELECT
+                            MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
+                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
+                            MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+                        FROM registry_keys
+                        GROUP BY key
+                    ),
+                    installation_info AS (
+                        SELECT data AS installation_type
+                        FROM registry
+                        WHERE path = 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows NT\CurrentVersion\InstallationType'
+                        LIMIT 1
+                    )
+                    SELECT
+                        e.is_federated,
+                        e.discovery_service_url,
+                        e.provider_id,
+                        i.installation_type
+                    FROM installation_info i
+                    LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+                    LIMIT 1;
 ```
 
 ## munki_info
@@ -217,13 +203,11 @@ SELECT * FROM (
 - Platforms: darwin
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'munki_info';
 ```
 
 - Query:
-
 ```sql
 select version, errors, warnings from munki_info;
 ```
@@ -233,7 +217,6 @@ select version, errors, warnings from munki_info;
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 ```
@@ -243,7 +226,6 @@ SELECT ipv4 AS address, mac FROM network_interfaces LIMIT 1
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT
     ia.address,
@@ -282,7 +264,6 @@ LIMIT 1;
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT
     ia.address,
@@ -321,13 +302,11 @@ LIMIT 1;
 - Platforms: all
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'orbit_info';
 ```
 
 - Query:
-
 ```sql
 SELECT version FROM orbit_info
 ```
@@ -337,7 +316,6 @@ SELECT version FROM orbit_info
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
@@ -358,13 +336,13 @@ SELECT
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
 		os.major,
 		os.minor,
 		os.patch,
+		os.extra,
 		os.build,
 		os.arch,
 		os.platform,
@@ -380,7 +358,6 @@ SELECT
 - Platforms: all
 
 - Query:
-
 ```sql
 SELECT * FROM os_version LIMIT 1
 ```
@@ -390,13 +367,13 @@ SELECT * FROM os_version LIMIT 1
 - Platforms: windows
 
 - Query:
-
 ```sql
-SELECT
-		os.name,
-		os.version
-	FROM
-		os_version os
+SELECT os.name, r.data as display_version, k.version
+		FROM 
+			registry r,
+			os_version os,
+			kernel_info k
+		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 ```
 
 ## os_windows
@@ -404,17 +381,20 @@ SELECT
 - Platforms: windows
 
 - Query:
-
 ```sql
 SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
-		os.version
+		os.version,
+		r.data as display_version
 	FROM
 		os_version os,
-		kernel_info k
+		kernel_info k,
+		registry r
+	WHERE
+		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
 ```
 
 ## osquery_flags
@@ -422,7 +402,6 @@ SELECT
 - Platforms: all
 
 - Query:
-
 ```sql
 select name, value from osquery_flags where name in ("distributed_interval", "config_tls_refresh", "config_refresh", "logger_tls_period")
 ```
@@ -432,7 +411,6 @@ select name, value from osquery_flags where name in ("distributed_interval", "co
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from osquery_info limit 1
 ```
@@ -442,7 +420,6 @@ select * from osquery_info limit 1
 - Platforms: all
 
 - Query:
-
 ```sql
 SELECT *,
 				(SELECT value from osquery_flags where name = 'pack_delimiter') AS delimiter
@@ -454,11 +431,12 @@ SELECT *,
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT
   name AS name,
   version AS version,
+  identifier AS extension_id,
+  browser_type AS browser,
   'Browser plugin (Chrome)' AS type,
   'chrome_extensions' AS source,
   '' AS vendor,
@@ -471,7 +449,6 @@ FROM chrome_extensions
 - Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -481,6 +458,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (deb)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'deb_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -493,6 +472,8 @@ SELECT
   package AS name,
   version AS version,
   'Package (Portage)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'portage_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -504,6 +485,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (RPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'rpm_packages' AS source,
   release AS release,
   vendor AS vendor,
@@ -515,6 +498,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (NPM)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'npm_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -526,6 +511,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS release,
   '' AS vendor,
@@ -537,6 +524,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS release,
   '' AS vendor,
@@ -548,6 +537,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS release,
   '' AS vendor,
@@ -561,7 +552,6 @@ FROM python_packages;
 - Platforms: darwin
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -572,6 +562,8 @@ SELECT
   COALESCE(NULLIF(bundle_short_version, ''), bundle_version) AS version,
   'Application (macOS)' AS type,
   bundle_identifier AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'apps' AS source,
   last_opened_time AS last_opened_at,
   path AS installed_path
@@ -582,6 +574,8 @@ SELECT
   version AS version,
   'Package (Python)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -592,6 +586,8 @@ SELECT
   version AS version,
   'Browser plugin (Chrome)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -602,6 +598,8 @@ SELECT
   version AS version,
   'Browser plugin (Firefox)' AS type,
   '' AS bundle_identifier,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -612,6 +610,8 @@ SELECT
   version AS version,
   'Browser plugin (Safari)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'safari_extensions' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -622,6 +622,8 @@ SELECT
   version AS version,
   'Package (Homebrew)' AS type,
   '' AS bundle_identifier,
+  '' AS extension_id,
+  '' AS browser,
   'homebrew_packages' AS source,
   0 AS last_opened_at,
   path AS installed_path
@@ -633,7 +635,6 @@ FROM homebrew_packages;
 - Platforms: windows
 
 - Query:
-
 ```sql
 WITH cached_users AS (WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -643,6 +644,8 @@ SELECT
   name AS name,
   version AS version,
   'Program (Windows)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'programs' AS source,
   publisher AS vendor,
   install_location AS installed_path
@@ -652,6 +655,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (Python)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'python_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -661,6 +666,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (IE)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'ie_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -670,6 +677,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Chrome)' AS type,
+  identifier AS extension_id,
+  browser_type AS browser,
   'chrome_extensions' AS source,
   '' AS vendor,
   path AS installed_path
@@ -679,6 +688,8 @@ SELECT
   name AS name,
   version AS version,
   'Browser plugin (Firefox)' AS type,
+  identifier AS extension_id,
+  'firefox' AS browser,
   'firefox_addons' AS source,
   '' AS vendor,
   path AS installed_path
@@ -688,6 +699,8 @@ SELECT
   name AS name,
   version AS version,
   'Package (Chocolatey)' AS type,
+  '' AS extension_id,
+  '' AS browser,
   'chocolatey_packages' AS source,
   '' AS vendor,
   path AS installed_path
@@ -699,7 +712,6 @@ FROM chocolatey_packages
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from system_info limit 1
 ```
@@ -709,7 +721,6 @@ select * from system_info limit 1
 - Platforms: all
 
 - Query:
-
 ```sql
 select * from uptime limit 1
 ```
@@ -719,7 +730,6 @@ select * from uptime limit 1
 - Platforms: linux, darwin, windows
 
 - Query:
-
 ```sql
 WITH cached_groups AS (select * from groups)
  SELECT uid, username, type, groupname, shell
@@ -732,7 +742,6 @@ WITH cached_groups AS (select * from groups)
 - Platforms: chrome
 
 - Query:
-
 ```sql
 SELECT uid, username, email FROM users
 ```
@@ -742,19 +751,15 @@ SELECT uid, username, email FROM users
 - Platforms: windows
 
 - Discovery query:
-
 ```sql
 SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'windows_update_history';
 ```
 
 - Query:
-
 ```sql
 SELECT date, title FROM windows_update_history WHERE result_code = 'Succeeded'
 ```
 
 
-		
-<meta name="title" value="Understanding host vitals">
 <meta name="navSection" value="Dig deeper">
 <meta name="pageOrderInSection" value="1600">

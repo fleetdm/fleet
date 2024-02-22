@@ -1,7 +1,6 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { IActivityDetails } from "interfaces/activity";
 import { IActivitiesResponse } from "services/entities/activities";
 
@@ -46,9 +45,10 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
-  activities?: IActivitiesResponse; // TODO: type
+  activities?: IActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  upcomingCount: number;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -60,6 +60,7 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  upcomingCount,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -81,7 +82,14 @@ const Activity = ({
         >
           <TabList>
             <Tab>Past</Tab>
-            <Tab>Upcoming</Tab>
+            <Tab>
+              Upcoming
+              {!!upcomingCount && (
+                <span className={`${baseClass}__upcoming-count`}>
+                  {upcomingCount}
+                </span>
+              )}
+            </Tab>
           </TabList>
           <TabPanel>
             <PastActivityFeed

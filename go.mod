@@ -4,7 +4,7 @@ go 1.21
 
 require (
 	cloud.google.com/go/pubsub v1.33.0
-	fyne.io/systray v1.10.0
+	fyne.io/systray v1.10.1-0.20240111184411-11c585fff98d
 	github.com/AbGuthrie/goquery/v2 v2.0.1
 	github.com/DATA-DOG/go-sqlmock v1.5.0
 	github.com/Masterminds/semver v1.5.0
@@ -17,6 +17,7 @@ require (
 	github.com/aws/aws-sdk-go v1.44.288
 	github.com/beevik/etree v1.1.0
 	github.com/beevik/ntp v0.3.0
+	github.com/boltdb/bolt v1.3.1
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -34,6 +35,7 @@ require (
 	github.com/fatih/color v1.15.0
 	github.com/getsentry/sentry-go v0.18.0
 	github.com/ghodss/yaml v1.0.0
+	github.com/go-git/go-git/v5 v5.11.0
 	github.com/go-ini/ini v1.67.0
 	github.com/go-kit/kit v0.12.0
 	github.com/go-kit/log v0.2.1
@@ -50,6 +52,7 @@ require (
 	github.com/gorilla/mux v1.8.0
 	github.com/gorilla/websocket v1.4.2
 	github.com/gosuri/uilive v0.0.4
+	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda
 	github.com/groob/plist v0.0.0-20220217120414-63fa881b19a5
 	github.com/hashicorp/go-multierror v1.1.1
 	github.com/hectane/go-acl v0.0.0-20190604041725-da78bae5fc95
@@ -65,7 +68,6 @@ require (
 	github.com/mattn/go-sqlite3 v1.14.13
 	github.com/micromdm/micromdm v1.9.0
 	github.com/micromdm/nanodep v0.1.0
-	github.com/micromdm/scep/v2 v2.1.0
 	github.com/mitchellh/go-ps v1.0.0
 	github.com/mitchellh/gon v0.2.6-0.20231031204852-2d4f161ccecd
 	github.com/mna/redisc v1.3.2
@@ -98,7 +100,6 @@ require (
 	github.com/tj/assert v0.0.3
 	github.com/ulikunitz/xz v0.5.10
 	github.com/urfave/cli/v2 v2.23.5
-	github.com/valyala/fasthttp v1.40.0
 	github.com/ziutek/mymysql v1.5.4
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
@@ -164,7 +165,6 @@ require (
 	github.com/agnivade/levenshtein v1.1.1 // indirect
 	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/alecthomas/jsonschema v0.0.0-20211022214203-8b29eab41725 // indirect
-	github.com/andybalholm/brotli v1.0.4 // indirect
 	github.com/antchfx/xpath v1.2.2 // indirect
 	github.com/apache/thrift v0.18.1 // indirect
 	github.com/apex/log v1.9.0 // indirect
@@ -210,7 +210,6 @@ require (
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
 	github.com/go-git/go-billy/v5 v5.5.0 // indirect
-	github.com/go-git/go-git/v5 v5.11.0 // indirect
 	github.com/go-logfmt/logfmt v0.5.1 // indirect
 	github.com/go-logr/logr v1.2.4 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
@@ -233,7 +232,6 @@ require (
 	github.com/goreleaser/chglog v0.1.2 // indirect
 	github.com/goreleaser/fileglob v1.2.0 // indirect
 	github.com/gorilla/schema v1.2.0 // indirect
-	github.com/groob/finalizer v0.0.0-20170707115354-4c2ed49aabda // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.18.0 // indirect
 	github.com/hashicorp/errwrap v1.1.0 // indirect
 	github.com/hashicorp/go-cleanhttp v0.5.2 // indirect
@@ -289,11 +287,9 @@ require (
 	github.com/subosito/gotenv v1.2.0 // indirect
 	github.com/tchap/go-patricia/v2 v2.3.1 // indirect
 	github.com/technoweenie/multipartstreamer v1.0.1 // indirect
-	github.com/tevino/abool v1.2.0 // indirect
 	github.com/tklauser/go-sysconf v0.3.11 // indirect
 	github.com/tklauser/numcpus v0.6.0 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
-	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/vartanbeno/go-reddit/v2 v2.0.0 // indirect
 	github.com/xanzy/go-gitlab v0.50.3 // indirect
 	github.com/xanzy/ssh-agent v0.3.3 // indirect
@@ -326,5 +322,3 @@ require (
 )
 
 replace github.com/micromdm/nanodep => github.com/fleetdm/nanodep v0.1.1-0.20221221202251-71b67ab1da24
-
-replace github.com/micromdm/scep/v2 => github.com/fleetdm/scep/v2 v2.1.1-0.20240111143358-4df608a81afd

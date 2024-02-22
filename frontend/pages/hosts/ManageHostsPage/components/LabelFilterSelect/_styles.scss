@@ -69,7 +69,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
 
-    @media (max-width: 1150px) {
+    @media (max-width: $table-controls-break) {
       width: auto;
     }
   }
@@ -149,7 +149,7 @@
   }
 }
 
-@media (min-width: 1150px) {
+@media (min-width: $table-controls-break) {
   .label-filter-select {
     min-width: 220px;
 

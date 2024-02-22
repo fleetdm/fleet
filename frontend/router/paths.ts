@@ -55,8 +55,8 @@ export default {
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
   },
-  SOFTWARE_OS_DETAILS: (name: string, version: string): string => {
-    return `${URL_PREFIX}/software/os/details?name=${name}&version=${version}`;
+  SOFTWARE_OS_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/software/os/${id}`;
   },
 
   EDIT_PACK: (packId: number): string => {
@@ -131,9 +131,9 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
 
-  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+  TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
@@ -163,6 +163,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };

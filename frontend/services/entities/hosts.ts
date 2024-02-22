@@ -31,6 +31,13 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+export type IUnlockHostResponse =
+  | {
+      host_id: number;
+      unlock_pin: string;
+    }
+  | Record<string, never>;
+
 // the source of truth for the filter option names.
 // there are used on many other pages but we define them here.
 // TODO: add other filter options here.
@@ -62,7 +69,7 @@ export interface ILoadHostsOptions {
   mdmId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osId?: number;
+  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   munkiIssueId?: number;
@@ -204,6 +211,7 @@ export default {
       order_direction: sortBy[0].direction,
       query: globalFilter,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -250,7 +258,7 @@ export default {
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
     device_mapping,
@@ -272,6 +280,7 @@ export default {
       order_direction: sortParams.order_direction,
       status,
       ...reconcileMutuallyInclusiveHostParams({
+        label,
         teamId,
         macSettingsStatus,
         osSettings,
@@ -287,7 +296,7 @@ export default {
         softwareTitleId,
         softwareVersionId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         diskEncryptionStatus,
@@ -376,5 +385,14 @@ export default {
   getEncryptionKey: (id: number) => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  lockHost: (id: number) => {
+    const { HOST_LOCK } = endpoints;
+    return sendRequest("POST", HOST_LOCK(id));
+  },
+  unlockHost: (id: number): Promise<IUnlockHostResponse> => {
+    const { HOST_UNLOCK } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK(id));
   },
 };

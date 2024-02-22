@@ -90,6 +90,7 @@ import {
   DEFAULT_PAGE_INDEX,
   getHostSelectStatuses,
   MANAGE_HOSTS_PAGE_FILTER_KEYS,
+  MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS,
 } from "./HostsPageConfig";
 import { isAcceptableStatus } from "./helpers";
 
@@ -235,7 +236,11 @@ const ManageHostsPage = ({
       ? parseInt(queryParams.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
-  const { os_id: osId, os_name: osName, os_version: osVersion } = queryParams;
+  const {
+    os_version_id: osVersionId,
+    os_name: osName,
+    os_version: osVersion,
+  } = queryParams;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams.munki_issue_id, 10)
@@ -341,7 +346,7 @@ const ManageHostsPage = ({
   >([{ scope: "os_versions" }], () => getOSVersions(), {
     enabled:
       isRouteOk &&
-      (!!queryParams?.os_id ||
+      (!!queryParams?.os_version_id ||
         (!!queryParams?.os_name && !!queryParams?.os_version)),
     keepPreviousData: true,
     select: (data) => data.os_versions,
@@ -375,7 +380,7 @@ const ManageHostsPage = ({
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
@@ -417,7 +422,7 @@ const ManageHostsPage = ({
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
-        osId,
+        osVersionId,
         osName,
         osVersion,
         osSettings: osSettingsStatus,
@@ -530,17 +535,13 @@ const ManageHostsPage = ({
 
     const isDeselectingLabel = newLabelId && newLabelId === selectedLabel?.id;
 
-    // Non-status labels are not compatible with policies or software filters
-    // so omit policies and software params from next location
     let newQueryParams = queryParams;
     if (slug) {
-      newQueryParams = omit(newQueryParams, [
-        "policy_id",
-        "policy_response",
-        "software_id",
-        "software_version_id",
-        "software_title_id",
-      ]);
+      // some filters are incompatible with non-status labels so omit those params from next location
+      newQueryParams = omit(
+        newQueryParams,
+        MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS
+      );
     }
 
     router.replace(
@@ -819,8 +820,8 @@ const ManageHostsPage = ({
       } else if (lowDiskSpaceHosts && isPremiumTier) {
         // Premium feature only
         newQueryParams.low_disk_space = lowDiskSpaceHosts;
-      } else if (osId || (osName && osVersion)) {
-        newQueryParams.os_id = osId;
+      } else if (osVersionId || (osName && osVersion)) {
+        newQueryParams.os_version_id = osVersionId;
         newQueryParams.os_name = osName;
         newQueryParams.os_version = osVersion;
       } else if (osSettingsStatus) {
@@ -860,7 +861,7 @@ const ManageHostsPage = ({
       missingHosts,
       lowDiskSpaceHosts,
       isPremiumTier,
-      osId,
+      osVersionId,
       osName,
       osVersion,
       page,
@@ -1277,7 +1278,7 @@ const ManageHostsPage = ({
       mdmEnrollmentStatus,
       munkiIssueId,
       lowDiskSpaceHosts,
-      os_id: osId,
+      os_version_id: osVersionId,
       os_name: osName,
       os_version: osVersion,
       visibleColumns,
@@ -1395,7 +1396,7 @@ const ManageHostsPage = ({
       const emptyState = () => {
         const emptyHosts: IEmptyTableProps = {
           graphicName: "empty-hosts",
-          header: "Hosts will show up here once they’re added to Fleet.",
+          header: "Hosts will show up here once they’re added to Fleet",
           info:
             "Expecting to see hosts? Try again in a few seconds as the system catches up.",
         };
@@ -1590,7 +1591,7 @@ const ManageHostsPage = ({
               mdmId,
               mdmEnrollmentStatus,
               lowDiskSpaceHosts,
-              osId,
+              osVersionId,
               osName,
               osVersion,
               osVersions,

@@ -32,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
@@ -41,7 +40,6 @@ import (
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
 	level.Error(logger).Log("msg", msg, "err", err)
-	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
 }
 
@@ -269,7 +267,7 @@ func checkWinVulnerabilities(
 			}
 
 			start := time.Now()
-			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns)
+			r, err := msrc.Analyze(ctx, ds, o, vulnPath, collectVulns, logger)
 			elapsed := time.Since(start)
 			level.Debug(logger).Log(
 				"msg", "msrc-analysis-done",
