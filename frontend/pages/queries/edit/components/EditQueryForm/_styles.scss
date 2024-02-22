@@ -63,6 +63,8 @@
       }
       .query-description-wrapper {
         display: flex;
+        align-items: flex-start;
+        gap: 0.5rem;
         &:not(.edit-query-form--editing) {
           textarea:hover {
             cursor: pointer;
