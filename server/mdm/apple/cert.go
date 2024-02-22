@@ -13,8 +13,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/micromdm/nanodep/tokenpki"
-	"github.com/micromdm/scep/v2/depot"
 )
 
 const (
@@ -145,7 +145,6 @@ func NewSCEPCACertKey() (*x509.Certificate, *rsa.PrivateKey, error) {
 // NEWDEPKeyPairPEM generates a new public key certificate and private key for downloading the Apple DEP token.
 // The public key is returned as a PEM encoded certificate.
 func NewDEPKeyPairPEM() ([]byte, []byte, error) {
-
 	// Note, Apple doesn't check the expiry
 	key, cert, err := tokenpki.SelfSignedRSAKeypair(depCertificateCommonName, depCertificateExpiryDays)
 	if err != nil {
