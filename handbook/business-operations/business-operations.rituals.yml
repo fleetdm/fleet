@@ -86,7 +86,7 @@
   task: "Monthly accounting" # TODO tie this to a responsibility
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "Create the monthly close GitHub issue and walk through the steps.  (This process includes fulfill the monthly reporting requirement for SVB)" 
+  description: "Create the monthly close GitHub issue and walk through the steps.  (This process includes fulfilling the monthly reporting requirement for SVB)" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#intake"
   dri: "hollidayn" 
   autoIssue:   
