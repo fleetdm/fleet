@@ -735,13 +735,11 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          {isAnyTeamSelected ? (
-            <p>
-              Detect device health issues for all hosts assigned to this team.
-            </p>
-          ) : (
-            <p>Detect device health issues for all hosts.</p>
-          )}
+          <p>
+            {isAnyTeamSelected
+              ? "Detect device health issues for all hosts assigned to this team."
+              : "Detect device health issues for all hosts."}
+          </p>
         </div>
         {renderMainTable()}
         {showInheritedPoliciesButton && globalPoliciesCount && (
