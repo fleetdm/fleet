@@ -299,11 +299,9 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
           (!isPremiumTier || !isAnyTeamSelected) &&
           "and manage automations for detected vulnerabilities (CVEs)"}{" "}
         on{" "}
-        <b>
-          {isPremiumTier && isAnyTeamSelected
-            ? "all hosts assigned to this team"
-            : "all of your hosts"}
-        </b>
+        {isPremiumTier && isAnyTeamSelected
+          ? "all hosts assigned to this team"
+          : "all of your hosts"}
         .
       </p>
     );

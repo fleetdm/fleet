@@ -1,4 +1,4 @@
-apiVersion: apps/v1beta2
+apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: fleet-webserver
@@ -20,10 +20,10 @@ spec:
             secretName: fleet-tls
       containers:
         - name: fleet-webserver
-          image: fleetdm/fleet:4.0.1
+          image: fleetdm/fleet:v4.43.3
           command: ["fleet", "serve"]
           ports:
-            - containerPort: 443
+            - containerPort: 8443
           volumeMounts:
             - name: fleet-tls
               mountPath: "/secrets/fleet-tls"
@@ -37,14 +37,14 @@ spec:
                   name: fleet-database-mysql
                   key: mysql-password
             - name: FLEET_REDIS_ADDRESS
-              value: fleet-cache-redis:6379
+              value: fleet-cache-redis-master:6379
             - name: FLEET_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
                   name: fleet-cache-redis
                   key: redis-password
             - name: FLEET_SERVER_ADDRESS
-              value: "0.0.0.0:443"
+              value: "0.0.0.0:8443"
             - name: FLEET_SERVER_CERT
               value: "/secrets/fleet-tls/tls.crt"
             - name: FLEET_SERVER_KEY

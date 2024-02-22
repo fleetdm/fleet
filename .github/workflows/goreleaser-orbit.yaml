@@ -66,7 +66,7 @@ jobs:
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-macos
-          path: dist
+          path: dist/orbit-macos_darwin_all/orbit
 
   goreleaser-linux:
     runs-on: ubuntu-20.04
@@ -94,7 +94,7 @@ jobs:
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-linux
-          path: dist
+          path: dist/orbit_linux_amd64_v1/orbit
 
   goreleaser-windows:
     runs-on: windows-2022
@@ -122,4 +122,4 @@ jobs:
         uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce # v2
         with:
           name: orbit-windows
-          path: dist
+          path: dist/orbit_windows_amd64_v1/orbit.exe

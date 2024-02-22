@@ -271,12 +271,24 @@ const HostSummary = ({
       platform,
       diskEncryptionEnabled
     );
+
     let statusText;
-    if (platform === "chrome") {
-      statusText = "Always on";
-    } else {
-      statusText = diskEncryptionEnabled ? "On" : "Off";
+    switch (true) {
+      case platform === "chrome":
+        statusText = "Always on";
+        break;
+      case diskEncryptionEnabled === true:
+        statusText = "On";
+        break;
+      case diskEncryptionEnabled === false:
+        statusText = "Off";
+        break;
+      default:
+        // something unexpected happened on the way to this component, display whatever we got or
+        // "Unknown" to draw attention to the issue.
+        statusText = diskEncryptionEnabled || "Unknown";
     }
+
     return (
       <div className="info-flex__item info-flex__item--title">
         <span className="info-flex__header">Disk encryption</span>

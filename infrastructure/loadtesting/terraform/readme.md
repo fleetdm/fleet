@@ -119,11 +119,12 @@ Following are the steps to deploy new code changes to osquery-perf (known as `lo
 > The following is to add new hosts with new/modified osquery-perf code. (This happens if during a load test
 > the developer realizes there's bug in osquery-perf or if it's not simulating osquery properly.)
 
-> You don't need to push code changes because the `loadtest` image is built locally from your fleet repository source code.
+> You must push your code changes to the `$BRANCH_NAME`.
 
 1. Bring all `loadtest` containers to `0` by running terraform apply with `loadtest_containers=0`.
 1. Delete all existing hosts (by selecting all on the UI).
-1. Delete all your local `loadtest` images, the image tags are of the form: `loadtest-$BRANCH_NAME-$TAG`.
+1. Delete all your local `loadtest` images, the image tags are of the form: `loadtest-$BRANCH_NAME-$TAG` (these are the `loadtest` images pushed to ECR).  (Use `docker image list` to get their `IMAGE ID` and then run `docker rmi -f $ID`.)
+1. Delete local images of the form `REPOSITORY=<none>` and `TAG=<none>` that were built recently (these are the builder images). (Use `docker image list` to get their `IMAGE ID` and then run `docker rmi -f $ID`.)
 1. Log in to Amazon ECR (Elastic Container Registry) and delete the corresponding `loadtest` image.
 1. By executing the `terraform apply` with `-loadtest_containers=N` it will trigger a rebuild of the `loadtest` image.
 

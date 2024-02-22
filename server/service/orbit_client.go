@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -35,7 +36,9 @@ type OrbitClient struct {
 	lastRecordedErrMu sync.Mutex
 	lastRecordedErr   error
 
-	configCache configCache
+	configCache                 configCache
+	onNetErrOnGetConfigFn       OnNetErrOnGetConfigFunc
+	lastNetErrOnGetConfigLogged time.Time
 
 	// TestNodeKey is used for testing only.
 	TestNodeKey string
@@ -84,11 +87,21 @@ func (oc *OrbitClient) request(verb string, path string, params interface{}, res
 	return nil
 }
 
+// OnNetErrOnGetConfigFunc is a function executed when there are network errors in GetConfig.
+type OnNetErrOnGetConfigFunc func(err net.Error)
+
+var (
+	netErrInterval            = 5 * time.Minute
+	configRetryOnNetworkError = 30 * time.Second
+)
+
 // NewOrbitClient creates a new OrbitClient.
 //
 //   - rootDir is the Orbit's root directory, where the Orbit node key is loaded-from/stored.
 //   - addr is the address of the Fleet server.
 //   - orbitHostInfo is the host system information used for enrolling to Fleet.
+//   - OnNetErrOnGetConfigFn is called when there's a network error in GetConfig (this method
+//     is rate limited to be executed once every 5 minutes).
 func NewOrbitClient(
 	rootDir string,
 	addr string,
@@ -97,6 +110,7 @@ func NewOrbitClient(
 	enrollSecret string,
 	fleetClientCert *tls.Certificate,
 	orbitHostInfo fleet.OrbitHostInfo,
+	onNetErrOnGetConfigFn OnNetErrOnGetConfigFunc,
 ) (*OrbitClient, error) {
 	orbitCapabilities := fleet.CapabilityMap{}
 	bc, err := newBaseClient(addr, insecureSkipVerify, rootCA, "", fleetClientCert, orbitCapabilities)
@@ -106,25 +120,45 @@ func NewOrbitClient(
 
 	nodeKeyFilePath := filepath.Join(rootDir, constant.OrbitNodeKeyFileName)
 	return &OrbitClient{
-		nodeKeyFilePath: nodeKeyFilePath,
-		baseClient:      bc,
-		enrollSecret:    enrollSecret,
-		hostInfo:        orbitHostInfo,
-		enrolled:        false,
+		nodeKeyFilePath:       nodeKeyFilePath,
+		baseClient:            bc,
+		enrollSecret:          enrollSecret,
+		hostInfo:              orbitHostInfo,
+		enrolled:              false,
+		onNetErrOnGetConfigFn: onNetErrOnGetConfigFn,
 	}, nil
 }
 
 // GetConfig returns the Orbit config fetched from Fleet server for this instance of OrbitClient.
-// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live to reduce traffic to the Fleet server.
+// Since this method is called in multiple places, we use a cache with configCacheTTL time-to-live
+// to reduce traffic to the Fleet server.
+// Upon network errors, this method will retry the get config request (every 30 seconds).
 func (oc *OrbitClient) GetConfig() (*fleet.OrbitConfig, error) {
 	oc.configCache.mu.Lock()
 	defer oc.configCache.mu.Unlock()
+
 	// If time-to-live passed, we update the config cache
 	now := time.Now()
 	if now.After(oc.configCache.lastUpdated.Add(configCacheTTL)) {
+		var (
+			resp fleet.OrbitConfig
+			err  error
+		)
 		verb, path := "POST", "/api/fleet/orbit/config"
-		var resp fleet.OrbitConfig
-		err := oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+		// Retry until we don't get a network error.
+		_ = retry.Do(func() error {
+			err = oc.authenticatedRequest(verb, path, &orbitGetConfigRequest{}, &resp)
+			var netErr net.Error
+			if errors.As(err, &netErr) {
+				now := time.Now()
+				if oc.onNetErrOnGetConfigFn != nil && now.After(oc.lastNetErrOnGetConfigLogged.Add(netErrInterval)) {
+					oc.onNetErrOnGetConfigFn(netErr)
+					oc.lastNetErrOnGetConfigLogged = now
+				}
+				return err // retry on network errors
+			}
+			return nil
+		}, retry.WithInterval(configRetryOnNetworkError))
 		oc.configCache.config = &resp
 		oc.configCache.err = err
 		oc.configCache.lastUpdated = now
