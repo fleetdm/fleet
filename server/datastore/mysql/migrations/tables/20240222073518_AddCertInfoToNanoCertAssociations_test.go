@@ -25,7 +25,7 @@ func TestUp_20240222073518(t *testing.T) {
 	)
 	require.NoError(t, err)
 
-	sha1, sha2 := "4c51d40f56f5c5e13448995d4d2fd0b6b7befef860e4e7341c355ab38031ee35", "53c2dc9ce116a1df4adfba0c556843625fd1e91f83fc89a47c3267dff9a4c4ba"
+	sha1, sha2 := "4c51d40f56f5c5e13448995d4d2fd0b6b7befef860e4e7341c355ab38031ee35", "53c2dc9ce116a1df4adfba0c556843625fd1e91f83fc89a47c3267dff9a4c4ba" // #nosec G101
 	_, err = db.Exec(`
         INSERT INTO nano_cert_auth_associations (id, sha256, created_at, updated_at)
         VALUES (?, ?, ?, ?), (?, ?, ?, ?), (?, ?, ?, ?)`,
