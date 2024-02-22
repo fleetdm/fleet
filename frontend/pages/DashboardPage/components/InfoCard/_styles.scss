@@ -19,6 +19,8 @@
     display: flex;
     gap: $pad-xsmall;
     span {
+      display: flex;
+      align-items: center;
       background-color: $core-vibrant-blue;
       color: $core-white;
       font-size: $xx-small;

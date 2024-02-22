@@ -298,7 +298,8 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+	// providing an empty set of labels since this endpoint is only maintained for backwards compat
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -307,7 +308,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -346,6 +347,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	cp.Labels = labelMap
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -2153,6 +2160,30 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 }
 
 ////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/manual_enrollment_profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getManualEnrollmentProfileRequest struct{}
+
+func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+
+	// Using this type to keep code DRY as it already has all the functionality we need.
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
+}
+
+////////////////////////////////////////////////////////////////////////////////
 // FileVault-related free version implementation
 ////////////////////////////////////////////////////////////////////////////////
 
@@ -2337,17 +2368,23 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
-func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
-	// Sometimes we get results with Status == "Idle" which don't contain a command
-	// UUID and are not actionable anyways.
-	if res.CommandUUID == "" {
-		return nil, nil
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if cmdResult.Status == "Idle" {
+		// macOS hosts are considered unlocked if they are online any time
+		// after they have been unlocked. If the host has been seen after a
+		// successful unlock, take the opportunity and update the value in the
+		// db as well.
+		//
+		// TODO: sanity check if this approach is still valid after we implement wipe
+		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+		}
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
 	// RequestType field in the struct, but it's used when a mdm.Command is
 	// issued.
-	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, res.CommandUUID)
+	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, cmdResult.CommandUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "command service")
 	}
@@ -2357,17 +2394,17 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
-			res.UDID,
-			res.CommandUUID,
-			mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			apple_mdm.FmtErrorChain(res.ErrorChain),
+			cmdResult.UDID,
+			cmdResult.CommandUUID,
+			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 		)
 	case "RemoveProfile":
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
-			CommandUUID:   res.CommandUUID,
-			HostUUID:      res.UDID,
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
+			CommandUUID:   cmdResult.CommandUUID,
+			HostUUID:      cmdResult.UDID,
+			Status:        mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
 	}

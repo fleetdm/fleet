@@ -30,7 +30,7 @@ export interface ILabel extends ILabelSummary {
   uuid?: string;
   query: string;
   label_membership_type: LabelMembershipType;
-  hosts_count: number;
+  host_count?: number; // returned for built-in labels but not custom labels
   display_text: string;
   count: number; // seems to be a repeat of hosts_count issue #1618
   host_ids: number[] | null;

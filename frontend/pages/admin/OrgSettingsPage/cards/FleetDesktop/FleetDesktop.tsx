@@ -6,6 +6,7 @@ import Button from "components/buttons/Button";
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
+import SectionHeader from "components/SectionHeader";
 
 import CustomLink from "components/CustomLink";
 import {
@@ -65,10 +66,10 @@ const FleetDesktop = ({
   }
 
   return (
-    <form className={baseClass} onSubmit={onFormSubmit} autoComplete="off">
+    <div className={baseClass}>
       <div className={`${baseClass}__section`}>
-        <h2>Fleet Desktop</h2>
-        <div className={`${baseClass}__inputs`}>
+        <SectionHeader title="Fleet Desktop" />
+        <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Custom transparency URL"
             onChange={handleInputChange}
@@ -78,31 +79,33 @@ const FleetDesktop = ({
             onBlur={validateForm}
             error={formErrors.transparency_url}
             placeholder="https://fleetdm.com/transparency"
+            helpText={
+              <>
+                When an end user clicks “Transparency” in the Fleet Desktop
+                menu, by default they are taken to{" "}
+                <CustomLink
+                  url="https://fleetdm.com/transparency"
+                  text="https://fleetdm.com/transparency"
+                  newTab
+                  multiline
+                />{" "}
+                . You can override the URL to take them to a resource of your
+                choice.
+              </>
+            }
           />
-          <p className={`${baseClass}__component-details`}>
-            When an end user clicks “Transparency” in the Fleet Desktop menu, by
-            default they are taken to{" "}
-            <CustomLink
-              url="https://fleetdm.com/transparency"
-              text="https://fleetdm.com/transparency"
-              newTab
-              multiline
-            />{" "}
-            . You can override the URL to take them to a resource of your
-            choice.
-          </p>
-        </div>
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
       </div>
-      <Button
-        type="submit"
-        variant="brand"
-        disabled={Object.keys(formErrors).length > 0}
-        className="save-loading"
-        isLoading={isUpdatingSettings}
-      >
-        Save
-      </Button>
-    </form>
+    </div>
   );
 };
 

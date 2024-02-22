@@ -1,3 +1,37 @@
+## Orbit 1.21.0 (Jan 30, 2024)
+
+* For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.
+
+* For Windows hosts, fleetd now stores and retrieves enroll secret from Windows Credential Manager.
+
+* Orbit will now kill pre-existing osqueryd processes during startup.
+
+* Updated Windows Powershell evocation to run scripts in MTA mode to provide access to MDM configuration.
+
+* Updated Go to 1.21.6
+
+* Fixed bug on Windows where Fleet Desktop tray icon was not showing in the task bar.
+
+* Fixed bug on Windows where Orbit was not bringing the Fleet Desktop process up (when it was detected as not running).
+
+* Updated script running logic to stop running scripts if the script content can't be fetched from
+Fleet, which will preserve the order in which the scripts are queued.
+
+## Orbit 1.20.1 (Jan 23, 2024)
+
+* Attempt to automatically decrypt the disk before performing a BitLocker encryption if it was previously encrypted and Fleet doesn't have the key.
+
+* Fixed an issue that would cause `fleetd` to report the wrong error if BitLocker encryption fails.
+
+* Fixed the maximum age of a pending script when notifying fleetd of a script to run so that it matches the duration used elsewhere in Fleet.
+
+* Fixed issue on MacOS with starting Fleet Desktop for the first time. MacOS would return an error
+  if a user is not logged in via the GUI.
+
+* Improved the HTTP client used by `fleetctl` and `fleetd` to prevent errors for 204 responses.
+
+* Fixed a log timestamp to print the right duration value when a fleet update has exceeded the maximum number of retries.
+
 ## Orbit 1.20.0 (Jan 10, 2024)
 
 * Allow configuring TUF channels of `orbit`, `osqueryd` and `desktop` from Fleet agent settings.

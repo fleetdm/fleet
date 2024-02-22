@@ -16,7 +16,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/logging"
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
 	"github.com/fleetdm/fleet/v4/server/ptr"
-	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/micromdm/nanodep/godep"
@@ -183,23 +182,29 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 		return ctxerr.Wrap(ctx, err, "unmarshalling DEP profile")
 	}
 
-	jsonProf.URL = enrollURL
+	// if configuration_web_url is set, this setting is completely managed by the
+	// IT admin.
+	if jsonProf.ConfigurationWebURL == "" {
+		// If SSO is configured, use the `/mdm/sso` page which starts the SSO
+		// flow, otherwise use Fleet's enroll URL.
+		//
+		// Even though the DEP profile supports an `url` attribute, we should
+		// always still set configuration_web_url, otherwise the request method
+		// coming from Apple changes from GET to POST, and we want to preserve
+		// backwards compatibility.
+		jsonProf.ConfigurationWebURL = enrollURL
+		endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+		if team != nil {
+			endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+		}
+		if endUserAuthEnabled {
+			jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
+		}
+	}
 
-	// If SSO is configured, use the `/mdm/sso` page which starts the SSO
-	// flow, otherwise use Fleet's enroll URL.
-	//
-	// Even though the DEP profile supports an `url` attribute, we should
-	// always still set configuration_web_url, otherwise the request method
-	// coming from Apple changes from GET to POST, and we want to preserve
-	// backwards compatibility.
-	jsonProf.ConfigurationWebURL = enrollURL
-	endUserAuthEnabled := appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
-	if team != nil {
-		endUserAuthEnabled = team.Config.MDM.MacOSSetup.EnableEndUserAuthentication
-	}
-	if endUserAuthEnabled {
-		jsonProf.ConfigurationWebURL = appCfg.ServerSettings.ServerURL + "/mdm/sso"
-	}
+	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
+	// to get a token without SSO enabled
+	jsonProf.URL = jsonProf.ConfigurationWebURL
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
@@ -362,7 +367,13 @@ func NewDEPService(
 		depStorage,
 		depsync.WithLogger(logging.NewNanoDEPLogger(kitlog.With(logger, "component", "nanodep-syncer"))),
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
-			return depSvc.processDeviceResponse(ctx, depClient, resp)
+			// the nanodep syncer just logs the error of the callback, so in order to
+			// capture it we need to do this here.
+			err := depSvc.processDeviceResponse(ctx, depClient, resp)
+			if err != nil {
+				ctxerr.Handle(ctx, err)
+			}
+			return err
 		}),
 	)
 
@@ -437,7 +448,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	switch {
 	case err != nil:
 		level.Error(kitlog.With(d.logger)).Log("err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(ctx, err)
 	case n > 0:
 		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 	case n == 0:
@@ -519,6 +530,12 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 		logs = append(logs, logCountsForResults(apiResp.Devices)...)
 		level.Info(logger).Log(logs...)
+
+		debugLogs := []interface{}{"msg", "assign profile responses by device"}
+		for k, v := range apiResp.Devices {
+			debugLogs = append(debugLogs, k, v)
+		}
+		level.Debug(logger).Log(debugLogs...)
 	}
 
 	return nil

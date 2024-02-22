@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	hostctx "github.com/fleetdm/fleet/v4/server/contexts/host"
@@ -228,10 +227,7 @@ func (svc *Service) GetOrbitConfig(ctx context.Context) (fleet.OrbitConfig, erro
 
 	// load the pending script executions for that host
 	if !appConfig.ServerSettings.ScriptsDisabled {
-		// it is important that the "ignoreOlder" parameter in this call is the
-		// same everywhere (which is here and in RunScript to check if there is
-		// already a pending script).
-		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID, scripts.MaxServerWaitTime)
+		pending, err := svc.ds.ListPendingHostScriptExecutions(ctx, host.ID)
 		if err != nil {
 			return fleet.OrbitConfig{}, err
 		}
@@ -502,11 +498,24 @@ func getOrbitScriptEndpoint(ctx context.Context, request interface{}, svc fleet.
 }
 
 func (svc *Service) GetHostScript(ctx context.Context, execID string) (*fleet.HostScriptResult, error) {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
+	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	return nil, fleet.ErrMissingLicense
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return nil, fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+
+	// get the script's details
+	script, err := svc.ds.GetHostScriptExecutionResult(ctx, execID)
+	if err != nil {
+		return nil, err
+	}
+	// ensure it cannot get access to a different host's script
+	if script.HostID != host.ID {
+		return nil, ctxerr.Wrap(ctx, newNotFoundError(), "no script found for this host")
+	}
+	return script, nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -543,11 +552,57 @@ func postOrbitScriptResultEndpoint(ctx context.Context, request interface{}, svc
 }
 
 func (svc *Service) SaveHostScriptResult(ctx context.Context, result *fleet.HostScriptResultPayload) error {
-	// skipauth: No authorization check needed due to implementation returning
-	// only license error.
+	// this is not a user-authenticated endpoint
 	svc.authz.SkipAuthorization(ctx)
 
-	return fleet.ErrMissingLicense
+	host, ok := hostctx.FromContext(ctx)
+	if !ok {
+		return fleet.OrbitError{Message: "internal error: missing host from request context"}
+	}
+	if result == nil {
+		return ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: "missing script result"}, "save host script result")
+	}
+
+	// always use the authenticated host's ID as host_id
+	result.HostID = host.ID
+	hsr, err := svc.ds.SetHostScriptExecutionResult(ctx, result)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "save host script result")
+	}
+
+	if hsr != nil {
+		var user *fleet.User
+		if hsr.UserID != nil {
+			user, err = svc.ds.UserByID(ctx, *hsr.UserID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get host script execution user")
+			}
+		}
+		var scriptName string
+		if hsr.ScriptID != nil {
+			scr, err := svc.ds.Script(ctx, *hsr.ScriptID)
+			if err != nil {
+				return ctxerr.Wrap(ctx, err, "get saved script")
+			}
+			scriptName = scr.Name
+		}
+
+		// TODO(sarah): We may need to special case lock/unlock script results here?
+		if err := svc.ds.NewActivity(
+			ctx,
+			user,
+			fleet.ActivityTypeRanScript{
+				HostID:            host.ID,
+				HostDisplayName:   host.DisplayName(),
+				ScriptExecutionID: hsr.ExecutionID,
+				ScriptName:        scriptName,
+				Async:             !hsr.SyncRequest,
+			},
+		); err != nil {
+			return ctxerr.Wrap(ctx, err, "create activity for script execution request")
+		}
+	}
+	return nil
 }
 
 /////////////////////////////////////////////////////////////////////////////////

@@ -240,13 +240,13 @@ spec:
         deadline: "2022-01-04"
       macos_settings:
         custom_settings:
-          - path/to/profile1.mobileconfig
-          - path/to/profile2.mobileconfig
+          - path: path/to/profile1.mobileconfig
+          - path: path/to/profile2.mobileconfig
         enable_disk_encryption: true
       windows_settings:
         custom_settings:
-          - path/to/profile3.xml
-          - path/to/profile4.xml
+          - path: path/to/profile3.xml
+          - path: path/to/profile4.xml
     scripts:
         - path/to/script1.sh
         - path/to/script2.sh
@@ -456,13 +456,13 @@ spec:
       deadline: ""
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: path/to/profile1.mobileconfig
+        - path: path/to/profile2.mobileconfig
       enable_disk_encryption: true
     windows_settings:
       custom_settings:
-        - path/to/profile3.xml
-        - path/to/profile4.xml
+        - path: path/to/profile3.xml
+        - path: path/to/profile4.xml
 ```
 
 ### Settings
@@ -1118,8 +1118,6 @@ Set name of default team to use with Apple Business Manager.
 
 ##### mdm.windows_enabled_and_configured
 
-> Windows MDM features are not ready for production and are currently in development. These features are disabled by default.
-
 Enables or disables Windows MDM support.
 
 - Default value: false
@@ -1133,11 +1131,9 @@ Enables or disables Windows MDM support.
 
 **Applies only to Fleet Premium**.
 
-The following options allow configuring the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+The following options allow configuring OS updates for macOS hosts.
 
 ##### mdm.macos_updates.minimum_version
-
-Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.
 
 Requires `mdm.macos_updates.deadline` to be set.
 
@@ -1153,8 +1149,6 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 A deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
 
-Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
-
 Requires `mdm.macos_updates.minimum_version` to be set.
 
 - Default value: ""
@@ -1163,6 +1157,36 @@ Requires `mdm.macos_updates.minimum_version` to be set.
   mdm:
     macos_updates:
       deadline: "2022-01-01"
+  ```
+
+##### mdm.windows_updates
+
+**Applies only to Fleet Premium**.
+
+The following options allow configuring OS updates for Windows hosts.
+
+##### mdm.windows_updates.deadline
+
+A deadline in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      deadline_days: "5"
+  ```
+
+##### mdm.windows_updates.grace_period
+
+A grace period in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      grace_period_days: "2"
   ```
 
 ##### mdm.macos_settings
@@ -1183,8 +1207,8 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     macos_settings:
       custom_settings:
-        - path/to/profile1.mobileconfig
-        - path/to/profile2.mobileconfig
+        - path: path/to/profile1.mobileconfig
+        - path: path/to/profile2.mobileconfig
   ```
 
 ##### mdm.macos_settings.enable_disk_encryption
@@ -1223,8 +1247,8 @@ If you're using Fleet Premium, these profiles apply to all hosts assigned to no 
   mdm:
     windows_settings:
       custom_settings:
-        - path/to/profile1.xml
-        - path/to/profile2.xml
+        - path: path/to/profile1.xml
+        - path: path/to/profile2.xml
   ```
 
 #### Scripts 

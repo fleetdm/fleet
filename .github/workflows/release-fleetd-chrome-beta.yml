@@ -27,6 +27,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 
+      - name: Run test
+        working-directory: ./ee/fleetd-chrome
+        run: |
+          npm install && npm run test
+
       - name: Build & sign extension
         working-directory: ./ee/fleetd-chrome
         env:

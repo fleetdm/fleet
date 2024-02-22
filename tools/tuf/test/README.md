@@ -13,6 +13,8 @@ Scripts in this directory aim to ease the testing of Orbit and the [TUF](https:/
 > PS: We use `host.docker.internal` because the testing certificate `./tools/osquery/fleet.crt`
 > has such hostname (and `localhost`) defined as SANs.
 
+> PPS: Make sure you set the macOSX deployment target to the lowest macOS version you intend to support. See [Troubleshooting](#troubleshooting) for more details.
+
 # Run
 
 The `main.sh` creates and runs the TUF repository and optionally generate the installers (GENERATE_PKGS):
@@ -33,6 +35,7 @@ GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
+DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
 
@@ -94,7 +97,7 @@ When running Fleet Desktop on an older macOS version than it was compiled on, Or
 _LSOpenURLsWithCompletionHandler() failed with error -10825
 ```
 
-Solution: `Set the MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest macOS version you intend to support:
+Solution: Set the `MACOSX_DEPLOYMENT_TARGET` environment variable to the lowest macOS version you intend to support:
 
 ```
 export MACOSX_DEPLOYMENT_TARGET=13 # replace '13' with your target macOS version

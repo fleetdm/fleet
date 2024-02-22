@@ -534,8 +534,9 @@ func (e OrbitError) Error() string {
 	return e.Message
 }
 
-// Message that may surfaced by the server or the fleetctl client in connection with the RunHostScript service.
+// Message that may surfaced by the server or the fleetctl client.
 const (
+	// Scripts
 	RunScriptInvalidTypeErrMsg             = "File type not supported. Only .sh (Bash) and .ps1 (PowerShell) file types are allowed."
 	RunScriptHostOfflineErrMsg             = "Script can’t run on offline host."
 	RunScriptHostNotFoundErrMsg            = "Host doesn’t exist. Make sure you provide a valid hostname, UUID, osquery host ID, or node key."
@@ -543,8 +544,12 @@ const (
 	RunScriptAlreadyRunningErrMsg          = "A script is already running on this host. Please wait about 5 minutes to let it finish."
 	RunScriptHostTimeoutErrMsg             = "Fleet hasn’t heard from the host in over 5 minutes. Fleet doesn’t know if the script ran because the host went offline."
 	RunScriptScriptsDisabledGloballyErrMsg = "Running scripts is disabled in organization settings."
-	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+	RunScriptDisabledErrMsg                = "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
 	RunScriptScriptTimeoutErrMsg           = "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
+	RunScriptAsyncScriptEnqueuedErrMsg     = "Script is running or will run when the host comes online."
+
+	// End user authentication
+	EndUserAuthDEPWebURLConfiguredErrMsg = `End user authentication can't be configured when the configured automatic enrollment (DEP) profile specifies a configuration_web_url.` // #nosec G101
 )
 
 // ConflictError is used to indicate a conflict, such as a UUID conflict in the DB.

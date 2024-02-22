@@ -121,7 +121,7 @@ const SaveNewPolicyModal = ({
             error={errors.name}
             inputClassName={`${baseClass}__policy-save-modal-name`}
             label="Name"
-            hint="What yes or no question does your policy ask about your hosts?"
+            helpText="What yes or no question does your policy ask about your hosts?"
             autofocus
             ignore1password
           />
@@ -140,7 +140,7 @@ const SaveNewPolicyModal = ({
             inputClassName={`${baseClass}__policy-save-modal-resolution`}
             label="Resolution"
             type="textarea"
-            hint="What steps should an end user take to resolve a host that fails this policy? (optional)"
+            helpText="What steps should an end user take to resolve a host that fails this policy? (optional)"
           />
           {platformSelector.render()}
           {isPremiumTier && (

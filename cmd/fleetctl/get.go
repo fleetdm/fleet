@@ -1497,20 +1497,34 @@ func getMDMCommandResultsCommand() *cli.Command {
 				// unformatted command
 				if err != nil {
 					if getDebug(c) {
-						log(c, fmt.Sprintf("error formatting command: %s\n", err))
+						log(c, fmt.Sprintf("error formatting command result: %s\n", err))
 					}
 					formattedResult = r.Result
+				}
+				formattedPayload, err := formatXML(r.Payload)
+				// if we get an error, just log it and use the
+				// unformatted payload
+				if err != nil {
+					if getDebug(c) {
+						log(c, fmt.Sprintf("error formatting command payload: %s\n", err))
+					}
+					formattedPayload = r.Payload
+				}
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
 				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
+					string(formattedPayload),
 					string(formattedResult),
 				})
 			}
-			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "RESULTS"}
+			columns := []string{"ID", "TIME", "TYPE", "STATUS", "HOSTNAME", "PAYLOAD", "RESULTS"}
 			printTableWithXML(c, columns, data)
 
 			return nil
@@ -1551,10 +1565,14 @@ func getMDMCommandsCommand() *cli.Command {
 			// print the results as a table
 			data := [][]string{}
 			for _, r := range results {
+				reqType := r.RequestType
+				if len(reqType) == 0 {
+					reqType = "InstallProfile"
+				}
 				data = append(data, []string{
 					r.CommandUUID,
 					r.UpdatedAt.Format(time.RFC3339),
-					r.RequestType,
+					reqType,
 					r.Status,
 					r.Hostname,
 				})

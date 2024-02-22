@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.21.5-bullseye@sha256:5ebf2823dcead16c6cb1499b1e25ca2aa9b3098ac3ccb7f68cc2f4143535addc
+FROM --platform=linux/amd64 golang:1.21.7-bullseye@sha256:447afe790df28e0bc19d782a9f776a105ce3b8417cdd21f33affc4ed6d38f9d5
 LABEL maintainer="Fleet Developers"
 
 RUN apt-get update && apt-get install -y \

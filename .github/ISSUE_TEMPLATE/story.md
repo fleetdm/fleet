@@ -22,11 +22,11 @@ It is [planned and ready](https://fleetdm.com/handbook/company/development-group
 ## Changes
 
 ### Product
-- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma file describing all relevant changes. Remove this checkbox if there are no changes to the user interface. -->
+- [ ] UI changes: TODO <!-- Insert the link to the relevant Figma cover page. Remove this checkbox if there are no changes to the user interface. -->
 - [ ] CLI usage changes: TODO <!-- Specify what changes to the CLI usage are required. Remove this checkbox if there are no changes to the CLI. -->
 - [ ] REST API changes: TODO <!-- Specify what changes to the API are required.  Remove this checkbox if there are no changes necessary. The product manager may move this item to the engineering list below if they decide that engineering will design the API changes. -->
 - [ ] Permissions changes: TODO <!-- Specify what changes to the permissions are required.  Remove this checkbox if there are no changes necessary. -->
-- [ ] Outdated documentation changes: TODO <!-- Specify required documentation changes & redirects to add to /website/config/routes.js. -->
+- [ ] Outdated documentation changes: TODO <!-- Specify required documentation changes (public-facing fleetdm.com/docs or contributors) & redirects to add to /website/config/routes.js. -->
 - [ ] Changes to paid features or tiers: TODO  <!-- Specify "Fleet Free" or "Fleet Premium".  If only certain parts of the user story involve paid features, specify which parts.  Implementation of paid features should live in the `ee/` directory. -->
 
 ### Engineering

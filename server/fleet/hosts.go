@@ -138,9 +138,10 @@ type HostListOptions struct {
 	// version.
 	SoftwareTitleIDFilter *uint
 
-	OSIDFilter      *uint
-	OSNameFilter    *string
-	OSVersionFilter *string
+	OSIDFilter        *uint
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -403,6 +404,13 @@ type MDMHostData struct {
 	//
 	// It is not filled in by all host-returning datastore methods.
 	MacOSSetup *HostMDMMacOSSetup `json:"macos_setup,omitempty" db:"-" csv:"-"`
+
+	// The DeviceStatus and PendingAction fields are not stored in the database
+	// directly, they are read from the GetHostLockWipeStatus datastore method
+	// and determined from those results. They are not filled by all
+	// host-returning methods.
+	DeviceStatus  *string `json:"device_status,omitempty" db:"-" csv:"-"`
+	PendingAction *string `json:"pending_action,omitempty" db:"-" csv:"-"`
 }
 
 type HostMDMOSSettings struct {
@@ -1118,6 +1126,10 @@ type OSVersions struct {
 }
 
 type OSVersion struct {
+	// ID is the unique id of the operating system.
+	ID uint `json:"id,omitempty"`
+	// OSVersionID is a uniqe NameOnly/Version combination for the operating system.
+	OSVersionID uint `json:"os_version_id"`
 	// HostsCount is the number of hosts that have reported the operating system.
 	HostsCount int `json:"hosts_count"`
 	// Name is the name and alphanumeric version of the operating system. e.g., "Microsoft Windows 11 Enterprise",
@@ -1130,8 +1142,12 @@ type OSVersion struct {
 	Version string `json:"version"`
 	// Platform is the platform of the operating system, e.g., "windows", "ubuntu", or "darwin".
 	Platform string `json:"platform"`
-	// ID is the unique id of the operating system.
-	ID uint `json:"os_id,omitempty"`
+	// GeneratedCPE is the Common Platform Enumeration (CPE) name for the operating system.
+	// It is currently only generated for Operating Systems scanned for vulnerabilities
+	// in NVD (macOS only)
+	GeneratedCPEs []string `json:"generated_cpes,omitempty"`
+	// Vulnerabilities are the vulnerabilities associated with the operating system.
+	Vulnerabilities Vulnerabilities `json:"vulnerabilities"`
 }
 
 type HostDetailOptions struct {
@@ -1184,4 +1200,18 @@ type HostMacOSProfile struct {
 	Identifier string `json:"identifier" db:"identifier"`
 	// InstallDate is the date the profile was installed on the host as reported by the host's clock.
 	InstallDate time.Time `json:"install_date" db:"install_date"`
+}
+
+// HostLite contains a subset of Host fields.
+type HostLite struct {
+	ID                  uint      `db:"id"`
+	TeamID              *uint     `db:"team_id"`
+	Hostname            string    `db:"hostname"`
+	OsqueryHostID       string    `db:"osquery_host_id"`
+	NodeKey             string    `db:"node_key"`
+	UUID                string    `db:"uuid"`
+	HardwareSerial      string    `db:"hardware_serial"`
+	SeenTime            time.Time `db:"seen_time"`
+	DistributedInterval uint      `db:"distributed_interval"`
+	ConfigTLSRefresh    uint      `db:"config_tls_refresh"`
 }

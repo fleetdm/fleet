@@ -123,6 +123,7 @@ $max-width: 2560px;
 
 @mixin help-text {
   font-size: $xx-small;
+  font-weight: $regular;
   @include grey-text;
 }
 
@@ -203,4 +204,19 @@ $max-width: 2560px;
   p {
     margin: 0;
   }
+}
+
+@mixin flex-column-1rem-gap {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@mixin page {
+  @include flex-column-1rem-gap;
+}
+
+@mixin form-button-extra-clickable-area-compensation {
+  // compensate in layout for extra clickable area button height
+  margin: -8px 0;
 }

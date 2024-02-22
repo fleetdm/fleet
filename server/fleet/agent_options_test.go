@@ -119,6 +119,13 @@ func TestValidateAgentOptions(t *testing.T) {
 				"yara_malloc_trim": true
 			}
 		}}`, true, `unknown field "yara_malloc_trim"`},
+		{
+			"option added in osquery 5.11.0", `{"config":{
+			"options": {
+				"keychain_access_cache": true
+			}
+		}}`, true, ``,
+		},
 		{"valid command-line flag", `{"command_line_flags":{
 			"alarm_timeout": 1
 		}}`, true, ``},

@@ -47,12 +47,16 @@ export default {
   // Software pages
   SOFTWARE: `${URL_PREFIX}/software`,
   SOFTWARE_TITLES: `${URL_PREFIX}/software/titles`,
+  SOFTWARE_OS: `${URL_PREFIX}/software/os`,
   SOFTWARE_VERSIONS: `${URL_PREFIX}/software/versions`,
   SOFTWARE_TITLE_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/titles/${id}`;
   },
   SOFTWARE_VERSION_DETAILS: (id: string): string => {
     return `${URL_PREFIX}/software/versions/${id}`;
+  },
+  SOFTWARE_OS_DETAILS: (id: number): string => {
+    return `${URL_PREFIX}/software/os/${id}`;
   },
 
   EDIT_PACK: (packId: number): string => {
@@ -117,7 +121,7 @@ export default {
   },
   HOST_QUERY_REPORT: (hostId: number, queryId: number): string =>
     `${URL_PREFIX}/hosts/${hostId}/queries/${queryId}`,
-  DEVICE_USER_DETAILS: (deviceAuthToken: any): string => {
+  DEVICE_USER_DETAILS: (deviceAuthToken: string): string => {
     return `${URL_PREFIX}/device/${deviceAuthToken}`;
   },
   DEVICE_USER_DETAILS_SOFTWARE: (deviceAuthToken: string): string => {
@@ -127,15 +131,21 @@ export default {
     return `${URL_PREFIX}/device/${deviceAuthToken}/policies`;
   },
 
-  TEAM_DETAILS_MEMBERS: (teamId?: number): string => {
+  TEAM_DETAILS_USERS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
-      return `${URL_PREFIX}/settings/teams/members?team_id=${teamId}`;
+      return `${URL_PREFIX}/settings/teams/users?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
   TEAM_DETAILS_OPTIONS: (teamId?: number): string => {
     if (teamId !== undefined && teamId > 0) {
       return `${URL_PREFIX}/settings/teams/options?team_id=${teamId}`;
+    }
+    return `${URL_PREFIX}/settings/teams`;
+  },
+  TEAM_DETAILS_SETTINGS: (teamId?: number) => {
+    if (teamId !== undefined && teamId > 0) {
+      return `${URL_PREFIX}/settings/teams/settings?team_id=${teamId}`;
     }
     return `${URL_PREFIX}/settings/teams`;
   },
@@ -153,6 +163,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };

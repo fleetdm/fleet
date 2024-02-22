@@ -1,0 +1,34 @@
+#!/usr/bin/python3
+
+'''
+Create n new policies, where n is the integer first argument passed to the script.
+
+Assumes the script can see the `TOKEN` (API token) and `SERVER_URL` environment variables.
+'''
+
+import subprocess, os, sys, string, random
+
+POLICIES_ENDPOINT="/api/latest/fleet/policies"
+
+def main(n: int):
+  token, server_url = os.environ.get("TOKEN"), os.environ.get("SERVER_URL")
+  if not token or not server_url:
+    raise Exception("Make sure you have set TOKEN and SERVER_URL as environment variables.")
+  for i in range(n):
+      name='Policy ' + ''.join(random.choices(string.ascii_lowercase, k=5))
+      critical=random.choice(["true", "false"])
+      data = f'{{"name": "{name}", "query": "SELECT 1 FROM osquery_info;", "description": "Selects 1", "resolution": "Resolution steps", "platform": "{random.choice(["windows", "linux", "darwin"])}", "critical": {critical}}}'
+      process = subprocess.Popen(
+        ["curl", "-X", "POST", "-k", "-s", "-H", f"Authorization: Bearer {token}", f"{server_url}{POLICIES_ENDPOINT}", "-d", f"{data}", "--insecure"], stdout=subprocess.PIPE
+      )
+      (out, err) = process.communicate()
+      print(out, "\n")
+
+
+
+if __name__ == "__main__":
+    try:
+      n = int(sys.argv[1])
+    except:
+      raise Exception("Enter the number of policies to create as a single integer argument.")
+    main(n)

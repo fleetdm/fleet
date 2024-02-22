@@ -24,7 +24,7 @@ class UserSettingsForm extends Component {
     smtpConfigured: PropTypes.bool,
   };
 
-  renderEmailHint = () => {
+  renderEmailHelpText = () => {
     const { pendingEmail } = this.props;
 
     if (!pendingEmail) {
@@ -32,7 +32,7 @@ class UserSettingsForm extends Component {
     }
 
     return (
-      <i className={`${baseClass}__email-hint`}>
+      <i className={`${baseClass}__email-help-text`}>
         Pending change to <b>{pendingEmail}</b>
       </i>
     );
@@ -40,7 +40,7 @@ class UserSettingsForm extends Component {
 
   render() {
     const { fields, handleSubmit, onCancel, smtpConfigured } = this.props;
-    const { renderEmailHint } = this;
+    const { renderEmailHelpText } = this;
 
     return (
       <form onSubmit={handleSubmit} className={baseClass} autoComplete="off">
@@ -54,7 +54,7 @@ class UserSettingsForm extends Component {
             {...fields.email}
             autofocus
             label="Email (required)"
-            hint={renderEmailHint()}
+            helpText={renderEmailHelpText()}
             disabled={!smtpConfigured}
             tooltip={
               <>
@@ -76,7 +76,7 @@ class UserSettingsForm extends Component {
           }}
         />
         <InputField {...fields.position} label="Position" />
-        <div className={`${baseClass}__button-wrap`}>
+        <div className="button-wrap">
           <Button onClick={onCancel} variant="inverse">
             Cancel
           </Button>

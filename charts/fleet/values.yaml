@@ -2,7 +2,7 @@
 # All settings related to how Fleet is deployed in Kubernetes
 hostName: fleet.localhost
 replicas: 3 # The number of Fleet instances to deploy
-imageTag: v4.43.1 # Version of Fleet to deploy
+imageTag: v4.45.0 # Version of Fleet to deploy
 podAnnotations: {} # Additional annotations to add to the Fleet pod
 serviceAccountAnnotations: {} # Additional annotations to add to the Fleet service account
 resources:
@@ -191,6 +191,9 @@ gke:
   # The GKE Ingress requires a few changes that other ingress controllers don't
   ingress:
     useManagedCertificate: false
+    useGKEIngress: false
+    # 0 to allow the nodeport to be automatically selected, otherwise allowed range (30000-32767)
+    nodePort: 0
   # Workload Identity allows the K8s service account to assume the IAM permissions of a GCP service account
   workloadIdentityEmail: ""
 

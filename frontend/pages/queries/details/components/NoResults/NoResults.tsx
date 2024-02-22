@@ -70,7 +70,6 @@ const NoResults = ({
         if (disabledCachingGlobally) {
           return (
             <>
-              {" "}
               <div>
                 The following setting prevents saving this query&apos;s results
                 in Fleet:

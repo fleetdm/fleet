@@ -298,14 +298,14 @@ func (r *Runner) updateTarget(target string) error {
 
 	if target == "osqueryd" {
 		// Compare old/new osquery versions
-		_ = compareVersion(path, r.OsqueryVersion, "osquery")
+		_, _ = compareVersion(path, r.OsqueryVersion, "osquery")
 	}
 
 	if target != "orbit" {
 		return nil
 	}
 	// Compare old/new orbit versions
-	_ = compareVersion(path, build.Version, "fleetd")
+	_, _ = compareVersion(path, build.Version, "fleetd")
 
 	// Symlink Orbit binary
 	linkPath := filepath.Join(r.updater.opt.RootDirectory, "bin", "orbit", filepath.Base(path))
@@ -327,8 +327,11 @@ func (r *Runner) Interrupt(err error) {
 
 // compareVersion compares the old and new versions of a binary and prints the appropriate message.
 // The return value is only used for unit tests.
-func compareVersion(path string, oldVersion string, targetDisplayName string) *int {
-	newVersion := GetVersion(path)
+func compareVersion(path string, oldVersion string, targetDisplayName string) (*int, error) {
+	newVersion, err := GetVersion(path)
+	if err != nil {
+		return nil, err
+	}
 	vOldVersion := "v" + oldVersion
 	vNewVersion := "v" + newVersion
 	if semver.IsValid(vOldVersion) && semver.IsValid(vNewVersion) {
@@ -341,9 +344,9 @@ func compareVersion(path string, oldVersion string, targetDisplayName string) *i
 		case -1:
 			log.Info().Msgf("Upgrading %s from %s to %s", targetDisplayName, oldVersion, newVersion)
 		}
-		return &compareResult
+		return &compareResult, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // Matches strings like:
@@ -352,16 +355,17 @@ func compareVersion(path string, oldVersion string, targetDisplayName string) *i
 var versionRegexp = regexp.MustCompile(`^\S+(\s+version)?\s+(\S*)$`)
 
 // GetVersion gets the version of a binary.
-func GetVersion(path string) string {
+func GetVersion(path string) (string, error) {
 	var version string
 	versionCmd := exec.Command(path, "--version")
-	if out, err := versionCmd.CombinedOutput(); err != nil {
+	out, err := versionCmd.CombinedOutput()
+	if err != nil {
 		log.Warn().Msgf("failed to get %s version: %s: %s", path, string(out), err)
-	} else {
-		matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
-		if matches != nil && len(matches) > 2 {
-			version = matches[2]
-		}
+		return "", err
 	}
-	return version
+	matches := versionRegexp.FindStringSubmatch(strings.TrimSpace(string(out)))
+	if matches != nil && len(matches) > 2 {
+		version = matches[2]
+	}
+	return version, nil
 }

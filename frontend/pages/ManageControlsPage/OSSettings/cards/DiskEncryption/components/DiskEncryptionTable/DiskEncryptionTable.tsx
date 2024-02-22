@@ -1,7 +1,6 @@
-import React, { useContext } from "react";
+import React from "react";
 import { useQuery } from "react-query";
 
-import { AppContext } from "context/app";
 import mdmAPI, { IDiskEncryptionSummaryResponse } from "services/entities/mdm";
 
 import TableContainer from "components/TableContainer";
@@ -56,7 +55,7 @@ const DiskEncryptionTable = ({ currentTeamId }: IDiskEncryptionTableProps) => {
         disableCount
         emptyComponent={() => (
           <EmptyTable
-            header="No Disk Encryption Status"
+            header="No disk encryption status"
             info="Expecting to status data? Try again in a few seconds as the system
               catches up."
           />

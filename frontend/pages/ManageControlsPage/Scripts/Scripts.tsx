@@ -7,14 +7,13 @@ import { AppContext } from "context/app";
 import PATHS from "router/paths";
 import scriptAPI, {
   IListScriptsQueryKey,
-  IScript,
   IScriptsResponse,
 } from "services/entities/scripts";
+import { IScript } from "interfaces/script";
 
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
-import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import InfoBanner from "components/InfoBanner";
 import ScriptListHeading from "./components/ScriptListHeading";
 import ScriptListItem from "./components/ScriptListItem";
@@ -34,7 +33,6 @@ interface IScriptsProps {
 }
 
 const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
-  const { isPremiumTier } = useContext(AppContext);
   const [showDeleteScriptModal, setShowDeleteScriptModal] = useState(false);
 
   const selectedScript = useRef<IScript | null>(null);
@@ -78,15 +76,6 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
 
   const { config } = useContext(AppContext);
   if (!config) return null;
-
-  // The user is not a premium tier, so show the premium feature message.
-  if (!isPremiumTier) {
-    return (
-      <PremiumFeatureMessage
-        className={`${baseClass}__premium-feature-message`}
-      />
-    );
-  }
 
   const onClickDelete = (script: IScript) => {
     selectedScript.current = script;
@@ -153,8 +142,8 @@ const Scripts = ({ router, currentPage, teamIdForApi }: IScriptsProps) => {
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Upload scripts to change configuration and remediate issues on macOS and
-        Windows hosts. You can run scripts on individual hosts.{" "}
+        Upload scripts to remediate issues on macOS, Windows, and Linux hosts.
+        You can run scripts on individual hosts.{" "}
         <CustomLink
           text="Learn more"
           url="https://fleetdm.com/docs/using-fleet/scripts"

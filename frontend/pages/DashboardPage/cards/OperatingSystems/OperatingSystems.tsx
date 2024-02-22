@@ -47,7 +47,7 @@ const EmptyOperatingSystems = (platform: SelectedPlatform): JSX.Element => (
     className={`${baseClass}__os-empty-table`}
     header={`No${
       ` ${PLATFORM_DISPLAY_NAMES[platform]}` || ""
-    } operating systems detected.`}
+    } operating systems detected`}
     info="This report is updated every hour to protect the performance of your
       devices."
   />
@@ -149,7 +149,7 @@ const OperatingSystems = ({
   }, [isFetching, osInfo, setTitleDescription, setTitleDetail]);
 
   const tableHeaders = useMemo(
-    () => generateTableHeaders(includeNameColumn, currentTeamId),
+    () => generateTableHeaders(currentTeamId, undefined, { includeName: true }),
     [includeNameColumn, currentTeamId]
   );
 

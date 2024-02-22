@@ -2,7 +2,9 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5" //nolint:gosec // (only used for tests)
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -586,7 +588,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	})
 	require.NoError(t, err)
 
-	// Can't create a team policy with an existing name.
+	// Can't create a team policy with same team id and name.
 	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:  "query1",
 		Query: "select 1;",
@@ -597,16 +599,8 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	}
 	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
 
-	// Can't create a global policy with an existing name.
+	// Can't create a global policy with an existing global name.
 	_, err = ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:  "query1",
-		Query: "select 1;",
-	})
-	require.Error(t, err)
-	require.True(t, errors.As(err, &isExist) && isExist.IsExists(), err)
-
-	// Can't create a team policy with an existing global name.
-	_, err = ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
 		Name:  "existing-query-global-1",
 		Query: "select 1;",
 	})
@@ -1073,7 +1067,9 @@ func testPolicyQueriesForHost(t *testing.T, ds *Datastore) {
 
 	// Manually insert a global policy with null resolution.
 	res, err := ds.writer(context.Background()).ExecContext(
-		context.Background(), `INSERT INTO policies (name, query, description) VALUES (?, ?, ?)`, q.Name+"2", q.Query, q.Description+"2",
+		context.Background(),
+		fmt.Sprintf(`INSERT INTO policies (name, query, description, checksum) VALUES (?, ?, ?, %s)`, policiesChecksumComputedColumn()),
+		q.Name+"2", q.Query, q.Description+"2",
 	)
 	require.NoError(t, err)
 	id, err := res.LastInsertId()
@@ -1375,17 +1371,19 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "some other resolution updated", *teamPolicies[0].Resolution)
 	assert.Equal(t, "windows", teamPolicies[0].Platform)
 
-	// Test error when modifying team on existing policy
-	require.Error(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
-		{
-			Name:        "query1",
-			Query:       "select 1 from updated again;",
-			Description: "query1 desc updated again",
-			Resolution:  "some resolution updated again",
-			Team:        "team1", // Modifying teams on existing policies is not allowed
-			Platform:    "",
-		},
-	}))
+	// Creating the same policy for a different team is allowed.
+	require.NoError(
+		t, ds.ApplyPolicySpecs(
+			ctx, user1.ID, []*fleet.PolicySpec{
+				{
+					Name:        "query1",
+					Query:       "select 1 from updated again;",
+					Description: "query1 desc updated again",
+					Resolution:  "some resolution updated again",
+					Team:        "team1",
+					Platform:    "",
+				},
+			}))
 }
 
 func testPoliciesSave(t *testing.T, ds *Datastore) {
@@ -1418,6 +1416,23 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	computeChecksum := func(policy fleet.Policy) string {
+		h := md5.New() //nolint:gosec // (only used for tests)
+		// Compute the same way as DB does.
+		teamStr := ""
+		if policy.TeamID != nil {
+			teamStr = fmt.Sprint(*policy.TeamID)
+		}
+		cols := []string{teamStr, policy.Name}
+		_, _ = fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
+	}
+
+	var globalChecksum []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum))
 
 	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
@@ -1433,6 +1448,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, tp1.Description, payload.Description)
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
+	var teamChecksum []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum))
 
 	// Change name only of a global query.
 	gp2 := *gp
@@ -1444,6 +1463,11 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
 	require.Equal(t, &gp2, gp)
+	var globalChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum2, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -1458,6 +1482,11 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
+	var teamChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum2, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, teamChecksum, teamChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum2))
 
 	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id = ?`, tp2.ID)
 	require.NoError(t, err)
@@ -2044,7 +2073,10 @@ func testPolicyViolationDays(t *testing.T, ds *Datastore) {
 		hosts[i] = h
 	}
 
-	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at) VALUES (?, ?, '', ?, ?, ?, ?)`
+	createPolStmt := fmt.Sprintf(
+		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum) VALUES (?, ?, '', ?, ?, ?, ?, %s)`,
+		policiesChecksumComputedColumn(),
+	)
 	res, err := ds.writer(ctx).ExecContext(ctx, createPolStmt, "test_pol", "select 1", user.ID, "", then, then)
 	require.NoError(t, err)
 	id, _ := res.LastInsertId()
@@ -2139,8 +2171,10 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 	}
 
 	// create some policies, using direct insert statements to control the timestamps
-	createPolStmt := `INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at)
-                    VALUES (?, ?, '', ?, ?, ?, ?)`
+	createPolStmt := fmt.Sprintf(
+		`INSERT INTO policies (name, query, description, author_id, platforms, created_at, updated_at, checksum)
+                    VALUES (?, ?, '', ?, ?, ?, ?, %s)`, policiesChecksumComputedColumn(),
+	)
 
 	jan2020 := time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
 	feb2020 := time.Date(2020, 2, 1, 0, 0, 0, 0, time.UTC)
@@ -2256,11 +2290,13 @@ func testPolicyCleanupPolicyMembership(t *testing.T, ds *Datastore) {
 }
 
 func updatePolicyWithTimestamp(t *testing.T, ds *Datastore, p *fleet.Policy, ts time.Time) {
-	sql := `
+	sqlStmt := `
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, updated_at = ?
 			WHERE id = ?`
-	_, err := ds.writer(context.Background()).ExecContext(context.Background(), sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID)
+	_, err := ds.writer(context.Background()).ExecContext(
+		context.Background(), sqlStmt, p.Name, p.Query, p.Description, p.Resolution, p.Platform, ts, p.ID,
+	)
 	require.NoError(t, err)
 }
 

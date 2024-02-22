@@ -29,6 +29,7 @@ set -ex
 # USE_FLEET_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # USE_UPDATE_SERVER_CERTIFICATE: Whether to use a custom certificate bundle.
 # FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST: Alternative host:port to use for the Fleet Desktop browser URLs.
+# DEBUG: Whether or not to build the package with --debug.
 
 if [ -n "$GENERATE_PKG" ]; then
     echo "Generating pkg..."
@@ -40,7 +41,7 @@ if [ -n "$GENERATE_PKG" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -50,7 +51,8 @@ if [ -n "$GENERATE_PKG" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
         --update-url=$PKG_TUF_URL \
-        --disable-keystore
+        --disable-keystore \
+        --enable-scripts
 fi
 
 if [ -n "$GENERATE_DEB" ]; then
@@ -63,7 +65,7 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -72,7 +74,8 @@ if [ -n "$GENERATE_DEB" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$DEB_TUF_URL
+        --update-url=$DEB_TUF_URL \
+        --enable-scripts
 fi
 
 if [ -n "$GENERATE_RPM" ]; then
@@ -85,7 +88,7 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -94,7 +97,8 @@ if [ -n "$GENERATE_RPM" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$RPM_TUF_URL
+        --update-url=$RPM_TUF_URL \
+        --enable-scripts
 fi
 
 if [ -n "$GENERATE_MSI" ]; then
@@ -107,7 +111,7 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_FLEET_SERVER_CERTIFICATE:+--fleet-certificate=./tools/osquery/fleet.crt} \
         ${USE_UPDATE_SERVER_CERTIFICATE:+--update-tls-certificate=./tools/osquery/fleet.crt} \
         ${INSECURE:+--insecure} \
-        --debug \
+        ${DEBUG:+--debug} \
         --update-roots="$ROOT_KEYS" \
         --update-interval=10s \
         --disable-open-folder \
@@ -116,7 +120,8 @@ if [ -n "$GENERATE_MSI" ]; then
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-certificate=./tools/test-orbit-mtls/client.crt} \
         ${USE_UPDATE_CLIENT_CERTIFICATE:+--update-tls-client-key=./tools/test-orbit-mtls/client.key} \
         ${FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST:+--fleet-desktop-alternative-browser-host=$FLEET_DESKTOP_ALTERNATIVE_BROWSER_HOST} \
-        --update-url=$MSI_TUF_URL
+        --update-url=$MSI_TUF_URL \
+        --enable-scripts
 fi
 
 echo "Packages generated."

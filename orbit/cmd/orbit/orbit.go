@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -33,6 +34,7 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/token"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/update/filestore"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/user"
 	"github.com/fleetdm/fleet/v4/pkg/certificate"
 	"github.com/fleetdm/fleet/v4/pkg/file"
 	retrypkg "github.com/fleetdm/fleet/v4/pkg/retry"
@@ -99,7 +101,7 @@ func main() {
 		},
 		&cli.StringFlag{
 			Name:    "enroll-secret-path",
-			Usage:   "Path to file containing enroll secret",
+			Usage:   "Path to file containing enroll secret. On macOS and Windows, this file will be deleted and secret will be stored in the system keystore",
 			EnvVars: []string{"ORBIT_ENROLL_SECRET_PATH"},
 		},
 		&cli.StringFlag{
@@ -195,6 +197,11 @@ func main() {
 			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
 			EnvVars: []string{"ORBIT_DISABLE_KEYSTORE"},
 		},
+		&cli.StringFlag{
+			Name:    "osquery-db",
+			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
+			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -268,6 +275,10 @@ func main() {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
 		}
 
+		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
+			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
+		}
+
 		enrollSecretPath := c.String("enroll-secret-path")
 		if enrollSecretPath != "" {
 			if c.String("enroll-secret") != "" {
@@ -296,16 +307,32 @@ func main() {
 						if err = keystore.AddSecret(secret); err != nil {
 							log.Warn().Err(err).Msgf("failed to add enroll secret to %v", keystore.Name())
 						} else {
-							log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
+							// Sanity check that the secret was added to the keystore.
+							checkSecret, err := keystore.GetSecret()
+							if err != nil {
+								log.Warn().Err(err).Msgf("failed to check that enroll secret was saved in %v", keystore.Name())
+							} else if checkSecret != secret {
+								log.Warn().Msgf("enroll secret was not saved correctly in %v", keystore.Name())
+							} else {
+								log.Info().Msgf("added enroll secret to keystore: %v", keystore.Name())
+								deleteSecretPathIfExists(enrollSecretPath)
+							}
 						}
 					} else if secretFromKeystore != secret {
 						// Keystore secret found, but needs to be updated.
 						if err = keystore.UpdateSecret(secret); err != nil {
 							log.Warn().Err(err).Msgf("failed to update enroll secret in %v", keystore.Name())
 						} else {
-							log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
-							deleteSecretPathIfExists(enrollSecretPath)
+							// Sanity check that the secret was updated in the keystore.
+							checkSecret, err := keystore.GetSecret()
+							if err != nil {
+								log.Warn().Err(err).Msgf("failed to check that enroll secret was updated in %v", keystore.Name())
+							} else if checkSecret != secret {
+								log.Warn().Msgf("enroll secret was not updated correctly in %v", keystore.Name())
+							} else {
+								log.Info().Msgf("updated enroll secret in keystore: %v", keystore.Name())
+								deleteSecretPathIfExists(enrollSecretPath)
+							}
 						}
 					} else {
 						// Keystore secret found, and it matches the secret from the file.
@@ -472,8 +499,8 @@ func main() {
 			if err != nil {
 				log.Info().Err(err).Msg("Could not find local osqueryd executable")
 			} else {
-				version := update.GetVersion(osquerydPath)
-				if version != "" {
+				version, err := update.GetVersion(osquerydPath)
+				if err == nil && version != "" {
 					log.Info().Msgf("Found osquery version: %s", version)
 					updateRunner.OsqueryVersion = version
 				}
@@ -558,7 +585,24 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		// Kill any pre-existing instances of osqueryd (otherwise getHostInfo will fail
+		// because of osqueryd's lock over its database).
+		//
+		// This can happen for instance when orbit is killed via the Windows Task Manager
+		// (there's no SIGTERM on Windows) and the osqueryd child processes are left orphaned.
+		killedProcesses, err := platform.KillAllProcessByName("osqueryd")
+		if err != nil {
+			log.Error().Err(err).Msg("failed to kill pre-existing instances of osqueryd")
+		} else if len(killedProcesses) > 0 {
+			log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
+		}
+
+		osqueryDB := filepath.Join(c.String("root-dir"), "osquery.db")
+		if odb := c.String("osquery-db"); odb != "" {
+			osqueryDB = odb
+		}
+
+		osqueryHostInfo, err := getHostInfo(osquerydPath, osqueryDB)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
@@ -584,11 +628,16 @@ func main() {
 		}
 
 		var (
-			options              []osquery.Option
+			options []osquery.Option
+			// optionsAfterFlagfile is populated with options that will be set after the '--flagfile' argument
+			// to not allow users to change their values on their flagfiles.
 			optionsAfterFlagfile []osquery.Option
 		)
-		options = append(options, osquery.WithDataPath(c.String("root-dir")))
+		options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
+		optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
+			[]string{"--database_path", osqueryDB},
+		))
 
 		if logFile != nil {
 			// If set, redirect osqueryd's stderr to the logFile.
@@ -733,6 +782,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1005,6 +1062,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -1307,6 +1372,19 @@ func (d *desktopRunner) execute() error {
 	for {
 		// First retry logic to start fleet-desktop.
 		if done := retry(30*time.Second, false, d.interruptCh, func() bool {
+			// On MacOS, if we attempt to run Fleet Desktop while the user is not logged in through
+			// the GUI, MacOS returns an error. See https://github.com/fleetdm/fleet/issues/14698
+			// for more details.
+			loggedInGui, err := user.IsUserLoggedInViaGui()
+			if err != nil {
+				log.Debug().Err(err).Msg("desktop.IsUserLoggedInGui")
+				return true
+			}
+
+			if !loggedInGui {
+				return true
+			}
+
 			// Orbit runs as root user on Unix and as SYSTEM (Windows Service) user on Windows.
 			// To be able to run the desktop application (mostly to register the icon in the system tray)
 			// we need to run the application as the login user.
@@ -1387,6 +1465,10 @@ type osqueryHostInfo struct {
 
 // getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
 func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, error) {
+	// Make sure parent directory exists (`osqueryd -S` doesn't create the parent directories).
+	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
+		return nil, err
+	}
 	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
@@ -1394,14 +1476,23 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		"--json", systemQuery,
 	}
 	log.Debug().Str("query", systemQuery).Msg("running single query")
-	out, err := exec.Command(osqueryPath, args...).Output()
-	if err != nil {
-		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
+	cmd := exec.Command(osqueryPath, args...)
+	var (
+		osquerydStdout bytes.Buffer
+		osquerydStderr bytes.Buffer
+	)
+	cmd.Stdout = &osquerydStdout
+	cmd.Stderr = &osquerydStderr
+	if err := cmd.Run(); err != nil {
+		log.Error().Str(
+			"output", string(osquerydStdout.Bytes()),
+		).Str(
+			"stderr", string(osquerydStderr.Bytes()),
+		).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo
-	err = json.Unmarshal(out, &info)
-	if err != nil {
+	if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
 		return nil, err
 	}
 	if len(info) != 1 {
@@ -1488,7 +1579,7 @@ func (f *capabilitiesChecker) execute() error {
 	// Do an initial ping to store the initial capabilities if needed
 	if len(f.client.GetServerCapabilities()) == 0 {
 		if err := f.client.Ping(); err != nil {
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+			logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 		}
 	}
 
@@ -1498,7 +1589,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+				logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()

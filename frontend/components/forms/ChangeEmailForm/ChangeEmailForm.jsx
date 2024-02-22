@@ -21,7 +21,8 @@ class ChangeEmailForm extends Component {
     const { fields, handleSubmit, onCancel } = this.props;
 
     return (
-      <form onSubmit={handleSubmit}>
+      <form className={baseClass} onSubmit={handleSubmit}>
+        To update your email you must confirm your password.
         <InputField
           {...fields.password}
           autofocus

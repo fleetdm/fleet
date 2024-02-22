@@ -72,7 +72,7 @@ const PackQueriesTable = ({
   const tableData = generateDataSet(getQueries());
 
   return (
-    <div className={`${baseClass} body-wrap`}>
+    <div className={`${baseClass}`}>
       {scheduledQueries?.length ? (
         <TableContainer
           columnConfigs={tableHeaders}
@@ -85,7 +85,7 @@ const PackQueriesTable = ({
           resultsTitle={"queries"}
           emptyComponent={() =>
             EmptyTable({
-              header: "No queries match your search criteria.",
+              header: "No queries match your search criteria",
               info: "Try a different search.",
             })
           }

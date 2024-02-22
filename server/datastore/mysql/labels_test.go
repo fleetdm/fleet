@@ -3,7 +3,6 @@ package mysql
 import (
 	"context"
 	"fmt"
-	"sort"
 	"strconv"
 	"testing"
 	"time"
@@ -747,8 +746,7 @@ func testLabelsIDsByName(t *testing.T, ds *Datastore) {
 
 	labels, err := ds.LabelIDsByName(context.Background(), []string{"foo", "bar", "bing"})
 	require.Nil(t, err)
-	sort.Slice(labels, func(i, j int) bool { return labels[i] < labels[j] })
-	assert.Equal(t, []uint{1, 2, 3}, labels)
+	assert.Equal(t, map[string]uint{"foo": 1, "bar": 2, "bing": 3}, labels)
 }
 
 func testLabelsSave(t *testing.T, db *Datastore) {

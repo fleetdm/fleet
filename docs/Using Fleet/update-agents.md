@@ -132,7 +132,7 @@ This output is _not sensitive_ and will be shared in agent deployments to verify
 
 ### Packaging with fleetd
 
-See the [Enroll hosts docs](../Using%20Fleet/enroll-hosts.md) for instructions on generating the fleetd agent.
+See the [Enroll hosts docs](https://fleetdm.com/docs/using-fleet/enroll-hosts) for instructions on generating the fleetd agent.
 
 You can use `fleetctl package` to generate installer packages of fleetd (Fleet's bundle of agents that includes a bootstrapped osquery wrapper) to integrate with your Fleet instance.
 
