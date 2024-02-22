@@ -660,7 +660,7 @@ fleetctl get host %s
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "unlock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.UUID}, ""},
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
@@ -756,6 +756,21 @@ func TestMDMWipeCommand(t *testing.T) {
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
 
+	winEnrolledWP := &fleet.Host{
+		ID:       12,
+		UUID:     "win-enrolled-wp",
+		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	macEnrolledWP := &fleet.Host{
+		ID:       13,
+		UUID:     "mac-enrolled-wp",
+		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+
 	hostByUUID := make(map[string]*fleet.Host)
 	hostsByID := make(map[uint]*fleet.Host)
 	for _, h := range []*fleet.Host{
@@ -790,14 +805,21 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledLP.ID: macEnrolledLP,
 	}
 
+	wipePending := map[uint]*fleet.Host{
+		winEnrolledWP.ID: winEnrolledWP,
+		macEnrolledWP.ID: macEnrolledWP,
+	}
+
 	ds := setupTestServer(t)
 	setupDSMocks(ds, hostByUUID, hostsByID)
 
 	// TODO: custom ds mocks for these tests
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		fleetPlatform := host.FleetPlatform()
+
 		var status fleet.HostLockWipeStatus
 		status.HostFleetPlatform = fleetPlatform
-		if _, ok := locked[hostID]; ok {
+		if _, ok := locked[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.LockMDMCommand = &fleet.MDMCommand{}
 				status.LockMDMCommandResult = &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}
@@ -807,7 +829,7 @@ func TestMDMWipeCommand(t *testing.T) {
 			status.LockScript = &fleet.HostScriptResult{ExitCode: ptr.Int64(0)}
 		}
 
-		if _, ok := unlockPending[hostID]; ok {
+		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.UnlockPIN = "1234"
 				status.UnlockRequestedAt = time.Now()
@@ -817,7 +839,7 @@ func TestMDMWipeCommand(t *testing.T) {
 			status.UnlockScript = &fleet.HostScriptResult{}
 		}
 
-		if _, ok := lockPending[hostID]; ok {
+		if _, ok := lockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.LockMDMCommand = &fleet.MDMCommand{}
 				return &status, nil
@@ -826,12 +848,29 @@ func TestMDMWipeCommand(t *testing.T) {
 			status.LockScript = &fleet.HostScriptResult{}
 		}
 
+		if _, ok := wipePending[host.ID]; ok {
+			if fleetPlatform == "darwin" {
+				status.WipeMDMCommand = &fleet.MDMCommand{}
+				return &status, nil
+			}
+
+			status.WipeScript = &fleet.HostScriptResult{}
+		}
+
 		return &status, nil
 	}
 	ds.UnlockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 		return nil
 	}
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
+		return nil
+	}
+
+	ds.WipeHostViaWindowsMDMFunc = func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
+		return nil
+	}
+
+	ds.WipeHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
 		return nil
 	}
 
@@ -845,14 +884,12 @@ func TestMDMWipeCommand(t *testing.T) {
 	}{
 		{appCfgAllMDM, "no flags", nil, `Required flag "host" not set`},
 		{appCfgAllMDM, "host flag empty", []string{"--host", ""}, `No host targeted. Please provide --host.`},
-		{appCfgAllMDM, "lock non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
+		{appCfgAllMDM, "wipe non-existent host", []string{"--host", "notfound"}, `The host doesn't exist. Please provide a valid host identifier.`},
 		{appCfgMacMDM, "valid windows but only macos mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
 		{appCfgAllMDM, "valid windows", []string{"--host", winEnrolled.UUID}, ""},
 		{appCfgAllMDM, "valid macos", []string{"--host", macEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid linux", []string{"--host", linuxEnrolled.UUID}, ""},
 		{appCfgNoMDM, "valid windows but no mdm", []string{"--host", winEnrolled.UUID}, `Windows MDM isn't turned on.`},
-		// TODO: should we error here?
-		// {appCfgNoMDM, "valid macos but no mdm", []string{"--host", macEnrolled.UUID}, `macOS MDM isn't turned on.`},
 		{appCfgMacMDM, "valid macos but not enrolled", []string{"--host", macNotEnrolled.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgWinMDM, "valid windows but not enrolled", []string{"--host", winNotEnrolled.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
 		{appCfgWinMDM, "valid windows but pending mdm enroll", []string{"--host", winPending.UUID}, `Can't unlock the host because it doesn't have MDM turned on.`},
@@ -861,7 +898,10 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
-		// TODO: add test for wipe once implemented
+		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid windows but host wiped", []string{"--host", winEnrolledLP.UUID}, "Host is already wiped."},
+		{appCfgAllMDM, "valid macos but host wiped", []string{"--host", macEnrolledLP.UUID}, "Host is already wiped."},
 	}
 
 	successfulOutput := func(ident string) string {
@@ -922,103 +962,6 @@ func writeTmpMobileconfig(t *testing.T, name string) string {
 	_, err = tmpFile.WriteString(string(mobileconfigForTest(name, uuid.New().String())))
 	require.NoError(t, err)
 	return tmpFile.Name()
-}
-
-// sets up the hosts for the tests and returns the hostByUUID and hostsByID maps
-func setupHosts() (map[string]*fleet.Host, map[uint]*fleet.Host) {
-	macEnrolled := &fleet.Host{
-		ID:       1,
-		UUID:     "mac-enrolled",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	winEnrolled := &fleet.Host{
-		ID:       2,
-		UUID:     "win-enrolled",
-		Platform: "windows",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	linuxEnrolled := &fleet.Host{
-		ID:       3,
-		UUID:     "linux-enrolled",
-		Platform: "linux",
-	}
-	winNotEnrolled := &fleet.Host{
-		ID:       4,
-		UUID:     "win-not-enrolled",
-		Platform: "windows",
-	}
-	macNotEnrolled := &fleet.Host{
-		ID:       5,
-		UUID:     "mac-not-enrolled",
-		Platform: "darwin",
-	}
-	macPending := &fleet.Host{
-		ID:       6,
-		UUID:     "mac-pending",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
-	}
-	winPending := &fleet.Host{
-		ID:       7,
-		UUID:     "win-pending",
-		Platform: "windows",
-		MDMInfo:  &fleet.HostMDM{Enrolled: false, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("Pending")},
-	}
-	winEnrolledUP := &fleet.Host{
-		ID:       8,
-		UUID:     "win-enrolled-up",
-		Platform: "windows",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	macEnrolledUP := &fleet.Host{
-		ID:       9,
-		UUID:     "mac-enrolled-up",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-
-	winEnrolledLP := &fleet.Host{
-		ID:       10,
-		UUID:     "win-enrolled-lp",
-		Platform: "windows",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-	macEnrolledLP := &fleet.Host{
-		ID:       11,
-		UUID:     "mac-enrolled-lp",
-		Platform: "darwin",
-		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
-		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
-	}
-
-	hostByUUID := make(map[string]*fleet.Host)
-	hostsByID := make(map[uint]*fleet.Host)
-	for _, h := range []*fleet.Host{
-		winEnrolled,
-		macEnrolled,
-		linuxEnrolled,
-		macNotEnrolled,
-		winNotEnrolled,
-		macPending,
-		winPending,
-		winEnrolledUP,
-		macEnrolledUP,
-		winEnrolledLP,
-		macEnrolledLP,
-	} {
-		hostByUUID[h.UUID] = h
-		hostsByID[h.ID] = h
-	}
-
-	return hostByUUID, hostsByID
 }
 
 // sets up the test server with the mock datastore and returns the mock datastore
