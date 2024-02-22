@@ -11348,6 +11348,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
@@ -11383,6 +11384,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 			continue
 		}
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
 	}
 
 	// get that host - it should report "failed" for the profiles and include the error message detail
