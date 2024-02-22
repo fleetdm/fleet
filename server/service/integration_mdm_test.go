@@ -11328,58 +11328,72 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	t := s.T()
 	ctx := context.Background()
 
-	// Create a host and a profile
-	host, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// Create a host and a couple of profiles
+	host, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	globalProfiles := [][]byte{
 		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
 	}
 
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
-	// The profile should be associated with the host we made
+	// The profiles should be associated with the host we made
 	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Len(t, profs, 1)
-	require.Equal(t, "I1", profs[0].Identifier)
+	require.Len(t, profs, 2)
 
-	// Mark the profile as verified to simulate it successfully getting set up on the host
-	err = s.ds.BulkUpsertMDMAppleHostProfiles(ctx, []*fleet.MDMAppleBulkUpsertHostProfilePayload{
-		{
-			ProfileUUID:       profs[0].ProfileUUID,
-			ProfileIdentifier: "I1",
-			HostUUID:          host.UUID,
-			CommandUUID:       profs[0].CommandUUID,
-			OperationType:     fleet.MDMOperationTypeInstall,
-			Status:            &fleet.MDMDeliveryVerified,
-			Checksum:          []byte("csum"),
-		},
-	})
+	// Acknowledge the profiles so we can mark them as verified
+	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
+	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+
+	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
+		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
+		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
+	}))
 
 	// Check that the profile is marked as verified when fetching the host
 	getHostResp := getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	require.NotNil(t, getHostResp.Host.MDM.Profiles)
-	hostProf := (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, fleet.MDMDeliveryVerified, *hostProf.Status)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
+	}
 
-	// report a profile removal error
-	err = s.ds.UpdateOrDeleteHostMDMAppleProfile(ctx, &fleet.HostMDMAppleProfile{
-		HostUUID:      host.UUID,
-		CommandUUID:   profs[0].CommandUUID,
-		ProfileUUID:   profs[0].ProfileUUID,
-		Status:        &fleet.MDMDeliveryFailed,
-		OperationType: fleet.MDMOperationTypeRemove,
-		Detail:        "MDMClientError (89): Profile with identifier 'I1' not found.",
-	})
+	// remove the profiles
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{}, http.StatusNoContent)
+	s.awaitTriggerProfileSchedule(t)
+
+	// On the host side, return errors for the two profile removal actions
+	cmd, err = mdmDevice.Idle()
 	require.NoError(t, err)
+	for cmd != nil {
+		if cmd.Command.RequestType == "RemoveProfile" {
+			var errChain []mdm.ErrorChain
+			if cmd.Command.RemoveProfile.Identifier == "I1" {
+				errChain = append(errChain, mdm.ErrorChain{ErrorCode: 89, ErrorDomain: "MDMClientError", USEnglishDescription: "Profile with identifier 'I1' not found."})
+			} else {
+				errChain = append(errChain, mdm.ErrorChain{ErrorCode: 96, ErrorDomain: "MDMClientError", USEnglishDescription: "Cannot replace profile 'I2' because it was not installed by the MDM server."})
+			}
+			fmt.Println("got removal request")
+			cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
+			require.NoError(t, err)
+			continue
+		}
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+	}
 
-	// get that host - it should report "failed" for the profile and include the error message detail
+	// get that host - it should report "failed" for the profiles and include the error message detail
+	expectedErrs := map[string]string{
+		"N1": "Failed to remove: MDMClientError (89): Profile with identifier 'I1' not found.\n",
+		"N2": "Failed to remove: MDMClientError (96): Cannot replace profile 'I2' because it was not installed by the MDM server.\n",
+	}
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
-	hostProf = (*getHostResp.Host.MDM.Profiles)[0]
-	require.Equal(t, fleet.MDMDeliveryFailed, *hostProf.Status)
-	require.Equal(t, "Failed to remove: MDMClientError (89): Profile with identifier 'I1' not found.", hostProf.Detail)
+	for _, hm := range *getHostResp.Host.MDM.Profiles {
+		require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+		require.Equal(t, expectedErrs[hm.Name], hm.Detail)
+	}
 }
