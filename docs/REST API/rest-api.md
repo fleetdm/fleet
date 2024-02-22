@@ -3907,7 +3907,7 @@ The endpoint can be used to add manual labels only.
 
 ```json
 {
-  labels: ["label1", "label2"],
+  "labels": ["label1", "label2"]
 }
 ```
 
@@ -3935,7 +3935,7 @@ The endpoint can be used to add manual labels only.
 
 ```json
 {
-  labels: ["label3", "label4"],
+  "labels": ["label3", "label4"]
 }
 ```
 
