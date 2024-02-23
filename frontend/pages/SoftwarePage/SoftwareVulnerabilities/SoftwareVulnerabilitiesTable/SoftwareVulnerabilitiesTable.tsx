@@ -267,7 +267,6 @@ const SoftwareVulnerabilitiesTable = ({
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
-        stackControls
         renderCount={renderVulnerabilityCount}
         renderFooter={renderTableFooter}
         disableMultiRowSelect
