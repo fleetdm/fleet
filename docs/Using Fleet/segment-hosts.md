@@ -32,29 +32,16 @@ Then you can:
 
 - Run live queries against one or more teams
 
-- Grant users access to one or more
+- Grant users access to one or more teams
 
-## View teams
+You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation.
 
-To view teams:
-
-In the top navigation select **Settings** and then **Teams**.
-
-## Create a team
-
-To create a team:
-
-1. In the top navigation select **Settings** and then, in the sub-navigation, select **Teams**.
-
-2. To the left of the search box, select **Create team.**
-
-3. Enter your new team's name and select **Save.**
 
 ## Automatically adding hosts to a team
 
 Hosts can only belong to one team in Fleet.
 
-You can add hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by [transferring the host via the Fleet UI](#transfer-hosts-to-a-team) after the host has been enrolled to Fleet.
+You can add hosts to a new team in Fleet by either enrolling the host with a team's enroll secret or by transferring the host via the Fleet UI after the host has been enrolled to Fleet.
 
 To automatically add hosts to a team in Fleet, check out the [**Adding hosts** documentation](https://fleetdm.com/docs/using-fleet/adding-hosts#automatically-adding-hosts-to-a-team).
 
@@ -64,69 +51,7 @@ To automatically add hosts to a team in Fleet, check out the [**Adding hosts** d
 > using the new team enroll secret. Alternatively, you can transfer the host via the Fleet UI, the
 > fleetctl CLI using `fleetctl hosts transfer`, or the [transfer host API endpoint](https://fleetdm.com/docs/using-fleet/rest-api#transfer-hosts-to-a-team).
 
-## Transfer hosts to a team
 
-To transfer a host to a team:
-
-1. In the top navigation, select **Hosts**.
-
-2. Using the checkboxes in the Hosts table, select the hosts you'd like to transfer.
-
-3. In the Hosts table header select **Transfer to team**.
-
-4. Choose the team you'd like to transfer the hosts to and confirm the action.
-
-## Add users to a team
-
-Global users cannot be added to a team.
-
-To add users to a team:
-
-1. In the top navigation, select **Settings** and then, in the sub-navigation, select **Teams**.
-
-2. Find your team and select it.
-
-3. To the left of the search box, select **Add users**.
-
-4. Select one or more users by searching for their full name and confirm the action.
-
-Users will be given the [Observer role](https://fleetdm.com/docs/using-fleet/permissions#team-member-permissions) when added to the team. You can then [edit a member's role](#edit-a-members-role).
-
-## Edit a user's role on a team
-
-To edit a user's role on a team:
-
-1. In the top navigation, select **Settings** and then, in the sub-navigation, select **Teams**.
-
-2. Find your team and select it.
-
-3. In the users table, select the **Actions** button for the user you'd like to edit and then select **Edit**.
-
-4. In the teams section of the form, to the right of the team you'd like to change the users role on, select the new role.
-
-5. Confirm the action.
-
-## Remove a user from a team
-
-To remove a user from a team:
-
-1. In the top navigation, select **Settings** and then, in the sub-navigation, select **Teams**.
-
-2. Find your team and select it.
-
-3. In the Members table, select the **Actions** button for the user you'd like to edit and then select **Remove**.
-
-4. Confirm the action.
-
-## Delete a team
-
-To delete a team:
-
-1. In the top navigation, select **Settings** and then, in the sub-navigation, select **Teams**.
-
-2. Find your team and select it.
-
-3. On the right side, select **Delete team** and confirm the action.
 
 <meta name="pageOrderInSection" value="1000">
 <meta name="description" value="Learn how to group hosts in Fleet to apply specific queries, policies, and agent options using teams.">
