@@ -660,7 +660,7 @@ This meeting is to disseminate engineering-wide announcements, promote cohesion 
 - Announcements
 - Engineering KPIs review
 - “Tech talks”
-  - At least one engineer from each product group demos or discusses a technical aspect of their recent work.
+  - At least one member from each product group demos or discusses a technical subject relevant to engineering at Fleet.
   - Everyone is welcome to present on a technical topic. Add your name and tech talk subject in the agenda doc included in the Eng Together calendar event.
 - Social
   - Structured and/or unstructured social activities
