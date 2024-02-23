@@ -1091,9 +1091,9 @@ Modifies the Fleet's configuration with the supplied information.
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
@@ -1189,11 +1189,17 @@ Note that when making changes to the `integrations` object, all integrations mus
       "grace_period_days": 1
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "custom_settings": {
+            "path": "path/to/profile1.mobileconfig"
+            "labels": ["Label 1", "Label 2"]
+      },
       "enable_disk_encryption": true
     },
     "windows_settings": {
-      "custom_settings": ["path/to/profile2.xml"],
+      "custom_settings": {
+            "path": "path/to/profile1.xml"
+            "labels": ["Label 1", "Label 2"]
+      }      
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -4544,6 +4550,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig (macOS) or XML (Windows) file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_ The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels                   | array     | form | _Available in Fleet Premium_ An array of labels to filter hosts in a team (or no team) that should get a profile. |
 
 #### Example
 
@@ -4567,6 +4574,14 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 Content-Disposition: form-data; name="team_id"
 
 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels"
+
+Label name 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels"
+
+Label name 2
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
 Content-Type: application/octet-stream
@@ -4631,7 +4646,7 @@ Retrieves the manual enrollment profile for macOS hosts. Install this profile on
 
 ### List custom OS settings (configuration profiles)
 
-> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [List custom macOS settings](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get a list of the configuration profiles in Fleet.
 
@@ -4670,16 +4685,30 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo="
+      "checksum": "dGVzdAo=",
+      "labels": [
+       {
+        "name": "Label name 1"
+       }
+      ]
     },
     {
-      "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
+      "profile_uuid": f5ad01cc-f416-4b5f-88f3-a26da3b56a19,
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
-      "checksum": "aCLemVr)"
+      "checksum": "aCLemVr)",
+      "labels": [
+       {
+        "name": "Label name 1",
+        "broken": true
+       },
+       {
+        "name": "Label name 2"
+       }
+      ]
     }
   ],
   "meta": {
@@ -4688,6 +4717,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   }
 }
 ```
+
+If one or more assigned labels are deleted profile is broken (`broken: true`). It won’t be applied to new hosts.
 
 ### Get or download custom OS setting (configuration profile)
 
@@ -4719,7 +4750,16 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   "identifier": "com.example.profile",
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
-  "checksum": "dGVzdAo="
+  "checksum": "dGVzdAo=",
+  "labels": [
+    {
+      "name": "Label name 1",
+      "broken": true
+    },
+    {
+      "name": "Label name 2",
+    }
+  ]
 }
 ```
 
@@ -8389,10 +8429,10 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of .mobileconfig files to apply to macOS hosts that belong to this team.                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes .mobileconfig file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of XML files to apply to Windows hosts that belong to this team.                                                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team.                                                                                                                                                                         |
