@@ -459,6 +459,25 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
+export const formatSeverity = (float: number | null): string => {
+  if (float === null) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
+  let severity = "";
+  if (float < 4.0) {
+    severity = "Low";
+  } else if (float < 7.0) {
+    severity = "Medium";
+  } else if (float < 9.0) {
+    severity = "High";
+  } else if (float <= 10.0) {
+    severity = "Critical";
+  }
+
+  return `${severity} (${float.toFixed(1)})`;
+};
+
 export const formatScriptNameForActivityItem = (name: string | undefined) => {
   return name ? (
     <>
@@ -866,6 +885,7 @@ export default {
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
+  formatSeverity,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatScriptNameForActivityItem,

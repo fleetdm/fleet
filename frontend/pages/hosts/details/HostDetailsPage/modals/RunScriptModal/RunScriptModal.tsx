@@ -128,7 +128,7 @@ const RunScriptModal = ({
 
   return (
     <Modal
-      title={"Run script"}
+      title="Run script"
       onExit={onClose}
       onEnter={onClose}
       className={`${baseClass}`}

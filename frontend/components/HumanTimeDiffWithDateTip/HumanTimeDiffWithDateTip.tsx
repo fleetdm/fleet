@@ -33,7 +33,7 @@ export const HumanTimeDiffWithDateTip = ({
   try {
     return (
       <>
-        <span className={"date-tooltip"} data-tip data-for={`tooltip-${id}`}>
+        <span className="date-tooltip" data-tip data-for={`tooltip-${id}`}>
           {humanLastSeen(timeString)}
         </span>
         <ReactTooltip

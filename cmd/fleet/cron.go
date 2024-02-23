@@ -100,6 +100,11 @@ func cronVulnerabilities(
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
 		}
+
+		level.Info(logger).Log("msg", "updating vulnerability host counts")
+		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
+			return fmt.Errorf("updating vulnerability host counts: %w", err)
+		}
 	}
 
 	return nil

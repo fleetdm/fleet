@@ -358,7 +358,7 @@ const SelectTargets = ({
       return (
         <>
           <Spinner
-            size={"x-small"}
+            size="x-small"
             includeContainer={false}
             centered={false}
             className={`${baseClass}__count-spinner`}

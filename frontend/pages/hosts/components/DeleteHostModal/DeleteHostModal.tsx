@@ -60,7 +60,7 @@ const DeleteHostModal = ({
 
   return (
     <Modal
-      title={"Delete host"}
+      title="Delete host"
       onExit={onCancel}
       onEnter={onSubmit}
       className={baseClass}
@@ -78,7 +78,7 @@ const DeleteHostModal = ({
             url={
               "https://fleetdm.com/docs/using-fleet/faq#how-can-i-uninstall-the-osquery-agent"
             }
-            text={"Uninstall Fleet's agent"}
+            text="Uninstall Fleet's agent"
             newTab
           />
         </p>

@@ -6796,7 +6796,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 		res := s.LoginMDMSSOUser("sso_user", "user123#")
 		require.NotEmpty(t, res.Header.Get("Location"))
-		require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+		require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
 		u, err := url.Parse(res.Header.Get("Location"))
 		require.NoError(t, err)
@@ -6822,7 +6822,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	res := s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
-	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 
 	u, err := url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
@@ -6836,7 +6836,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	res = s.LoginMDMSSOUser("sso_user", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
-	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
@@ -7008,7 +7008,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// enrolling a different user works without problems
 	res = s.LoginMDMSSOUser("sso_user2", "user123#")
 	require.NotEmpty(t, res.Header.Get("Location"))
-	require.Equal(t, http.StatusTemporaryRedirect, res.StatusCode)
+	require.Equal(t, http.StatusSeeOther, res.StatusCode)
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
 	q = u.Query()
@@ -7050,7 +7050,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 
 	// hitting the callback with an invalid session id redirects the user to the UI
 	rawSSOResp := base64.StdEncoding.EncodeToString([]byte(`<samlp:Response ID="_7822b394622740aa92878ca6c7d1a28c53e80ec5ef"></samlp:Response>`))
-	res = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, http.StatusTemporaryRedirect)
+	res = s.DoRawNoAuth("POST", "/api/v1/fleet/mdm/sso/callback?SAMLResponse="+url.QueryEscape(rawSSOResp), nil, http.StatusSeeOther)
 	require.NotEmpty(t, res.Header.Get("Location"))
 	u, err = url.Parse(res.Header.Get("Location"))
 	require.NoError(t, err)
