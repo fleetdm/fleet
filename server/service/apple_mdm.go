@@ -2130,7 +2130,7 @@ type callbackMDMAppleSSOResponse struct {
 
 func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 // Error will always be nil because errors are handled by sending a query
