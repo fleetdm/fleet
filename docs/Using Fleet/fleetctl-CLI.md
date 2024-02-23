@@ -91,7 +91,7 @@ Password:
 [+] Fleet login successful and context configured!
 ```
 
-Once your local context is configured, you can use the `fleetctl` normally.
+Once your local context is configured, you can use `fleetctl` normally.
 
 ### Login with SAML (SSO) authentication
 
