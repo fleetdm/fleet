@@ -202,7 +202,12 @@ func (ts *withServer) DoRawWithHeaders(
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-	client := fleethttp.NewClient()
+
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
 
 	if len(queryParams)%2 != 0 {
 		require.Fail(t, "need even number of params: key value")
