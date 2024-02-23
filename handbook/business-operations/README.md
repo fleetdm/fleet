@@ -147,6 +147,26 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+
+### Change a Fleetie's job title
+When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
+- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
+  - Search the spreadsheet for the Fleetie in need of a job title change.
+  - Input the new job title in the Fleetie's row in the "Job title" cell.
+  - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
+- Update the relevant HRIS system.
+  - For updating Gusto (US-based Fleeties):
+    - Login to Gusto and navigate to "People > Team members".
+    - Find the Fleetie and select them to see their profile page.
+    - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
+  - For updating Plane (non-US Fleeties):
+    - Login to Plane and navigate to "People > Team".
+    - Find the Fleetie and select them to see their profile page.
+    - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
+    - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+
+
+
 ### Prepare salary benchmarking information
 - Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 - Copy the template text and paste at the end of the document.
