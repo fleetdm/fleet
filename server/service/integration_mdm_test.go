@@ -11348,20 +11348,23 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	s.awaitTriggerProfileSchedule(t)
 
-	// The profiles should be associated with the host we made
+	// The profiles should be associated with the host we made + the standard fleet config
 	profs, err := s.ds.GetHostMDMAppleProfiles(ctx, host.UUID)
 	require.NoError(t, err)
-	require.Len(t, profs, 2)
+	require.Len(t, profs, 3)
 
 	// Acknowledge the profiles so we can mark them as verified
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
-	cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
 
 	require.NoError(t, apple_mdm.VerifyHostMDMProfiles(context.Background(), s.ds, host, map[string]*fleet.HostMacOSProfile{
 		"I1": {Identifier: "I1", DisplayName: "I1", InstallDate: time.Now()},
 		"I2": {Identifier: "I2", DisplayName: "I2", InstallDate: time.Now()},
+		mobileconfig.FleetdConfigPayloadIdentifier: {Identifier: mobileconfig.FleetdConfigPayloadIdentifier, DisplayName: "I2", InstallDate: time.Now()},
 	}))
 
 	// Check that the profile is marked as verified when fetching the host
@@ -11387,7 +11390,6 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 			} else {
 				errChain = append(errChain, mdm.ErrorChain{ErrorCode: 96, ErrorDomain: "MDMClientError", USEnglishDescription: "Cannot replace profile 'I2' because it was not installed by the MDM server."})
 			}
-			fmt.Println("got removal request")
 			cmd, err = mdmDevice.Err(cmd.CommandUUID, errChain)
 			require.NoError(t, err)
 			continue
@@ -11404,8 +11406,12 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	getHostResp = getHostResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
 	for _, hm := range *getHostResp.Host.MDM.Profiles {
-		require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
-		require.Equal(t, expectedErrs[hm.Name], hm.Detail)
+		if wantErr, ok := expectedErrs[hm.Name]; ok {
+			require.Equal(t, fleet.MDMDeliveryFailed, *hm.Status)
+			require.Equal(t, wantErr, hm.Detail)
+			continue
+		}
+		require.Equal(t, fleet.MDMDeliveryVerified, *hm.Status)
 	}
 }
 
