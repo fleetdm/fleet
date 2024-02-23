@@ -6,9 +6,11 @@
 ℹ️  In Fleet 4.0, Teams were introduced.
 ```
 
+- [Overview](#overview)
+- [Naming conventions](#naming-conventions)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 
-## About teams
+## Overview
 
 In Fleet, you can group hosts together in a team.
 
