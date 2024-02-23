@@ -1190,15 +1190,15 @@ Note that when making changes to the `integrations` object, all integrations mus
     },
     "macos_settings": {
       "custom_settings": {
-            "path": "path/to/profile1.mobileconfig"
-            "labels": ["Label 1", "Label 2"]
+        "path": "path/to/profile1.mobileconfig",
+        "labels": ["Label 1", "Label 2"]
       },
       "enable_disk_encryption": true
     },
     "windows_settings": {
       "custom_settings": {
-            "path": "path/to/profile1.xml"
-            "labels": ["Label 1", "Label 2"]
+        "path": "path/to/profile1.xml",
+        "labels": ["Label 1", "Label 2"]
       }      
     },
     "end_user_authentication": {
@@ -2524,14 +2524,14 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
     "updated_at": "2022-10-14T17:07:11Z",
     "software": [
       {
-          "id": 16923,
-          "name": "Automat",
-          "version": "0.8.0",
-          "source": "python_packages",
-          "browser": "",
-          "generated_cpe": "",
-          "vulnerabilities": null,
-          "installed_paths": ["/usr/lib/some_path/"]
+        "id": 16923,
+        "name": "Automat",
+        "version": "0.8.0",
+        "source": "python_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
     "id": 33,
@@ -2603,52 +2603,52 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
         "failing_policies_count": 0
     },
     "labels": [
-            {
-            "created_at": "2021-09-14T05:11:02Z",
-            "updated_at": "2021-09-14T05:11:02Z",
-            "id": 12,
-            "name": "All Linux",
-            "description": "All Linux distributions",
-            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-            "platform": "",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-        }
+      {
+        "created_at": "2021-09-14T05:11:02Z",
+        "updated_at": "2021-09-14T05:11:02Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
     ],
     "packs": [
-          {
-            "created_at": "2021-09-17T05:28:54Z",
-            "updated_at": "2021-09-17T05:28:54Z",
-            "id": 1,
-            "name": "Global",
-            "description": "Global pack",
-            "disabled": false,
-            "type": "global",
-            "labels": null,
-            "label_ids": null,
-            "hosts": null,
-            "host_ids": null,
-            "teams": null,
-            "team_ids": null
-        }
+      {
+        "created_at": "2021-09-17T05:28:54Z",
+        "updated_at": "2021-09-17T05:28:54Z",
+        "id": 1,
+        "name": "Global",
+        "description": "Global pack",
+        "disabled": false,
+        "type": "global",
+        "labels": null,
+        "label_ids": null,
+        "hosts": null,
+        "host_ids": null,
+        "teams": null,
+        "team_ids": null
+      }
     ],
     "policies": [
       {
-            "id": 142,
-            "name": "Full disk encryption enabled (macOS)",
-            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
-            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
-            "author_id": 31,
-            "author_name": "",
-            "author_email": "",
-            "team_id": null,
-            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
-            "platform": "darwin,linux",
-            "created_at": "2022-09-02T18:52:19Z",
-            "updated_at": "2022-09-02T18:52:19Z",
-            "response": "fail",
-            "critical": false
-        }
+        "id": 142,
+        "name": "Full disk encryption enabled (macOS)",
+        "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+        "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+        "author_id": 31,
+        "author_name": "",
+        "author_email": "",
+        "team_id": null,
+        "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+        "platform": "darwin,linux",
+        "created_at": "2022-09-02T18:52:19Z",
+        "updated_at": "2022-09-02T18:52:19Z",
+        "response": "fail",
+        "critical": false
+      }
     ],
     "batteries": [
       {
@@ -4693,7 +4693,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       ]
     },
     {
-      "profile_uuid": f5ad01cc-f416-4b5f-88f3-a26da3b56a19,
+      "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
@@ -4702,11 +4702,11 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "aCLemVr)",
       "labels": [
        {
-        "name": "Label name 1",
-        "broken": true
+         "name": "Label name 1",
+         "broken": true
        },
        {
-        "name": "Label name 2"
+         "name": "Label name 2"
        }
       ]
     }
