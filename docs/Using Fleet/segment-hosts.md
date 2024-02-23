@@ -6,21 +6,13 @@
 ℹ️  In Fleet 4.0, Teams were introduced.
 ```
 
-- [View teams](#view-teams)
-- [Create a team](#create-a-team)
-- [Automatically adding hosts to a team](#automatically-adding-hosts-to-a-team)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
-- [Add users to a team](#add-users-to-a-team)
-- [Remove a user from a team](#remove-a-user-from-a-team)
-- [Remove a team](#remove-a-team)
+
+## About teams
 
 In Fleet, you can group hosts together in a team.
 
 With hosts segmented into exclusive teams, you can apply specific queries, policies, and agent options to each team.
-
-For example, you might create a team for each type of system in your organization. You can name the teams `Workstations`, `Workstations - sandbox`, `Servers`, and `Servers - sandbox`.
-
-> A popular pattern is to end a team’s name with “- sandbox”, then you can use this to test new queries and configuration with staging hosts or volunteers acting as canaries.
 
 Then you can:
 
@@ -34,10 +26,16 @@ Then you can:
 
 - Grant users access to one or more teams
 
-You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation.
+You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation. From there, you can add or remove teams, manage user access to teams, transfer hosts, or modify team settings.
+
+## Naming conventions
+
+One recommended approach is to create a team for each type of system in your organization. For example, you may have teams named: `Workstations`, `Workstations - sandbox`, `Servers`, and `Servers - sandbox`.
+
+(A popular pattern is to end a team’s name with "- sandbox" to test new queries and configuration with staging hosts or volunteers acting as canaries.)
 
 
-## Automatically adding hosts to a team
+## Adding hosts to a team
 
 Hosts can only belong to one team in Fleet.
 
