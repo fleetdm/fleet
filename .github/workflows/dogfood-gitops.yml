@@ -8,7 +8,6 @@ on:
       - 'it-and-security/**'
       - 'mdm_profiles/**'
       - '.github/workflows/dogfood-gitops.yml'
-  pull_request:
   workflow_dispatch: # allows manual triggering
 
 defaults:
