@@ -277,17 +277,6 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 	}
 }
 
-func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
-	switch p.OperationType {
-	case MDMOperationTypeRemove:
-		switch {
-		case strings.Contains(p.Detail, "MDMClientError (89)"):
-			return true
-		}
-	}
-	return false
-}
-
 type HostMDMProfileDetail string
 
 const (
