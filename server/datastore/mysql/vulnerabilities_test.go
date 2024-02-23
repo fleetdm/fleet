@@ -60,9 +60,10 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1236", 0, 20)
 	require.NoError(t, err)
 
+	// No Vulns unless OS or Software Vulns are inserted
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
-	require.Len(t, list, 3)
+	require.Len(t, list, 0)
 
 	// insert OS Vuln
 	_, err = ds.InsertOSVulnerabilities(context.Background(), []fleet.OSVulnerability{
