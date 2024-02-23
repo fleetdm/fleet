@@ -127,7 +127,7 @@ fleetctl user create --name "API User" --email api@example.com --password temp@p
 ```
 
 
-To use fleetctl with an API-only user, you will need to login via `fleetctl`.  Learn how to login in [section above](https://#authentication).
+To use fleetctl with an API-only user, you will need to log in via `fleetctl`.  See [authentication](https://#authentication) above for details.
 
 #### Permissions
 
