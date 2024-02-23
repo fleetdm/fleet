@@ -26,7 +26,7 @@ export default class TableOSVersion extends Table {
   async generate() {
     let warningsArray = [];
 
-    let _version = "";
+    let version = "";
     let name = "";
     let codename = "";
     let major = "";
@@ -43,21 +43,21 @@ export default class TableOSVersion extends Table {
 
       for (let entry of data.fullVersionList) {
         if (entry.brand === "Google Chrome") {
-          _version = entry.version;
+          version = entry.version;
           break;
         }
       }
-      if (_version === "") {
+      if (version === "") {
         throw new Error("environment does not look like Chrome");
       }
       name = this.getName(data.platform);
       codename = this.getCodename(data.platformVersion);
 
       // Note MAJOR.MINOR.BUILD.PATCH (see https://www.chromium.org/developers/version-numbers/)
-      const splits = _version.split(".");
+      const splits = version.split(".");
       if (splits.length !== 4) {
         console.warn(
-          `Chrome version ${_version} does not have expected 4 segments`
+          `Chrome version ${version} does not have expected 4 segments`
         );
       } else {
         [major, minor, build, patch] = splits;
@@ -100,7 +100,7 @@ export default class TableOSVersion extends Table {
       // we just hardcode to "chrome" so that Fleet always sees this Chrome extension as a Chrome
       // device even when we are doing local dev on a non-ChromeOS machine.
       const platformInfo = await chrome.runtime.getPlatformInfo();
-      arch = platformInfo;
+      arch = platformInfo.arch;
     } catch (err) {
       console.warn("get cpu info:", err);
       warningsArray.push({
@@ -113,17 +113,17 @@ export default class TableOSVersion extends Table {
     return {
       data: [
         {
-          name: name,
+          name,
           platform: "chrome",
           platform_like: "chrome",
-          version: _version,
+          version,
           major,
           minor,
           build,
           patch,
-          codename: codename,
+          codename,
           // https://developer.chrome.com/docs/extensions/reference/runtime/#type-PlatformArch
-          arch: arch,
+          arch,
         },
       ],
       warnings: warningsArray,
