@@ -41,10 +41,7 @@ org_settings:
     org_logo_url_light_background: ""
     org_name: Fleet Device Management
   secrets:
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET1
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET2
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET3
-    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET4
+    - secret: $DOGFOOD_GLOBAL_ENROLL_SECRET
   server_settings:
     debug_host_ids:
       - 1

@@ -7,14 +7,7 @@ team_settings:
     host_expiry_enabled: false
     host_expiry_window: 0
   secrets:
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET1
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET2
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET3
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET4
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET5
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET6
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET7
-    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET8
+    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
 agent_options:
   path: ../lib/agent-options.yml
 controls:
