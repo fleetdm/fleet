@@ -26,7 +26,7 @@ Then you can:
 
 - Run live queries against one or more teams
 
-- Grant users access to one or more teams
+- Grant users access to one or more team
 
 You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation. From there, you can add or remove teams, manage user access to teams, transfer hosts, or modify team settings.
 
