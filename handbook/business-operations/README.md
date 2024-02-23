@@ -150,7 +150,7 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 - Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
-  - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column
+  - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
   - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
   - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
   - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
