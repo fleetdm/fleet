@@ -38,7 +38,7 @@ import (
 
 func TestIntegrationsEnterprise(t *testing.T) {
 	testingSuite := new(integrationEnterpriseTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -3133,6 +3133,196 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
+	t := s.T()
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Only Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "order_key", "cvss_score", "order_direction", "asc")
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
+		Name:     "Windows 11 Enterprise 22H2",
+		Version:  "10.0.19042.1234",
+		Platform: "windows",
+	})
+	require.NoError(t, err)
+	allos, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	var os fleet.OperatingSystem
+	for _, o := range allos {
+		if o.ID > os.ID {
+			os = o
+		}
+	}
+
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: ptr.String("10.0.19043.2013"),
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
+		{Name: "foo", Version: "0.0.1", Source: "chrome_extensions"},
+	})
+	require.NoError(t, err)
+	sw := res.Inserted[0]
+
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw.ID,
+		CVE:        "CVE-2021-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert CVEMeta
+	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1234",
+		},
+		{
+			CVE:              "CVE-2021-1235",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1235",
+		},
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 2)
+	require.Equal(t, resp.Count, uint(2))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	expected := map[string]struct {
+		fleet.CVEMeta
+		HostCount   uint
+		DetailsLink string
+		Source      fleet.VulnerabilitySource
+	}{
+		"CVE-2021-1234": {
+			HostCount:   1,
+			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			CVEMeta: fleet.CVEMeta{
+				CVE:              "CVE-2021-1234",
+				CVSSScore:        ptr.Float64(7.5),
+				EPSSProbability:  ptr.Float64(0.5),
+				CISAKnownExploit: ptr.Bool(true),
+				Published:        ptr.Time(mockTime),
+				Description:      "Test CVE 2021-1234",
+			},
+		},
+		"CVE-2021-1235": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+			CVEMeta: fleet.CVEMeta{
+				CVE:              "CVE-2021-1235",
+				CVSSScore:        ptr.Float64(5.4),
+				EPSSProbability:  ptr.Float64(0.6),
+				CISAKnownExploit: ptr.Bool(false),
+				Published:        ptr.Time(mockTime),
+				Description:      "Test CVE 2021-1235",
+			},
+		},
+	}
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+	}
+
+	// EE Exploit Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "exploit", "true")
+	require.Len(t, resp.Vulnerabilities, 1)
+	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE)
+
+	// Test Team Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+	}
+
+	var gResp getVulnerabilityResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Equal(t, "Test CVE 2021-1234", gResp.Vulnerability.Description)
+	require.Equal(t, ptr.Float64(7.5), gResp.Vulnerability.CVSSScore)
+	require.Equal(t, ptr.Bool(true), gResp.Vulnerability.CISAKnownExploit)
+	require.Equal(t, ptr.Float64(0.5), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, ptr.Time(mockTime), gResp.Vulnerability.Published)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+}
+
 func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	t := s.T()
 
@@ -3146,13 +3336,16 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// set operating system information on a host
 	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
-	var osID uint
+	var osinfo struct {
+		ID          uint `db:"id"`
+		OSVersionID uint `db:"os_version_id"`
+	}
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &osID,
-			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
+		return sqlx.GetContext(context.Background(), q, &osinfo,
+			`SELECT id, os_version_id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
 			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
 	})
-	require.Greater(t, osID, uint(0))
+	require.Greater(t, osinfo.ID, uint(0))
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
@@ -3160,7 +3353,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	expected := resp.Hosts[0]
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osinfo.ID))
 	require.Len(t, resp.Hosts, 1)
 	require.Equal(t, expected, resp.Hosts[0])
 
@@ -3169,7 +3362,7 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 
 	// insert OS Vulns
 	_, err := s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
-		OSID: osID,
+		OSID: osinfo.ID,
 		CVE:  "CVE-2021-1234",
 	}, fleet.MSRCSource)
 	require.NoError(t, err)
@@ -3205,8 +3398,29 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
 
 	var osVersionResp getOSVersionResponse
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", 1), nil, http.StatusOK, &osVersionResp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
 	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
+
+	// OS versions with invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"99999",
+	)
+
+	// Create team and ask for the OS versions from the team (with no hosts) -- should get 404.
+	tr := teamResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/teams", createTeamRequest{
+			TeamPayload: fleet.TeamPayload{
+				Name: ptr.String("os_versions_team"),
+			},
+		}, http.StatusOK, &tr,
+	)
+	osVersionResp = getOSVersionResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		fmt.Sprintf("%d", tr.Team.ID),
+	)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
 	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
@@ -6197,7 +6411,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	// create a couple of teams and add tmHost to one
 	team1, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
 	require.NoError(t, err)
-	_, err = s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
+	team2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team2"})
 	require.NoError(t, err)
 	require.NoError(t, s.ds.AddHostsToTeam(ctx, &team1.ID, []uint{tmHost.ID}))
 
@@ -6542,6 +6756,26 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
 
+	// valid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", fooTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "homebrew",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{Version: "0.0.1", Vulnerabilities: nil, HostsCount: ptr.Uint(1)},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
 	// find the ID of "bar"
 	resp = listSoftwareTitlesResponse{}
 	s.DoJSON(
@@ -6573,6 +6807,63 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 			},
 		},
 	}, []fleet.SoftwareTitle{*stResp.SoftwareTitle})
+
+	// invalid title for team
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+
+	// add bar tmHost
+	software = []fleet.Software{
+		{Name: "bar", Version: "0.0.4", Source: "apps"},
+	}
+	_, err = s.ds.UpdateHostSoftware(context.Background(), tmHost.ID, software)
+	require.NoError(t, err)
+
+	// calculate hosts counts
+	hostsCountTs = time.Now().UTC()
+	require.NoError(t, s.ds.SyncHostsSoftware(context.Background(), hostsCountTs))
+	require.NoError(t, s.ds.ReconcileSoftwareTitles(ctx))
+	require.NoError(t, s.ds.SyncHostsSoftwareTitles(ctx, hostsCountTs))
+
+	// valid title with vulnerabilities
+	stResp = getSoftwareTitleResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusOK, &stResp,
+		"team_id", fmt.Sprintf("%d", team1.ID),
+	)
+	softwareTitlesMatch(
+		[]fleet.SoftwareTitle{
+			{
+				Name:          "bar",
+				Source:        "apps",
+				VersionsCount: 1,
+				HostsCount:    1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.4",
+						Vulnerabilities: &fleet.SliceString{"cve-123-123-132"},
+						HostsCount:      ptr.Uint(1),
+					},
+				},
+			},
+		}, []fleet.SoftwareTitle{*stResp.SoftwareTitle},
+	)
+
+	// Team without hosts
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", fmt.Sprintf("%d", team2.ID),
+	)
+
+	// Non-existent team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
+		"team_id", "99999",
+	)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {

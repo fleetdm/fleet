@@ -39,6 +39,10 @@ export interface ISoftware {
   installed_paths?: string[];
 }
 
+export type IVulnerabilitySoftware = Omit<ISoftware, "vulnerabilities"> & {
+  resolved_in_version: string;
+};
+
 export interface ISoftwareTitleVersion {
   id: number;
   version: string;
@@ -52,7 +56,7 @@ export interface ISoftwareTitle {
   versions_count: number;
   source: string;
   hosts_count: number;
-  versions: ISoftwareTitleVersion[];
+  versions: ISoftwareTitleVersion[] | null;
   browser: string;
 }
 
@@ -65,6 +69,7 @@ export interface ISoftwareVulnerability {
   cve_published?: string | null;
   cve_description?: string | null;
   resolved_in_version?: string | null;
+  created_at?: string | null;
 }
 
 export interface ISoftwareVersion {
