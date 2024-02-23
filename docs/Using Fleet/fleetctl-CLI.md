@@ -93,7 +93,7 @@ Password:
 
 Once your local context is configured, you can use `fleetctl` normally.
 
-### Login with SAML (SSO) authentication
+### Log in with SAML (SSO) authentication
 
 Users that authenticate to Fleet via SSO should retrieve their API token from the UI and set it manually in their `fleetctl` configuration (instead of logging in via `fleetctl login`).
 
