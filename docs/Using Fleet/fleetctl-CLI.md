@@ -150,7 +150,7 @@ To change roles of a current user, log into the Fleet UI as an admin and navigat
 
 ### Get API token for API-only user
 
-To get the API key of an API-only user, you need to call the [Login API](https://fleetdm.com/docs/rest-api/rest-api#log-in) with the credentials supplied during user creation.
+To get the API key of an API-only user, you need to call the [login API](https://fleetdm.com/docs/rest-api/rest-api#log-in) with the credentials supplied during user creation.
 
 ```sh
 curl --location --request POST 'https://fleet.example.com/api/v1/fleet/login' \
