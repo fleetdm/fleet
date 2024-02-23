@@ -132,7 +132,9 @@ const SoftwareVulnerabilitiesTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!data || query !== "" || showExploitedVulnerabilitiesOnly);
+    (!!data?.vulnerabilities ||
+      query !== "" ||
+      showExploitedVulnerabilitiesOnly);
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
@@ -267,7 +269,6 @@ const SoftwareVulnerabilitiesTable = ({
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
-        stackControls
         renderCount={renderVulnerabilityCount}
         renderFooter={renderTableFooter}
         disableMultiRowSelect
