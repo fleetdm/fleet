@@ -18,7 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
 
-	"github.com/micromdm/scep/v2/depot"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 )
 
 func TestMDMAppleConfigProfile(t *testing.T) {

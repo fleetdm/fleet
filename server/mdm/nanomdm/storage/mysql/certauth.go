@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -38,14 +39,18 @@ func (s *MySQLStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, 
 	)
 }
 
-func (s *MySQLStorage) AssociateCertHash(r *mdm.Request, hash string) error {
+func (s *MySQLStorage) AssociateCertHash(r *mdm.Request, hash string, certNotValidAfter time.Time) error {
 	_, err := s.db.ExecContext(
 		r.Context, `
-INSERT INTO nano_cert_auth_associations (id, sha256) VALUES (?, ?)
+INSERT INTO nano_cert_auth_associations (id, sha256, cert_not_valid_after) VALUES (?, ?, ?)
 ON DUPLICATE KEY
-UPDATE sha256 = VALUES(sha256);`,
+UPDATE
+	sha256 = VALUES(sha256),
+	cert_not_valid_after = VALUES(cert_not_valid_after),
+	renew_command_uuid = NULL;`,
 		r.ID,
 		strings.ToLower(hash),
+		certNotValidAfter,
 	)
 	return err
 }

@@ -70,6 +70,8 @@ const DEFAULT_HOST_MOCK: IHost = {
       details: "",
       bootstrap_package_name: "",
     },
+    device_status: "unlocked",
+    pending_action: "",
   },
   public_ip: "",
   primary_ip: "172.23.0.3",

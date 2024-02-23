@@ -265,6 +265,21 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All vulnerabilities",
+    value: false,
+    helpText: "All vulnerabilities detected on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Exploited vulnerabilities",
+    value: true,
+    helpText: "Vulnerabilities that have been actively exploited in the wild.",
+  },
+];
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (
@@ -307,3 +322,41 @@ export const EMPTY_AGENT_OPTIONS = {
 export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
+
+export const HOST_SUMMARY_DATA = [
+  "id",
+  "status",
+  "issues",
+  "memory",
+  "cpu_type",
+  "platform",
+  "os_version",
+  "osquery_version",
+  "enroll_secret_name",
+  "detail_updated_at",
+  "percent_disk_space_available",
+  "gigs_disk_space_available",
+  "team_name",
+  "disk_encryption_enabled",
+  "display_name", // Not rendered on my device page
+];
+
+export const HOST_ABOUT_DATA = [
+  "seen_time",
+  "uptime",
+  "last_enrolled_at",
+  "hardware_model",
+  "hardware_serial",
+  "primary_ip",
+  "public_ip",
+  "geolocation",
+  "batteries",
+  "detail_updated_at",
+  "last_restarted_at",
+];
+
+export const HOST_OSQUERY_DATA = [
+  "config_tls_refresh",
+  "logger_tls_period",
+  "distributed_interval",
+];

@@ -99,6 +99,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByName", testHostsIDsByName},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -113,6 +114,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -2483,8 +2485,76 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
-	require.Error(t, err)
-	require.Nil(t, h)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+}
+
+func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 10; i++ {
+		_, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				OsqueryHostID:   ptr.String(fmt.Sprintf("osquery_host_id_%d", i)),
+				NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
+				UUID:            fmt.Sprintf("uuid_%d", i),
+				Hostname:        fmt.Sprintf("hostname_%d", i),
+				HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	var (
+		h   *fleet.HostLite
+		err error
+	)
+	identifier := "uuid_1"
+	h, err = ds.HostLiteByIdentifier(context.Background(), identifier)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	// Also test fetching host by ID
+	h, err = ds.HostLiteByID(context.Background(), h.ID)
+	require.NoError(t, err)
+	assert.Equal(t, identifier, h.UUID)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
+	require.NoError(t, err)
+	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "serial_9")
+	require.NoError(t, err)
+	assert.Equal(t, uint(9), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "foobar")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByID(context.Background(), 0)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -3071,6 +3141,84 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.2")}, 3)
 	for _, h := range hosts {
 		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
+}
+
+func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 9; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// seed software
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+	}
+
+	// add software to 5 hosts
+	var swVulnHostIDs []uint
+	for i := 0; i < 5; i++ {
+		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software)
+		require.NoError(t, err)
+		swVulnHostIDs = append(swVulnHostIDs, hosts[i].ID)
+	}
+
+	// seed software vulnerabilities
+	vuln := fleet.SoftwareVulnerability{
+		CVE:        "CVE-2021-1234",
+		SoftwareID: 1,
+	}
+
+	_, err := ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err := ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1234")})
+	require.NoError(t, err)
+	require.Len(t, list, 5)
+	for _, h := range list {
+		require.Contains(t, swVulnHostIDs, h.ID)
+	}
+
+	// update 2 host operating system
+	os := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "20.4.0 LTS",
+		Arch:          "x86_64",
+		Platform:      "ubuntu",
+		KernelVersion: "5.10.76-linuxkit",
+	}
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, os)
+	require.NoError(t, err)
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[1].ID, os)
+	require.NoError(t, err)
+
+	// seed os vulnerability
+	osVulns := []fleet.OSVulnerability{
+		{
+			OSID: 1,
+			CVE:  "CVE-2021-1235",
+		},
+	}
+	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err = ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1235")})
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	for _, h := range list {
+		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
 }
 
@@ -6390,8 +6538,8 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
 
 	// Update the host_mdm_actions table
 	_, err = ds.writer(context.Background()).Exec(`
-          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref, suspended)
-          VALUES (?, uuid(), uuid(), false)
+          INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref)
+          VALUES (?, uuid(), uuid())
 	`, host.ID)
 	require.NoError(t, err)
 

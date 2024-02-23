@@ -48,9 +48,9 @@ const Packs = ({ packsState, isLoading }: IPacksProps): JSX.Element => {
                       data={generatePackDataSet(pack.query_stats)}
                       isLoading={isLoading}
                       onQueryChange={() => null}
-                      resultsTitle={"queries"}
-                      defaultSortHeader={"scheduled_query_name"}
-                      defaultSortDirection={"asc"}
+                      resultsTitle="queries"
+                      defaultSortHeader="scheduled_query_name"
+                      defaultSortDirection="asc"
                       showMarkAllPages={false}
                       isAllPagesSelected={false}
                       emptyComponent={() => <></>}

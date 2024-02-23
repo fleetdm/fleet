@@ -32,7 +32,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
@@ -41,7 +40,6 @@ import (
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
 	level.Error(logger).Log("msg", msg, "err", err)
-	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
 }
 
@@ -101,6 +99,11 @@ func cronVulnerabilities(
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
+		}
+
+		level.Info(logger).Log("msg", "updating vulnerability host counts")
+		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
+			return fmt.Errorf("updating vulnerability host counts: %w", err)
 		}
 	}
 
@@ -705,6 +708,7 @@ func newCleanupsAndAggregationSchedule(
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -803,6 +807,12 @@ func newCleanupsAndAggregationSchedule(
 			"verify_disk_encryption_keys",
 			func(ctx context.Context) error {
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
+			},
+		),
+		schedule.WithJob(
+			"renew_scep_certificates",
+			func(ctx context.Context) error {
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
 			},
 		),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {

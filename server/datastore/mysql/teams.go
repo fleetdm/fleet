@@ -283,6 +283,15 @@ func (ds *Datastore) TeamsSummary(ctx context.Context) ([]*fleet.TeamSummary, er
 	return teamsSummary, nil
 }
 
+func (ds *Datastore) TeamExists(ctx context.Context, teamID uint) (bool, error) {
+	var exists bool
+	err := ds.writer(ctx).GetContext(ctx, &exists, "SELECT EXISTS(SELECT 1 FROM teams WHERE id = ?)", teamID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "team exists")
+	}
+	return exists, nil
+}
+
 func (ds *Datastore) SearchTeams(ctx context.Context, filter fleet.TeamFilter, matchQuery string, omit ...uint) ([]*fleet.Team, error) {
 	sql := fmt.Sprintf(`
 			SELECT *,

@@ -9,7 +9,7 @@ const DEFAULT_OS_VERSION: IOperatingSystemVersion = {
   version: "10.15.7",
   platform: "darwin",
   hosts_count: 1,
-  generated_cpe: "cpe:/o:apple:mac_os_x:10.15.7",
+  generated_cpes: ["cpe:/o:apple:mac_os_x:10.15.7"],
   vulnerabilities: [createMockSoftwareVulnerability()],
 };
 

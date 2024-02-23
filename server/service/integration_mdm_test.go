@@ -85,6 +85,7 @@ type integrationMDMTestSuite struct {
 	onDEPScheduleDone    func() // function called when depSchedule.Trigger() job completed
 	mdmStorage           *mysql.NanoMDMStorage
 	worker               *worker.Worker
+	mdmCommander         *apple_mdm.MDMAppleCommander
 }
 
 func (s *integrationMDMTestSuite) SetupSuite() {
@@ -200,6 +201,7 @@ func (s *integrationMDMTestSuite) SetupSuite() {
 	s.depSchedule = depSchedule
 	s.profileSchedule = profileSchedule
 	s.mdmStorage = mdmStorage
+	s.mdmCommander = mdmCommander
 
 	macosJob := &worker.MacosSetupAssistant{
 		Datastore:  s.ds,
@@ -7092,8 +7094,13 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 	require.NoError(t, err)
 	require.Equal(t, len(body), headerLen)
 
+	return s.verifyEnrollmentProfile(body, "")
+}
+
+func (s *integrationMDMTestSuite) verifyEnrollmentProfile(rawProfile []byte, enrollmentRef string) *enrollmentProfile {
+	t := s.T()
 	var profile enrollmentProfile
-	require.NoError(t, plist.Unmarshal(body, &profile))
+	require.NoError(t, plist.Unmarshal(rawProfile, &profile))
 
 	for _, p := range profile.PayloadContent {
 		switch p.PayloadType {
@@ -7101,8 +7108,10 @@ func (s *integrationMDMTestSuite) downloadAndVerifyEnrollmentProfile(path string
 			require.Equal(t, s.getConfig().ServerSettings.ServerURL+apple_mdm.SCEPPath, p.PayloadContent.URL)
 			require.Equal(t, s.fleetCfg.MDM.AppleSCEPChallenge, p.PayloadContent.Challenge)
 		case "com.apple.mdm":
-			// Use Contains as the url may have query params
 			require.Contains(t, p.ServerURL, s.getConfig().ServerSettings.ServerURL+apple_mdm.MDMPath)
+			if enrollmentRef != "" {
+				require.Contains(t, p.ServerURL, enrollmentRef)
+			}
 		default:
 			require.Failf(t, "unrecognized payload type in enrollment profile: %s", p.PayloadType)
 		}
@@ -11000,6 +11009,95 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 	checkInstallFleetdCommandSent(mdmDevice, false)
 }
 
+func (s *integrationMDMTestSuite) TestLockUnlockWindowsLinux() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create an MDM-enrolled Windows host
+	winHost, _ := createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+	linuxHost := createOrbitEnrolledHost(t, "linux", "lock_unlock_linux", s.ds)
+
+	for _, host := range []*fleet.Host{winHost, linuxHost} {
+		t.Run(host.FleetPlatform(), func(t *testing.T) {
+			// get the host's information
+			var getHostResp getHostResponse
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// try to unlock the host (which is already its status)
+			var unlockResp unlockHostResponse
+			s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusConflict, &unlockResp)
+
+			// lock the host
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusNoContent)
+
+			// refresh the host's status, it is now pending lock
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "lock", *getHostResp.Host.MDM.PendingAction)
+
+			// try locking the host while it is pending lock fails
+			res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusUnprocessableEntity)
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Host has pending lock request.")
+
+			// simulate a successful script result for the lock command
+			status, err := s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			require.NoError(t, err)
+
+			var orbitScriptResp orbitPostScriptResultResponse
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, status.LockScript.ExecutionID)),
+				http.StatusOK, &orbitScriptResp)
+
+			// refresh the host's status, it is now locked
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+
+			// try to lock the host again
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", host.ID), nil, http.StatusConflict)
+
+			// unlock the host
+			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusNoContent)
+
+			// refresh the host's status, it is locked pending unlock
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+			// try unlocking the host while it is pending unlock fails
+			res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusUnprocessableEntity)
+			errMsg = extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, "Host has pending unlock request.")
+
+			// simulate a failed script result for the unlock command
+			status, err = s.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+			require.NoError(t, err)
+
+			s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+				json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": -1, "output": "fail"}`, *host.OrbitNodeKey, status.UnlockScript.ExecutionID)),
+				http.StatusOK, &orbitScriptResp)
+
+			// refresh the host's status, it is still locked, no pending action
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
+		})
+	}
+}
+
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 	t := s.T()
 
@@ -11233,4 +11331,113 @@ func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
 
 func (s *integrationMDMTestSuite) TestGetManualEnrollmentProfile() {
 	s.downloadAndVerifyEnrollmentProfile("/api/latest/fleet/mdm/manual_enrollment_profile")
+}
+
+func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
+	t := s.T()
+	ctx := context.Background()
+	// ensure there's a token for automatic enrollments
+	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"auth_session_token": "xyz"}`))
+	}))
+	s.runDEPSchedule()
+
+	// add a device that's manually enrolled
+	desktopToken := uuid.New().String()
+	manualHost := createOrbitEnrolledHost(t, "darwin", "h1", s.ds)
+	err := s.ds.SetOrUpdateDeviceAuthToken(context.Background(), manualHost.ID, desktopToken)
+	require.NoError(t, err)
+	manualEnrolledDevice := mdmtest.NewTestMDMClientAppleDesktopManual(s.server.URL, desktopToken)
+	manualEnrolledDevice.UUID = manualHost.UUID
+	err = manualEnrolledDevice.Enroll()
+	require.NoError(t, err)
+
+	// add a device that's automatically enrolled
+	automaticHost := createOrbitEnrolledHost(t, "darwin", "h2", s.ds)
+	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+	automaticEnrolledDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	automaticEnrolledDevice.UUID = automaticHost.UUID
+	automaticEnrolledDevice.SerialNumber = automaticHost.HardwareSerial
+	err = automaticEnrolledDevice.Enroll()
+	require.NoError(t, err)
+
+	// add a device that's automatically enrolled with a server ref
+	automaticHostWithRef := createOrbitEnrolledHost(t, "darwin", "h3", s.ds)
+	automaticEnrolledDeviceWithRef := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+	automaticEnrolledDeviceWithRef.UUID = automaticHostWithRef.UUID
+	automaticEnrolledDeviceWithRef.SerialNumber = automaticHostWithRef.HardwareSerial
+	err = automaticEnrolledDeviceWithRef.Enroll()
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, automaticHostWithRef.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "foo"))
+	require.NoError(t, err)
+
+	cert, key, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	fleetCfg := config.TestConfig()
+	config.SetTestMDMConfig(s.T(), &fleetCfg, cert, key, testBMToken, "")
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	// run without expired certs, no command enqueued
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	// expire all the certs we just created
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `
+                  UPDATE nano_cert_auth_associations
+                  SET cert_not_valid_after = DATE_SUB(CURDATE(), INTERVAL 1 YEAR)
+                  WHERE id IN (?, ?, ?)
+		`, manualHost.UUID, automaticHost.UUID, automaticHostWithRef.UUID)
+		return err
+	})
+
+	// generate a new config here so we can manipulate the certs.
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	checkRenewCertCommand := func(device *mdmtest.TestAppleMDMClient, enrollRef string) {
+		var renewCmd *micromdm.CommandPayload
+		cmd, err := device.Idle()
+		require.NoError(t, err)
+		for cmd != nil {
+			if cmd.Command.RequestType == "InstallProfile" {
+				renewCmd = cmd
+			}
+			cmd, err = device.Acknowledge(cmd.CommandUUID)
+			require.NoError(t, err)
+		}
+		require.NotNil(t, renewCmd)
+		s.verifyEnrollmentProfile(renewCmd.Command.InstallProfile.Payload, enrollRef)
+	}
+
+	checkRenewCertCommand(manualEnrolledDevice, "")
+	checkRenewCertCommand(automaticEnrolledDevice, "")
+	checkRenewCertCommand(automaticEnrolledDeviceWithRef, "foo")
+
+	// another cron run shouldn't enqueue more commands
+	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
+	require.NoError(t, err)
+
+	cmd, err = manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
 }

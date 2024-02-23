@@ -31,6 +31,13 @@ export interface ILoadHostsResponse {
   mobile_device_management_solution: IMdmSolution;
 }
 
+export type IUnlockHostResponse =
+  | {
+      host_id: number;
+      unlock_pin: string;
+    }
+  | Record<string, never>;
+
 // the source of truth for the filter option names.
 // there are used on many other pages but we define them here.
 // TODO: add other filter options here.
@@ -65,6 +72,7 @@ export interface ILoadHostsOptions {
   osVersionId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   munkiIssueId?: number;
   device_mapping?: boolean;
   columns?: string;
@@ -95,6 +103,7 @@ export interface IExportHostsOptions {
   osId?: number;
   osName?: string;
   osVersion?: string;
+  vulnerability?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
@@ -194,6 +203,7 @@ export default {
     const munkiIssueId = options?.munkiIssueId;
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const vulnerability = options?.vulnerability;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -222,6 +232,7 @@ export default {
         lowDiskSpaceHosts,
         osSettings,
         diskEncryptionStatus,
+        vulnerability,
       }),
       status,
       label_id: label,
@@ -254,6 +265,7 @@ export default {
     osVersionId,
     osName,
     osVersion,
+    vulnerability,
     device_mapping,
     selectedLabels,
     sortBy,
@@ -292,6 +304,7 @@ export default {
         osVersionId,
         osName,
         osVersion,
+        vulnerability,
         diskEncryptionStatus,
         osSettings,
         bootstrapPackageStatus,
@@ -378,5 +391,14 @@ export default {
   getEncryptionKey: (id: number) => {
     const { HOST_ENCRYPTION_KEY } = endpoints;
     return sendRequest("GET", HOST_ENCRYPTION_KEY(id));
+  },
+
+  lockHost: (id: number) => {
+    const { HOST_LOCK } = endpoints;
+    return sendRequest("POST", HOST_LOCK(id));
+  },
+  unlockHost: (id: number): Promise<IUnlockHostResponse> => {
+    const { HOST_UNLOCK } = endpoints;
+    return sendRequest("POST", HOST_UNLOCK(id));
   },
 };

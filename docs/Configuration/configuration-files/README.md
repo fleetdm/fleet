@@ -234,6 +234,9 @@ spec:
     secrets:
       - secret: RzTlxPvugG4o4O5IKS/HqEDJUmI1hwBoffff
       - secret: JZ/C/Z7ucq22dt/zjx2kEuDBN0iLjqfz
+    host_expiry_settings: 
+      host_expiry_enabled: true 
+      host_expiry_window: 14
     mdm:
       macos_updates:
         minimum_version: "12.3.1"
@@ -1147,11 +1150,9 @@ Enables or disables Windows MDM support.
 
 **Applies only to Fleet Premium**.
 
-The following options allow configuring the behavior of Nudge for macOS hosts that belong to no team and are enrolled into Fleet's MDM.
+The following options allow configuring OS updates for macOS hosts.
 
 ##### mdm.macos_updates.minimum_version
-
-Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version.
 
 Requires `mdm.macos_updates.deadline` to be set.
 
@@ -1167,8 +1168,6 @@ Requires `mdm.macos_updates.deadline` to be set.
 
 A deadline in the form of `YYYY-MM-DD`. The exact deadline time is at 04:00:00 (UTC-8).
 
-Hosts that belong to no team and are enrolled into Fleet's MDM won't be able to dismiss the Nudge window once this deadline is past.
-
 Requires `mdm.macos_updates.minimum_version` to be set.
 
 - Default value: ""
@@ -1177,6 +1176,36 @@ Requires `mdm.macos_updates.minimum_version` to be set.
   mdm:
     macos_updates:
       deadline: "2022-01-01"
+  ```
+
+##### mdm.windows_updates
+
+**Applies only to Fleet Premium**.
+
+The following options allow configuring OS updates for Windows hosts.
+
+##### mdm.windows_updates.deadline
+
+A deadline in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      deadline_days: "5"
+  ```
+
+##### mdm.windows_updates.grace_period
+
+A grace period in days.
+
+- Default value: ""
+- Config file format:
+  ```yaml
+  mdm:
+    windows_updates:
+      grace_period_days: "2"
   ```
 
 ##### mdm.macos_settings

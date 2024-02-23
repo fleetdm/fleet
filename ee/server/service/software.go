@@ -12,7 +12,7 @@ func (svc *Service) ListSoftware(ctx context.Context, opts fleet.SoftwareListOpt
 	return svc.Service.ListSoftware(ctx, opts)
 }
 
-func (svc *Service) SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*fleet.Software, error) {
+func (svc *Service) SoftwareByID(ctx context.Context, id uint, teamID *uint, _ bool) (*fleet.Software, error) {
 	// reuse SoftwareByID, but include cve scores in premium version
-	return svc.Service.SoftwareByID(ctx, id, true)
+	return svc.Service.SoftwareByID(ctx, id, teamID, true)
 }

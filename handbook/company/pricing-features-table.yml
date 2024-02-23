@@ -39,7 +39,7 @@
   friendlyName: Safely execute custom scripts (macOS, Windows, and Linux)
   description: Deploy and execute custom scripts using a REST API, and manage your library of scripts in the UI or a git repo.
   documentationUrl: https://fleetdm.com/docs/using-fleet/scripts
-  tier: Premium
+  tier: Free
   dri: mikermcneil
   usualDepartment: IT
   productCategories: [Endpoint operations,Device management]
@@ -533,7 +533,7 @@
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14550
     - description: Target profiles to specific hosts using SQL.
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/14715
-    - description: Automatically re-deploy configuration profiles on macOS they're not installed.
+    - description: Automatically re-deploy configuration profiles when they're not installed.
   productCategories: [Device management]
   pricingTableCategories: [Device management]
 - industryName: Self service
@@ -571,8 +571,8 @@
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   waysToUse:
-    - description: Ship a macOS workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
-    - description: Ship a Windows workstation to the end users home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a macOS workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
+    - description: Ship a Windows workstation to the end user's home and have them automatically enroll to Fleet during out-of-the-box setup.
     - description: Customize the out-of-the-box setup experience for your end users.
     - description: Require end users to authenticate with your identity provider (IdP) and agree to an end user license agreement (EULA) before they can use their new workstation
 - industryName: Enforce OS updates
@@ -583,7 +583,7 @@
   pricingTableCategories: [Device management]
   waysToUse:
     - description: Enforce macOS updates via Nudge.
-    - description: Automatically update Windows after the end user reaches a deadline. Coming soon (2023-12-30) #Customer-preston
+    - description: Automatically update Windows after the end user reaches a deadline.
 - industryName: Encrypt macOS hard disks with FileVault
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   tier: Premium
@@ -732,11 +732,6 @@
   tier: Premium
   waysToUse:
     - description: Automatically set admin access to Fleet based on your IDP
-- industryName: Vanta integration
-  productCategories: [Endpoint operations,Device management]
-  pricingTableCategories: [Integrations]
-  usualDepartment: IT
-  tier: Premium
 - industryName: Trigger a workflow based on a failing policy
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
@@ -848,3 +843,9 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+- industryName: Asset discovery* #Coming soon (TBD)
+  tier: Premium
+  usualDepartment: Security
+  productCategories: [Vulnerability management]
+  pricingTableCategories: [Vulnerability management]
+  comingSoonOn: 2024-06-30
