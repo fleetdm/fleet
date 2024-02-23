@@ -1067,3 +1067,13 @@ spec:
   purpose: Informational
   tags: inventory
   contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: List osquery table names
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual
