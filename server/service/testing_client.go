@@ -342,7 +342,7 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusTemporaryRedirect)
+	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 
