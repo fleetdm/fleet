@@ -22,9 +22,9 @@ Then you can:
 
 - Apply unique agent options to each team
 
-- Schedule queries that target one or more teams
+- Schedule queries that target one or more team
 
-- Run live queries against one or more teams
+- Run live queries against one or more team
 
 - Grant users access to one or more team
 
