@@ -4718,7 +4718,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
 }
 ```
 
-If one or more assigned labels are deleted profile is broken (`broken: true`). It won’t be applied to new hosts.
+If one or more assigned labels are deleted the profile is considered broken (`broken: true`). It won’t be applied to new hosts.
 
 ### Get or download custom OS setting (configuration profile)
 
