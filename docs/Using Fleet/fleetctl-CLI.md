@@ -81,7 +81,7 @@ To log in to your Fleet instance, run following commands:
 [+] Set the address config key to "https://fleet.example.com" in the "default" context
 ```
 
-2. Login with your credentials
+2. Log in with your credentials
 
 ```sh
 > fleetctl login
