@@ -3232,7 +3232,7 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Empty(t, resp.Err)
 
 	expected := map[string]struct {
-		fleet.CVEMeta
+		fleet.CVE
 		HostCount   uint
 		DetailsLink string
 		Source      fleet.VulnerabilitySource
@@ -3240,41 +3240,41 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 		"CVE-2021-1234": {
 			HostCount:   1,
 			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
-			CVEMeta: fleet.CVEMeta{
+			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1234",
-				CVSSScore:        ptr.Float64(7.5),
-				EPSSProbability:  ptr.Float64(0.5),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2021-1234",
+				CVSSScore:        ptr.Float64Ptr(7.5),
+				EPSSProbability:  ptr.Float64Ptr(0.5),
+				CISAKnownExploit: ptr.BoolPtr(true),
+				CVEPublished:     ptr.TimePtr(mockTime),
+				Description:      ptr.StringPtr("Test CVE 2021-1234"),
 			},
 		},
 		"CVE-2021-1235": {
 			HostCount:   1,
 			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
-			CVEMeta: fleet.CVEMeta{
+			CVE: fleet.CVE{
 				CVE:              "CVE-2021-1235",
-				CVSSScore:        ptr.Float64(5.4),
-				EPSSProbability:  ptr.Float64(0.6),
-				CISAKnownExploit: ptr.Bool(false),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2021-1235",
+				CVSSScore:        ptr.Float64Ptr(5.4),
+				EPSSProbability:  ptr.Float64Ptr(0.6),
+				CISAKnownExploit: ptr.BoolPtr(false),
+				CVEPublished:     ptr.TimePtr(mockTime),
+				Description:      ptr.StringPtr("Test CVE 2021-1235"),
 			},
 		},
 	}
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
-		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.CVE.CVE, vuln.CVE.CVE)
 	}
 
 	// EE Exploit Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "exploit", "true")
 	require.Len(t, resp.Vulnerabilities, 1)
-	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE)
+	require.Equal(t, "CVE-2021-1234", resp.Vulnerabilities[0].CVE.CVE)
 
 	// Test Team Filter
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
@@ -3296,24 +3296,24 @@ func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	require.Empty(t, resp.Err)
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
-		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.CVE.CVE, vuln.CVE.CVE)
 	}
 
 	var gResp getVulnerabilityResponse
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
-	require.Equal(t, "Test CVE 2021-1234", gResp.Vulnerability.Description)
-	require.Equal(t, ptr.Float64(7.5), gResp.Vulnerability.CVSSScore)
-	require.Equal(t, ptr.Bool(true), gResp.Vulnerability.CISAKnownExploit)
-	require.Equal(t, ptr.Float64(0.5), gResp.Vulnerability.EPSSProbability)
-	require.Equal(t, ptr.Time(mockTime), gResp.Vulnerability.Published)
+	require.Equal(t, ptr.StringPtr("Test CVE 2021-1234"), gResp.Vulnerability.Description)
+	require.Equal(t, ptr.Float64Ptr(7.5), gResp.Vulnerability.CVSSScore)
+	require.Equal(t, ptr.BoolPtr(true), gResp.Vulnerability.CISAKnownExploit)
+	require.Equal(t, ptr.Float64Ptr(0.5), gResp.Vulnerability.EPSSProbability)
+	require.Equal(t, ptr.TimePtr(mockTime), gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
@@ -6863,7 +6863,6 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 		"GET", fmt.Sprintf("/api/latest/fleet/software/titles/%d", barTitle.ID), getSoftwareTitleRequest{}, http.StatusNotFound, &stResp,
 		"team_id", "99999",
 	)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
@@ -7334,5 +7333,4 @@ func (s *integrationEnterpriseTestSuite) TestSoftwareAuth() {
 
 	// set the admin token again to avoid breaking other tests
 	s.token = s.getTestAdminToken()
-
 }
