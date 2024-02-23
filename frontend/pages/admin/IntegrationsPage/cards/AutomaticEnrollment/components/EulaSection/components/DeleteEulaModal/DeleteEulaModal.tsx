@@ -14,7 +14,7 @@ const DeleteEulaModal = ({ onDelete, onCancel }: IDeleteEulaModalProps) => {
   return (
     <Modal
       className={baseClass}
-      title={"Delete EULA"}
+      title="Delete EULA"
       onExit={onCancel}
       onEnter={() => onDelete()}
     >

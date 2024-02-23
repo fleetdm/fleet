@@ -138,7 +138,7 @@ const SoftwareOSTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
+        whatToRetrieve="software"
       />
     );
   };
@@ -176,7 +176,7 @@ const SoftwareOSTable = ({
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}

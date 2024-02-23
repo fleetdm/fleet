@@ -965,7 +965,7 @@ const ActivityItem = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {renderActivityPrefix()}

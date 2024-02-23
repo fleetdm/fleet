@@ -330,7 +330,7 @@ const TableContainer = ({
                 <div />
               )}
             </span>
-            <span className={"controls"}>
+            <span className="controls">
               {actionButton && !actionButton.hideButton && (
                 <Button
                   disabled={disableActionButton}
