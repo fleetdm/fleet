@@ -10,7 +10,7 @@ fleetctl also provides a quick way to work with all the data exposed by Fleet wi
 
 ## Installing fleetctl
 
-Install the fleetctl with npm or download binary from [GitHub](https://github.com/fleetdm/fleet/releases).
+Install fleetctl with npm or download the binary from [GitHub](https://github.com/fleetdm/fleet/releases).
 
 ```sh
 npm install -g fleetctl
