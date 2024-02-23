@@ -370,6 +370,21 @@ func TestMDMLockCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
+	winEnrolledWP := &fleet.Host{
+		ID:       12,
+		UUID:     "win-enrolled-wp",
+		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	macEnrolledWP := &fleet.Host{
+		ID:       13,
+		UUID:     "mac-enrolled-wp",
+		Platform: "darwin",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+
 	hostByUUID := make(map[string]*fleet.Host)
 	hostsByID := make(map[uint]*fleet.Host)
 	for _, h := range []*fleet.Host{
@@ -384,6 +399,8 @@ func TestMDMLockCommand(t *testing.T) {
 		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
+		winEnrolledWP,
+		macEnrolledWP,
 	} {
 		hostByUUID[h.UUID] = h
 		hostsByID[h.ID] = h
@@ -393,9 +410,15 @@ func TestMDMLockCommand(t *testing.T) {
 		winEnrolledUP.ID: winEnrolledUP,
 		macEnrolledUP.ID: macEnrolledUP,
 	}
+
 	lockPending := map[uint]*fleet.Host{
 		winEnrolledLP.ID: winEnrolledLP,
 		macEnrolledLP.ID: macEnrolledLP,
+	}
+
+	wipePending := map[uint]*fleet.Host{
+		winEnrolledWP.ID: winEnrolledWP,
+		macEnrolledWP.ID: macEnrolledWP,
 	}
 
 	ds := setupTestServer(t)
@@ -425,6 +448,17 @@ func TestMDMLockCommand(t *testing.T) {
 			}
 
 			status.LockScript = &fleet.HostScriptResult{}
+		}
+
+		if _, ok := wipePending[host.ID]; ok {
+			if fleetPlatform == "linux" {
+				status.WipeScript = &fleet.HostScriptResult{ExitCode: nil}
+				return &status, nil
+			}
+
+			status.WipeMDMCommand = &fleet.MDMCommand{}
+			status.WipeMDMCommandResult = nil
+			return &status, nil
 		}
 
 		return &status, nil
@@ -474,7 +508,8 @@ fleetctl mdm unlock --host=%s
 		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, "Host has pending unlock request."},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
-		// TODO: add test for wipe once implemented
+		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.UUID}, ""},
 	}
 
 	runTestCases(t, ds, "lock", successfulOutput, cases)
@@ -538,7 +573,6 @@ func TestMDMUnlockCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
-
 	winEnrolledLP := &fleet.Host{
 		ID:       10,
 		UUID:     "win-enrolled-lp",
@@ -549,6 +583,20 @@ func TestMDMUnlockCommand(t *testing.T) {
 	macEnrolledLP := &fleet.Host{
 		ID:       11,
 		UUID:     "mac-enrolled-lp",
+		Platform: "darwin",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	winEnrolledWP := &fleet.Host{
+		ID:       12,
+		UUID:     "win-enrolled-wp",
+		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
+	}
+	macEnrolledWP := &fleet.Host{
+		ID:       13,
+		UUID:     "mac-enrolled-wp",
 		Platform: "darwin",
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
@@ -568,6 +616,8 @@ func TestMDMUnlockCommand(t *testing.T) {
 		macEnrolledUP,
 		winEnrolledLP,
 		macEnrolledLP,
+		winEnrolledWP,
+		macEnrolledWP,
 	} {
 		hostByUUID[h.UUID] = h
 		hostsByID[h.ID] = h
@@ -586,6 +636,11 @@ func TestMDMUnlockCommand(t *testing.T) {
 	lockPending := map[uint]*fleet.Host{
 		winEnrolledLP.ID: winEnrolledLP,
 		macEnrolledLP.ID: macEnrolledLP,
+	}
+
+	wipePending := map[uint]*fleet.Host{
+		winEnrolledWP.ID: winEnrolledWP,
+		macEnrolledWP.ID: macEnrolledWP,
 	}
 
 	ds := setupTestServer(t)
@@ -624,6 +679,17 @@ func TestMDMUnlockCommand(t *testing.T) {
 			}
 
 			status.LockScript = &fleet.HostScriptResult{}
+		}
+
+		if _, ok := wipePending[host.ID]; ok {
+			if fleetPlatform == "linux" {
+				status.WipeScript = &fleet.HostScriptResult{ExitCode: nil}
+				return &status, nil
+			}
+
+			status.WipeMDMCommand = &fleet.MDMCommand{}
+			status.WipeMDMCommandResult = nil
+			return &status, nil
 		}
 
 		return &status, nil
@@ -676,7 +742,8 @@ fleetctl get host %s
 		{appCfgAllMDM, "valid macos but pending unlock", []string{"--host", macEnrolledUP.UUID}, ""},
 		{appCfgAllMDM, "valid windows but pending lock", []string{"--host", winEnrolledLP.UUID}, "Host has pending lock request."},
 		{appCfgAllMDM, "valid macos but pending lock", []string{"--host", macEnrolledLP.UUID}, "Host has pending lock request."},
-		// TODO: add test for wipe once implemented
+		{appCfgAllMDM, "valid windows but pending wipe", []string{"--host", winEnrolledWP.UUID}, "Host has pending wipe request."},
+		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.UUID}, "Host has pending wipe request."},
 	}
 
 	runTestCases(t, ds, "unlock", successfulOutput, cases)
@@ -910,7 +977,6 @@ func TestMDMWipeCommand(t *testing.T) {
 	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
 		return nil
 	}
-
 	ds.WipeHostViaWindowsMDMFunc = func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
 		return nil
 	}
