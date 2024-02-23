@@ -1,3 +1,10 @@
+## Fleet 4.45.1 (Feb 23, 2024)
+
+### Bug fixes
+
+* Fixed a bug that caused macOS ADE enrollments gated behind SSO to get a "method not allowed" error.
+* Fixed a bug where the "Done" button on the add hosts modal for plain osquery could be covered.
+
 ## Fleet 4.45.0 (Feb 20, 2024)
 
 ### Changes
