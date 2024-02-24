@@ -19,8 +19,8 @@
 
 * Automatically renewed macOS identity certificates for devices 30 days prior to their expiration.
 
-Fixed bug where updating policy name could result in multiple policies with the same name in a team.
-- This bug was introduced in Fleet v4.44.1. Any duplicate policy names in the same team were renamed by adding a number to the end of the policy name.
+* Fixed bug where updating policy name could result in multiple policies with the same name in a team.
+  - This bug was introduced in Fleet v4.44.1. Any duplicate policy names in the same team were renamed by adding a number to the end of the policy name.
 
 - Fixed an issue where some MDM profile installation errors would not be shown in Fleet.
 
