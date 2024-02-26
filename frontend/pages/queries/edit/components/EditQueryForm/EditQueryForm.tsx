@@ -495,7 +495,12 @@ const EditQueryForm = ({
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <div className="query-name-wrapper">
+        <div
+          className="query-name-wrapper"
+          onClick={editName}
+          onFocus={editName}
+          tabIndex={0}
+        >
           {isEditingName ? (
             <AutoSizeInputField
               name="query-name"
@@ -512,19 +517,18 @@ const EditQueryForm = ({
               }}
             />
           ) : (
-            <div
-              className={queryNameClasses}
-              onClick={editName}
-              onFocus={editName}
-            >
+            <div className={queryNameClasses}>
               <span className={`${baseClass}__query-name`}>
                 {lastEditedQueryName}
               </span>
-              <Button variant="text-icon" className="edit-link">
-                <Icon name="pencil" className="edit-icon" />
-              </Button>
             </div>
           )}
+          <Button variant="text-icon" className="edit-link" tabIndex={-1}>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingName ? "hide" : ""}`}
+            />
+          </Button>
         </div>
       );
     }
@@ -541,32 +545,32 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <div className="query-description-wrapper">
+        <div
+          className="query-description-wrapper"
+          onClick={editDescription}
+          onFocus={editDescription}
+          tabIndex={0}
+        >
           {isEditingDescription ? (
             <AutoSizeInputField
               name="query-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
+              inputClassName={queryDescriptionClasses}
               maxLength={250}
-              inputClassName={`${baseClass}__query-description`}
               onChange={setLastEditedQueryDescription}
-              onFocus={() => setIsEditingDescription(true)}
-              onBlur={() => setIsEditingDescription(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
+              onBlur={() => setIsEditingDescription(false)}
             />
           ) : (
-            <div
-              className={queryDescriptionClasses}
-              onClick={editDescription}
-              onFocus={editDescription}
-            >
+            <div className={queryDescriptionClasses}>
               <span className={`${baseClass}__query-description`}>
                 {lastEditedQueryDescription}
               </span>
             </div>
           )}
-          <Button variant="text-icon" className="edit-link">
+          <Button variant="text-icon" className="edit-link" tabIndex={-1}>
             <Icon
               name="pencil"
               className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
