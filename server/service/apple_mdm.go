@@ -9,7 +9,6 @@ import (
 	"io"
 	"mime/multipart"
 	"net/http"
-	"net/url"
 	"strconv"
 	"strings"
 	"sync"
@@ -20,6 +19,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
+	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -29,14 +29,14 @@ import (
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/appmanifest"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	kitlog "github.com/go-kit/kit/log"
-	"github.com/go-kit/kit/log/level"
+	kitlog "github.com/go-kit/log"
+	"github.com/go-kit/log/level"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	"github.com/micromdm/nanodep/godep"
 )
 
 type getMDMAppleCommandResultsRequest struct {
@@ -298,7 +298,8 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
 	defer ff.Close()
-	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff)
+	// providing an empty set of labels since this endpoint is only maintained for backwards compat
+	cp, err := svc.NewMDMAppleConfigProfile(ctx, req.TeamID, ff, nil)
 	if err != nil {
 		return &newMDMAppleConfigProfileResponse{Err: err}, nil
 	}
@@ -307,7 +308,7 @@ func newMDMAppleConfigProfileEndpoint(ctx context.Context, request interface{}, 
 	}, nil
 }
 
-func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader) (*fleet.MDMAppleConfigProfile, error) {
+func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r io.Reader, labels []string) (*fleet.MDMAppleConfigProfile, error) {
 	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
 		return nil, ctxerr.Wrap(ctx, err)
 	}
@@ -346,6 +347,12 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	if err := cp.ValidateUserProvided(); err != nil {
 		return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{Message: err.Error()})
 	}
+
+	labelMap, err := svc.validateProfileLabels(ctx, labels)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating labels")
+	}
+	cp.Labels = labelMap
 
 	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
 	if err != nil {
@@ -1080,16 +1087,9 @@ func (svc *Service) GetMDMAppleEnrollmentProfileByToken(ctx context.Context, tok
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	enrollURL := appConfig.ServerSettings.ServerURL
-	if ref != "" {
-		u, err := url.Parse(enrollURL)
-		if err != nil {
-			return nil, ctxerr.Wrap(ctx, err, "parsing configured server URL")
-		}
-		q := u.Query()
-		q.Add(mobileconfig.FleetEnrollReferenceKey, ref)
-		u.RawQuery = q.Encode()
-		enrollURL = u.String()
+	enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, ref)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
 	}
 
 	mobileconfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
@@ -2130,7 +2130,7 @@ type callbackMDMAppleSSOResponse struct {
 
 func (r callbackMDMAppleSSOResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Location", r.redirectURL)
-	w.WriteHeader(http.StatusTemporaryRedirect)
+	w.WriteHeader(http.StatusSeeOther)
 }
 
 // Error will always be nil because errors are handled by sending a query
@@ -2150,6 +2150,30 @@ func (svc *Service) InitiateMDMAppleSSOCallback(ctx context.Context, auth fleet.
 	svc.authz.SkipAuthorization(ctx)
 
 	return apple_mdm.FleetUISSOCallbackPath + "?error=true"
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// GET /mdm/manual_enrollment_profile
+////////////////////////////////////////////////////////////////////////////////
+
+type getManualEnrollmentProfileRequest struct{}
+
+func getManualEnrollmentProfileEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	profile, err := svc.GetMDMManualEnrollmentProfile(ctx)
+	if err != nil {
+		return getDeviceMDMManualEnrollProfileResponse{Err: err}, nil
+	}
+
+	// Using this type to keep code DRY as it already has all the functionality we need.
+	return getDeviceMDMManualEnrollProfileResponse{Profile: profile}, nil
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return nil, fleet.ErrMissingLicense
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -2337,17 +2361,23 @@ func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request,
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/commands_and_queries
-func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, res *mdm.CommandResults) (*mdm.Command, error) {
-	// Sometimes we get results with Status == "Idle" which don't contain a command
-	// UUID and are not actionable anyways.
-	if res.CommandUUID == "" {
-		return nil, nil
+func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Request, cmdResult *mdm.CommandResults) (*mdm.Command, error) {
+	if cmdResult.Status == "Idle" {
+		// macOS hosts are considered unlocked if they are online any time
+		// after they have been unlocked. If the host has been seen after a
+		// successful unlock, take the opportunity and update the value in the
+		// db as well.
+		//
+		// TODO: sanity check if this approach is still valid after we implement wipe
+		if err := svc.ds.CleanMacOSMDMLock(r.Context, cmdResult.UDID); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "cleaning macOS host lock/wipe status")
+		}
 	}
 
 	// We explicitly get the request type because it comes empty. There's a
 	// RequestType field in the struct, but it's used when a mdm.Command is
 	// issued.
-	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, res.CommandUUID)
+	requestType, err := svc.ds.GetMDMAppleCommandRequestType(r.Context, cmdResult.CommandUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "command service")
 	}
@@ -2357,17 +2387,17 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
-			res.UDID,
-			res.CommandUUID,
-			mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			apple_mdm.FmtErrorChain(res.ErrorChain),
+			cmdResult.UDID,
+			cmdResult.CommandUUID,
+			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 		)
 	case "RemoveProfile":
 		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
-			CommandUUID:   res.CommandUUID,
-			HostUUID:      res.UDID,
-			Status:        mdmAppleDeliveryStatusFromCommandStatus(res.Status),
-			Detail:        apple_mdm.FmtErrorChain(res.ErrorChain),
+			CommandUUID:   cmdResult.CommandUUID,
+			HostUUID:      cmdResult.UDID,
+			Status:        mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
+			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
 		})
 	}
@@ -2786,4 +2816,124 @@ func (svc *Service) getConfigAppleBMDefaultTeamID(ctx context.Context, appCfg *f
 	}
 
 	return tmID, nil
+}
+
+// scepCertRenewalThresholdDays defines the number of days before a SCEP
+// certificate must be renewed.
+const scepCertRenewalThresholdDays = 30
+
+// maxCertsRenewalPerRun specifies the maximum number of certificates to renew
+// in a single cron run.
+//
+// Assuming that the cron runs every hour, we'll enqueue 24,000 renewals per
+// day, and we have room for 24,000 * scepCertRenewalThresholdDays total
+// renewals.
+//
+// For a default of 30 days as a threshold this gives us room for a fleet of
+// 720,000 devices expiring at the same time.
+const maxCertsRenewalPerRun = 100
+
+func RenewSCEPCertificates(
+	ctx context.Context,
+	logger kitlog.Logger,
+	ds fleet.Datastore,
+	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
+) error {
+	if !config.MDM.IsAppleSCEPSet() {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as MDM is not fully configured")
+		return nil
+	}
+
+	if commander == nil {
+		logger.Log("inf", "skipping renewal of macOS SCEP certificates as apple_mdm.MDMAppleCommander was not provided")
+		return nil
+	}
+
+	// for each hash, grab the host that uses it as its identity certificate
+	certAssociations, err := ds.GetHostCertAssociationsToExpire(ctx, scepCertRenewalThresholdDays, maxCertsRenewalPerRun)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting host cert associations")
+	}
+
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting AppConfig")
+	}
+
+	mdmPushCertTopic, err := config.MDM.AppleAPNsTopic()
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting certificate topic")
+	}
+
+	// assocsWithRefs stores hosts that have enrollment references on their
+	// enrollment profiles. This is the case for ADE-enrolled hosts using
+	// SSO to authenticate.
+	assocsWithRefs := []fleet.SCEPIdentityAssociation{}
+	// assocsWithoutRefs stores hosts that don't have an enrollment
+	// reference in their enrollment profile.
+	assocsWithoutRefs := []fleet.SCEPIdentityAssociation{}
+	for _, assoc := range certAssociations {
+		if assoc.EnrollReference != "" {
+			assocsWithRefs = append(assocsWithRefs, assoc)
+			continue
+		}
+		assocsWithoutRefs = append(assocsWithoutRefs, assoc)
+	}
+
+	// send a single command for all the hosts without references.
+	if len(assocsWithoutRefs) > 0 {
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			appConfig.ServerSettings.ServerURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts without enroll reference")
+		}
+
+		cmdUUID := uuid.NewString()
+		var uuids []string
+		for _, assoc := range assocsWithoutRefs {
+			uuids = append(uuids, assoc.HostUUID)
+			assoc.RenewCommandUUID = cmdUUID
+		}
+
+		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithoutRefs)
+		}
+
+		if err := ds.SetCommandForPendingSCEPRenewal(ctx, assocsWithoutRefs, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting pending command associations")
+		}
+	}
+
+	// send individual commands for each host with a reference
+	for _, assoc := range assocsWithRefs {
+		enrollURL, err := apple_mdm.AddEnrollmentRefToFleetURL(appConfig.ServerSettings.ServerURL, assoc.EnrollReference)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "adding reference to fleet URL")
+		}
+
+		profile, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+			appConfig.OrgInfo.OrgName,
+			enrollURL,
+			config.MDM.AppleSCEPChallenge,
+			mdmPushCertTopic,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
+		}
+		cmdUUID := uuid.NewString()
+		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID); err != nil {
+			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithRefs)
+		}
+
+		if err := ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{assoc}, cmdUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "setting pending command associations")
+		}
+	}
+
+	return nil
 }

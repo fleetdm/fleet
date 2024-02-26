@@ -20,11 +20,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -971,11 +971,11 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			checkShouldFail(t, err, tt.shouldFailTeamRead)
 
 			// test authz create new profile (no team)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent))
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 0, "prof", strings.NewReader(winProfContent), nil)
 			checkShouldFail(t, err, tt.shouldFailGlobalWrite)
 
 			// test authz create new profile (team 1)
-			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent))
+			_, err = svc.NewMDMWindowsConfigProfile(ctx, 1, "prof", strings.NewReader(winProfContent), nil)
 			checkShouldFail(t, err, tt.shouldFailTeamWrite)
 
 			// test authz delete config profile (no team)
@@ -1022,7 +1022,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		wantErr       string
 	}{
 		{"empty profile", 0, "", true, "The file should include valid XML."},
-		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"plist data", 0, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
 		{"random non-xml data", 0, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"valid windows profile", 0, `<Replace></Replace>`, true, ""},
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
@@ -1033,7 +1033,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
 		{"team empty profile", 1, "", true, "The file should include valid XML."},
-		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "Only <Replace> supported as a top level element."},
+		{"team plist data", 1, string(mcBytesForTest("Foo", "Bar", "UUID")), true, "The file should include valid XML: processing instructions are not allowed."},
 		{"team random non-xml data", 1, "\x00\x01\x02", true, "The file should include valid XML:"},
 		{"team valid windows profile", 1, `<Replace></Replace>`, true, ""},
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
@@ -1057,7 +1057,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 				}, nil
 			}
 			ctx = test.UserContext(ctx, test.UserAdmin)
-			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile))
+			_, err := svc.NewMDMWindowsConfigProfile(ctx, c.tmID, "foo", strings.NewReader(c.profile), nil)
 			if c.wantErr != "" {
 				require.Error(t, err)
 				require.ErrorContains(t, err, c.wantErr)
@@ -1109,7 +1109,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 		premium  bool
 		teamID   *uint
 		teamName *string
-		profiles map[string][]byte
+		profiles []fleet.MDMProfileBatchPayload
 		wantErr  string
 	}{
 		{
@@ -1271,9 +1271,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N1", "I2"),
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: mobileconfigForTest("N1", "I2")},
 			},
 			`The name provided for the profile must match the profile PayloadDisplayName: "N1"`,
 		},
@@ -1283,10 +1283,10 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			true,
 			ptr.Uint(1),
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N2", "I2"),
-				"N3": mobileconfigForTest("N3", "I1"),
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
+				{Name: "N3", Contents: mobileconfigForTest("N3", "I1")},
 			},
 			`More than one configuration profile have the same identifier (PayloadIdentifier): "I1"`,
 		},
@@ -1296,10 +1296,10 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"N1": mobileconfigForTest("N1", "I1"),
-				"N2": mobileconfigForTest("N2", "I2"),
-				"N3": mobileconfigForTest("N3", "I3"),
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
+				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
+				{Name: "N3", Contents: mobileconfigForTest("N3", "I3")},
 			},
 			``,
 		},
@@ -1309,13 +1309,13 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"N1": syncMLForTest("./foo/bar"),
-				"N2": syncMLForTest("./baz"),
-				"N3": syncMLForTest("./zab"),
-				"N4": mobileconfigForTest("N4", "I1"),
-				"N5": mobileconfigForTest("N5", "I2"),
-				"N6": mobileconfigForTest("N6", "I3"),
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: syncMLForTest("./foo/bar")},
+				{Name: "N2", Contents: syncMLForTest("./baz")},
+				{Name: "N3", Contents: syncMLForTest("./zab")},
+				{Name: "N4", Contents: mobileconfigForTest("N4", "I1")},
+				{Name: "N5", Contents: mobileconfigForTest("N5", "I2")},
+				{Name: "N6", Contents: mobileconfigForTest("N6", "I3")},
 			},
 			``,
 		},
@@ -1325,10 +1325,10 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"N1": syncMLForTest("./foo/bar"),
-				"N2": syncMLForTest("./baz"),
-				"N3": syncMLForTest("./zab"),
+			[]fleet.MDMProfileBatchPayload{
+				{Name: "N1", Contents: syncMLForTest("./foo/bar")},
+				{Name: "N2", Contents: syncMLForTest("./baz")},
+				{Name: "N3", Contents: syncMLForTest("./zab")},
 			},
 			``,
 		},
@@ -1338,8 +1338,9 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			false,
 			nil,
 			nil,
-			map[string][]byte{
-				"foo": []byte(`<?xml version="1.0" encoding="UTF-8"?>
+			[]fleet.MDMProfileBatchPayload{
+				{
+					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1372,6 +1373,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<integer>1</integer>
 			</dict>
 			</plist>`),
+				},
 			},
 			"unsupported PayloadType(s)",
 		},
@@ -1389,7 +1391,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)
@@ -1405,42 +1407,42 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 func TestValidateProfiles(t *testing.T) {
 	tests := []struct {
 		name     string
-		profiles map[string][]byte
+		profiles []fleet.MDMProfileBatchPayload
 		wantErr  bool
 	}{
 		{
 			name: "Valid Darwin Profile",
-			profiles: map[string][]byte{
-				"darwinProfile": []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "darwinProfile", Contents: []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")},
 			},
 			wantErr: false,
 		},
 		{
 			name: "Valid Windows Profile",
-			profiles: map[string][]byte{
-				"windowsProfile": []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>"),
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "windowsProfile", Contents: []byte("<replace><Target><LocURI>Custom/URI</LocURI></Target></replace>")},
 			},
 			wantErr: false,
 		},
 		{
 			name: "Invalid Profile",
-			profiles: map[string][]byte{
-				"invalidProfile": []byte("invalid data"),
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "invalidProfile", Contents: []byte("invalid data")},
 			},
 			wantErr: true,
 		},
 		{
 			name: "Mixed Valid and Invalid Profiles",
-			profiles: map[string][]byte{
-				"validProfile":   []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>"),
-				"invalidProfile": []byte("invalid data"),
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "validProfile", Contents: []byte("<?xml version=\"1.0\" encoding=\"UTF-8\"?>")},
+				{Name: "invalidProfile", Contents: []byte("invalid data")},
 			},
 			wantErr: true,
 		},
 		{
 			name: "Empty Profile",
-			profiles: map[string][]byte{
-				"emptyProfile": []byte(""),
+			profiles: []fleet.MDMProfileBatchPayload{
+				{Name: "emptyProfile", Contents: []byte("")},
 			},
 			wantErr: true,
 		},
@@ -1453,6 +1455,68 @@ func TestValidateProfiles(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestBackwardsCompatProfilesParamUnmarshalJSON(t *testing.T) {
+	tests := []struct {
+		name        string
+		input       []byte
+		expect      backwardsCompatProfilesParam
+		expectError bool
+	}{
+		{
+			name:        "empty input",
+			input:       []byte(""),
+			expect:      nil,
+			expectError: false,
+		},
+		{
+			name:  "new format",
+			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg=="}, {"name": "profile2", "contents": "YmFyCg=="}]`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n")},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:  "new format with labels",
+			input: []byte(`[{"name": "profile1", "contents": "Zm9vCg==", "labels": ["foo", "bar"]}, {"name": "profile2", "contents": "YmFyCg=="}]`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n"), Labels: []string{"foo", "bar"}},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:  "old format",
+			input: []byte(`{"profile1": "Zm9vCg==", "profile2": "YmFyCg=="}`),
+			expect: backwardsCompatProfilesParam{
+				{Name: "profile1", Contents: []byte("foo\n")},
+				{Name: "profile2", Contents: []byte("bar\n")},
+			},
+			expectError: false,
+		},
+		{
+			name:        "invalid json",
+			input:       []byte(`{invalid json}`),
+			expect:      nil,
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			var bcp backwardsCompatProfilesParam
+			err := bcp.UnmarshalJSON(tc.input)
+			if tc.expectError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.ElementsMatch(t, tc.expect, bcp)
 			}
 		})
 	}

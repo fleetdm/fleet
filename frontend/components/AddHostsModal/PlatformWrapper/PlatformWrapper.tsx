@@ -220,8 +220,10 @@ const PlatformWrapper = ({
     return packageType === "advanced"
       ? `fleetctl package --type=YOUR_TYPE --fleet-url=${config?.server_settings.server_url} --enroll-secret=${enrollSecret} --fleet-certificate=PATH_TO_YOUR_CERTIFICATE/fleet.pem`
       : `fleetctl package --type=${packageType} ${
-          includeFleetDesktop ? "--fleet-desktop " : ""
-        }--fleet-url=${
+          config && !config.server_settings.scripts_disabled
+            ? "--enable-scripts "
+            : ""
+        }${includeFleetDesktop ? "--fleet-desktop " : ""}--fleet-url=${
           config?.server_settings.server_url
         } --enroll-secret=${enrollSecret}`;
   };
@@ -425,9 +427,9 @@ const PlatformWrapper = ({
           <RevealButton
             className={baseClass}
             isShowing={showPlainOsquery}
-            hideText={"Plain osquery"}
-            showText={"Plain osquery"}
-            caretPosition={"after"}
+            hideText="Plain osquery"
+            showText="Plain osquery"
+            caretPosition="after"
             onClick={() => setShowPlainOsquery((prev) => !prev)}
           />
           {showPlainOsquery && (
@@ -500,8 +502,8 @@ const PlatformWrapper = ({
                     "plain-osquery",
                     "osqueryd --flagfile=flagfile.txt --verbose"
                   )}
-                  type={"text"}
-                  value={"osqueryd --flagfile=flagfile.txt --verbose"}
+                  type="text"
+                  value="osqueryd --flagfile=flagfile.txt --verbose"
                 />
               </div>
             </>

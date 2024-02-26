@@ -24,6 +24,7 @@ export interface ISchedulableQuery {
   discard_data: boolean;
   packs: IPack[];
   stats: ISchedulableQueryStats;
+  editingExistingQuery: boolean;
 }
 
 export interface IEnhancedQuery extends ISchedulableQuery {

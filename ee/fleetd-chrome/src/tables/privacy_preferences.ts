@@ -1,4 +1,5 @@
 import Table from "./Table";
+import ChromeSettingGetResultDetails = chrome.types.ChromeSettingGetResultDetails;
 
 export default class TablePrivacyPreferences extends Table {
   // expose properties available from the chrome.privacy API as a virtual osquery "table"
@@ -65,18 +66,22 @@ export default class TablePrivacyPreferences extends Table {
       results.push(
         new Promise((resolve) => {
           try {
-            propertyAPI.get({}, (details) => {
-              if (property === "web_rtc_ip_handling_policy") {
-                resolve({ [property]: details.value });
-              } else {
-                // convert bool response to string binary flag
-                if (details.value === true) {
-                  resolve({ [property]: "1" });
+            if (propertyAPI === undefined) {
+              resolve({ [property]: "" });
+            } else {
+              propertyAPI.get({}, (details: ChromeSettingGetResultDetails) => {
+                if (property === "web_rtc_ip_handling_policy") {
+                  resolve({[property]: details.value});
                 } else {
-                  resolve({ [property]: "0" });
+                  // convert bool response to string binary flag
+                  if (details.value === true) {
+                    resolve({ [property]: "1" });
+                  } else {
+                    resolve({ [property]: "0" });
+                  }
                 }
-              }
-            });
+              });
+            }
           } catch (error) {
             errors.push({ [property]: error });
             warningsArray.push({

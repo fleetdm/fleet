@@ -32,8 +32,60 @@ mkdir -p ./repository
 cp /Volumes/YOUR-USB-NAME/keys ./keys
 mkdir -p ./staged
 
+export AWS_PROFILE=tuf
+aws sso login
+
 aws s3 sync s3://fleet-tuf-repo ./repository --exact-timestamps
 ```
+
+## Building the components for releasing to `edge`
+
+> Assuming we are releasing version 1.21.0 of fleetd.
+
+1. Create the fleetd changelog for the new release:
+```sh
+git checkout main
+git pull origin main
+git checkout -b release-fleetd-v1.21.0
+make changelog-orbit
+```
+2. Edit `orbit/CHANGELOG.md` accordingly
+3. Bump Fleet Desktop version in https://github.com/fleetdm/fleet/blob/9ca85411a16c504087d2793f8b9099f98054c93f/.github/workflows/generate-desktop-targets.yml#L27. This will trigger a github action to build the Fleet Desktop executables: https://github.com/fleetdm/fleet/actions/workflows/generate-desktop-targets.yml.
+4. Commit the changes, push the branch and create a PR.
+5. Add the following git tag with the following format: `orbit-v1.21.0`. Once pushed this will trigger a github action to build the orbit executables: https://github.com/fleetdm/fleet/blob/main/.github/workflows/goreleaser-orbit.yaml.
+```sh
+git tag orbit-v1.21.0
+git push origin --tags
+```
+6. Once the two github actions finish their runs, use the following scripts that will download the artifacts to a folder in your workstation (on this guide we assume you are using `$HOME/release-friday`).
+NOTE: The `goreleaser-macos` job is unstable and may need several re-runs until it works.
+```sh
+go run ./tools/tuf/download-artifacts desktop \
+    --git-branch release-fleetd-v1.21.0 \
+    --output-directory $HOME/release-friday/desktop \
+    --github-username $GITHUB_USERNAME --github-api-token $GITHUB_TOKEN
+go run ./tools/tuf/download-artifacts orbit \
+    --git-tag orbit-v1.21.0 \
+    --output-directory $HOME/release-friday/orbit \
+    --github-username $GITHUB_USERNAME --github-api-token $GITHUB_TOKEN
+tree $HOME/release-friday
+$HOME/release-friday
+├── desktop
+│   ├── linux
+│   │   └── desktop.tar.gz
+│   ├── macos
+│   │   └── desktop.app.tar.gz
+│   └── windows
+│       └── fleet-desktop.exe
+└── orbit
+    ├── linux
+    │   └── orbit
+    ├── macos
+    │   └── orbit
+    └── windows
+        └── orbit.exe
+```
+7. With the executables on your workstation, proceed to [Pushing updates](#pushing-updates) (`edge`).
 
 ## Pushing updates
 
@@ -44,29 +96,45 @@ aws s3 sync s3://fleet-tuf-repo ./repository --exact-timestamps
 >    mkdir ~/tuf.fleetctl.com/backup
 >    cp -r ~/tuf.fleetctl.com ~/tuf.fleetctl.com-backup
 >    ```
+> 3. Install fleetd on macOS, Linux and Windows VMs using the channel (`stable` or `edge`) you are about to release.
+> You can do this using the following flags in `fleetctl package`: `--orbit-channel`, `--desktop-channel`, `--osqueryd-channel`.
 
 ### Releasing to the `edge` channel
 
-> Make sure to install fleetd components using the `edge` channels in the three supported OSs (this is useful to smoke test the update).
+The commands shown here update the local repository. After you are done running the commands below for each component, see [Pushing releases to Fleet's TUF repository](#pushing-releases-to-fleets-tuf-repository) to push the updates to Fleet's TUF repository (https://tuf.fleetctl.com).
 
-Following is the list of components and each command for each operating system.
+#### Setup
 
-The commands show here update the local repository. After you are done running the commands below for each component, see [Pushing releases to Fleet's TUF repository](#pushing-releases-to-fleets-tuf-repository) to push the updates to Fleet's TUF repository (https://tuf.fleetctl.com).
+Make sure to install fleetd components using the `edge` channels in the three supported OSs (this is useful to smoke test the update).
+Here's how to generate the packages:
+```sh
+# (The same for --type=deb and --type=msi.)
+fleetctl package --type=pkg \
+  --enable-scripts \
+  --fleet-desktop \
+  --fleet-url=... --enroll-secret=... \
+  --update-interval 10s \
+  --orbit-channel edge --desktop-channel edge --osqueryd-channel edge
+```
 
 #### orbit
 
 The `orbit` executables are downloaded from the [GoReleaser Orbit action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-orbit.yaml).
-Such action is triggered when git tagging a new orbit version with a tag of the form: `orbit-v1.15.0`.
+Such action is triggered when git tagging a new orbit version with a tag of the form: `orbit-v1.21.0`.
+
+> IMPORTANT: If there are only `orbit` changes on a release we still have to release the `desktop` component with its version string bumped (even if there are no changes in it).
+> This is due to the fact that we want users to see the new version in the tray icon, e.g. `"Fleet Desktop v1.21.0"`.
+> Technical debt: We could improve this process to reduce the complexity of releasing fleetd when there are no Fleet Desktop changes.
     
-> The following commands assume you are pushing version `1.15.0`.
+> The following commands assume you are pushing version `1.21.0`.
 
 ```sh
 # macOS
-fleetctl updates add --target /path/to/downloaded/macos/orbit --platform macos --name orbit --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/orbit/macos/orbit --platform macos --name orbit --version 1.21.0 -t edge
 # Linux
-fleetctl updates add --target /path/to/downloaded/linux/orbit --platform linux --name orbit --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/orbit/linux/orbit --platform linux --name orbit --version 1.21.0 -t edge
 # Windows
-fleetctl updates add --target /path/to/downloaded/windows/orbit.exe --platform windows --name orbit --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/orbit/windows/orbit.exe --platform windows --name orbit --version 1.21.0 -t edge
 ```
 
 #### desktop 
@@ -74,15 +142,15 @@ fleetctl updates add --target /path/to/downloaded/windows/orbit.exe --platform w
 The Fleet Desktop executables are downloaded from the [Generate Fleet Desktop targets for Orbit action](https://github.com/fleetdm/fleet/actions/workflows/generate-desktop-targets.yml).
 Such action is triggered by submitting a PR with the [following version string](https://github.com/fleetdm/fleet/blob/4a6bf0d447a2080f994da1e2f36ce6d51db88109/.github/workflows/generate-desktop-targets.yml#L27) changed.
 
-> The following commands assume you are pushing version `1.15.0`.
+> The following commands assume you are pushing version `1.21.0`.
 
 ```sh
 # macOS
-fleetctl updates add --target /path/to/macos/downloaded/desktop.app.tar.gz --platform macos --name desktop --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/macos/desktop.app.tar.gz --platform macos --name desktop --version 1.21.0 -t edge
 # Linux
-fleetctl updates add --target /path/to/linux/downloaded/desktop.tar.gz --platform linux --name desktop --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/linux/desktop.tar.gz --platform linux --name desktop --version 1.21.0 -t edge
 # Windows
-fleetctl updates add --target /path/to/windows/downloaded/fleet-desktop.exe --platform windows --name desktop --version 1.15.0 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/windows/fleet-desktop.exe --platform windows --name desktop --version 1.21.0 -t edge
 ```
 
 #### swiftDialog
@@ -142,16 +210,20 @@ The commands show here update the local repository. After you are done running t
 
 #### orbit
 
-> The following command assumes you are pushing version `1.15.0`:
+> IMPORTANT: If there are only `orbit` changes on a release we still have to release the `desktop` component with its version string bumped (even if there are no changes in it).
+> This is due to the fact that we want users to see the new version in the tray icon, e.g. `"Fleet Desktop v1.21.0"`.
+> Technical debt: We could improve this process to reduce the complexity of releasing fleetd when there are no Fleet Desktop changes.
+
+> The following command assumes you are pushing version `1.21.0`:
 ```sh
-/fleet/repo/tools/tuf/promote_edge_to_stable.sh orbit 1.15.0
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh orbit 1.21.0
 ```
 
 #### desktop
 
-> The following command assumes you are pushing version `1.15.0`:
+> The following command assumes you are pushing version `1.21.0`:
 ```sh
-/fleet/repo/tools/tuf/promote_edge_to_stable.sh desktop 1.15.0
+/fleet/repo/tools/tuf/promote_edge_to_stable.sh desktop 1.21.0
 ```
 
 #### swiftDialog

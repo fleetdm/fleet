@@ -39,6 +39,7 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
 
 export const GITHUB_NEW_ISSUE_LINK =
   "https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md";
+export const SUPPORT_LINK = "https://fleetdm.com/support";
 
 /**  July 28, 2016 is the date of the initial commit to fleet/fleet. */
 export const INITIAL_FLEET_DATE = "2016-07-28T00:00:00Z";
@@ -131,6 +132,7 @@ export const DEFAULT_QUERY: ISchedulableQuery = {
   team_id: 0,
   author_email: "",
   stats: {},
+  editingExistingQuery: false,
 };
 
 export const DEFAULT_CAMPAIGN = {
@@ -232,12 +234,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "Linux", value: "linux" },
 ];
 
+// Builtin label names returned from API
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
-  chrome: "ChromeOS",
+  chrome: "chrome",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
@@ -259,6 +262,21 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
     value: true,
     helpText:
       "All software installed on your hosts with detected vulnerabilities.",
+  },
+];
+
+export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All vulnerabilities",
+    value: false,
+    helpText: "All vulnerabilities detected on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Exploited vulnerabilities",
+    value: true,
+    helpText: "Vulnerabilities that have been actively exploited in the wild.",
   },
 ];
 
@@ -304,3 +322,41 @@ export const EMPTY_AGENT_OPTIONS = {
 export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
+
+export const HOST_SUMMARY_DATA = [
+  "id",
+  "status",
+  "issues",
+  "memory",
+  "cpu_type",
+  "platform",
+  "os_version",
+  "osquery_version",
+  "enroll_secret_name",
+  "detail_updated_at",
+  "percent_disk_space_available",
+  "gigs_disk_space_available",
+  "team_name",
+  "disk_encryption_enabled",
+  "display_name", // Not rendered on my device page
+];
+
+export const HOST_ABOUT_DATA = [
+  "seen_time",
+  "uptime",
+  "last_enrolled_at",
+  "hardware_model",
+  "hardware_serial",
+  "primary_ip",
+  "public_ip",
+  "geolocation",
+  "batteries",
+  "detail_updated_at",
+  "last_restarted_at",
+];
+
+export const HOST_OSQUERY_DATA = [
+  "config_tls_refresh",
+  "logger_tls_period",
+  "distributed_interval",
+];

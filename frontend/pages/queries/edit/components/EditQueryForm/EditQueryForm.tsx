@@ -150,6 +150,7 @@ const EditQueryForm = ({
     setLastEditedQueryMinOsqueryVersion,
     setLastEditedQueryLoggingType,
     setLastEditedQueryDiscardData,
+    setEditingExistingQuery,
   } = useContext(QueryContext);
 
   const {
@@ -697,9 +698,9 @@ const EditQueryForm = ({
                 searchable={false}
                 options={frequencyOptions}
                 onChange={onChangeSelectFrequency}
-                placeholder={"Every day"}
+                placeholder="Every day"
                 value={lastEditedQueryFrequency}
-                label={"Frequency"}
+                label="Frequency"
                 wrapperClassName={`${baseClass}__form-field form-field--frequency`}
                 helpText="This is how often your query collects data."
               />
@@ -714,10 +715,10 @@ const EditQueryForm = ({
               </Checkbox>
               <RevealButton
                 isShowing={showAdvancedOptions}
-                className={"advanced-options-toggle"}
-                hideText={"Hide advanced options"}
-                showText={"Show advanced options"}
-                caretPosition={"after"}
+                className="advanced-options-toggle"
+                hideText="Hide advanced options"
+                showText="Show advanced options"
+                caretPosition="after"
                 onClick={toggleAdvancedOptions}
               />
               {showAdvancedOptions && (
@@ -825,6 +826,7 @@ const EditQueryForm = ({
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={() => {
+                  setEditingExistingQuery(true); // Persists edited query data through live query flow
                   router.push(
                     PATHS.LIVE_QUERY(queryIdForEdit) +
                       TAGGED_TEMPLATES.queryByHostRoute(hostId)

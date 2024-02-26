@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -88,4 +90,15 @@ func TestSanitizeVersion(t *testing.T) {
 
 		require.Equal(t, tC.Parts, result)
 	}
+}
+
+func TestDownloadAndExtractZip(t *testing.T) {
+	t.Parallel()
+	path := t.TempDir()
+	client := fleethttp.NewClient()
+	err := downloadAndExtractZip(client, wixDownload, path)
+	require.NoError(t, err)
+	assert.FileExists(t, filepath.Join(path, "heat.exe"))
+	assert.FileExists(t, filepath.Join(path, "candle.exe"))
+	assert.FileExists(t, filepath.Join(path, "light.exe"))
 }

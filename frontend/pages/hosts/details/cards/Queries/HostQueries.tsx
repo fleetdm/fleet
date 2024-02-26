@@ -87,7 +87,7 @@ const HostQueries = ({
   );
 
   return (
-    <div className="section section--host-queries">
+    <div className={`section section--${baseClass}`}>
       <p className="section__header">Queries</p>
       {!schedule || !schedule.length || isChromeOSHost ? (
         renderEmptyQueriesTab()
@@ -107,7 +107,7 @@ const HostQueries = ({
             disableCount
             disableMultiRowSelect
             isLoading={false} // loading state handled at parent level
-            {...{ onSelectSingleRow }}
+            onSelectSingleRow={onSelectSingleRow}
           />
         </div>
       )}

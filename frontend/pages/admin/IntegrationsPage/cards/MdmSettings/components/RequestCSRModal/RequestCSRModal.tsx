@@ -1,4 +1,4 @@
-import React, { FormEvent, useState, useContext, useEffect } from "react";
+import React, { FormEvent, useState, useContext } from "react";
 
 import { AppContext } from "context/app";
 

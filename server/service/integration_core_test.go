@@ -59,7 +59,7 @@ func (s *integrationTestSuite) TearDownTest() {
 
 func TestIntegrations(t *testing.T) {
 	testingSuite := new(integrationTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -233,7 +233,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 	teams := []fleet.UserTeam{
 		{
 			Team: fleet.Team{
-				ID: 9999,
+				ID: 9999, // non-existent team
 			},
 			Role: fleet.RoleObserver,
 		},
@@ -246,7 +246,7 @@ func (s *integrationTestSuite) TestUserCreationWrongTeamErrors() {
 		Teams:    &teams,
 	}
 	resp := s.Do("POST", "/api/latest/fleet/users/admin", &params, http.StatusUnprocessableEntity)
-	assertBodyContains(t, resp, `Error 1452`)
+	assertBodyContains(t, resp, `team with id 9999 does not exist`)
 }
 
 func (s *integrationTestSuite) TestQueryCreationLogsActivity() {
@@ -3713,7 +3713,7 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
 	require.Len(t, lblIDs, 1)
-	labelID := lblIDs[0]
+	labelID := lblIDs["All Hosts"]
 
 	hosts := s.createHosts(t, "darwin")
 	host := hosts[0]
@@ -3834,7 +3834,6 @@ func (s *integrationTestSuite) TestListHostsByLabel() {
 	hostsJson, _ := json.MarshalIndent(hostsResp, "", "  ")
 	labelsJson, _ := json.MarshalIndent(labelsResp, "", "  ")
 	assert.Equal(t, string(hostsJson), string(labelsJson))
-
 }
 
 func (s *integrationTestSuite) TestLabelSpecs() {
@@ -5333,41 +5332,6 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	createHostAndDeviceToken(t, s.ds, "some-token")
 	s.Do("POST", fmt.Sprintf("/api/v1/fleet/device/%s/migrate_mdm", "some-token"), nil, http.StatusPaymentRequired)
 
-	// run a script
-	var runResp runScriptResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
-
-	// run a script sync
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusPaymentRequired, &runResp)
-
-	// get script result
-	var scriptResultResp getScriptResultResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusPaymentRequired, &scriptResultResp)
-
-	// create a saved script
-	body, headers := generateNewScriptMultipartRequest(t, nil,
-		"myscript.sh", []byte(`echo "hello"`), s.token)
-	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusPaymentRequired, headers)
-
-	// delete a saved script
-	var delScriptResp deleteScriptResponse
-	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &delScriptResp)
-
-	// list saved scripts
-	var listScriptsResp listScriptsResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusPaymentRequired, &listScriptsResp, "per_page", "10")
-
-	// get a saved script
-	var getScriptResp getScriptResponse
-	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusPaymentRequired, &getScriptResp)
-
-	// get host script details
-	var getHostScriptDetailsResp getHostScriptDetailsResponse
-	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusPaymentRequired, &getHostScriptDetailsResp)
-
-	// batch set scripts
-	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusPaymentRequired)
-
 	// software titles
 	// a normal request works fine
 	var resp listSoftwareTitlesResponse
@@ -5385,6 +5349,52 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		listSoftwareTitlesRequest{}, http.StatusPaymentRequired, &resp,
 		"team_id", "1",
 	)
+
+	// lock/unlock a host
+	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
+}
+
+func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
+	t := s.T()
+
+	// this is just checking that the endpoints do not fail with "no license", the actual tests
+	// for scripts endpoints are in the enterprise integrations tests.
+
+	// run a script
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+
+	// run a script sync
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+
+	// get script result
+	var scriptResultResp getScriptResultResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/results/test-id", nil, http.StatusNotFound, &scriptResultResp)
+
+	// create a saved script
+	body, headers := generateNewScriptMultipartRequest(t,
+		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
+	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// delete a saved script
+	var delScriptResp deleteScriptResponse
+	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)
+
+	// list saved scripts
+	var listScriptsResp listScriptsResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts", nil, http.StatusOK, &listScriptsResp, "per_page", "10")
+
+	// get a saved script
+	var getScriptResp getScriptResponse
+	s.DoJSON("GET", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &getScriptResp)
+
+	// get host script details
+	var getHostScriptDetailsResp getHostScriptDetailsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts/123/scripts", nil, http.StatusNotFound, &getHostScriptDetailsResp)
+
+	// batch set scripts
+	s.Do("POST", "/api/v1/fleet/scripts/batch", batchSetScriptsRequest{Scripts: nil}, http.StatusNoContent)
 }
 
 // TestGlobalPoliciesBrowsing tests that team users can browse (read) global policies (see #3722).
@@ -5918,12 +5928,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
 	expectedTeamVersionsCount := 3
 
-	assertSoftwareDetails := func(expectedSoftware []fleet.Software) {
+	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
 		// this is just a basic sanity check of the software details endpoints and doesn't test all of the
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
 			var detailsResp getSoftwareResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -5931,7 +5941,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
 
 			detailsResp = getSoftwareResponse{}
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -5940,7 +5950,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		}
 	}
 
-	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
+	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, team string, counts ...int) {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
@@ -5962,10 +5972,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
-		assertSoftwareDetails(resp.Software)
+		assertSoftwareDetails(resp.Software, team)
 	}
 
-	assertVersionsResp := func(resp listSoftwareVersionsResponse, want []fleet.Software, ts time.Time, swCount int, hostCounts ...int) {
+	assertVersionsResp := func(
+		resp listSoftwareVersionsResponse, want []fleet.Software, ts time.Time, team string, swCount int, hostCounts ...int,
+	) {
 		require.Equal(t, swCount, resp.Count)
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
@@ -5988,24 +6000,31 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
-		assertSoftwareDetails(resp.Software)
+		assertSoftwareDetails(resp.Software, team)
 	}
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	var versResp listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, 0)
+	assertVersionsResp(versResp, nil, time.Time{}, "", 0)
 
 	// same with a team filter
+	teamStr := fmt.Sprintf("%d", tm.ID)
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, nil, time.Time{})
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id",
+		teamStr,
+	)
+	assertResp(lsResp, nil, time.Time{}, teamStr)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, nil, time.Time{}, 0)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc",
+		"team_id", teamStr,
+	)
+	assertVersionsResp(versResp, nil, time.Time{}, teamStr, 0)
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
@@ -6014,106 +6033,133 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, 20, 19, 18, 17, 16)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, "", 20, 19, 18, 17, 16)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, len(sws), 20, 19, 18, 17, 16)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, "", len(sws), 20, 19, 18, 17, 16,
+	)
 	require.False(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// second page (page=1)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, 15, 14, 13, 12, 11)
+	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, "", 15, 14, 13, 12, 11)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, len(sws), 15, 14, 13, 12, 11)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, "", len(sws), 15, 14, 13, 12, 11,
+	)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// third page (page=2)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", 10, 9, 8, 7, 6)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, len(sws), 10, 9, 8, 7, 6)
+	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", len(sws), 10, 9, 8, 7, 6)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// last page (page=3)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", 5, 4, 3, 2, 1)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, len(sws), 5, 4, 3, 2, 1)
+	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", len(sws), 5, 4, 3, 2, 1)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.False(t, versResp.Meta.HasNextResults)
 
 	// past the end
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, len(sws))
+	assertVersionsResp(versResp, nil, time.Time{}, "", len(sws))
 
 	// no explicit sort order, defaults to hosts_count DESC
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0")
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 20, 19)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", 20, 19)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0")
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, len(sws), 20, 19)
+	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", len(sws), 20, 19)
 
 	// hosts_count ascending
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
-	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, 1, 2, 3)
+	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, "", 1, 2, 3)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
-	assertVersionsResp(versResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, len(sws), 1, 2, 3)
+	assertVersionsResp(versResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, "", len(sws), 1, 2, 3)
 
 	// vulnerable software only
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", 10, 9, 8, 7, 6)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, expectedVulnVersionsCount, 10, 9, 8, 7, 6)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", expectedVulnVersionsCount, 10, 9, 8, 7, 6,
+	)
 
 	// vulnerable software only, next page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", 5, 4, 3, 2, 1)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, expectedVulnVersionsCount, 5, 4, 3, 2, 1)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", expectedVulnVersionsCount, 5, 4, 3, 2, 1,
+	)
 
 	// vulnerable software only, past last page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, expectedVulnVersionsCount)
+	assertVersionsResp(versResp, nil, time.Time{}, "", expectedVulnVersionsCount)
 
 	// filter by the team, 2 by page
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 3, 2)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count",
+		"order_direction", "desc", "team_id", teamStr,
+	)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, 3, 2)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, expectedTeamVersionsCount, 3, 2)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key",
+		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+	)
+	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 3, 2)
 
 	// filter by the team, 2 by page, next page
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, 1)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count",
+		"order_direction", "desc", "team_id", teamStr,
+	)
+	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, 1)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, expectedTeamVersionsCount, 1)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key",
+		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+	)
+	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
+
+	// Invalid software team -- admin gets a 404, team users get a 403
+	detailsResp := getSoftwareResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
+		"team_id", "999999",
+	)
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {
@@ -6161,9 +6207,9 @@ func (s *integrationTestSuite) TestSearchTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	// no search criteria
 	var searchResp searchTargetsResponse
@@ -6172,6 +6218,11 @@ func (s *integrationTestSuite) TestSearchTargets() {
 	require.Len(t, searchResp.Targets.Hosts, len(hosts)) // the HostTargets.HostIDs are actually host IDs to *omit* from the search
 	require.Len(t, searchResp.Targets.Labels, 1)
 	require.Len(t, searchResp.Targets.Teams, 0)
+
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 
 	searchResp = searchTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets", searchTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &searchResp)
@@ -6273,12 +6324,12 @@ func (s *integrationTestSuite) TestCountTargets() {
 
 	hosts := s.createHosts(t)
 
-	lblIDs, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
+	lblMap, err := s.ds.LabelIDsByName(context.Background(), []string{"All Hosts"})
 	require.NoError(t, err)
-	require.Len(t, lblIDs, 1)
+	require.Len(t, lblMap, 1)
 
 	for i := range hosts {
-		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblIDs[0]: ptr.Bool(true)}, time.Now(), false)
+		err = s.ds.RecordLabelQueryExecutions(context.Background(), hosts[i], map[uint]*bool{lblMap["All Hosts"]: ptr.Bool(true)}, time.Now(), false)
 		require.NoError(t, err)
 	}
 
@@ -6300,6 +6351,10 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(0), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	var lblIDs []uint
+	for _, labelID := range lblMap {
+		lblIDs = append(lblIDs, labelID)
+	}
 	// all hosts label selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{LabelIDs: lblIDs}}, http.StatusOK, &countResp)
@@ -6934,7 +6989,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	lids, err := s.ds.LabelIDsByName(context.Background(), []string{t.Name()})
 	require.NoError(t, err)
 	require.Len(t, lids, 1)
-	customLabelID := lids[0]
+	customLabelID := lids[t.Name()]
 
 	// create a policy and make host[1] fail that policy
 	pol, err := s.ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{Name: t.Name(), Query: "SELECT 1"})
@@ -7348,44 +7403,407 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 }
 
+func (s *integrationTestSuite) TestListVulnerabilities() {
+	t := s.T()
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Order Key is an invalid order key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "cvss_score", "order_direction", "asc")
+
+	// Exploit is an EE only filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo1.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
+		Name:     "Windows 11 Enterprise 22H2",
+		Version:  "10.0.19042.1234",
+		Platform: "windows",
+	})
+	require.NoError(t, err)
+	allos, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	var os fleet.OperatingSystem
+	for _, o := range allos {
+		if o.ID > os.ID {
+			os = o
+		}
+	}
+
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
+		{Name: "Google Chrome", Version: "0.0.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	sw := res.Inserted[0]
+
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+		{
+			SoftwareID: sw.ID,
+			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw.ID,
+		CVE:        "CVE-2021-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+
+	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	res2, err := s.ds.UpdateHostSoftware(context.Background(), host2.ID, []fleet.Software{
+		{Name: "Firefox", Version: "0.0.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	sw2 := res2.Inserted[0]
+
+	// insert software vuln outside of host scope
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw2.ID,
+		CVE:        "CVE-2021-1236",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert CVEMeta
+	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1234",
+		},
+		{
+			CVE:              "CVE-2021-1235",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1235",
+		},
+		{
+			CVE:              "CVE-2021-1236",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1236",
+		},
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Empty(t, resp.Err)
+	require.Len(s.T(), resp.Vulnerabilities, 3)
+	require.Equal(t, resp.Count, uint(3))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+
+	expected := map[string]struct {
+		fleet.CVEMeta
+		HostCount   uint
+		DetailsLink string
+		Source      fleet.VulnerabilitySource
+	}{
+		"CVE-2021-1234": {
+			HostCount:   1,
+			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+		},
+		"CVE-2021-1235": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+		},
+		"CVE-2021-1236": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1236",
+		},
+	}
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Empty(t, vuln.CVSSScore)
+	}
+
+	// Test Team Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Empty(t, vuln.CVSSScore)
+	}
+
+	var gResp getVulnerabilityResponse
+	// invalid cve
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
+
+	// Valid CVE but not in team scope
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+
+	// Invalid TeamID
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+
+	// Valid Global Request
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
+	require.Len(t, gResp.Software, 1)
+	require.Equal(t, "Google Chrome", gResp.Software[0].Name)
+	require.Equal(t, "0.0.1", gResp.Software[0].Version)
+	require.Equal(t, "programs", gResp.Software[0].Source)
+	require.Equal(t, "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*", gResp.Software[0].GenerateCPE)
+	require.Equal(t, 1, gResp.Software[0].HostsCount)
+}
+
 func (s *integrationTestSuite) TestOSVersions() {
 	t := s.T()
 
-	testOS := fleet.OperatingSystem{Name: "barOS", Version: "4.2", Arch: "64bit", KernelVersion: "13.37", Platform: "foo"}
+	testOSes := []fleet.OperatingSystem{
+		{Name: "macOS", Version: "14.1.2", Arch: "64bit", KernelVersion: "13.37", Platform: "darwin"},                             // os_version_id=1
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "macOS", Version: "13.2.1", Arch: "64bit", KernelVersion: "18.12", Platform: "darwin"},                             // os_version_id=2
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.1", Arch: "64bit", KernelVersion: "10.0.22000.1", Platform: "windows"}, // os_version_id=3
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "64bit", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+		{Name: "Windows 11 Pro 21H2", Version: "10.0.22000.2", Arch: "ARM64", KernelVersion: "10.0.22000.2", Platform: "windows"}, // os_version_id=4
+	}
 
-	hosts := s.createHosts(t)
+	var platforms []string
+	for _, os := range testOSes {
+		platforms = append(platforms, os.Platform)
+	}
+
+	hosts := s.createHosts(t, platforms...)
 
 	var resp listHostsResponse
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp)
 	require.Len(t, resp.Hosts, len(hosts))
 
 	// set operating system information on a host
-	require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, testOS))
-	var osID uint
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		return sqlx.GetContext(context.Background(), q, &osID,
-			`SELECT id FROM operating_systems WHERE name = ? AND version = ? AND arch = ? AND kernel_version = ? AND platform = ?`,
-			testOS.Name, testOS.Version, testOS.Arch, testOS.KernelVersion, testOS.Platform)
-	})
-	require.Greater(t, osID, uint(0))
+	for i, os := range testOSes {
+		require.NoError(t, s.ds.UpdateHostOperatingSystem(context.Background(), hosts[i].ID, os))
+	}
+
+	// get OS versions
+	osv, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+
+	osvMap := make(map[string]fleet.OperatingSystem)
+	for _, os := range osv {
+		key := fmt.Sprintf("%s %s %s", os.Name, os.Version, os.Arch)
+		osvMap[key] = os
+	}
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOS.Name, "os_version", testOS.Version)
-	require.Len(t, resp.Hosts, 1)
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_name", testOSes[1].Name, "os_version", testOSes[1].Version)
+	require.Len(t, resp.Hosts, 2)
 
-	expected := resp.Hosts[0]
+	expected := hosts[1].Hostname
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_id", fmt.Sprintf("%d", osID))
-	require.Len(t, resp.Hosts, 1)
-	require.Equal(t, expected, resp.Hosts[0])
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
+	require.Len(t, resp.Hosts, 2)
+	require.Equal(t, expected, resp.Hosts[0].Hostname)
+
+	countResp := countHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts/count", nil, http.StatusOK, &countResp, "os_version_id", fmt.Sprintf("%d", osvMap["macOS 13.2.1 64bit"].OSVersionID))
+	require.Equal(t, 2, countResp.Count)
 
 	// generate aggregated stats
 	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
 
+	// insert Vuln for Win x64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 64bit"].ID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// insert duplicate Vuln for Win ARM64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		CVE:  "CVE-2021-1234",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	// insert different Vuln for Win ARM64
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].ID,
+		CVE:  "CVE-2021-5678",
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
 	var osVersionsResp osVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 4) // different archs are grouped together
+
+	// Default sort is by hosts count, descending
+	expectedVersion := fleet.OSVersion{
+		HostsCount:  4,
+		Name:        "Windows 11 Pro 21H2 10.0.22000.2",
+		NameOnly:    "Windows 11 Pro 21H2",
+		Version:     "10.0.22000.2",
+		Platform:    "windows",
+		OSVersionID: osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID,
+		Vulnerabilities: fleet.Vulnerabilities{
+			{
+				CVE:         "CVE-2021-1234",
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+			},
+			{
+				CVE:         "CVE-2021-5678", // vulns are aggregated by OS name and version
+				DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-5678",
+			},
+		},
+	}
+
+	// Default sort is by hosts count, descending
+	require.Equal(t, expectedVersion, osVersionsResp.OSVersions[0])
+
+	// get OS version by id
+	var osVersionResp getOSVersionResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osvMap["Windows 11 Pro 21H2 10.0.22000.2 ARM64"].OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
+
+	// invalid id
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
+
+	// name and version filters
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")
 	require.Len(t, osVersionsResp.OSVersions, 1)
-	require.Equal(t, fleet.OSVersion{HostsCount: 1, Name: fmt.Sprintf("%s %s", testOS.Name, testOS.Version), NameOnly: testOS.Name, Version: testOS.Version, Platform: testOS.Platform}, osVersionsResp.OSVersions[0])
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Len(t, osVersionsResp.OSVersions[0].Vulnerabilities, 2)
+
+	// name without version
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_name", "Windows 11 Pro 21H2")
+
+	// version without name
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "os_version", "10.0.22000.1")
+
+	// invalid order key
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "order_key", "nosuchkey")
+
+	// ascending order by hosts count
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "order_key", "hosts_count", "order_direction", "asc")
+	require.Equal(t, 1, osVersionsResp.OSVersions[0].HostsCount)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[0].Name)
+
+	// test pagination
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "0", "per_page", "2")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.2", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Pro 21H2 10.0.22000.1", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.True(t, osVersionsResp.Meta.HasNextResults)
+	require.False(t, osVersionsResp.Meta.HasPreviousResults)
+
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "page", "1", "per_page", "2")
+	require.Len(t, osVersionsResp.OSVersions, 2)
+	require.Equal(t, "macOS 13.2.1", osVersionsResp.OSVersions[0].Name)
+	require.Equal(t, "macOS 14.1.2", osVersionsResp.OSVersions[1].Name)
+	require.Equal(t, 4, osVersionsResp.Count)
+	require.False(t, osVersionsResp.Meta.HasNextResults)
+	require.True(t, osVersionsResp.Meta.HasPreviousResults)
 }
 
 func (s *integrationTestSuite) TestPingEndpoints() {
@@ -7504,9 +7922,9 @@ func (s *integrationTestSuite) TestOrbitConfigNotifications() {
 	s.DoJSON("POST", "/api/fleet/orbit/config", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusOK, &resp)
 	require.False(t, resp.Notifications.RenewEnrollmentProfile)
 
-	// the scripts orbit endpoints are premium-only
-	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
-	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusPaymentRequired)
+	// the scripts orbit endpoints are accessible without license
+	s.Do("POST", "/api/fleet/orbit/scripts/request", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusNotFound)
+	s.Do("POST", "/api/fleet/orbit/scripts/result", json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q}`, *hFleetMDM.OrbitNodeKey)), http.StatusBadRequest)
 }
 
 func (s *integrationTestSuite) TestTryingToEnrollWithTheWrongSecret() {
@@ -8211,7 +8629,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 		require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 		require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-		require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+		assert.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 	}
 
 	// Now let's simulate a osquery instance running in the global host returning the
@@ -8276,7 +8694,7 @@ func (s *integrationTestSuite) TestDirectIngestScheduledQueryStats() {
 	require.Equal(t, strconv.FormatInt(int64(sqs.OutputSize), 10), row["output_size"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.SystemTime), 10), row["system_time"])
 	require.Equal(t, strconv.FormatInt(int64(sqs.UserTime), 10), row["user_time"])
-	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time"])
+	require.Equal(t, strconv.FormatInt(int64(sqs.WallTime), 10), row["wall_time_ms"])
 }
 
 // TestDirectIngestSoftwareWithLongFields tests that software with reported long fields
@@ -9541,4 +9959,229 @@ func (s *integrationTestSuite) TestHostDeviceToken() {
 		DeviceAuthToken: "token",
 	}
 	s.DoJSON("POST", "/api/fleet/orbit/device_token", body, http.StatusConflict, &response{})
+}
+
+func (s *integrationTestSuite) TestHostPastActivities() {
+	t := s.T()
+	ctx := context.Background()
+	user := s.users["admin1@example.com"]
+	getDetails := func(a *fleet.Activity) fleet.ActivityTypeRanScript {
+		var details fleet.ActivityTypeRanScript
+		err := json.Unmarshal([]byte(*a.Details), &details)
+		require.NoError(t, err)
+
+		return details
+	}
+
+	host := createOrbitEnrolledHost(t, "linux", "", s.ds)
+	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
+	require.NoError(t, err)
+
+	// create a valid script execution request
+	savedScript, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "saved.sh",
+		ScriptContents: "echo 'hello world'",
+	})
+	require.NoError(t, err)
+
+	var runResp runScriptResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &savedScript.ID}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	execID1 := runResp.ExecutionID
+
+	result, err := s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo 'hello world'", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	var orbitPostScriptResp orbitPostScriptResultResponse
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	var listResp listActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp)
+
+	require.Len(t, listResp.Activities, 1)
+	require.Equal(t, user.Email, *listResp.Activities[0].ActorEmail)
+	require.Equal(t, user.Name, *listResp.Activities[0].ActorFullName)
+	require.Equal(t, user.GravatarURL, *listResp.Activities[0].ActorGravatar)
+	require.Equal(t, "ran_script", *&listResp.Activities[0].Type)
+	d := getDetails(listResp.Activities[0])
+	require.Equal(t, execID1, d.ScriptExecutionID)
+	require.Equal(t, savedScript.Name, d.ScriptName)
+	require.Equal(t, host.DisplayName(), d.HostDisplayName)
+	require.Equal(t, host.ID, d.HostID)
+	require.Equal(t, true, d.Async)
+
+	// sleep to have the created_at timestamps differ
+	time.Sleep(time.Second)
+
+	// Execute another script in order to test query params
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo 'foobar'"}, http.StatusAccepted, &runResp)
+	require.Equal(t, host.ID, runResp.HostID)
+	require.NotEmpty(t, runResp.ExecutionID)
+
+	execID2 := runResp.ExecutionID
+
+	result, err = s.ds.GetHostScriptExecutionResult(ctx, runResp.ExecutionID)
+	require.NoError(t, err)
+	require.Equal(t, host.ID, result.HostID)
+	require.Equal(t, "echo 'foobar'", result.ScriptContents)
+	require.Nil(t, result.ExitCode)
+
+	s.DoJSON("POST", "/api/fleet/orbit/scripts/result",
+		json.RawMessage(fmt.Sprintf(`{"orbit_node_key": %q, "execution_id": %q, "exit_code": 0, "output": "ok"}`, *host.OrbitNodeKey, result.ExecutionID)),
+		http.StatusOK, &orbitPostScriptResp)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp, "page", "0", "per_page", "1")
+
+	require.Len(t, listResp.Activities, 1)
+	d = getDetails(listResp.Activities[0])
+
+	require.Equal(t, execID2, d.ScriptExecutionID)
+
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities", host.ID), nil, http.StatusOK, &listResp, "page", "1", "per_page", "1")
+
+	require.Len(t, listResp.Activities, 1)
+	d = getDetails(listResp.Activities[0])
+	require.Equal(t, execID1, d.ScriptExecutionID)
+}
+
+func (s *integrationTestSuite) TestListHostUpcomingActivities() {
+	t := s.T()
+	ctx := context.Background()
+
+	// there is already a datastore-layer test that verifies that correct values
+	// are returned for users, saved scripts, etc. so this is more focused on
+	// verifying that the service layer passes the proper options and the
+	// rendering of the response.
+
+	host1, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name()),
+		NodeKey:         ptr.String(t.Name()),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	hsr, err := s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "A", SyncRequest: true})
+	require.NoError(t, err)
+	h1A := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "B"})
+	require.NoError(t, err)
+	h1B := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "C"})
+	require.NoError(t, err)
+	h1C := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "D", SyncRequest: true})
+	require.NoError(t, err)
+	h1D := hsr.ExecutionID
+	hsr, err = s.ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{HostID: host1.ID, ScriptContents: "E"})
+	require.NoError(t, err)
+	h1E := hsr.ExecutionID
+
+	// modify the timestamp h1D to simulate an script that has
+	// been pending for a long time
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "UPDATE host_script_results SET created_at = ? WHERE execution_id IN (?, ?)", time.Now().Add(-24*time.Hour), h1A, h1B)
+		return err
+	})
+
+	cases := []struct {
+		queries   []string // alternate query name and value
+		wantExecs []string
+		wantMeta  *fleet.PaginationMetadata
+	}{
+		{
+			wantExecs: []string{h1B, h1C, h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2"},
+			wantExecs: []string{h1B, h1C},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "1"},
+			wantExecs: []string{h1D, h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "2", "page", "2"},
+			wantExecs: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3"},
+			wantExecs: []string{h1B, h1C, h1D},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: true, HasPreviousResults: false},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "1"},
+			wantExecs: []string{h1E},
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+		{
+			queries:   []string{"per_page", "3", "page", "2"},
+			wantExecs: nil,
+			wantMeta:  &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: true},
+		},
+	}
+	for _, c := range cases {
+		t.Run(fmt.Sprintf("%#v", c.queries), func(t *testing.T) {
+			var listResp listHostUpcomingActivitiesResponse
+			queryArgs := c.queries
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host1.ID), nil, http.StatusOK, &listResp, queryArgs...)
+
+			require.Equal(t, uint(5), listResp.Count)
+			require.Equal(t, len(c.wantExecs), len(listResp.Activities))
+			require.Equal(t, c.wantMeta, listResp.Meta)
+
+			var gotExecs []string
+			if len(listResp.Activities) > 0 {
+				gotExecs = make([]string, len(listResp.Activities))
+				for i, a := range listResp.Activities {
+					require.Zero(t, a.ID)
+					require.NotEmpty(t, a.UUID)
+					require.Equal(t, fleet.ActivityTypeRanScript{}.ActivityName(), a.Type)
+
+					var details map[string]any
+					require.NotNil(t, a.Details)
+					require.NoError(t, json.Unmarshal(*a.Details, &details))
+					gotExecs[i] = details["script_execution_id"].(string)
+				}
+			}
+			require.Equal(t, c.wantExecs, gotExecs)
+		})
+	}
+
+	// Test with a host that has no upcoming activities
+	host2, err := s.ds.NewHost(ctx, &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now().Add(-1 * time.Minute),
+		OsqueryHostID:   ptr.String(t.Name() + "2"),
+		NodeKey:         ptr.String(t.Name() + "2"),
+		UUID:            uuid.New().String(),
+		Hostname:        fmt.Sprintf("%sfoo2.local", t.Name()),
+		Platform:        "darwin",
+	})
+	require.NoError(t, err)
+
+	var listResp listHostUpcomingActivitiesResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/activities/upcoming", host2.ID), nil, http.StatusOK, &listResp)
+	require.Equal(t, uint(0), listResp.Count)
+	require.Empty(t, listResp.Activities)
+	require.Equal(t, &fleet.PaginationMetadata{HasNextResults: false, HasPreviousResults: false}, listResp.Meta)
 }

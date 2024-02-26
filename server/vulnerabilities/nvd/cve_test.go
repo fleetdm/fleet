@@ -263,6 +263,79 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		},
 	}
 
+	cveOSTests := []struct {
+		platform     string
+		version      string
+		osID         uint
+		includedCVEs []string
+	}{
+		{
+			platform: "darwin",
+			version:  "14.1.2",
+			osID:     1,
+			includedCVEs: []string{
+				"CVE-2023-45866",
+				"CVE-2023-42886",
+				"CVE-2023-42891",
+				"CVE-2023-42906",
+				"CVE-2023-42910",
+				"CVE-2023-42924",
+				"CVE-2023-42883",
+				"CVE-2023-42894",
+				"CVE-2023-42926",
+				"CVE-2023-42932",
+				"CVE-2023-42907",
+				"CVE-2023-42922",
+				"CVE-2023-42904",
+				"CVE-2023-42901",
+				"CVE-2023-42898",
+				"CVE-2023-42903",
+				"CVE-2023-42902",
+				"CVE-2023-42909",
+				"CVE-2023-42914",
+				"CVE-2023-42874",
+				"CVE-2023-42882",
+				"CVE-2023-42912",
+				"CVE-2023-42911",
+				"CVE-2023-42890",
+				"CVE-2023-42905",
+				"CVE-2023-42919",
+				"CVE-2023-42900",
+				"CVE-2023-42899",
+				"CVE-2023-42908",
+				"CVE-2023-42884",
+			},
+		},
+		{
+			platform: "darwin",
+			version:  "13.6.2",
+			osID:     2,
+			// This is a subset of vulnerabilities for macOS 13.6.2
+			includedCVEs: []string{
+				"CVE-2023-32361",
+				"CVE-2023-35990",
+				"CVE-2023-40541",
+				"CVE-2023-40400",
+				"CVE-2023-41980",
+				"CVE-2023-38615",
+				"CVE-2023-39233",
+				"CVE-2023-40402",
+				"CVE-2023-40450",
+				"CVE-2023-42891",
+				"CVE-2023-41079",
+				"CVE-2023-42932",
+				"CVE-2023-38586",
+				"CVE-2023-41067",
+				"CVE-2023-40407",
+				"CVE-2023-42924",
+				"CVE-2023-40395",
+				"CVE-2023-38596",
+				"CVE-2023-32396",
+				"CVE-2023-29497",
+			},
+		},
+	}
+
 	t.Run("find_vulns_on_cpes", func(t *testing.T) {
 		t.Parallel()
 
@@ -278,6 +351,20 @@ func TestTranslateCPEToCVE(t *testing.T) {
 				i++
 			}
 			return softwareCPEs, nil
+		}
+
+		var osIDs []uint
+		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
+			var oss []fleet.OperatingSystem
+			for _, os := range cveOSTests {
+				oss = append(oss, fleet.OperatingSystem{
+					ID:       os.osID,
+					Platform: os.platform,
+					Version:  os.version,
+				})
+				osIDs = append(osIDs, os.osID)
+			}
+			return oss, nil
 		}
 
 		cveLock := &sync.Mutex{}
@@ -297,7 +384,22 @@ func TestTranslateCPEToCVE(t *testing.T) {
 			cvesFound[cpe] = append(cvesFound[cpe], cve)
 			return false, nil
 		}
+
+		osCVELock := &sync.Mutex{}
+		osCVEsFound := make(map[uint][]string)
+		ds.InsertOSVulnerabilityFunc = func(ctx context.Context, vuln fleet.OSVulnerability, src fleet.VulnerabilitySource) (bool, error) {
+			osCVELock.Lock()
+			defer osCVELock.Unlock()
+
+			osCVEsFound[vuln.OSID] = append(osCVEsFound[vuln.OSID], vuln.CVE)
+
+			return false, nil
+		}
+
 		ds.DeleteOutOfDateVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+			return nil
+		}
+		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
 			return nil
 		}
 
@@ -305,6 +407,7 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		require.NoError(t, err)
 
 		require.True(t, ds.DeleteOutOfDateVulnerabilitiesFuncInvoked)
+		require.True(t, ds.DeleteOutOfDateOSVulnerabilitiesFuncInvoked)
 
 		for cpe, tc := range cveTests {
 			if tc.continuesToUpdate {
@@ -321,6 +424,12 @@ func TestTranslateCPEToCVE(t *testing.T) {
 
 			for _, cve := range tc.excludedCVEs {
 				require.NotContains(t, cvesFound[cpe], cve, tc.cpe)
+			}
+		}
+
+		for _, tc := range cveOSTests {
+			for _, cve := range tc.includedCVEs {
+				require.Contains(t, osCVEsFound[tc.osID], cve)
 			}
 		}
 	})
@@ -342,10 +451,16 @@ func TestTranslateCPEToCVE(t *testing.T) {
 		ds.ListSoftwareCPEsFunc = func(ctx context.Context) ([]fleet.SoftwareCPE, error) {
 			return softwareCPEs, nil
 		}
-
 		ds.InsertSoftwareVulnerabilityFunc = func(ctx context.Context, vuln fleet.SoftwareVulnerability, src fleet.VulnerabilitySource) (bool, error) {
 			return true, nil
 		}
+		ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
+			return nil, nil
+		}
+		ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error {
+			return nil
+		}
+
 		recent, err := TranslateCPEToCVE(ctx, safeDS, tempDir, kitlog.NewNopLogger(), true, 1*time.Hour)
 		require.NoError(t, err)
 
@@ -515,6 +630,66 @@ func TestPreprocessVersion(t *testing.T) {
 				t.Fatalf("expected: %s, got: %s", tc.expected, output)
 			}
 		})
+	}
+}
+
+func TestGetMacOSCPEs(t *testing.T) {
+	ctx := context.Background()
+	ds := new(mock.Store)
+	os := fleet.OperatingSystem{
+		ID:            1,
+		Name:          "macOS",
+		Version:       "11.6.2",
+		Arch:          "x86_64",
+		KernelVersion: "20.6.0",
+		Platform:      "darwin",
+	}
+
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, p string) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{os}, nil
+	}
+
+	CVEs, err := GetMacOSCPEs(ctx, ds)
+	require.NoError(t, err)
+	require.Len(t, CVEs, 2)
+
+	expected := map[osCPEWithNVDMeta]struct{}{
+		{
+			OperatingSystem: os,
+			meta: &wfn.Attributes{
+				Part:      "o",
+				Vendor:    "apple",
+				Product:   "mac_os_x",
+				Version:   CVEs[0].Version,
+				Update:    wfn.Any,
+				Edition:   wfn.Any,
+				SWEdition: wfn.Any,
+				TargetSW:  wfn.Any,
+				TargetHW:  wfn.Any,
+				Other:     wfn.Any,
+				Language:  wfn.Any,
+			},
+		}: {},
+		{
+			OperatingSystem: os,
+			meta: &wfn.Attributes{
+				Part:      "o",
+				Vendor:    "apple",
+				Product:   "macos",
+				Version:   CVEs[0].Version,
+				Update:    wfn.Any,
+				Edition:   wfn.Any,
+				SWEdition: wfn.Any,
+				TargetSW:  wfn.Any,
+				TargetHW:  wfn.Any,
+				Other:     wfn.Any,
+				Language:  wfn.Any,
+			},
+		}: {},
+	}
+
+	for _, cve := range CVEs {
+		require.Contains(t, expected, cve)
 	}
 }
 

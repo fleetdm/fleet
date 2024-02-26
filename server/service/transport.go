@@ -304,6 +304,16 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 		hopt.OSIDFilter = &sid
 	}
 
+	osVersionID := r.URL.Query().Get("os_version_id")
+	if osVersionID != "" {
+		id, err := strconv.ParseUint(osVersionID, 10, 32)
+		if err != nil {
+			return hopt, ctxerr.Wrap(r.Context(), badRequest(fmt.Sprintf("Invalid os_version_id: %s", osVersionID)))
+		}
+		sid := uint(id)
+		hopt.OSVersionIDFilter = &sid
+	}
+
 	osName := r.URL.Query().Get("os_name")
 	if osName != "" {
 		hopt.OSNameFilter = &osName
@@ -312,6 +322,11 @@ func hostListOptionsFromRequest(r *http.Request) (fleet.HostListOptions, error) 
 	osVersion := r.URL.Query().Get("os_version")
 	if osVersion != "" {
 		hopt.OSVersionFilter = &osVersion
+	}
+
+	cve := r.URL.Query().Get("vulnerability")
+	if cve != "" {
+		hopt.VulnerabilityFilter = &cve
 	}
 
 	if hopt.OSNameFilter != nil && hopt.OSVersionFilter == nil {

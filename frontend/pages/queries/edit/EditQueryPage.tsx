@@ -71,6 +71,7 @@ const EditQueryPage = ({
     config,
   } = useContext(AppContext);
   const {
+    editingExistingQuery,
     selectedOsqueryTable,
     setSelectedOsqueryTable,
     lastEditedQueryName,
@@ -127,7 +128,7 @@ const EditQueryPage = ({
     ["query", queryId],
     () => queryAPI.load(queryId as number),
     {
-      enabled: !!queryId,
+      enabled: !!queryId && !editingExistingQuery,
       refetchOnWindowFocus: false,
       select: (data) => data.query,
       onSuccess: (returnedQuery) => {
@@ -203,11 +204,11 @@ const EditQueryPage = ({
   // Updates title that shows up on browser tabs
   useEffect(() => {
     // e.g., Editing Discover TLS certificates | Queries | Fleet
-    if (storedQuery?.name) {
-      document.title = `Editing ${storedQuery.name} | Queries | ${DOCUMENT_TITLE_SUFFIX}`;
-    } else {
-      document.title = `Queries | ${DOCUMENT_TITLE_SUFFIX}`;
-    }
+    const storedQueryTitleCopy = storedQuery?.name
+      ? `Editing ${storedQuery.name} | `
+      : "";
+    document.title = `${storedQueryTitleCopy}Queries | ${DOCUMENT_TITLE_SUFFIX}`;
+    // }
   }, [location.pathname, storedQuery?.name]);
 
   useEffect(() => {

@@ -25,6 +25,6 @@ describe("disk_info", () => {
     const db = await VirtualDatabase.init();
 
     const res = await db.query("select * from disk_info");
-    expect(res).toEqual({"data":DISK_INFO_MOCK, "warnings": undefined});
+    expect(res).toEqual({"data":DISK_INFO_MOCK, "warnings": null});
   });
 });

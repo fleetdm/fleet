@@ -1,7 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
 import { useQuery } from "react-query";
 import { useErrorHandler } from "react-error-boundary";
-import { InjectedRouter } from "react-router";
 import yaml from "js-yaml";
 import { constructErrorString, agentOptionsToYaml } from "utilities/yaml";
 import { EMPTY_AGENT_OPTIONS } from "utilities/constants";
@@ -21,23 +20,14 @@ import Spinner from "components/Spinner";
 import CustomLink from "components/CustomLink";
 // @ts-ignore
 import YamlAce from "components/YamlAce";
+import { ITeamSubnavProps } from "interfaces/team_subnav";
 
 const baseClass = "agent-options";
-
-interface IAgentOptionsPageProps {
-  location: {
-    pathname: string;
-    search: string;
-    hash?: string;
-    query: { team_id?: string };
-  };
-  router: InjectedRouter;
-}
 
 const AgentOptionsPage = ({
   location,
   router,
-}: IAgentOptionsPageProps): JSX.Element => {
+}: ITeamSubnavProps): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
 
   const { isRouteOk, teamIdForApi } = useTeamIdParam({

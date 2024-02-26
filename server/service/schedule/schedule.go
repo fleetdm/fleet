@@ -12,7 +12,6 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/getsentry/sentry-go"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 )
@@ -166,7 +165,6 @@ func (s *Schedule) Start() {
 	prevScheduledRun, _, err := s.getLatestStats()
 	if err != nil {
 		level.Error(s.logger).Log("err", "start schedule", "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
 	s.setIntervalStartedAt(prevScheduledRun.CreatedAt)
@@ -208,7 +206,6 @@ func (s *Schedule) Start() {
 				prevScheduledRun, _, err := s.getLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "trigger get cron stats", "details", err)
-					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 				}
 
@@ -241,7 +238,6 @@ func (s *Schedule) Start() {
 				prevScheduledRun, prevTriggeredRun, err := s.getLatestStats()
 				if err != nil {
 					level.Error(s.logger).Log("err", "get cron stats", "details", err)
-					sentry.CaptureException(err)
 					ctxerr.Handle(s.ctx, err)
 					// skip ahead to the next interval
 					schedTicker.Reset(schedInterval)
@@ -331,7 +327,7 @@ func (s *Schedule) Start() {
 					newInterval, err := s.configReloadIntervalFn(s.ctx)
 					if err != nil {
 						level.Error(s.logger).Log("err", "schedule interval config reload failed", "details", err)
-						sentry.CaptureException(err)
+						ctxerr.Handle(s.ctx, err)
 						continue
 					}
 
@@ -411,7 +407,6 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 	statsID, err := s.insertStats(statsType, fleet.CronStatsStatusPending)
 	if err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("insert cron stats %s", s.name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
 	level.Info(s.logger).Log("status", "pending")
@@ -420,7 +415,6 @@ func (s *Schedule) runWithStats(statsType fleet.CronStatsType) {
 
 	if err := s.updateStats(statsID, fleet.CronStatsStatusCompleted); err != nil {
 		level.Error(s.logger).Log("err", fmt.Sprintf("update cron stats %s", s.name), "details", err)
-		sentry.CaptureException(err)
 		ctxerr.Handle(s.ctx, err)
 	}
 	level.Info(s.logger).Log("status", "completed")
@@ -432,7 +426,6 @@ func (s *Schedule) runAllJobs() {
 		level.Debug(s.logger).Log("msg", "starting", "jobID", job.ID)
 		if err := runJob(s.ctx, job.Fn); err != nil {
 			level.Error(s.logger).Log("err", "running job", "details", err, "jobID", job.ID)
-			sentry.CaptureException(err)
 			ctxerr.Handle(s.ctx, err)
 		}
 	}
@@ -507,7 +500,7 @@ func (s *Schedule) acquireLock() bool {
 	ok, err := s.locker.Lock(s.ctx, s.getLockName(), s.instanceID, s.getSchedInterval())
 	if err != nil {
 		level.Error(s.logger).Log("msg", "lock failed", "err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
 		return false
 	}
 	if !ok {
@@ -521,7 +514,7 @@ func (s *Schedule) releaseLock() {
 	err := s.locker.Unlock(s.ctx, s.getLockName(), s.instanceID)
 	if err != nil {
 		level.Error(s.logger).Log("msg", "unlock failed", "err", err)
-		sentry.CaptureException(err)
+		ctxerr.Handle(s.ctx, err)
 	}
 }
 

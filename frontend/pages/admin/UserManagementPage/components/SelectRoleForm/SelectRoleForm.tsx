@@ -1,7 +1,6 @@
 import React, { useState, useContext } from "react";
 
 import { ITeam } from "interfaces/team";
-import { IRole } from "interfaces/role";
 import { UserRole } from "interfaces/user";
 // ignore TS error for now until these are rewritten in ts.
 // @ts-ignore
@@ -17,8 +16,6 @@ interface ISelectRoleFormProps {
   label: string | string[];
   isApiOnly?: boolean;
 }
-
-const baseClass = "select-role-form";
 
 const generateSelectedTeamData = (
   allTeams: ITeam[],

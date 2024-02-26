@@ -9,6 +9,13 @@
     animation: fade-in 150ms ease-out;
   }
 
+  &__hidden {
+    visibility: hidden;
+    .fleet-checkbox__tick:after {
+      visibility: hidden;
+    }
+  }
+
   &__content {
     margin-top: $pad-large;
     font-size: $x-small;

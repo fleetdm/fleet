@@ -1,6 +1,10 @@
 .report-updated-cell {
   @include cell-with-link;
 
+  .no-report {
+    color: $ui-fleet-black-50;
+  }
+
   &__value {
     min-width: initial;
   }

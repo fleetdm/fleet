@@ -61,6 +61,9 @@ func ValidateJSONAgentOptions(ctx context.Context, ds Datastore, rawJSON json.Ra
 		if flags.ExtensionsAutoload != "" {
 			return fmt.Errorf(flagNotSupportedErr, "--extensions_autoload")
 		}
+		if flags.DatabasePath != "" {
+			return fmt.Errorf(flagNotSupportedErr, "--database_path")
+		}
 	}
 
 	if len(opts.UpdateChannels) > 0 {
@@ -152,7 +155,7 @@ func validateJSONAgentOptionsExtensions(ctx context.Context, ds Datastore, optsE
 // See https://osquery.readthedocs.io/en/stable/deployment/configuration/#configuration-specification
 //
 // NOTE: Update the following line with the version used for validation.
-// Current version: 5.5.1
+// Current version: 5.11.0
 type osqueryAgentOptions struct {
 	Options osqueryOptions `json:"options"`
 
@@ -211,35 +214,27 @@ type osqueryAgentOptions struct {
 
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
 type osqueryOptions struct {
-	AuditAllowAcceptSocketEvents        bool   `json:"audit_allow_accept_socket_events"`
-	AuditAllowApparmorEvents            bool   `json:"audit_allow_apparmor_events"`
 	AuditAllowConfig                    bool   `json:"audit_allow_config"`
-	AuditAllowFailedSocketEvents        bool   `json:"audit_allow_failed_socket_events"`
 	AuditAllowFimEvents                 bool   `json:"audit_allow_fim_events"`
-	AuditAllowForkProcessEvents         bool   `json:"audit_allow_fork_process_events"`
-	AuditAllowKillProcessEvents         bool   `json:"audit_allow_kill_process_events"`
-	AuditAllowNullAcceptSocketEvents    bool   `json:"audit_allow_null_accept_socket_events"`
 	AuditAllowProcessEvents             bool   `json:"audit_allow_process_events"`
-	AuditAllowSeccompEvents             bool   `json:"audit_allow_seccomp_events"`
-	AuditAllowSelinuxEvents             bool   `json:"audit_allow_selinux_events"`
 	AuditAllowSockets                   bool   `json:"audit_allow_sockets"`
 	AuditAllowUserEvents                bool   `json:"audit_allow_user_events"`
-	AuditBacklogLimit                   int32  `json:"audit_backlog_limit"`
-	AuditBacklogWaitTime                int32  `json:"audit_backlog_wait_time"`
-	AuditForceReconfigure               bool   `json:"audit_force_reconfigure"`
-	AuditForceUnconfigure               bool   `json:"audit_force_unconfigure"`
-	AuditPersist                        bool   `json:"audit_persist"`
 	AugeasLenses                        string `json:"augeas_lenses"`
 	AwsAccessKeyId                      string `json:"aws_access_key_id"`
 	AwsDebug                            bool   `json:"aws_debug"`
+	AwsDisableImdsv1Fallback            bool   `json:"aws_disable_imdsv1_fallback"`
 	AwsEnableProxy                      bool   `json:"aws_enable_proxy"`
 	AwsFirehoseEndpoint                 string `json:"aws_firehose_endpoint"`
 	AwsFirehosePeriod                   uint64 `json:"aws_firehose_period"`
+	AwsFirehoseRegion                   string `json:"aws_firehose_region"`
 	AwsFirehoseStream                   string `json:"aws_firehose_stream"`
+	AwsImdsv2RequestAttempts            uint32 `json:"aws_imdsv2_request_attempts"`
+	AwsImdsv2RequestInterval            uint32 `json:"aws_imdsv2_request_interval"`
 	AwsKinesisDisableLogStatus          bool   `json:"aws_kinesis_disable_log_status"`
 	AwsKinesisEndpoint                  string `json:"aws_kinesis_endpoint"`
 	AwsKinesisPeriod                    uint64 `json:"aws_kinesis_period"`
 	AwsKinesisRandomPartitionKey        bool   `json:"aws_kinesis_random_partition_key"`
+	AwsKinesisRegion                    string `json:"aws_kinesis_region"`
 	AwsKinesisStream                    string `json:"aws_kinesis_stream"`
 	AwsProfileName                      string `json:"aws_profile_name"`
 	AwsProxyHost                        string `json:"aws_proxy_host"`
@@ -254,8 +249,6 @@ type osqueryOptions struct {
 	AwsStsRegion                        string `json:"aws_sts_region"`
 	AwsStsSessionName                   string `json:"aws_sts_session_name"`
 	AwsStsTimeout                       uint64 `json:"aws_sts_timeout"`
-	BpfBufferStorageSize                uint64 `json:"bpf_buffer_storage_size"`
-	BpfPerfEventArrayExp                uint64 `json:"bpf_perf_event_array_exp"`
 	BufferedLogMax                      uint64 `json:"buffered_log_max"`
 	DecorationsTopLevel                 bool   `json:"decorations_top_level"`
 	DisableAudit                        bool   `json:"disable_audit"`
@@ -266,7 +259,6 @@ type osqueryOptions struct {
 	DisableEvents                       bool   `json:"disable_events"`
 	DisableHashCache                    bool   `json:"disable_hash_cache"`
 	DisableLogging                      bool   `json:"disable_logging"`
-	DisableMemory                       bool   `json:"disable_memory"`
 	DistributedDenylistDuration         uint64 `json:"distributed_denylist_duration"`
 	DistributedInterval                 uint64 `json:"distributed_interval"`
 	DistributedLoginfo                  bool   `json:"distributed_loginfo"`
@@ -275,18 +267,21 @@ type osqueryOptions struct {
 	DistributedTlsReadEndpoint          string `json:"distributed_tls_read_endpoint"`
 	DistributedTlsWriteEndpoint         string `json:"distributed_tls_write_endpoint"`
 	DockerSocket                        string `json:"docker_socket"`
-	EnableBpfEvents                     bool   `json:"enable_bpf_events"`
 	EnableFileEvents                    bool   `json:"enable_file_events"`
 	EnableForeign                       bool   `json:"enable_foreign"`
 	EnableNumericMonitoring             bool   `json:"enable_numeric_monitoring"`
-	EnableSyslog                        bool   `json:"enable_syslog"`
 	Ephemeral                           bool   `json:"ephemeral"`
+	EsFimEnableOpenEvents               bool   `json:"es_fim_enable_open_events"`
 	EventsExpiry                        uint64 `json:"events_expiry"`
 	EventsMax                           uint64 `json:"events_max"`
 	EventsOptimize                      bool   `json:"events_optimize"`
+	ExperimentList                      string `json:"experiment_list"`
 	ExtensionsDefaultIndex              bool   `json:"extensions_default_index"`
 	HashCacheMax                        uint32 `json:"hash_cache_max"`
 	HostIdentifier                      string `json:"host_identifier"`
+	IgnoreTableExceptions               bool   `json:"ignore_table_exceptions"`
+	KeychainAccessCache                 bool   `json:"keychain_access_cache"`
+	KeychainAccessInterval              uint32 `json:"keychain_access_interval"`
 	LoggerEventType                     bool   `json:"logger_event_type"`
 	LoggerKafkaAcks                     string `json:"logger_kafka_acks"`
 	LoggerKafkaBrokers                  string `json:"logger_kafka_brokers"`
@@ -307,7 +302,6 @@ type osqueryOptions struct {
 	LoggerTlsMaxLines                   uint64 `json:"logger_tls_max_lines"`
 	LoggerTlsMaxLinesize                uint64 `json:"logger_tls_max_linesize"`
 	LoggerTlsPeriod                     uint64 `json:"logger_tls_period"`
-	LxdSocket                           string `json:"lxd_socket"`
 	Nullvalue                           string `json:"nullvalue"`
 	NumericMonitoringFilesystemPath     string `json:"numeric_monitoring_filesystem_path"`
 	NumericMonitoringPlugins            string `json:"numeric_monitoring_plugins"`
@@ -323,12 +317,7 @@ type osqueryOptions struct {
 	ScheduleSplayPercent                uint64 `json:"schedule_splay_percent"`
 	ScheduleTimeout                     uint64 `json:"schedule_timeout"`
 	SpecifiedIdentifier                 string `json:"specified_identifier"`
-	SyslogEventsExpiry                  uint64 `json:"syslog_events_expiry"`
-	SyslogEventsMax                     uint64 `json:"syslog_events_max"`
-	SyslogPipePath                      string `json:"syslog_pipe_path"`
-	SyslogRateLimit                     uint64 `json:"syslog_rate_limit"`
 	TableDelay                          uint64 `json:"table_delay"`
-	TableExceptions                     bool   `json:"table_exceptions"`
 	ThriftStringSizeLimit               int32  `json:"thrift_string_size_limit"`
 	ThriftTimeout                       uint32 `json:"thrift_timeout"`
 	ThriftVerbose                       bool   `json:"thrift_verbose"`
@@ -347,35 +336,28 @@ type osqueryOptions struct {
 // NOTE: generate automatically with `go run ./tools/osquery-agent-options/main.go`
 type osqueryCommandLineFlags struct {
 	AlarmTimeout                        uint64 `json:"alarm_timeout"`
-	AuditAllowAcceptSocketEvents        bool   `json:"audit_allow_accept_socket_events"`
-	AuditAllowApparmorEvents            bool   `json:"audit_allow_apparmor_events"`
 	AuditAllowConfig                    bool   `json:"audit_allow_config"`
-	AuditAllowFailedSocketEvents        bool   `json:"audit_allow_failed_socket_events"`
 	AuditAllowFimEvents                 bool   `json:"audit_allow_fim_events"`
-	AuditAllowForkProcessEvents         bool   `json:"audit_allow_fork_process_events"`
-	AuditAllowKillProcessEvents         bool   `json:"audit_allow_kill_process_events"`
-	AuditAllowNullAcceptSocketEvents    bool   `json:"audit_allow_null_accept_socket_events"`
 	AuditAllowProcessEvents             bool   `json:"audit_allow_process_events"`
-	AuditAllowSeccompEvents             bool   `json:"audit_allow_seccomp_events"`
-	AuditAllowSelinuxEvents             bool   `json:"audit_allow_selinux_events"`
 	AuditAllowSockets                   bool   `json:"audit_allow_sockets"`
 	AuditAllowUserEvents                bool   `json:"audit_allow_user_events"`
-	AuditBacklogLimit                   int32  `json:"audit_backlog_limit"`
-	AuditBacklogWaitTime                int32  `json:"audit_backlog_wait_time"`
-	AuditForceReconfigure               bool   `json:"audit_force_reconfigure"`
-	AuditForceUnconfigure               bool   `json:"audit_force_unconfigure"`
-	AuditPersist                        bool   `json:"audit_persist"`
 	AugeasLenses                        string `json:"augeas_lenses"`
 	AwsAccessKeyId                      string `json:"aws_access_key_id"`
 	AwsDebug                            bool   `json:"aws_debug"`
+	AwsDisableImdsv1Fallback            bool   `json:"aws_disable_imdsv1_fallback"`
 	AwsEnableProxy                      bool   `json:"aws_enable_proxy"`
+	AwsEnforceFips                      bool   `json:"aws_enforce_fips"`
 	AwsFirehoseEndpoint                 string `json:"aws_firehose_endpoint"`
 	AwsFirehosePeriod                   uint64 `json:"aws_firehose_period"`
+	AwsFirehoseRegion                   string `json:"aws_firehose_region"`
 	AwsFirehoseStream                   string `json:"aws_firehose_stream"`
+	AwsImdsv2RequestAttempts            uint32 `json:"aws_imdsv2_request_attempts"`
+	AwsImdsv2RequestInterval            uint32 `json:"aws_imdsv2_request_interval"`
 	AwsKinesisDisableLogStatus          bool   `json:"aws_kinesis_disable_log_status"`
 	AwsKinesisEndpoint                  string `json:"aws_kinesis_endpoint"`
 	AwsKinesisPeriod                    uint64 `json:"aws_kinesis_period"`
 	AwsKinesisRandomPartitionKey        bool   `json:"aws_kinesis_random_partition_key"`
+	AwsKinesisRegion                    string `json:"aws_kinesis_region"`
 	AwsKinesisStream                    string `json:"aws_kinesis_stream"`
 	AwsProfileName                      string `json:"aws_profile_name"`
 	AwsProxyHost                        string `json:"aws_proxy_host"`
@@ -390,8 +372,6 @@ type osqueryCommandLineFlags struct {
 	AwsStsRegion                        string `json:"aws_sts_region"`
 	AwsStsSessionName                   string `json:"aws_sts_session_name"`
 	AwsStsTimeout                       uint64 `json:"aws_sts_timeout"`
-	BpfBufferStorageSize                uint64 `json:"bpf_buffer_storage_size"`
-	BpfPerfEventArrayExp                uint64 `json:"bpf_perf_event_array_exp"`
 	BufferedLogMax                      uint64 `json:"buffered_log_max"`
 	CarverBlockSize                     uint32 `json:"carver_block_size"`
 	CarverCompression                   bool   `json:"carver_compression"`
@@ -423,7 +403,6 @@ type osqueryCommandLineFlags struct {
 	DisableExtensions                   bool   `json:"disable_extensions"`
 	DisableHashCache                    bool   `json:"disable_hash_cache"`
 	DisableLogging                      bool   `json:"disable_logging"`
-	DisableMemory                       bool   `json:"disable_memory"`
 	DisableReenrollment                 bool   `json:"disable_reenrollment"`
 	DisableTables                       string `json:"disable_tables"`
 	DisableWatchdog                     bool   `json:"disable_watchdog"`
@@ -435,32 +414,35 @@ type osqueryCommandLineFlags struct {
 	DistributedTlsReadEndpoint          string `json:"distributed_tls_read_endpoint"`
 	DistributedTlsWriteEndpoint         string `json:"distributed_tls_write_endpoint"`
 	DockerSocket                        string `json:"docker_socket"`
-	EnableBpfEvents                     bool   `json:"enable_bpf_events"`
 	EnableExtensionsWatchdog            bool   `json:"enable_extensions_watchdog"`
 	EnableFileEvents                    bool   `json:"enable_file_events"`
 	EnableForeign                       bool   `json:"enable_foreign"`
 	EnableNumericMonitoring             bool   `json:"enable_numeric_monitoring"`
-	EnableSyslog                        bool   `json:"enable_syslog"`
 	EnableTables                        string `json:"enable_tables"`
+	EnableWatchdogDebug                 bool   `json:"enable_watchdog_debug"`
 	EnrollAlways                        bool   `json:"enroll_always"`
 	EnrollSecretEnv                     string `json:"enroll_secret_env"`
 	EnrollSecretPath                    string `json:"enroll_secret_path"`
 	EnrollTlsEndpoint                   string `json:"enroll_tls_endpoint"`
 	Ephemeral                           bool   `json:"ephemeral"`
+	EsFimEnableOpenEvents               bool   `json:"es_fim_enable_open_events"`
 	EventsExpiry                        uint64 `json:"events_expiry"`
 	EventsMax                           uint64 `json:"events_max"`
 	EventsOptimize                      bool   `json:"events_optimize"`
+	ExperimentList                      string `json:"experiment_list"`
 	ExtensionsAutoload                  string `json:"extensions_autoload"`
 	ExtensionsDefaultIndex              bool   `json:"extensions_default_index"`
-	ExtensionsInterval                  uint64 `json:"extensions_interval"`
+	ExtensionsInterval                  string `json:"extensions_interval"`
 	ExtensionsRequire                   string `json:"extensions_require"`
 	ExtensionsSocket                    string `json:"extensions_socket"`
-	ExtensionsTimeout                   uint64 `json:"extensions_timeout"`
+	ExtensionsTimeout                   string `json:"extensions_timeout"`
 	Force                               bool   `json:"force"`
 	HashCacheMax                        uint32 `json:"hash_cache_max"`
 	HostIdentifier                      string `json:"host_identifier"`
+	IgnoreTableExceptions               bool   `json:"ignore_table_exceptions"`
 	Install                             bool   `json:"install"`
-	KeepContainerWorkerOpen             bool   `json:"keep_container_worker_open"`
+	KeychainAccessCache                 bool   `json:"keychain_access_cache"`
+	KeychainAccessInterval              uint32 `json:"keychain_access_interval"`
 	LoggerEventType                     bool   `json:"logger_event_type"`
 	LoggerKafkaAcks                     string `json:"logger_kafka_acks"`
 	LoggerKafkaBrokers                  string `json:"logger_kafka_brokers"`
@@ -485,7 +467,6 @@ type osqueryCommandLineFlags struct {
 	LoggerTlsMaxLinesize                uint64 `json:"logger_tls_max_linesize"`
 	LoggerTlsPeriod                     uint64 `json:"logger_tls_period"`
 	Logtostderr                         bool   `json:"logtostderr"`
-	LxdSocket                           string `json:"lxd_socket"`
 	Nullvalue                           string `json:"nullvalue"`
 	NumericMonitoringFilesystemPath     string `json:"numeric_monitoring_filesystem_path"`
 	NumericMonitoringPlugins            string `json:"numeric_monitoring_plugins"`
@@ -504,12 +485,7 @@ type osqueryCommandLineFlags struct {
 	ScheduleTimeout                     uint64 `json:"schedule_timeout"`
 	SpecifiedIdentifier                 string `json:"specified_identifier"`
 	Stderrthreshold                     int32  `json:"stderrthreshold"`
-	SyslogEventsExpiry                  uint64 `json:"syslog_events_expiry"`
-	SyslogEventsMax                     uint64 `json:"syslog_events_max"`
-	SyslogPipePath                      string `json:"syslog_pipe_path"`
-	SyslogRateLimit                     uint64 `json:"syslog_rate_limit"`
 	TableDelay                          uint64 `json:"table_delay"`
-	TableExceptions                     bool   `json:"table_exceptions"`
 	ThriftStringSizeLimit               int32  `json:"thrift_string_size_limit"`
 	ThriftTimeout                       uint32 `json:"thrift_timeout"`
 	ThriftVerbose                       bool   `json:"thrift_verbose"`
@@ -544,8 +520,34 @@ type osqueryCommandLineFlags struct {
 // osquery. They are exported so they can be used by the
 // tools/osquery-agent-options script.
 type OsqueryCommandLineFlagsLinux struct {
-	MallocTrimThreshold   uint64 `json:"malloc_trim_threshold"`
-	HardwareDisabledTypes string `json:"hardware_disabled_types"`
+	AuditAllowAcceptSocketEvents             bool   `json:"audit_allow_accept_socket_events"`
+	AuditAllowApparmorEvents                 bool   `json:"audit_allow_apparmor_events"`
+	AuditAllowFailedSocketEvents             bool   `json:"audit_allow_failed_socket_events"`
+	AuditAllowForkProcessEvents              bool   `json:"audit_allow_fork_process_events"`
+	AuditAllowKillProcessEvents              bool   `json:"audit_allow_kill_process_events"`
+	AuditAllowNullAcceptSocketEvents         bool   `json:"audit_allow_null_accept_socket_events"`
+	AuditAllowSeccompEvents                  bool   `json:"audit_allow_seccomp_events"`
+	AuditAllowSelinuxEvents                  bool   `json:"audit_allow_selinux_events"`
+	AuditBacklogLimit                        int32  `json:"audit_backlog_limit"`
+	AuditBacklogWaitTime                     int32  `json:"audit_backlog_wait_time"`
+	AuditForceReconfigure                    bool   `json:"audit_force_reconfigure"`
+	AuditForceUnconfigure                    bool   `json:"audit_force_unconfigure"`
+	AuditPersist                             bool   `json:"audit_persist"`
+	BpfBufferStorageSize                     uint64 `json:"bpf_buffer_storage_size"`
+	BpfPerfEventArrayExp                     uint64 `json:"bpf_perf_event_array_exp"`
+	DisableMemory                            bool   `json:"disable_memory"`
+	EnableBpfEvents                          bool   `json:"enable_bpf_events"`
+	EnableSyslog                             bool   `json:"enable_syslog"`
+	ExperimentsLinuxeventsCircularBufferSize uint32 `json:"experiments_linuxevents_circular_buffer_size"`
+	ExperimentsLinuxeventsPerfOutputSize     uint32 `json:"experiments_linuxevents_perf_output_size"`
+	HardwareDisabledTypes                    string `json:"hardware_disabled_types"`
+	KeepContainerWorkerOpen                  bool   `json:"keep_container_worker_open"`
+	LxdSocket                                string `json:"lxd_socket"`
+	MallocTrimThreshold                      uint64 `json:"malloc_trim_threshold"`
+	SyslogEventsExpiry                       uint64 `json:"syslog_events_expiry"`
+	SyslogEventsMax                          uint64 `json:"syslog_events_max"`
+	SyslogPipePath                           string `json:"syslog_pipe_path"`
+	SyslogRateLimit                          uint64 `json:"syslog_rate_limit"`
 }
 
 type OsqueryCommandLineFlagsWindows struct {
@@ -555,8 +557,17 @@ type OsqueryCommandLineFlagsWindows struct {
 	GroupsServiceInterval            uint64 `json:"groups_service_interval"`
 	EnableNtfsEventPublisher         bool   `json:"enable_ntfs_event_publisher"`
 	EnablePowershellEventsSubscriber bool   `json:"enable_powershell_events_subscriber"`
+	EnableProcessEtwEvents           bool   `json:"enable_process_etw_events"`
 	EnableWindowsEventsPublisher     bool   `json:"enable_windows_events_publisher"`
 	EnableWindowsEventsSubscriber    bool   `json:"enable_windows_events_subscriber"`
+	EtwKernelTraceBufferSize         uint32 `json:"etw_kernel_trace_buffer_size"`
+	EtwKernelTraceFlushTimer         uint32 `json:"etw_kernel_trace_flush_timer"`
+	EtwKernelTraceMaximumBuffers     uint32 `json:"etw_kernel_trace_maximum_buffers"`
+	EtwKernelTraceMinimumBuffers     uint32 `json:"etw_kernel_trace_minimum_buffers"`
+	EtwUserspaceTraceBufferSize      uint32 `json:"etw_userspace_trace_buffer_size"`
+	EtwUserspaceTraceFlushTimer      uint32 `json:"etw_userspace_trace_flush_timer"`
+	EtwUserspaceTraceMaximumBuffers  uint32 `json:"etw_userspace_trace_maximum_buffers"`
+	EtwUserspaceTraceMinimumBuffers  uint32 `json:"etw_userspace_trace_minimum_buffers"`
 	NtfsEventPublisherDebug          bool   `json:"ntfs_event_publisher_debug"`
 	WindowsEventChannels             string `json:"windows_event_channels"`
 	UsnJournalReaderDebug            bool   `json:"usn_journal_reader_debug"`
@@ -577,6 +588,7 @@ type OsqueryCommandLineFlagsMacOS struct {
 type OsqueryCommandLineFlagsHidden struct {
 	AlsoLogToStderr               bool   `json:"alsologtostderr"`
 	EventsStreamingPlugin         string `json:"events_streaming_plugin"`
+	IgnoreRegistryExceptions      bool   `json:"ignore_registry_exceptions"`
 	LogBufSecs                    int32  `json:"logbufsecs"`
 	LogDir                        string `json:"log_dir"`
 	MaxLogSize                    int32  `json:"max_log_size"`

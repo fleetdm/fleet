@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/json"
@@ -196,6 +197,11 @@ func main() {
 			Usage:   "Disables the use of the keychain on macOS and Credentials Manager on Windows",
 			EnvVars: []string{"ORBIT_DISABLE_KEYSTORE"},
 		},
+		&cli.StringFlag{
+			Name:    "osquery-db",
+			Usage:   "Sets a custom osquery database directory, it must be an absolute path",
+			EnvVars: []string{"ORBIT_OSQUERY_DB"},
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		// handle old installations, which had default root dir set to /var/lib/orbit
@@ -267,6 +273,10 @@ func main() {
 
 		if c.Bool("insecure") && c.String("update-tls-certificate") != "" {
 			return errors.New("insecure and update-tls-certificate may not be specified together")
+		}
+
+		if odb := c.String("osquery-db"); odb != "" && !filepath.IsAbs(odb) {
+			return fmt.Errorf("the osquery database must be an absolute path: %q", odb)
 		}
 
 		enrollSecretPath := c.String("enroll-secret-path")
@@ -575,7 +585,24 @@ func main() {
 			return fmt.Errorf("cleanup old files: %w", err)
 		}
 
-		osqueryHostInfo, err := getHostInfo(osquerydPath, filepath.Join(c.String("root-dir"), "osquery.db"))
+		// Kill any pre-existing instances of osqueryd (otherwise getHostInfo will fail
+		// because of osqueryd's lock over its database).
+		//
+		// This can happen for instance when orbit is killed via the Windows Task Manager
+		// (there's no SIGTERM on Windows) and the osqueryd child processes are left orphaned.
+		killedProcesses, err := platform.KillAllProcessByName("osqueryd")
+		if err != nil {
+			log.Error().Err(err).Msg("failed to kill pre-existing instances of osqueryd")
+		} else if len(killedProcesses) > 0 {
+			log.Debug().Str("processes", fmt.Sprintf("%+v", killedProcesses)).Msg("existing osqueryd processes killed")
+		}
+
+		osqueryDB := filepath.Join(c.String("root-dir"), "osquery.db")
+		if odb := c.String("osquery-db"); odb != "" {
+			osqueryDB = odb
+		}
+
+		osqueryHostInfo, err := getHostInfo(osquerydPath, osqueryDB)
 		if err != nil {
 			return fmt.Errorf("get UUID: %w", err)
 		}
@@ -601,11 +628,16 @@ func main() {
 		}
 
 		var (
-			options              []osquery.Option
+			options []osquery.Option
+			// optionsAfterFlagfile is populated with options that will be set after the '--flagfile' argument
+			// to not allow users to change their values on their flagfiles.
 			optionsAfterFlagfile []osquery.Option
 		)
-		options = append(options, osquery.WithDataPath(c.String("root-dir")))
+		options = append(options, osquery.WithDataPath(c.String("root-dir"), ""))
 		options = append(options, osquery.WithLogPath(filepath.Join(c.String("root-dir"), "osquery_log")))
+		optionsAfterFlagfile = append(optionsAfterFlagfile, osquery.WithFlags(
+			[]string{"--database_path", osqueryDB},
+		))
 
 		if logFile != nil {
 			// If set, redirect osqueryd's stderr to the logFile.
@@ -750,6 +782,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("error new orbit client: %w", err)
@@ -1022,6 +1062,14 @@ func main() {
 			enrollSecret,
 			fleetClientCertificate,
 			orbitHostInfo,
+			&service.OnGetConfigErrFuncs{
+				DebugErrFunc: func(err error) {
+					log.Debug().Err(err).Msg("get config")
+				},
+				OnNetErrFunc: func(err error) {
+					log.Info().Err(err).Msg("network error")
+				},
+			},
 		)
 		if err != nil {
 			return fmt.Errorf("new client for capabilities checker: %w", err)
@@ -1417,6 +1465,10 @@ type osqueryHostInfo struct {
 
 // getHostInfo retrieves system information about the host by shelling out to `osqueryd -S` and performing a `SELECT` query.
 func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, error) {
+	// Make sure parent directory exists (`osqueryd -S` doesn't create the parent directories).
+	if err := os.MkdirAll(filepath.Dir(osqueryDBPath), constant.DefaultDirMode); err != nil {
+		return nil, err
+	}
 	const systemQuery = "SELECT si.uuid, si.hardware_serial, si.hostname, os.platform, oi.instance_id FROM system_info si, os_version os, osquery_info oi"
 	args := []string{
 		"-S",
@@ -1424,14 +1476,23 @@ func getHostInfo(osqueryPath string, osqueryDBPath string) (*osqueryHostInfo, er
 		"--json", systemQuery,
 	}
 	log.Debug().Str("query", systemQuery).Msg("running single query")
-	out, err := exec.Command(osqueryPath, args...).Output()
-	if err != nil {
-		log.Debug().Str("output", string(out)).Msg("getHostInfo via osquery")
+	cmd := exec.Command(osqueryPath, args...)
+	var (
+		osquerydStdout bytes.Buffer
+		osquerydStderr bytes.Buffer
+	)
+	cmd.Stdout = &osquerydStdout
+	cmd.Stderr = &osquerydStderr
+	if err := cmd.Run(); err != nil {
+		log.Error().Str(
+			"output", string(osquerydStdout.Bytes()),
+		).Str(
+			"stderr", string(osquerydStderr.Bytes()),
+		).Msg("getHostInfo via osquery")
 		return nil, err
 	}
 	var info []osqueryHostInfo
-	err = json.Unmarshal(out, &info)
-	if err != nil {
+	if err := json.Unmarshal(osquerydStdout.Bytes(), &info); err != nil {
 		return nil, err
 	}
 	if len(info) != 1 {
@@ -1518,7 +1579,7 @@ func (f *capabilitiesChecker) execute() error {
 	// Do an initial ping to store the initial capabilities if needed
 	if len(f.client.GetServerCapabilities()) == 0 {
 		if err := f.client.Ping(); err != nil {
-			logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+			logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 		}
 	}
 
@@ -1528,7 +1589,7 @@ func (f *capabilitiesChecker) execute() error {
 			oldCapabilities := f.client.GetServerCapabilities()
 			// ping the server to get the latest capabilities
 			if err := f.client.Ping(); err != nil {
-				logging.LogErrIfEnvNotSet(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
+				logging.LogErrIfEnvNotSetDebug(constant.SilenceEnrollLogErrorEnvVar, err, "pinging the server")
 				continue
 			}
 			newCapabilities := f.client.GetServerCapabilities()

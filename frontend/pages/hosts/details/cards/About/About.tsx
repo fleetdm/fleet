@@ -54,7 +54,7 @@ const About = ({
         <span
           className="text-cell text-muted tooltip"
           data-tip
-          data-for={"public-ip-tooltip"}
+          data-for="public-ip-tooltip"
         >
           {aboutData.public_ip}
         </span>
@@ -62,7 +62,7 @@ const About = ({
           place="bottom"
           effect="solid"
           backgroundColor={COLORS["tooltip-bg"]}
-          id={"public-ip-tooltip"}
+          id="public-ip-tooltip"
           data-html
           clickable
           delayHide={200} // need delay set to hover using clickable

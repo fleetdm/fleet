@@ -135,6 +135,12 @@ type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+	// UserID is filled automatically from the context's user (the authenticated
+	// user that made the API request).
+	UserID *uint `json:"-"`
+	// SyncRequest is filled automatically based on the endpoint used to create
+	// the execution request (synchronous or asynchronous).
+	SyncRequest bool `json:"-"`
 }
 
 type HostScriptResultPayload struct {
@@ -173,6 +179,15 @@ type HostScriptResult struct {
 	// ScriptID is the id of the saved script to execute, or nil if this was an
 	// anonymous script execution.
 	ScriptID *uint `json:"script_id" db:"script_id"`
+	// UserID is the id of the user that requested execution. It is not part of
+	// the rendered JSON as it is only returned by the
+	// /hosts/:id/activities/upcoming endpoint which doesn't use this struct as
+	// return type.
+	UserID *uint `json:"-" db:"user_id"`
+	// SyncRequest is used to determine when creating the script ran activity if
+	// the request was synchronous or asynchronous. It is otherwise not returned
+	// as part of any API endpoint.
+	SyncRequest bool `json:"-" db:"sync_request"`
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
@@ -208,6 +223,11 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 		if hsr.HostTimeout(scripts.MaxServerWaitTime) {
 			return RunScriptHostTimeoutErrMsg
 		}
+
+		if !hsr.SyncRequest {
+			return RunScriptAsyncScriptEnqueuedErrMsg
+		}
+
 		return RunScriptAlreadyRunningErrMsg
 	}
 
@@ -222,7 +242,7 @@ func (hsr HostScriptResult) UserMessage(hostTimeout bool) string {
 }
 
 func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
-	return hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
+	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
 const MaxScriptRuneLen = 10000
@@ -269,4 +289,76 @@ func ValidateHostScriptContents(s string) error {
 type ScriptPayload struct {
 	Name           string `json:"name"`
 	ScriptContents []byte `json:"script_contents"`
+}
+
+type HostLockWipeStatus struct {
+	// HostFleetPlatform is the fleet-normalized platform of the host, i.e. the
+	// result of host.FleetPlatform().
+	HostFleetPlatform string
+
+	// macOS hosts use an MDM command to lock
+	LockMDMCommand       *MDMCommand
+	LockMDMCommandResult *MDMCommandResult
+
+	// windows and linux hosts use a script to lock
+	LockScript *HostScriptResult
+
+	// macOS hosts must manually unlock using a secret PIN, which is stored here
+	// when the lock request is sent.
+	UnlockPIN string
+	// macOS records the timestamp of the unlock request in the "unlock_ref",
+	// which is then stored here.
+	UnlockRequestedAt time.Time
+	// windows and linux hosts use a script to unlock
+	UnlockScript *HostScriptResult
+
+	// TODO: add wipe status when implementing the Wipe story.
+}
+
+func (s *HostLockWipeStatus) IsPendingLock() bool {
+	if s.HostFleetPlatform == "darwin" {
+		// pending lock if an MDM command is queued but no result received yet
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult == nil
+	}
+	// pending lock if script execution request is queued but no result yet
+	return s.LockScript != nil && s.LockScript.ExitCode == nil
+}
+
+func (s HostLockWipeStatus) IsPendingUnlock() bool {
+	if s.HostFleetPlatform == "darwin" {
+		// pending unlock if an unlock was requested
+		return !s.UnlockRequestedAt.IsZero()
+	}
+	// pending unlock if script execution request is queued but no result yet
+	return s.UnlockScript != nil && s.UnlockScript.ExitCode == nil
+}
+
+func (s HostLockWipeStatus) IsPendingWipe() bool {
+	// TODO(mna): implement when addressing Wipe story, for now wipe is never pending
+	return false
+}
+
+func (s HostLockWipeStatus) IsLocked() bool {
+	// this state is regardless of pending unlock/wipe (it reports whether the
+	// host is locked *now*).
+
+	if s.HostFleetPlatform == "darwin" {
+		// locked if an MDM command was sent and succeeded
+		return s.LockMDMCommand != nil && s.LockMDMCommandResult != nil &&
+			s.LockMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	}
+	// locked if a script was sent and succeeded
+	return s.LockScript != nil && s.LockScript.ExitCode != nil &&
+		*s.LockScript.ExitCode == 0
+}
+
+func (s HostLockWipeStatus) IsUnlocked() bool {
+	// this state is regardless of pending lock/unlock/wipe (it reports whether
+	// the host is unlocked *now*).
+	return !s.IsLocked() && !s.IsWiped()
+}
+
+func (s HostLockWipeStatus) IsWiped() bool {
+	// TODO(mna): implement when addressing Wipe story, for now never wiped
+	return false
 }

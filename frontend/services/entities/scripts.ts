@@ -1,14 +1,7 @@
+import { IScript, IHostScript } from "interfaces/script";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
-export interface IScript {
-  id: number;
-  team_id: number | null;
-  name: string;
-  created_at: string;
-  updated_at: string;
-}
 
 /** Single script response from GET /script/:id */
 export type IScriptResponse = IScript;
@@ -40,6 +33,7 @@ export interface IScriptResultResponse {
   host_id: number;
   execution_id: string;
   script_contents: string;
+  script_id: number;
   exit_code: number | null;
   output: string;
   message: string;
@@ -47,18 +41,17 @@ export interface IScriptResultResponse {
   host_timeout: boolean;
 }
 
-export type IScriptExecutionStatus = "ran" | "pending" | "error";
-
-export interface ILastExecution {
-  execution_id: string;
-  executed_at: string;
-  status: IScriptExecutionStatus;
+/**
+ * Request params for for GET /hosts/:id/scripts
+ */
+export interface IHostScriptsRequestParams {
+  host_id: number;
+  page?: number;
+  per_page?: number;
 }
 
-export interface IHostScript {
-  script_id: number;
-  name: string;
-  last_execution: ILastExecution | null;
+export interface IHostScriptsQueryKey extends IHostScriptsRequestParams {
+  scope: "host_scripts";
 }
 
 /**
@@ -94,13 +87,13 @@ export interface IScriptRunResponse {
 }
 
 export default {
-  getHostScripts(id: number, page?: number) {
+  getHostScripts({ host_id, page, per_page }: IHostScriptsRequestParams) {
     const { HOST_SCRIPTS } = endpoints;
+    const path = `${HOST_SCRIPTS(host_id)}?${buildQueryStringFromParams({
+      page,
+      per_page,
+    })}`;
 
-    let path = HOST_SCRIPTS(id);
-    if (page) {
-      path = `${path}?${buildQueryStringFromParams({ page })}`;
-    }
     return sendRequest("GET", path);
   },
 

@@ -4,6 +4,9 @@
   }
 }
 
+// styles specific to DeviceUserPage
+// for styles that should apply to both DeviceUserPage and HostDetailsPage (most of them),
+// update frontend/pages/hosts/details/_styles.scss/ `.host-details, .device-user {...}`
 .device-user {
   justify-content: flex-start;
   padding-bottom: 50px;

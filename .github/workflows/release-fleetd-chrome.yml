@@ -63,5 +63,5 @@ jobs:
           
           " > ~/.config/rclone/rclone.conf
           mv dist.crx fleetd.crx
-          rclone copy fleetd.crx r2:chrome-beta/ # TODO change to chrome after testing on main
-          rclone copy updates.xml r2:chrome-beta/ # TODO change to chrome after testing on main
+          rclone copy fleetd.crx r2:chrome/
+          rclone copy updates.xml r2:chrome/

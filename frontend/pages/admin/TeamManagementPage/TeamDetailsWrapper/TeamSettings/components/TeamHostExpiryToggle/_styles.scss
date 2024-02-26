@@ -1,0 +1,13 @@
+.team-host-expiry-toggle {
+  &__disabled-team-host-expiry-toggle > .fleet-checkbox {
+    @include disabled;
+  }
+
+  &__add-custom-window {
+    display: inline-flex;
+    align-items: center;
+    cursor: pointer;
+    font-weight: inherit;
+    font-size: inherit;
+  }
+}

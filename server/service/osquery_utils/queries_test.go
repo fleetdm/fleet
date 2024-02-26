@@ -101,7 +101,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM osquery_info",
     "system_time":"150",
     "user_time":"180",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"50400",
@@ -115,7 +115,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"140",
     "user_time":"190",
-    "wall_time":"1"
+    "wall_time":"1111",
+    "wall_time_ms":"1"
   },
   {
     "average_memory":"0",
@@ -129,7 +130,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"0",
     "user_time":"0",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"0",
@@ -143,7 +144,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM time",
     "system_time":"70",
     "user_time":"50",
-    "wall_time":"1"
+    "wall_time_ms":"1"
   }
 ]
 `
@@ -170,7 +171,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         100,
 				UserTime:           60,
-				WallTime:           180,
+				WallTimeMs:         180 * 1000,
 			},
 		},
 	)
@@ -188,7 +189,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         1337,
 				SystemTime:         150,
 				UserTime:           180,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "processes?",
@@ -201,7 +202,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         140,
 				UserTime:           190,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 			{
 				ScheduledQueryName: "processes?-1",
@@ -214,7 +215,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         0,
 				UserTime:           0,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "time",
@@ -227,7 +228,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         70,
 				UserTime:           50,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 		},
 	)
@@ -421,7 +422,7 @@ func TestDetailQueriesOSVersionWindows(t *testing.T) {
 	))
 
 	assert.NoError(t, ingest(context.Background(), log.NewNopLogger(), &host, rows))
-	assert.Equal(t, "Windows 11 Enterprise 10.0.22000", host.OSVersion)
+	assert.Equal(t, "Windows 11 Enterprise 21H2 10.0.22000", host.OSVersion)
 
 	require.NoError(t, json.Unmarshal([]byte(`
 [{
@@ -683,6 +684,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		wantInstalledFromDep bool
 		wantIsServer         bool
 		wantServerURL        string
+		wantMDMSolName       string
 	}{
 		{
 			name: "off empty server URL",
@@ -771,6 +773,106 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantIsServer:         true,
 			wantServerURL:        "https://example.com",
 		},
+
+		// Test that names are being calculated correctly
+
+		{
+			name: "on manual jumpcloud",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://jumpcloud.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://jumpcloud.com",
+			wantMDMSolName:       fleet.WellKnownMDMJumpCloud,
+		},
+		{
+			name: "on manual airwatch",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://airwatch.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://airwatch.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual awmdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://awmdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://awmdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual microsoft",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://microsoft.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://microsoft.com",
+			wantMDMSolName:       fleet.WellKnownMDMIntune,
+		},
+		{
+			name: "on manual fleetdm cloud hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://fleetdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
+
+		{
+			name: "on manual fleetdm self hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://myinstall.local",
+					"is_federated":          "0",
+					"provider_id":           "Fleet",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://myinstall.local",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
 	}
 
 	for _, c := range cases {
@@ -780,6 +882,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
@@ -852,13 +955,26 @@ func TestDirectIngestOSWindows(t *testing.T) {
 	}{
 		{
 			expected: fleet.OperatingSystem{
-				Name:          "Microsoft Windows 11 Enterprise",
-				Version:       "21H2",
-				Arch:          "64-bit",
-				KernelVersion: "10.0.22000.795",
+				Name:           "Microsoft Windows 11 Enterprise 21H2",
+				Version:        "10.0.22000.795",
+				Arch:           "64-bit",
+				KernelVersion:  "10.0.22000.795",
+				DisplayVersion: "21H2",
 			},
 			data: []map[string]string{
-				{"name": "Microsoft Windows 11 Enterprise", "version": "21H2", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+				{"name": "Microsoft Windows 11 Enterprise", "display_version": "21H2", "version": "10.0.22000.795", "release_id": "", "arch": "64-bit", "kernel_version": "10.0.22000.795"},
+			},
+		},
+		{
+			expected: fleet.OperatingSystem{
+				Name:           "Microsoft Windows 10 Enterprise", // no display_version
+				Version:        "10.0.17763.2183",
+				Arch:           "64-bit",
+				KernelVersion:  "10.0.17763.2183",
+				DisplayVersion: "",
+			},
+			data: []map[string]string{
+				{"name": "Microsoft Windows 10 Enterprise", "display_version": "", "version": "10.0.17763", "release_id": "1809", "arch": "64-bit", "kernel_version": "10.0.17763.2183"},
 			},
 		},
 	}
@@ -1732,5 +1848,32 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		} else {
 			require.Equal(t, gotQuery, tc.want)
 		}
+	}
+}
+
+func TestShouldRemoveSoftware(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+		s    *fleet.Software
+		h    *fleet.Host
+	}{
+		{
+			name: "parallels windows software on MacOS host",
+			want: true,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.parallels.winapp.notepad", Name: "Notepad.app"},
+		},
+		{
+			name: "regular macos software",
+			want: false,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.apple.dock", Name: "Dock.app"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
 	}
 }

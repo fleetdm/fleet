@@ -1,9 +1,7 @@
 import React from "react";
 
 import { IHostPolicy } from "interfaces/policy";
-import InfoBanner from "components/InfoBanner";
 import TableContainer from "components/TableContainer";
-import CustomLink from "components/CustomLink";
 import EmptyTable from "components/EmptyTable";
 
 import {
@@ -11,7 +9,6 @@ import {
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
-import { isValidPolicyResponse } from "../../../ManageHostsPage/helpers";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -33,7 +30,6 @@ const Policies = ({
         <EmptyTable
           header={
             <>
-              {" "}
               No policies are checked{" "}
               {deviceUser ? `on your device` : `for this host`}
             </>
@@ -72,7 +68,7 @@ const Policies = ({
             data={generatePolicyDataSet(policies)}
             isLoading={isLoading}
             manualSortBy
-            resultsTitle={"policy items"}
+            resultsTitle="policy items"
             emptyComponent={() => <></>}
             showMarkAllPages={false}
             isAllPagesSelected={false}

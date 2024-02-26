@@ -13,7 +13,7 @@ func execCmd(ctx context.Context, scriptPath string) (output []byte, exitCode in
 	exitCode = -1
 
 	// for Windows, we execute the file with powershell.
-	cmd := exec.CommandContext(ctx, "powershell", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
+	cmd := exec.CommandContext(ctx, "powershell", "-MTA", "-ExecutionPolicy", "Bypass", "-File", scriptPath)
 	cmd.Dir = filepath.Dir(scriptPath)
 	output, err = cmd.CombinedOutput()
 	if cmd.ProcessState != nil {
