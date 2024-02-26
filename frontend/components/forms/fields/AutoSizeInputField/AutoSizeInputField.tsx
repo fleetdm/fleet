@@ -16,8 +16,8 @@ interface IAutoSizeInputFieldProps {
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
-  onFocus: () => void;
-  onBlur: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   onChange: (newSelectedValue: string) => void;
   onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
@@ -33,8 +33,8 @@ const AutoSizeInputField = ({
   hasError,
   isDisabled,
   isFocused,
-  onFocus,
-  onBlur,
+  onFocus = () => null,
+  onBlur = () => null,
   onChange,
   onKeyPress,
 }: IAutoSizeInputFieldProps): JSX.Element => {
@@ -91,7 +91,6 @@ const AutoSizeInputField = ({
           className={inputClasses}
           cols={value ? value.length : placeholder.length - 2}
           rows={1}
-          tabIndex={0}
           onFocus={onInputFocus}
           onBlur={onInputBlur}
           onKeyPress={onInputKeyPress}

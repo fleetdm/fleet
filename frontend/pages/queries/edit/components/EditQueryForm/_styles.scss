@@ -47,6 +47,7 @@
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        width: fit-content;
 
         &:not(.edit-query-form--editing) {
           textarea:hover {
@@ -78,6 +79,7 @@
         opacity: 1;
         &.hide {
           opacity: 0;
+          display: none;
         }
       }
     }

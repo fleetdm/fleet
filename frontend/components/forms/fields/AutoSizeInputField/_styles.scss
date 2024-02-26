@@ -1,6 +1,7 @@
 .component__auto-size-input-field {
   box-sizing: border-box;
   color: $core-fleet-black;
+  width: fit-content;
 
   &::placeholder {
     color: $ui-fleet-black-50;
