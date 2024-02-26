@@ -49,12 +49,6 @@
         gap: 0.5rem;
         width: fit-content;
 
-        &:not(.edit-query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
-        }
         .edit-query-form__query-name,
         .input-sizer::after {
           font-size: $large;
@@ -66,12 +60,6 @@
         display: flex;
         align-items: flex-start;
         gap: 0.5rem;
-        &:not(.edit-query-form--editing) {
-          textarea:hover {
-            cursor: pointer;
-            color: $core-vibrant-blue;
-          }
-        }
       }
       .edit-icon {
         width: 14px;
