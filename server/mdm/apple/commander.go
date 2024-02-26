@@ -119,13 +119,6 @@ func (svc *MDMAppleCommander) DeviceLock(ctx context.Context, host *fleet.Host, 
 }
 
 func (svc *MDMAppleCommander) EraseDevice(ctx context.Context, host *fleet.Host, uuid string) error {
-	// TODO(mna): do we need this PIN, and if so should it be saved somewhere? It
-	// doesn't appear in the Wipe host's spec/figma like we need one and it
-	// doesn't look like it is required by Apple:
-	// https://developer.apple.com/documentation/devicemanagement/erasedevicecommand/command.
-	// Although it does mention that this is for "Find my device", so maybe we
-	// don't have to store it but if the user is an admin on Apple's website they
-	// can view the PIN somewhere in there so it's still useful?
 	pin := GenerateRandomPin(6)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

@@ -873,10 +873,6 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 			// around once it's confirmed.
 			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL, %[1]swipe_ref = NULL", alias)
 		case "wipe_ref":
-			// TODO(mna): can a wiped device still be locked? If so we'd need to keep
-			// the pin/lock_ref, but this would mean that both IsLocked and IsWiped
-			// would be true, we'd need to ensure we check wipe first (I think we
-			// always assumed those 3 states were exclusive).
 			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL", alias)
 		}
 	} else {
