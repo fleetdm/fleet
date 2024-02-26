@@ -1,0 +1,2 @@
+Fixed bug where updating policy name can result with multiple policies with the same name in a team.
+- This bug was introduced in fleet v4.44.1. Any duplicate policy names in the same team will be renamed by adding a number to the end of the policy name.

@@ -33,9 +33,9 @@ const MunkiIssuesTable = ({
             columnConfigs={tableHeaders}
             data={tableMunkiIssues || []}
             isLoading={isLoading}
-            defaultSortHeader={"name"}
-            defaultSortDirection={"asc"}
-            resultsTitle={"issue"}
+            defaultSortHeader="name"
+            defaultSortDirection="asc"
+            resultsTitle="issue"
             emptyComponent={() => (
               <EmptyTable
                 header="No Munki issues detected"

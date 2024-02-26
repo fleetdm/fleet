@@ -265,6 +265,21 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All vulnerabilities",
+    value: false,
+    helpText: "All vulnerabilities detected on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Exploited vulnerabilities",
+    value: true,
+    helpText: "Vulnerabilities that have been actively exploited in the wild.",
+  },
+];
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (

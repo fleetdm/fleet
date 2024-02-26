@@ -52,7 +52,7 @@ const FileChooser = ({
       </label>
     </Button>
     <input
-      accept={".mobileconfig,application/x-apple-aspen-config,.xml"}
+      accept=".mobileconfig,application/x-apple-aspen-config,.xml"
       id="upload-profile"
       type="file"
       onChange={(e) => {
@@ -97,20 +97,20 @@ const TargetChooser = ({
       <div className="form-field__label">Target</div>
       <Radio
         className={`${baseClass}__radio-input`}
-        label={"All hosts"}
-        id={"all-hosts-target-radio-btn"}
+        label="All hosts"
+        id="all-hosts-target-radio-btn"
         checked={selectedTarget === "All hosts"}
-        value={"All hosts"}
-        name={"all-hosts-target"}
+        value="All hosts"
+        name="all-hosts-target"
         onChange={setSelectedTarget}
       />
       <Radio
         className={`${baseClass}__radio-input`}
-        label={"Custom"}
-        id={"custom-target-radio-btn"}
+        label="Custom"
+        id="custom-target-radio-btn"
         checked={selectedTarget === "Custom"}
-        value={"Custom"}
-        name={"custom-target"}
+        value="Custom"
+        name="custom-target"
         onChange={setSelectedTarget}
       />
     </div>

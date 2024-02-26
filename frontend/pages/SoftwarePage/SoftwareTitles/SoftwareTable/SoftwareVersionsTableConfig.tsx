@@ -2,6 +2,7 @@ import React from "react";
 import { Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import {
   formatSoftwareType,
   ISoftwareVersion,
@@ -74,15 +75,23 @@ const generateTableHeaders = (
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, source } = cellProps.row.original;
 
+        const teamQueryParam = buildQueryStringFromParams({
+          team_id: teamId,
+        });
+        const softwareVersionDetailsPath = `${PATHS.SOFTWARE_VERSION_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
-          router?.push(PATHS.SOFTWARE_VERSION_DETAILS(id.toString()));
+
+          router?.push(softwareVersionDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_VERSION_DETAILS(id.toString())}
+            path={softwareVersionDetailsPath}
             customOnClick={onClickSoftware}
             value={
               <>
@@ -134,21 +143,30 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_version_id: cellProps.row.original.id,
-                team_id: teamId, // TODO: do we need team id here?
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  software_version_id: cellProps.row.original.id,
+                  team_id: teamId, // TODO: do we need team id here?
+                }}
+                className="software-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
     },
   ];
 

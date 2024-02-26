@@ -83,7 +83,7 @@ const HostActionsDropdown = ({
       <Dropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
-        placeholder={"Actions"}
+        placeholder="Actions"
         searchable={false}
         options={options}
       />

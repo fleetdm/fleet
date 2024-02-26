@@ -277,17 +277,6 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 	}
 }
 
-func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
-	switch p.OperationType {
-	case MDMOperationTypeRemove:
-		switch {
-		case strings.Contains(p.Detail, "MDMClientError (89)"):
-			return true
-		}
-	}
-	return false
-}
-
 type HostMDMProfileDetail string
 
 const (
@@ -517,4 +506,21 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
 	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
+}
+
+// SCEPIdentityCertificate represents a certificate issued during MDM
+// enrollment.
+type SCEPIdentityCertificate struct {
+	Serial         string    `db:"serial"`
+	NotValidAfter  time.Time `db:"not_valid_after"`
+	CertificatePEM []byte    `db:"certificate_pem"`
+}
+
+// SCEPIdentityAssociation represents an association between an identity
+// certificate an a specific host.
+type SCEPIdentityAssociation struct {
+	HostUUID         string `db:"host_uuid"`
+	SHA256           string `db:"sha256"`
+	EnrollReference  string `db:"enroll_reference"`
+	RenewCommandUUID string `db:"renew_command_uuid"`
 }

@@ -30,6 +30,7 @@ interface IRowProps extends Row {
   original: {
     id?: number;
     os_version_id?: string; // Required for onSelectSingleRow of SoftwareOSTable.tsx
+    cve?: string; // Required for onSelectSingleRow of SoftwareVulnerabilityTable.tsx
   };
 }
 
@@ -330,7 +331,7 @@ const TableContainer = ({
                 <div />
               )}
             </span>
-            <span className={"controls"}>
+            <span className="controls">
               {actionButton && !actionButton.hideButton && (
                 <Button
                   disabled={disableActionButton}
