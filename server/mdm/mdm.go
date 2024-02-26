@@ -51,6 +51,8 @@ func GetRawProfilePlatform(profile []byte) string {
 		return "darwin"
 	}
 
+	// TODO(JVE): have to update this so that validation passes when doing batch uploads (e.g.
+	// fleetctl apply)
 	windowsPrefix := []byte("<replace")
 	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
 		return "windows"

@@ -76,6 +76,7 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 	// we don't need to validate the required nesting
 	// structure (Target>Item>LocURI) so we don't need to track all the tags.
 	var inReplace bool
+	var inAdd bool
 	var inLocURI bool
 
 	for {
@@ -98,15 +99,17 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			switch t.Name.Local {
 			case "Replace":
 				inReplace = true
+			case "Add":
+				inAdd = true
 			case "LocURI":
-				if !inReplace {
-					return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+				if !inReplace && !inAdd {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 				}
 				inLocURI = true
 
 			default:
-				if !inReplace {
-					return errors.New("Only <Replace> supported as a top level element. Make sure you don't have other top level elements.")
+				if !inReplace && !inAdd {
+					return errors.New("Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 				}
 			}
 
@@ -114,6 +117,8 @@ func (m *MDMWindowsConfigProfile) ValidateUserProvided() error {
 			switch t.Name.Local {
 			case "Replace":
 				inReplace = false
+			case "Add":
+				inAdd = false
 			case "LocURI":
 				inLocURI = false
 			}
