@@ -4,6 +4,9 @@ import React from "react";
 
 import { secondsToHms } from "utilities/helpers";
 
+import DataSet from "components/DataSet";
+import Card from "components/Card";
+
 const baseClass = "agent-options";
 interface IAgentOptionsProps {
   osqueryData: { [key: string]: any };
@@ -19,7 +22,9 @@ const AgentOptions = ({
   wrapFleetHelper,
   isChromeOS = false,
 }: IAgentOptionsProps): JSX.Element => {
-  const classNames = classnames(baseClass, "section", "osquery");
+  const classNames = classnames(baseClass, "section", "osquery", {
+    [`${baseClass}--chrome-os`]: isChromeOS,
+  });
 
   let configTLSRefresh;
   let loggerTLSPeriod;
@@ -47,7 +52,7 @@ const AgentOptions = ({
   }
 
   return (
-    <div className={classNames}>
+    <Card className={classNames}>
       {isChromeOS ? (
         <TooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
@@ -58,25 +63,12 @@ const AgentOptions = ({
       ) : (
         <p className="section__header">Agent options</p>
       )}
-      <div className="info-grid">
-        <div className="info-grid__block">
-          <span className="info-grid__header">Config TLS refresh</span>
-          <span className={`info-grid__data ${isChromeOS ? "grey-text" : ""}`}>
-            {configTLSRefresh}
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Logger TLS period</span>
-          <span className={`info-grid__data ${isChromeOS ? "grey-text" : ""}`}>
-            {loggerTLSPeriod}
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Distributed interval</span>
-          <span className="info-grid__data">{distributedInterval}</span>
-        </div>
+      <div className={`${baseClass}__data`}>
+        <DataSet title="Config TLS refresh" value={configTLSRefresh} />
+        <DataSet title="Logger TLS period" value={loggerTLSPeriod} />
+        <DataSet title="Distributed interval" value={distributedInterval} />
       </div>
-    </div>
+    </Card>
   );
 };
 
