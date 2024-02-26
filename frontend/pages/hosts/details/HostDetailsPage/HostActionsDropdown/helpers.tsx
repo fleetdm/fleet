@@ -74,7 +74,8 @@ interface IHostActionConfigOptions {
   isHostOnline: boolean;
   isEnrolledInMdm: boolean;
   isFleetMdm: boolean;
-  isMdmEnabledAndConfigured: boolean;
+  isMacMdmEnabledAndConfigured: boolean;
+  isWindowsMdmEnabledAndConfigured: boolean;
   doesStoreEncryptionKey: boolean;
   isSandboxMode: boolean;
   hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
@@ -93,11 +94,11 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
     isTeamMaintainer,
     isEnrolledInMdm,
     isFleetMdm,
-    isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured,
   } = config;
   return (
     config.hostPlatform === "darwin" &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm &&
     isFleetMdm &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer)
@@ -107,7 +108,7 @@ const canEditMdm = (config: IHostActionConfigOptions) => {
 const canLockHost = ({
   isPremiumTier,
   hostPlatform,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
   isEnrolledInMdm,
   isFleetMdm,
   isGlobalAdmin,
@@ -120,7 +121,7 @@ const canLockHost = ({
   const canLockDarwin =
     hostPlatform === "darwin" &&
     isFleetMdm &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
   return (
@@ -143,17 +144,18 @@ const canWipeHost = ({
   isTeamObserver,
   isFleetMdm,
   isEnrolledInMdm,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
+  isWindowsMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
+  const hostMdmEnabled =
+    (hostPlatform === "darwin" && isMacMdmEnabledAndConfigured) ||
+    (hostPlatform === "windows" && isWindowsMdmEnabledAndConfigured);
+
   // macOS and Windows hosts have the same conditions and can be wiped if they
   // are enrolled in MDM and the MDM is enabled.
-  const canWipeMacOrWindows =
-    (hostPlatform === "darwin" || hostPlatform === "windows") &&
-    isFleetMdm &&
-    isMdmEnabledAndConfigured &&
-    isEnrolledInMdm;
+  const canWipeMacOrWindows = hostMdmEnabled && isFleetMdm && isEnrolledInMdm;
 
   return (
     isPremiumTier &&
@@ -176,14 +178,14 @@ const canUnlock = ({
   isTeamMaintainer,
   isFleetMdm,
   isEnrolledInMdm,
-  isMdmEnabledAndConfigured,
+  isMacMdmEnabledAndConfigured,
   hostPlatform,
   hostMdmDeviceStatus,
 }: IHostActionConfigOptions) => {
-  const canLockDarwin =
+  const canUnlockDarwin =
     hostPlatform === "darwin" &&
     isFleetMdm &&
-    isMdmEnabledAndConfigured &&
+    isMacMdmEnabledAndConfigured &&
     isEnrolledInMdm;
 
   // "unlocking" for a macOS host means that somebody saw the unlock pin, but
@@ -197,7 +199,7 @@ const canUnlock = ({
     isPremiumTier &&
     isValidState &&
     (isGlobalAdmin || isGlobalMaintainer || isTeamAdmin || isTeamMaintainer) &&
-    (canLockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
+    (canUnlockDarwin || hostPlatform === "windows" || isLinuxLike(hostPlatform))
   );
 };
 

@@ -38,7 +38,8 @@ const HostActionsDropdown = ({
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
-    isMdmEnabledAndConfigured = false,
+    isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     isSandboxMode = false,
     currentUser,
   } = useContext(AppContext);
@@ -67,7 +68,8 @@ const HostActionsDropdown = ({
       hostMdmEnrollmentStatus ?? ""
     ),
     isFleetMdm: mdmName === "Fleet",
-    isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
     hostMdmDeviceStatus,
