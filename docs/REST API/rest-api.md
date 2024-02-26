@@ -5917,7 +5917,7 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 
 ---
 
-### Team policies
+## Team policies
 
 - [List team policies](#list-team-policies)
 - [Count team policies](#count-team-policies)
