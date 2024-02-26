@@ -20,10 +20,10 @@ interface IWipeModalProps {
 const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [lockChecked, setLockChecked] = React.useState(false);
-  const [isLocking, setIsLocking] = React.useState(false);
+  const [isWiping, setIsWiping] = React.useState(false);
 
-  const onLock = async () => {
-    setIsLocking(true);
+  const onWipe = async () => {
+    setIsWiping(true);
     try {
       await hostAPI.wipeHost(id);
       onSuccess();
@@ -33,7 +33,7 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
       renderFlash("error", err.message);
     }
     onClose();
-    setIsLocking(false);
+    setIsWiping(false);
   };
 
   return (
@@ -58,11 +58,11 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
         <div className="modal-cta-wrap">
           <Button
             type="button"
-            onClick={onLock}
+            onClick={onWipe}
             variant="alert"
             className="delete-loading"
             disabled={!lockChecked}
-            isLoading={isLocking}
+            isLoading={isWiping}
           >
             Wipe
           </Button>
