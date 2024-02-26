@@ -59,7 +59,7 @@ func (s *integrationTestSuite) TearDownTest() {
 
 func TestIntegrations(t *testing.T) {
 	testingSuite := new(integrationTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -5928,12 +5928,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &tm.ID, []uint{hosts[19].ID, hosts[18].ID, hosts[17].ID}))
 	expectedTeamVersionsCount := 3
 
-	assertSoftwareDetails := func(expectedSoftware []fleet.Software) {
+	assertSoftwareDetails := func(expectedSoftware []fleet.Software, team string) {
 		// this is just a basic sanity check of the software details endpoints and doesn't test all of the
 		// fields that may be present in the response (e.g., vulnerabilities)
 		for _, sw := range expectedSoftware {
 			var detailsResp getSoftwareResponse
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -5941,7 +5941,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			assert.Equal(t, sw.Browser, detailsResp.Software.Browser)
 
 			detailsResp = getSoftwareResponse{}
-			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp)
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", sw.ID), nil, http.StatusOK, &detailsResp, "team_id", team)
 			assert.Equal(t, sw.ID, detailsResp.Software.ID)
 			assert.Equal(t, sw.Name, detailsResp.Software.Name)
 			assert.Equal(t, sw.Version, detailsResp.Software.Version)
@@ -5950,7 +5950,7 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 		}
 	}
 
-	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, counts ...int) {
+	assertResp := func(resp listSoftwareResponse, want []fleet.Software, ts time.Time, team string, counts ...int) {
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
 			wantID, gotID := want[i].ID, resp.Software[i].ID
@@ -5972,10 +5972,12 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
-		assertSoftwareDetails(resp.Software)
+		assertSoftwareDetails(resp.Software, team)
 	}
 
-	assertVersionsResp := func(resp listSoftwareVersionsResponse, want []fleet.Software, ts time.Time, swCount int, hostCounts ...int) {
+	assertVersionsResp := func(
+		resp listSoftwareVersionsResponse, want []fleet.Software, ts time.Time, team string, swCount int, hostCounts ...int,
+	) {
 		require.Equal(t, swCount, resp.Count)
 		require.Len(t, resp.Software, len(want))
 		for i := range resp.Software {
@@ -5998,24 +6000,31 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 			require.NotNil(t, resp.CountsUpdatedAt)
 			assert.WithinDuration(t, ts, *resp.CountsUpdatedAt, time.Second)
 		}
-		assertSoftwareDetails(resp.Software)
+		assertSoftwareDetails(resp.Software, team)
 	}
 
 	// no software host counts have been calculated yet, so this returns nothing
 	var lsResp listSoftwareResponse
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	var versResp listSoftwareVersionsResponse
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, 0)
+	assertVersionsResp(versResp, nil, time.Time{}, "", 0)
 
 	// same with a team filter
+	teamStr := fmt.Sprintf("%d", tm.ID)
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, nil, time.Time{})
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "order_key", "hosts_count", "order_direction", "desc", "team_id",
+		teamStr,
+	)
+	assertResp(lsResp, nil, time.Time{}, teamStr)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, nil, time.Time{}, 0)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "order_key", "hosts_count", "order_direction", "desc",
+		"team_id", teamStr,
+	)
+	assertVersionsResp(versResp, nil, time.Time{}, teamStr, 0)
 
 	// calculate hosts counts
 	hostsCountTs := time.Now().UTC()
@@ -6024,106 +6033,133 @@ func (s *integrationTestSuite) TestListSoftwareAndSoftwareDetails() {
 	// now the list software endpoint returns the software, get the first page without vulns
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, 20, 19, 18, 17, 16)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, "", 20, 19, 18, 17, 16)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, len(sws), 20, 19, 18, 17, 16)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[19], sws[18], sws[17], sws[16], sws[15]}, hostsCountTs, "", len(sws), 20, 19, 18, 17, 16,
+	)
 	require.False(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// second page (page=1)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, 15, 14, 13, 12, 11)
+	assertResp(lsResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, "", 15, 14, 13, 12, 11)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, len(sws), 15, 14, 13, 12, 11)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[14], sws[13], sws[12], sws[11], sws[10]}, hostsCountTs, "", len(sws), 15, 14, 13, 12, 11,
+	)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// third page (page=2)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", 10, 9, 8, 7, 6)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, len(sws), 10, 9, 8, 7, 6)
+	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", len(sws), 10, 9, 8, 7, 6)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.True(t, versResp.Meta.HasNextResults)
 
 	// last page (page=3)
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", 5, 4, 3, 2, 1)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "3", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, len(sws), 5, 4, 3, 2, 1)
+	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", len(sws), 5, 4, 3, 2, 1)
 	require.True(t, versResp.Meta.HasPreviousResults)
 	require.False(t, versResp.Meta.HasNextResults)
 
 	// past the end
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "5", "page", "4", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, len(sws))
+	assertVersionsResp(versResp, nil, time.Time{}, "", len(sws))
 
 	// no explicit sort order, defaults to hosts_count DESC
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0")
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 20, 19)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", 20, 19)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0")
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, len(sws), 20, 19)
+	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, "", len(sws), 20, 19)
 
 	// hosts_count ascending
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
-	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, 1, 2, 3)
+	assertResp(lsResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, "", 1, 2, 3)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "3", "page", "0", "order_key", "hosts_count", "order_direction", "asc")
-	assertVersionsResp(versResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, len(sws), 1, 2, 3)
+	assertVersionsResp(versResp, []fleet.Software{sws[0], sws[1], sws[2]}, hostsCountTs, "", len(sws), 1, 2, 3)
 
 	// vulnerable software only
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, 10, 9, 8, 7, 6)
+	assertResp(lsResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", 10, 9, 8, 7, 6)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "0", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, expectedVulnVersionsCount, 10, 9, 8, 7, 6)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[9], sws[8], sws[7], sws[6], sws[5]}, hostsCountTs, "", expectedVulnVersionsCount, 10, 9, 8, 7, 6,
+	)
 
 	// vulnerable software only, next page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, 5, 4, 3, 2, 1)
+	assertResp(lsResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", 5, 4, 3, 2, 1)
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "1", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, expectedVulnVersionsCount, 5, 4, 3, 2, 1)
+	assertVersionsResp(
+		versResp, []fleet.Software{sws[4], sws[3], sws[2], sws[1], sws[0]}, hostsCountTs, "", expectedVulnVersionsCount, 5, 4, 3, 2, 1,
+	)
 
 	// vulnerable software only, past last page
 	lsResp = listSoftwareResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertResp(lsResp, nil, time.Time{})
+	assertResp(lsResp, nil, time.Time{}, "")
 	versResp = listSoftwareVersionsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "vulnerable", "true", "per_page", "5", "page", "2", "order_key", "hosts_count", "order_direction", "desc")
-	assertVersionsResp(versResp, nil, time.Time{}, expectedVulnVersionsCount)
+	assertVersionsResp(versResp, nil, time.Time{}, "", expectedVulnVersionsCount)
 
 	// filter by the team, 2 by page
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, 3, 2)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "0", "order_key", "hosts_count",
+		"order_direction", "desc", "team_id", teamStr,
+	)
+	assertResp(lsResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, 3, 2)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, expectedTeamVersionsCount, 3, 2)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "0", "order_key",
+		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+	)
+	assertVersionsResp(versResp, []fleet.Software{sws[19], sws[18]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 3, 2)
 
 	// filter by the team, 2 by page, next page
 	lsResp = listSoftwareResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, 1)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software", nil, http.StatusOK, &lsResp, "per_page", "2", "page", "1", "order_key", "hosts_count",
+		"order_direction", "desc", "team_id", teamStr,
+	)
+	assertResp(lsResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, 1)
 	versResp = listSoftwareVersionsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key", "hosts_count", "order_direction", "desc", "team_id", fmt.Sprintf("%d", tm.ID))
-	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, expectedTeamVersionsCount, 1)
+	s.DoJSON(
+		"GET", "/api/latest/fleet/software/versions", nil, http.StatusOK, &versResp, "per_page", "2", "page", "1", "order_key",
+		"hosts_count", "order_direction", "desc", "team_id", teamStr,
+	)
+	assertVersionsResp(versResp, []fleet.Software{sws[17]}, hostsCountTs, teamStr, expectedTeamVersionsCount, 1)
+
+	// Invalid software team -- admin gets a 404, team users get a 403
+	detailsResp := getSoftwareResponse{}
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/software/versions/%d", versResp.Software[0].ID), nil, http.StatusNotFound, &detailsResp,
+		"team_id", "999999",
+	)
 }
 
 func (s *integrationTestSuite) TestChangeUserEmail() {
@@ -7365,6 +7401,256 @@ func (s *integrationTestSuite) TestGetHostDiskEncryption() {
 	}, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+}
+
+func (s *integrationTestSuite) TestListVulnerabilities() {
+	t := s.T()
+	var resp listVulnerabilitiesResponse
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+
+	// Invalid Order Key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "foo", "order_direction", "asc")
+
+	// EE Order Key is an invalid order key
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusBadRequest, &resp, "order_key", "cvss_score", "order_direction", "asc")
+
+	// Exploit is an EE only filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusPaymentRequired, &resp, "exploit", "true")
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "1"),
+		UUID:            t.Name() + "1",
+		Hostname:        t.Name() + "foo1.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateHostOperatingSystem(context.Background(), host.ID, fleet.OperatingSystem{
+		Name:     "Windows 11 Enterprise 22H2",
+		Version:  "10.0.19042.1234",
+		Platform: "windows",
+	})
+	require.NoError(t, err)
+	allos, err := s.ds.ListOperatingSystems(context.Background())
+	require.NoError(t, err)
+	var os fleet.OperatingSystem
+	for _, o := range allos {
+		if o.ID > os.ID {
+			os = o
+		}
+	}
+
+	err = s.ds.UpdateOSVersions(context.Background())
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertOSVulnerability(context.Background(), fleet.OSVulnerability{
+		OSID:              os.ID,
+		CVE:               "CVE-2021-1234",
+		ResolvedInVersion: *ptr.StringPtr("10.0.19043.2013"),
+	}, fleet.MSRCSource)
+	require.NoError(t, err)
+
+	res, err := s.ds.UpdateHostSoftware(context.Background(), host.ID, []fleet.Software{
+		{Name: "Google Chrome", Version: "0.0.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	sw := res.Inserted[0]
+
+	_, err = s.ds.UpsertSoftwareCPEs(context.Background(), []fleet.SoftwareCPE{
+		{
+			SoftwareID: sw.ID,
+			CPE:        "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*",
+		},
+	})
+	require.NoError(t, err)
+
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw.ID,
+		CVE:        "CVE-2021-1235",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	err = s.ds.SyncHostsSoftware(context.Background(), time.Now())
+	require.NoError(t, err)
+
+	host2, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		OsqueryHostID:   ptr.String(strings.ReplaceAll(t.Name(), "/", "_") + "2"),
+		UUID:            t.Name() + "2",
+		Hostname:        t.Name() + "foo2.local",
+		PrimaryIP:       "192.168.1.2",
+		PrimaryMac:      "30-65-EC-6F-C4-59",
+		Platform:        "windows",
+	})
+	require.NoError(t, err)
+
+	res2, err := s.ds.UpdateHostSoftware(context.Background(), host2.ID, []fleet.Software{
+		{Name: "Firefox", Version: "0.0.1", Source: "programs"},
+	})
+	require.NoError(t, err)
+	sw2 := res2.Inserted[0]
+
+	// insert software vuln outside of host scope
+	_, err = s.ds.InsertSoftwareVulnerability(context.Background(), fleet.SoftwareVulnerability{
+		SoftwareID: sw2.ID,
+		CVE:        "CVE-2021-1236",
+	}, fleet.NVDSource)
+	require.NoError(t, err)
+
+	// insert CVEMeta
+	mockTime := time.Date(2021, 1, 1, 0, 0, 0, 0, time.UTC)
+	err = s.ds.InsertCVEMeta(context.Background(), []fleet.CVEMeta{
+		{
+			CVE:              "CVE-2021-1234",
+			CVSSScore:        ptr.Float64(7.5),
+			EPSSProbability:  ptr.Float64(0.5),
+			CISAKnownExploit: ptr.Bool(true),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1234",
+		},
+		{
+			CVE:              "CVE-2021-1235",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1235",
+		},
+		{
+			CVE:              "CVE-2021-1236",
+			CVSSScore:        ptr.Float64(5.4),
+			EPSSProbability:  ptr.Float64(0.6),
+			CISAKnownExploit: ptr.Bool(false),
+			Published:        ptr.Time(mockTime),
+			Description:      "Test CVE 2021-1236",
+		},
+	})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp)
+	require.Empty(t, resp.Err)
+	require.Len(s.T(), resp.Vulnerabilities, 3)
+	require.Equal(t, resp.Count, uint(3))
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+
+	expected := map[string]struct {
+		fleet.CVEMeta
+		HostCount   uint
+		DetailsLink string
+		Source      fleet.VulnerabilitySource
+	}{
+		"CVE-2021-1234": {
+			HostCount:   1,
+			DetailsLink: "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234",
+		},
+		"CVE-2021-1235": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1235",
+		},
+		"CVE-2021-1236": {
+			HostCount:   1,
+			DetailsLink: "https://nvd.nist.gov/vuln/detail/CVE-2021-1236",
+		},
+	}
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Empty(t, vuln.CVSSScore)
+	}
+
+	// Test Team Filter
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", "1")
+	require.Len(s.T(), resp.Vulnerabilities, 0)
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	err = s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{host.ID})
+	require.NoError(t, err)
+
+	err = s.ds.UpdateVulnerabilityHostCounts(context.Background())
+	require.NoError(t, err)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities", nil, http.StatusOK, &resp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.Len(t, resp.Vulnerabilities, 2)
+	require.Equal(t, uint(2), resp.Count)
+	require.False(t, resp.Meta.HasPreviousResults)
+	require.False(t, resp.Meta.HasNextResults)
+	require.Empty(t, resp.Err)
+
+	for _, vuln := range resp.Vulnerabilities {
+		expectedVuln, ok := expected[vuln.CVE]
+		require.True(t, ok)
+		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
+		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
+		require.Empty(t, vuln.CVSSScore)
+	}
+
+	var gResp getVulnerabilityResponse
+	// invalid cve
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/foobar", nil, http.StatusNotFound, &gResp)
+
+	// Valid CVE but not in team scope
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1236", nil, http.StatusNotFound, &gResp, "team_id", fmt.Sprintf("%d", team.ID))
+
+	// Invalid TeamID
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusForbidden, &gResp, "team_id", "100")
+
+	// Valid Global Request
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.Published)
+	require.Len(t, gResp.OSVersions, 1)
+	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
+	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
+	require.Equal(t, "windows", gResp.OSVersions[0].Platform)
+	require.Equal(t, "10.0.19042.1234", gResp.OSVersions[0].Version)
+	require.Equal(t, 1, gResp.OSVersions[0].HostsCount)
+	require.Equal(t, "10.0.19043.2013", *gResp.OSVersions[0].ResolvedInVersion)
+
+	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
+	require.Empty(t, gResp.Err)
+	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE)
+	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
+	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
+	require.Empty(t, gResp.Vulnerability.Description)
+	require.Empty(t, gResp.Vulnerability.CVSSScore)
+	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
+	require.Empty(t, gResp.Vulnerability.EPSSProbability)
+	require.Empty(t, gResp.Vulnerability.Published)
+	require.Len(t, gResp.Software, 1)
+	require.Equal(t, "Google Chrome", gResp.Software[0].Name)
+	require.Equal(t, "0.0.1", gResp.Software[0].Version)
+	require.Equal(t, "programs", gResp.Software[0].Source)
+	require.Equal(t, "cpe:2.3:a:google:chrome:1.0.0:*:*:*:*:*:*:*:*", gResp.Software[0].GenerateCPE)
+	require.Equal(t, 1, gResp.Software[0].HostsCount)
 }
 
 func (s *integrationTestSuite) TestOSVersions() {

@@ -1,3 +1,68 @@
+## Fleet 4.45.1 (Feb 23, 2024)
+
+### Bug fixes
+
+* Fixed a bug that caused macOS ADE enrollments gated behind SSO to get a "method not allowed" error.
+* Fixed a bug where the "Done" button on the add hosts modal for plain osquery could be covered.
+
+## Fleet 4.45.0 (Feb 20, 2024)
+
+### Changes
+
+* **Endpoint operations**:
+  - Added two new API endpoints for running provided live query SQL on a single host.
+  - Added `fleetctl gitops` command for GitOps workflow synchronization.
+  - Added capabilities to the `gitops` role to support reading queries/policies and writing scripts.
+  - Updated policy names to be unique per team.
+  - Updated fleetd-chrome to use the latest wa-sqlite v0.9.11.
+  - Updated "Add hosts" modal UI to dynamically include the `--enable-scripts` flag.
+  - Added count of upcoming activities to host vitals UI.
+  - Updated UI to include upcoming activity counts in host vitals.
+  - Updated 405 response for `POST` requests on the root path to highlight misconfigured osquery instances.
+
+* **Device management (MDM)**:
+  - Added MDM command payloads to the response of `GET /api/_version_/fleet/mdm/commandresults`.
+  - Changed several MDM-related endpoints to be platform-agnostic.
+  - Added script capabilities to UI for Linux hosts.
+  - Added UI for locking and unlocking hosts managed by Fleet MDM.
+  - Added `fleetctl mdm lock` and `fleetctl mdm unlock` commands.
+  - Added validation to reject script enqueue requests for hosts without fleetd.
+  - Added the `host_mdm_actions` DB table for MDM lock and wipe functionality.
+  - Updated backend MDM migration flow and added logging.
+  - Updated UI text for disk encryption to reflect cross-platform functionality.
+  - Renamed and updated fields in MDM configuration profiles for clarity.
+  - Improved validation of Windows profiles to prevent delivery errors.
+  - Improved Windows MDM profile error tooltip messages.
+  - Fixed MDM unlock flow and updated lock/unlock functionality for Windows and Linux.
+  - Fixed a bug that would cause OS Settings verification to fail with MySQL's `only_full_group_by` mode enabled.
+
+* **Vulnerability management**:
+  - Windows OS Vulnerabilities now include a `resolved_in_version` in the `/os_versions` API response.
+  - Fixed an issue where software from a Parallels VM would incorrectly appear as the host's software.
+  - Implemented permission checks for software and software titles.
+  - Fixed software title aggregation when triggering vulnerability scans.
+
+### Bug fixes and improvements
+  - Updated text and style across the app for consistency and clarity.
+  - Improved UI for the view disk encryption key, host details activity card, and "Add hosts" modal.
+  - Addressed a bug where updating the search field caused unwanted loss of focus.
+  - Corrected alignment bugs on empty table states for software details.
+  - Updated URL query parameters to reset when switching tabs.
+  - Fixed device page showing invalid date for the last restarted.
+  - Fixed visual display issues with chevron right icons on Chrome.
+  - Fixed Windows vulnerabilities without exploit/severity from crashing the software page.
+  - Fixed issues with checkboxes in hidden modals and long enroll secrets overlapping action buttons.
+  - Fixed a bug with built-in platform labels.
+  - Fixed enroll secret error messaging showing secret in cleartext.
+  - Fixed various UI bugs including disk encryption key input icons, alignment issues, and dropdown menus.
+  - Fixed dropdown behavior in administrative settings and software title/version tables.
+  - Fixed various UI and style bugs, including issues with long OS names causing table render issues.
+  - Fixed a bug where checkboxes within a hidden modal were not correctly hidden.
+  - Fixed vulnerable software dropdown from switching back to all teams.
+  - Fixed wall_time to report in milliseconds for consistency with other query performance stats.
+  - Fixed generating duplicate activities when locking or unlocking a host with scripts disabled.
+  - Fixed how errors are reported to APM to avoid duplicates and improve stack trace accuracy.
+
 ## Fleet 4.44.1 (Feb 13, 2024)
 
 ### Bug fixes

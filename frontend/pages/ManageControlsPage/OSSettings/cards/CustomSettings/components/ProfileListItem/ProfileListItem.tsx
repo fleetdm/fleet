@@ -10,7 +10,7 @@ import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
-import { pluralize } from "utilities/helpers";
+import strUtils from "utilities/strings";
 
 const baseClass = "profile-list-item";
 
@@ -22,7 +22,7 @@ const LabelCount = ({
   count: number;
 }) => (
   <div className={`${className}__labels--count`}>
-    {`${count} ${pluralize(count, "label", "s", "")}`}
+    {`${count} ${strUtils.pluralize(count, "label")}`}
   </div>
 );
 

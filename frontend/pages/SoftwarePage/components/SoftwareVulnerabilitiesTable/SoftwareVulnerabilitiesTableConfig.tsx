@@ -1,15 +1,19 @@
 import React from "react";
+import { InjectedRouter } from "react-router";
 
-import { formatFloatAsPercentage } from "utilities/helpers";
-import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { formatSeverity } from "utilities/helpers";
+import { buildQueryStringFromParams } from "utilities/url";
 import { ISoftwareVulnerability } from "interfaces/software";
 
+import paths from "router/paths";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import { HumanTimeDiffWithDateTip } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
+import ProbabilityOfExploit from "components/ProbabilityOfExploit/ProbabilityOfExploit";
+import ViewAllHostsLink from "components/ViewAllHostsLink";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 interface IHeaderProps {
   column: {
@@ -43,28 +47,11 @@ interface IDataColumn {
   sortType?: string;
 }
 
-const formatSeverity = (float?: number | null) => {
-  if (float === null || float === undefined) {
-    return DEFAULT_EMPTY_CELL_VALUE;
-  }
-
-  let severity = "";
-  if (float < 4.0) {
-    severity = "Low";
-  } else if (float < 7.0) {
-    severity = "Medium";
-  } else if (float < 9.0) {
-    severity = "High";
-  } else if (float <= 10.0) {
-    severity = "Critical";
-  }
-
-  return `${severity} (${float.toFixed(1)})`;
-};
-
 const generateTableConfig = (
   isPremiumTier: boolean,
-  isSandboxMode: boolean
+  isSandboxMode: boolean,
+  router: InjectedRouter,
+  teamId?: number
 ): IDataColumn[] => {
   const tableHeaders: IDataColumn[] = [
     {
@@ -72,51 +59,31 @@ const generateTableConfig = (
       accessor: "cve",
       disableSortBy: true,
       Header: "Vulnerability",
-      Cell: ({ cell: { value }, row }: ITextCellProps) => {
+      Cell: ({ cell: { value } }: ITextCellProps) => {
+        const cveName = value.toString();
+        const teamQueryParam = buildQueryStringFromParams({
+          team_id: teamId,
+        });
+
+        const softwareVulnerabilityDetailsPath = `${paths.SOFTWARE_VULNERABILITY_DETAILS(
+          cveName
+        )}?${teamQueryParam}`;
+
+        const onClickCVE = (e: React.MouseEvent) => {
+          // Allows for button to be clickable in a clickable row
+          e.stopPropagation();
+
+          router?.push(softwareVulnerabilityDetailsPath);
+        };
+
         return (
-          <CustomLink
-            url={row.original.details_link}
-            text={value.toString()}
-            newTab
+          <LinkCell
+            value={cveName}
+            path={softwareVulnerabilityDetailsPath}
+            customOnClick={onClickCVE}
           />
         );
       },
-    },
-  ];
-
-  const premiumHeaders: IDataColumn[] = [
-    {
-      title: "Probability of exploit",
-      accessor: "epss_probability",
-      disableSortBy: false,
-      Header: (headerProps: IHeaderProps): JSX.Element => {
-        const titleWithToolTip = (
-          <TooltipWrapper
-            tipContent={
-              <>
-                The probability that this vulnerability will be exploited in the
-                next 30 days (EPSS probability).
-                <br />
-                This data is reported by FIRST.org.
-              </>
-            }
-          >
-            Probability of exploit
-          </TooltipWrapper>
-        );
-        return (
-          <>
-            <HeaderCell
-              value={titleWithToolTip}
-              isSortedDesc={headerProps.column.isSortedDesc}
-            />
-            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
-          </>
-        );
-      },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell formatter={formatFloatAsPercentage} value={value} />
-      ),
     },
     {
       title: "Severity",
@@ -129,9 +96,6 @@ const generateTableConfig = (
               <>
                 The worst case impact across different environments (CVSS base
                 score).
-                <br />
-                This data is reported by the National Vulnerability Database
-                (NVD).
               </>
             }
           >
@@ -153,22 +117,22 @@ const generateTableConfig = (
       ),
     },
     {
-      title: "Known exploit",
-      accessor: "cisa_known_exploit",
+      title: "Probability of exploit",
+      accessor: "epss_probability",
       disableSortBy: false,
-      sortType: "boolean",
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
           <TooltipWrapper
+            className="epss_probability"
             tipContent={
               <>
-                The vulnerability has been actively exploited in the wild. This
-                data is reported by the Cybersecurity and Infrustructure
-                Security Agency (CISA).
+                The probability that this vulnerability will be exploited in the
+                next 30 days (EPSS probability). <br />
+                This data is reported by FIRST.org.
               </>
             }
           >
-            Known exploit
+            Probability of exploit
           </TooltipWrapper>
         );
         return (
@@ -181,8 +145,11 @@ const generateTableConfig = (
           </>
         );
       },
-      Cell: ({ cell: { value } }: ITextCellProps): JSX.Element => (
-        <TextCell value={value ? "Yes" : "No"} />
+      Cell: (cellProps: ICellProps): JSX.Element => (
+        <ProbabilityOfExploit
+          probabilityOfExploit={cellProps.row.original.epss_probability}
+          cisaKnownExploit={cellProps.row.original.cisa_known_exploit}
+        />
       ),
     },
     {
@@ -222,9 +189,65 @@ const generateTableConfig = (
         );
       },
     },
+    {
+      title: "Detected",
+      accessor: "created_at",
+      disableSortBy: false,
+      Header: (headerProps: IHeaderProps): JSX.Element => {
+        return (
+          <>
+            <HeaderCell
+              value="Detected"
+              isSortedDesc={headerProps.column.isSortedDesc}
+            />
+            {isSandboxMode && <PremiumFeatureIconWithTooltip />}
+          </>
+        );
+      },
+      Cell: (cellProps: ICellProps): JSX.Element => {
+        const createdAt = cellProps.row.original.created_at || "";
+
+        return (
+          <TextCell
+            value={{ timeString: createdAt }}
+            formatter={HumanTimeDiffWithDateTip}
+          />
+        );
+      },
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <>
+            {cellProps.row.original && (
+              <ViewAllHostsLink
+                queryParams={{
+                  vulnerability: cellProps.row.original.cve,
+                  team_id: teamId,
+                }}
+                className="vulnerabilities-link"
+                rowHover
+              />
+            )}
+          </>
+        );
+      },
+    },
   ];
 
-  return isPremiumTier ? tableHeaders.concat(premiumHeaders) : tableHeaders;
+  if (!isPremiumTier) {
+    return tableHeaders.filter(
+      (header) =>
+        header.accessor !== "epss_probability" &&
+        header.accessor !== "cve_published"
+    );
+  }
+
+  return tableHeaders;
 };
 
 export default generateTableConfig;

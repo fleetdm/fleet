@@ -54,11 +54,11 @@ const Users = ({
           columnConfigs={tableHeaders}
           data={usersState}
           isLoading={isLoading}
-          defaultSortHeader={"username"}
-          defaultSortDirection={"asc"}
-          inputPlaceHolder={"Search users by username"}
+          defaultSortHeader="username"
+          defaultSortDirection="asc"
+          inputPlaceHolder="Search users by username"
           onQueryChange={onUsersTableSearchChange}
-          resultsTitle={"users"}
+          resultsTitle="users"
           emptyComponent={() => (
             <EmptyTable
               header="No users match your search criteria"

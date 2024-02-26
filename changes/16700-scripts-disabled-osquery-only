@@ -1,2 +1,0 @@
-- Added validation to reject requests to enqueue scripts for hosts that do not have fleetd installed
-  (i.e. plain osquery hosts).

@@ -181,6 +181,9 @@ type HostListOptions struct {
 
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
+
+	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
+	VulnerabilityFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -1123,6 +1126,11 @@ func (hvs *HostVulnerabilitySummary) AddSoftwareInstalledPath(p string) {
 type OSVersions struct {
 	CountsUpdatedAt time.Time   `json:"counts_updated_at"`
 	OSVersions      []OSVersion `json:"os_versions"`
+}
+
+type VulnerableOS struct {
+	OSVersion
+	ResolvedInVersion *string `json:"resolved_in_version"`
 }
 
 type OSVersion struct {
