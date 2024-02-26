@@ -106,6 +106,9 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 	if result.TeamName == nil || *result.TeamName == "" {
 		return multierror.Append(multiError, errors.New("team 'name' is required"))
 	}
+	// Normalize team name for full Unicode support, so that we can assume team names are unique going forward
+	normalized := norm.NFC.String(*result.TeamName)
+	result.TeamName = &normalized
 	return multiError
 }
 
