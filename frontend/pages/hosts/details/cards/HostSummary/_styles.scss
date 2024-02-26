@@ -12,7 +12,8 @@
     }
 
     &.error {
-      background-color: $ui-error;
+      color: $core-white;
+      background-color: $core-vibrant-red;
     }
   }
 
