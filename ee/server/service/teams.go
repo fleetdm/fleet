@@ -886,11 +886,8 @@ func (svc *Service) createTeamFromSpec(
 
 	hostStatusWebhook := fleet.HostStatusWebhookSettings{}
 	if spec.WebhookSettings.HostStatusWebhook != nil {
-		fmt.Println("VICTOR setting hostStatusWebhook")
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		hostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
-	} else {
-		fmt.Println("VICTOR hostStatusWebhook is nil")
 	}
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -1065,11 +1062,8 @@ func (svc *Service) editTeamFromSpec(
 
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
-		fmt.Println("VICTOR setting hostStatusWebhook")
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
-	} else {
-		fmt.Println("VICTOR hostStatusWebhook is nil")
 	}
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
