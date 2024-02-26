@@ -924,3 +924,34 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 
 	return "", fleet.ErrMissingLicense
 }
+
+////////////////////////////////////////////////////////////////////////////////
+// Wipe host
+////////////////////////////////////////////////////////////////////////////////
+
+type wipeHostRequest struct {
+	HostID uint `url:"id"`
+}
+
+type wipeHostResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r wipeHostResponse) Status() int  { return http.StatusNoContent }
+func (r wipeHostResponse) error() error { return r.Err }
+
+func wipeHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*wipeHostRequest)
+	if err := svc.WipeHost(ctx, req.HostID); err != nil {
+		return wipeHostResponse{Err: err}, nil
+	}
+	return wipeHostResponse{}, nil
+}
+
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+	// skipauth: No authorization check needed due to implementation returning
+	// only license error.
+	svc.authz.SkipAuthorization(ctx)
+
+	return fleet.ErrMissingLicense
+}

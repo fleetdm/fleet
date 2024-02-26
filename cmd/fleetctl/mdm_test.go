@@ -196,7 +196,7 @@ func TestMDMRunCommand(t *testing.T) {
 			ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 				return nil, nil
 			}
-			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
 			}
 			ds.ListHostsLiteByUUIDsFunc = func(ctx context.Context, filter fleet.TeamFilter, uuids []string) ([]*fleet.Host, error) {
@@ -440,11 +440,13 @@ func TestMDMLockCommand(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		fleetPlatform := host.FleetPlatform()
+
 		var status fleet.HostLockWipeStatus
 		status.HostFleetPlatform = fleetPlatform
 
-		if _, ok := unlockPending[hostID]; ok {
+		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.UnlockPIN = "1234"
 				status.UnlockRequestedAt = time.Now()
@@ -454,7 +456,7 @@ func TestMDMLockCommand(t *testing.T) {
 			status.UnlockScript = &fleet.HostScriptResult{}
 		}
 
-		if _, ok := lockPending[hostID]; ok {
+		if _, ok := lockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.LockMDMCommand = &fleet.MDMCommand{}
 				return &status, nil
@@ -710,10 +712,12 @@ func TestMDMUnlockCommand(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		fleetPlatform := host.FleetPlatform()
+
 		var status fleet.HostLockWipeStatus
 		status.HostFleetPlatform = fleetPlatform
-		if _, ok := locked[hostID]; ok {
+		if _, ok := locked[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.LockMDMCommand = &fleet.MDMCommand{}
 				status.LockMDMCommandResult = &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}
@@ -723,7 +727,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 			status.LockScript = &fleet.HostScriptResult{ExitCode: ptr.Int64(0)}
 		}
 
-		if _, ok := unlockPending[hostID]; ok {
+		if _, ok := unlockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.UnlockPIN = "1234"
 				status.UnlockRequestedAt = time.Now()
@@ -733,7 +737,7 @@ func TestMDMUnlockCommand(t *testing.T) {
 			status.UnlockScript = &fleet.HostScriptResult{}
 		}
 
-		if _, ok := lockPending[hostID]; ok {
+		if _, ok := lockPending[host.ID]; ok {
 			if fleetPlatform == "darwin" {
 				status.LockMDMCommand = &fleet.MDMCommand{}
 				return &status, nil

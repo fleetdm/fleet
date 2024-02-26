@@ -760,7 +760,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
