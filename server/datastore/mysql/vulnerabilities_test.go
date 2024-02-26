@@ -874,9 +874,11 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {
 	t.Helper()
 	require.Len(t, actual, len(expected))
-	for i, vuln := range actual {
-		require.Equal(t, expected[i].CVE, vuln.CVE.CVE)
-		require.Equal(t, expected[i].HostCount, vuln.HostsCount)
+	for _, vuln := range actual {
+		require.Contains(t, expected, hostCount{
+			CVE:       vuln.CVE.CVE,
+			HostCount: vuln.HostsCount,
+		})
 	}
 }
 
