@@ -1296,16 +1296,16 @@ type Datastore interface {
 
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions
-	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
 	// UnlockHostViaScript sends a script to unlock a host and updates the
 	// states in host_mdm_actions
-	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
 	// UnlockHostmanually records a request to unlock a host that requires manual
 	// intervention (such as for macOS). It indicates the an unlock request is
 	// pending.
-	UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error
+	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
@@ -1313,7 +1313,7 @@ type Datastore interface {
 
 	// WipeHostViaScript sends a script to wipe a host and updates the
 	// states in host_mdm_actions.
-	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
 	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe a host and
 	// updates the states in host_mdm_actions.

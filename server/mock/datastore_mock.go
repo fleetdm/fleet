@@ -830,15 +830,15 @@ type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.
 
 type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
-type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
+type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
-type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
+type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
-type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, ts time.Time) error
+type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
 
-type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
+type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
 
@@ -4929,25 +4929,25 @@ func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host)
 	return s.GetHostLockWipeStatusFunc(ctx, host)
 }
 
-func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	s.mu.Lock()
 	s.LockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.LockHostViaScriptFunc(ctx, request)
+	return s.LockHostViaScriptFunc(ctx, request, hostFleetPlatform)
 }
 
-func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	s.mu.Lock()
 	s.UnlockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnlockHostViaScriptFunc(ctx, request)
+	return s.UnlockHostViaScriptFunc(ctx, request, hostFleetPlatform)
 }
 
-func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error {
 	s.mu.Lock()
 	s.UnlockHostManuallyFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnlockHostManuallyFunc(ctx, hostID, ts)
+	return s.UnlockHostManuallyFunc(ctx, hostID, hostFleetPlatform, ts)
 }
 
 func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
@@ -4957,11 +4957,11 @@ func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) erro
 	return s.CleanMacOSMDMLockFunc(ctx, hostUUID)
 }
 
-func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	s.mu.Lock()
 	s.WipeHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.WipeHostViaScriptFunc(ctx, request)
+	return s.WipeHostViaScriptFunc(ctx, request, hostFleetPlatform)
 }
 
 func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {

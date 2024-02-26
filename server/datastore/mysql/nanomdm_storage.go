@@ -96,16 +96,17 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 			INSERT INTO host_mdm_actions (
 				host_id,
 				lock_ref,
-				unlock_pin
+				unlock_pin,
+				fleet_platform
 			)
-			VALUES (?, ?, ?)
+			VALUES (?, ?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 				wipe_ref   = NULL,
 				unlock_ref = NULL,
 				unlock_pin = VALUES(unlock_pin),
 				lock_ref   = VALUES(lock_ref)`
 
-		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, pin); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, pin, host.FleetPlatform()); err != nil {
 			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceLock")
 		}
 
@@ -123,13 +124,14 @@ func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fle
 		stmt := `
 			INSERT INTO host_mdm_actions (
 				host_id,
-				wipe_ref
+				wipe_ref,
+				fleet_platform
 			)
-			VALUES (?, ?)
+			VALUES (?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 				wipe_ref   = VALUES(wipe_ref)`
 
-		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
 			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceWipe")
 		}
 
