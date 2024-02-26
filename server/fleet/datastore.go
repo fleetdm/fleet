@@ -572,7 +572,6 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
-	PolicyByName(ctx context.Context, name string) (*Policy, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//
