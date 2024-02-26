@@ -347,13 +347,7 @@ func (d *DEPService) RunAssigner(ctx context.Context) error {
 			return err
 		}
 	}
-	if err := d.syncer.Run(ctx); err != nil {
-		return err
-	}
-
-	// TODO: maybe process cooldowns here instead of the integrations cron?
-
-	return nil
+	return d.syncer.Run(ctx)
 }
 
 func NewDEPService(

@@ -642,26 +642,26 @@ func newWorkerIntegrationsSchedule(
 		}),
 		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
 			// get expired cooldowns based on the current team assignments of the cooled serials
-			teamSerials, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
+			serialsByTeamId, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 			if err != nil {
 				return fmt.Errorf("getting cooldowns: %w", err)
 			}
-			if len(teamSerials) == 0 {
+			if len(serialsByTeamId) == 0 {
 				logger.Log("msg", "no cooldowns to process")
 				return nil
 			}
 
 			// queue job for each team so that macOS setup assistant worker can pick it up and process it
-			for _, ts := range teamSerials {
-				if len(ts.Serials) == 0 {
-					logger.Log("msg", "no cooldowns", "team_id", ts.TeamID)
+			for teamID, serials := range serialsByTeamId {
+				if len(serials) == 0 {
+					logger.Log("msg", "no cooldowns", "team_id", teamID)
 					continue
 				}
-				logger.Log("msg", "processing cooldowns", "team_id", ts.TeamID, "serials", fmt.Sprintf("%s", ts.Serials))
+				logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", fmt.Sprintf("%s", serials))
 
 				var tid *uint
-				if ts.TeamID != 0 {
-					tid = &ts.TeamID
+				if teamID != 0 {
+					tid = &teamID
 				}
 				//
 				// TODO: we can simply act as the cooled serials were transferred to the associated team
@@ -669,13 +669,13 @@ func newWorkerIntegrationsSchedule(
 				// assistant worker that encapsulates the logic to assign the profiles.
 				id, err := worker.QueueMacosSetupAssistantJob(ctx, ds, logger,
 					worker.MacosSetupAssistantHostsTransferred,
-					tid, ts.Serials...,
+					tid, serials...,
 				)
 				if err != nil {
 					return ctxerr.Wrap(ctx, err, "queue macos setup assistant job for cooldowns")
 				}
 
-				if err := ds.UpdateDEPAssignProfileRetryPending(ctx, id, ts.Serials); err != nil {
+				if err := ds.UpdateDEPAssignProfileRetryPending(ctx, id, serials); err != nil {
 					return ctxerr.Wrap(ctx, err, "updating dep assign profile retry pending")
 				}
 

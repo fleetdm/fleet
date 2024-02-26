@@ -732,7 +732,7 @@ type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *god
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
 
-type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) ([]fleet.DEPTeamSerials, error)
+type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
 
@@ -4546,7 +4546,7 @@ func (s *DataStore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context
 	return s.ScreenDEPAssignProfileSerialsForCooldownFunc(ctx, serials)
 }
 
-func (s *DataStore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]fleet.DEPTeamSerials, error) {
+func (s *DataStore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
 	s.mu.Lock()
 	s.GetDEPAssignProfileExpiredCooldownsFuncInvoked = true
 	s.mu.Unlock()

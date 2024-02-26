@@ -2873,7 +2873,7 @@ func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, pa
 	notAccessible := make([]string, 0, len(payload.Devices))
 	failed := make([]string, 0, len(payload.Devices))
 	for serial, status := range payload.Devices {
-		switch strings.ToLower(status) {
+		switch status {
 		case string(fleet.DEPAssignProfileResponseSuccess):
 			success = append(success, serial)
 		case string(fleet.DEPAssignProfileResponseNotAccessible):
@@ -2938,28 +2938,6 @@ WHERE
 const DEPCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
-	// 	stmt := `
-	// SELECT
-	// 	JSON_ARRAYAGG(t.cooldown) as cooldown,
-	// 	JSON_ARRAYAGG(t.ready) as ready
-	// FROM (
-	// 	SELECT
-	// 		CASE WHEN assign_profile_response = ?
-	// 			AND response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) THEN
-	// 			hardware_serial
-	// 		END AS cooldown,
-	// 		CASE WHEN assign_profile_response IS NULL
-	// 			OR assign_profile_response != ?
-	// 			OR response_updated_at IS NULL
-	// 			OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND) THEN
-	// 			hardware_serial
-	// 		END AS ready
-	// 	FROM
-	// 		host_dep_assignments
-	// 		JOIN hosts ON id = host_id
-	// 	WHERE
-	// 		hardware_serial IN(?)) t`
-
 	stmt := `
 SELECT
 	CASE WHEN assign_profile_response = ?
@@ -2968,14 +2946,13 @@ SELECT
 	ELSE
 		'assign'
 	END AS status,
-	GROUP_CONCAT(hardware_serial) AS serials
+	hardware_serial
 FROM
 	host_dep_assignments
 	JOIN hosts ON id = host_id
 WHERE 
 	hardware_serial IN (?)	
-GROUP BY
-	status`
+`
 
 	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), DEPCooldownPeriod.Seconds(), serials)
 	if err != nil {
@@ -2983,72 +2960,61 @@ GROUP BY
 	}
 
 	var rows []struct {
-		Status  string `db:"status"`
-		Serials string `db:"serials"`
+		Status         string `db:"status"`
+		HardwareSerial string `db:"hardware_serial"`
 	}
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
 	}
 
-	if len(rows) > 2 {
-		return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: expected 2 rows but got %d", len(rows)))
-	}
-
 	for _, r := range rows {
-		// TODO: Should we worry that a serial might include the split char? Is there a better way to do this?
 		switch r.Status {
 		case "assign":
-			assignSerials = strings.Split(r.Serials, ",")
+			assignSerials = append(assignSerials, r.HardwareSerial)
 		case "skip":
-			skipSerials = strings.Split(r.Serials, ",")
+			skipSerials = append(skipSerials, r.HardwareSerial)
 		default:
-			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: unrecognized status: %s", r.Status))
+			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
 		}
 	}
 
 	return skipSerials, assignSerials, nil
 }
 
-func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]fleet.DEPTeamSerials, error) {
-	// TODO: How should we account for the remote possibility of a 'failed' response but a null response_updated_at?
+func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
 	const stmt = `
-	SELECT
-		MAX(COALESCE(team_id, 0)) AS team_id,
-		GROUP_CONCAT(hardware_serial) AS serials
-	FROM
-		host_dep_assignments
-		JOIN hosts ON id = host_id
-	WHERE
-		assign_profile_response = ?
-		AND(retry_job_id = 0 OR EXISTS (SELECT 1 FROM jobs WHERE id = retry_job_id AND state = ?))
-		AND(response_updated_at IS NULL
-			OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))
-	GROUP BY
-		team_id`
+SELECT
+	COALESCE(team_id, 0) AS team_id,
+	hardware_serial
+FROM
+	host_dep_assignments
+	JOIN hosts ON id = host_id
+WHERE
+	assign_profile_response = ?
+	AND(retry_job_id = 0 OR EXISTS (SELECT 1 FROM jobs WHERE id = retry_job_id AND state = ?))
+	AND(response_updated_at IS NULL
+		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
 
-	var dest []struct {
-		TeamID  uint   `db:"team_id"`
-		Serials string `db:"serials"`
+	var rows []struct {
+		TeamID         uint   `db:"team_id"`
+		HardwareSerial string `db:"hardware_serial"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &dest, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), DEPCooldownPeriod.Seconds()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), DEPCooldownPeriod.Seconds()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
 	}
 
-	var res []fleet.DEPTeamSerials
-	for _, r := range dest {
-		res = append(res, fleet.DEPTeamSerials{
-			TeamID:  r.TeamID,
-			Serials: strings.Split(r.Serials, ","), // TODO: Should we worry that a serial might include the split char? Is there a better way to do this?
-
-		})
+	serialsByTeamID := make(map[uint][]string, len(rows))
+	for _, r := range rows {
+		serialsByTeamID[r.TeamID] = append(serialsByTeamID[r.TeamID], r.HardwareSerial)
 	}
-	return res, nil
+	return serialsByTeamID, nil
 }
 
 func (ds *Datastore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error {
 	if len(serials) == 0 {
 		return nil
 	}
+
 	stmt := `
 UPDATE
 	host_dep_assignments

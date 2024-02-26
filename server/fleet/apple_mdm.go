@@ -453,12 +453,12 @@ func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
 	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
 }
 
-type HostDEPAssignProfileResponseStatus string
+type DEPAssignProfileResponseStatus string
 
 const (
-	DEPAssignProfileResponseSuccess       HostDEPAssignProfileResponseStatus = "success"
-	DEPAssignProfileResponseNotAccessible HostDEPAssignProfileResponseStatus = "not_accessible"
-	DEPAssignProfileResponseFailed        HostDEPAssignProfileResponseStatus = "failed"
+	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
+	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
+	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
 
 // NanoEnrollment represents a row in the nano_enrollments table managed by
@@ -517,12 +517,6 @@ type MDMAppleSetupAssistant struct {
 // AuthzType implements authz.AuthzTyper.
 func (a MDMAppleSetupAssistant) AuthzType() string {
 	return "mdm_apple_setup_assistant"
-}
-
-// DEPTeamSerials represents a list of DEP serials associated with a team.
-type DEPTeamSerials struct {
-	TeamID  uint
-	Serials []string
 }
 
 // ProfileMatcher defines the methods required to preassign and retrieve MDM

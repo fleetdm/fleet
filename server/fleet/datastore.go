@@ -1111,7 +1111,7 @@ type Datastore interface {
 	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
 	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
 	// cooldowns, grouped by team.
-	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) ([]DEPTeamSerials, error)
+	GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error)
 	// UpdateDEPAssignProfileRetryPending sets the retry_pending flag for the hosts with the given
 	// serials.
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error

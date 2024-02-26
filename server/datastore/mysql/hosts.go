@@ -757,7 +757,7 @@ const hostMDMSelect = `,
 		END,
 		'dep_profile_error',
 		CASE 
-			WHEN hdep.assign_profile_response = 'failed' THEN CAST(TRUE AS JSON)
+			WHEN hdep.assign_profile_response = '` + string(fleet.DEPAssignProfileResponseFailed) + `' THEN CAST(TRUE AS JSON)
 			ELSE CAST(FALSE AS JSON)
 		END,
 		'server_url',

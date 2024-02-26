@@ -198,7 +198,10 @@ CREATE TABLE `host_dep_assignments` (
   `deleted_at` timestamp NULL DEFAULT NULL,
   `profile_uuid` varchar(37) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `assign_profile_response` varchar(15) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
-  PRIMARY KEY (`host_id`)
+  `response_updated_at` timestamp NULL DEFAULT NULL,
+  `retry_job_id` int(10) unsigned NOT NULL DEFAULT '0',
+  PRIMARY KEY (`host_id`),
+  KEY `idx_host_dep_assign_prof_resp` (`assign_profile_response`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
