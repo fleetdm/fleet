@@ -46,6 +46,10 @@ func TestCPEFromSoftware(t *testing.T) {
 	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
+
+	// Does not error on Unicode Names
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {
