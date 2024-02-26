@@ -1,6 +1,6 @@
 ## Fleet 4.46.0 (Feb 23, 2024)
 
-### Bug fixes
+### Bug fixes and improvements
 
 * Fixed issues with how errors were captured in Sentry:
 	- The stack trace is now more precise.
