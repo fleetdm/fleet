@@ -337,7 +337,12 @@ const HostSummary = ({
     }
 
     return (
-      <Card borderRadiusSize="large" includeShadow className={baseClass}>
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={baseClass}
+      >
         <DataSet
           title="Status"
           value={

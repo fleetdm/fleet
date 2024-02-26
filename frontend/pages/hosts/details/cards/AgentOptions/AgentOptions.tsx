@@ -7,7 +7,7 @@ import { secondsToHms } from "utilities/helpers";
 import DataSet from "components/DataSet";
 import Card from "components/Card";
 
-const baseClass = "agent-options";
+const baseClass = "agent-options-card";
 interface IAgentOptionsProps {
   osqueryData: { [key: string]: any };
   wrapFleetHelper: (helperFn: (value: any) => string, value: string) => string;
@@ -22,7 +22,7 @@ const AgentOptions = ({
   wrapFleetHelper,
   isChromeOS = false,
 }: IAgentOptionsProps): JSX.Element => {
-  const classNames = classnames(baseClass, "section", "osquery", {
+  const classNames = classnames(baseClass, {
     [`${baseClass}--chrome-os`]: isChromeOS,
   });
 
@@ -52,16 +52,21 @@ const AgentOptions = ({
   }
 
   return (
-    <Card className={classNames}>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={classNames}
+    >
       {isChromeOS ? (
         <TooltipWrapper
           tipContent={CHROMEOS_AGENT_OPTIONS_TOOLTIP_MESSAGE}
-          className="section__header"
+          className="card__header"
         >
           Agent options
         </TooltipWrapper>
       ) : (
-        <p className="section__header">Agent options</p>
+        <p className="card__header">Agent options</p>
       )}
       <div className={`${baseClass}__data`}>
         <DataSet title="Config TLS refresh" value={configTLSRefresh} />

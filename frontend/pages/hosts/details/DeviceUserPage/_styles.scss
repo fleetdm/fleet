@@ -63,11 +63,7 @@
     }
   }
 
-  .section--policies
-    .data-table-block
-    .data-table__table
-    thead
-    .response__header {
+  .policies-card .data-table-block .data-table__table thead .response__header {
     width: $col-md;
   }
 }

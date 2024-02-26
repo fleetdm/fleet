@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import Card from "components/Card";
 
 import {
   IHostMdmData,
@@ -39,6 +40,8 @@ interface IAboutProps {
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
 }
+
+const baseClass = "about-card";
 
 const About = ({
   aboutData,
@@ -198,8 +201,13 @@ const About = ({
   };
 
   return (
-    <div className="section about">
-      <p className="section__header">About</p>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">About</p>
       <div className="info-grid">
         <DataSet
           title="Added to Fleet"
@@ -225,7 +233,7 @@ const About = ({
         {renderGeolocation()}
         {renderBattery()}
       </div>
-    </div>
+    </Card>
   );
 };
 
