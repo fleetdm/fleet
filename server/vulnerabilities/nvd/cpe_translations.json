@@ -139,5 +139,15 @@
       "product": ["pycharm"],
       "vendor": ["jetbrains"]
     }
+  },
+  {
+    "software": {
+      "name": ["Microsoft Edge"],
+      "source": ["programs", "apps"]
+    },
+    "filter": {
+      "product": ["edge_chromium"],
+      "vendor": ["microsoft"]
+    }
   }
 ]
