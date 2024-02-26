@@ -3,12 +3,12 @@ package webhooks
 import (
 	"context"
 	"fmt"
-
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
+	"github.com/hashicorp/go-multierror"
 )
 
 func TriggerHostStatusWebhook(
@@ -16,11 +16,10 @@ func TriggerHostStatusWebhook(
 	ds fleet.Datastore,
 	logger kitlog.Logger,
 ) error {
-	err := triggerGlobalHostStatusWebhook(ctx, ds, logger)
-	if err != nil {
-		return err
-	}
-	return triggerTeamHostStatusWebhook(ctx, ds, logger)
+	multiErr := &multierror.Error{}
+	multiErr = multierror.Append(multiErr, triggerGlobalHostStatusWebhook(ctx, ds, logger))
+	multiErr = multierror.Append(multiErr, triggerTeamHostStatusWebhook(ctx, ds, logger))
+	return multiErr.ErrorOrNil()
 }
 
 func triggerGlobalHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
@@ -82,20 +81,24 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting teams summary")
 	}
+	// We try to send a webhook for each team. If one team fails, we continue.
+	multiErr := &multierror.Error{}
 	for _, teamSummary := range teams {
-		team, err := ds.Team(ctx, teamSummary.ID)
+		id := teamSummary.ID
+		team, err := ds.Team(ctx, id)
 		if err != nil {
-			return ctxerr.Wrap(ctx, err, "getting team")
+			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "getting team"))
+			continue
 		}
 		if !team.Config.WebhookSettings.HostStatusWebhook.Enable {
 			continue
 		}
-		level.Debug(logger).Log("team", teamSummary.ID, "enable_host_status_webhook", "true")
-		err = processWebhook(ctx, ds, &teamSummary.ID, team.Config.WebhookSettings.HostStatusWebhook)
+		level.Debug(logger).Log("team", id, "enable_host_status_webhook", "true")
+		err = processWebhook(ctx, ds, &id, team.Config.WebhookSettings.HostStatusWebhook)
 		if err != nil {
-			return err
+			multiErr = multierror.Append(multiErr, ctxerr.Wrap(ctx, err, "processing webhook"))
 		}
 	}
 
-	return nil
+	return multiErr.ErrorOrNil()
 }

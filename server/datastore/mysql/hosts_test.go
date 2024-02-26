@@ -2726,7 +2726,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
 
-func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
+func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) *fleet.Host {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -2741,41 +2741,61 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
+	return host
 }
 
 func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
-	addHostSeenLast(t, ds, 1, 0)
+	host1 := addHostSeenLast(t, ds, 1, 0)
 
-	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	assert.Equal(t, 0, unseen)
+	assert.Len(t, unseen, 0)
 
-	addHostSeenLast(t, ds, 2, 2)
-	addHostSeenLast(t, ds, 3, 4)
+	host2 := addHostSeenLast(t, ds, 2, 2)
+	host3 := addHostSeenLast(t, ds, 3, 4)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 2, unseen)
+	assert.Len(t, unseen, 2)
 
 	// host not counted as unseen if less than a full 24 hours has passed
 	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86399*time.Second))
 	require.NoError(t, err)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 1, unseen)
+	assert.Len(t, unseen, 1)
 
 	// host counted as unseen if more than 24 hours has passed
 	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86401*time.Second))
 	require.NoError(t, err)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 2, unseen)
+	require.Len(t, unseen, 2)
+	assert.Equal(t, host2.ID, unseen[0])
+	assert.Equal(t, host3.ID, unseen[1])
+
+	// Test team hosts
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), &team1.ID, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Len(t, unseen, 0)
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID, host3.ID}))
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), &team1.ID, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+	require.Len(t, unseen, 1)
+	assert.Equal(t, host3.ID, unseen[0])
+
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
@@ -4920,10 +4940,10 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Equal(t, h1.ID, foundHosts[1].ID)
 	require.Equal(t, foundHosts[1].SeenTime, foundHosts[1].CreatedAt)
 
-	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	require.Equal(t, total, 2)
-	require.Equal(t, unseen, 0)
+	require.Len(t, unseen, 0)
 
 	h3, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              3,

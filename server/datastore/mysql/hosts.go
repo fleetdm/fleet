@@ -2796,7 +2796,7 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, users
 func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
 	// convert daysCount to integer number of seconds for more precision in sql query
 	var args []interface{}
-	totalQuery := `SELECT COUNT(*) as total`
+	totalQuery := `SELECT COUNT(*) FROM hosts`
 	if teamID != nil {
 		totalQuery += " WHERE team_id = ?"
 		args = append(args, *teamID)
@@ -2821,7 +2821,7 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 		args = append(args, *teamID)
 	}
 
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
 
 	if err != nil {
 		return total, nil, ctxerr.Wrap(ctx, err, "getting unseen host counts")
