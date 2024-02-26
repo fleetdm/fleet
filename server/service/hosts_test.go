@@ -1491,7 +1491,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
-	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, platform string) error {
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
@@ -1510,7 +1510,7 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
+	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
 	}
 

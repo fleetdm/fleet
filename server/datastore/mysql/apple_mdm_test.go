@@ -4460,7 +4460,7 @@ func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	checkLockWipeState(t, status, false, true, false, false, false, false)
 
 	// request an unlock, to make it pending unlock
-	err = ds.UnlockHostManually(ctx, host.ID, time.Now().UTC())
+	err = ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC())
 	require.NoError(t, err)
 
 	// it is now locked pending unlock

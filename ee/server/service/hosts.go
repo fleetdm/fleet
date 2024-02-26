@@ -325,7 +325,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	}); err != nil {
+	}, host.FleetPlatform()); err != nil {
 		return err
 	}
 
@@ -353,7 +353,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	if lockStatus.HostFleetPlatform == "darwin" {
 		// record the unlock request if it was not already recorded
 		if lockStatus.UnlockRequestedAt.IsZero() {
-			if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
+			if err := svc.ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC()); err != nil {
 				return "", err
 			}
 		}
@@ -374,7 +374,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			ScriptContents: string(script),
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
-		}); err != nil {
+		}, host.FleetPlatform()); err != nil {
 			return "", err
 		}
 	}
@@ -429,7 +429,7 @@ func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host
 			ScriptContents: string(linuxWipeScript),
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
-		}); err != nil {
+		}, host.FleetPlatform()); err != nil {
 			return err
 		}
 	}
