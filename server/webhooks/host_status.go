@@ -87,7 +87,7 @@ func triggerTeamHostStatusWebhook(ctx context.Context, ds fleet.Datastore, logge
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "getting team")
 		}
-		if !team.Config.WebhookSettings.FailingPoliciesWebhook.Enable {
+		if !team.Config.WebhookSettings.HostStatusWebhook.Enable {
 			continue
 		}
 		level.Debug(logger).Log("team", teamSummary.ID, "enable_host_status_webhook", "true")
