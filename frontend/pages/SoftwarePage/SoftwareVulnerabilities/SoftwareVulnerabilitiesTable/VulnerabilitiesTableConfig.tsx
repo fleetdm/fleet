@@ -170,7 +170,7 @@ const generateTableHeaders = (
     },
     {
       title: "Published",
-      accessor: "cve_published",
+      accessor: "published",
       disableSortBy: false,
       Header: (headerProps: IHeaderProps): JSX.Element => {
         const titleWithToolTip = (
