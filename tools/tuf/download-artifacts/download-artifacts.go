@@ -222,7 +222,8 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 		defer destinationFile.Close()
 
 		// Write the destination file
-		if _, err = io.Copy(destinationFile, archiveFile); err != nil {
+		// Ignoring gosec's G110 warning as these are artifacts downloaded from Fleet's Github.
+		if _, err = io.Copy(destinationFile, archiveFile); err != nil { //nolint:gosec
 			return fmt.Errorf("could not write file %s: %w", finalPath, err)
 		}
 	}
