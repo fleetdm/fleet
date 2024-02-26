@@ -30,7 +30,7 @@ Fleet UI:
 
 2. Head to the **Hosts** page and select the host you want to run the script on.
 
-3. On your target host's host details page, select the **Actions** dropdown and select **Actions** to view the **Run Script** menu.
+3. On your target host's host details page, select the **Actions** dropdown and select **Run Script** to view the **Run Script** menu.
    
 4. In the **Run Script** menu, select the **Actions** dropdown for the script you'd like to execute and choose the **Run** option.
 
