@@ -841,7 +841,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantMDMSolName:       fleet.WellKnownMDMIntune,
 		},
 		{
-			name: "on manual fleetdm",
+			name: "on manual fleetdm cloud hosted",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://fleetdm.com",
@@ -854,6 +854,23 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantInstalledFromDep: false,
 			wantIsServer:         false,
 			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
+
+		{
+			name: "on manual fleetdm self hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://myinstall.local",
+					"is_federated":          "0",
+					"provider_id":           "Fleet",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://myinstall.local",
 			wantMDMSolName:       fleet.WellKnownMDMFleet,
 		},
 	}
