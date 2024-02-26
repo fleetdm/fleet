@@ -502,7 +502,7 @@ const EditQueryForm = ({
               placeholder="Add name here"
               value={lastEditedQueryName}
               inputClassName={queryNameClasses}
-              maxLength="160"
+              maxLength={160}
               hasError={errors && errors.name}
               onChange={setLastEditedQueryName}
               onKeyPress={onInputKeypress}
@@ -547,7 +547,7 @@ const EditQueryForm = ({
               name="query-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
-              maxLength="250"
+              maxLength={250}
               inputClassName={`${baseClass}__query-description`}
               onChange={setLastEditedQueryDescription}
               onFocus={() => setIsEditingDescription(true)}
@@ -564,11 +564,14 @@ const EditQueryForm = ({
               <span className={`${baseClass}__query-description`}>
                 {lastEditedQueryDescription}
               </span>
-              <Button variant="text-icon" className="edit-link">
-                <Icon name="pencil" className="edit-icon" />
-              </Button>
             </div>
           )}
+          <Button variant="text-icon" className="edit-link">
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+            />
+          </Button>
         </div>
       );
     }

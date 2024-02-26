@@ -65,6 +65,9 @@
         width: 14px;
         height: 14px;
         opacity: 1;
+        &.hide {
+          opacity: 0;
+        }
       }
     }
 
@@ -101,7 +104,8 @@
     padding: 0;
     border: 0;
     resize: none;
-    white-space: normal;
+    // collapse not supported on Firefox, so pre-wrap for consistency across browsers
+    white-space: pre-wrap;
     background-color: transparent;
     overflow: hidden;
     &:hover:not(.focus-visible):not(.no-hover) {
