@@ -478,9 +478,13 @@ const EditQueryForm = ({
     }
   );
 
-  const queryDescriptionClasses = classnames("query-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const queryDescriptionClasses = classnames(
+    "query-description-wrapper",
+    `${baseClass}__query-description`,
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
   const editName = () => {
     if (!isEditingName) {
@@ -517,10 +521,7 @@ const EditQueryForm = ({
                 {lastEditedQueryName}
               </span>
               <Button variant="text-icon" className="edit-link">
-                <Icon
-                  name="pencil"
-                  className={`edit-icon ${isEditingName ? "hide" : ""}`}
-                />
+                <Icon name="pencil" className="edit-icon" />
               </Button>
             </div>
           )}
@@ -531,10 +532,16 @@ const EditQueryForm = ({
     return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
   };
 
+  const editDescription = () => {
+    if (!isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  };
+
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <div className={queryDescriptionClasses}>
+        <div className="query-description-wrapper">
           {isEditingDescription ? (
             <AutoSizeInputField
               name="query-description"
@@ -549,20 +556,19 @@ const EditQueryForm = ({
               isFocused={isEditingDescription}
             />
           ) : (
-            <span className={`${baseClass}__query-description`}>
-              {lastEditedQueryDescription}
-            </span>
+            <div
+              className={queryDescriptionClasses}
+              onClick={editDescription}
+              onFocus={editDescription}
+            >
+              <span className={`${baseClass}__query-description`}>
+                {lastEditedQueryDescription}
+              </span>
+              <Button variant="text-icon" className="edit-link">
+                <Icon name="pencil" className="edit-icon" />
+              </Button>
+            </div>
           )}
-          <Button
-            variant="text-icon"
-            className="edit-link"
-            onClick={() => setIsEditingDescription(true)}
-          >
-            <Icon
-              name="pencil"
-              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-            />
-          </Button>
         </div>
       );
     }
