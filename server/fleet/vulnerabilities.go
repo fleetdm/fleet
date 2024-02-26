@@ -128,11 +128,10 @@ const (
 )
 
 type VulnerabilityWithMetadata struct {
-	CVEMeta
+	CVE
 	HostsCount          uint                `db:"hosts_count" json:"hosts_count"`
 	HostsCountUpdatedAt time.Time           `db:"hosts_count_updated_at" json:"hosts_count_updated_at"`
 	CreatedAt           time.Time           `db:"created_at" json:"created_at"`
-	DetailsLink         string              `json:"details_link"`
 	Source              VulnerabilitySource `db:"source" json:"-"`
 }
 

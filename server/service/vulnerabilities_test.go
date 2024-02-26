@@ -20,9 +20,9 @@ func TestListVulnerabilities(t *testing.T) {
 	ds.ListVulnerabilitiesFunc = func(cxt context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {
 		return []fleet.VulnerabilityWithMetadata{
 			{
-				CVEMeta: fleet.CVEMeta{
+				CVE: fleet.CVE{
 					CVE:         "CVE-2019-1234",
-					Description: "A vulnerability",
+					Description: ptr.StringPtr("A vulnerability"),
 				},
 				CreatedAt:  time.Now(),
 				HostsCount: 10,
