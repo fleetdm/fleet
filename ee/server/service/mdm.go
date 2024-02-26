@@ -24,13 +24,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	depclient "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
@@ -69,7 +69,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
