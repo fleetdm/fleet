@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
+	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -12,31 +12,17 @@ import (
 const fleetKey = "jdrS2C9j0TR2bbDPil3jywHwyq5uujyAT1idiymuJMoivsplD5fLRpsJkepLail4Zgfu5kIV8kshwjwou+tbiw=="
 const fleetURL = "https://dogfood.fleetdm.com"
 
-type translatePayload struct {
-	Identifier string `json:"identifier"`
-	ID         int    `json:"id,omitempty"`
+type basicHost struct {
+	ID       int    `json:"id"`
+	Hostname string `json:"hostname"`
+	Issues   struct {
+		TotalIssuesCount     int `json:"total_issues_count"`
+		FailingPoliciesCount int `json:"failing_policies_count"`
+	} `json:"issues"`
 }
 
-type translateListEntry struct {
-	Type    string           `json:"type"`
-	Payload translatePayload `json:"payload"`
-}
-
-type translateRequestResponse struct {
-	List []translateListEntry `json:"list"`
-}
-
-func hostIDsForUser(email string) ([]int, error) {
-	b, err := json.Marshal(translateRequestResponse{
-		List: []translateListEntry{
-			{
-				Type:    "host",
-				Payload: translatePayload{Identifier: email},
-			},
-		},
-	})
-	log.Println(string(b))
-	req, err := http.NewRequest("POST", fleetURL+"/api/v1/fleet/translate", bytes.NewBufferString(`{}`)) //bytes.NewBuffer(b))
+func hostsForUser(email string) ([]basicHost, error) {
+	req, err := http.NewRequest("GET", fleetURL+"/api/latest/fleet/hosts?page=0&per_page=50&query="+email, &bytes.Buffer{})
 	req.Header.Set("Authorization", "Bearer "+fleetKey)
 	req.Header.Set("Content-Type", "application/json")
 
@@ -47,32 +33,36 @@ func hostIDsForUser(email string) ([]int, error) {
 	}
 	defer resp.Body.Close()
 
-	fmt.Println("response Status:", resp.Status)
-	fmt.Println("response Headers:", resp.Header)
-
-	body, err := io.ReadAll(req.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
-	log.Println(string(body))
+	//log.Println("body: ", string(body))
 
-	var trr translateRequestResponse
-	err = json.Unmarshal(body, &trr)
+	var hosts struct{ Hosts []basicHost }
+	err = json.Unmarshal(body, &hosts)
 	if err != nil {
 		return nil, err
 	}
 
-	log.Println(trr)
-
-	res := []int{}
-	for _, entry := range trr.List {
-		res = append(res, entry.Payload.ID)
-	}
-
-	return res, nil
+	return hosts.Hosts, nil
 }
 
 func checkForEmail(email string) error {
+	hosts, err := hostsForUser(email)
+	if err != nil {
+		return err
+	}
+
+	for _, host := range hosts {
+		if host.Issues.FailingPoliciesCount > 0 {
+			return errors.New("host is failing policies")
+		}
+	}
+
+	if len(hosts) == 0 {
+		log.Printf("No hosts found for %s", email)
+	}
 
 	return nil
 }

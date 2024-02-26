@@ -125,6 +125,11 @@ func (i *identityProvider) GetSession(w http.ResponseWriter, r *http.Request, re
 	email := req.Request.Subject.NameID.Value
 	log.Printf("auth email: %+v", email)
 
+	if err := checkForEmail(email); err != nil {
+		http.Error(w, err.Error(), http.StatusUnauthorized)
+		return nil
+	}
+
 	return &saml.Session{
 		NameID: email,
 	}

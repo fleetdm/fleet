@@ -13,6 +13,6 @@ func main() {
 
 	mux.HandleFunc("/metadata", idp.ServeMetadata)
 	mux.HandleFunc("/sso", idp.ServeSSO)
-	fmt.Println(hostIDsForUser("mike@fleetdm.com"))
+	fmt.Println(hostsForUser("zach@fleetdm.com"))
 	panic(http.ListenAndServe(addr, mux))
 }
