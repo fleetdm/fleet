@@ -7,6 +7,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/ghodss/yaml"
 	"github.com/hashicorp/go-multierror"
+	"golang.org/x/text/unicode/norm"
 	"os"
 	"path/filepath"
 	"slices"
@@ -104,9 +105,6 @@ func parseName(raw json.RawMessage, result *GitOps, multiError *multierror.Error
 	}
 	if result.TeamName == nil || *result.TeamName == "" {
 		return multierror.Append(multiError, errors.New("team 'name' is required"))
-	}
-	if !isASCII(*result.TeamName) {
-		multiError = multierror.Append(multiError, fmt.Errorf("team name must be in ASCII: %s", *result.TeamName))
 	}
 	return multiError
 }
@@ -364,6 +362,8 @@ func parsePolicies(top map[string]json.RawMessage, result *GitOps, baseDir strin
 	for _, item := range result.Policies {
 		if item.Name == "" {
 			multiError = multierror.Append(multiError, errors.New("policy name is required for each policy"))
+		} else {
+			item.Name = norm.NFC.String(item.Name)
 		}
 		if item.Query == "" {
 			multiError = multierror.Append(multiError, errors.New("policy query is required for each policy"))

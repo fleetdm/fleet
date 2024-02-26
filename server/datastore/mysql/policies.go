@@ -112,13 +112,13 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 // Currently SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
 	// We must normalize the name for full Unicode support (Unicode equivalence).
-	nameUnicode := norm.NFC.String(p.Name)
+	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
 			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sql, nameUnicode, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
+	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -600,9 +600,9 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		for _, spec := range specs {
 
 			// We must normalize the name for full Unicode support (Unicode equivalence).
-			nameUnicode := norm.NFC.String(spec.Name)
+			spec.Name = norm.NFC.String(spec.Name)
 			res, err := tx.ExecContext(ctx,
-				query, nameUnicode, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
+				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
