@@ -45,7 +45,7 @@ const SoftwareVulnerabilities = ({
     order_key: orderKey,
     teamId,
     query,
-    exploited: showExploitedVulnerabilitiesOnly,
+    exploit: showExploitedVulnerabilitiesOnly,
   };
 
   const { data, isFetching, isError } = useQuery<

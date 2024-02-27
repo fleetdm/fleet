@@ -23,7 +23,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
-			cm.published,
+			cm.published as cve_published,
 			cm.description,
 			COALESCE(vhc.host_count, 0) as hosts_count,
 			COALESCE(vhc.updated_at, NOW()) as hosts_count_updated_at
@@ -196,8 +196,8 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cvss_score,
 			cm.epss_probability,
 			cm.cisa_known_exploit,
-			cm.published,
-			COALESCE(cm.description, '') AS description,
+			cm.published as cve_published,
+			cm.description,
 			vhc.host_count as hosts_count,
 			vhc.updated_at as hosts_count_updated_at
 		FROM
@@ -236,7 +236,7 @@ func (ds *Datastore) ListVulnerabilities(ctx context.Context, opt fleet.VulnList
 			cm.cvss_score, 
 			cm.epss_probability, 
 			cm.cisa_known_exploit, 
-			cm.published, 
+			cve_published, 
 			description, 
 			hosts_count,
 			hosts_count_updated_at
