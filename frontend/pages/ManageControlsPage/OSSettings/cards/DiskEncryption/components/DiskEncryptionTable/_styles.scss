@@ -5,25 +5,6 @@
     min-width: auto;
   }
 
-  &__aggregate-table-data {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  tr {
-    .view-hosts-link {
-      opacity: 0;
-      transition: 250ms;
-    }
-
-    &:hover {
-      .view-hosts-link {
-        opacity: 1;
-      }
-    }
-  }
-
   @media (max-width: $break-md) {
     .view-hosts-link {
       span {

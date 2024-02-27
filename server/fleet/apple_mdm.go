@@ -12,7 +12,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/micromdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type MDMAppleCommandIssuer interface {
@@ -275,17 +275,6 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 		Detail:        p.Detail,
 		Platform:      "darwin",
 	}
-}
-
-func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
-	switch p.OperationType {
-	case MDMOperationTypeRemove:
-		switch {
-		case strings.Contains(p.Detail, "MDMClientError (89)"):
-			return true
-		}
-	}
-	return false
 }
 
 type HostMDMProfileDetail string
