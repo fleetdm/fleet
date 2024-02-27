@@ -78,7 +78,7 @@ func TestAnalyzer(t *testing.T) {
 	t.Run("getStoredVulnerabilities", func(t *testing.T) {
 		t.Run("on error", func(t *testing.T) {
 			ds := new(mock.Store)
-			ds.SoftwareByIDFunc = func(ctx context.Context, id uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
+			ds.SoftwareByIDFunc = func(ctx context.Context, id uint, teamID *uint, includeCVEScores bool, tmFilter *fleet.TeamFilter) (*fleet.Software, error) {
 				return nil, errors.New("some error")
 			}
 

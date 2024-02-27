@@ -1,0 +1,1 @@
+* Fixed a bug that caused macOS ADE enrollments gated behind SSO to get a "method not allowed" error.

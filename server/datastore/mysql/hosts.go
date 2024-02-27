@@ -1099,6 +1099,7 @@ func (ds *Datastore) applyHostFilters(
 
 	sqlStmt, params = filterHostsByMDMBootstrapPackageStatus(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByOS(sqlStmt, opt, params)
+	sqlStmt, params = filterHostsByVulnerability(sqlStmt, opt, params)
 	sqlStmt, params, _ = hostSearchLike(sqlStmt, params, opt.MatchQuery, append(hostSearchColumns, "display_name")...)
 	sqlStmt, params = appendListOptionsWithCursorToSQL(sqlStmt, params, &opt.ListOptions)
 
@@ -1499,6 +1500,25 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
     `, subquery)
 
 	return sql + newSQL, params
+}
+
+func filterHostsByVulnerability(sqlstmt string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+	if opt.VulnerabilityFilter != nil {
+		sqlstmt += ` AND h.id IN (
+			SELECT hs.host_id FROM host_software hs
+			JOIN software_cve sc ON sc.software_id = hs.software_id
+			WHERE sc.cve = ?
+			
+			UNION
+			
+			SELECT hos.host_id FROM host_operating_system hos
+			JOIN operating_system_vulnerabilities osv ON osv.operating_system_id = hos.os_id
+			WHERE osv.cve = ?)`
+
+		params = append(params, opt.VulnerabilityFilter, opt.VulnerabilityFilter)
+	}
+
+	return sqlstmt, params
 }
 
 func (ds *Datastore) CountHosts(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) (int, error) {
@@ -4400,6 +4420,9 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil, notFound("OSVersion")
+		}
 		return nil, nil, err
 	}
 

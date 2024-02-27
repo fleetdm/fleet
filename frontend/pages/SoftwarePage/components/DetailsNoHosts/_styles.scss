@@ -1,0 +1,10 @@
+.details-no-hosts {
+  padding: $pad-xxlarge;
+  gap: 0;
+  text-align: center;
+  * {
+    font-size: $x-small;
+    line-height: 21px;
+    margin: 0;
+  }
+}

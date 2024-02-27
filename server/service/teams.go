@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"net/http"
 	"net/url"
@@ -229,6 +230,8 @@ func applyTeamSpecsEndpoint(ctx context.Context, request interface{}, svc fleet.
 	actualSpecs := make([]*fleet.TeamSpec, 0, len(req.Specs))
 	for _, spec := range req.Specs {
 		if spec != nil {
+			// Normalize the team name for full Unicode support to prevent potential issue further in the spec flow
+			spec.Name = norm.NFC.String(spec.Name)
 			actualSpecs = append(actualSpecs, spec)
 		}
 	}

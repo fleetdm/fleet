@@ -203,3 +203,10 @@ export const getErrorReason = (
 
   return "";
 };
+
+export const ignoreAxiosError = (err: Error, ignoreStatuses: number[]) => {
+  if (!isAxiosError(err)) {
+    return false;
+  }
+  return !!err.response && ignoreStatuses.includes(err.response.status);
+};
