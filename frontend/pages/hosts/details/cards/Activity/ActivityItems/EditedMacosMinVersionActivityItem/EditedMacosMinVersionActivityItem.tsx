@@ -13,7 +13,7 @@ const EditedMacosMinVersionActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
-  // TODO: This activity also camprises of removing the minimum version and deadline
+  // TODO: This activity also addresses removing the minimum version and deadline
   // from the host, so we need to handle that as well.
 
   let statusText;
