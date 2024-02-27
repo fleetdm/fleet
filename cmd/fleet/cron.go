@@ -722,28 +722,6 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
 		schedule.WithJob(
-			"distributed_query_campaigns",
-			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
-				if err != nil {
-					return err
-				}
-				names, err := lq.LoadActiveQueryNames()
-				if err != nil {
-					return err
-				}
-				ids := stringSliceToUintSlice(names, logger)
-				completed, err := ds.GetCompletedCampaigns(ctx, ids)
-				if err != nil {
-					return err
-				}
-				if err := lq.CleanupInactiveQueries(ctx, completed); err != nil {
-					return err
-				}
-				return nil
-			},
-		),
-		schedule.WithJob(
 			"incoming_hosts",
 			func(ctx context.Context) error {
 				_, err := ds.CleanupIncomingHosts(ctx, time.Now())
@@ -849,6 +827,51 @@ func newCleanupsAndAggregationSchedule(
 
 			return nil
 		}),
+	)
+
+	return s, nil
+}
+
+func newFrequentCleanupsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	lq fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronFrequentCleanups)
+		defaultInterval = 15 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		// Using leader for the lock to be backwards compatilibity with old deployments.
+		schedule.WithAltLockID("leader"),
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		// Run cleanup jobs first.
+		schedule.WithJob(
+			"distributed_query_campaigns",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				if err != nil {
+					return err
+				}
+				names, err := lq.LoadActiveQueryNames()
+				if err != nil {
+					return err
+				}
+				ids := stringSliceToUintSlice(names, logger)
+				completed, err := ds.GetCompletedCampaigns(ctx, ids)
+				if err != nil {
+					return err
+				}
+				fmt.Println("VICTOR completed", completed)
+				if err := lq.CleanupInactiveQueries(ctx, completed); err != nil {
+					return err
+				}
+				return nil
+			},
+		),
 	)
 
 	return s, nil
