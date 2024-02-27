@@ -1,3 +1,10 @@
+## Fleet 4.46.1 (Feb 27, 2024)
+
+### Bug fixes
+
+* Fixed a bug in running queries via API.
+	- Query campaign not clearing from Redis after timeout
+
 ## Fleet 4.46.0 (Feb 23, 2024)
 
 ### Bug fixes
