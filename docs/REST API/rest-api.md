@@ -6304,6 +6304,7 @@ Returns a list of global queries or team queries.
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
+    "labels": [],
     "packs": [
       {
         "created_at": "2021-01-05T21:13:04Z",
@@ -6342,6 +6343,7 @@ Returns a list of global queries or team queries.
     "author_id": 1,
     "author_name": "noah",
     "author_email": "noah@example.com",
+    "labels": ["macOS 13+"], 
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
@@ -6405,6 +6407,7 @@ Returns the query specified by ID.
     "author_id": 1,
     "author_name": "John",
     "author_email": "john@example.com",
+    "labels": [],
     "packs": [
       {
         "created_at": "2021-01-19T17:08:31Z",
