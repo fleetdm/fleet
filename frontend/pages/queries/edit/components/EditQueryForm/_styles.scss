@@ -79,10 +79,11 @@
           line-height: 2.3rem;
         }
 
-        // compensate for FF added height
+        // compensate for FF weirdness with textarea line-height calculations
         @-moz-document url-prefix() {
+          line-height: 2.25rem;
           &__editing {
-            margin-top: -2.75px;
+            line-height: 2.3rem;
           }
         }
       }
