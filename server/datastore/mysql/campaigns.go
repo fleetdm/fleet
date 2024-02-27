@@ -134,9 +134,8 @@ func (ds *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targ
 }
 
 func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error) {
-	// During an incident, the filter can contain a large number of IDs (>100,000) so we must be aware of max_allowed_packet size:
-	// https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet
-	const batchSize = 100000
+	// There is a limit of 65,535 (2^16-1) placeholders in MySQL 5.7
+	const batchSize = 65535 - 1
 	if len(filter) == 0 {
 		return nil, nil
 	}
@@ -150,8 +149,7 @@ func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) (
 		batch := filter[i:end]
 
 		query, args, err := sqlx.In(
-			`
-			SELECT id
+			`SELECT id
 			FROM distributed_query_campaigns
 			WHERE status = ?
 			AND id IN (?)

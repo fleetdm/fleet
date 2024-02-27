@@ -2,6 +2,8 @@ package mysql
 
 import (
 	"context"
+	"math/rand"
+	"sort"
 	"testing"
 	"time"
 
@@ -22,6 +24,7 @@ func TestCampaigns(t *testing.T) {
 		{"DistributedQuery", testCampaignsDistributedQuery},
 		{"CleanupDistributedQuery", testCampaignsCleanupDistributedQuery},
 		{"SaveDistributedQuery", testCampaignsSaveDistributedQuery},
+		{"CompletedCampaigns", testCompletedCampaigns},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -207,4 +210,46 @@ func checkTargets(t *testing.T, ds fleet.Datastore, campaignID uint, expectedTar
 	assert.ElementsMatch(t, expectedTargets.HostIDs, targets.HostIDs)
 	assert.ElementsMatch(t, expectedTargets.LabelIDs, targets.LabelIDs)
 	assert.ElementsMatch(t, expectedTargets.TeamIDs, targets.TeamIDs)
+}
+
+func testCompletedCampaigns(t *testing.T, ds *Datastore) {
+	// Test nil result
+	result, err := ds.GetCompletedCampaigns(context.Background(), nil)
+	assert.NoError(t, err)
+	assert.Len(t, result, 0)
+
+	result, err = ds.GetCompletedCampaigns(context.Background(), []uint{234, 1, 1, 34455455453})
+	assert.NoError(t, err)
+	assert.Len(t, result, 0)
+
+	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
+	mockClock := clock.NewMockClock()
+	query := test.NewQuery(t, ds, nil, t.Name()+"test", "select * from time", user.ID, false)
+
+	numCampaigns := 5
+	totalFilterSize := 100000
+	filter := make([]uint, 0, totalFilterSize)
+	complete := make([]uint, 0, numCampaigns)
+	for i := 0; i < numCampaigns; i++ {
+		c1 := test.NewCampaign(t, ds, query.ID, fleet.QueryWaiting, mockClock.Now())
+		gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
+		require.NoError(t, err)
+		require.Equal(t, fleet.QueryWaiting, gotC.Status)
+		if rand.Intn(10) < 7 {
+			c1.Status = fleet.QueryComplete
+			require.NoError(t, ds.SaveDistributedQueryCampaign(context.Background(), c1))
+			complete = append(complete, c1.ID)
+		}
+		filter = append(filter, c1.ID)
+	}
+	for j := len(filter); j < totalFilterSize; j++ {
+		filter = append(filter, uint(j))
+	}
+	rand.Shuffle(len(filter), func(i, j int) { filter[i], filter[j] = filter[j], filter[i] })
+
+	result, err = ds.GetCompletedCampaigns(context.Background(), filter)
+	assert.NoError(t, err)
+	sort.Slice(result, func(i, j int) bool { return result[i] < result[j] })
+	assert.Equal(t, complete, result)
+
 }
