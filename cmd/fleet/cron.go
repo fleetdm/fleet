@@ -865,7 +865,6 @@ func newFrequentCleanupsSchedule(
 				if err != nil {
 					return err
 				}
-				fmt.Println("VICTOR completed", completed)
 				if err := lq.CleanupInactiveQueries(ctx, completed); err != nil {
 					return err
 				}
