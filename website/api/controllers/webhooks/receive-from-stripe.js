@@ -177,13 +177,13 @@ module.exports = {
       });
       // Convert the subscription cycle's period end timestamp from Stripe into a JS timestamp.
       // Note: with most subscription changes, this value will be indentical to the existing license key's expiration
-      // timestamp. We do this here to handle the rare case that the subscription period has been adjusted in the Stripe UI.
+      // timestamp. We do this here to handle situations where the subscription period has been adjusted in the Stripe UI.
       let nextBillingAt = updatedSubscriptionInfo.period.end * 1000;
 
       // Use information from the nested plan object to determine the new price of this subscription.
       let pricePerHost = updatedSubscriptionInfo.plan.amount / 100;
 
-      // Get the updated number of hosts from the quantity on the updated number of hosts in the invoice.
+      // Get the updated number of hosts from the quantity of the invoice.
       let newNumberOfHosts = updatedSubscriptionInfo.quantity;
 
       // Generate a new license key for this subscription
