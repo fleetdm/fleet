@@ -126,14 +126,7 @@ type Datastore interface {
 	// QueryRunning state will be moved to QueryComplete after one day. Times are
 	// from creation time. The now parameter makes this method easier to test.
 	// The return values indicate how many campaigns were expired and any error.
-	//
-	// To assist in cleaning up the Redis side of the inactive queries, it also
-	// returns the IDs of the campaigns that are known to be inactive in the
-	// database, and that have a creation date of at most 7 days ago. This is so
-	// that the set of returned expired campaigns doesn't grow unbounded (we
-	// never delete from this table), and because the associated Redis keys will
-	// expire after 7 days anyway.
-	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error)
+	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
 
 	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
 	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.

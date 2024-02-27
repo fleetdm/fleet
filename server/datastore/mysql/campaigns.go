@@ -172,7 +172,7 @@ func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) (
 	return completed, nil
 }
 
-func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error) {
+func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error) {
 	// Expire old waiting/running campaigns
 	const sqlStatement = `
 		UPDATE distributed_query_campaigns
@@ -184,27 +184,12 @@ func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now t
 		fleet.QueryWaiting, now.Add(-1*time.Minute),
 		fleet.QueryRunning, now.Add(-24*time.Hour))
 	if err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "updating distributed query campaign")
+		return 0, ctxerr.Wrap(ctx, err, "updating distributed query campaign")
 	}
 
 	exp, err := result.RowsAffected()
 	if err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
+		return 0, ctxerr.Wrap(ctx, err, "rows affected updating distributed query campaign")
 	}
-
-	const getInactiveStmt = `
-		SELECT
-			id
-		FROM
-			distributed_query_campaigns
-		WHERE
-			status = ? AND
-			created_at > ?
-`
-	// using the writer so we catch the ones we just marked as completed
-	err = sqlx.SelectContext(ctx, ds.writer(ctx), &recentInactive, getInactiveStmt, fleet.QueryComplete, now.AddDate(0, 0, -7))
-	if err != nil {
-		return 0, nil, ctxerr.Wrap(ctx, err, "selecting recent inactive campaigns")
-	}
-	return uint(exp), recentInactive, nil
+	return uint(exp), nil
 }

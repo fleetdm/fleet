@@ -158,7 +158,7 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	err = store.RunQuery("5", "SELECT 5", []uint{2, 3, 7})
 	require.NoError(t, err)
 
-	activeNames, err := redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeNames, err := store.LoadActiveQueryNames()
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"1", "2", "3", "4", "5"}, activeNames)
 
@@ -171,7 +171,7 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	err = store.CleanupInactiveQueries(ctx, []uint{1, 3, 5})
 	require.NoError(t, err)
 
-	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeNames, err = store.LoadActiveQueryNames()
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"2", "4"}, activeNames)
 
@@ -197,7 +197,7 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	err = store.CleanupInactiveQueries(ctx, nil)
 	require.NoError(t, err)
 
-	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeNames, err = store.LoadActiveQueryNames()
 	require.NoError(t, err)
 	require.ElementsMatch(t, []string{"2"}, activeNames)
 
@@ -205,7 +205,7 @@ func testLiveQueryCleanupInactive(t *testing.T, store fleet.LiveQueryStore) {
 	err = store.CleanupInactiveQueries(ctx, []uint{1, 2, 3, 4, 5})
 	require.NoError(t, err)
 
-	activeNames, err = redigo.Strings(conn.Do("SMEMBERS", activeQueriesKey))
+	activeNames, err = store.LoadActiveQueryNames()
 	require.NoError(t, err)
 	require.Empty(t, activeNames)
 

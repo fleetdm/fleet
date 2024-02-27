@@ -724,7 +724,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				_, _, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
 				if err != nil {
 					return err
 				}
