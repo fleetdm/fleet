@@ -1,0 +1,1 @@
+For fleetctl gitops, when MDM configs are not explicitly defined in gitops yml file, they are now set to default values.
