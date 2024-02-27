@@ -14,7 +14,9 @@
 
 In Fleet, you can group hosts together in a team.
 
-With hosts segmented into exclusive teams, you can apply specific queries, policies, and agent options to each team.
+Then, you can give users access to only some teams.
+
+This means you manage permissions so that some users can only run queries and manage hosts on the teams these users have access to.
 
 Then you can:
 
@@ -30,11 +32,10 @@ Then you can:
 
 You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation. From there, you can add or remove teams, manage user access to teams, transfer hosts, or modify team settings.
 
-## Naming conventions
+## Best practice
 
-One recommended approach is to create a team for each type of system in your organization. For example, you may have teams named: `Workstations`, `Workstations - sandbox`, `Servers`, and `Servers - sandbox`.
+The best practice is to create these teams: `Workstations`, `Workstations (canary)`, `Servers`, and `Servers (canary)`.
 
-(A popular pattern is to end a team’s name with "- sandbox" to test new queries and configuration with staging hosts or volunteers acting as canaries.)
 
 
 ## Adding hosts to a team
