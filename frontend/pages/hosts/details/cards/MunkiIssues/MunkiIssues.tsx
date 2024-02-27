@@ -25,7 +25,12 @@ const MunkiIssuesTable = ({
   const tableHeaders = munkiIssuesTableHeaders;
 
   return (
-    <Card className={`${baseClass} card`}>
+    <Card
+      className={`${baseClass} card`}
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+    >
       <p className="card__header">Munki issues</p>
 
       {munkiIssues?.length ? (
