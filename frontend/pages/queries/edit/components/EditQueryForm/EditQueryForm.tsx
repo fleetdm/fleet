@@ -481,22 +481,28 @@ const EditQueryForm = ({
       return (
         <div className="query-name-wrapper">
           {isEditingName ? (
-            <AutoSizeInputField
-              name="query-name"
-              placeholder="Add name here"
-              value={lastEditedQueryName}
-              inputClassName={`${baseClass}__query-name ${
-                isEditingName ? "editing" : ""
-              }`}
-              maxLength={160}
-              hasError={errors && errors.name}
-              onChange={setLastEditedQueryName}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingName}
-              onBlur={() => {
-                setIsEditingName(false);
-              }}
-            />
+            <>
+              <AutoSizeInputField
+                name="query-name"
+                placeholder="Add name here"
+                value={lastEditedQueryName}
+                inputClassName={`${baseClass}__query-name`}
+                maxLength={160}
+                hasError={errors && errors.name}
+                onChange={setLastEditedQueryName}
+                onKeyPress={onInputKeypress}
+                isFocused={isEditingName}
+                onBlur={() => {
+                  setIsEditingName(false);
+                }}
+              />
+              {/* yes, necessary in both places */}
+              <Icon
+                name="pencil"
+                className="edit-icon hide"
+                size="small-medium"
+              />
+            </>
           ) : (
             <button onClick={editName} onFocus={editName}>
               <div className={`${baseClass}__query-name`}>
@@ -504,6 +510,7 @@ const EditQueryForm = ({
                   <div className="placeholder">Add name here.</div>
                 )}
               </div>
+              {/* yes, necessary in both places */}
               <Icon name="pencil" className="edit-icon" size="small-medium" />
             </button>
           )}
@@ -530,9 +537,7 @@ const EditQueryForm = ({
                 name="query-description"
                 placeholder="Add description here."
                 value={lastEditedQueryDescription}
-                inputClassName={`${baseClass}__query-description ${
-                  isEditingName ? "editing" : ""
-                }`}
+                inputClassName={`${baseClass}__query-description`}
                 maxLength={250}
                 onChange={setLastEditedQueryDescription}
                 onKeyPress={onInputKeypress}
