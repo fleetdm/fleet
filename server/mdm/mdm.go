@@ -53,8 +53,11 @@ func GetRawProfilePlatform(profile []byte) string {
 
 	// TODO(JVE): have to update this so that validation passes when doing batch uploads (e.g.
 	// fleetctl apply)
-	windowsPrefix := []byte("<replace")
-	if len(trimmedProfile) >= len(windowsPrefix) && bytes.EqualFold(windowsPrefix, trimmedProfile[:len(windowsPrefix)]) {
+	windowsReplacePrefix := []byte("<replace")
+	windowsAddPrefix := []byte("<add")
+	if len(trimmedProfile) >= len(windowsReplacePrefix) &&
+		bytes.EqualFold(windowsReplacePrefix, trimmedProfile[:len(windowsReplacePrefix)]) ||
+		bytes.EqualFold(windowsAddPrefix, trimmedProfile[:len(windowsAddPrefix)]) {
 		return "windows"
 	}
 
