@@ -16,6 +16,9 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 - [Kubernetes `deployment.yml` example file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploying-Fleet-on-Kubernetes.md)
 - All Terraform (*.tf) files referencing the previous version of Fleet.
 
+- The full list could be searched using git grep:
+    % git grep "4\.3\.0"
+
 Commit these changes via Pull Request and pull the changes on the `main` branch locally.
 
 ### Prepare a minor or major release
