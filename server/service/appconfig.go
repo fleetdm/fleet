@@ -327,6 +327,15 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	// EnableDiskEncryption is an optjson.Bool field in order to support the
+	// legacy field under "mdm.macos_settings". If the field provided to the
+	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
+	// null) and no legacy field overwrites it, leave it unchanged (as if not
+	// provided).
+	if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
