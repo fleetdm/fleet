@@ -523,12 +523,10 @@ const EditQueryForm = ({
               </span>
             </div>
           )}
-          <Button variant="text-icon" className="edit-link" tabIndex={-1}>
-            <Icon
-              name="pencil"
-              className={`edit-icon ${isEditingName ? "hide" : ""}`}
-            />
-          </Button>
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingName ? "hide" : ""}`}
+          />
         </div>
       );
     }
@@ -570,12 +568,10 @@ const EditQueryForm = ({
               </span>
             </div>
           )}
-          <Button variant="text-icon" className="edit-link" tabIndex={-1}>
-            <Icon
-              name="pencil"
-              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-            />
-          </Button>
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+          />
         </div>
       );
     }

@@ -43,10 +43,18 @@
       flex-direction: column;
       gap: 0.5rem;
 
-      .query-name-wrapper {
+      .query-name-wrapper,
+      .query-description-wrapper {
         display: flex;
         align-items: center;
         gap: 0.5rem;
+        outline: 0;
+        &:hover:not(.focus-visible):not(.no-hover) {
+          color: $core-vibrant-blue;
+          cursor: pointer;
+        }
+      }
+      .query-name-wrapper {
         width: fit-content;
 
         .edit-query-form__query-name,
@@ -55,11 +63,6 @@
           letter-spacing: -0.5px;
           line-height: 2.3rem;
         }
-      }
-      .query-description-wrapper {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
       }
       .edit-icon {
         width: 14px;
@@ -108,10 +111,6 @@
     white-space: pre-wrap;
     background-color: transparent;
     overflow: hidden;
-    &:hover:not(.focus-visible):not(.no-hover) {
-      color: $core-vibrant-blue;
-      cursor: pointer;
-    }
     &.focus-visible {
       outline: 0;
       cursor: text;
