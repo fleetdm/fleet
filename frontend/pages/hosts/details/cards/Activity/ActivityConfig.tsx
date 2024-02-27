@@ -19,6 +19,7 @@ import EditedOsProfileActivityItem from "./ActivityItems/EditedOsProfileActivity
 import DeletedOsProfileActivityItem from "./ActivityItems/DeletedOsProfileActivityItem";
 import EnabledDiskEncryptionActivityItem from "./ActivityItems/EnabledDiskEncryptionActivityItem";
 import EditedMacosMinVersionActivityItem from "./ActivityItems/EditedMacosMinVersionActivityItem";
+import WipedHostActivityItem from "./ActivityItems/WipedHostActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -49,6 +50,6 @@ export const pastActivityComponentMap: Record<
   [ActivityType.EditedWindowsUpdates]: LockedHostActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
-  [ActivityType.WipedHost]: UnlockedHostActivityItem,
+  [ActivityType.WipedHost]: WipedHostActivityItem,
   [ActivityType.RanScript]: RanScriptActivityItem,
 };
