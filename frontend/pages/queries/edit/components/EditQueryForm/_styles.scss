@@ -121,6 +121,9 @@
       outline: 0;
       cursor: text;
     }
+    .placeholder {
+      color: $ui-fleet-black-50;
+    }
   }
 
   &__query-name {
