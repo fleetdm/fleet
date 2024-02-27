@@ -190,7 +190,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 			}
 			res.Rows = queryResult.Rows
 			res.HostID = queryResult.HostID
-		} else { // timeout waiting for results
+		} else {
 			err = errors.New("timeout waiting for results")
 		}
 		if err != nil {
@@ -278,10 +278,17 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer cancelFunc()
 
 			defer func() {
+				// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
+				// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
+				ctx := context.WithoutCancel(ctx)
 				err := svc.CompleteCampaign(ctx, campaign)
 				if err != nil {
-					level.Error(svc.logger).Log("msg", "CompleteCampaign failed", "campaign.id", campaign.ID, "err", err)
-					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
+					level.Error(svc.logger).Log("msg", "completing campaign (sync)", "query.id", campaign.QueryID, "err", err)
+					resultsCh <- fleet.QueryCampaignResult{
+						QueryID: queryID,
+						Error:   ptr.String(err.Error()),
+						Err:     err,
+					}
 				}
 			}()
 

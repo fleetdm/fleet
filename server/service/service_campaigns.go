@@ -98,9 +98,11 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
 	defer func() {
+		// We do not want to use the outer `ctx` because we want to make sure
+		// to cleanup the campaign.
+		ctx := context.WithoutCancel(ctx)
 		if err := svc.CompleteCampaign(ctx, campaign); err != nil {
-			// campaignID is already part of the logger fields
-			level.Error(logger).Log("msg", "CompleteCampaign failed", "err", err)
+			level.Error(logger).Log("msg", "complete campaign (async)", "err", err)
 		}
 	}()
 
