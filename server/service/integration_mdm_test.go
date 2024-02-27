@@ -41,6 +41,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -56,10 +60,6 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -78,7 +78,7 @@ type integrationMDMTestSuite struct {
 	fleetCfg             config.FleetConfig
 	fleetDMNextCSRStatus atomic.Value
 	pushProvider         *mock.APNSPushProvider
-	depStorage           nanodep_storage.AllStorage
+	depStorage           nanodep_storage.AllDEPStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
 	onProfileJobDone     func() // function called when profileSchedule.Trigger() job completed

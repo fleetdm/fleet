@@ -12,7 +12,7 @@ var eeValidVulnSortColumns = []string{
 	"created_at",
 	"cvss_score",
 	"epss_probability",
-	"published",
+	"cve_published",
 }
 
 func (svc *Service) ListVulnerabilities(ctx context.Context, opt fleet.VulnListOptions) ([]fleet.VulnerabilityWithMetadata, *fleet.PaginationMetadata, error) {

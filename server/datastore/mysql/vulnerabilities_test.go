@@ -100,24 +100,24 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 
 	expected := map[string]fleet.VulnerabilityWithMetadata{
 		"CVE-2020-1234": {
-			CVEMeta: fleet.CVEMeta{
+			CVE: fleet.CVE{
 				CVE:              "CVE-2020-1234",
-				CVSSScore:        ptr.Float64(7.5),
-				EPSSProbability:  ptr.Float64(0.5),
-				CISAKnownExploit: ptr.Bool(true),
-				Published:        ptr.Time(mockTime),
-				Description:      "Test CVE 2020-1234",
+				CVSSScore:        ptr.Float64Ptr(7.5),
+				EPSSProbability:  ptr.Float64Ptr(0.5),
+				CISAKnownExploit: ptr.BoolPtr(true),
+				CVEPublished:     ptr.TimePtr(mockTime),
+				Description:      ptr.StringPtr("Test CVE 2020-1234"),
 			},
 			HostsCount: 10,
 			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1235": {
-			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			CVE:        fleet.CVE{CVE: "CVE-2020-1235"},
 			HostsCount: 15,
 			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1236": {
-			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			CVE:        fleet.CVE{CVE: "CVE-2020-1236"},
 			HostsCount: 20,
 			Source:     fleet.NVDSource,
 		},
@@ -126,26 +126,26 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, list, 3)
 	for _, vuln := range list {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
-		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.CVE, vuln.CVE)
 		require.Equal(t, expectedVuln.HostsCount, vuln.HostsCount)
 	}
 
 	// Test Fleet Free
 	expected = map[string]fleet.VulnerabilityWithMetadata{
 		"CVE-2020-1234": {
-			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1234"},
+			CVE:        fleet.CVE{CVE: "CVE-2020-1234"},
 			HostsCount: 10,
 			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1235": {
-			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1235"},
+			CVE:        fleet.CVE{CVE: "CVE-2020-1235"},
 			HostsCount: 15,
 			Source:     fleet.MSRCSource,
 		},
 		"CVE-2020-1236": {
-			CVEMeta:    fleet.CVEMeta{CVE: "CVE-2020-1236"},
+			CVE:        fleet.CVE{CVE: "CVE-2020-1236"},
 			HostsCount: 20,
 			Source:     fleet.NVDSource,
 		},
@@ -154,9 +154,9 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, list, 3)
 	for _, vuln := range list {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
-		require.Equal(t, expectedVuln.CVEMeta, vuln.CVEMeta)
+		require.Equal(t, expectedVuln.CVE, vuln.CVE)
 		require.Equal(t, expectedVuln.HostsCount, vuln.HostsCount)
 	}
 }
@@ -206,7 +206,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	expected := fleet.VulnerabilityWithMetadata{
-		CVEMeta: fleet.CVEMeta{
+		CVE: fleet.CVE{
 			CVE: "CVE-2020-1234",
 		},
 		HostsCount: 10,
@@ -216,7 +216,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	// No CVSSScores
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.NoError(t, err)
-	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 
@@ -224,18 +224,18 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	expected.HostsCount = 4
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", ptr.Uint(1), false)
 	require.NoError(t, err)
-	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 
 	expected = fleet.VulnerabilityWithMetadata{
-		CVEMeta: fleet.CVEMeta{
+		CVE: fleet.CVE{
 			CVE:              "CVE-2020-1234",
-			CVSSScore:        ptr.Float64(7.5),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
-			Description:      "Test CVE 2020-1234",
+			CVSSScore:        ptr.Float64Ptr(7.5),
+			EPSSProbability:  ptr.Float64Ptr(0.5),
+			CISAKnownExploit: ptr.BoolPtr(true),
+			CVEPublished:     ptr.TimePtr(mockTime),
+			Description:      ptr.StringPtr("Test CVE 2020-1234"),
 		},
 		HostsCount: 10,
 		Source:     fleet.MSRCSource,
@@ -244,7 +244,7 @@ func testVulnerabilityWithOS(t *testing.T, ds *Datastore) {
 	// With CVSSScores
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
 	require.NoError(t, err)
-	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 }
@@ -290,7 +290,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 
 	// No CVSSScores
 	expected := fleet.VulnerabilityWithMetadata{
-		CVEMeta: fleet.CVEMeta{
+		CVE: fleet.CVE{
 			CVE: "CVE-2020-1234",
 		},
 		HostsCount: 10,
@@ -299,19 +299,19 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, false)
 	require.NoError(t, err)
-	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 
 	// With CVSSScores
 	expected = fleet.VulnerabilityWithMetadata{
-		CVEMeta: fleet.CVEMeta{
+		CVE: fleet.CVE{
 			CVE:              "CVE-2020-1234",
-			CVSSScore:        ptr.Float64(7.5),
-			EPSSProbability:  ptr.Float64(0.5),
-			CISAKnownExploit: ptr.Bool(true),
-			Published:        ptr.Time(mockTime),
-			Description:      "Test CVE 2020-1234",
+			CVSSScore:        ptr.Float64Ptr(7.5),
+			EPSSProbability:  ptr.Float64Ptr(0.5),
+			CISAKnownExploit: ptr.BoolPtr(true),
+			CVEPublished:     ptr.TimePtr(mockTime),
+			Description:      ptr.StringPtr("Test CVE 2020-1234"),
 		},
 		HostsCount: 10,
 		Source:     fleet.NVDSource,
@@ -319,7 +319,7 @@ func testVulnerabilityWithSoftware(t *testing.T, ds *Datastore) {
 
 	v, err = ds.Vulnerability(ctx, "CVE-2020-1234", nil, true)
 	require.NoError(t, err)
-	require.Equal(t, expected.CVEMeta, v.CVEMeta)
+	require.Equal(t, expected.CVE, v.CVE)
 	require.Equal(t, expected.HostsCount, v.HostsCount)
 	require.Equal(t, expected.Source, v.Source)
 }
@@ -372,7 +372,7 @@ func testVulnerabilitiesTeamFilter(t *testing.T, ds *Datastore) {
 	}
 
 	for _, vuln := range list {
-		require.Equal(t, checkCounts[vuln.CVE], int(vuln.HostsCount), vuln.CVE)
+		require.Equal(t, checkCounts[vuln.CVE.CVE], int(vuln.HostsCount), vuln.CVE)
 	}
 }
 
@@ -392,22 +392,22 @@ func testListVulnerabilitiesSort(t *testing.T, ds *Datastore) {
 	list, _, err := ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 5)
-	require.Equal(t, "CVE-2020-1241", list[0].CVE)
-	require.Equal(t, "CVE-2020-1239", list[1].CVE)
-	require.Equal(t, "CVE-2020-1238", list[2].CVE)
-	require.Equal(t, "CVE-2020-1237", list[3].CVE)
-	require.Equal(t, "CVE-2020-1236", list[4].CVE)
+	require.Equal(t, "CVE-2020-1241", list[0].CVE.CVE)
+	require.Equal(t, "CVE-2020-1239", list[1].CVE.CVE)
+	require.Equal(t, "CVE-2020-1238", list[2].CVE.CVE)
+	require.Equal(t, "CVE-2020-1237", list[3].CVE.CVE)
+	require.Equal(t, "CVE-2020-1236", list[4].CVE.CVE)
 
 	opts.OrderKey = "published"
 	opts.OrderDirection = fleet.OrderAscending
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 5)
-	require.Equal(t, "CVE-2020-1241", list[0].CVE) // NULL dates are sorted first
-	require.Equal(t, "CVE-2020-1234", list[1].CVE)
-	require.Equal(t, "CVE-2020-1236", list[2].CVE)
-	require.Equal(t, "CVE-2020-1235", list[3].CVE)
-	require.Equal(t, "CVE-2020-1237", list[4].CVE)
+	require.Equal(t, "CVE-2020-1241", list[0].CVE.CVE) // NULL dates are sorted first
+	require.Equal(t, "CVE-2020-1234", list[1].CVE.CVE)
+	require.Equal(t, "CVE-2020-1236", list[2].CVE.CVE)
+	require.Equal(t, "CVE-2020-1235", list[3].CVE.CVE)
+	require.Equal(t, "CVE-2020-1237", list[4].CVE.CVE)
 }
 
 func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
@@ -424,7 +424,7 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 	require.Len(t, list, 3)
 	expected := []string{"CVE-2020-1234", "CVE-2020-1236", "CVE-2020-1238"}
 	for _, vuln := range list {
-		require.Contains(t, expected, vuln.CVE)
+		require.Contains(t, expected, vuln.CVE.CVE)
 	}
 
 	// Test CVE LIKE filter
@@ -436,7 +436,7 @@ func testVulnerabilitiesFilters(t *testing.T, ds *Datastore) {
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
 	require.Len(t, list, 1)
-	require.Equal(t, "CVE-2020-1234", list[0].CVE)
+	require.Equal(t, "CVE-2020-1234", list[0].CVE.CVE)
 }
 
 func testCountVulnerabilities(t *testing.T, ds *Datastore) {
@@ -874,7 +874,7 @@ func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.Vulnera
 	t.Helper()
 	require.Len(t, actual, len(expected))
 	for i, vuln := range actual {
-		require.Equal(t, expected[i].CVE, vuln.CVE)
+		require.Equal(t, expected[i].CVE, vuln.CVE.CVE)
 		require.Equal(t, expected[i].HostCount, vuln.HostsCount)
 	}
 }

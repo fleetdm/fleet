@@ -975,6 +975,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
+	"awmdm":     WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
