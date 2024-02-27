@@ -1778,7 +1778,10 @@ func (ds *Datastore) EnrollOrbit(ctx context.Context, isMDMEnabled bool, hostInf
 			}
 			host.ID = hostID
 
-			// TODO(mna): clear the host_mdm_actions following re-enrollment here
+			// clear any host_mdm_actions following re-enrollment here
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, hostID); err != nil {
+				return ctxerr.Wrap(ctx, err, "orbit enroll error clearing host_mdm_actions")
+			}
 
 		case errors.Is(err, sql.ErrNoRows):
 			zeroTime := time.Unix(0, 0).Add(24 * time.Hour)
@@ -1902,7 +1905,10 @@ func (ds *Datastore) EnrollHost(ctx context.Context, isMDMEnabled bool, osqueryH
 				return ctxerr.Wrap(ctx, err, "cleanup policy membership on re-enroll")
 			}
 
-			// TODO(mna): clear	the host_mdm_actions following re-enrollment here
+			// clear any host_mdm_actions following re-enrollment here
+			if _, err := tx.ExecContext(ctx, `DELETE FROM host_mdm_actions WHERE host_id = ?`, matchedID); err != nil {
+				return ctxerr.Wrap(ctx, err, "error clearing host_mdm_actions")
+			}
 
 			// Update existing host record
 			sqlUpdate := `
