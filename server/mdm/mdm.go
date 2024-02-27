@@ -35,8 +35,7 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 //
 //   - Returns "darwin" if the profile starts with "<?xml", typical of Darwin
 //     platform profiles.
-//   - Returns "windows" if the profile begins with "<replace", as we only accept
-//     replaces directives for profiles.
+//   - Returns "windows" if the profile begins with "<replace" or "<add",
 //   - Returns an empty string for profiles that are either unrecognized or
 //     empty.
 func GetRawProfilePlatform(profile []byte) string {
@@ -46,14 +45,13 @@ func GetRawProfilePlatform(profile []byte) string {
 		return ""
 	}
 
-	darwinPrefix := []byte("<?xml")
-	if len(trimmedProfile) >= len(darwinPrefix) && bytes.EqualFold(darwinPrefix, trimmedProfile[:len(darwinPrefix)]) {
-		return "darwin"
-	}
-
 	prefixMatches := func(prefix []byte) bool {
 		return len(trimmedProfile) >= len(prefix) &&
 			bytes.EqualFold(prefix, trimmedProfile[:len(prefix)])
+	}
+
+	if prefixMatches([]byte("<?xml")) {
+		return "darwin"
 	}
 
 	if prefixMatches([]byte("<replace")) || prefixMatches([]byte("<add")) {
