@@ -4,9 +4,9 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 import HostActivityItem from "../../HostActivityItem";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
-const baseClass = "unlocked-host-activity-item";
+const baseClass = "created-os-profile-activity-item";
 
-const UnlockedHostActivityItem = ({
+const CreatedOsProfileActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
@@ -14,23 +14,24 @@ const UnlockedHostActivityItem = ({
 
   switch (activity.details?.status) {
     case "Acknowledged":
-      statusText = "unlocked";
+      statusText = "added";
       break;
     case "Pending":
-      statusText = "told Fleet to unlock";
+      statusText = "told Fleet to add";
       break;
     case "Failed":
-      statusText = "failed to unlock";
+      statusText = "failed to add";
       break;
     default:
   }
 
   return (
     <HostActivityItem className={baseClass} activity={activity}>
-      <b>{activity.actor_full_name}</b> {statusText} this host.{" "}
+      <b>{activity.actor_full_name}</b> {statusText} configuration profile
+      <b>{activity.details?.profile_name}</b> to this host.
       <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>
   );
 };
 
-export default UnlockedHostActivityItem;
+export default CreatedOsProfileActivityItem;

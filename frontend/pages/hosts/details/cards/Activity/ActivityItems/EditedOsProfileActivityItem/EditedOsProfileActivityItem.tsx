@@ -4,9 +4,9 @@ import { IHostActivityItemComponentPropsWithShowDetails } from "../../ActivityCo
 import HostActivityItem from "../../HostActivityItem";
 import ShowDetailsButton from "../../ShowDetailsButton";
 
-const baseClass = "create-os-profile-activity-item";
+const baseClass = "edited-os-profile-activity-item";
 
-const CreateOsProfileActivityItem = ({
+const EditedOsProfileActivityItem = ({
   activity,
   onShowDetails,
 }: IHostActivityItemComponentPropsWithShowDetails) => {
@@ -14,13 +14,13 @@ const CreateOsProfileActivityItem = ({
 
   switch (activity.details?.status) {
     case "Acknowledged":
-      statusText = "added";
+      statusText = "edited";
       break;
     case "Pending":
-      statusText = "told Fleet to add";
+      statusText = "told Fleet to edit";
       break;
     case "Failed":
-      statusText = "failed to add";
+      statusText = "failed to edit";
       break;
     default:
   }
@@ -28,10 +28,10 @@ const CreateOsProfileActivityItem = ({
   return (
     <HostActivityItem className={baseClass} activity={activity}>
       <b>{activity.actor_full_name}</b> {statusText} configuration profile
-      Restrictions to this host.
+      <b>{activity.details?.profile_name}</b> to this host.
       <ShowDetailsButton activity={activity} onShowDetails={onShowDetails} />
     </HostActivityItem>
   );
 };
 
-export default CreateOsProfileActivityItem;
+export default EditedOsProfileActivityItem;

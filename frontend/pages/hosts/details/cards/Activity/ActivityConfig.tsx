@@ -12,6 +12,13 @@ import RanScriptActivityItem from "./ActivityItems/RanScriptActivityItem";
 import LockedHostActivityItem from "./ActivityItems/LockedHostActivityItem";
 import UnlockedHostActivityItem from "./ActivityItems/UnlockedHostActivityItem";
 import RanMdmCommandActivityItem from "./ActivityItems/RanMdmCommandActivityItem";
+import InstalledFleetdActivityItem from "./ActivityItems/InstalledFleetdActivityItem";
+import SetAccountConfigActivityItem from "./ActivityItems/SetAccountConfigActivityItem";
+import CreatedOsProfileActivityItem from "./ActivityItems/CreatedOsProfileActivityItem";
+import EditedOsProfileActivityItem from "./ActivityItems/EditedOsProfileActivityItem";
+import DeletedOsProfileActivityItem from "./ActivityItems/DeletedOsProfileActivityItem";
+import EnabledDiskEncryptionActivityItem from "./ActivityItems/EnabledDiskEncryptionActivityItem";
+import EditedMacosMinVersionActivityItem from "./ActivityItems/EditedMacosMinVersionActivityItem";
 
 /** The component props that all host activity items must adhere to */
 export interface IHostActivityItemComponentProps {
@@ -30,15 +37,15 @@ export const pastActivityComponentMap: Record<
   | React.FC<IHostActivityItemComponentPropsWithShowDetails>
 > = {
   [ActivityType.RanMdmCommand]: RanMdmCommandActivityItem,
-  [ActivityType.InstalledFleetd]: LockedHostActivityItem,
-  [ActivityType.SetAccountConfiguration]: LockedHostActivityItem,
-  [ActivityType.CreatedMacOSProfile]: LockedHostActivityItem,
-  [ActivityType.EditedMacOSProfile]: LockedHostActivityItem,
-  [ActivityType.DeletedMacOSProfile]: LockedHostActivityItem,
-  [ActivityType.CreatedWindowsProfile]: LockedHostActivityItem,
-  [ActivityType.EnabledDiskEncryption]: LockedHostActivityItem,
+  [ActivityType.InstalledFleetd]: InstalledFleetdActivityItem,
+  [ActivityType.SetAccountConfiguration]: SetAccountConfigActivityItem,
+  [ActivityType.CreatedMacOSProfile]: CreatedOsProfileActivityItem,
+  [ActivityType.EditedMacOSProfile]: EditedOsProfileActivityItem,
+  [ActivityType.DeletedMacOSProfile]: DeletedOsProfileActivityItem,
+  [ActivityType.CreatedWindowsProfile]: CreatedOsProfileActivityItem,
+  [ActivityType.EnabledDiskEncryption]: EnabledDiskEncryptionActivityItem,
   [ActivityType.DisabledDiskEncryption]: LockedHostActivityItem,
-  [ActivityType.EditedMacosMinVersion]: LockedHostActivityItem,
+  [ActivityType.EditedMacosMinVersion]: EditedMacosMinVersionActivityItem, // TODO: check if needs to be extended to check for removal
   [ActivityType.EditedWindowsUpdates]: LockedHostActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
   [ActivityType.UnlockedHost]: UnlockedHostActivityItem,
