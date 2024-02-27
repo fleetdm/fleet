@@ -793,7 +793,9 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 		return errors.New("unexpected extra tokens found in config")
 	}
 
-	c.assignDeprecatedFields()
+	if err := c.assignDeprecatedFields(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -801,7 +803,9 @@ func (c *AppConfig) UnmarshalJSON(b []byte) error {
 func (c AppConfig) MarshalJSON() ([]byte, error) {
 	// Define a new type, this is to prevent infinite recursion when
 	// marshalling the AppConfig struct.
-	c.assignDeprecatedFields()
+	if err := c.assignDeprecatedFields(); err != nil {
+		return nil, err
+	}
 
 	// requirements are that if this value is not set, defaults to false.
 	// The default mashaler of optjson.Bool will convert this to `null` if
@@ -815,7 +819,7 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	return json.Marshal(aa)
 }
 
-func (c *AppConfig) assignDeprecatedFields() {
+func (c *AppConfig) assignDeprecatedFields() error {
 	c.didUnmarshalLegacySettings = nil
 	// Define and assign legacy settings to new fields.
 	// This has the drawback of legacy fields taking precedence over new fields
@@ -836,6 +840,20 @@ func (c *AppConfig) assignDeprecatedFields() {
 			c.didUnmarshalLegacySettings = append(c.didUnmarshalLegacySettings, "mdm.macos_settings.enable_disk_encryption")
 			c.MDM.EnableDiskEncryption = optjson.SetBool(*c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption)
 		}
+		// EnableDiskEncryption is an optjson.Bool field, but it is _not_ actually
+		// optional - an optjson was used in order to support the legacy field
+		// under "mdm". If the field is set but invalid and no legacy field takes
+		// precedence, that's an error ("null" was provided for a non-nullable
+		// field, the field should be absent instead).
+		if c.MDM.EnableDiskEncryption.Set {
+			// set but not valid, fail
+			return &json.UnmarshalTypeError{
+				Value:  "null",
+				Type:   reflect.TypeOf(c.MDM.EnableDiskEncryption.Value),
+				Field:  "EnableDiskEncryption",
+				Struct: "MDM",
+			}
+		}
 	}
 
 	// ensure the legacy configs are always nil
@@ -843,6 +861,7 @@ func (c *AppConfig) assignDeprecatedFields() {
 	c.MDM.MacOSSettings.DeprecatedEnableDiskEncryption = nil
 
 	sort.Strings(c.didUnmarshalLegacySettings)
+	return nil
 }
 
 // OrgInfo contains general info about the organization using Fleet.

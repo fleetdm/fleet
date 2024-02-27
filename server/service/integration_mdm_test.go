@@ -11523,3 +11523,59 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 }
+
+func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {
+	// see https://github.com/fleetdm/fleet/issues/16636
+
+	t := s.T()
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// see how the endpoint fails with other invalid values
+	res := s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": "NOT A STRING"
+  }`), http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "failed to decode app config")
+
+	// fail the same way for enable_disk_encryption, note that the server logs
+	// will have the detailed error:
+	// json: cannot unmarshal null into Go struct field MDM.EnableDiskEncryption of type bool
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": null }
+  }`), http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "failed to decode app config")
+
+	// still true, left unchanged
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// setting it to false works
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// send an invalid value again
+	res = s.Do("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": null }
+  }`), http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "failed to decode app config")
+
+	// left unchanged
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+}
