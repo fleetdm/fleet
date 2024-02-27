@@ -278,9 +278,9 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer cancelFunc()
 
 			defer func() {
-				// We do not want to use the outer `ctx` because we want to cleanup the campaign
-				// even if such `ctx` is canceled (e.g17197. a client terminating the connection).
-				ctx := context.Background()
+				// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
+				// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
+				ctx := context.WithoutCancel(ctx)
 				err := svc.CompleteCampaign(ctx, campaign)
 				if err != nil {
 					level.Error(svc.logger).Log("msg", "completing campaign (sync)", "query.id", campaign.QueryID, "err", err)
