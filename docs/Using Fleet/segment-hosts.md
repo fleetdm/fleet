@@ -18,18 +18,6 @@ Then, you can give users access to only some teams.
 
 This means you manage permissions so that some users can only run queries and manage hosts on the teams these users have access to.
 
-Then you can:
-
-- Enroll hosts to one team using team specific enroll secrets
-
-- Apply unique agent options to each team
-
-- Schedule queries that target one or more team
-
-- Run live queries against one or more team
-
-- Grant users access to one or more team
-
 You can manage teams in the Fleet UI by selecting **Settings** > **Teams** in the top navigation. From there, you can add or remove teams, manage user access to teams, transfer hosts, or modify team settings.
 
 ## Best practice
