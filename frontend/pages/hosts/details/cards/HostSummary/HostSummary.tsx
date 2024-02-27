@@ -341,7 +341,7 @@ const HostSummary = ({
         borderRadiusSize="large"
         includeShadow
         largePadding
-        className={baseClass}
+        className={`${baseClass}-card`}
       >
         <DataSet
           title="Status"

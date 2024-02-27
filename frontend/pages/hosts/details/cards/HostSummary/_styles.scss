@@ -1,4 +1,8 @@
 .host-summary {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
   &__device-status-tag {
     margin-left: $pad-small;
     background-color: $ui-warning;
