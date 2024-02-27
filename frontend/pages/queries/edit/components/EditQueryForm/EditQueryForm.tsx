@@ -482,7 +482,7 @@ const EditQueryForm = ({
     "query-description-wrapper",
     `${baseClass}__query-description`,
     {
-      [`${baseClass}--editing`]: isEditingDescription,
+      editing: isEditingDescription,
     }
   );
 
@@ -495,12 +495,7 @@ const EditQueryForm = ({
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <div
-          className="query-name-wrapper"
-          onClick={editName}
-          onFocus={editName}
-          tabIndex={0}
-        >
+        <div className="query-name-wrapper">
           {isEditingName ? (
             <AutoSizeInputField
               name="query-name"
@@ -517,16 +512,17 @@ const EditQueryForm = ({
               }}
             />
           ) : (
-            <div className={queryNameClasses}>
+            <button
+              className={queryNameClasses}
+              onClick={editName}
+              onFocus={editName}
+            >
               <span className={`${baseClass}__query-name`}>
                 {lastEditedQueryName}
               </span>
-            </div>
+              <Icon name="pencil" className="edit-icon" />
+            </button>
           )}
-          <Icon
-            name="pencil"
-            className={`edit-icon ${isEditingName ? "hide" : ""}`}
-          />
         </div>
       );
     }
@@ -543,12 +539,7 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <div
-          className="query-description-wrapper"
-          onClick={editDescription}
-          onFocus={editDescription}
-          tabIndex={0}
-        >
+        <div className="query-description-wrapper">
           {isEditingDescription ? (
             <AutoSizeInputField
               name="query-description"
@@ -562,16 +553,17 @@ const EditQueryForm = ({
               onBlur={() => setIsEditingDescription(false)}
             />
           ) : (
-            <div className={queryDescriptionClasses}>
+            <button
+              className={queryDescriptionClasses}
+              onClick={editDescription}
+              onFocus={editDescription}
+            >
               <span className={`${baseClass}__query-description`}>
                 {lastEditedQueryDescription}
               </span>
-            </div>
+              <Icon name="pencil" className="edit-icon" />
+            </button>
           )}
-          <Icon
-            name="pencil"
-            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-          />
         </div>
       );
     }
