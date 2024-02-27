@@ -1,0 +1,1 @@
+* Fixed an issue where a `null` JSON value was wrongly accepted and caused issues with MDM profiles in the `PATCH /api/v1/fleet/config` endpoint.
