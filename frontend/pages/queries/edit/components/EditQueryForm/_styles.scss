@@ -49,11 +49,17 @@
         align-items: baseline;
         gap: 0.5rem;
         outline: 0;
+        // height of edit icon
+        min-height: 17px;
         &:hover:not(.focus-visible):not(.no-hover) {
           color: $core-vibrant-blue;
           cursor: pointer;
         }
 
+        .component__auto-size-input-field {
+          // width of edit icon
+          margin-right: 14px;
+        }
         button {
           all: unset;
           display: flex;
@@ -73,9 +79,14 @@
           line-height: 2.3rem;
         }
       }
-      .editing {
-        // width of edit icon
-        margin-right: 14px;
+      .query-description-wrapper {
+        // firefox only
+        @-moz-document url-prefix() {
+          .component__auto-size-input-field {
+            margin-top: 1.8px;
+            margin-bottom: 0.6px;
+          }
+        }
       }
     }
 
@@ -122,7 +133,7 @@
       cursor: text;
     }
     .placeholder {
-      color: $ui-fleet-black-50;
+      @include placeholder;
     }
   }
 

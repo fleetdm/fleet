@@ -3,7 +3,7 @@
   color: $core-fleet-black;
 
   &::placeholder {
-    color: $ui-fleet-black-50;
+    @include placeholder;
   }
 
   &:focus {
