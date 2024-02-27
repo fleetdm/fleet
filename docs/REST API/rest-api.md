@@ -5939,7 +5939,7 @@ Team policies work the same as policies, but at the team level.
 | Name               | Type    | In   | Description                                                                                                   |
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | id                 | integer | path  | **Required.** Defines what team ID to operate on                                                                            |
-| merge_inherited  | boolean | query | If `true`, will return team policies and inherited ("All teams") policies in a single list, and will not return a separate `inherited_policies` list. |
+| merge_inherited  | boolean | query | If `true`, will return both team policies **and** inherited ("All teams") policies the `policies` list, and will not return a separate `inherited_policies` list. |
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
 | per_page                | integer | query | Results per page. |
