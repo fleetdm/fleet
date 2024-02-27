@@ -67,28 +67,78 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
+  RanMdmCommand = "ran_mdm_command",
+  InstalledFleetd = "installed_fleetd",
+  SetAccountConfiguration = "set_account_configuration",
+  Locked = "locked",
+  Unlocked = "unlocked",
+  Wiped = "wiped",
 }
 
-// This is a subset of ActivityType that are shown only for the host past activities
+/** This is a subset of ActivityType that are shown only for the host past activities */
 export type IHostPastActivityType =
-  | ActivityType.RanScript
+  | ActivityType.RanMdmCommand
+  | ActivityType.InstalledFleetd
+  | ActivityType.SetAccountConfiguration
+  | ActivityType.CreatedMacOSProfile
+  | ActivityType.EditedMacOSProfile
+  | ActivityType.DeletedMacOSProfile
+  | ActivityType.CreatedWindowsProfile
+  | ActivityType.EnabledDiskEncryption
+  | ActivityType.DisabledDiskEncryption
+  | ActivityType.EditedMacosMinVersion
+  | ActivityType.EditedWindowsUpdates
   | ActivityType.LockedHost
-  | ActivityType.UnlockedHost;
+  | ActivityType.UnlockedHost
+  | ActivityType.WipedHost
+  // TODO: Check these. are these correct? figma says "locked" and "unlocked" and "wiped"
+  // but we already have locked_host and unlocked_host and wiped_host
+  // | ActivityType.Locked
+  // | ActivityType.Unlocked
+  // | ActivityType.Wiped
+  | ActivityType.RanScript;
+
+/** This is a subset of ActivityType that are shown only for the host upcoming activities */
+export type IHostUpcomingActivityType =
+  | ActivityType.RanMdmCommand
+  | ActivityType.InstalledFleetd
+  | ActivityType.SetAccountConfiguration
+  | ActivityType.CreatedMacOSProfile
+  | ActivityType.EditedMacOSProfile
+  | ActivityType.CreatedWindowsProfile
+  | ActivityType.DeletedMacOSProfile
+  | ActivityType.EnabledDiskEncryption
+  | ActivityType.DisabledDiskEncryption
+  | ActivityType.EditedMacosMinVersion
+  | ActivityType.EditedWindowsUpdates
+  | ActivityType.RanScript
+  | ActivityType.Locked
+  | ActivityType.Unlocked
+  | ActivityType.Wiped
+  | ActivityType.RanScript;
 
 export interface IActivity {
   created_at: string;
   id: number;
   actor_full_name: string;
-  actor_id: number;
+  actor_id?: number;
   actor_gravatar: string;
   actor_email?: string;
   type: ActivityType;
   details?: IActivityDetails;
+  fleet_initiated_activity?: boolean; // TODO: move this into IPastActivity and IUpcomingActivity?
 }
 
 export type IPastActivity = Omit<IActivity, "type"> & {
   type: IHostPastActivityType;
 };
+
+export type IUpcomingActivity = Omit<IActivity, "type"> & {
+  type: IHostUpcomingActivityType;
+};
+
+type IDetailsType = "mdm_command" | "script";
+type IMdmCommmandStatus = "Pending" | "Acknowledged" | "Failed";
 
 export interface IActivityDetails {
   pack_id?: number;
@@ -129,4 +179,6 @@ export interface IActivityDetails {
   grace_period_days?: number;
   stats?: IScheduledQueryStats;
   host_id?: number;
+  type?: IDetailsType;
+  status?: IMdmCommmandStatus;
 }
