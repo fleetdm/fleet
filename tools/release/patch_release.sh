@@ -341,6 +341,7 @@ total_prs=()
 issue_list=`gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number'`
 if [[ "$issue_list" == "" ]]; then
     echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
+    exit 1
 fi
 echo "Issue list for new patch $next_ver"
 echo $issue_list
