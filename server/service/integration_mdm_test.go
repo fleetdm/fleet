@@ -11180,6 +11180,23 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusConflict)
 			// no activity created
 			s.lastActivityOfTypeMatches(fleet.ActivityTypeWipedHost{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), wipeActID)
+
+			// re-enroll the host, simulating that another user received the wiped host
+			newOrbitKey := uuid.New().String()
+			newHost, err := s.ds.EnrollOrbit(ctx, true, fleet.OrbitHostInfo{
+				HardwareUUID:   *host.OsqueryHostID,
+				HardwareSerial: host.HardwareSerial,
+			}, newOrbitKey, nil)
+			require.NoError(t, err)
+			// it re-enrolled using the same host record
+			require.Equal(t, host.ID, newHost.ID)
+
+			// refresh the host's status, it is back to unlocked
+			s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+			require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+			require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+			require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+			require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 		})
 	}
 }
@@ -11308,6 +11325,17 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusConflict)
 	// no activity created
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeWipedHost{}.ActivityName(), fmt.Sprintf(`{"host_id": %d, "host_display_name": %q}`, host.ID, host.DisplayName()), wipeActID)
+
+	// re-enroll the host, simulating that another user received the wiped host
+	err = mdmClient.Enroll()
+	require.NoError(t, err)
+
+	// refresh the host's status, it is back to unlocked
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &getHostResp)
+	require.NotNil(t, getHostResp.Host.MDM.DeviceStatus)
+	require.Equal(t, "unlocked", *getHostResp.Host.MDM.DeviceStatus)
+	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
+	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 }
 
 func (s *integrationMDMTestSuite) TestZCustomConfigurationWebURL() {
