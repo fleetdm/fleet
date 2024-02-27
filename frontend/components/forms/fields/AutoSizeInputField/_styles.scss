@@ -20,6 +20,7 @@
     &::after,
     input,
     textarea {
+      white-space: pre-wrap;
       width: auto;
       max-width: 100%;
       grid-area: 1 / 2;

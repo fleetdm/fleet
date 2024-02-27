@@ -1,5 +1,3 @@
-$edit-icon-width: 14px;
-
 .edit-query-form {
   position: relative;
   font-size: $x-small;
@@ -48,7 +46,7 @@ $edit-icon-width: 14px;
       .query-name-wrapper,
       .query-description-wrapper {
         display: flex;
-        align-items: center;
+        align-items: baseline;
         gap: 0.5rem;
         outline: 0;
         &:hover:not(.focus-visible):not(.no-hover) {
@@ -56,8 +54,13 @@ $edit-icon-width: 14px;
           cursor: pointer;
         }
 
-        .button {
+        button {
           all: unset;
+          display: flex;
+          align-items: baseline;
+          .icon {
+            align-self: initial;
+          }
         }
       }
       .query-name-wrapper {
@@ -70,12 +73,9 @@ $edit-icon-width: 14px;
           line-height: 2.3rem;
         }
       }
-      .edit-icon {
-        width: $edit-icon-width;
-        height: 14px;
-      }
       .editing {
-        margin-right: $edit-icon-width;
+        // width of edit icon
+        margin-right: 14px;
       }
     }
 

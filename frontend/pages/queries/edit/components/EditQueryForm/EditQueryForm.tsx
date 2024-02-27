@@ -470,13 +470,9 @@ const EditQueryForm = ({
     return platformCompatibility.render();
   };
 
-  const queryNameClasses = classnames(
-    `${baseClass}__query-name`,
-    "query-name-wrapper",
-    {
-      [`${baseClass}--editing`]: isEditingName,
-    }
-  );
+  // const queryNameClasses = classnames(, {
+  //   editing: isEditingName,
+  // });
 
   const queryDescriptionClasses = classnames(
     "query-description-wrapper",
@@ -501,7 +497,9 @@ const EditQueryForm = ({
               name="query-name"
               placeholder="Add name here"
               value={lastEditedQueryName}
-              inputClassName={queryNameClasses}
+              inputClassName={`${baseClass}__query-name ${
+                isEditingName ? "editing" : ""
+              }`}
               maxLength={160}
               hasError={errors && errors.name}
               onChange={setLastEditedQueryName}
@@ -512,15 +510,11 @@ const EditQueryForm = ({
               }}
             />
           ) : (
-            <button
-              className={queryNameClasses}
-              onClick={editName}
-              onFocus={editName}
-            >
-              <span className={`${baseClass}__query-name`}>
+            <button onClick={editName} onFocus={editName}>
+              <div className={`${baseClass}__query-name`}>
                 {lastEditedQueryName}
-              </span>
-              <Icon name="pencil" className="edit-icon" />
+              </div>
+              <Icon name="pencil" className="edit-icon" size="small-medium" />
             </button>
           )}
         </div>
@@ -558,10 +552,10 @@ const EditQueryForm = ({
               onClick={editDescription}
               onFocus={editDescription}
             >
-              <span className={`${baseClass}__query-description`}>
+              <div className={`${baseClass}__query-description`}>
                 {lastEditedQueryDescription}
-              </span>
-              <Icon name="pencil" className="edit-icon" />
+              </div>
+              <Icon name="pencil" className="edit-icon" size="small-medium" />
             </button>
           )}
         </div>
