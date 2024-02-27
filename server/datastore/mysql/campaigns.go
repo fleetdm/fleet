@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -139,6 +140,10 @@ func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) (
 	if len(filter) == 0 {
 		return nil, nil
 	}
+
+	// We must remove duplicates from the input filter because we process the filter in batches,
+	// and that could result in duplicated result IDs
+	filter = server.RemoveDuplicatesFromSlice(filter)
 
 	completed := make([]uint, 0, len(filter))
 	for i := 0; i < len(filter); i += batchSize {

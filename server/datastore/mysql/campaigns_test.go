@@ -222,6 +222,7 @@ func testCompletedCampaigns(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	assert.Len(t, result, 0)
 
+	// Now test reasonable results
 	user := test.NewUser(t, ds, t.Name(), t.Name()+"zwass@fleet.co", true)
 	mockClock := clock.NewMockClock()
 	query := test.NewQuery(t, ds, nil, t.Name()+"test", "select * from time", user.ID, false)
@@ -235,15 +236,15 @@ func testCompletedCampaigns(t *testing.T, ds *Datastore) {
 		gotC, err := ds.DistributedQueryCampaign(context.Background(), c1.ID)
 		require.NoError(t, err)
 		require.Equal(t, fleet.QueryWaiting, gotC.Status)
-		if rand.Intn(10) < 7 {
+		if rand.Intn(10) < 7 { //nolint:gosec
 			c1.Status = fleet.QueryComplete
 			require.NoError(t, ds.SaveDistributedQueryCampaign(context.Background(), c1))
 			complete = append(complete, c1.ID)
 		}
 		filter = append(filter, c1.ID)
 	}
-	for j := len(filter); j < totalFilterSize; j++ {
-		filter = append(filter, uint(j))
+	for j := filter[len(filter)-1] / 2; j < uint(totalFilterSize); j++ { // some IDs are duplicated
+		filter = append(filter, j)
 	}
 	rand.Shuffle(len(filter), func(i, j int) { filter[i], filter[j] = filter[j], filter[i] })
 
