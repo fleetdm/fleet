@@ -267,18 +267,25 @@ if [ -z "$start_version" ]; then
     fi
 fi
 
-if [[ $start_version != v* ]]
-then
+if [[ $start_version != v* ]]; then
     start_version=`echo "v$start_version"`
+fi
+
+if [[ "$target_version" != "" ]]; then
+    if [[ $target_version != v* ]]; then
+        target_version=`echo "v$target_version"`
+    fi
+    next_ver=$target_version
+else
+    if [[ "$minor" == "true" ]]; then
+        next_ver=$(echo $start_version | awk -F. '{print $1"."($2+1)".0"}')
+    else
+        next_ver=$(echo $start_version | awk -F. '{print $1"."$2"."($3+1)}')
+    fi
 fi
 
 start_ver_tag=fleet-$start_version
 
-if [[ "$minor" == "true" ]]; then
-    next_ver=$(echo $start_version | awk -F. '{print $1"."($2+1)".0"}')
-else
-    next_ver=$(echo $start_version | awk -F. '{print $1"."$2"."($3+1)}')
-fi
 
 
 echo "Patch release from $start_version to $next_ver"
