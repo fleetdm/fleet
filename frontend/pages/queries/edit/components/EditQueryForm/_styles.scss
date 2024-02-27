@@ -78,6 +78,13 @@
           letter-spacing: -0.5px;
           line-height: 2.3rem;
         }
+
+        // compensate for FF added height
+        @-moz-document url-prefix() {
+          &__editing {
+            margin-top: -2.75px;
+          }
+        }
       }
     }
 

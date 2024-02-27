@@ -476,10 +476,14 @@ const EditQueryForm = ({
     }
   };
 
+  const queryNameWrapperClasses = classnames("query-name-wrapper", {
+    "query-name-wrapper__editing": isEditingName,
+  });
+
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <div className="query-name-wrapper">
+        <div className={queryNameWrapperClasses}>
           {isEditingName ? (
             <>
               <AutoSizeInputField
