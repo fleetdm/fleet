@@ -724,11 +724,20 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				_, recentInactiveIDs, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				_, _, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
 				if err != nil {
 					return err
 				}
-				if err := lq.CleanupInactiveQueries(ctx, recentInactiveIDs); err != nil {
+				names, err := lq.LoadActiveQueryNames()
+				if err != nil {
+					return err
+				}
+				ids := stringSliceToUintSlice(names, logger)
+				completed, err := ds.GetCompletedCampaigns(ctx, ids)
+				if err != nil {
+					return err
+				}
+				if err := lq.CleanupInactiveQueries(ctx, completed); err != nil {
 					return err
 				}
 				return nil
@@ -1100,4 +1109,17 @@ func cronActivitiesStreaming(
 		}
 		page += 1
 	}
+}
+
+func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
+	result := make([]uint, 0, len(s))
+	for _, v := range s {
+		i, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			level.Warn(logger).Log("msg", "failed to parse string to uint", "string", v, "err", err)
+			continue
+		}
+		result = append(result, uint(i))
+	}
+	return result
 }

@@ -34,6 +34,10 @@ func (nopLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaign
 	return nil
 }
 
+func (q nopLiveQuery) LoadActiveQueryNames() ([]string, error) {
+	return nil, nil
+}
+
 func TestLiveQueryAuth(t *testing.T) {
 	ds := new(mock.Store)
 	qr := pubsub.NewInmemQueryResults()

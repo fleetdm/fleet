@@ -141,7 +141,7 @@ var cleanupExpiredQueriesModulo int64 = 10
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	names, err := r.loadActiveQueryNames()
+	names, err := r.LoadActiveQueryNames()
 	if err != nil {
 		return nil, fmt.Errorf("load active queries: %w", err)
 	}
@@ -315,7 +315,7 @@ func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 	return err
 }
 
-func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
+func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -347,7 +347,7 @@ func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCam
 
 	keysToDel := make([]string, 0, len(inactiveCampaignIDs)*2)
 	for _, id := range inactiveCampaignIDs {
-		targetKey, sqlKey := generateKeys(strconv.Itoa(int(id)))
+		targetKey, sqlKey := generateKeys(strconv.FormatUint(uint64(id), 10))
 		keysToDel = append(keysToDel, targetKey, sqlKey)
 	}
 

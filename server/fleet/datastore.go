@@ -135,6 +135,10 @@ type Datastore interface {
 	// expire after 7 days anyway.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error)
 
+	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
+	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.
+	GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error)
+
 	DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*DistributedQueryCampaign, error)
 
 	///////////////////////////////////////////////////////////////////////////////

@@ -22,4 +22,6 @@ type LiveQueryStore interface {
 	// cron job to regularly cleanup any queries that may have failed to be
 	// stopped properly in Redis.
 	CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error
+	// LoadActiveQueryNames returns the names of all active queries.
+	LoadActiveQueryNames() ([]string, error)
 }

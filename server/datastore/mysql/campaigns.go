@@ -133,6 +133,45 @@ func (ds *Datastore) NewDistributedQueryCampaignTarget(ctx context.Context, targ
 	return target, nil
 }
 
+func (ds *Datastore) GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error) {
+	// During an incident, the filter can contain a large number of IDs (>100,000) so we must be aware of max_allowed_packet size:
+	// https://dev.mysql.com/doc/refman/5.7/en/server-system-variables.html#sysvar_max_allowed_packet
+	const batchSize = 100000
+	if len(filter) == 0 {
+		return nil, nil
+	}
+
+	completed := make([]uint, 0, len(filter))
+	for i := 0; i < len(filter); i += batchSize {
+		end := i + batchSize
+		if end > len(filter) {
+			end = len(filter)
+		}
+		batch := filter[i:end]
+
+		query, args, err := sqlx.In(
+			`
+			SELECT id
+			FROM distributed_query_campaigns
+			WHERE status = ?
+			AND id IN (?)
+		`, fleet.QueryComplete, batch,
+		)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "building query for completed campaigns")
+		}
+
+		var rows []uint
+		// using the writer, so we catch the ones we just marked as completed
+		err = sqlx.SelectContext(ctx, ds.writer(ctx), &rows, query, args...)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "selecting completed campaigns")
+		}
+		completed = append(completed, rows...)
+	}
+	return completed, nil
+}
+
 func (ds *Datastore) CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, recentInactive []uint, err error) {
 	// Expire old waiting/running campaigns
 	const sqlStatement = `
