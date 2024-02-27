@@ -8162,7 +8162,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
-	// status 200 for command Three (Add)
+	// status 200 for command Four (Add)
 	d.AppendResponse(fleet.SyncMLCmd{
 		XMLName: xml.Name{Local: mdm_types.CmdStatus},
 		MsgRef:  &msgID,
