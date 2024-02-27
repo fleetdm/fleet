@@ -1,2 +1,0 @@
-- Fixes issue where software from a Parallels VM on a MacOS host would show up in Fleet as if it
-  were the host's software.

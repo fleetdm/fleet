@@ -153,6 +153,11 @@ export default {
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
 
+  // Vulnerabilities endpoints
+  VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
+  VULNERABILITY: (cve: string) =>
+    `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
+
   // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,
   SCRIPTS: `/${API_VERSION}/fleet/scripts`,

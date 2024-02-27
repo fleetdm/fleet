@@ -130,6 +130,7 @@ How to unenroll a host from Fleet:
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
+- [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
 - [Experimental features](#experimental-features)
 
@@ -293,6 +294,14 @@ If the `logger_path` agent configuration is set to `filesystem`, fleetd will sen
   - Windows: C:\Program Files\Orbit\osquery_log
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
+
+### Using system keystore for enroll secret
+
+On macOS and Windows, fleetd will add the enroll secret to the system keystore (Keychain on macOS, Credential Manager on Windows) on launch. Subsequent launches will retrieve the enroll secret from the keystore.
+
+System keystore access can be disabled via `--disable-keystore` flag for the `fleetctl package` command. On macOS, subsequent installations of fleetd must be signed by the same organization as the original installation to access the enroll secret in the keychain.
+
+>**Note:** The keychain is not used on macOS when the enroll secret is provided via MDM profile. Keychain support when passing the enroll secret via MDM profile is coming soon.
 
 ### Generating Windows installers using local WiX toolset
 

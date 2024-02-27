@@ -43,7 +43,7 @@ const AddUsersModal = ({
   }, [selectedUsers, onSubmit]);
 
   return (
-    <Modal onExit={onCancel} title={"Add users"} className={baseClass}>
+    <Modal onExit={onCancel} title="Add users" className={baseClass}>
       <form className={`${baseClass}__form`}>
         <div className="form-field">
           <label className="form-field__label" htmlFor="user-autocomplete">
@@ -54,7 +54,7 @@ const AddUsersModal = ({
             id="user-autocomplete"
             resourceUrl={endpoints.USERS}
             onChange={onChangeDropdown}
-            placeholder={"Search users by name"}
+            placeholder="Search users by name"
             disabledOptions={disabledUsers}
             value={selectedUsers}
             autoFocus
@@ -64,8 +64,8 @@ const AddUsersModal = ({
           User not here?&nbsp;
           <Button
             onClick={onCreateNewTeamUser}
-            variant={"text-link"}
-            className={"light-text"}
+            variant="text-link"
+            className="light-text"
           >
             <>
               <strong>Create a user</strong>

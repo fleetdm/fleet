@@ -1,9 +1,0 @@
-_geoip_geolite2/GeoLite2-City.mmdb,sha256=sIFu0VKtEz6WWKBASe2s-a6bFslGh2xneWty-7lZi78,34219965
-_geoip_geolite2/__init__.py,sha256=JsOzSc9XzR8wo8eWc44aY0gQVPTuQN8Pmr6xt6dUuqc,187
-_geoip_geolite2/__pycache__/__init__.cpython-310.pyc,,
-python_geoip_geolite2-2015.303.dist-info/INSTALLER,sha256=zuuue4knoyJ-UwPPXg8fezS7VCrXJQrAP7zeNuwvFQg,4
-python_geoip_geolite2-2015.303.dist-info/METADATA,sha256=d1EmdlEwRCr3FdYpRjSaupuO-aTe5lnM8S6CbauDzRY,448
-python_geoip_geolite2-2015.303.dist-info/RECORD,,
-python_geoip_geolite2-2015.303.dist-info/REQUESTED,sha256=47DEQpj8HBSa-_TImW-5JCeuQeRkm5NMpJWZG3hSuFU,0
-python_geoip_geolite2-2015.303.dist-info/WHEEL,sha256=G16H4A3IeoQmnOrYV4ueZGKSjhipXx8zc8nu9FGlvMA,92
-python_geoip_geolite2-2015.303.dist-info/top_level.txt,sha256=AByp_LlDb0dfrLGDgig9UGO_CDDSzoa0eYADMPnDzx4,16

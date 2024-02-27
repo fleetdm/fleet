@@ -12,7 +12,7 @@ Please note that osquery 5.11 has already been pushed to Fleet’s stable and ed
 
 
 * VSCode extensions table
-* Apple silicon support added to `secureboot``` table
+* Apple silicon support added to `secureboot` table
 * Shortcut metadata parsing on Windows
 * Preventing keychain corruption with smart caching
 

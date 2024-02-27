@@ -42,7 +42,7 @@ const Avatar = ({
   return (
     <div className="avatar-wrapper">
       <img
-        alt={"User avatar"}
+        alt="User avatar"
         className={`${avatarClasses} ${isLoading || isError ? "default" : ""}`}
         src={gravatar_url || DEFAULT_GRAVATAR_LINK}
         onError={onError}
