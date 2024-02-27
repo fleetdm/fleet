@@ -641,46 +641,7 @@ func newWorkerIntegrationsSchedule(
 			return nil
 		}),
 		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
-			// get expired cooldowns based on the current team assignments of the cooled serials
-			serialsByTeamId, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
-			if err != nil {
-				return fmt.Errorf("getting cooldowns: %w", err)
-			}
-			if len(serialsByTeamId) == 0 {
-				logger.Log("msg", "no cooldowns to process")
-				return nil
-			}
-
-			// queue job for each team so that macOS setup assistant worker can pick it up and process it
-			for teamID, serials := range serialsByTeamId {
-				if len(serials) == 0 {
-					logger.Log("msg", "no cooldowns", "team_id", teamID)
-					continue
-				}
-				logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", fmt.Sprintf("%s", serials))
-
-				var tid *uint
-				if teamID != 0 {
-					tid = &teamID
-				}
-				//
-				// TODO: we can simply act as the cooled serials were transferred to the associated team
-				// or alteratively we can device some new cooldown-related task for the macOS setup
-				// assistant worker that encapsulates the logic to assign the profiles.
-				id, err := worker.QueueMacosSetupAssistantJob(ctx, ds, logger,
-					worker.MacosSetupAssistantHostsTransferred,
-					tid, serials...,
-				)
-				if err != nil {
-					return ctxerr.Wrap(ctx, err, "queue macos setup assistant job for cooldowns")
-				}
-
-				if err := ds.UpdateDEPAssignProfileRetryPending(ctx, id, serials); err != nil {
-					return ctxerr.Wrap(ctx, err, "updating dep assign profile retry pending")
-				}
-
-			}
-			return nil
+			return worker.ProcessDEPCooldowns(ctx, ds, logger)
 		}),
 	)
 
