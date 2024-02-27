@@ -7,7 +7,7 @@
 ```
 
 - [Overview](#overview)
-- [Naming conventions](#naming-conventions)
+- [Best practice](#best-practice)
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 
 ## Overview
