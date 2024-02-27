@@ -525,19 +525,27 @@ const EditQueryForm = ({
       return (
         <div className="query-description-wrapper">
           {isEditingDescription ? (
-            <AutoSizeInputField
-              name="query-description"
-              placeholder="Add description here."
-              value={lastEditedQueryDescription}
-              inputClassName={`${baseClass}__query-description ${
-                isEditingName ? "editing" : ""
-              }`}
-              maxLength={250}
-              onChange={setLastEditedQueryDescription}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingDescription}
-              onBlur={() => setIsEditingDescription(false)}
-            />
+            <>
+              <AutoSizeInputField
+                name="query-description"
+                placeholder="Add description here."
+                value={lastEditedQueryDescription}
+                inputClassName={`${baseClass}__query-description ${
+                  isEditingName ? "editing" : ""
+                }`}
+                maxLength={250}
+                onChange={setLastEditedQueryDescription}
+                onKeyPress={onInputKeypress}
+                isFocused={isEditingDescription}
+                onBlur={() => setIsEditingDescription(false)}
+              />
+              {/* yes, necessary in both places */}
+              <Icon
+                name="pencil"
+                className="edit-icon hide"
+                size="small-medium"
+              />
+            </>
           ) : (
             <button onClick={editDescription} onFocus={editDescription}>
               <div className={`${baseClass}__query-description`}>
@@ -545,6 +553,7 @@ const EditQueryForm = ({
                   <div className="placeholder">Add description here.</div>
                 )}
               </div>
+              {/* yes, necessary in both places */}
               <Icon name="pencil" className="edit-icon" size="small-medium" />
             </button>
           )}

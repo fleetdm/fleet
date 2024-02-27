@@ -55,18 +55,23 @@
           color: $core-vibrant-blue;
           cursor: pointer;
         }
-
-        .component__auto-size-input-field {
-          // width of edit icon
-          margin-right: 14px;
+        .hide {
+          opacity: 0;
         }
+        .icon {
+          align-self: initial;
+        }
+
+        // .component__auto-size-input-field {
+        //   // width of edit icon
+        //   margin-right: 14px;
+        // }
         button {
           all: unset;
           display: flex;
+          // must match gap of wrappers
+          gap: 0.5rem;
           align-items: baseline;
-          .icon {
-            align-self: initial;
-          }
         }
       }
       .query-name-wrapper {
@@ -79,15 +84,15 @@
           line-height: 2.3rem;
         }
       }
-      .query-description-wrapper {
-        // firefox only
-        @-moz-document url-prefix() {
-          .component__auto-size-input-field {
-            margin-top: 1.8px;
-            margin-bottom: 0.6px;
-          }
-        }
-      }
+      // .query-description-wrapper {
+      //   // firefox only
+      //   @-moz-document url-prefix() {
+      //     .component__auto-size-input-field {
+      //       margin-top: 1.8px;
+      //       margin-bottom: 0.6px;
+      //     }
+      //   }
+      // }
     }
 
     .author {
