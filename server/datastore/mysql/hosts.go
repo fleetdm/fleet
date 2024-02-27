@@ -779,8 +779,6 @@ const hostMDMSelect = `,
 	) mdm_host_data
 	`
 
-// TODO(mna): add integration tests with Get host with locked/wiped/unlocked (+pending) to ensure proper marshaling.
-
 // hostMDMJoin is the SQL fragment used to join MDM-related tables to the hosts table. It is a
 // dependency of the hostMDMSelect fragment.
 const hostMDMJoin = `

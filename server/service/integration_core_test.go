@@ -5350,9 +5350,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"team_id", "1",
 	)
 
-	// lock/unlock a host
+	// lock/unlock/wipe a host
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -7572,7 +7573,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
@@ -7599,7 +7600,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, resp.Err)
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
@@ -7619,14 +7620,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
-	require.Empty(t, gResp.Vulnerability.Published)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
@@ -7637,14 +7638,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE)
+	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
-	require.Empty(t, gResp.Vulnerability.Published)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.Software, 1)
 	require.Equal(t, "Google Chrome", gResp.Software[0].Name)
 	require.Equal(t, "0.0.1", gResp.Software[0].Version)
