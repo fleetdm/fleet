@@ -15,7 +15,7 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
 - [Kubernetes `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml)
 - All Terraform (*.tf) files referencing the previous version of Fleet.
-- The full list could be searched using git grep:
+- The full list can be found by using git grep:
     % git grep "4\.3\.0"
 
 Commit these changes via Pull Request and pull the changes on the `main` branch locally.
