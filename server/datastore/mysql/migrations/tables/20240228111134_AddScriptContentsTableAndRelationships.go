@@ -137,13 +137,18 @@ ALTER TABLE scripts
 UPDATE
 	host_script_results
 SET
-	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?))
+	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)),
+	updated_at = updated_at
 WHERE
 	id = ?`
 
+	// for saved scripts, the `updated_at` timestamp is used as the "uploaded_at"
+	// information in the UI, so we ensure that it doesn't change with this
+	// migration.
 	updateSavedScriptsStmt := `
 UPDATE
-	scripts
+	scripts,
+	updated_at = updated_at
 SET
 	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?))
 WHERE
@@ -166,23 +171,11 @@ WHERE
 		}
 	}
 
-	// TODO(mna): we need to make sure this migration doesn't get merged/applied
-	// before the API/UI changes to read the script contents from the new
-	// script_contents table are merged!
-
-	alterDropHostScriptsStmt := `
-ALTER TABLE host_script_results
-	DROP COLUMN script_contents`
-	if _, err := tx.Exec(alterDropHostScriptsStmt); err != nil {
-		return fmt.Errorf("alter table drop column from host_script_results: %w", err)
-	}
-
-	alterDropScriptsStmt := `
-ALTER TABLE scripts
-	DROP COLUMN script_contents`
-	if _, err := tx.Exec(alterDropScriptsStmt); err != nil {
-		return fmt.Errorf("alter table drop column from scripts: %w", err)
-	}
+	// TODO(mna): we cannot drop the "script_contents" column immediately from
+	// the host_script_results and scripts tables because that would break the
+	// current code, we need to wait for the feature to be fully implemented.
+	// There's no harm in leaving it in there unused for now, as stored scripts
+	// were previously smallish.
 
 	return nil
 }
