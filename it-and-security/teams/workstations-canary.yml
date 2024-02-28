@@ -1,0 +1,68 @@
+name: "Workstations (canary)"
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET
+agent_options:
+  path: ../lib/agent-options.yml
+controls:
+  enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+      - path: ../../mdm_profiles/automatic_updates.mobileconfig
+      - path: ../../mdm_profiles/chrome_enrollment.mobileconfig
+      - path: ../../mdm_profiles/disable_bluetooth_file_sharing.mobileconfig
+      - path: ../../mdm_profiles/disable_content_caching.mobileconfig
+      - path: ../../mdm_profiles/disable_guest_account.mobileconfig
+      - path: ../../mdm_profiles/disable_guest_shares.mobileconfig
+      - path: ../../mdm_profiles/disable_internet_sharing.mobileconfig
+      - path: ../../mdm_profiles/disable_media_sharing.mobileconfig
+      - path: ../../mdm_profiles/disable_safari_safefiles.mobileconfig
+      - path: ../../mdm_profiles/enable_doh.mobileconfig
+      - path: ../../mdm_profiles/enable_firewall_logging.mobileconfig
+      - path: ../../mdm_profiles/enable_gatekeeper.mobileconfig
+      - path: ../../mdm_profiles/enforce_library_validation.mobileconfig
+      - path: ../../mdm_profiles/firewall.mobileconfig
+      - path: ../../mdm_profiles/full_disk_access_for_orbit.mobileconfig
+      - path: ../../mdm_profiles/limit_ad_tracking.mobileconfig
+      - path: ../../mdm_profiles/misc.mobileconfig
+      - path: ../../mdm_profiles/password_policy.mobileconfig
+      - path: ../../mdm_profiles/prevent_autologon.mobileconfig
+      - path: ../../mdm_profiles/secure_terminal_keyboard.mobileconfig
+      - path: ../../mdm_profiles/time_and_date.mobileconfig
+  macos_setup:
+    bootstrap_package: ""
+    enable_end_user_authentication: true
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: "2023-12-15"
+    minimum_version: "14.2"
+  windows_settings:
+    custom_settings: null
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+  scripts:
+    - path: ../lib/collect-fleetd-logs.sh
+    - path: ../lib/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/windows-remove-fleetd.ps1
+    - path: ../lib/windows-turn-off-mdm.ps1
+policies:
+  - path: ../lib/macos-device-health.policies.yml
+  - path: ../lib/windows-device-health.policies.yml
+  - path: ../lib/linux-device-health.policies.yml
+  - name: chromeOS/macOS - Screenlock enabled
+    query: SELECT 1 FROM screenlock WHERE enabled = 1;
+    critical: false
+    description: ""
+    resolution: ""
+    platform: darwin,chrome
+queries:
+  - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-usb-devices.queries.yml
+  - path: ../lib/collect-vs-code-extensions.queries.yml

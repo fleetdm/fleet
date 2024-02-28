@@ -15,7 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage"
 
-	"github.com/micromdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type CarveStore interface {
@@ -120,11 +120,17 @@ type Datastore interface {
 	// NewDistributedQueryCampaignTarget adds a new target to an existing distributed query campaign
 	NewDistributedQueryCampaignTarget(ctx context.Context, target *DistributedQueryCampaignTarget) (*DistributedQueryCampaignTarget, error)
 
-	// CleanupDistributedQueryCampaigns will clean and trim metadata for old distributed query campaigns. Any campaign
-	// in the QueryWaiting state will be moved to QueryComplete after one minute. Any campaign in the QueryRunning state
-	// will be moved to QueryComplete after one day. Times are from creation time. The now parameter makes this method
-	// easier to test. The return values indicate how many campaigns were expired and any error.
+	// CleanupDistributedQueryCampaigns will clean and trim metadata for old
+	// distributed query campaigns. Any campaign in the QueryWaiting state will
+	// be moved to QueryComplete after one minute. Any campaign in the
+	// QueryRunning state will be moved to QueryComplete after one day. Times are
+	// from creation time. The now parameter makes this method easier to test.
+	// The return values indicate how many campaigns were expired and any error.
 	CleanupDistributedQueryCampaigns(ctx context.Context, now time.Time) (expired uint, err error)
+
+	// GetCompletedCampaigns returns the IDs of the campaigns that are in the fleet.QueryComplete state and that are in the
+	// provided list of IDs. The return value is a slice of the IDs of the completed campaigns and any error.
+	GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error)
 
 	DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*DistributedQueryCampaign, error)
 
@@ -572,7 +578,6 @@ type Datastore interface {
 
 	NewGlobalPolicy(ctx context.Context, authorID *uint, args PolicyPayload) (*Policy, error)
 	Policy(ctx context.Context, id uint) (*Policy, error)
-	PolicyByName(ctx context.Context, name string) (*Policy, error)
 
 	// SavePolicy updates some fields of the given policy on the datastore.
 	//

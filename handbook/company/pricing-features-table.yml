@@ -123,6 +123,9 @@
   demos:
     - description: Security engineers at a top gaming company wanted to get demographics off their macOS, Windows, and Linux machines about who the user is and who's logged in.
       moreInfoUrl: https://docs.google.com/document/d/1qFYtMoKh3zyERLhbErJOEOo2me6Bc7KOOkjKn482Sqc/edit
+    - description: Data engineers at a top biotech corporation needed to know who is logged into their devices. 
+      quote: So we don't know exactly what's going on after we deploy the device, we know that they are compliant with the security because we are running these stuff, but we don't know certainly who is running, who is logging in the device?
+      moreInfoUrl: https://docs.google.com/document/d/17MNI5ykzlFjdVmQ8SPMrT1oR_hY_vkYAJx31F7l7Pv8/edit#heading=h.7en766pueek4 
   waysToUse:
     - description: Look up computer by ActiveDirectory account
     - description: Find device by Google Chrome user

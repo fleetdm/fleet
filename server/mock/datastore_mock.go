@@ -13,7 +13,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/micromdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 var _ fleet.Datastore = (*DataStore)(nil)
@@ -97,6 +97,8 @@ type DistributedQueryCampaignTargetIDsFunc func(ctx context.Context, id uint) (t
 type NewDistributedQueryCampaignTargetFunc func(ctx context.Context, target *fleet.DistributedQueryCampaignTarget) (*fleet.DistributedQueryCampaignTarget, error)
 
 type CleanupDistributedQueryCampaignsFunc func(ctx context.Context, now time.Time) (expired uint, err error)
+
+type GetCompletedCampaignsFunc func(ctx context.Context, filter []uint) ([]uint, error)
 
 type DistributedQueryCampaignsForQueryFunc func(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error)
 
@@ -958,6 +960,9 @@ type DataStore struct {
 
 	CleanupDistributedQueryCampaignsFunc        CleanupDistributedQueryCampaignsFunc
 	CleanupDistributedQueryCampaignsFuncInvoked bool
+
+	GetCompletedCampaignsFunc        GetCompletedCampaignsFunc
+	GetCompletedCampaignsFuncInvoked bool
 
 	DistributedQueryCampaignsForQueryFunc        DistributedQueryCampaignsForQueryFunc
 	DistributedQueryCampaignsForQueryFuncInvoked bool
@@ -2350,6 +2355,13 @@ func (s *DataStore) CleanupDistributedQueryCampaigns(ctx context.Context, now ti
 	s.CleanupDistributedQueryCampaignsFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanupDistributedQueryCampaignsFunc(ctx, now)
+}
+
+func (s *DataStore) GetCompletedCampaigns(ctx context.Context, filter []uint) ([]uint, error) {
+	s.mu.Lock()
+	s.GetCompletedCampaignsFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetCompletedCampaignsFunc(ctx, filter)
 }
 
 func (s *DataStore) DistributedQueryCampaignsForQuery(ctx context.Context, queryID uint) ([]*fleet.DistributedQueryCampaign, error) {

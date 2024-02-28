@@ -1190,15 +1190,15 @@ Note that when making changes to the `integrations` object, all integrations mus
     },
     "macos_settings": {
       "custom_settings": {
-            "path": "path/to/profile1.mobileconfig"
-            "labels": ["Label 1", "Label 2"]
+        "path": "path/to/profile1.mobileconfig",
+        "labels": ["Label 1", "Label 2"]
       },
       "enable_disk_encryption": true
     },
     "windows_settings": {
       "custom_settings": {
-            "path": "path/to/profile1.xml"
-            "labels": ["Label 1", "Label 2"]
+        "path": "path/to/profile1.xml",
+        "labels": ["Label 1", "Label 2"]
       }      
     },
     "end_user_authentication": {
@@ -2027,9 +2027,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null,
-        "device_status": "unlocked",
-        "pending_action": ""
+        "server_url": null
       },
       "software": [
         {
@@ -2157,9 +2155,9 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 | Name            | Type    | In    | Description                                                                     |
 | --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team whose host counts should be included. Defaults to all teams. |
 | platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
-| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
+| low_disk_space  | integer | query | _Available in Fleet Premium_. Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
@@ -2499,7 +2497,9 @@ Returns the information of the specified host.
 ### Get host by identifier
 
 Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
-`node_key` as an identifier
+`node_key` as an identifier.
+
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -2524,14 +2524,14 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
     "updated_at": "2022-10-14T17:07:11Z",
     "software": [
       {
-          "id": 16923,
-          "name": "Automat",
-          "version": "0.8.0",
-          "source": "python_packages",
-          "browser": "",
-          "generated_cpe": "",
-          "vulnerabilities": null,
-          "installed_paths": ["/usr/lib/some_path/"]
+        "id": 16923,
+        "name": "Automat",
+        "version": "0.8.0",
+        "source": "python_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
     "id": 33,
@@ -2603,52 +2603,52 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
         "failing_policies_count": 0
     },
     "labels": [
-            {
-            "created_at": "2021-09-14T05:11:02Z",
-            "updated_at": "2021-09-14T05:11:02Z",
-            "id": 12,
-            "name": "All Linux",
-            "description": "All Linux distributions",
-            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-            "platform": "",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-        }
+      {
+        "created_at": "2021-09-14T05:11:02Z",
+        "updated_at": "2021-09-14T05:11:02Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
     ],
     "packs": [
-          {
-            "created_at": "2021-09-17T05:28:54Z",
-            "updated_at": "2021-09-17T05:28:54Z",
-            "id": 1,
-            "name": "Global",
-            "description": "Global pack",
-            "disabled": false,
-            "type": "global",
-            "labels": null,
-            "label_ids": null,
-            "hosts": null,
-            "host_ids": null,
-            "teams": null,
-            "team_ids": null
-        }
+      {
+        "created_at": "2021-09-17T05:28:54Z",
+        "updated_at": "2021-09-17T05:28:54Z",
+        "id": 1,
+        "name": "Global",
+        "description": "Global pack",
+        "disabled": false,
+        "type": "global",
+        "labels": null,
+        "label_ids": null,
+        "hosts": null,
+        "host_ids": null,
+        "teams": null,
+        "team_ids": null
+      }
     ],
     "policies": [
       {
-            "id": 142,
-            "name": "Full disk encryption enabled (macOS)",
-            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
-            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
-            "author_id": 31,
-            "author_name": "",
-            "author_email": "",
-            "team_id": null,
-            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
-            "platform": "darwin,linux",
-            "created_at": "2022-09-02T18:52:19Z",
-            "updated_at": "2022-09-02T18:52:19Z",
-            "response": "fail",
-            "critical": false
-        }
+        "id": 142,
+        "name": "Full disk encryption enabled (macOS)",
+        "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+        "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+        "author_id": 31,
+        "author_name": "",
+        "author_email": "",
+        "team_id": null,
+        "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+        "platform": "darwin,linux",
+        "created_at": "2022-09-02T18:52:19Z",
+        "updated_at": "2022-09-02T18:52:19Z",
+        "response": "fail",
+        "critical": false
+      }
     ],
     "batteries": [
       {
@@ -3464,11 +3464,10 @@ Retrieves the aggregated host OS versions information.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters to only include OS versions for hosts on the specified team. If not provided, OS versions for all hosts are included. |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
-| team_id                | integer | query | _Available in Fleet Premium_. Filters to only include OS versions for the specified team.                                                                                                                                 |
 | page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
 | per_page                | integer | query | Results per page.                                                                                                                                                          |
 | order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
@@ -4693,7 +4692,7 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       ]
     },
     {
-      "profile_uuid": f5ad01cc-f416-4b5f-88f3-a26da3b56a19,
+      "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
       "team_id": 0,
       "name": "Example Windows profile",
       "platform": "windows",
@@ -4702,11 +4701,11 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "checksum": "aCLemVr)",
       "labels": [
        {
-        "name": "Label name 1",
-        "broken": true
+         "name": "Label name 1",
+         "broken": true
        },
        {
-        "name": "Label name 2"
+         "name": "Label name 2"
        }
       ]
     }
@@ -5917,7 +5916,7 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 
 ---
 
-### Team policies
+## Team policies
 
 - [List team policies](#list-team-policies)
 - [Count team policies](#count-team-policies)
@@ -6268,7 +6267,7 @@ Returns a list of global queries or team queries.
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 
 
@@ -6589,7 +6588,7 @@ Creates a global query or team query.
 | query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description                     | string  | body | The query's description.                                                                                                                               |
 | observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
+| team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | interval                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
@@ -6732,7 +6731,7 @@ Deletes the query specified by name.
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
 | name | string     | path | **Required.** The name of the query. |
-| team_id | integer | body | The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
 
 #### Example
 
@@ -7456,7 +7455,7 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
-| team_id         | integer | form | The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
 #### Example
 

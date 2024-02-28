@@ -14,6 +14,7 @@ type CronScheduleName string
 const (
 	CronAppleMDMDEPProfileAssigner CronScheduleName = "apple_mdm_dep_profile_assigner"
 	CronCleanupsThenAggregation    CronScheduleName = "cleanups_then_aggregation"
+	CronFrequentCleanups           CronScheduleName = "frequent_cleanups"
 	CronUsageStatistics            CronScheduleName = "usage_statistics"
 	CronVulnerabilities            CronScheduleName = "vulnerabilities"
 	CronAutomations                CronScheduleName = "automations"

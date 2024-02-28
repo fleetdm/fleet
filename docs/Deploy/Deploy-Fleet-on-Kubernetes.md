@@ -8,82 +8,11 @@ There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies(MySQL and Redis), we will set up a `deployment.yml` file with the following specifications:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleet-deployment
-  labels:
-    app: fleet
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: fleet
-  template:
-    metadata:
-      labels:
-        app: fleet
-    spec:
-      containers:
-      - name: fleet
-        image: fleetdm/fleet:4.32.0
-        env:
-          # if running Fleet behind external ingress controller that terminates TLS
-          - name: FLEET_SERVER_TLS
-            value: FALSE
-          - name: FLEET_VULNERABILITIES_DATABASES_PATH
-            value: /tmp/vuln
-          - name: FLEET_MYSQL_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_address
-          - name: FLEET_MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_database
-          - name: FLEET_MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_password
-          - name: FLEET_MYSQL_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_username
-          - name: FLEET_REDIS_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: redis_address
-        volumeMounts:
-          - name: tmp
-            mountPath: /tmp # /tmp might not work on all cloud providers by default
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "2048Mi" # vulnerability processing
-            cpu: "500m"
-        ports:
-        - containerPort: 3000
-      volumes:
-        - name: tmp
-          emptyDir:
-
-```
-Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.
+To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploy-Fleet-on-Kubernetes.md).
 
 Let's tell Kubernetes to create the cluster by running the below command.
 
-`kubectl apply -f ./deployment.yml`
-
+`kubectl apply -f ./fleet-deployment.yml`
 
 ### Initializing Helm
 
@@ -154,14 +83,14 @@ Note: this step is not neccessary when using the Fleet Helm Chart as it handles 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```sh
-kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
 ```sh
-kubectl delete -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
-kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl delete -f ./docs/Deploy/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
@@ -229,7 +158,7 @@ kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
 ```sh
-kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
+kubectl apply -f ./docs/Deploy/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
@@ -245,7 +174,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
 ```sh
-kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-service.yml
+kubectl apply -f ./docs/Deploy/fleet-service.yml
 ```
 
 #### Configure DNS

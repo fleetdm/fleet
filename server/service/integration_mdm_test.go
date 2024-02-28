@@ -41,6 +41,10 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
+	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
@@ -56,10 +60,6 @@ import (
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
 	micromdm "github.com/micromdm/micromdm/mdm/mdm"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/godep"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -78,7 +78,7 @@ type integrationMDMTestSuite struct {
 	fleetCfg             config.FleetConfig
 	fleetDMNextCSRStatus atomic.Value
 	pushProvider         *mock.APNSPushProvider
-	depStorage           nanodep_storage.AllStorage
+	depStorage           nanodep_storage.AllDEPStorage
 	depSchedule          *schedule.Schedule
 	profileSchedule      *schedule.Schedule
 	onProfileJobDone     func() // function called when profileSchedule.Trigger() job completed
@@ -8078,10 +8078,36 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandThree)
 	require.NoError(t, err)
 
+	cmdFourUUID := uuid.New().String()
+	commandFour := &fleet.MDMWindowsCommand{
+		CommandUUID: cmdFourUUID,
+		RawCommand: []byte(fmt.Sprintf(`
+                    <Add>
+                       <CmdID>%s</CmdID>
+                       <Item>
+                         <Target>
+                           <LocURI>./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml</LocURI>
+                         </Target>
+                         <Meta>
+                           <Type xmlns="syncml:metinf">text/plain</Type>
+                           <Format xmlns="syncml:metinf">chr</Format>
+                         </Meta>
+                         <Data>
+						   &lt;?xml version=&quot;1.0&quot;?&gt;&lt;WLANProfile
+						   xmlns=&quot;http://contoso.com/provisioning/EapHostConfig&quot;&gt;&lt;EapMethod&gt;&lt;Type
+						 </Data>
+                       </Item>
+                    </Add>
+		`, cmdFourUUID)),
+		TargetLocURI: "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml",
+	}
+	err = s.ds.MDMWindowsInsertCommandForHosts(context.Background(), []string{orbitHost.UUID}, commandFour)
+	require.NoError(t, err)
+
 	cmds, err = d.StartManagementSession()
 	require.NoError(t, err)
-	// two status + the two commands we enqueued
-	require.Len(t, cmds, 4)
+	// two status + the three commands we enqueued
+	require.Len(t, cmds, 5)
 	receivedCmdTwo := cmds[cmdTwoUUID]
 	require.NotNil(t, receivedCmdTwo)
 	require.Equal(t, receivedCmdTwo.Verb, fleet.CmdGet)
@@ -8093,6 +8119,12 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.Equal(t, receivedCmdThree.Verb, fleet.CmdReplace)
 	require.Len(t, receivedCmdThree.Cmd.Items, 1)
 	require.EqualValues(t, "./Device/Vendor/MSFT/DMClient/Provider/DEMO%20MDM/SignedEntDMID", *receivedCmdThree.Cmd.Items[0].Target)
+
+	receivedCmdFour := cmds[cmdFourUUID]
+	require.NotNil(t, receivedCmdFour)
+	require.Equal(t, receivedCmdFour.Verb, fleet.CmdAdd)
+	require.Len(t, receivedCmdFour.Cmd.Items, 1)
+	require.EqualValues(t, "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml", *receivedCmdFour.Cmd.Items[0].Target)
 
 	// status 200 for command Two  (Get)
 	d.AppendResponse(fleet.SyncMLCmd{
@@ -8130,8 +8162,19 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Items:   nil,
 		CmdID:   fleet.CmdID{Value: uuid.NewString()},
 	})
+	// status 200 for command Four (Add)
+	d.AppendResponse(fleet.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgID,
+		CmdRef:  &cmdFourUUID,
+		Cmd:     ptr.String("Add"),
+		Data:    ptr.String("200"),
+		Items:   nil,
+		CmdID:   fleet.CmdID{Value: uuid.NewString()},
+	})
 	cmds, err = d.SendResponse()
 	require.NoError(t, err)
+
 	// the ack of the message should be the only returned command
 	require.Len(t, cmds, 1)
 
@@ -8191,6 +8234,20 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 		Result:      getCommandFullResult(cmdThreeUUID),
 		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
 		Payload:     commandThree.RawCommand,
+	}, getMDMCmdResp.Results[0])
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/commandresults", nil, http.StatusOK, &getMDMCmdResp, "command_uuid", cmdFourUUID)
+	require.Len(t, getMDMCmdResp.Results, 1)
+	require.NotZero(t, getMDMCmdResp.Results[0].UpdatedAt)
+	getMDMCmdResp.Results[0].UpdatedAt = time.Time{}
+	require.Equal(t, &fleet.MDMCommandResult{
+		HostUUID:    orbitHost.UUID,
+		CommandUUID: cmdFourUUID,
+		Status:      "200",
+		RequestType: "./Vendor/MSFT/WiFi/Profile/MyNetwork/WlanXml",
+		Result:      getCommandFullResult(cmdFourUUID),
+		Hostname:    "TestIntegrationsMDM/TestWindowsMDMh1.local",
+		Payload:     commandFour.RawCommand,
 	}, getMDMCmdResp.Results[0])
 }
 
@@ -8730,7 +8787,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		body, headers := generateNewProfileMultipartRequest(
 			t,
 			filename,
-			[]byte(fmt.Sprintf(`<Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI)),
+			[]byte(fmt.Sprintf(`<Add><Item><Target><LocURI>%s</LocURI></Target></Item></Add><Replace><Item><Target><LocURI>%s</LocURI></Target></Item></Replace>`, locURI, locURI)),
 			s.token,
 			fields,
 		)
@@ -9011,7 +9068,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 	tm2ProfG, err := s.ds.NewMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
 		Name:   "tG",
 		TeamID: &tm2.ID,
-		SyncML: []byte(`<Replace></Replace>`),
+		SyncML: []byte(`<Add></Add>`),
 		Labels: []mdm_types.ConfigurationProfileLabel{
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
@@ -11522,4 +11579,60 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	cmd, err = automaticEnrolledDeviceWithRef.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
+}
+
+func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {
+	// see https://github.com/fleetdm/fleet/issues/16636
+
+	t := s.T()
+
+	// send an empty patch object to ensure it's ok if not provided
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// set it to true
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// call PATCH with a null value, leaves it untouched
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": null }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// send an empty patch object to ensure it doesn't alter the value
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{}`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, true)
+
+	// setting it to false works
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": false }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// send a null value again
+	acResp = appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": null }
+  }`), http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
+
+	// confirm via GET
+	acResp = appConfigResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &acResp)
+	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
+	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
