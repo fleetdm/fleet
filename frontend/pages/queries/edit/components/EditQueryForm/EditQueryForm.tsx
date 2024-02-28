@@ -511,7 +511,7 @@ const EditQueryForm = ({
             <button onClick={editName} onFocus={editName}>
               <div className={`${baseClass}__query-name`}>
                 {lastEditedQueryName || (
-                  <div className="placeholder">Add name here.</div>
+                  <div className="placeholder">Add name here</div>
                 )}
               </div>
               {/* yes, necessary in both places */}
@@ -539,7 +539,7 @@ const EditQueryForm = ({
             <>
               <AutoSizeInputField
                 name="query-description"
-                placeholder="Add description here."
+                placeholder="Add description here"
                 value={lastEditedQueryDescription}
                 inputClassName={`${baseClass}__query-description`}
                 maxLength={250}
@@ -559,7 +559,7 @@ const EditQueryForm = ({
             <button onClick={editDescription} onFocus={editDescription}>
               <div className={`${baseClass}__query-description`}>
                 {lastEditedQueryDescription || (
-                  <div className="placeholder">Add description here.</div>
+                  <div className="placeholder">Add description here</div>
                 )}
               </div>
               {/* yes, necessary in both places */}
