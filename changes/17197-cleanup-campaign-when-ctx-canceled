@@ -1,1 +1,0 @@
-* Fix orphaned live queries in Redis when client terminates connection (`POST /api/latest/fleet/queries/{id}/run`, `GET /api/latest/fleet/queries/run`, `POST /api/latest/fleet/hosts/identifier/{identifier}/query` and `POST /api/latest/fleet/hosts/{id}/query`).
