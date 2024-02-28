@@ -56,7 +56,7 @@ export const pastActivityComponentMap: Record<
   [ActivityType.RanScript]: RanScriptActivityItem,
 };
 
-export const updateActivityComponentMap: Record<
+export const upcomingActivityComponentMap: Record<
   IHostUpcomingActivityType,
   | React.FC<IHostActivityItemComponentProps>
   | React.FC<IHostActivityItemComponentPropsWithShowDetails>
