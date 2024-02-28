@@ -918,7 +918,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 // whereFilterTeams returns the appropriate condition to use in the WHERE
 // clause to render only the appropriate teams.
 //
-// filter provides the filtering parameters that should be used. hostKey is the
+// filter provides the filtering parameters that should be used. teamKey is the
 // name/alias of the teams table to use in generating the SQL.
 func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
 	if filter.User == nil {

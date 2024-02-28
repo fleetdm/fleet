@@ -60,9 +60,10 @@ func testListVulnerabilities(t *testing.T, ds *Datastore) {
 	_, err = ds.writer(context.Background()).Exec(insertStmt, "CVE-2020-1236", 0, 20)
 	require.NoError(t, err)
 
+	// No Vulns unless OS or Software Vulns are inserted
 	list, _, err = ds.ListVulnerabilities(context.Background(), opts)
 	require.NoError(t, err)
-	require.Len(t, list, 3)
+	require.Len(t, list, 0)
 
 	// insert OS Vuln
 	_, err = ds.InsertOSVulnerabilities(context.Background(), []fleet.OSVulnerability{
@@ -873,9 +874,11 @@ func testSoftwareByCVE(t *testing.T, ds *Datastore) {
 func assertHostCounts(t *testing.T, expected []hostCount, actual []fleet.VulnerabilityWithMetadata) {
 	t.Helper()
 	require.Len(t, actual, len(expected))
-	for i, vuln := range actual {
-		require.Equal(t, expected[i].CVE, vuln.CVE.CVE)
-		require.Equal(t, expected[i].HostCount, vuln.HostsCount)
+	for _, vuln := range actual {
+		require.Contains(t, expected, hostCount{
+			CVE:       vuln.CVE.CVE,
+			HostCount: vuln.HostsCount,
+		})
 	}
 }
 

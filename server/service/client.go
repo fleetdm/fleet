@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"net/http"
 	"os"
@@ -754,6 +755,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fle
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
 			var macOSSettings []fleet.MDMProfileSpec
 			var windowsSettings []fleet.MDMProfileSpec
@@ -810,6 +812,7 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Scripts) > 0 {
 			if m == nil {
 				m = make(map[string][]string)
@@ -844,6 +847,7 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
 			if m == nil {
 				m = make(map[string]*fleet.MacOSSetup)
