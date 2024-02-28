@@ -911,12 +911,11 @@ func (c *Client) DoGitOps(
 		}
 		// Put in default values for windows_enabled_and_configured
 		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
-		// TODO: Need to update fleet-gitops repo before disabling by default.
-		//if config.Controls.WindowsEnabledAndConfigured != nil {
-		//	mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
-		//} else {
-		//	mdmAppConfig["windows_enabled_and_configured"] = false
-		//}
+		if config.Controls.WindowsEnabledAndConfigured != nil {
+			mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		} else {
+			mdmAppConfig["windows_enabled_and_configured"] = false
+		}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 	} else {
 		team = make(map[string]interface{})
