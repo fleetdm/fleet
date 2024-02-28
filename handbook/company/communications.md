@@ -59,6 +59,14 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+#### Promote a post on LinkedIn
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#begin-or-modify-an-advertising-campaign). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us).
+
+1. Create the post on your personal LinkedIn profile. (Only original posts. Reposts and quotes of other posts can be promoted)
+2. Create an issue linking to the post on the [#g-demand board](https://app.zenhub.com/workspaces/g-marketing-64e6c8e2d35c7f001a457b7f/board) with the buying situation and if there are any date restrictions.
+3. Keep an eye on your inbox as demand will request permission to use the post in a promoted post.
+4. Demand will communicate the results of the post.
+
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
