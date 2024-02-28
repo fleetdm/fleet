@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,6 +61,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			Tier: fleet.TierPremium,
 		},
 		Pool:           s.redisPool,
+		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
