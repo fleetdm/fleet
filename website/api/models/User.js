@@ -179,8 +179,8 @@ without necessarily having a billing card.`
 
     fleetSandboxExpiresAt: {
       type: 'string',
-      description: 'A JS timestamp (epoch ms) representing when this user\'s fleet sandbox instance will expire',
       columnType: 'bigint',
+      description: 'A JS timestamp (epoch ms) representing when this user\'s fleet sandbox instance will expire',
       example: '1502844074211',
       extendedDescription: 'As of Oct. 2023, new user records will not have this value set.'
     },
