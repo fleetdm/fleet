@@ -211,18 +211,18 @@ allow {
 # Hosts
 ##
 
-# Global admins, maintainers, observer_plus and observers can list hosts.
+# Global admins, maintainers, observer_plus, observers and gitops can list hosts.
 allow {
   object.type == "host"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  subject.global_role == [admin, maintainer, observer_plus, observer, gitops][_]
   action == list
 }
 
-# Team admins, maintainers, observer_plus and observers can list hosts.
+# Team admins, maintainers, observer_plus, observers and gitops can list hosts.
 allow {
 	object.type == "host"
   # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
+  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer, gitops][_]
 	action == list
 }
 
@@ -240,17 +240,17 @@ allow {
 	action == write
 }
 
-# Allow read for global observer and observer_plus.
+# Allow read for global observer, observer_plus and gitops.
 allow {
 	object.type == "host"
-	subject.global_role == [observer, observer_plus][_]
+	subject.global_role == [observer, observer_plus, gitops][_]
 	action == read
 }
 
-# Allow read for matching team admin/maintainer/observer/observer_plus.
+# Allow read for matching team admin/maintainer/observer/observer_plus/gitops.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
+	team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus, gitops][_]
 	action == read
 }
 
