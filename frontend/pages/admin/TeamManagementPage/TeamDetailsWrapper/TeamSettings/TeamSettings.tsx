@@ -6,6 +6,8 @@ import { NotificationContext } from "context/notification";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
@@ -28,18 +30,22 @@ const baseClass = "team-settings";
 const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
 
 const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
-  const [
-    formDataTeamHostExpiryEnabled,
-    setFormDataTeamHostExpiryEnabled,
-  ] = useState(false); // default false until API response
-  const [
-    formDataTeamHostExpiryWindow,
-    setFormDataTeamHostExpiryWindow,
-  ] = useState<number | string>("");
+  const [formData, setFormData] = useState({
+    teamHostExpiryEnabled: false,
+    teamHostExpiryWindow: "" as number | string,
+  });
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
+
+  const setTeamExpiryEnabled = (enabled: boolean) => {
+    setFormData({ ...formData, teamHostExpiryEnabled: enabled });
+  };
+
+  const setTeamHostExpiryWindow = (window: number | string) => {
+    setFormData({ ...formData, teamHostExpiryWindow: window });
+  };
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -80,29 +86,27 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     ["teamConfig", teamIdForApi],
     () => teamsAPI.load(teamIdForApi),
     {
+      ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isRouteOk && !!teamIdForApi,
       select: (data) => data.team,
       onSuccess: (teamConfig) => {
-        // default this setting to current team setting
-        // can be updated by user actions
-        setFormDataTeamHostExpiryEnabled(
-          teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false
-        );
-        setFormDataTeamHostExpiryWindow(
-          teamConfig.host_expiry_settings?.host_expiry_window ?? ""
-        );
+        setFormData({
+          teamHostExpiryEnabled:
+            teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false,
+          teamHostExpiryWindow:
+            teamConfig?.host_expiry_settings?.host_expiry_window ?? "",
+        });
       },
-      refetchOnWindowFocus: false,
     }
   );
 
   const validate = useCallback(() => {
     const errors: Record<string, string> = {};
-    const numHostExpiryWindow = Number(formDataTeamHostExpiryWindow);
+    const numHostExpiryWindow = Number(formData.teamHostExpiryWindow);
     if (
       // with no global setting, team window can't be empty if enabled
       (!globalHostExpiryEnabled &&
-        formDataTeamHostExpiryEnabled &&
+        formData.teamHostExpiryEnabled &&
         !numHostExpiryWindow) ||
       // if nonempty, must be a positive number
       isNaN(numHostExpiryWindow) ||
@@ -114,29 +118,29 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
 
     setFormErrors(errors);
   }, [
-    formDataTeamHostExpiryEnabled,
-    formDataTeamHostExpiryWindow,
+    formData.teamHostExpiryEnabled,
+    formData.teamHostExpiryWindow,
     globalHostExpiryEnabled,
   ]);
 
   useEffect(() => {
     validate();
-  }, [formDataTeamHostExpiryEnabled, formDataTeamHostExpiryWindow, validate]);
+  }, [formData.teamHostExpiryEnabled, formData.teamHostExpiryWindow, validate]);
 
-  const updateTeamHostExpiry = useCallback(
+  const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
       setUpdatingTeamSettings(true);
-      const castedHostExpiryWindow = Number(formDataTeamHostExpiryWindow);
+      const castedHostExpiryWindow = Number(formData.teamHostExpiryWindow);
       let enableHostExpiry;
       if (globalHostExpiryEnabled) {
         if (!castedHostExpiryWindow) {
           enableHostExpiry = false;
         } else {
-          enableHostExpiry = formDataTeamHostExpiryEnabled;
+          enableHostExpiry = formData.teamHostExpiryEnabled;
         }
       } else {
-        enableHostExpiry = formDataTeamHostExpiryEnabled;
+        enableHostExpiry = formData.teamHostExpiryEnabled;
       }
       teamsAPI
         .update(
@@ -163,8 +167,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         });
     },
     [
-      formDataTeamHostExpiryEnabled,
-      formDataTeamHostExpiryWindow,
+      formData.teamHostExpiryEnabled,
+      formData.teamHostExpiryWindow,
       globalHostExpiryEnabled,
       refetchTeamConfig,
       renderFlash,
@@ -180,24 +184,24 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       return <Spinner />;
     }
     return (
-      <form onSubmit={updateTeamHostExpiry}>
+      <form onSubmit={updateTeamSettings}>
         {globalHostExpiryEnabled !== undefined && (
           <TeamHostExpiryToggle
             globalHostExpiryEnabled={globalHostExpiryEnabled}
             globalHostExpiryWindow={globalHostExpiryWindow}
-            teamExpiryEnabled={formDataTeamHostExpiryEnabled}
-            setTeamExpiryEnabled={setFormDataTeamHostExpiryEnabled}
+            teamExpiryEnabled={formData.teamHostExpiryEnabled}
+            setTeamExpiryEnabled={setTeamExpiryEnabled}
           />
         )}
-        {formDataTeamHostExpiryEnabled && (
+        {formData.teamHostExpiryEnabled && (
           <InputField
             label="Host expiry window"
             // type="text" allows `validate` to differentiate between
             // non-numerical input and an empty input
             type="text"
-            onChange={setFormDataTeamHostExpiryWindow}
+            onChange={setTeamHostExpiryWindow}
             name="host-expiry-window"
-            value={formDataTeamHostExpiryWindow}
+            value={formData.teamHostExpiryWindow}
             error={formErrors.host_expiry_window}
           />
         )}
