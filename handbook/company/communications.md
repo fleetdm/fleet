@@ -253,7 +253,7 @@ Labels with a `#g-` prefix refer to a kanban board. Since it is best practice to
 > - `bug-` Defect category. For example, `bug-enrollment`, `bug-profiles-sync`, `bug-policies`. This allows us to track the areas of the product producing the most bugs.
 > - `story` A user story.
 > -  `prospect-` A customer prospect.
-> - `P-` A (priority level)[https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs].
+> - `P-` A [priority level](https://fleetdm.com/handbook/company/product-groups#high-priority-user-stories-and-bugs).
 > - `Epic` Do not use. _(TODO: ZenHub automatically recreates this label when we group sub-tasks inside of a user story. Find a way to remove this. It is an artifact from Zenhub and not something we actually want to exist or use, as it is confusing.)_
 
 ### Process new requests
