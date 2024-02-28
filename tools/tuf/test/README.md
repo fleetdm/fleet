@@ -36,7 +36,6 @@ ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
 DEBUG=1 \
-GOARCH=arm64 \ # defaults to amd64
 ./tools/tuf/test/main.sh
 ```
 
@@ -52,6 +51,14 @@ Here's a sample to use the `hello_world` and `hello_mars` test extensions:
 MACOS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/macos/hello_world_macos.ext,./tools/test_extensions/hello_world/macos/hello_mars_macos.ext" \
 WINDOWS_TEST_EXTENSIONS="./tools/test_extensions/hello_world/windows/hello_world_windows.ext.exe,./tools/test_extensions/hello_world/windows/hello_mars_windows.ext.exe" \
 LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_linux.ext,./tools/test_extensions/hello_world/linux/hello_mars_linux.ext" \
+[...]
+./tools/tuf/test/main.sh
+```
+
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+GOARCH=arm64 # defaults to amd64
 [...]
 ./tools/tuf/test/main.sh
 ```
