@@ -44,6 +44,7 @@ const AutoSizeInputField = ({
     [`${baseClass}--disabled`]: isDisabled,
     [`${baseClass}--error`]: hasError,
     [`${baseClass}__textarea`]: true,
+    "no-value": !inputValue,
   });
 
   const inputElement = useRef<any>(null);

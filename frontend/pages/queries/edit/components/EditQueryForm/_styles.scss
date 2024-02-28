@@ -71,6 +71,9 @@
       }
       .query-name-wrapper {
         width: fit-content;
+        .no-value {
+          min-width: 170px;
+        }
 
         .edit-query-form__query-name,
         .input-sizer::after {
