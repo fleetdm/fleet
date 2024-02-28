@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"fmt"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
@@ -97,22 +98,20 @@ CREATE TABLE script_contents (
 	}
 
 	// for every script content, md5-hash it and keep track of the hash
-	// associated with the id to update the host_script_results and scripts
+	// associated with the ids to update the host_script_results and scripts
 	// tables with the new script_content_id later on.
-	hostScriptsLookup := make(map[string]uint, len(hostScripts))
-	savedScriptsLookup := make(map[string]uint, len(savedScripts))
+	hostScriptsLookup := make(map[string][]uint, len(hostScripts))
+	savedScriptsLookup := make(map[string][]uint, len(savedScripts))
 	for _, s := range hostScripts {
-		rawChecksum := md5.Sum([]byte(s.ScriptContents))
-		hexChecksum := hex.EncodeToString(rawChecksum[:])
-		hostScriptsLookup[hexChecksum] = s.ID
+		hexChecksum := md5ChecksumScriptContent(s.ScriptContents)
+		hostScriptsLookup[hexChecksum] = append(hostScriptsLookup[hexChecksum], s.ID)
 		if _, err := txx.Exec(insertScriptContentsStmt, hexChecksum, s.ScriptContents); err != nil {
 			return fmt.Errorf("create script_contents from host_script_results: %w", err)
 		}
 	}
 	for _, s := range savedScripts {
-		rawChecksum := md5.Sum([]byte(s.ScriptContents))
-		hexChecksum := hex.EncodeToString(rawChecksum[:])
-		savedScriptsLookup[hexChecksum] = s.ID
+		hexChecksum := md5ChecksumScriptContent(s.ScriptContents)
+		savedScriptsLookup[hexChecksum] = append(savedScriptsLookup[hexChecksum], s.ID)
 		if _, err := txx.Exec(insertScriptContentsStmt, hexChecksum, s.ScriptContents); err != nil {
 			return fmt.Errorf("create script_contents from saved scripts: %w", err)
 		}
@@ -152,14 +151,18 @@ WHERE
 
 	// insert the associated script_content_id into host_script_results and
 	// scripts
-	for hexChecksum, id := range hostScriptsLookup {
-		if _, err := txx.Exec(updateHostScriptsStmt, hexChecksum, id); err != nil {
-			return fmt.Errorf("update host_script_results with script_content_id: %w", err)
+	for hexChecksum, ids := range hostScriptsLookup {
+		for _, id := range ids {
+			if _, err := txx.Exec(updateHostScriptsStmt, hexChecksum, id); err != nil {
+				return fmt.Errorf("update host_script_results with script_content_id: %w", err)
+			}
 		}
 	}
-	for hexChecksum, id := range savedScriptsLookup {
-		if _, err := txx.Exec(updateSavedScriptsStmt, hexChecksum, id); err != nil {
-			return fmt.Errorf("update saved scripts with script_content_id: %w", err)
+	for hexChecksum, ids := range savedScriptsLookup {
+		for _, id := range ids {
+			if _, err := txx.Exec(updateSavedScriptsStmt, hexChecksum, id); err != nil {
+				return fmt.Errorf("update saved scripts with script_content_id: %w", err)
+			}
 		}
 	}
 
@@ -182,6 +185,11 @@ ALTER TABLE scripts
 	}
 
 	return nil
+}
+
+func md5ChecksumScriptContent(s string) string {
+	rawChecksum := md5.Sum([]byte(s))
+	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
 func Down_20240228111134(tx *sql.Tx) error {
