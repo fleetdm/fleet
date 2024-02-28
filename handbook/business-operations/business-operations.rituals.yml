@@ -76,8 +76,8 @@
   task: "The numbers" # TODO tie this to a responsibility
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "Each month, update the inputs in [The numbers](https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278) spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend" 
-  moreInfoUrl: 
+  description: "Each month, update the inputs in “The numbers” spreadsheet to reflect the actuals for recurring non-personnel spend, and identify any unexpected increase or decrease in spend" 
+  moreInfoUrl: "https://docs.google.com/spreadsheets/d/1X-brkmUK7_Rgp7aq42drNcUg8ZipzEiS153uKZSabWc/edit#gid=2112277278"
   dri: "joStableford" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
@@ -86,8 +86,8 @@
   task: "Monthly accounting" # TODO tie this to a responsibility
   startedOn: "2024-02-28" 
   frequency: "Monthly"
-  description: "Create [the monthly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps.  (This process includes fulfill the monthly reporting requirement for SVB)" 
-  moreInfoUrl: 
+  description: "Create the monthly close GitHub issue and walk through the steps.  (This process includes fulfilling the monthly reporting requirement for SVB)" 
+  moreInfoUrl: "https://fleetdm.com/handbook/business-operations#intake"
   dri: "hollidayn" 
   autoIssue:   
     labels: [ "#g-business-operations" ] 
@@ -140,14 +140,14 @@
   task: "Quartlery finance check" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
-  description: "Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps" 
+  description: "Create the quarterly close GitHub issue and walk through the steps" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#check-finances-for-quirks"
   dri: "joStableford"
 -
   task: "Quarterly grants" 
   startedOn: "2024-03-31" 
   frequency: "Quarterly"
-  description: "Create [the quarterly close GitHub issue](https://fleetdm.com/handbook/business-operations#intake) and walk through the steps" 
+  description: "Create the quarterly close GitHub issue and walk through the steps" 
   moreInfoUrl: "https://fleetdm.com/handbook/business-operations#grant-equity"
   dri: "hollidayn" 
 -

@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
@@ -52,7 +53,7 @@ func (s *FileStorage) IsCertHashAssociated(r *mdm.Request, hash string) (bool, e
 	return strings.ToLower(string(b)) == strings.ToLower(hash), nil
 }
 
-func (s *FileStorage) AssociateCertHash(r *mdm.Request, hash string) error {
+func (s *FileStorage) AssociateCertHash(r *mdm.Request, hash string, _ time.Time) error {
 	f, err := os.OpenFile(
 		path.Join(s.path, CertAuthAssociationsFilename),
 		os.O_APPEND|os.O_CREATE|os.O_WRONLY,

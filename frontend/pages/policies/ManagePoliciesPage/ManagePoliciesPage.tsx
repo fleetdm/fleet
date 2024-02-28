@@ -249,6 +249,7 @@ const ManagePolicyPage = ({
     data: globalPoliciesCount,
 
     isFetching: isFetchingGlobalCount,
+    refetch: refetchGlobalPoliciesCount,
   } = useQuery<IPoliciesCountResponse, Error, number, IPoliciesCountQueryKey[]>(
     [
       {
@@ -303,7 +304,11 @@ const ManagePolicyPage = ({
     }
   );
 
-  const { data: teamPoliciesCount, isFetching: isFetchingTeamCount } = useQuery<
+  const {
+    data: teamPoliciesCount,
+    isFetching: isFetchingTeamCount,
+    refetch: refetchTeamPoliciesCount,
+  } = useQuery<
     IPoliciesCountResponse,
     Error,
     number,
@@ -364,8 +369,10 @@ const ManagePolicyPage = ({
   const refetchPolicies = (teamId?: number) => {
     if (teamId) {
       refetchTeamPolicies();
+      refetchTeamPoliciesCount();
     } else {
       refetchGlobalPolicies(); // Only call on global policies as this is expensive
+      refetchGlobalPoliciesCount();
     }
   };
 
@@ -567,8 +574,6 @@ const ManagePolicyPage = ({
     }`;
   };
 
-  const showTeamDescription = isPremiumTier && isAnyTeamSelected;
-
   const showInheritedPoliciesButton =
     isAnyTeamSelected &&
     !isFetchingTeamPolicies &&
@@ -737,17 +742,11 @@ const ManagePolicyPage = ({
           )}
         </div>
         <div className={`${baseClass}__description`}>
-          {showTeamDescription ? (
-            <p>
-              Add additional policies for <b>all hosts assigned to this team</b>
-              .
-            </p>
-          ) : (
-            <p>
-              Add policies for <b>all of your hosts</b> to see which pass your
-              organization’s standards.
-            </p>
-          )}
+          <p>
+            {isAnyTeamSelected
+              ? "Detect device health issues for all hosts assigned to this team."
+              : "Detect device health issues for all hosts."}
+          </p>
         </div>
         {renderMainTable()}
         {showInheritedPoliciesButton && globalPoliciesCount && (
@@ -762,7 +761,7 @@ const ManagePolicyPage = ({
               showInheritedTable,
               globalPoliciesCount
             )}
-            caretPosition={"before"}
+            caretPosition="before"
             tooltipContent={
               <>
                 &quot;All teams&quot; policies are checked

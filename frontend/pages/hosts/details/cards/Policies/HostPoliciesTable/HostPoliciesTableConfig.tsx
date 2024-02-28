@@ -67,11 +67,11 @@ const generatePolicyTableHeaders = (
         const { name } = cellProps.row.original;
         return (
           <Button
-            className={`policy-info`}
+            className="policy-info"
             onClick={() => {
               togglePolicyDetails(cellProps.row.original);
             }}
-            variant={"text-icon"}
+            variant="text-icon"
           >
             <span className={`policy-info-text`}>{name}</span>
           </Button>

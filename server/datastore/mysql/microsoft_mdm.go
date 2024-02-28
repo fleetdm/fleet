@@ -1909,13 +1909,14 @@ func (ds *Datastore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host
 		stmt := `
 			INSERT INTO host_mdm_actions (
 				host_id,
-				wipe_ref
+				wipe_ref,
+				fleet_platform
 			)
-			VALUES (?, ?)
+			VALUES (?, ?, ?)
 			ON DUPLICATE KEY UPDATE
 				wipe_ref   = VALUES(wipe_ref)`
 
-		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
 			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for wipe_ref")
 		}
 

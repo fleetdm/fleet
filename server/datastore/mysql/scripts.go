@@ -146,7 +146,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -563,7 +562,8 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			lock_ref,
 			wipe_ref,
 			unlock_ref,
-			unlock_pin
+			unlock_pin,
+			fleet_platform
 		FROM
 			host_mdm_actions
 		WHERE
@@ -571,10 +571,11 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 `
 
 	var mdmActions struct {
-		LockRef   *string `db:"lock_ref"`
-		WipeRef   *string `db:"wipe_ref"`
-		UnlockRef *string `db:"unlock_ref"`
-		UnlockPIN *string `db:"unlock_pin"`
+		LockRef       *string `db:"lock_ref"`
+		WipeRef       *string `db:"wipe_ref"`
+		UnlockRef     *string `db:"unlock_ref"`
+		UnlockPIN     *string `db:"unlock_pin"`
+		FleetPlatform string  `db:"fleet_platform"`
 	}
 	fleetPlatform := host.FleetPlatform()
 	status := &fleet.HostLockWipeStatus{
@@ -588,6 +589,14 @@ func (ds *Datastore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host
 			return status, nil
 		}
 		return nil, ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+
+	// if we have a fleet platform stored in host_mdm_actions, use it instead of
+	// the host.FleetPlatform() because the platform can be overwritten with an
+	// unknown OS name when a Wipe gets executed.
+	if mdmActions.FleetPlatform != "" {
+		fleetPlatform = mdmActions.FleetPlatform
+		status.HostFleetPlatform = fleetPlatform
 	}
 
 	switch fleetPlatform {
@@ -729,7 +738,7 @@ func (ds *Datastore) getHostMDMAppleCommand(ctx context.Context, cmdUUID, hostUU
 
 // LockHostViaScript will create the script execution request and update
 // host_mdm_actions in a single transaction.
-func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -748,9 +757,9 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	(
 		host_id,
 		lock_ref,
-		unlock_ref
+		fleet_platform
 	)
-	VALUES (?,?,NULL)
+	VALUES (?,?,?)
 	ON DUPLICATE KEY UPDATE
 		lock_ref = VALUES(lock_ref)
 	`
@@ -758,6 +767,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 		_, err = tx.ExecContext(ctx, stmt,
 			request.HostID,
 			res.ExecutionID,
+			hostFleetPlatform,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script update mdm actions")
@@ -769,7 +779,7 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 
 // UnlockHostViaScript will create the script execution request and update
 // host_mdm_actions in a single transaction.
-func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -788,9 +798,9 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	(
 		host_id,
 		unlock_ref,
-		lock_ref
+		fleet_platform
 	)
-	VALUES (?,?,NULL)
+	VALUES (?,?,?)
 	ON DUPLICATE KEY UPDATE
 		unlock_ref = VALUES(unlock_ref),
 		unlock_pin = NULL
@@ -799,6 +809,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 		_, err = tx.ExecContext(ctx, stmt,
 			request.HostID,
 			res.ExecutionID,
+			hostFleetPlatform,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script update mdm actions")
@@ -810,7 +821,7 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 
 // WipeHostViaScript creates the script execution request and updates the
 // host_mdm_actions table in a single transaction.
-func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
@@ -827,9 +838,10 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	INSERT INTO host_mdm_actions
 	(
 		host_id,
-		wipe_ref
+		wipe_ref,
+		fleet_platform
 	)
-	VALUES (?,?)
+	VALUES (?,?,?)
 	ON DUPLICATE KEY UPDATE
 		wipe_ref = VALUES(wipe_ref)
 	`
@@ -837,6 +849,7 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 		_, err = tx.ExecContext(ctx, stmt,
 			request.HostID,
 			res.ExecutionID,
+			hostFleetPlatform,
 		)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script update mdm actions")
@@ -846,14 +859,15 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	})
 }
 
-func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error {
 	const stmt = `
 	INSERT INTO host_mdm_actions
 	(
 		host_id,
-		unlock_ref
+		unlock_ref,
+		fleet_platform
 	)
-	VALUES (?, ?)
+	VALUES (?, ?, ?)
 	ON DUPLICATE KEY UPDATE
 		-- do not overwrite if a value is already set
 		unlock_ref = IF(unlock_ref IS NULL, VALUES(unlock_ref), unlock_ref)
@@ -867,7 +881,7 @@ func (ds *Datastore) UnlockHostManually(ctx context.Context, hostID uint, ts tim
 	// actually unlocked with the PIN. The actual unlocking happens when the
 	// device sends an Idle MDM request.
 	unlockRef := ts.Format(time.DateTime)
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef)
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostID, unlockRef, hostFleetPlatform)
 	return ctxerr.Wrap(ctx, err, "record manual unlock host request")
 }
 
@@ -894,10 +908,6 @@ func buildHostLockWipeStatusUpdateStmt(refCol string, succeeded bool, joinPart s
 			// around once it's confirmed.
 			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL, %[1]swipe_ref = NULL", alias)
 		case "wipe_ref":
-			// TODO(mna): can a wiped device still be locked? If so we'd need to keep
-			// the pin/lock_ref, but this would mean that both IsLocked and IsWiped
-			// would be true, we'd need to ensure we check wipe first (I think we
-			// always assumed those 3 states were exclusive).
 			stmt += fmt.Sprintf("%slock_ref = NULL, %[1]sunlock_ref = NULL, %[1]sunlock_pin = NULL", alias)
 		}
 	} else {

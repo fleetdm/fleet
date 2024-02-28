@@ -1,1 +1,0 @@
-* Removed unnecessary nested database transactions in batch-setting of MDM profiles.

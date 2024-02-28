@@ -731,7 +731,7 @@ func testLockHostViaScript(t *testing.T, ds *Datastore) {
 		ScriptContents: script,
 		UserID:         &user.ID,
 		SyncRequest:    false,
-	})
+	}, "windows")
 
 	require.NoError(t, err)
 
@@ -782,7 +782,7 @@ func testUnlockHostViaScript(t *testing.T, ds *Datastore) {
 		ScriptContents: script,
 		UserID:         &user.ID,
 		SyncRequest:    false,
-	})
+	}, "windows")
 
 	require.NoError(t, err)
 
@@ -835,7 +835,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				ScriptContents: "lock",
 				UserID:         &user.ID,
 				SyncRequest:    false,
-			})
+			}, platform)
 			require.NoError(t, err)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -860,7 +860,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				ScriptContents: "unlock",
 				UserID:         &user.ID,
 				SyncRequest:    false,
-			})
+			}, platform)
 			require.NoError(t, err)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -886,7 +886,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				ScriptContents: "unlock",
 				UserID:         &user.ID,
 				SyncRequest:    false,
-			})
+			}, platform)
 			require.NoError(t, err)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -912,7 +912,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 				ScriptContents: "lock",
 				UserID:         &user.ID,
 				SyncRequest:    false,
-			})
+			}, platform)
 			require.NoError(t, err)
 
 			status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -970,7 +970,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 					ScriptContents: "wipe",
 					UserID:         &user.ID,
 					SyncRequest:    false,
-				})
+				}, platform)
 				require.NoError(t, err)
 
 				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -995,7 +995,7 @@ func testLockUnlockWipeViaScripts(t *testing.T, ds *Datastore) {
 					ScriptContents: "wipe2",
 					UserID:         &user.ID,
 					SyncRequest:    false,
-				})
+				}, platform)
 				require.NoError(t, err)
 
 				status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: hostID, Platform: platform, UUID: "uuid"})
@@ -1023,7 +1023,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 
 	twoDaysAgo := time.Now().AddDate(0, 0, -2).UTC()
 	today := time.Now().UTC()
-	err := ds.UnlockHostManually(ctx, 1, twoDaysAgo)
+	err := ds.UnlockHostManually(ctx, 1, "darwin", twoDaysAgo)
 	require.NoError(t, err)
 
 	status, err := ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 1, Platform: "darwin", UUID: "uuid"})
@@ -1033,7 +1033,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 
 	// if the unlock request already exists, it is not overwritten by subsequent
 	// requests
-	err = ds.UnlockHostManually(ctx, 1, today)
+	err = ds.UnlockHostManually(ctx, 1, "darwin", today)
 	require.NoError(t, err)
 	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 1, Platform: "darwin", UUID: "uuid"})
 	require.NoError(t, err)
@@ -1046,7 +1046,7 @@ func testLockUnlockManually(t *testing.T, ds *Datastore) {
 		_, err := tx.ExecContext(ctx, "INSERT INTO host_mdm_actions (host_id) VALUES (2)")
 		return err
 	})
-	err = ds.UnlockHostManually(ctx, 2, today)
+	err = ds.UnlockHostManually(ctx, 2, "darwin", today)
 	require.NoError(t, err)
 	status, err = ds.GetHostLockWipeStatus(ctx, &fleet.Host{ID: 2, Platform: "darwin", UUID: "uuid"})
 	require.NoError(t, err)

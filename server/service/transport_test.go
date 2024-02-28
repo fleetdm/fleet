@@ -158,7 +158,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				"&os_name=osName&os_version=osVersion&os_version_id=5&disable_failing_policies=1&macos_settings=verified" +
 				"&macos_settings_disk_encryption=enforcing&os_settings=pending&os_settings_disk_encryption=failed" +
 				"&bootstrap_package=installed&mdm_id=6&mdm_name=mdmName&mdm_enrollment_status=automatic" +
-				"&munki_issue_id=7&low_disk_space=99",
+				"&munki_issue_id=7&low_disk_space=99&vulnerability=CVE-2023-42887",
 			hostListOptions: fleet.HostListOptions{
 				ListOptions: fleet.ListOptions{
 					OrderKey:       "foo",
@@ -188,6 +188,7 @@ func TestHostListOptionsFromRequest(t *testing.T) {
 				MDMEnrollmentStatusFilter:         fleet.MDMEnrollStatusAutomatic,
 				MunkiIssueIDFilter:                ptr.Uint(7),
 				LowDiskSpaceFilter:                ptr.Int(99),
+				VulnerabilityFilter:               ptr.String("CVE-2023-42887"),
 			},
 		},
 		"policy_id and policy_response params (for coverage)": {
