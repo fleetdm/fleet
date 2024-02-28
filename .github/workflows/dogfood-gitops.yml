@@ -1,0 +1,55 @@
+name: 'Apply latest configuration to dogfood with gitops'
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'it-and-security/**'
+      - 'mdm_profiles/**'
+      - '.github/workflows/dogfood-gitops.yml'
+  workflow_dispatch: # allows manual triggering
+
+defaults:
+  run:
+    shell: bash
+
+# Limit permissions of GITHUB_TOKEN.
+permissions:
+  contents: read
+
+jobs:
+  fleet-gitops:
+    timeout-minutes: 5
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout our repository
+        uses: actions/checkout@v4
+
+      - name: Checkout GitOps repository
+        uses: actions/checkout@v4
+        with:
+          repository: fleetdm/fleet-gitops
+          ref: main
+          path: fleet-gitops
+
+      - name: Apply latest configuration to Fleet
+        uses: ./fleet-gitops/.github/gitops-action
+        with:
+          working-directory: ${{ github.workspace }}/fleet-gitops
+        env:
+          FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
+          FLEET_URL: https://dogfood.fleetdm.com
+          FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
+          DOGFOOD_APPLE_BM_DEFAULT_TEAM: Workstations
+          DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL: ${{ secrets.DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL }}
+          DOGFOOD_GLOBAL_ENROLL_SECRET: ${{ secrets.DOGFOOD_GLOBAL_ENROLL_SECRET }}
+          DOGFOOD_SSO_ISSUER_URI: ${{ secrets.DOGFOOD_SSO_ISSUER_URI }}
+          DOGFOOD_SSO_METADATA: ${{ secrets.DOGFOOD_SSO_METADATA }}
+          DOGFOOD_FAILING_POLICIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_FAILING_POLICIES_WEBHOOK_URL }}
+          DOGFOOD_VULNERABILITIES_WEBHOOK_URL: ${{ secrets.DOGFOOD_VULNERABILITIES_WEBHOOK_URL }}
+          DOGFOOD_WORKSTATIONS_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_ENROLL_SECRET }}
+          DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_WORKSTATIONS_CANARY_ENROLL_SECRET }}
+          DOGFOOD_SERVERS_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_ENROLL_SECRET }}
+          DOGFOOD_SERVERS_CANARY_ENROLL_SECRET: ${{ secrets.DOGFOOD_SERVERS_CANARY_ENROLL_SECRET }}
+          DOGFOOD_EXPLORE_DATA_ENROLL_SECRET: ${{ secrets.DOGFOOD_EXPLORE_DATA_ENROLL_SECRET }}
