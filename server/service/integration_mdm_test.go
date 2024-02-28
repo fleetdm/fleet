@@ -8093,8 +8093,8 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
                            <Format xmlns="syncml:metinf">chr</Format>
                          </Meta>
                          <Data>
-						 	&lt;?xml version=&quot;1.0&quot;?&gt;&lt;WLANProfile
-							xmlns=&quot;http://contoso.com/provisioning/EapHostConfig&quot;&gt;&lt;EapMethod&gt;&lt;Type
+						   &lt;?xml version=&quot;1.0&quot;?&gt;&lt;WLANProfile
+						   xmlns=&quot;http://contoso.com/provisioning/EapHostConfig&quot;&gt;&lt;EapMethod&gt;&lt;Type
 						 </Data>
                        </Item>
                     </Add>
