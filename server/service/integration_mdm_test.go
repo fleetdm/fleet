@@ -2057,6 +2057,20 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		require.Empty(t, pending)
 	}
 
+	expectNoJobID := ptr.Uint(0) // used when expect no retry job
+	checkHostCooldown := func(serial, profUUID string, status fleet.DEPAssignProfileResponseStatus, expectUpdatedAt *time.Time, expectRetryJobID *uint) hostDEPRow {
+		bySerial := checkHostDEPAssignProfileResponses([]string{serial}, profUUID, status)
+		d, ok := bySerial[serial]
+		require.True(t, ok)
+		if expectUpdatedAt != nil {
+			require.Equal(t, *expectUpdatedAt, d.ResponseUpdatedAt)
+		}
+		if expectRetryJobID != nil {
+			require.Equal(t, *expectRetryJobID, d.RetryJobID)
+		}
+		return d
+	}
+
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
 	expectAssignProfileResponseNotAccessible := "" // set to device serial when testing the not accessible profile assignment flow
 	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -2429,20 +2443,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: nil, HostIDs: []uint{eHost.ID}}, http.StatusOK)
-
-	// expect a job to transfer job
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", nil, []string{eHost.HardwareSerial}, 0)
 
 	s.runIntegrationsSchedule()
-	require.NotEmpty(t, profileAssignmentReqs)
+	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
-	bySerial := checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseFailed)
 	profUUID := profileAssignmentReqs[0].ProfileUUID
-	d, ok := bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
+	d := checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, nil, expectNoJobID)
 	require.NotZero(t, d.ResponseUpdatedAt)
 	failedAt := d.ResponseUpdatedAt
-	require.Zero(t, d.RetryJobID) // cooling down so no retry job
 	checkNoJobsPending()
 
 	// list hosts shows dep profile error
@@ -2456,12 +2466,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// run the integrations schedule during the cooldown period
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID)           // still cooling down
-	require.Empty(t, profileAssignmentReqs) // no new request during cooldown
+	require.Empty(t, profileAssignmentReqs)                                                                           // no new request during cooldown
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// create a new team
@@ -2474,19 +2480,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	dummyTeam := tmResp.Team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &dummyTeam.ID, HostIDs: []uint{eHost.ID}}, http.StatusOK)
-
-	// expect transfer job pending
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 
 	// expect no assign profile request during cooldown
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	require.Empty(t, profileAssignmentReqs) // screened for cooldown
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID) // cooling down so no retry job
+	require.Empty(t, profileAssignmentReqs)                                                                           // screened for cooldown
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from update profile jobs that would assign profiles
@@ -2494,12 +2494,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("update_profile", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
-	require.Empty(t, profileAssignmentReqs) // screened for cooldown
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID) // cooling down so no retry job
+	require.Empty(t, profileAssignmentReqs)                                                                           // screened for cooldown
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// cooldown hosts are screened from delete profile jobs that would assign profiles
@@ -2507,12 +2503,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NoError(t, err)
 	checkPendingMacOSSetupAssistantJob("profile_deleted", &dummyTeam.ID, []string{eHost.HardwareSerial}, 0)
 	s.runIntegrationsSchedule()
-	require.Empty(t, profileAssignmentReqs) // screened for cooldown
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID) // cooling down so no retry job
+	require.Empty(t, profileAssignmentReqs)                                                                           // screened for cooldown
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// // TODO: Restore this test when FIXME on DeleteTeam is addressed
@@ -2533,12 +2525,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", nil, []string{eHost.HardwareSerial}, 0)
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	require.Empty(t, profileAssignmentReqs) // screened for cooldown
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID)
+	require.Empty(t, profileAssignmentReqs)                                                                           // screened for cooldown
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// simulate expired cooldown
@@ -2549,24 +2537,17 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	})
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
+	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
+	d = checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, nil)
 	require.NotZero(t, d.RetryJobID) // retry job created
 	jobID := d.RetryJobID
-	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
 	checkPendingMacOSSetupAssistantJob("hosts_cooldown", nil, []string{eHost.HardwareSerial}, jobID)
 
 	// running the DEP schedule should not trigger a profile assignment request when the retry job is pending
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Equal(t, jobID, d.RetryJobID)
-	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
+	require.Empty(t, profileAssignmentReqs)                                                                    // assign profile request will be made when the retry job is processed on the next worker run
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, &jobID) // no change
 	checkPendingMacOSSetupAssistantJob("hosts_cooldown", nil, []string{eHost.HardwareSerial}, jobID)
 
 	// run the inregration schedule and expect success
@@ -2574,12 +2555,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.NotEmpty(t, profileAssignmentReqs)
+	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
 	require.Equal(t, profUUID, profileAssignmentReqs[0].ProfileUUID)
-	bySerial = checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profUUID, fleet.DEPAssignProfileResponseSuccess)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Zero(t, d.RetryJobID) // retry job cleared
+	d = checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID) // retry job cleared
 	require.True(t, d.ResponseUpdatedAt.After(failedAt))
 	succeededAt := d.ResponseUpdatedAt
 	checkNoJobsPending()
@@ -2588,11 +2568,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.Empty(t, profileAssignmentReqs)
-	bySerial = checkHostDEPAssignProfileResponses([]string{eHost.HardwareSerial}, profUUID, fleet.DEPAssignProfileResponseSuccess)
-	d, ok = bySerial[eHost.HardwareSerial]
-	require.True(t, ok)
-	require.Zero(t, d.RetryJobID)
-	require.Equal(t, succeededAt, d.ResponseUpdatedAt)
+	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseSuccess, &succeededAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// ingest new device via DEP but the profile assignment fails
@@ -2604,14 +2580,13 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
 	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, serial, profileAssignmentReqs[0].Devices[0])
-	bySerial = checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseFailed)
 	profUUID = profileAssignmentReqs[0].ProfileUUID
-	d, ok = bySerial[serial]
-	require.True(t, ok)
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseFailed, nil, expectNoJobID)
+	profUUID = profileAssignmentReqs[0].ProfileUUID
 	require.NotZero(t, d.ResponseUpdatedAt)
 	failedAt = d.ResponseUpdatedAt
-	require.Zero(t, d.RetryJobID) // cooling down
 	checkNoJobsPending()
 
 	// list hosts shows dep profile error
@@ -2628,16 +2603,15 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{listHostsRes.Hosts[0].ID}}, http.StatusOK)
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", &team.ID, []string{serial}, 0)
 	s.runIntegrationsSchedule()
-	require.Empty(t, profileAssignmentReqs) // screened by cooldown
+	require.Empty(t, profileAssignmentReqs)                                                             // screened by cooldown
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// run the integrations schedule and expect no changes
+	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{serial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[serial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt)
-	require.Zero(t, d.RetryJobID)
+	require.Empty(t, profileAssignmentReqs)
+	checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
 	// simulate expired cooldown
@@ -2648,15 +2622,10 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	})
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{serial}, profUUID, fleet.DEPAssignProfileResponseFailed)
-	d, ok = bySerial[serial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt) // no change
-	require.NotZero(t, d.RetryJobID)                // retry job created
-	jobID = d.RetryJobID
 	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
-
-	// expect retry job pending
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, nil)
+	require.NotZero(t, d.RetryJobID) // retry job created
+	jobID = d.RetryJobID
 	checkPendingMacOSSetupAssistantJob("hosts_cooldown", &team.ID, []string{serial}, jobID)
 
 	// run the inregration schedule and expect success
@@ -2664,12 +2633,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.Len(t, profileAssignmentReqs, 1)
+	require.Len(t, profileAssignmentReqs[0].Devices, 1)
 	require.Equal(t, serial, profileAssignmentReqs[0].Devices[0])
 	require.NotEqual(t, profUUID, profileAssignmentReqs[0].ProfileUUID) // retry job will use the current team profile instead
-	bySerial = checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
-	d, ok = bySerial[serial]
-	require.True(t, ok)
-	require.Zero(t, d.RetryJobID) // retry job cleared
+	profUUID = profileAssignmentReqs[0].ProfileUUID
+	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID) // retry job cleared
 	require.True(t, d.ResponseUpdatedAt.After(failedAt))
 	checkNoJobsPending()
 
@@ -2700,12 +2668,9 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		} else {
 			require.Equal(t, expectProfileUUID, req.ProfileUUID)
 		}
-		bySerial = checkHostDEPAssignProfileResponses(req.Devices, req.ProfileUUID, fleet.DEPAssignProfileResponseNotAccessible)
-		d, ok = bySerial[serial]
-		require.True(t, ok)
+		d := checkHostCooldown(serial, req.ProfileUUID, fleet.DEPAssignProfileResponseNotAccessible, nil, expectNoJobID) // not accessible responses aren't retried
 		require.NotZero(t, d.ResponseUpdatedAt)
 		failedAt = d.ResponseUpdatedAt
-		require.Zero(t, d.RetryJobID) // not accessible responses aren't retried
 	}
 	// list hosts shows device pending and no dep profile error for not accessible responses
 	listHostsRes = listHostsResponse{}
@@ -2723,11 +2688,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	})
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	bySerial = checkHostDEPAssignProfileResponses([]string{serial}, expectProfileUUID, fleet.DEPAssignProfileResponseNotAccessible)
-	d, ok = bySerial[serial]
-	require.True(t, ok)
-	require.Equal(t, failedAt, d.ResponseUpdatedAt) // no change
-	require.Zero(t, d.RetryJobID)
+	require.Empty(t, profileAssignmentReqs)
+	checkHostCooldown(serial, expectProfileUUID, fleet.DEPAssignProfileResponseNotAccessible, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 }
 
