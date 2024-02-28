@@ -73,7 +73,7 @@ func packResponseForPack(ctx context.Context, svc fleet.Service, pack fleet.Pack
 		// Some users (e.g. gitops) are not able to read targets, thus
 		// we do not fail when gathering the total host count to not fail
 		// write packs request.
-		ok, gerr := viewer.UserIsGitOpsOnly(ctx)
+		ok, gerr := userIsGitOpsOnly(ctx)
 		if gerr != nil {
 			return nil, gerr
 		}

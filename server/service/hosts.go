@@ -657,11 +657,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	action, err := viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionList)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting action for user")
-	}
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, action); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return nil, err
 	}
 
@@ -670,12 +666,8 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
 	}
 
-	action, err = viewer.DetermineActionAllowingGitOps(ctx, fleet.ActionRead)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting action for user")
-	}
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, action); err != nil {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
