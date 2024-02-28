@@ -64,7 +64,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            | ✅         | ✅    |         |
-| Read organization settings\**                                                                                                              | ✅       | ✅         | ✅         | ✅    |         |
+| Read organization settings\**                                                                                                              | ✅       | ✅         | ✅         | ✅   | ✅      |
 | Read Single Sign-On settings\**                                                                                                            |          |            |            | ✅    |         |
 | Read SMTP settings\**                                                                                                                      |          |            |            | ✅    |         |
 | Read osquery agent options\**                                                                                                              |          |            |            | ✅    |         |
