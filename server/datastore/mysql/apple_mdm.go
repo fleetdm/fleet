@@ -2941,7 +2941,7 @@ func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Contex
 	stmt := `
 SELECT
 	CASE WHEN assign_profile_response = ?
-		AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND)) THEN
+		AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
 		'skip'
 	ELSE
 		'assign'

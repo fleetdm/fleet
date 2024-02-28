@@ -28,6 +28,7 @@ const (
 	MacosSetupAssistantHostsTransferred  MacosSetupAssistantTask = "hosts_transferred"
 	MacosSetupAssistantUpdateAllProfiles MacosSetupAssistantTask = "update_all_profiles"
 	MacosSetupAssistantUpdateProfile     MacosSetupAssistantTask = "update_profile"
+	MacosSetupAssistantHostsCooldown     MacosSetupAssistantTask = "hosts_cooldown"
 )
 
 // MacosSetupAssistant is the job processor for the macos_setup_assistant job.
@@ -72,7 +73,9 @@ func (m *MacosSetupAssistant) Run(ctx context.Context, argsJSON json.RawMessage)
 	case MacosSetupAssistantTeamDeleted:
 		return m.runTeamDeleted(ctx, args)
 	case MacosSetupAssistantHostsTransferred:
-		return m.runHostsTransferred(ctx, args)
+		return m.runHostsTransferred(ctx, args, false)
+	case MacosSetupAssistantHostsCooldown:
+		return m.runHostsTransferred(ctx, args, true)
 	case MacosSetupAssistantUpdateAllProfiles:
 		return m.runUpdateAllProfiles(ctx, args)
 	case MacosSetupAssistantUpdateProfile:
@@ -210,10 +213,10 @@ func (m *MacosSetupAssistant) runProfileDeleted(ctx context.Context, args macosS
 func (m *MacosSetupAssistant) runTeamDeleted(ctx context.Context, args macosSetupAssistantArgs) error {
 	// team deletion is semantically equivalent to moving hosts to "no team"
 	args.TeamID = nil // should already be this way, but just to make sure
-	return m.runHostsTransferred(ctx, args)
+	return m.runHostsTransferred(ctx, args, false)
 }
 
-func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args macosSetupAssistantArgs) error {
+func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args macosSetupAssistantArgs, fromCooldown bool) error {
 	team, err := m.getTeamNoTeam(ctx, args.TeamID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
@@ -242,21 +245,27 @@ func (m *MacosSetupAssistant) runHostsTransferred(ctx context.Context, args maco
 		}
 	}
 
-	skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, args.HostSerialNumbers)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "run hosts transferred")
+	serials := args.HostSerialNumbers
+	if !fromCooldown {
+		// if not a retry, then we need to screen the serials for cooldown
+		skipSerials, assignSerials, err := m.Datastore.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "run hosts transferred")
+		}
+		if len(skipSerials) > 0 {
+			// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
+			// after the cooldown period is over
+			level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+		}
+		serials = assignSerials
 	}
-	if len(skipSerials) > 0 {
-		// NOTE: the `dep_cooldown` job of the `integrations` cron picks up the assignments
-		// after the cooldown period is over
-		level.Info(m.Log).Log("msg", "run hosts transferred: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
-	}
-	if len(assignSerials) == 0 {
+
+	if len(serials) == 0 {
 		level.Info(m.Log).Log("msg", "run hosts transferred: no devices to assign profile")
 		return nil
 	}
 
-	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, assignSerials...)
+	resp, err := m.DEPClient.AssignProfile(ctx, apple_mdm.DEPName, profUUID, serials...)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "assign profile")
 	}
@@ -391,13 +400,9 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 		if teamID != 0 {
 			tid = &teamID
 		}
-		//
-		// NOTE: For now, we simply act as though cooled serials were transferred to the associated team.
-		// In the future, we may want to either rename the "hosts_transferred" task to something
-		// more generic or add some new cooldown-related task for the macOS setup assistant worker
-		// that encapsulates the logic to assign the profiles.
+
 		id, err := QueueMacosSetupAssistantJob(ctx, ds, logger,
-			MacosSetupAssistantHostsTransferred,
+			MacosSetupAssistantHostsCooldown,
 			tid, serials...,
 		)
 		if err != nil {

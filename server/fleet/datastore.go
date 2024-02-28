@@ -1107,7 +1107,8 @@ type Datastore interface {
 	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
 
 	// ScreenDEPAssignProfileSerialsForCooldown returns the serials that are still in cooldown and the
-	// ones that are ready to be assigned a profile.
+	// ones that are ready to be assigned a profile. If `screenRetryJobs` is true, it will also skip
+	// any serials that have a non-zero `retry_job_id`.
 	ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
 	// GetDEPAssignProfileExpiredCooldowns returns the serials of the hosts that have expired
 	// cooldowns, grouped by team.
