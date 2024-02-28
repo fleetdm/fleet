@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240219133527(t *testing.T) {
+func TestUp_20240228082706(t *testing.T) {
 	db := applyUpToPrev(t)
 	insertStmt := "INSERT INTO host_dep_assignments (host_id) VALUES (?);"
 	execNoErr(t, db, insertStmt, 1337)

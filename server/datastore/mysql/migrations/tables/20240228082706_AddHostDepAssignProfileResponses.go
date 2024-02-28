@@ -7,10 +7,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240219133527, Down_20240219133527)
+	MigrationClient.AddMigration(Up_20240228082706, Down_20240228082706)
 }
 
-func Up_20240219133527(tx *sql.Tx) error {
+func Up_20240228082706(tx *sql.Tx) error {
 	stmt := `
 ALTER TABLE host_dep_assignments
 	-- profile_uuid is the uuid of the enrollment profile that was assigned to the host (which should correspond to an entry in the mdm_apple_setup_assistants table)
@@ -34,6 +34,6 @@ ALTER TABLE host_dep_assignments
 	return nil
 }
 
-func Down_20240219133527(tx *sql.Tx) error {
+func Down_20240228082706(tx *sql.Tx) error {
 	return nil
 }
