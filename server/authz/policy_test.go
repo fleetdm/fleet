@@ -584,13 +584,13 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
 
-		// Global GitOps can write (not read) all.
-		{user: test.UserGitOps, object: host, action: read, allow: false},
+		// Global GitOps can write and read all.
+		{user: test.UserGitOps, object: host, action: read, allow: true},
 		{user: test.UserGitOps, object: host, action: write, allow: true},
-		{user: test.UserGitOps, object: host, action: list, allow: false},
-		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
+		{user: test.UserGitOps, object: host, action: list, allow: true},
+		{user: test.UserGitOps, object: hostTeam1, action: read, allow: true},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
-		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
+		{user: test.UserGitOps, object: hostTeam2, action: read, allow: true},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
 
 		// Team observer can read only on appropriate team
@@ -629,11 +629,11 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: write, allow: false},
 
-		// Team GitOps can cannot read/write hosts.
+		// Team GitOps can cannot read hosts, but it can read them.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
-		{user: teamGitOps, object: host, action: list, allow: false},
-		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: read, allow: true},
+		{user: teamGitOps, object: hostTeam1, action: list, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
@@ -1321,9 +1321,9 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 		{user: test.UserObserverPlus, object: team1Profile, action: read, allow: false},
 
 		{user: test.UserGitOps, object: globalProfile, action: write, allow: true},
-		{user: test.UserGitOps, object: globalProfile, action: read, allow: false},
+		{user: test.UserGitOps, object: globalProfile, action: read, allow: true},
 		{user: test.UserGitOps, object: team1Profile, action: write, allow: true},
-		{user: test.UserGitOps, object: team1Profile, action: read, allow: false},
+		{user: test.UserGitOps, object: team1Profile, action: read, allow: true},
 
 		{user: test.UserTeamAdminTeam1, object: globalProfile, action: write, allow: false},
 		{user: test.UserTeamAdminTeam1, object: globalProfile, action: read, allow: false},
@@ -1368,7 +1368,7 @@ func TestAuthorizeMDMConfigProfile(t *testing.T) {
 		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: globalProfile, action: read, allow: false},
 		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: write, allow: true},
-		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: read, allow: false},
+		{user: test.UserTeamGitOpsTeam1, object: team1Profile, action: read, allow: true},
 
 		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: write, allow: false},
 		{user: test.UserTeamGitOpsTeam2, object: globalProfile, action: read, allow: false},
