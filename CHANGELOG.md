@@ -1,23 +1,41 @@
-## Fleet 4.46.0 (Feb 26, 2024)
+## Fleet 4.46.2 ()
 
-### Changes
+### Bug fixes
+
+* Fixed UI styling of loading state for automatic enrollment settings page.
+
+## Fleet 4.46.0 (Feb 23, 2024)
+
+### Bug fixes
 
 * Fixed issues with how errors were captured in Sentry:
-        - The stack trace is now more precise.
-        - More error paths were captured in Sentry.
-        - **Note: Many more entries could be generated in Sentry compared to earlier Fleet versions. Sentry capacity should be planned accordingly.**
+	- The stack trace is now more precise.
+	- More error paths were captured in Sentry.
+	- **Note: Many more entries could be generated in Sentry compared to earlier Fleet versions. Sentry capacity should be planned accordingly.**
+
 - User settings/profile page officially renamed to account page
+
 - UI Edit team more properly labeled as rename team
+
 - Fixed issue where the "Type" column was empty for Windows MDM profile commands when running `fleetctl get mdm-commands` and `fleetctl get mdm-command-results`.
+
 - Upgraded Golang version to 1.21.7
+
 - Updated UI's empty policy states
+
 * Automatically renewed macOS identity certificates for devices 30 days prior to their expiration.
-* Fixed bug where updating policy name could result in multiple policies with the same name in a team.
-  - This bug was introduced in Fleet v4.44.1. Any duplicate policy names in the same team were renamed by adding a number to the end of the policy name.
+
+Fixed bug where updating policy name could result in multiple policies with the same name in a team.
+- This bug was introduced in Fleet v4.44.1. Any duplicate policy names in the same team were renamed by adding a number to the end of the policy name.
+
 - Fixed an issue where some MDM profile installation errors would not be shown in Fleet.
+
 - Deleting a policy updated the policy count
+
 - Moved show query button to show in report page even with no results
+
 - Updated page description styling
+
 - Fixed UI loading state for software versions and OS for the initial request.
 
 ## Fleet 4.45.1 (Feb 23, 2024)
