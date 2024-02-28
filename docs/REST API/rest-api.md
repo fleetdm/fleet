@@ -5955,8 +5955,6 @@ Team policies work the same as policies, but at the team level.
 
 ```json
 {
-  "policy_count": 2,
-  "inherited_policy_count": 1,
   "policies": [
     {
       "id": 1,
