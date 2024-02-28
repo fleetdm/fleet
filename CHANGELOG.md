@@ -7,7 +7,7 @@
 * Added logging when a Redis connection is blocked for a long time waiting for live query results.
 * Added support for the `redis.conn_wait_timeout` configuration setting for Redis standalone (it was previously only supported on Redis cluster).
 * Added Redis cleanup of inactive queries in a cron job, so temporary Redis failures to stop a live query doesn't leave such queries around for a long time.
-* Fix orphaned live queries in Redis when client terminates connection 
+* Fixed orphaned live queries in Redis when client terminates connection 
 	- `POST /api/latest/fleet/queries/{id}/run`
 	- `GET /api/latest/fleet/queries/run`
 	- `POST /api/latest/fleet/hosts/identifier/{identifier}/query` 
