@@ -1,3 +1,4 @@
+
 ## Fleet 4.46.1 (Feb 27, 2024)
 
 ### Bug fixes
@@ -12,6 +13,7 @@
 	- `GET /api/latest/fleet/queries/run`
 	- `POST /api/latest/fleet/hosts/identifier/{identifier}/query` 
 	- `POST /api/latest/fleet/hosts/{id}/query`
+* Added --server_frequent_cleanups_enabled (FLEET_SERVER_FREQUENT_CLEANUPS_ENABLED) flag to enable cron job to clean up stale data running every 15 minutes. Currently disabled by default.
 
 ## Fleet 4.46.0 (Feb 23, 2024)
 
