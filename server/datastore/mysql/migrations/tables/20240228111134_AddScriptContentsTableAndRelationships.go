@@ -1,7 +1,7 @@
 package tables
 
 import (
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec
 	"database/sql"
 	"encoding/hex"
 	"fmt"
@@ -181,7 +181,7 @@ WHERE
 }
 
 func md5ChecksumScriptContent(s string) string {
-	rawChecksum := md5.Sum([]byte(s))
+	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
