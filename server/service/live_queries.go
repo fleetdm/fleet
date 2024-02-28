@@ -277,11 +277,12 @@ func (svc *Service) RunLiveQueryDeadline(
 			}
 			defer cancelFunc()
 
+			// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
+			// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
+			// Also, we make sure stats and activity DB operations don't get killed after we return results.
+			ctxWithoutCancel := context.WithoutCancel(ctx)
 			defer func() {
-				// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
-				// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
-				ctx := context.WithoutCancel(ctx)
-				err := svc.CompleteCampaign(ctx, campaign)
+				err := svc.CompleteCampaign(ctxWithoutCancel, campaign)
 				if err != nil {
 					level.Error(svc.logger).Log("msg", "completing campaign (sync)", "query.id", campaign.QueryID, "err", err)
 					resultsCh <- fleet.QueryCampaignResult{
@@ -305,8 +306,6 @@ func (svc *Service) RunLiveQueryDeadline(
 				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 				perfStatsTracker.saveStats = false
 			}
-			// to make sure stats and activity DB operations don't get killed after we return results.
-			ctxWithoutCancel := context.WithoutCancel(ctx)
 			totalHosts := campaign.Metrics.TotalHosts
 			// We update aggregated stats and activity at the end asynchronously.
 			defer func() {
