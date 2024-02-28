@@ -1047,6 +1047,14 @@ const ManageHostsPage = ({
         status,
         labelId,
         currentTeam,
+        policyId,
+        policyResponse,
+        softwareId,
+        softwareTitleId,
+        softwareVersionId,
+        osName,
+        osVersionId,
+        osVersion,
       });
     }
 

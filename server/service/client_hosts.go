@@ -123,10 +123,19 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{
 		TeamID: teamIDPtr, Filters: struct {
-			MatchQuery string           `json:"query"`
-			Status     fleet.HostStatus `json:"status"`
-			LabelID    *uint            `json:"label_id"`
-			TeamID     *uint            `json:"team_id"`
+			MatchQuery        string           `json:"query"`
+			Status            fleet.HostStatus `json:"status"`
+			LabelID           *uint            `json:"label_id"`
+			TeamID            *uint            `json:"team_id"`
+			PolicyID          *uint            `json:"policy_id"`
+			PolicyResponse    *bool            `json:"policy_response"`
+			SoftwareID        *uint            `json:"software_id"`
+			SoftwareTitleID   *uint            `json:"software_title_id"`
+			SoftwareVersionID *uint            `json:"software_version_id"`
+			OSID              *uint            `json:"os_id"`
+			OSName            *string          `json:"os_name"`
+			OSVersion         *string          `json:"os_version"`
+			OSVersionID       *uint            `json:"os_version_id"`
 		}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr},
 	}
 	return c.authenticatedRequest(params, verb, path, &responseBody)
