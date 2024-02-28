@@ -2870,14 +2870,18 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 
 func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
 	if payload == nil {
-		// caller should not ensure this does not happen
+		// caller should ensure this does not happen
 		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
 		return nil
 	}
 
+	// we expect all devices to success so pre-allocate just the success slice
 	success := make([]string, 0, len(payload.Devices))
-	notAccessible := make([]string, 0, len(payload.Devices))
-	failed := make([]string, 0, len(payload.Devices))
+	var (
+		notAccessible []string
+		failed        []string
+	)
+
 	for serial, status := range payload.Devices {
 		switch status {
 		case string(fleet.DEPAssignProfileResponseSuccess):
@@ -2940,8 +2944,8 @@ WHERE
 	return nil
 }
 
-// DEPCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
-const DEPCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
+// depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
+const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
 	stmt := `
@@ -2960,7 +2964,7 @@ WHERE
 	hardware_serial IN (?)	
 `
 
-	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), DEPCooldownPeriod.Seconds(), serials)
+	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
 	if err != nil {
 		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
 	}
@@ -3005,7 +3009,7 @@ WHERE
 		TeamID         uint   `db:"team_id"`
 		HardwareSerial string `db:"hardware_serial"`
 	}
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), DEPCooldownPeriod.Seconds()); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depCooldownPeriod.Seconds()); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
 	}
 

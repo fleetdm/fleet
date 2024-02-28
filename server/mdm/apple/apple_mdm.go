@@ -524,10 +524,10 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		if len(skipSerials) > 0 {
 			// NOTE: the `dep_cooldown` job of the `integrations`` cron picks up the assignments
 			// after the cooldown period is over
-			level.Info(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
+			level.Debug(logger).Log("msg", "process device response: skipping assign profile for devices on cooldown", "serials", fmt.Sprintf("%s", skipSerials))
 		}
 		if len(assignSerials) == 0 {
-			level.Info(logger).Log("msg", "process device response: no devices to assign profile")
+			level.Debug(logger).Log("msg", "process device response: no devices to assign profile")
 			continue
 		}
 
