@@ -105,7 +105,7 @@ const SaveNewPolicyModal = ({
 
   return (
     <Modal
-      title={"Save policy"}
+      title="Save policy"
       onExit={() => setIsSaveNewPolicyModalOpen(false)}
     >
       <>

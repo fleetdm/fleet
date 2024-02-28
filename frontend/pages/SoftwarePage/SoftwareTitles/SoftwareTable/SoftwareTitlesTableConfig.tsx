@@ -8,6 +8,7 @@ import {
   formatSoftwareType,
 } from "interfaces/software";
 import PATHS from "router/paths";
+import { buildQueryStringFromParams } from "utilities/url";
 
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
@@ -91,16 +92,21 @@ const generateTableHeaders = (
       Cell: (cellProps: IStringCellProps): JSX.Element => {
         const { id, name, source } = cellProps.row.original;
 
+        const teamQueryParam = buildQueryStringFromParams({ team_id: teamId });
+        const softwareTitleDetailsPath = `${PATHS.SOFTWARE_TITLE_DETAILS(
+          id.toString()
+        )}?${teamQueryParam}`;
+
         const onClickSoftware = (e: React.MouseEvent) => {
           // Allows for button to be clickable in a clickable row
           e.stopPropagation();
 
-          router?.push(PATHS.SOFTWARE_TITLE_DETAILS(id.toString()));
+          router?.push(softwareTitleDetailsPath);
         };
 
         return (
           <LinkCell
-            path={PATHS.SOFTWARE_TITLE_DETAILS(id.toString())}
+            path={softwareTitleDetailsPath}
             customOnClick={onClickSoftware}
             value={
               <>
@@ -144,7 +150,7 @@ const generateTableHeaders = (
       accessor: "vulnerabilities",
       Cell: (cellProps: IVulnCellProps): JSX.Element => {
         const vulnerabilities = getVulnerabilities(
-          cellProps.row.original.versions
+          cellProps.row.original.versions ?? []
         );
         return <VulnerabilitiesCell vulnerabilities={vulnerabilities} />;
       },
@@ -161,21 +167,26 @@ const generateTableHeaders = (
       disableSortBy: false,
       accessor: "hosts_count",
       Cell: (cellProps: INumberCellProps): JSX.Element => (
-        <span className="hosts-cell__wrapper">
-          <span className="hosts-cell__count">
-            <TextCell value={cellProps.cell.value} />
-          </span>
-          <span className="hosts-cell__link">
-            <ViewAllHostsLink
-              queryParams={{
-                software_title_id: cellProps.row.original.id,
-                team_id: teamId, // TODO: do we need team id here?
-              }}
-              className="software-link"
-            />
-          </span>
-        </span>
+        <TextCell value={cellProps.cell.value} />
       ),
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: ICellProps) => {
+        return (
+          <ViewAllHostsLink
+            queryParams={{
+              software_title_id: cellProps.row.original.id,
+              team_id: teamId, // TODO: do we need team id here?
+            }}
+            className="software-link"
+            rowHover
+          />
+        );
+      },
     },
   ];
 

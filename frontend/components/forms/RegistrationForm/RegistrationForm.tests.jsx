@@ -10,7 +10,7 @@ describe("RegistrationForm - component", () => {
     expect(
       container.querySelectorAll(".user-registration__container--admin").length
     ).toEqual(1);
-    expect(screen.getByText("Setup user")).toBeInTheDocument();
+    expect(screen.getByText("Set up user")).toBeInTheDocument();
   });
 
   it("renders OrgDetails on the second page", () => {

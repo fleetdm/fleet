@@ -1,6 +1,6 @@
 import React from "react";
 
-import { IActivity, IActivityDetails } from "interfaces/activity";
+import { IActivity } from "interfaces/activity";
 import { IActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
@@ -42,7 +42,7 @@ const PastActivityFeed = ({
   if (activitiesList === null || activitiesList.length === 0) {
     return (
       <EmptyFeed
-        title="No Activity"
+        title="No activity"
         message="When a script runs on a host, it shows up here."
         className={`${baseClass}__empty-feed`}
       />

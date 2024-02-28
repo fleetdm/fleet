@@ -58,6 +58,10 @@ export default {
   SOFTWARE_OS_DETAILS: (id: number): string => {
     return `${URL_PREFIX}/software/os/${id}`;
   },
+  SOFTWARE_VULNERABILITIES: `${URL_PREFIX}/software/vulnerabilities`,
+  SOFTWARE_VULNERABILITY_DETAILS: (cve: string): string => {
+    return `${URL_PREFIX}/software/vulnerabilities/${cve}`;
+  },
 
   EDIT_PACK: (packId: number): string => {
     return `${URL_PREFIX}/packs/${packId}/edit`;
@@ -163,6 +167,6 @@ export default {
     `${URL_PREFIX}/queries/new${teamId ? `?team_id=${teamId}` : ""}`,
   RESET_PASSWORD: `${URL_PREFIX}/login/reset`,
   SETUP: `${URL_PREFIX}/setup`,
-  USER_SETTINGS: `${URL_PREFIX}/profile`,
+  ACCOUNT: `${URL_PREFIX}/account`,
   URL_PREFIX,
 };

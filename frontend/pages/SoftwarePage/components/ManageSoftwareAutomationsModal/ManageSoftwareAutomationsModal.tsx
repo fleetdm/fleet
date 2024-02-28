@@ -353,9 +353,9 @@ const ManageAutomationsModal = ({
             searchable
             options={createIntegrationDropdownOptions()}
             onChange={onChangeSelectIntegration}
-            placeholder={"Select integration"}
+            placeholder="Select integration"
             value={selectedIntegration?.dropdownIndex}
-            label={"Integration"}
+            label="Integration"
             wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
             helpText="For each new vulnerability detected, Fleet will create a ticket with a list of the affected hosts."
           />
@@ -396,15 +396,15 @@ const ManageAutomationsModal = ({
         <InputField
           inputWrapperClass={`${baseClass}__url-input`}
           name="webhook-url"
-          label={"Destination URL"}
-          type={"text"}
+          label="Destination URL"
+          type="text"
           value={destinationUrl}
           onChange={onURLChange}
           error={errors.url}
           helpText={
             "For each new vulnerability detected, Fleet will send a JSON payload to this URL with a list of the affected hosts."
           }
-          placeholder={"https://server.com/example"}
+          placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
         />
         <Button
@@ -434,7 +434,7 @@ const ManageAutomationsModal = ({
   return (
     <Modal
       onExit={onReturnToApp}
-      title={"Manage automations"}
+      title="Manage automations"
       className={baseClass}
       width="large"
     >
@@ -444,8 +444,8 @@ const ManageAutomationsModal = ({
           onChange={() =>
             setSoftwareAutomationsEnabled(!softwareAutomationsEnabled)
           }
-          inactiveText={"Vulnerability automations disabled"}
-          activeText={"Vulnerability automations enabled"}
+          inactiveText="Vulnerability automations disabled"
+          activeText="Vulnerability automations enabled"
         />
         <div
           className={`form ${baseClass}__software-automations${
@@ -456,20 +456,20 @@ const ManageAutomationsModal = ({
             <div className="form-field__label">Workflow</div>
             <Radio
               className={`${baseClass}__radio-input`}
-              label={"Ticket"}
-              id={"ticket-radio-btn"}
+              label="Ticket"
+              id="ticket-radio-btn"
               checked={integrationEnabled}
-              value={"ticket"}
-              name={"ticket"}
+              value="ticket"
+              name="ticket"
               onChange={onRadioChange(true)}
             />
             <Radio
               className={`${baseClass}__radio-input`}
-              label={"Webhook"}
-              id={"webhook-radio-btn"}
+              label="Webhook"
+              id="webhook-radio-btn"
               checked={!integrationEnabled}
-              value={"webhook"}
-              name={"webhook"}
+              value="webhook"
+              name="webhook"
               onChange={onRadioChange(false)}
             />
           </div>

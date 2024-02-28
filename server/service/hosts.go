@@ -22,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	"github.com/gocarina/gocsv"
 )
@@ -92,7 +93,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, false)
+		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -102,7 +103,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		var err error
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter)
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -1100,6 +1101,33 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
+	}
+
+	// unlocked with no pending action is the default state
+	// TODO(mna): make constants for those values
+	host.MDM.DeviceStatus = ptr.String("unlocked")
+	host.MDM.PendingAction = ptr.String("")
+	// device status
+	switch {
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
+	case mdmActions.IsWiped():
+		host.MDM.DeviceStatus = ptr.String("wiped")
+	}
+
+	// pending action, if any
+	switch {
+	case mdmActions.IsPendingLock():
+		host.MDM.PendingAction = ptr.String("lock")
+	case mdmActions.IsPendingUnlock():
+		host.MDM.PendingAction = ptr.String("unlock")
+	case mdmActions.IsPendingWipe():
+		host.MDM.PendingAction = ptr.String("wipe")
+	}
+
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
@@ -1885,22 +1913,35 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
+	if osVersion == nil {
+		osVersion = &fleet.OSVersion{}
+	}
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
 
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+		}
+	}
 	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
-		return nil, nil, err
+	if osVersion != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return osVersion, updateTime, nil
@@ -2076,4 +2117,42 @@ func (svc *Service) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHeal
 	}
 
 	return hh, nil
+}
+
+func (svc *Service) HostLiteByIdentifier(ctx context.Context, identifier string) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByIdentifier(ctx, identifier)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by identifier")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
+}
+
+func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return nil, err
+	}
+
+	host, err := svc.ds.HostLiteByID(ctx, id)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host by id")
+	}
+
+	if err := svc.authz.Authorize(ctx, fleet.Host{
+		TeamID: host.TeamID,
+	}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	return host, nil
 }

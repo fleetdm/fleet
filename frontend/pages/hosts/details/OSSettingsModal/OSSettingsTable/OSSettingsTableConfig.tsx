@@ -61,22 +61,35 @@ interface IDataColumn {
  */
 const generateFormattedTooltip = (detail: string) => {
   const keyValuePairs = detail.split(/, */);
-  const formattedElements = keyValuePairs.map((pair, index) => {
+  const formattedElements: JSX.Element[] = [];
+
+  // Special case to handle bitlocker error message. It does not follow the
+  // expected string format so we will just render the error message as is.
+  if (
+    detail.includes("BitLocker") ||
+    detail.includes("preparing volume for encryption")
+  ) {
+    return detail;
+  }
+
+  keyValuePairs.forEach((pair, i) => {
     const [key, value] = pair.split(/: */);
-    return (
-      <span key={key}>
-        <b>{key.trim()}:</b> {value.trim()}
-        {/* dont add the trailing comma for the last element */}
-        {index !== keyValuePairs.length - 1 && (
-          <>
-            ,<br />
-          </>
-        )}
-      </span>
-    );
+    if (key && value) {
+      formattedElements.push(
+        <span key={key}>
+          <b>{key.trim()}:</b> {value.trim()}
+          {/* dont add the trailing comma for the last element */}
+          {i !== keyValuePairs.length - 1 && (
+            <>
+              ,<br />
+            </>
+          )}
+        </span>
+      );
+    }
   });
 
-  return <>{formattedElements}</>;
+  return formattedElements.length ? <>{formattedElements}</> : detail;
 };
 
 /**

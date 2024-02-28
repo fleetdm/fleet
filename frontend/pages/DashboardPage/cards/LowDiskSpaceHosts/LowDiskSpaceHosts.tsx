@@ -47,7 +47,7 @@ const LowDiskSpaceHosts = ({
   return (
     <div className={baseClass}>
       <SummaryTile
-        iconName={"low-disk-space-hosts"}
+        iconName="low-disk-space-hosts"
         count={lowDiskSpaceCount}
         isLoading={isLoadingHosts}
         showUI={showHostsUI}

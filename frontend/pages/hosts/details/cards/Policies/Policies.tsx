@@ -30,7 +30,6 @@ const Policies = ({
         <EmptyTable
           header={
             <>
-              {" "}
               No policies are checked{" "}
               {deviceUser ? `on your device` : `for this host`}
             </>
@@ -69,7 +68,7 @@ const Policies = ({
             data={generatePolicyDataSet(policies)}
             isLoading={isLoading}
             manualSortBy
-            resultsTitle={"policy items"}
+            resultsTitle="policy items"
             emptyComponent={() => <></>}
             showMarkAllPages={false}
             isAllPagesSelected={false}

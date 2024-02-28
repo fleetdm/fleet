@@ -143,21 +143,15 @@ module.exports.custom = {
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
-    // 🦿 Repo automation and change control settings
+    // 🌐 Repo automation and change control settings
     // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
     'website/config/custom.js': 'mikermcneil',
 
-    // 🦿 Handbook
-    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/company/ceo.md': 'sampfluger88',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/business-operations': 'mikermcneil',
-    //'handbook/engineering': 'lukeheath',
-    //'handbook/product': 'noahtalerman',
-    //'handbook/customers': 'alexmitchelliii',
-    //'handbook/marketing': 'mikermcneil',
+    // 🌐 Handbook
+    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
 
-    // 🦿 GitHub issue templates
+
+    // 🌐 GitHub issue templates
     // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
 
   },
@@ -188,7 +182,7 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
-    'schema': ['rachaelshaw'],// (Osquery table schema)
+    'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
@@ -225,16 +219,15 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': 'mikermcneil',
-    // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/README.md': 'mikermcneil',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/company/ceo.md': ['sampfluger88'],
-    //'handbook/business-operations': ['jostableford'],
-    //'handbook/engineering': ['lukeheath'],
-    //'handbook/product': ['noahtalerman'],
-    //'handbook/customers': ['alexmitchelliii'],
-    //'handbook/marketing': ['mike-j-thomas'],
+    'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    'handbook/company': 'mikermcneil',
+    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
+    'handbook/business-operations': ['sampfluger88','mikermcneil'],
+    'handbook/engineering': ['sampfluger88','mikermcneil'],
+    'handbook/product-design': ['sampfluger88','mikermcneil'],
+    'handbook/sales': ['sampfluger88','mikermcneil'],
+    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/customer-success': ['sampfluger88','mikermcneil'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
