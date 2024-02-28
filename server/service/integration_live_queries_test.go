@@ -1142,3 +1142,124 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaignBadRequest() {
 	appCfg = fleet.AppConfig{ServerSettings: fleet.ServerSettings{LiveQueryDisabled: false, ServerURL: acResp.ServerSettings.ServerURL}, OrgInfo: fleet.OrgInfo{OrgName: acResp.OrgInfo.OrgName}}
 	s.DoRaw("PATCH", "/api/latest/fleet/config", jsonMustMarshal(t, appCfg), http.StatusOK)
 }
+
+func (s *liveQueriesTestSuite) TestLiveQueriesOneHostOneQueryCancel() {
+	test := func(endpoint liveQueryEndpoint, savedQuery bool, hasStats bool) {
+		t := s.T()
+
+		host := s.hosts[0]
+
+		query := t.Name() + " select 1 from osquery;"
+		q1, err := s.ds.NewQuery(
+			context.Background(), &fleet.Query{
+				Query:       query,
+				Description: "desc1",
+				Name:        t.Name() + "query1",
+				Logging:     fleet.LoggingSnapshot,
+				Saved:       savedQuery,
+			},
+		)
+		require.NoError(t, err)
+
+		s.lq.On("QueriesForHost", uint(1)).Return(map[string]string{fmt.Sprint(q1.ID): query}, nil)
+		s.lq.On("QueryCompletedByHost", mock.Anything, mock.Anything).Return(nil)
+		s.lq.On("RunQuery", mock.Anything, query, []uint{host.ID}).Return(nil)
+		s.lq.On("StopQuery", mock.Anything).Return(nil)
+
+		wg := sync.WaitGroup{}
+		wg.Add(1)
+
+		ctx, cancel := context.WithCancel(context.Background())
+
+		if endpoint == oneQueryEndpoint {
+			liveQueryRequest := runOneLiveQueryRequest{
+				HostIDs: []uint{host.ID},
+			}
+			go func() {
+				defer wg.Done()
+				_, err := s.DoRequest(ctx, "POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), liveQueryRequest)
+				require.Error(t, err)
+				require.ErrorIs(t, err, context.Canceled)
+			}()
+		} else if endpoint == oldEndpoint {
+			liveQueryRequest := runLiveQueryRequest{
+				QueryIDs: []uint{q1.ID},
+				HostIDs:  []uint{host.ID},
+			}
+			go func() {
+				defer wg.Done()
+				_, err := s.DoRequest(ctx, "GET", "/api/latest/fleet/queries/run", liveQueryRequest)
+				require.Error(t, err)
+				require.ErrorIs(t, err, context.Canceled)
+			}()
+		} else { // customQueryOneHostId(.*)Endpoint
+			liveQueryRequest := runLiveQueryOnHostRequest{
+				Query: query,
+			}
+			url := fmt.Sprintf("/api/latest/fleet/hosts/%d/query", host.ID)
+			if endpoint == customQueryOneHostIdentifierEndpoint {
+				url = fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID)
+			}
+			go func() {
+				defer wg.Done()
+				_, err := s.DoRequest(ctx, "POST", url, liveQueryRequest)
+				require.Error(t, err)
+				require.ErrorIs(t, err, context.Canceled)
+			}()
+		}
+
+		// For loop, waiting for campaign to be created.
+		cidChannel := make(chan string)
+		go func() {
+			ticker := time.NewTicker(100 * time.Millisecond)
+			defer ticker.Stop()
+			for range ticker.C {
+				if endpoint == customQueryOneHostIdentifierEndpoint || endpoint == customQueryOneHostIdEndpoint {
+					campaign := fleet.DistributedQueryCampaign{}
+					err := mysql.ExecAdhocSQLWithError(
+						s.ds, func(q sqlx.ExtContext) error {
+							return sqlx.GetContext(
+								context.Background(), q, &campaign,
+								`SELECT * FROM distributed_query_campaigns WHERE status = ? ORDER BY id DESC LIMIT 1`,
+								fleet.QueryRunning,
+							)
+						},
+					)
+					if errors.Is(err, sql.ErrNoRows) {
+						continue
+					}
+					if err != nil {
+						t.Error("Error selecting from distributed_query_campaigns", err)
+						return
+					}
+					q1.ID = campaign.QueryID
+					cidChannel <- fmt.Sprint(campaign.ID)
+					return
+				}
+				campaigns, err := s.ds.DistributedQueryCampaignsForQuery(context.Background(), q1.ID)
+				require.NoError(t, err)
+
+				if len(campaigns) == 1 && campaigns[0].Status == fleet.QueryRunning {
+					cidChannel <- fmt.Sprint(campaigns[0].ID)
+					return
+				}
+			}
+		}()
+		select {
+		case <-cidChannel:
+		case <-time.After(5 * time.Second):
+			t.Fatal("Timeout: campaign not created/running for TestLiveQueriesRestOneHostOneQuery")
+		}
+
+		cancel()
+
+		wg.Wait()
+	}
+
+	s.Run("not saved query (old)", func() { test(oldEndpoint, false, true) })
+	s.Run("saved query without stats (old)", func() { test(oldEndpoint, true, false) })
+	s.Run("not saved query", func() { test(oneQueryEndpoint, false, true) })
+	s.Run("saved query without stats", func() { test(oneQueryEndpoint, true, false) })
+	s.Run("custom query by host id", func() { test(customQueryOneHostIdEndpoint, false, false) })
+	s.Run("custom query by host identifier", func() { test(customQueryOneHostIdentifierEndpoint, false, false) })
+}
