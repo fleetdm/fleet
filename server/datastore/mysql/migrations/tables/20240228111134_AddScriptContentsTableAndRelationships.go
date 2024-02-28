@@ -147,10 +147,10 @@ WHERE
 	// migration.
 	updateSavedScriptsStmt := `
 UPDATE
-	scripts,
-	updated_at = updated_at
+	scripts
 SET
-	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?))
+	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)),
+	updated_at = updated_at
 WHERE
 	id = ?`
 
