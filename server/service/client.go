@@ -865,6 +865,7 @@ func (c *Client) DoGitOps(
 	baseDir string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
+	premium bool,
 ) error {
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -909,11 +910,13 @@ func (c *Client) DoGitOps(
 			macOSMigration["enable"] = false
 		}
 		// Put in default values for windows_enabled_and_configured
-		if config.Controls.WindowsEnabledAndConfigured != nil {
-			mdmAppConfig["windows_enabled_and_configured"] = false
-		} else {
-			mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
-		}
+		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		// TODO: Need to update fleet-gitops repo before disabling by default.
+		//if config.Controls.WindowsEnabledAndConfigured != nil {
+		//	mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		//} else {
+		//	mdmAppConfig["windows_enabled_and_configured"] = false
+		//}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 	} else {
 		team = make(map[string]interface{})
@@ -988,9 +991,11 @@ func (c *Client) DoGitOps(
 	} else {
 		mdmAppConfig["windows_settings"] = map[string]interface{}{}
 	}
-	windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
-	if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
-		windowsSettings["custom_settings"] = []interface{}{}
+	if mdmAppConfig["windows_enabled_and_configured"] == true {
+		windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
+		if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
+			windowsSettings["custom_settings"] = []interface{}{}
+		}
 	}
 	// Put in default values for windows_updates
 	if config.Controls.WindowsUpdates != nil {
@@ -998,12 +1003,14 @@ func (c *Client) DoGitOps(
 	} else {
 		mdmAppConfig["windows_updates"] = map[string]interface{}{}
 	}
-	windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
-	if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
-		windowsUpdates["deadline_days"] = 0
-	}
-	if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
-		windowsUpdates["grace_period_days"] = 0
+	if premium {
+		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
+		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
+			windowsUpdates["deadline_days"] = 0
+		}
+		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
+			windowsUpdates["grace_period_days"] = 0
+		}
 	}
 	// Put in default value for enable_disk_encryption
 	if config.Controls.EnableDiskEncryption != nil {
