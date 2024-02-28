@@ -27,6 +27,15 @@ The metrics are:
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
+#### Create an engineering-initiated story
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
+
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
+
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
@@ -179,7 +188,6 @@ When merging a pull request from a community contributor:
 - Merge the PR.
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
-
 
 ### Schedule developer on-call workload
 Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
@@ -334,40 +342,40 @@ Please see [handbook/engineering#notify-community-members-about-a-critical-bug](
 Please see [handbook/engineering#run-fleet-locally-for-qa-purposes](https://fleetdm.com/handbook/engineering#run-fleet-localy-for-qa-purposes)
 
 ##### Scrum at Fleet
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
 
 ##### Scrum items
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#scrum-items)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-items)
 
 ##### Sprint ceremonies
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
 
 ##### Meetings
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#meetings)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#meetings)
 
 ##### Principles
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#principles)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#principles)
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
 ##### Eng Together
 ##### Participants
 ##### Agenda
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### User story discovery
 ##### Participants
 ##### Agenda
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### Group weeklies
 ##### Participants
 ##### Sample agenda (Frontend weekly)
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
 ##### Engineering-initiated stories
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#engineering-initiated-stories)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/engineering#create-an-engineering-initiated-story)
 
 ##### Creating an engineering-initiated story
 Please see [handbook/engineering#create-an-engineering-initiated-user-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-user-story)

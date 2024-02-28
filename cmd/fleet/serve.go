@@ -680,10 +680,14 @@ the way that the Fleet server works.
 				}
 			}()
 
-			if err := cronSchedules.StartCronSchedule(func() (fleet.CronSchedule, error) {
-				return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
-			}); err != nil {
-				initFatal(err, "failed to register frequent_cleanups schedule")
+			if config.Server.FrequentCleanupsEnabled {
+				if err := cronSchedules.StartCronSchedule(
+					func() (fleet.CronSchedule, error) {
+						return newFrequentCleanupsSchedule(ctx, instanceID, ds, liveQueryStore, logger)
+					},
+				); err != nil {
+					initFatal(err, "failed to register frequent_cleanups schedule")
+				}
 			}
 
 			if err := cronSchedules.StartCronSchedule(
@@ -693,7 +697,7 @@ the way that the Fleet server works.
 						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					}
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, liveQueryStore, logger, redisWrapperDS, &config, commander,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
 					)
 				},
 			); err != nil {

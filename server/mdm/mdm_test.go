@@ -145,6 +145,16 @@ func TestGetRawProfilePlatform(t *testing.T) {
 			expected: "windows",
 		},
 		{
+			name:     "Windows case insensitive add ",
+			input:    []byte("<ADD this=\"that\">"),
+			expected: "windows",
+		},
+		{
+			name:     "Windows case sensitive add",
+			input:    []byte("<Add this=\"that\">"),
+			expected: "windows",
+		},
+		{
 			name:     "Whitespace before prefix",
 			input:    []byte("   <?xml version=\"1.0\"?>"),
 			expected: "darwin",

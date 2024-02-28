@@ -705,7 +705,6 @@ func newCleanupsAndAggregationSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
-	lq fleet.LiveQueryStore,
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
@@ -721,6 +720,13 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithAltLockID("leader"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
+		schedule.WithJob(
+			"distributed_query_campaigns",
+			func(ctx context.Context) error {
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
+				return err
+			},
+		),
 		schedule.WithJob(
 			"incoming_hosts",
 			func(ctx context.Context) error {
@@ -846,16 +852,16 @@ func newFrequentCleanupsSchedule(
 	s := schedule.New(
 		ctx, name, instanceID, defaultInterval, ds, ds,
 		// Using leader for the lock to be backwards compatilibity with old deployments.
-		schedule.WithAltLockID("leader"),
+		schedule.WithAltLockID("leader_frequent_cleanups"),
 		schedule.WithLogger(kitlog.With(logger, "cron", name)),
 		// Run cleanup jobs first.
 		schedule.WithJob(
-			"distributed_query_campaigns",
+			"redis_live_queries",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
-				if err != nil {
-					return err
-				}
+				// It's necessary to avoid lingering live queries in case of:
+				// - (Unknown) bug in the implementation, or,
+				// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
+				// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
 				names, err := lq.LoadActiveQueryNames()
 				if err != nil {
 					return err
@@ -865,10 +871,8 @@ func newFrequentCleanupsSchedule(
 				if err != nil {
 					return err
 				}
-				if err := lq.CleanupInactiveQueries(ctx, completed); err != nil {
-					return err
-				}
-				return nil
+				err = lq.CleanupInactiveQueries(ctx, completed)
+				return err
 			},
 		),
 	)
