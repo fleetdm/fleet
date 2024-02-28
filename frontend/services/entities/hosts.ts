@@ -17,6 +17,7 @@ import {
   MdmProfileStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
+import { PolicyResponse } from "utilities/constants";
 
 export interface ISortOption {
   key: string;
@@ -117,6 +118,14 @@ export interface IActionByFilter {
   status: string;
   labelId?: number;
   currentTeam?: number | null;
+  policyId?: number | null;
+  policyResponse?: PolicyResponse;
+  softwareId?: number | null;
+  softwareTitleId?: number | null;
+  softwareVersionId?: number | null;
+  osName?: string;
+  osVersion?: string;
+  osVersionId?: number | null;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -361,6 +370,14 @@ export default {
     status,
     labelId,
     currentTeam,
+    policyId,
+    policyResponse,
+    softwareId,
+    softwareTitleId,
+    softwareVersionId,
+    osName,
+    osVersion,
+    osVersionId,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
@@ -370,6 +387,14 @@ export default {
         status,
         label_id: labelId,
         team_id: currentTeam,
+        policy_id: policyId,
+        policy_response: policyResponse,
+        software_id: softwareId,
+        software_title_id: softwareTitleId,
+        software_version_id: softwareVersionId,
+        os_name: osName,
+        os_version: osVersion,
+        os_version_id: osVersionId,
       },
     });
   },

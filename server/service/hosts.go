@@ -864,10 +864,19 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 type addHostsToTeamByFilterRequest struct {
 	TeamID  *uint `json:"team_id"`
 	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-		TeamID     *uint            `json:"team_id"`
+		MatchQuery        string           `json:"query"`
+		Status            fleet.HostStatus `json:"status"`
+		LabelID           *uint            `json:"label_id"`
+		TeamID            *uint            `json:"team_id"`
+		PolicyID          *uint            `json:"policy_id"`
+		PolicyResponse    *bool            `json:"policy_response"`
+		SoftwareID        *uint            `json:"software_id"`
+		SoftwareTitleID   *uint            `json:"software_title_id"`
+		SoftwareVersionID *uint            `json:"software_version_id"`
+		OSID              *uint            `json:"os_id"`
+		OSName            *string          `json:"os_name"`
+		OSVersion         *string          `json:"os_version"`
+		OSVersionID       *uint            `json:"os_version_id"`
 	} `json:"filters"`
 }
 
@@ -883,8 +892,17 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 		ListOptions: fleet.ListOptions{
 			MatchQuery: req.Filters.MatchQuery,
 		},
-		StatusFilter: req.Filters.Status,
-		TeamFilter:   req.Filters.TeamID,
+		StatusFilter:            req.Filters.Status,
+		TeamFilter:              req.Filters.TeamID,
+		PolicyIDFilter:          req.Filters.PolicyID,
+		PolicyResponseFilter:    req.Filters.PolicyResponse,
+		SoftwareIDFilter:        req.Filters.SoftwareID,
+		SoftwareTitleIDFilter:   req.Filters.SoftwareTitleID,
+		SoftwareVersionIDFilter: req.Filters.SoftwareVersionID,
+		OSIDFilter:              req.Filters.OSID,
+		OSNameFilter:            req.Filters.OSName,
+		OSVersionFilter:         req.Filters.OSVersion,
+		OSVersionIDFilter:       req.Filters.OSVersionID,
 	}
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
 	if err != nil {
