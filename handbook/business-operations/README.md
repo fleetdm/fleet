@@ -147,6 +147,17 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+### Change a Fleetie's manager
+When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
+- Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
+  - Search for the Fleetie's new manager, and copy the new manager's unique ID from the far left "Unique ID" column.
+  - Search for the Fleetie who's manager is changing, and paste (without formatting) their new manager's unique ID in the "Reports to: (manager unique ID)" cell in the Fleetie's row.
+  - Verify that the "Reports to (auto: manager name and job title)" cell in the Fleetie's row reflects the new manager's details.
+  - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
+  - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
+> **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
+
+
 ### Prepare salary benchmarking information
 - Use the relevant template text in the README section of the [¶¶ 💌 Compensation decisions document](https://docs.google.com/document/d/1NQ-IjcOTbyFluCWqsFLMfP4SvnopoXDcX0civ-STS5c/edit?usp=sharing) for a current Fleetie, a new role, a prospective hire, or other benchmarking use case.
 - Copy the template text and paste at the end of the document.
