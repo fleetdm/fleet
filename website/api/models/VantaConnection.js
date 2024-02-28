@@ -48,7 +48,8 @@ module.exports = {
     },
 
     vantaAuthTokenExpiresAt: {
-      type: 'number',
+      type: 'string',
+      columnType: 'bigint',
       description: 'A JS timestamp of when this connection\'s authorization token will expire.'
     },
 
