@@ -15,6 +15,7 @@ controls:
   macos_updates:
     deadline: "2023-06-13"
     minimum_version: 13.4.1
+  windows_enabled_and_configured: true
   windows_settings:
     custom_settings: []
   windows_updates:

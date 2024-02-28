@@ -8,6 +8,7 @@ on:
       - 'it-and-security/**'
       - 'mdm_profiles/**'
       - '.github/workflows/dogfood-gitops.yml'
+  pull_request:
   workflow_dispatch: # allows manual triggering
 
 defaults:
@@ -40,7 +41,7 @@ jobs:
         env:
           FLEET_GITOPS_DIR: ${{ github.workspace }}/it-and-security
           FLEET_URL: https://dogfood.fleetdm.com
-          FLEET_API_TOKEN: ${{ secrets.FLEET_GITOPS_API_ACCESS_TOKEN }}
+          FLEET_API_TOKEN: ${{ secrets.DOGFOOD_API_TOKEN }}
           DOGFOOD_APPLE_BM_DEFAULT_TEAM: Workstations
           DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL: ${{ secrets.DOGFOOD_MACOS_MIGRATION_WEBHOOK_URL }}
           DOGFOOD_GLOBAL_ENROLL_SECRET: ${{ secrets.DOGFOOD_GLOBAL_ENROLL_SECRET }}
