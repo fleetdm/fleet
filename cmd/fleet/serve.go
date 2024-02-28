@@ -697,7 +697,7 @@ the way that the Fleet server works.
 						commander = apple_mdm.NewMDMAppleCommander(mdmStorage, mdmPushService)
 					}
 					return newCleanupsAndAggregationSchedule(
-						ctx, instanceID, ds, liveQueryStore, logger, redisWrapperDS, &config, commander,
+						ctx, instanceID, ds, logger, redisWrapperDS, &config, commander,
 					)
 				},
 			); err != nil {
