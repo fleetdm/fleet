@@ -36,6 +36,7 @@ ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
 DEBUG=1 \
+GOARCH=arm64 \ # defaults to amd64
 ./tools/tuf/test/main.sh
 ```
 
