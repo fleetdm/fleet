@@ -57,20 +57,20 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 We issue scheduled patch releases every Monday between minor releases if any bug fixes have merged. We issue patches immediately for critical bugs as defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
-1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
-
-2. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
+1. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
    
 ```sh
 git checkout fleet-v4.3.0
 git checkout --branch patch-fleet-v4.3.1
 ```
 
-3. Cherry picks the necessary commits from `main` into the new branch:
+2. Cherry picks the necessary commits from `main` into the new branch:
   
 ```sh
 git cherry-pick d34db33f
 ```
+
+3. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
 > Commits must be cherry-picked in the order they appear on `main` to avoid conflicts. Make sure to also cherry-pick the commit containing changelog and version number updates.
 
