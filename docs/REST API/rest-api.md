@@ -2027,9 +2027,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
         "encryption_key_available": false,
         "enrollment_status": null,
         "name": "",
-        "server_url": null,
-        "device_status": "unlocked",
-        "pending_action": ""
+        "server_url": null
       },
       "software": [
         {

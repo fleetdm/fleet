@@ -10,7 +10,7 @@ export interface IGetVulnerabilitiesQueryParams {
   order_direction?: string;
   page?: number;
   per_page?: number;
-  exploited?: boolean;
+  exploit?: boolean;
   query?: string;
 }
 
@@ -48,7 +48,7 @@ export const getVulnerabilities = ({
   order_direction,
   page,
   per_page,
-  exploited,
+  exploit,
   query,
 }: IGetVulnerabilitiesQueryParams = {}): Promise<IVulnerabilitiesResponse> => {
   const { VULNERABILITIES } = endpoints;
@@ -60,7 +60,7 @@ export const getVulnerabilities = ({
     order_direction,
     page,
     per_page,
-    exploited,
+    exploit,
     query,
   });
 

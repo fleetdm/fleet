@@ -82,10 +82,12 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// create a team through the service so it initializes the agent ops
 	teamName := t.Name() + "team1"
+	teamNameDecomposed := teamName + "ᄀ" + "ᅡ" // Add a decomposed Unicode character
 	team := &fleet.Team{
-		Name:        teamName,
+		Name:        teamNameDecomposed,
 		Description: "desc team1",
 	}
+	teamName = teamName + "가"
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
@@ -159,7 +161,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name": teamName,
+				"name": teamNameDecomposed,
 				"mdm": map[string]any{
 					"windows_updates": map[string]any{
 						"deadline_days":     -1,
@@ -177,7 +179,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name": teamName,
+				"name": teamNameDecomposed,
 				"mdm": map[string]any{
 					"windows_updates": map[string]any{
 						"deadline_days":     1,
@@ -259,7 +261,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":          teamName,
+				"name":          teamNameDecomposed,
 				"agent_options": agentOpts,
 			},
 		},
@@ -288,7 +290,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	teamSpecs = map[string]any{
 		"specs": []any{
 			map[string]any{
-				"name":          teamName,
+				"name":          teamNameDecomposed,
 				"agent_options": agentOpts,
 				"mdm": map[string]any{
 					"macos_settings": map[string]any{
