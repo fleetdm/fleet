@@ -270,13 +270,6 @@ func (svc *Service) RunLiveQueryDeadline(
 			}
 			queryID = campaign.QueryID
 
-			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
-			if err != nil {
-				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
-				return
-			}
-			defer cancelFunc()
-
 			// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
 			// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
 			// Also, we make sure stats and activity DB operations don't get killed after we return results.
@@ -284,7 +277,9 @@ func (svc *Service) RunLiveQueryDeadline(
 			defer func() {
 				err := svc.CompleteCampaign(ctxWithoutCancel, campaign)
 				if err != nil {
-					level.Error(svc.logger).Log("msg", "completing campaign (sync)", "query.id", campaign.QueryID, "err", err)
+					level.Error(svc.logger).Log(
+						"msg", "completing campaign (sync)", "query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
+					)
 					resultsCh <- fleet.QueryCampaignResult{
 						QueryID: queryID,
 						Error:   ptr.String(err.Error()),
@@ -292,6 +287,13 @@ func (svc *Service) RunLiveQueryDeadline(
 					}
 				}
 			}()
+
+			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
+			if err != nil {
+				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
+				return
+			}
+			defer cancelFunc()
 
 			var results []fleet.QueryResult
 			timeout := time.After(deadline)
