@@ -215,7 +215,7 @@ func TestUnicodeTeamName(t *testing.T) {
 	config := getTeamConfig([]string{"name"})
 	config += `name: 😊 TeamName`
 	_, err := GitOpsFromBytes([]byte(config), "")
-	assert.ErrorContains(t, err, "team name must be in ASCII")
+	assert.NoError(t, err)
 }
 
 func TestMixingGlobalAndTeamConfig(t *testing.T) {

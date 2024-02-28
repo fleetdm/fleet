@@ -45,7 +45,7 @@ import MDMAppleSSOCallbackPage from "pages/MDMAppleSSOCallbackPage";
 import ApiOnlyUser from "pages/ApiOnlyUser";
 import Fleet403 from "pages/errors/Fleet403";
 import Fleet404 from "pages/errors/Fleet404";
-import UserSettingsPage from "pages/UserSettingsPage";
+import AccountPage from "pages/AccountPage";
 import SettingsWrapper from "pages/admin/AdminWrapper";
 import ManageControlsPage from "pages/ManageControlsPage/ManageControlsPage";
 import UsersPage from "pages/admin/TeamManagementPage/TeamDetailsWrapper/UsersPage/UsersPage";
@@ -61,10 +61,12 @@ import HostQueryReport from "pages/hosts/details/HostQueryReport";
 import SoftwarePage from "pages/SoftwarePage";
 import SoftwareTitles from "pages/SoftwarePage/SoftwareTitles";
 import SoftwareOS from "pages/SoftwarePage/SoftwareOS";
+import SoftwareVulnerabilities from "pages/SoftwarePage/SoftwareVulnerabilities";
 import SoftwareTitleDetailsPage from "pages/SoftwarePage/SoftwareTitleDetailsPage";
 import SoftwareVersionDetailsPage from "pages/SoftwarePage/SoftwareVersionDetailsPage";
 import TeamSettings from "pages/admin/TeamManagementPage/TeamDetailsWrapper/TeamSettings";
 import SoftwareOSDetailsPage from "pages/SoftwarePage/SoftwareOSDetailsPage";
+import SoftwareVulnerabilityDetailsPage from "pages/SoftwarePage/SoftwareVulnerabilityDetailsPage";
 
 import PATHS from "router/paths";
 
@@ -199,7 +201,6 @@ const routes = (
               component={HostQueryReport}
             />
           </Route>
-
           <Route component={ExcludeInSandboxRoutes}>
             <Route path="controls" component={AuthAnyMaintainerAnyAdminRoutes}>
               <IndexRedirect to="os-updates" />
@@ -216,16 +217,23 @@ const routes = (
               </Route>
             </Route>
           </Route>
-
           <Route path="software">
             <IndexRedirect to="titles" />
             <Route component={SoftwarePage}>
               <Route path="titles" component={SoftwareTitles} />
               <Route path="versions" component={SoftwareTitles} />
               <Route path="os" component={SoftwareOS} />
+              <Route
+                path="vulnerabilities"
+                component={SoftwareVulnerabilities}
+              />
               {/* This redirect keeps the old software/:id working */}
               <Redirect from=":id" to="versions/:id" />
             </Route>
+            <Route
+              path="vulnerabilities/:cve"
+              component={SoftwareVulnerabilityDetailsPage}
+            />
             <Route path="titles/:id" component={SoftwareTitleDetailsPage} />
             <Route path="versions/:id" component={SoftwareVersionDetailsPage} />
             <Route path="os/:id" component={SoftwareOSDetailsPage} />
@@ -264,10 +272,8 @@ const routes = (
             </Route>
             <Route path=":id" component={PolicyPage} />
           </Route>
-          <Route
-            path="profile"
-            component={UserSettingsPage as RouteComponent}
-          />
+          <Redirect from="profile" to="account" /> {/* deprecated URL */}
+          <Route path="account" component={AccountPage} />
         </Route>
       </Route>
       <Route path="device">

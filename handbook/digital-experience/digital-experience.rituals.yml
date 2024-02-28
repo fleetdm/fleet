@@ -24,9 +24,9 @@
 - 
   task: "Generate latest schema"
   startedOn: "2024-02-19" 
-  frequency: "Triweekly"
+  frequency: "Weekly"
   description: "After each sprint, generate the latest tables json file to incorporate any new schema documentation."
-  moreInfoUrl: # TODO tie to a responsibility
+  moreInfoUrl: https://fleetdm.com/handbook/company/product-groups#changes-to-tables-schema
   dri: "eashaw"
   autoIssue:   # Enables automation of GitHub issues
     labels: [ "#g-digital-experience" ] # label to be applied to issue

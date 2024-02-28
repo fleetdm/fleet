@@ -629,6 +629,7 @@ func (a *agent) runOrbitLoop() {
 			HardwareSerial: a.SerialNumber,
 			Hostname:       a.CachedString("hostname"),
 		},
+		nil,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)

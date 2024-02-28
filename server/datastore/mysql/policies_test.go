@@ -2,7 +2,8 @@ package mysql
 
 import (
 	"context"
-	"database/sql"
+	"crypto/md5" //nolint:gosec // (only used for tests)
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"sort"
@@ -49,13 +50,15 @@ func TestPolicies(t *testing.T) {
 		{"IncreasePolicyAutomationIteration", testIncreasePolicyAutomationIteration},
 		{"OutdatedAutomationBatch", testOutdatedAutomationBatch},
 		{"TestUpdatePolicyFailureCountsForHosts", testUpdatePolicyFailureCountsForHosts},
-		{"TestPolicyIDsByName", testPolicyByName},
 		{"TestListGlobalPoliciesCanPaginate", testListGlobalPoliciesCanPaginate},
 		{"TestListTeamPoliciesCanPaginate", testListTeamPoliciesCanPaginate},
 		{"TestCountPolicies", testCountPolicies},
 		{"TestUpdatePolicyHostCounts", testUpdatePolicyHostCounts},
 		{"TestCachedPolicyCountDeletesOnPolicyChange", testCachedPolicyCountDeletesOnPolicyChange},
 		{"TestPoliciesListOptions", testPoliciesListOptions},
+		{"TestPoliciesNameUnicode", testPoliciesNameUnicode},
+		{"TestPoliciesNameEmoji", testPoliciesNameEmoji},
+		{"TestPoliciesNameSort", testPoliciesNameSort},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1228,9 +1231,12 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	unicode, _ := strconv.Unquote(`"\uAC00"`)         // 가
+	unicodeEq, _ := strconv.Unquote(`"\u1100\u1161"`) // ᄀ + ᅡ
+
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1",
+			Name:        "query1" + unicodeEq,
 			Query:       "select 1;",
 			Description: "query1 desc",
 			Resolution:  "some resolution",
@@ -1258,7 +1264,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	policies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
-	assert.Equal(t, "query1", policies[0].Name)
+	assert.Equal(t, "query1"+unicode, policies[0].Name)
 	assert.Equal(t, "select 1;", policies[0].Query)
 	assert.Equal(t, "query1 desc", policies[0].Description)
 	require.NotNil(t, policies[0].AuthorID)
@@ -1291,7 +1297,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1",
+			Name:        "query1" + unicode,
 			Query:       "select 1;",
 			Description: "query1 desc",
 			Resolution:  "some resolution",
@@ -1326,7 +1332,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	// Test policy updating.
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
 		{
-			Name:        "query1",
+			Name:        "query1" + unicodeEq,
 			Query:       "select 1 from updated;",
 			Description: "query1 desc updated",
 			Resolution:  "some resolution updated",
@@ -1346,7 +1352,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Len(t, policies, 1)
 
-	assert.Equal(t, "query1", policies[0].Name)
+	assert.Equal(t, "query1"+unicode, policies[0].Name)
 	assert.Equal(t, "select 1 from updated;", policies[0].Query)
 	assert.Equal(t, "query1 desc updated", policies[0].Description)
 	require.NotNil(t, policies[0].AuthorID)
@@ -1374,7 +1380,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 		t, ds.ApplyPolicySpecs(
 			ctx, user1.ID, []*fleet.PolicySpec{
 				{
-					Name:        "query1",
+					Name:        "query1" + unicode,
 					Query:       "select 1 from updated again;",
 					Description: "query1 desc updated again",
 					Resolution:  "some resolution updated again",
@@ -1414,6 +1420,23 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, gp.Description, payload.Description)
 	require.Equal(t, *gp.Resolution, payload.Resolution)
 	require.Equal(t, gp.Critical, payload.Critical)
+	computeChecksum := func(policy fleet.Policy) string {
+		h := md5.New() //nolint:gosec // (only used for tests)
+		// Compute the same way as DB does.
+		teamStr := ""
+		if policy.TeamID != nil {
+			teamStr = fmt.Sprint(*policy.TeamID)
+		}
+		cols := []string{teamStr, policy.Name}
+		_, _ = fmt.Fprint(h, strings.Join(cols, "\x00"))
+		checksum := h.Sum(nil)
+		return hex.EncodeToString(checksum)
+	}
+
+	var globalChecksum []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum))
 
 	payload = fleet.PolicyPayload{
 		Name:        "team1 query",
@@ -1429,6 +1452,10 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, tp1.Description, payload.Description)
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
+	var teamChecksum []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum))
 
 	// Change name only of a global query.
 	gp2 := *gp
@@ -1440,6 +1467,11 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	gp2.UpdateCreateTimestamps = gp.UpdateCreateTimestamps
 	require.Equal(t, &gp2, gp)
+	var globalChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&globalChecksum2, `SELECT checksum FROM policies WHERE id = ?`, gp.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, globalChecksum, globalChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum2))
 
 	// Change name, query, description and resolution of a team policy.
 	tp2 := *tp1
@@ -1454,6 +1486,11 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.UpdateCreateTimestamps = tp1.UpdateCreateTimestamps
 	require.NoError(t, err)
 	require.Equal(t, tp1, &tp2)
+	var teamChecksum2 []uint8
+	err = ds.writer(context.Background()).Get(&teamChecksum2, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
+	require.NoError(t, err)
+	assert.NotEqual(t, teamChecksum, teamChecksum2, "Checksum should be different since policy name changed")
+	assert.Equal(t, computeChecksum(*tp1), hex.EncodeToString(teamChecksum2))
 
 	loadMembershipStmt, args, err := sqlx.In(`SELECT policy_id, host_id FROM policy_membership WHERE policy_id = ?`, tp2.ID)
 	require.NoError(t, err)
@@ -1599,27 +1636,6 @@ func testPoliciesDelUser(t *testing.T, ds *Datastore) {
 	assert.Nil(t, gp.AuthorID)
 	assert.Equal(t, "<deleted>", gp.AuthorName)
 	assert.Empty(t, gp.AuthorEmail)
-}
-
-func testPolicyByName(t *testing.T, ds *Datastore) {
-	user1 := test.NewUser(t, ds, "User1", "user1@example.com", true)
-	ctx := context.Background()
-
-	gp, err := ds.NewGlobalPolicy(ctx, &user1.ID, fleet.PolicyPayload{
-		Name:        "global query",
-		Query:       "select 1;",
-		Description: "global query desc",
-		Resolution:  "global query resolution",
-	})
-	require.NoError(t, err)
-
-	policy, err := ds.PolicyByName(ctx, "global query")
-	require.NoError(t, err)
-	assert.Equal(t, gp.ID, policy.ID)
-
-	policy, err = ds.PolicyByName(ctx, "non-existent")
-	require.Error(t, sql.ErrNoRows, err)
-	assert.Nil(t, policy)
 }
 
 func testFlippingPoliciesForHost(t *testing.T, ds *Datastore) {
@@ -2671,4 +2687,111 @@ func testUpdatePolicyHostCounts(t *testing.T, ds *Datastore) {
 	assert.True(
 		t, policy.HostCountUpdatedAt.Compare(later) < 0, fmt.Sprintf("later:%v HostCountUpdatedAt:%v", later, *policy.HostCountUpdatedAt),
 	)
+}
+
+func testPoliciesNameUnicode(t *testing.T, ds *Datastore) {
+	var equivalentNames []string
+	item, _ := strconv.Unquote(`"\uAC00"`) // 가
+	equivalentNames = append(equivalentNames, item)
+	item, _ = strconv.Unquote(`"\u1100\u1161"`) // ᄀ + ᅡ
+	equivalentNames = append(equivalentNames, item)
+
+	// Save policy
+	policy, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: equivalentNames[0]})
+	require.NoError(t, err)
+	assert.Equal(t, equivalentNames[0], policy.Name)
+
+	// Try to create policy with equivalent name
+	_, err = ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: equivalentNames[1]})
+	var existsErr *existsError
+	assert.ErrorAs(t, err, &existsErr)
+
+	// Try to update a different policy with equivalent name -- not allowed
+	policyEmoji, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "💻"})
+	require.NoError(t, err)
+	err = ds.SavePolicy(
+		context.Background(), &fleet.Policy{PolicyData: fleet.PolicyData{ID: policyEmoji.ID, Name: equivalentNames[1]}}, false,
+	)
+	assert.True(t, isDuplicate(err), err)
+
+	// Try to find policy with equivalent name
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: equivalentNames[1]})
+	assert.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, equivalentNames[0], policies[0].Name)
+
+	// Test team methods
+	team, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	// Create team policy
+	teamPolicy, err := ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{Name: equivalentNames[0]})
+	require.NoError(t, err)
+	assert.Equal(t, equivalentNames[0], teamPolicy.Name)
+
+	// Try to create another team policy with equivalent name -- not allowed
+	_, err = ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{Name: equivalentNames[1]})
+	assert.ErrorAs(t, err, &existsErr)
+
+	// ListTeamPolicies, including inherited policy
+	teamPolicies, inheritedPolicies, err := ds.ListTeamPolicies(
+		context.Background(), team.ID, fleet.ListOptions{MatchQuery: equivalentNames[1]}, fleet.ListOptions{MatchQuery: equivalentNames[1]},
+	)
+	assert.NoError(t, err)
+	require.Len(t, teamPolicies, 1)
+	assert.Equal(t, equivalentNames[0], teamPolicies[0].Name)
+	require.Len(t, inheritedPolicies, 1)
+	assert.Equal(t, equivalentNames[0], inheritedPolicies[0].Name)
+
+	// CountPolicies
+	count, err := ds.CountPolicies(context.Background(), &team.ID, equivalentNames[1])
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+	count, err = ds.CountPolicies(context.Background(), nil, equivalentNames[1])
+	assert.NoError(t, err)
+	assert.Equal(t, 1, count)
+}
+
+func testPoliciesNameEmoji(t *testing.T, ds *Datastore) {
+	// Try to save policies with emojis
+	emoji0 := "🔥"
+	_, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: emoji0})
+	require.NoError(t, err)
+	emoji1 := "💻"
+	policyEmoji, err := ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: emoji1})
+	require.NoError(t, err)
+	assert.Equal(t, emoji1, policyEmoji.Name)
+
+	// Try to find policy with emoji0
+	policies, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji0})
+	assert.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, emoji0, policies[0].Name)
+
+	// Try to find policy with emoji1
+	policies, err = ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{MatchQuery: emoji1})
+	assert.NoError(t, err)
+	require.Len(t, policies, 1)
+	assert.Equal(t, emoji1, policies[0].Name)
+
+}
+
+// Ensure case-insensitive sort order for policy names
+func testPoliciesNameSort(t *testing.T, ds *Datastore) {
+	var policies [3]*fleet.Policy
+	var err error
+	// Save policy
+	policies[1], err = ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "В"})
+	require.NoError(t, err)
+	policies[2], err = ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "о"})
+	require.NoError(t, err)
+	policies[0], err = ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "а"})
+	require.NoError(t, err)
+
+	policiesResult, err := ds.ListGlobalPolicies(context.Background(), fleet.ListOptions{OrderKey: "name"})
+	assert.NoError(t, err)
+	require.Len(t, policies, 3)
+	for i, policy := range policies {
+		assert.Equal(t, policy.Name, policiesResult[i].Name)
+	}
 }

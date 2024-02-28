@@ -93,7 +93,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 		if id == nil {
 			id = req.Opts.SoftwareIDFilter
 		}
-		software, err = svc.SoftwareByID(ctx, *id, false)
+		software, err = svc.SoftwareByID(ctx, *id, req.Opts.TeamFilter, false)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -103,7 +103,7 @@ func listHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Servi
 	if req.Opts.SoftwareTitleIDFilter != nil {
 		var err error
 
-		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter)
+		softwareTitle, err = svc.SoftwareTitleByID(ctx, *req.Opts.SoftwareTitleIDFilter, nil)
 		if err != nil {
 			return listHostsResponse{Err: err}, nil
 		}
@@ -1905,22 +1905,35 @@ func getOSVersionEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 	if err != nil {
 		return getOSVersionResponse{Err: err}, nil
 	}
+	if osVersion == nil {
+		osVersion = &fleet.OSVersion{}
+	}
 
 	return getOSVersionResponse{CountsUpdatedAt: updateTime, OSVersion: osVersion}, nil
 }
 
 func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, includeCVSS bool) (*fleet.OSVersion, *time.Time, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{TeamID: teamID}, fleet.ActionList); err != nil {
 		return nil, nil, err
 	}
 
+	if teamID != nil {
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+		}
+	}
 	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
-		return nil, nil, err
+	if osVersion != nil {
+		if err = svc.populateOSVersionDetails(ctx, osVersion, includeCVSS); err != nil {
+			return nil, nil, err
+		}
 	}
 
 	return osVersion, updateTime, nil

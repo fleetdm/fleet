@@ -305,7 +305,7 @@ const ManageQueriesPage = ({
         showText={`Show ${inheritedQueryCount} inherited quer${
           inheritedQueryCount === 1 ? "y" : "ies"
         }`}
-        caretPosition={"before"}
+        caretPosition="before"
         tooltipContent={
           <>
             Queries from the &quot;All teams&quot;
@@ -461,8 +461,9 @@ const ManageQueriesPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           <p>
-            Manage and schedule queries to ask questions and collect telemetry
-            for all hosts{isAnyTeamSelected && " assigned to this team"}.
+            {isAnyTeamSelected
+              ? "Gather data about all hosts assigned to this team."
+              : "Gather data about all hosts."}
           </p>
         </div>
         {renderCurrentScopeQueriesTable()}

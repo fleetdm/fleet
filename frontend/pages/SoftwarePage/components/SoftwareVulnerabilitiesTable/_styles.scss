@@ -4,15 +4,32 @@
     &__wrapper {
       overflow-x: auto;
     }
-  }
 
-  .empty-table__container {
-    margin: 1.5rem auto;
+    th:nth-last-child(2) {
+      border-right: 0;
+    }
   }
 
   // used to position header text with premium icon correctly
   .column-header {
     display: flex;
     gap: $pad-small;
+  }
+
+  @media (max-width: $break-md) {
+    .linkToFilteredHosts__header {
+      width: 40px;
+    }
+    .view-all-hosts-link {
+      span {
+        display: none;
+      }
+    }
+    .epss_probability__cell,
+    .epss_probability__header,
+    .cve_published__cell,
+    .cve_published__header {
+      display: none;
+    }
   }
 }

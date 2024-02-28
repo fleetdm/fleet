@@ -8,12 +8,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 )
 
 // NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.

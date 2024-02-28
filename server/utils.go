@@ -149,8 +149,8 @@ func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
 // RemoveDuplicatesFromSlice returns a slice with all the duplicates removed from the input slice.
 func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
 	// We are using the allKeys map as a set here
-	allKeys := make(map[T]struct{})
-	var list []T
+	allKeys := make(map[T]struct{}, len(slice))
+	list := make([]T, 0, len(slice))
 
 	for _, i := range slice {
 		if _, exists := allKeys[i]; !exists {

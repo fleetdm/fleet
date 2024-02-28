@@ -18,8 +18,9 @@ import (
 	"testing"
 	"time"
 
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/spf13/cast"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -594,6 +595,20 @@ func (m *MDMConfig) AppleAPNs() (cert *tls.Certificate, pemCert, pemKey []byte, 
 	return m.appleAPNs, m.appleAPNsPEMCert, m.appleAPNsPEMKey, nil
 }
 
+func (m *MDMConfig) AppleAPNsTopic() (string, error) {
+	apnsCert, _, _, err := m.AppleAPNs()
+	if err != nil {
+		return "", fmt.Errorf("parsing APNs certificates: %w", err)
+	}
+
+	mdmPushCertTopic, err := cryptoutil.TopicFromCert(apnsCert.Leaf)
+	if err != nil {
+		return "", fmt.Errorf("extracting topic from APNs certificate: %w", err)
+	}
+
+	return mdmPushCertTopic, nil
+}
+
 // AppleSCEP returns the parsed and validated TLS certificate for Apple SCEP.
 // It parses and validates it if it hasn't been done yet.
 func (m *MDMConfig) AppleSCEP() (cert *tls.Certificate, pemCert, pemKey []byte, err error) {
@@ -803,7 +818,7 @@ func (man Manager) addConfigs() {
 	man.addConfigInt("redis.max_open_conns", 0, "Redis maximum open connections, 0 means no limit")
 	man.addConfigDuration("redis.conn_max_lifetime", 0, "Redis maximum amount of time a connection may be reused, 0 means no limit")
 	man.addConfigDuration("redis.idle_timeout", 240*time.Second, "Redis maximum amount of time a connection may stay idle, 0 means no limit")
-	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait, ignored in non-cluster Redis)")
+	man.addConfigDuration("redis.conn_wait_timeout", 0, "Redis maximum amount of time to wait for a connection if the maximum is reached (0 for no wait)")
 	man.addConfigDuration("redis.write_timeout", 10*time.Second, "Redis maximum amount of time to wait for a write (send) on a connection")
 	man.addConfigDuration("redis.read_timeout", 10*time.Second, "Redis maximum amount of time to wait for a read (receive) on a connection")
 

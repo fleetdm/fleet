@@ -1,2 +1,0 @@
-- Fix a bug where updating the search field for the Software titles page caused an unwanted loss of
-  focus from the search field on rerender.
