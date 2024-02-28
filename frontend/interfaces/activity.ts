@@ -1,3 +1,7 @@
+import {
+  IPastActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
 import { IPolicy } from "./policy";
 import { IQuery } from "./query";
 import { IScheduledQueryStats } from "./scheduled_query_stats";
@@ -111,11 +115,15 @@ export type IHostUpcomingActivityType =
   | ActivityType.DisabledDiskEncryption
   | ActivityType.EditedMacosMinVersion
   | ActivityType.EditedWindowsUpdates
-  | ActivityType.RanScript
-  | ActivityType.Locked
-  | ActivityType.Unlocked
-  | ActivityType.Wiped
+  | ActivityType.LockedHost
+  | ActivityType.UnlockedHost
+  | ActivityType.WipedHost
   | ActivityType.RanScript;
+// TODO: Check these. are these correct? figma says "locked" and "unlocked" and "wiped"
+// but we already have locked_host and unlocked_host and wiped_host
+// | ActivityType.Locked
+// | ActivityType.Unlocked
+// | ActivityType.Wiped
 
 export interface IActivity {
   created_at: string;
@@ -135,6 +143,13 @@ export type IPastActivity = Omit<IActivity, "type"> & {
 
 export type IUpcomingActivity = Omit<IActivity, "type"> & {
   type: IHostUpcomingActivityType;
+};
+
+// typeguard to determine if an activity is a upcoming activity response
+export const isUpcomingActivityResponse = (
+  activities: IPastActivitiesResponse | IUpcomingActivitiesResponse
+): activities is IUpcomingActivitiesResponse => {
+  return "count" in activities;
 };
 
 type IDetailsType = "mdm_command" | "script";

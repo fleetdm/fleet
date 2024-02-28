@@ -1,7 +1,10 @@
 import React from "react";
 
-import { IActivity } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import { IUpcomingActivity } from "interfaces/activity";
+import {
+  IActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -11,11 +14,12 @@ import Button from "components/buttons/Button";
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
 import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
 import { ShowActivityDetailsHandler } from "../Activity";
+import { updateActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";
 
 interface IUpcomingActivityFeedProps {
-  activities?: IActivitiesResponse;
+  activities?: IUpcomingActivitiesResponse;
   isError?: boolean;
   onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
@@ -52,12 +56,17 @@ const UpcomingActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IActivity) => (
-          <UpcomingActivity
-            activity={activity}
-            onDetailsClick={onDetailsClick}
-          />
-        ))}
+        {activitiesList.map((activity: IUpcomingActivity) => {
+          const ActivityItemComponent =
+            updateActivityComponentMap[activity.type];
+          return (
+            <ActivityItemComponent
+              key={activity.id}
+              activity={activity}
+              onShowDetails={onDetailsClick}
+            />
+          );
+        })}
       </div>
       <div className={`${baseClass}__pagination`}>
         <Button
