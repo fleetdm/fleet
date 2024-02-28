@@ -6028,8 +6028,6 @@ Team policies work the same as policies, but at the team level.
 
 ```json
 {
-  "policy_count": 2,
-  "inherited_policy_count": 1,
   "policies": [
     {
       "id": 1,
@@ -6098,6 +6096,7 @@ Team policies work the same as policies, but at the team level.
 | ------------------ | ------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | team_id                 | integer | path  | **Required.** Defines what team ID to operate on
 | query                 | string | query | Search query keywords. Searchable fields include `name`. |
+| include_inherited     | boolean | query | If `true`, will include inherited ("All teams") policies in the count. |
 
 #### Example
 
@@ -6109,7 +6108,7 @@ Team policies work the same as policies, but at the team level.
 
 ```json
 {
-  "count": 43
+  "count": 43,
 }
 ```
 
