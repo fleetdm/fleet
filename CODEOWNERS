@@ -90,10 +90,10 @@ go.mod @fleetdm/go
 /handbook/digital-experience        @sampfluger88
 /handbook/customer-success          @sampfluger88
 /handbook/demand                    @sampfluger88
-/handbook/engineering               @sampfluger88
+/handbook/engineering               @sampfluger88 @lukeheath
 /handbook/sales                     @sampfluger88
 /handbook/product-design            @sampfluger88
-/handbook/company/product-groups    @lukeheath
+/handbook/company/product-groups    @sampfluger88 @lukeheath
 
 ##############################################################################################
 # 🦿 GitHub issue templates
