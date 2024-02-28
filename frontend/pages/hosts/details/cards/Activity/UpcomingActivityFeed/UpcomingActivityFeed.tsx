@@ -1,10 +1,7 @@
 import React from "react";
 
 import { IUpcomingActivity } from "interfaces/activity";
-import {
-  IActivitiesResponse,
-  IUpcomingActivitiesResponse,
-} from "services/entities/activities";
+import { IUpcomingActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -12,9 +9,8 @@ import DataError from "components/DataError";
 import Button from "components/buttons/Button";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import UpcomingActivity from "../UpcomingActivity/UpcomingActivity";
 import { ShowActivityDetailsHandler } from "../Activity";
-import { updateActivityComponentMap } from "../ActivityConfig";
+import { upcomingActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "upcoming-activity-feed";
 
@@ -58,7 +54,7 @@ const UpcomingActivityFeed = ({
       <div>
         {activitiesList.map((activity: IUpcomingActivity) => {
           const ActivityItemComponent =
-            updateActivityComponentMap[activity.type];
+            upcomingActivityComponentMap[activity.type];
           return (
             <ActivityItemComponent
               key={activity.id}
