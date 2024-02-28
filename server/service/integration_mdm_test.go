@@ -2005,6 +2005,16 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		}
 	}
 
+	checkAssignProfileRequests := func(serial string, profUUID *string) {
+		require.NotEmpty(t, profileAssignmentReqs)
+		require.Len(t, profileAssignmentReqs, 1)
+		require.Len(t, profileAssignmentReqs[0].Devices, 1)
+		require.Equal(t, serial, profileAssignmentReqs[0].Devices[0])
+		if profUUID != nil {
+			require.Equal(t, *profUUID, profileAssignmentReqs[0].ProfileUUID)
+		}
+	}
+
 	type hostDEPRow struct {
 		HostID                uint      `db:"host_id"`
 		ProfileUUID           string    `db:"profile_uuid"`
@@ -2071,6 +2081,24 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 			require.Equal(t, *expectRetryJobID, d.RetryJobID)
 		}
 		return d
+	}
+
+	checkListHostDEPError := func(serial string, expectStatus string, expectError bool) *fleet.HostResponse {
+		listHostsRes := listHostsResponse{}
+		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", serial), nil, http.StatusOK, &listHostsRes)
+		require.Len(t, listHostsRes.Hosts, 1)
+		require.Equal(t, serial, listHostsRes.Hosts[0].HardwareSerial)
+		require.Equal(t, expectStatus, *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
+		require.Equal(t, expectError, listHostsRes.Hosts[0].MDM.DEPProfileError)
+
+		return &listHostsRes.Hosts[0]
+	}
+
+	setAssignProfileResponseUpdatedAt := func(serial string, updatedAt time.Time) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)`, updatedAt, serial)
+			return err
+		})
 	}
 
 	expectAssignProfileResponseFailed := ""        // set to device serial when testing the failed profile assignment flow
@@ -2398,13 +2426,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// report MDM info via osquery
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, eHost.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, ""))
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", eHost.UUID), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, eHost.HardwareSerial, listHostsRes.Hosts[0].HardwareSerial)
-	require.NotNil(t, listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.Equal(t, "On (automatic)", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.False(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", false)
 
 	// transfer to "no team", we assign a DEP profile to the device
 	profileAssignmentReqs = []profileAssignmentReq{}
@@ -2414,14 +2436,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NotEmpty(t, profileAssignmentReqs)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
-
-	// list hosts shows no dep profile error
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", eHost.UUID), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, eHost.HardwareSerial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "On (automatic)", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.False(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", false)
 
 	// transfer to the team back again, we assign a DEP profile to the device again
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
@@ -2431,14 +2446,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.NotEmpty(t, profileAssignmentReqs)
 	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
-
-	// list hosts shows no dep profile error
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", eHost.UUID), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, eHost.HardwareSerial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "On (automatic)", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.False(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", false)
 
 	// transfer to "no team", but simulate a failed profile assignment
 	expectAssignProfileResponseFailed = eHost.HardwareSerial
@@ -2448,22 +2456,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", nil, []string{eHost.HardwareSerial}, 0)
 
 	s.runIntegrationsSchedule()
-	require.Len(t, profileAssignmentReqs, 1)
-	require.Len(t, profileAssignmentReqs[0].Devices, 1)
-	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
+	checkAssignProfileRequests(eHost.HardwareSerial, nil)
 	profUUID := profileAssignmentReqs[0].ProfileUUID
 	d := checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, nil, expectNoJobID)
 	require.NotZero(t, d.ResponseUpdatedAt)
 	failedAt := d.ResponseUpdatedAt
 	checkNoJobsPending()
-
 	// list hosts shows dep profile error
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", eHost.UUID), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, eHost.HardwareSerial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "On (automatic)", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.True(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", true)
 
 	// run the integrations schedule during the cooldown period
 	profileAssignmentReqs = []profileAssignmentReq{}
@@ -2533,10 +2533,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// simulate expired cooldown
 	failedAt = failedAt.Add(-2 * time.Hour)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)`, failedAt, eHost.HardwareSerial)
-		return err
-	})
+	setAssignProfileResponseUpdatedAt(eHost.HardwareSerial, failedAt)
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
@@ -2551,20 +2548,18 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, profileAssignmentReqs)                                                                    // assign profile request will be made when the retry job is processed on the next worker run
 	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, &jobID) // no change
 	checkPendingMacOSSetupAssistantJob("hosts_cooldown", nil, []string{eHost.HardwareSerial}, jobID)
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", true)
 
 	// run the inregration schedule and expect success
 	expectAssignProfileResponseFailed = ""
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	require.NotEmpty(t, profileAssignmentReqs)
-	require.Len(t, profileAssignmentReqs, 1)
-	require.Len(t, profileAssignmentReqs[0].Devices, 1)
-	require.Equal(t, eHost.HardwareSerial, profileAssignmentReqs[0].Devices[0])
-	require.Equal(t, profUUID, profileAssignmentReqs[0].ProfileUUID)
+	checkAssignProfileRequests(eHost.HardwareSerial, &profUUID)
 	d = checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID) // retry job cleared
 	require.True(t, d.ResponseUpdatedAt.After(failedAt))
 	succeededAt := d.ResponseUpdatedAt
 	checkNoJobsPending()
+	checkListHostDEPError(eHost.HardwareSerial, "On (automatic)", false)
 
 	// run the integrations schedule and expect no changes
 	profileAssignmentReqs = []profileAssignmentReq{}
@@ -2581,28 +2576,18 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	expectAssignProfileResponseFailed = serial
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runDEPSchedule()
-	require.Len(t, profileAssignmentReqs, 1)
-	require.Len(t, profileAssignmentReqs[0].Devices, 1)
-	require.Equal(t, serial, profileAssignmentReqs[0].Devices[0])
+	checkAssignProfileRequests(serial, nil)
 	profUUID = profileAssignmentReqs[0].ProfileUUID
 	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseFailed, nil, expectNoJobID)
-	profUUID = profileAssignmentReqs[0].ProfileUUID
 	require.NotZero(t, d.ResponseUpdatedAt)
 	failedAt = d.ResponseUpdatedAt
 	checkNoJobsPending()
-
-	// list hosts shows dep profile error
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", serial), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, serial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "Pending", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.True(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	h := checkListHostDEPError(serial, "Pending", true) // list hosts shows device pending and dep profile error
 
 	// transfer to team, no profile assignment request is made during the cooldown period
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
-		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{listHostsRes.Hosts[0].ID}}, http.StatusOK)
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{h.ID}}, http.StatusOK)
 	checkPendingMacOSSetupAssistantJob("hosts_transferred", &team.ID, []string{serial}, 0)
 	s.runIntegrationsSchedule()
 	require.Empty(t, profileAssignmentReqs)                                                             // screened by cooldown
@@ -2618,10 +2603,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 
 	// simulate expired cooldown
 	failedAt = failedAt.Add(-2 * time.Hour)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)`, failedAt, serial)
-		return err
-	})
+	setAssignProfileResponseUpdatedAt(serial, failedAt)
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.Empty(t, profileAssignmentReqs) // assign profile request will be made when the retry job is processed on the next worker run
@@ -2634,23 +2616,15 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	expectAssignProfileResponseFailed = ""
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
-	require.Len(t, profileAssignmentReqs, 1)
-	require.Len(t, profileAssignmentReqs[0].Devices, 1)
-	require.Equal(t, serial, profileAssignmentReqs[0].Devices[0])
+	checkAssignProfileRequests(serial, nil)
 	require.NotEqual(t, profUUID, profileAssignmentReqs[0].ProfileUUID) // retry job will use the current team profile instead
 	profUUID = profileAssignmentReqs[0].ProfileUUID
 	d = checkHostCooldown(serial, profUUID, fleet.DEPAssignProfileResponseSuccess, nil, expectNoJobID) // retry job cleared
 	require.True(t, d.ResponseUpdatedAt.After(failedAt))
 	checkNoJobsPending()
-
 	// list hosts shows pending (because MDM detail query hasn't been reported) but dep profile
 	// error has been cleared
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", serial), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, serial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "Pending", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.False(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(serial, "Pending", false)
 
 	// ingest another device via DEP but the profile assignment is not accessible
 	serial = uuid.NewString()
@@ -2675,19 +2649,11 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 		failedAt = d.ResponseUpdatedAt
 	}
 	// list hosts shows device pending and no dep profile error for not accessible responses
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts?query=%s", serial), nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, serial, listHostsRes.Hosts[0].HardwareSerial)
-	require.Equal(t, "Pending", *listHostsRes.Hosts[0].MDM.EnrollmentStatus)
-	require.False(t, listHostsRes.Hosts[0].MDM.DEPProfileError)
+	checkListHostDEPError(serial, "Pending", false)
 
 	// no retry job for not accessible responses even if cooldown expires
 	failedAt = failedAt.Add(-2 * time.Hour)
-	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		_, err := q.ExecContext(ctx, `UPDATE host_dep_assignments SET response_updated_at = ? WHERE host_id = (SELECT id FROM hosts WHERE hardware_serial = ?)`, failedAt, serial)
-		return err
-	})
+	setAssignProfileResponseUpdatedAt(serial, failedAt)
 	profileAssignmentReqs = []profileAssignmentReq{}
 	s.runIntegrationsSchedule()
 	require.Empty(t, profileAssignmentReqs)
