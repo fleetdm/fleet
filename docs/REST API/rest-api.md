@@ -6106,7 +6106,7 @@ Team policies work the same as policies, but at the team level.
 
 ```json
 {
-  "count": 43,
+  "count": 43
 }
 ```
 
