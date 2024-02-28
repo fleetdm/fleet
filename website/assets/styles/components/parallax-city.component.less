@@ -61,7 +61,7 @@
     [purpose='background-cloud-1'] {
       background-image: url('/images/parallax-cloud-city/6-cloud-3840x456@2x.png');
       background-position: center bottom;
-      background-repeat: no-repeat;
+      background-repeat: repeat-x;
       z-index: 1;
     }
     [purpose='background-cloud-2'] {
@@ -69,6 +69,32 @@
       background-position: center bottom;
       background-repeat: repeat-x;
       z-index: 1;
+    }
+  }
+  @media (min-width: 3600px) {
+    [purpose='parallax-city-container'] {
+      height: 600px;
+      [purpose='foreground-cloud-1'] {
+        background-image: url('/images/parallax-cloud-city/1-cloud-7050x600@2x.png');
+      }
+      [purpose='foreground-cloud-2'] {
+        background-image: url('/images/parallax-cloud-city/2-cloud-7050x600@2x.png');
+      }
+      [purpose='large-island'] {
+        background-image: url('/images/parallax-cloud-city/3-island-7050x600@2x.png');
+      }
+      [purpose='small-island-1'] {
+        background-image: url('/images/parallax-cloud-city/4-island-7050x600@2x.png');
+      }
+      [purpose='small-island-2'] {
+        background-image: url('/images/parallax-cloud-city/5-island-7050x600@2x.png');
+      }
+      [purpose='background-cloud-1'] {
+        background-image: url('/images/parallax-cloud-city/6-cloud-7050x600@2x.png');
+      }
+      [purpose='background-cloud-2'] {
+        background-image: url('/images/parallax-cloud-city/7-cloud-7050x600@2x.png');
+      }
     }
   }
   @media (max-width: 991px) {

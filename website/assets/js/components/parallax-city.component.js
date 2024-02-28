@@ -70,7 +70,7 @@ parasails.registerComponent('parallaxCity', {
         this.scrollParallaxLayers();
       }
       // Add a scroll event listener
-      $(window).scroll(this.throttleParallaxScroll);
+      $(window).scroll(this.scrollParallaxLayers);
       // Add a resize event listener.
       $(window).resize(this.getElementPositions);
     }
@@ -104,13 +104,8 @@ parasails.registerComponent('parallaxCity', {
             $(layer.element).css('transform', 'translate3D(0, -' + movement + 'px, 0)');
           }
         }
+        this.parallaxLayersAreCurrentlyAnimating = false;
       }
     },
-    throttleParallaxScroll: function() {
-      this.scrollParallaxLayers();
-      setTimeout(()=>{
-        this.parallaxLayersAreCurrentlyAnimating = false;
-      }, 300);
-    }
   }
 });
