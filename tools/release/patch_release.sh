@@ -69,7 +69,7 @@ usage() {
     echo ""
     echo "Options:"
     echo "  -d, --dry_run          Perform a trial run with no changes made"
-    echo "  -f, --force            Skipp all confirmations"
+    echo "  -f, --force            Skip all confirmations"
     echo "  -h, --help             Display this help message and exit"
     echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
@@ -533,7 +533,7 @@ if [[ "$failed" == "false" ]]; then
         echo "DRYRUN: Would have printed announce in #help-engineering text w/ qa ticket, deploy to docker link, and milestone issue list link"
     fi
 
-    next_tag="fleet-v$next_ver"
+    next_tag="fleet-$next_ver"
     if [ "$dry_run" = "false" ]; then
         # after passing QA
         #echo "After QA is passed run these commands"
