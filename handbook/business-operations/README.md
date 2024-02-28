@@ -147,6 +147,25 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+
+### Change a Fleetie's job title
+When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
+- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
+  - Search the spreadsheet for the Fleetie in need of a job title change.
+  - Input the new job title in the Fleetie's row in the "Job title" cell.
+  - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
+- Update the relevant HRIS system.
+  - For updating Gusto (US-based Fleeties):
+    - Login to Gusto and navigate to "People > Team members".
+    - Find the Fleetie and select them to see their profile page.
+    - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
+  - For updating Plane (non-US Fleeties):
+    - Login to Plane and navigate to "People > Team".
+    - Find the Fleetie and select them to see their profile page.
+    - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
+    - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+
+
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 - Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
@@ -156,6 +175,7 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
   - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
   - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
 > **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
+ 
 
 
 ### Prepare salary benchmarking information
