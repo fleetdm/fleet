@@ -5,14 +5,14 @@ This handbook page details processes specific to working [with](#team) and [with
 | Role                            | Contributor(s)           |
 |:--------------------------------|:-----------------------------------------------------------------------------------------------------------|
 | Head of Product Engineering     | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_
-| Engineering Manager            | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_, [Sharon Katz](https://www.linkedin.com/in/sharon-katz-45b1b3a/) _([@sharon-fdm](https://github.com/sharon-fdm))_
-| Product Quality Specialist    | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_, [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
-| Developer                      | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
+| Engineering Manager             | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
+| Product Quality Specialist      | [Reed Haynes](https://www.linkedin.com/in/reed-haynes-633a69a3/) _([@xpkoala](https://github.com/xpkoala))_, [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
+| Developer                       | _See ["Current product groups"](https://fleetdm.com/handbook/company/product-groups#current-product-groups)_
 
 ## Contact us
-- Any community member can [**file a 🦟 "Bug report"**](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&projects=&template=bug-report.md&title=) (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel).
-  - Any Fleet team member can view the [Endpoint ops](https://app.zenhub.com/workspaces/-g-endpoint-ops-current-sprint-63bd7e0bf75dba002a2343ac/board), [MDM](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), or [Website](https://app.zenhub.com/workspaces/-g-website--product-marketing--brand-6451748b4eb15200131d4bab/board) kanban boards including the status on all reported bugs.
-  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request. 
+- To **make a request** of this department, [create an issue](https://fleetdm.com/handbook/company/product-groups#current-product-groups) and a team member will get back to you within one business day (If urgent, mention a [team member](#team) in the [#help-engineering](https://fleetdm.slack.com/archives/C019WG4GH0A) Slack channel.
+  - Any Fleet team member can [view the kanban boards](https://fleetdm.com/handbook/company/product-groups#current-product-groups) for this department, including pending tasks and the status of new requests.
+  - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 ## Responsibilities
 The 🚀 Engineering department at Fleet is directly responsible for writing and maintaining the [code](https://github.com/fleetdm/fleet) for Fleet's core product and infrastructure.
@@ -26,6 +26,15 @@ The metrics are:
 * Number of bugs closed this week
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
+
+#### Create an engineering-initiated story
+Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
+
+It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
+
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
+
+> We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
@@ -85,10 +94,10 @@ Our goal is to keep these dependencies up-to-date with each release of Fleet. If
 If an announcement is found for either data source that may impact data feed availability, notify the current [on-call engineer](https://fleetdm.com/handbook/engineering#how-to-reach-the-oncall-engineer). Notify them that it is their responsibility to investigate and file a bug or take further action as necessary. 
 
 5. [Fleetd](https://fleetdm.com/docs/get-started/anatomy#fleetd) components
-- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/blob/main/orbit/desktop/) since the last `orbit-*` tag was published.
+- Check for code changes to [Orbit](https://github.com/fleetdm/fleet/blob/main/orbit/) or [Desktop](https://github.com/fleetdm/fleet/tree/main/orbit/cmd/desktop) since the last `orbit-*` tag was published.
 - Check for code changes to the [fleetd-chrome extension](https://github.com/fleetdm/fleet/tree/main/ee/fleetd-chrome) since the last `fleetd-chrome-*` tag was published.
 
-If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Create and assign the release QA issue to a corresponding [GitHub milestone](https://github.com/fleetdm/fleet/milestones) for each tag that will be issued (`fleet-`, `orbit-`, `fleetd-chrome-`).
+If code changes are found for any `fleetd` components, create a new release QA issue to update `fleetd`. Delete the top section for Fleet core, and retain the bottom section for `fleetd`. Populate the necessary version changes for each `fleetd` component.
 
 ### Create release QA issue
 Next, create a new GitHub issue using the [Release QA template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=&projects=&template=release-qa.md). Add the release version to the title, and assign the quality assurance members of the [MDM](https://fleetdm.com/handbook/company/development-groups#mdm-group) and [Endpoint ops](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group) product groups.
@@ -180,7 +189,6 @@ When merging a pull request from a community contributor:
 - Thank and congratulate the contributor.
 - Share the merged PR with the team in the #help-promote channel of Fleet Slack to be publicized on social media. Those who contribute to Fleet and are recognized for their contributions often become great champions for the project.
 
-
 ### Schedule developer on-call workload
 Engineering managers are asked to be aware of the [on-call rotation](https://docs.google.com/document/d/1FNQdu23wc1S9Yo6x5k04uxT2RwT77CIMzLLeEI2U7JA/edit#) and schedule a light workload for engineers while they are on-call. While it varies week to week considerably, the on-call responsibilities can sometimes take up a substantial portion of the engineer's time.
 
@@ -204,6 +212,7 @@ The on-call developer is responsible for:
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
 ### Notify community members about a critical bug
+<!-- TODO: Move back to product groups, it touches multiple departments -->
 We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
 
 If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.) Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
@@ -284,13 +293,14 @@ Steps to renew the certificate:
 10. Verify by logging into a normal apple account (not billing@...) and Generate a new Push Certificate following our [setup MDM](https://fleetdm.com/docs/using-fleet/mdm-macos-setup#step-2-generate-an-apns-certificate) steps and verify the Expiration date is 1 year from today.
 11. Adjust calendar event to be between 2-4 weeks before the next expiration.
 
-### Preform an incident postmortem
+### Perform an incident postmortem
+<!-- TODO: move philosophy to product groups and link to this responsibility from there-->
 At Fleet, we take customer incidents very seriously. After working with customers to resolve issues, we will conduct an internal postmortem to determine any process, documentation, or coding changes to prevent similar incidents from happening in the future. Why? We strive to make Fleet the best osquery management platform globally, and we sincerely believe that starts with sharing lessons learned with the community to become stronger together.
 
 At Fleet, we do postmortem meetings for every service or feature outage and every critical bug, whether it's a customer's environment or on fleetdm.com.
 
 - **Postmortem documentation**
-Before running the postmortem meeting, copy this [Postmortem Template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation.
+Before running the postmortem meeting, copy this [postmortem template](https://docs.google.com/document/d/1Ajp2LfIclWfr4Bm77lnUggkYNQyfjePiWSnBv1b1nwM/edit?usp=sharing) document and populate it with some initial data to enable a productive conversation. 
 
 - **Postmortem meeting**
 Invite all stakeholders, typically the team involved and QA representatives.
@@ -331,44 +341,41 @@ Please see [handbook/engineering#notify-community-members-about-a-critical-bug](
 ##### Finding bugs
 Please see [handbook/engineering#run-fleet-locally-for-qa-purposes](https://fleetdm.com/handbook/engineering#run-fleet-localy-for-qa-purposes)
 
-##### Engineering-initiated stories
-Please see [handbook/company/engineering#create-an-engineering-initiated-user](https://fleetdm.com/handbook/company/product-groups#endpoint-ops-group).
-
 ##### Scrum at Fleet
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
 
 ##### Scrum items
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#scrum-items)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-items)
 
 ##### Sprint ceremonies
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
 
 ##### Meetings
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#meetings)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#meetings)
 
 ##### Principles
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#principles)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#principles)
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
 ##### Eng Together
 ##### Participants
 ##### Agenda
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### User story discovery
 ##### Participants
 ##### Agenda
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### Group weeklies
 ##### Participants
 ##### Sample agenda (Frontend weekly)
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
 ##### Engineering-initiated stories
-Please see [handbook/company/product-groups#engineering-initiated-stories](https://fleetdm.com/handbook/company/product-groups#engineering-initiated-stories)
+Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/engineering#create-an-engineering-initiated-story)
 
 ##### Creating an engineering-initiated story
 Please see [handbook/engineering#create-an-engineering-initiated-user-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-user-story)

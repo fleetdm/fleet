@@ -1,3 +1,8 @@
+/**
+software/titles Software tab > Table
+software/versions Software tab > Table (version toggle on)
+*/
+
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -176,7 +181,7 @@ const SoftwareTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
+        whatToRetrieve="software"
       />
     );
   };
@@ -292,7 +297,7 @@ const SoftwareTable = ({
         columnConfigs={softwareTableHeaders}
         data={tableData ?? []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}

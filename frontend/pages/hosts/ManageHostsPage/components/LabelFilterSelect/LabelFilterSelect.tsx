@@ -48,7 +48,7 @@ const formatOptionLabel = (data: ILabel | IEmptyOption) => {
   }
 
   return (
-    <div className={"option-label"}>
+    <div className="option-label">
       {isPlatform && (
         <Icon
           name={PLATFORM_TYPE_ICONS[data.display_text]}

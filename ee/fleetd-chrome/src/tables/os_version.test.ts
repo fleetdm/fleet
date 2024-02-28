@@ -39,6 +39,8 @@ describe("os_version", () => {
     );
 
     const db = await VirtualDatabase.init();
+    globalThis.DB = db;
+
     const res = await db.query("select * from os_version");
     expect(res).toEqual({
       data: [
@@ -55,7 +57,7 @@ describe("os_version", () => {
           codename: "ChromeOS 13.2.1",
         },
       ],
-      warnings: null,
+      warnings: "",
     });
   });
 
@@ -83,6 +85,7 @@ describe("os_version", () => {
     console.warn = jest.fn();
 
     const db = await VirtualDatabase.init();
+    globalThis.DB = db;
     const res = await db.query("select * from os_version");
     expect(res).toEqual({
       data: [
@@ -99,7 +102,7 @@ describe("os_version", () => {
           codename: "ChromeOS 13.2.1",
         },
       ],
-      warnings: null,
+      warnings: "",
     });
     expect(console.warn).toHaveBeenCalledWith(
       expect.stringContaining("expected 4 segments")
@@ -111,18 +114,18 @@ describe("os_version", () => {
     global.navigator.userAgentData = {
       getHighEntropyValues: jest.fn(() =>
         Promise.resolve({
-          data: {
-            fullVersionList: [
-              { brand: "Not even chrome", version: "110.0.5481.177" },
-            ],
-          },
+          fullVersionList: [
+            { brand: "Not even Chrome", version: "103.0.5060.134" },
+            { brand: "Not chrome", version: "103.0.5060.134" },
+          ],
         })
       ),
     };
 
     const db = await VirtualDatabase.init();
-    expect(async () => {
-      await db.query("select * from os_version");
-    }).rejects.toThrow();
+    globalThis.DB = db;
+
+    const res = await db.query("select * from os_version");
+    expect(res.warnings).toContain("environment does not look like Chrome");
   });
 });

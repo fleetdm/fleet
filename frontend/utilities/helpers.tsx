@@ -53,31 +53,6 @@ import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
 
-/**
- *
- * @param count The number of items.
- * @param root The root of the word, omitting any suffixs.
- * @param pluralSuffix The suffix to add to the root if the count is not 1.
- * @param singularSuffix The suffix to add to the root if the count is 1.
- * @returns A string with the root and the appropriate suffix.
- *
- * @example
- * pluralize(1, "hero", "es", "") // "hero"
- * pluralize(0, "hero", "es", "") // "heroes"
- * pluralize(1, "fair", "ies", "y") // "fairy"
- * pluralize(2, "fair", "ies", "y") // "fairies"
- * pluralize(1, "dragon") // "dragon"
- * pluralize(2, "dragon") // "dragons"
- */
-export const pluralize = (
-  count: number,
-  root: string,
-  pluralSuffix: string,
-  singularSuffix: string
-) => {
-  return `${root}${count !== 1 ? pluralSuffix : singularSuffix}`;
-};
-
 export const addGravatarUrlToResource = (resource: any): any => {
   const { email } = resource;
   const gravatarAvailable =
@@ -484,6 +459,25 @@ export const formatPackForClient = (pack: IPack): IPack => {
   return pack;
 };
 
+export const formatSeverity = (float?: number | null): string => {
+  if (float === null || float === undefined) {
+    return DEFAULT_EMPTY_CELL_VALUE;
+  }
+
+  let severity = "";
+  if (float < 4.0) {
+    severity = "Low";
+  } else if (float < 7.0) {
+    severity = "Medium";
+  } else if (float < 9.0) {
+    severity = "High";
+  } else if (float <= 10.0) {
+    severity = "Critical";
+  }
+
+  return `${severity} (${float.toFixed(1)})`;
+};
+
 export const formatScriptNameForActivityItem = (name: string | undefined) => {
   return name ? (
     <>
@@ -783,7 +777,11 @@ export const normalizeEmptyValues = (
   return reduce(
     hostData,
     (result, value, key) => {
-      if ((Number.isFinite(value) && value !== 0) || !isEmpty(value)) {
+      if (
+        (Number.isFinite(value) && value !== 0) ||
+        !isEmpty(value) ||
+        typeof value === "boolean"
+      ) {
         Object.assign(result, { [key]: value });
       } else {
         Object.assign(result, { [key]: DEFAULT_EMPTY_CELL_VALUE });
@@ -883,11 +881,11 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   );
 
 export default {
-  pluralize,
   addGravatarUrlToResource,
   formatConfigDataForServer,
   formatLabelResponse,
   formatFloatAsPercentage,
+  formatSeverity,
   formatScheduledQueryForClient,
   formatScheduledQueryForServer,
   formatScriptNameForActivityItem,

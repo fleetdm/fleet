@@ -106,7 +106,7 @@ const PastActivity = ({ activity, onDetailsClick }: IPastActivityProps) => {
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           <PastActivityTopline
             activity={activity}
             onDetailsClick={onDetailsClick}

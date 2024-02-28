@@ -510,7 +510,7 @@ const PolicyForm = ({
       )}
       {renderLiveQueryWarning()}
       {isObserverPlus && ( // Observer+ can run existing policies
-        <div className={"button-wrap"}>
+        <div className="button-wrap">
           <Button
             className={`${baseClass}__run`}
             variant="blue-green"
@@ -562,7 +562,7 @@ const PolicyForm = ({
           {(isEditMode || defaultPolicy) && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
-          <div className={"button-wrap"}>
+          <div className="button-wrap">
             {hasSavePermissions && (
               <>
                 <span

@@ -61,23 +61,30 @@ export const generateTableHeaders = (teamId: number) => {
       ),
       Cell: ({ row }: IHostCellProps): JSX.Element => {
         const { hosts_count, name_only, version } = row.original;
+        return <TextCell value={hosts_count} />;
+      },
+    },
+    {
+      title: "",
+      Header: "",
+      accessor: "linkToFilteredHosts",
+      disableSortBy: true,
+      Cell: (cellProps: IOSTypeCellProps) => {
         return (
-          <span className="hosts-cell__wrapper">
-            <span className="hosts-cell__count">
-              <TextCell value={hosts_count} />
-            </span>
-            <span className="hosts-cell__link">
+          <>
+            {cellProps.row.original && (
               <ViewAllHostsLink
                 queryParams={{
-                  os_name: name_only,
-                  os_version: version,
+                  os_name: cellProps.row.original.name_only,
+                  os_version: cellProps.row.original.version,
                   team_id: teamId,
                 }}
                 condensed
                 className="os-hosts-link"
+                rowHover
               />
-            </span>
-          </span>
+            )}
+          </>
         );
       },
     },

@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h4>For teams with lots of different endpoints</h4>
-            <h1>Your last MDM migration</h1>
+            <h1>Focus on data, not vendors</h1>
             <p>Replace the sprawl with open-source code that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
@@ -86,33 +86,11 @@
         </div>
       </div>
 
-      <div purpose="category-switch" class="d-flex flex-md-row flex-column justify-content-center mx-auto">
-        <div purpose="category-switch-option" class="security" :class="[selectedCategory === 'device-management' ? 'selected' : '']" @click="selectedCategory = 'device-management'">Device management</div>
-        <div purpose="category-switch-option" class="all" :class="[selectedCategory === 'endpoint-ops' ? 'selected' : '']" @click="selectedCategory = 'endpoint-ops'">Endpoint ops</div>
-        <div purpose="category-switch-option" class="it" :class="[selectedCategory === 'vulnerability-management' ? 'selected' : '']" @click="selectedCategory = 'vulnerability-management'">Vuln<span class="d-inline d-md-none d-lg-inline">erability</span> management</div>
-        <div purpose="category-tier-switch" :class="selectedCategory+'-selected'"></div>
-      </div>
-
-      <%/* Device management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'device-management' ? 'visible' : '']"  class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'device-management'">
-        <div purpose="category-text-block" class="d-flex flex-column">
-          <h4>Device management</h4>
-          <h3>Manage everything in one place</h3>
-          <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux. De-risk config changes, automate security audits, and clear the way for “zero trust access” in your org.</p>
-          <div>
-            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
-          </div>
-        </div>
-        <div purpose="device-management-image">
-          <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
-        </div>
-      </div>
-
       <%/* Endpoint ops block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'endpoint-ops' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'endpoint-ops'">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h4>Endpoint ops</h4>
-          <h3>Focus on data, not vendors</h3>
+          <h3>A consistent interface</h3>
           <p>Use a consistent interface to deploy, update, and manage thousands of workstations and servers with open standards and data.</p>
           <div>
             <a purpose="category-button" class="text-nowrap btn btn-primary" href="/endpoint-ops">Start with endpoint ops</a>
@@ -123,8 +101,24 @@
         </div>
       </div>
 
+      <%/* Device management block */%>
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center">
+        <div purpose="device-management-image">
+          <img alt="Operating systems entering a glass device management dome" src="/images/device-management-hero-380x293@2x.png">
+        </div>
+        <div purpose="category-text-block" class="d-flex flex-column">
+          <h4>Device management</h4>
+          <h3>Manage everything in one place</h3>
+          <p>Modernize your device management practice with a single, open platform for Apple, Windows, and Linux. De-risk config changes, automate security audits, and clear the way for “zero trust access” in your org.</p>
+          <div>
+            <a purpose="category-button" class="text-nowrap btn btn-primary" href="/device-management">Start with device management</a>
+          </div>
+        </div>
+      </div>
+
+
       <%/* Vulnerability management block */%>
-      <div purpose="platform-block" :class="[selectedCategory === 'vulnerability-management' ? 'visible' : '']" class="d-flex flex-md-row flex-column justify-content-md-between mx-auto align-items-center" v-if="selectedCategory === 'vulnerability-management'">
+      <div purpose="platform-block" class="d-flex flex-md-row flex-column-reverse justify-content-md-between mx-auto align-items-center">
         <div purpose="category-text-block" class="d-flex flex-column">
           <h4>Vulnerability management</h4>
           <h3>Build the vulnerability program you actually want</h3>
@@ -318,7 +312,7 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <h4>For teams with lots of different endpoints</h4>
-        <h1>Your last MDM migration</h1>
+        <h1>Focus on data, not vendors</h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
           <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>

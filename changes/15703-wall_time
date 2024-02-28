@@ -1,1 +1,0 @@
-wall_time is now reported in milliseconds (as opposed to seconds), consistent with other query performance stats.

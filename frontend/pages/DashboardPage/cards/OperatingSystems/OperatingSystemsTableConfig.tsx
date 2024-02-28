@@ -1,7 +1,13 @@
+/**
+ dashboard/:osname Dashboard > OS dropdown selected > Operating system table
+ software/os > OS tab > Operating system table
+*/
+
 import React from "react";
 import { Column } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
@@ -77,16 +83,24 @@ const generateDefaultTableHeaders = (
       }
 
       const { name, os_version_id } = cellProps.row.original;
+
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
+      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
+        os_version_id
+      )}?${teamQueryParam}`;
+
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
         e.stopPropagation();
 
-        router?.push(PATHS.SOFTWARE_OS_DETAILS(os_version_id));
+        router?.push(softwareOsDetailsPath);
       };
 
       return (
         <LinkCell
-          path={PATHS.SOFTWARE_OS_DETAILS(os_version_id)}
+          path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
           value={
             <>

@@ -27,12 +27,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
+	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -847,10 +847,78 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
+// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// returns the appropriate condition to use in the WHERE clause to render only
+// the appropriate teams, but is to be used when the team_id column uses "0" to
+// mean "all teams including no team". This is the case e.g. for
+// software_title_host_counts.
+//
+// filter provides the filtering parameters that should be used.
+// filterTableAlias is the name/alias of the table to use in generating the
+// SQL.
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(ds.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	defaultAllowClause := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	if filter.TeamID != nil {
+		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", filterTableAlias, *filter.TeamID)
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+			return defaultAllowClause
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return defaultAllowClause
+			}
+			return "FALSE"
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	var teamIDSeen bool
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin ||
+			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleObserverPlus ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			if filter.TeamID != nil && *filter.TeamID == team.ID {
+				teamIDSeen = true
+			}
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	if filter.TeamID != nil {
+		if teamIDSeen {
+			// all good, this user has the right to see the requested team
+			return defaultAllowClause
+		}
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s.team_id IN (%s)", filterTableAlias, strings.Join(idStrs, ","))
+}
+
 // whereFilterTeams returns the appropriate condition to use in the WHERE
 // clause to render only the appropriate teams.
 //
-// filter provides the filtering parameters that should be used. hostKey is the
+// filter provides the filtering parameters that should be used. teamKey is the
 // name/alias of the teams table to use in generating the SQL.
 func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
 	if filter.User == nil {

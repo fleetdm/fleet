@@ -1,2 +1,0 @@
-- Fixes permission issues with lock/unlock functionality. Observer and Observer Plus are now able to
-  lock/unlock hosts.
