@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 
 import hostAPI from "services/entities/hosts";
+import { getErrorReason } from "interfaces/errors";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
 import { NotificationContext } from "context/notification";
-import { AxiosError } from "axios";
 
 const baseClass = "wipe-modal";
 
@@ -28,9 +28,8 @@ const WipeModal = ({ id, hostName, onSuccess, onClose }: IWipeModalProps) => {
       await hostAPI.wipeHost(id);
       onSuccess();
       renderFlash("success", "Success! Host is wiping.");
-    } catch (error) {
-      const err = error as AxiosError;
-      renderFlash("error", err.message);
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
     }
     onClose();
     setIsWiping(false);
