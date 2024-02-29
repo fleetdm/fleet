@@ -13,6 +13,7 @@ import (
 )
 
 // Script represents a saved script that can be executed on a host.
+// TODO(JVE): do we need to store the script_contents ID in this type?
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
 	TeamID *uint  `json:"team_id" db:"team_id"`

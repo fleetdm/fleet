@@ -2,9 +2,13 @@ package mysql
 
 import (
 	"context"
+	"crypto/md5"
 	"database/sql"
+	"encoding/hex"
 	"errors"
 	"fmt"
+	"log/slog"
+	"strings"
 	"time"
 	"unicode/utf8"
 
@@ -146,7 +150,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -235,20 +238,48 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 }
 
 func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
+	var res, scRes sql.Result
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+
+		// first insert script contents
+		scRes, err = insertScriptContents(ctx, script.ScriptContents, tx)
+		if err != nil {
+			return err
+		}
+		id, _ := scRes.LastInsertId()
+
+		// then create the script entity
+		res, err = insertScript(ctx, script, uint(id), tx)
+		return err
+	})
+	if err != nil {
+		// TODO(JVE): find out if we need different error handling/logging here
+		return nil, err
+	}
+	id, _ := res.LastInsertId()
+	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
+}
+
+func insertScript(ctx context.Context, script *fleet.Script, scriptContentsID uint, tx sqlx.ExtContext) (sql.Result, error) {
+	// TODO(JVE): decide what to do with script contents here. Should we
+	// not insert it (requires a migration to set a default value on this column so it can be empty)
+	// insert an empty string
+	// delete the column
 	const insertStmt = `
 INSERT INTO
   scripts (
-    team_id, global_or_team_id, name, script_contents
+    team_id, global_or_team_id, name, script_contents, script_content_id
   )
 VALUES
-  (?, ?, ?, ?)
+  (?, ?, ?, ?, ?)
 `
 	var globalOrTeamID uint
 	if script.TeamID != nil {
 		globalOrTeamID = *script.TeamID
 	}
-	res, err := ds.writer(ctx).ExecContext(ctx, insertStmt,
-		script.TeamID, globalOrTeamID, script.Name, script.ScriptContents)
+	res, err := tx.ExecContext(ctx, insertStmt,
+		script.TeamID, globalOrTeamID, script.Name, script.ScriptContents, scriptContentsID)
 	if err != nil {
 		if isDuplicate(err) {
 			// name already exists for this team/global
@@ -259,8 +290,35 @@ VALUES
 		}
 		return nil, ctxerr.Wrap(ctx, err, "insert script")
 	}
-	id, _ := res.LastInsertId()
-	return ds.getScriptDB(ctx, ds.writer(ctx), uint(id))
+	return res, nil
+}
+
+func insertScriptContents(ctx context.Context, contents string, tx sqlx.ExtContext) (sql.Result, error) {
+	// md5 hash the contents
+	// attempt to insert them into the table. TODO: what do with duplicates?
+	// return the result because we need to store the ID in the scripts table
+	const insertStmt = `
+INSERT INTO
+  script_contents (
+	  md5_checksum, contents
+  )
+VALUES (UNHEX(?),?)
+	`
+
+	md5Checksum := md5ChecksumScriptContent(contents)
+	slog.With("filename", "server/datastore/mysql/scripts.go", "func", "insertScriptContents").Info("JVE_LOG: inserting script contents ", "contents", contents, "md5sc", md5Checksum)
+	res, err := tx.ExecContext(ctx, insertStmt, md5Checksum, contents)
+	if err != nil {
+		// TODO(JVE): do we need duplicate error checking here? or different handling/logging?
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func md5ChecksumScriptContent(s string) string {
+	rawChecksum := md5.Sum([]byte(s)) //nolint:gosec
+	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
 func (ds *Datastore) Script(ctx context.Context, id uint) (*fleet.Script, error) {
