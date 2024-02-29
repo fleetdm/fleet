@@ -884,12 +884,12 @@ type addHostsToTeamByFilterRequest struct {
 		// MDMBootstrapPackage
 		MDMID *uint `json:"mdm_id"`
 		// MDMName
-		MDMEnrollmentStatus fleet.MDMEnrollStatus `json:"mdm_enrollment_status"`
-		MunkiIssueID        *uint                 `json:"munki_issue_id"`
-		LowDiskSpace        *int                  `json:"low_disk_space"`
-		// OSSettings
-		// OSSettingsDiskEncryption
-		Vulnerability *string `json:"vulnerability"`
+		MDMEnrollmentStatus      fleet.MDMEnrollStatus      `json:"mdm_enrollment_status"`
+		MunkiIssueID             *uint                      `json:"munki_issue_id"`
+		LowDiskSpace             *int                       `json:"low_disk_space"`
+		OSSettings               fleet.OSSettingsStatus     `json:"os_settings"`
+		OSSettingsDiskEncryption fleet.DiskEncryptionStatus `json:"os_settings_disk_encryption"`
+		Vulnerability            *string                    `json:"vulnerability"`
 	} `json:"filters"`
 }
 
@@ -922,12 +922,12 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 		OSVersionIDFilter: req.Filters.OSVersionID,
 		MDMIDFilter:       req.Filters.MDMID,
 		// MDMName
-		MDMEnrollmentStatusFilter: req.Filters.MDMEnrollmentStatus,
-		MunkiIssueIDFilter:        req.Filters.MunkiIssueID,
-		LowDiskSpaceFilter:        req.Filters.LowDiskSpace,
-		// OSSettings
-		// OSSettingsDiskEncryption
-		VulnerabilityFilter: req.Filters.Vulnerability,
+		MDMEnrollmentStatusFilter:      req.Filters.MDMEnrollmentStatus,
+		MunkiIssueIDFilter:             req.Filters.MunkiIssueID,
+		LowDiskSpaceFilter:             req.Filters.LowDiskSpace,
+		OSSettingsFilter:               req.Filters.OSSettings,
+		OSSettingsDiskEncryptionFilter: req.Filters.OSSettingsDiskEncryption,
+		VulnerabilityFilter:            req.Filters.Vulnerability,
 	}
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
 	if err != nil {
