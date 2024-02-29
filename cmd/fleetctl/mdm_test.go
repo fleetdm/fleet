@@ -849,6 +849,20 @@ func TestMDMWipeCommand(t *testing.T) {
 		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
 		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual)")},
 	}
+	winEnrolledLocked := &fleet.Host{
+		ID:       16,
+		UUID:     "win-enrolled-locked",
+		Platform: "windows",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual")},
+	}
+	macEnrolledLocked := &fleet.Host{
+		ID:       17,
+		UUID:     "mac-enrolled-locked",
+		Platform: "darwin",
+		MDMInfo:  &fleet.HostMDM{Enrolled: true, Name: fleet.WellKnownMDMFleet},
+		MDM:      fleet.MDMHostData{Name: fleet.WellKnownMDMFleet, EnrollmentStatus: ptr.String("On (manual")},
+	}
 
 	hostByUUID := make(map[string]*fleet.Host)
 	hostsByID := make(map[uint]*fleet.Host)
@@ -868,14 +882,16 @@ func TestMDMWipeCommand(t *testing.T) {
 		macEnrolledWP,
 		winEnrolledWiped,
 		macEnrolledWiped,
+		winEnrolledLocked,
+		macEnrolledLocked,
 	} {
 		hostByUUID[h.UUID] = h
 		hostsByID[h.ID] = h
 	}
 
 	locked := map[uint]*fleet.Host{
-		winEnrolled.ID: winEnrolled,
-		macEnrolled.ID: macEnrolled, linuxEnrolled.ID: linuxEnrolled,
+		winEnrolledLocked.ID: winEnrolledLocked,
+		macEnrolledLocked.ID: macEnrolledLocked,
 	}
 
 	unlockPending := map[uint]*fleet.Host{
@@ -986,6 +1002,7 @@ func TestMDMWipeCommand(t *testing.T) {
 	}
 
 	appCfgAllMDM, appCfgWinMDM, appCfgMacMDM, appCfgNoMDM := setupAppConigs()
+	appCfgScriptsDisabled := &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}
 
 	cases := []struct {
 		appCfg  *fleet.AppConfig
@@ -1013,15 +1030,19 @@ func TestMDMWipeCommand(t *testing.T) {
 		{appCfgAllMDM, "valid macos but pending wipe", []string{"--host", macEnrolledWP.UUID}, "Host has pending wipe request."},
 		{appCfgAllMDM, "valid windows but host wiped", []string{"--host", winEnrolledWiped.UUID}, "Host is already wiped."},
 		{appCfgAllMDM, "valid macos but host wiped", []string{"--host", macEnrolledWiped.UUID}, "Host is already wiped."},
+		{appCfgAllMDM, "valid windows but host is locked", []string{"--host", winEnrolledLocked.UUID}, "Host cannot be wiped until it is unlocked."},
+		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.UUID}, "Host cannot be wiped until it is unlocked."},
+		{appCfgAllMDM, "valid macos but host is locked", []string{"--host", macEnrolledLocked.UUID}, "Host cannot be wiped until it is unlocked."},
+		{appCfgScriptsDisabled, "valid linux but script are disabled", []string{"--host", linuxEnrolled.UUID}, "Can't wipe host because running scripts is disabled in organization settings."},
 	}
 
 	successfulOutput := func(ident string) string {
 		return fmt.Sprintf(`
-		The host will wipe when it comes online.
+The host will wipe when it comes online.
 
-		Copy and run this command to see results:
+Copy and run this command to see results:
 
-		fleetctl get host %s`, ident)
+fleetctl get host %s`, ident)
 	}
 
 	runTestCases(t, ds, "wipe", successfulOutput, cases)
