@@ -196,15 +196,49 @@ func (ts *withServer) DoRawWithHeaders(
 ) *http.Response {
 	t := ts.s.T()
 
+	withFollowRedir := true
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		withFollowRedir = false
+	}
+	resp, err := ts.DoRequestRaw(context.Background(), verb, path, rawBytes, headers, withFollowRedir, queryParams...)
+	require.NoError(t, err)
+
+	if resp.StatusCode != expectedStatusCode {
+		defer resp.Body.Close()
+		var je jsonError
+		err := json.NewDecoder(resp.Body).Decode(&je)
+		if err != nil {
+			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
+			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
+		}
+		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
+	}
+
+	return resp
+}
+
+func (ts *withServer) DoRequest(ctx context.Context, verb string, path string, params interface{}, queryParams ...string) (*http.Response, error) {
+	t := ts.s.T()
+
+	j, err := json.Marshal(params)
+	require.NoError(t, err)
+	return ts.DoRequestRaw(ctx, verb, path, j, map[string]string{
+		"Authorization": fmt.Sprintf("Bearer %s", ts.token),
+	}, true, queryParams...)
+}
+
+func (ts *withServer) DoRequestRaw(ctx context.Context, verb string, path string, rawBytes []byte, headers map[string]string, withFollowRedir bool, queryParams ...string) (*http.Response, error) {
+	t := ts.s.T()
+
 	requestBody := io.NopCloser(bytes.NewBuffer(rawBytes))
-	req, err := http.NewRequest(verb, ts.server.URL+path, requestBody)
+	req, err := http.NewRequestWithContext(ctx, verb, ts.server.URL+path, requestBody)
 	require.NoError(t, err)
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
 
 	opts := []fleethttp.ClientOpt{}
-	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+	if !withFollowRedir {
 		opts = append(opts, fleethttp.WithFollowRedir(false))
 	}
 	client := fleethttp.NewClient(opts...)
@@ -221,20 +255,7 @@ func (ts *withServer) DoRawWithHeaders(
 	}
 
 	resp, err := client.Do(req)
-	require.NoError(t, err)
-
-	if resp.StatusCode != expectedStatusCode {
-		defer resp.Body.Close()
-		var je jsonError
-		err := json.NewDecoder(resp.Body).Decode(&je)
-		if err != nil {
-			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
-			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
-		}
-		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
-	}
-
-	return resp
+	return resp, err
 }
 
 func (ts *withServer) DoRaw(verb string, path string, rawBytes []byte, expectedStatusCode int, queryParams ...string) *http.Response {
