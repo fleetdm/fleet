@@ -194,6 +194,19 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	if opt.PopulatePolicies {
+		for _, host := range hosts {
+			hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
+			}
+			if hp == nil {
+				hp = []*fleet.HostPolicy{}
+			}
+			host.Policies = &hp
+		}
+	}
+
 	return hosts, nil
 }
 
@@ -1120,11 +1133,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		host.MDM.PendingAction = ptr.String("wipe")
 	}
 
+	host.Policies = policies
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
 		Packs:     packs,
-		Policies:  policies,
 		Batteries: &bats,
 	}, nil
 }
