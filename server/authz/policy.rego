@@ -215,86 +215,76 @@ allow {
 # Hosts
 ##
 
-
 # Function to get allowed roles based on the action
-ssread(action, base_roles, extra_roles) = result {
-    action == "selective_read"  # If action requires extra roles
-    result := base_roles | extra_roles  # Union of base_roles and extra_roles
+read_role_eval(action, base_roles, extra_roles) = result {
+	action == "selective_read"
+	result := base_roles | extra_roles
 } else = result {
-    result := base_roles  # For other actions, use base_roles only
+	action == "read"
+	result := base_roles
+} else = result {
+	result := null
 }
 
-
 # Function to get allowed roles based on the action
-sslist(action, base_roles, extra_roles) = result {
-    action == "selective_list"  # If action requires extra roles
-    result := base_roles | extra_roles  # Union of base_roles and extra_roles
+list_role_eval(action, base_roles, extra_roles) = result {
+	action == "selective_list"
+	result := base_roles | extra_roles
 } else = result {
-    result := base_roles  # For other actions, use base_roles only
+	action == "list"
+	result := base_roles
+} else = result {
+	result := null
 }
-
-
 
 # Global admins, maintainers, observer_plus and observers can list hosts.
 allow {
 	object.type == "host"
 	base_roles := {admin, maintainer, observer_plus, observer}
 	extra_roles := {gitops}
-
-	allowed_roles := sslist(action, base_roles, extra_roles)
-
-    # Check if the subject's role is allowed for the action
-    allowed_roles[_] == subject.global_role
+	list_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Team admins, maintainers, observer_plus and observers can list hosts.
+# Team admins, maintainers, observer_plus and observers can list and selective_list hosts.
+# Gitops can selective_list hosts
 allow {
 	object.type == "host"
 	# If role is admin, maintainer, observer_plus or observer on any team.
 	base_roles := {admin, maintainer, observer_plus, observer}
+	# Or gitops for selective reads
 	extra_roles := {gitops}
-
-	allowed_roles := sslist(action, base_roles, extra_roles)
-
-    # Check if the subject's role is allowed for the action
-    allowed_roles[_] == team_role(subject, subject.teams[_].id)
+	list_role_eval(action, base_roles, extra_roles)[_] == team_role(subject, subject.teams[_].id)
 }
 
-# Allow read/write for global admin/maintainer.
+# Allow read for global admin/maintainer, selective_read for gitops.
 allow {
 	object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-	action == [read, write][_]
+	base_roles := {admin, maintainer}
+	extra_roles := {gitops}
+	read_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Global gitops can write hosts.
+# Global gitops, admin and mantainers can write hosts.
 allow {
 	object.type == "host"
-  subject.global_role == gitops
+	subject.global_role == [admin, maintainer, gitops][_]
 	action == write
 }
 
-# Allow read for global observer and observer_plus.
+# Allow read for global observer and observer_plus, selective_read for gitops.
 allow {
 	object.type == "host"
 	base_roles := {observer_plus, observer}
 	extra_roles := {gitops}
-	allowed_roles := ssread(action, base_roles, extra_roles)
-
-    # Check if the subject's role is allowed for the action
-    allowed_roles[_] == subject.global_role
+	read_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Allow read for matching team admin/maintainer/observer/observer_plus.
+# Allow read for matching team admin/maintainer/observer/observer_plus, selective read for gitops.
 allow {
 	object.type == "host"
 	base_roles := {admin, maintainer, observer, observer_plus}
 	extra_roles := {gitops}
-
-	allowed_roles := ssread(action, base_roles, extra_roles)
-
-    # Check if the subject's role is allowed for the action
-    allowed_roles[_] == team_role(subject, object.team_id)
+	read_role_eval(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
 }
 
 # Team admins and maintainers can write to hosts of their own team
