@@ -986,6 +986,7 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 		},
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
+	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	camp1 = *createResp.Campaign
 	assert.Equal(t, uint(len(s.hosts)), createResp.Campaign.Metrics.TotalHosts)
 
