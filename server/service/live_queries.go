@@ -263,8 +263,15 @@ func (svc *Service) RunLiveQueryDeadline(
 				queryIDPtr = nil
 				queryString = query
 			}
+
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
+				level.Error(svc.logger).Log(
+					"msg", "new distributed query campaign",
+					"queryString", queryString,
+					"queryID", queryID,
+					"err", err,
+				)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
