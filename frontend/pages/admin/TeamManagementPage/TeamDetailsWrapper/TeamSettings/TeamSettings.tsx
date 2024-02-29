@@ -22,6 +22,7 @@ import DataError from "components/DataError";
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+import Checkbox from "components/forms/fields/Checkbox";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
@@ -29,10 +30,37 @@ const baseClass = "team-settings";
 
 const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
 
+const validateTeamSettingsFormData = (
+  // will never be called if global setting is not loaded, default to satisfy typechecking
+  curGlobalHostExpiryEnabled = false,
+  curFormData: Record<string, boolean | number | string>
+) => {
+  const errors: Record<string, string> = {};
+
+  // validate host expiry fields
+  const numHostExpiryWindow = Number(curFormData.teamHostExpiryWindow);
+  if (
+    // with no global setting, team window can't be empty if enabled
+    (!curGlobalHostExpiryEnabled &&
+      curFormData.teamHostExpiryEnabled &&
+      !numHostExpiryWindow) ||
+    // if nonempty, must be a positive number
+    isNaN(numHostExpiryWindow) ||
+    // if overriding a global setting, can be empty to disable local setting
+    numHostExpiryWindow < 0
+  ) {
+    errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
+  }
+
+  // validate host webhook fields
+
+  return errors;
+};
 const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formData, setFormData] = useState({
     teamHostExpiryEnabled: false,
     teamHostExpiryWindow: "" as number | string,
+    teamHostStatusWebhookEnabled: false,
   });
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
@@ -83,45 +111,21 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       select: (data) => data.team,
       onSuccess: (teamConfig) => {
         setFormData({
+          // host expiry settings
           teamHostExpiryEnabled:
             teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false,
           teamHostExpiryWindow:
             teamConfig?.host_expiry_settings?.host_expiry_window ?? "",
+          // host status webhook settings
+          teamHostStatusWebhookEnabled:
+            teamConfig?.webhook_settings?.host_status_webhook
+              ?.enable_host_status_webhook ?? false,
         });
       },
     }
   );
 
-  const validateTeamSettingsFormData = useCallback(
-    (
-      // will never be called if global setting is not loaded, default to satisfy typechecking
-      curGlobalHostExpiryEnabled = false,
-      curFormData: typeof formData
-    ) => {
-      const errors: Record<string, string> = {};
-
-      // validate host expiry fields
-      const numHostExpiryWindow = Number(curFormData.teamHostExpiryWindow);
-      if (
-        // with no global setting, team window can't be empty if enabled
-        (!curGlobalHostExpiryEnabled &&
-          curFormData.teamHostExpiryEnabled &&
-          !numHostExpiryWindow) ||
-        // if nonempty, must be a positive number
-        isNaN(numHostExpiryWindow) ||
-        // if overriding a global setting, can be empty to disable local setting
-        numHostExpiryWindow < 0
-      ) {
-        errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
-      }
-
-      // validate host webhook fields
-
-      return errors;
-    },
-    // pure function, no dependencies
-    []
-  );
+  // host expiry onChange handlers
 
   const onChangeTeamExpiryEnabled = useCallback(
     (isEnabled: boolean) => {
@@ -132,7 +136,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
       );
     },
-    [formData, validateTeamSettingsFormData, globalHostExpiryEnabled]
+    [formData, globalHostExpiryEnabled]
   );
 
   const onChangeTeamHostExpiryWindow = useCallback(
@@ -144,7 +148,23 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
       );
     },
-    [formData, validateTeamSettingsFormData, globalHostExpiryEnabled]
+    [formData, globalHostExpiryEnabled]
+  );
+
+  // host status webhook onChange handlers
+  const onChangeTeamHostStatusWebhookEnabled = useCallback(
+    (isEnabled: boolean) => {
+      const newFormData = {
+        ...formData,
+        onChangeTeamHostStatusWebhookEnabled: isEnabled,
+      };
+
+      setFormData(newFormData);
+      setFormErrors(
+        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
+      );
+    },
+    [formData, globalHostExpiryEnabled]
   );
 
   const updateTeamSettings = useCallback(
@@ -169,6 +189,12 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               host_expiry_enabled: enableHostExpiry,
               host_expiry_window: castedHostExpiryWindow,
             },
+            webhook_settings: {
+              host_status_webhook: {
+                enable_host_status_webhook:
+                  formData.teamHostStatusWebhookEnabled,
+              },
+            },
           },
           teamIdForApi
         )
@@ -187,8 +213,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         });
     },
     [
-      formData.teamHostExpiryEnabled,
-      formData.teamHostExpiryWindow,
+      formData,
       globalHostExpiryEnabled,
       refetchTeamConfig,
       renderFlash,
@@ -206,6 +231,15 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     return (
       <form onSubmit={updateTeamSettings}>
         <SectionHeader title="Webhook settings" />
+        <Checkbox
+          name="enableTeamHostStatusWebhook"
+          onChange={onChangeTeamHostStatusWebhookEnabled}
+          value={formData.teamHostStatusWebhookEnabled}
+          helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
+          tooltipContent="Send an alert if a portion of your hosts go offline."
+        >
+          Enable host status webhook
+        </Checkbox>
         <SectionHeader title="Host expiry settings" />
         {globalHostExpiryEnabled !== undefined && (
           <TeamHostExpiryToggle
