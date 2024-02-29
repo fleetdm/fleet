@@ -1063,8 +1063,8 @@ const ManageHostsPage = ({
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
-        // OSSettings
-        // OSSettingsDiskEncryption
+        osSettings: osSettingsStatus,
+        diskEncryptionStatus,
         vulnerability,
       });
     }

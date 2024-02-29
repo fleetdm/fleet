@@ -136,8 +136,8 @@ export interface IActionByFilter {
   mdmEnrollmentStatus?: MdmEnrollmentStatus;
   munkiIssueId?: number | null;
   lowDiskSpaceHosts?: number | null;
-  // OSSettings
-  // OSSettingsDiskEncryption
+  osSettings?: MdmProfileStatus;
+  diskEncryptionStatus?: DiskEncryptionStatus;
   vulnerability?: string;
 }
 
@@ -296,6 +296,8 @@ export default {
     diskEncryptionStatus,
     bootstrapPackageStatus,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
+    console.log("osSettings", osSettings);
+    console.log("diskEncryptionStatus", diskEncryptionStatus);
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -336,6 +338,7 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
+    console.log("queryString", queryString);
     const endpoint = getHostEndpoint(selectedLabels);
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);
@@ -400,8 +403,8 @@ export default {
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
-    // OSSettings
-    // OSSettingsDiskEncryption
+    osSettings,
+    diskEncryptionStatus,
     vulnerability,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
@@ -429,8 +432,8 @@ export default {
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
         low_disk_space_host: lowDiskSpaceHosts,
-        // OSSettings
-        // OSSettingsDiskEncryption
+        os_settings: osSettings,
+        os_settings_disk_encryption: diskEncryptionStatus,
         vulnerability,
       },
     });
