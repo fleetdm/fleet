@@ -31,4 +31,7 @@ const (
 	ActionRun = "run"
 	// ActionRunNew is the action for running a new live query.
 	ActionRunNew = "run_new"
+
+	ActionSelectiveRead = "selective_read"
+	ActionSelectiveList = "selective_list"
 )

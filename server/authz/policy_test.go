@@ -14,13 +14,15 @@ import (
 )
 
 const (
-	read      = fleet.ActionRead
-	list      = fleet.ActionList
-	write     = fleet.ActionWrite
-	writeRole = fleet.ActionWriteRole
-	run       = fleet.ActionRun
-	runNew    = fleet.ActionRunNew
-	changePwd = fleet.ActionChangePassword
+	read          = fleet.ActionRead
+	list          = fleet.ActionList
+	write         = fleet.ActionWrite
+	writeRole     = fleet.ActionWriteRole
+	run           = fleet.ActionRun
+	runNew        = fleet.ActionRunNew
+	changePwd     = fleet.ActionChangePassword
+	selectiveRead = fleet.ActionSelectiveRead
+	selectiveList = fleet.ActionSelectiveList
 )
 
 var auth *Authorizer
@@ -534,94 +536,124 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: nil, object: host, action: read, allow: false},
 		{user: nil, object: host, action: write, allow: false},
 		{user: nil, object: host, action: list, allow: false},
+		{user: nil, object: host, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam1, action: read, allow: false},
 		{user: nil, object: hostTeam1, action: write, allow: false},
+		{user: nil, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: nil, object: hostTeam2, action: read, allow: false},
 		{user: nil, object: hostTeam2, action: write, allow: false},
+		{user: nil, object: hostTeam2, action: selectiveRead, allow: false},
 
 		// No host access if the user has no roles.
 		{user: test.UserNoRoles, object: host, action: read, allow: false},
 		{user: test.UserNoRoles, object: host, action: write, allow: false},
 		{user: test.UserNoRoles, object: host, action: list, allow: false},
+		{user: test.UserNoRoles, object: host, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam1, action: write, allow: false},
+		{user: test.UserNoRoles, object: hostTeam1, action: selectiveRead, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: read, allow: false},
 		{user: test.UserNoRoles, object: hostTeam2, action: write, allow: false},
+		{user: test.UserNoRoles, object: hostTeam2, action: selectiveRead, allow: false},
 
 		// Global observer can read all
 		{user: test.UserObserver, object: host, action: read, allow: true},
 		{user: test.UserObserver, object: host, action: write, allow: false},
 		{user: test.UserObserver, object: host, action: list, allow: true},
+		{user: test.UserObserver, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: read, allow: true},
+		{user: test.UserObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserver, object: hostTeam2, action: read, allow: true},
+		{user: test.UserObserver, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserver, object: hostTeam2, action: write, allow: false},
 
 		// Global observer+ can read all
 		{user: test.UserObserverPlus, object: host, action: read, allow: true},
 		{user: test.UserObserverPlus, object: host, action: write, allow: false},
 		{user: test.UserObserverPlus, object: host, action: list, allow: true},
+		{user: test.UserObserverPlus, object: host, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: read, allow: true},
+		{user: test.UserObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: test.UserObserverPlus, object: hostTeam2, action: read, allow: true},
+		{user: test.UserObserverPlus, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserObserverPlus, object: hostTeam2, action: write, allow: false},
 
 		// Global admin can read/write all
 		{user: test.UserAdmin, object: host, action: read, allow: true},
+		{user: test.UserAdmin, object: host, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: host, action: write, allow: true},
 		{user: test.UserAdmin, object: host, action: list, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam1, action: write, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: read, allow: true},
+		{user: test.UserAdmin, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserAdmin, object: hostTeam2, action: write, allow: true},
 
 		// Global maintainer can read/write all
 		{user: test.UserMaintainer, object: host, action: read, allow: true},
+		{user: test.UserMaintainer, object: host, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: host, action: write, allow: true},
 		{user: test.UserMaintainer, object: host, action: list, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: read, allow: true},
+		{user: test.UserMaintainer, object: hostTeam2, action: selectiveRead, allow: true},
 		{user: test.UserMaintainer, object: hostTeam2, action: write, allow: true},
 
-		// Global GitOps can write and read all.
-		{user: test.UserGitOps, object: host, action: read, allow: true},
+		// Global GitOps can write and selectively read all.
+		{user: test.UserGitOps, object: host, action: read, allow: false},
 		{user: test.UserGitOps, object: host, action: write, allow: true},
-		{user: test.UserGitOps, object: host, action: list, allow: true},
-		{user: test.UserGitOps, object: hostTeam1, action: read, allow: true},
+		{user: test.UserGitOps, object: host, action: selectiveRead, allow: true},
+		{user: test.UserGitOps, object: host, action: list, allow: false},
+		{user: test.UserGitOps, object: hostTeam1, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam1, action: write, allow: true},
-		{user: test.UserGitOps, object: hostTeam2, action: read, allow: true},
+		{user: test.UserGitOps, object: hostTeam1, action: selectiveRead, allow: true},
+		{user: test.UserGitOps, object: hostTeam2, action: read, allow: false},
 		{user: test.UserGitOps, object: hostTeam2, action: write, allow: true},
+		{user: test.UserGitOps, object: hostTeam2, action: selectiveRead, allow: true},
 
 		// Team observer can read only on appropriate team
 		{user: teamObserver, object: host, action: read, allow: false},
+		{user: teamObserver, object: host, action: selectiveRead, allow: false},
 		{user: teamObserver, object: host, action: write, allow: false},
 		{user: teamObserver, object: host, action: list, allow: true},
 		{user: teamObserver, object: hostTeam1, action: read, allow: true},
+		{user: teamObserver, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserver, object: hostTeam1, action: write, allow: false},
 		{user: teamObserver, object: hostTeam2, action: read, allow: false},
+		{user: teamObserver, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserver, object: hostTeam2, action: write, allow: false},
 
 		// Team observer+ can read only on appropriate team
 		{user: teamObserverPlus, object: host, action: read, allow: false},
+		{user: teamObserverPlus, object: host, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: host, action: write, allow: false},
 		{user: teamObserverPlus, object: host, action: list, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: read, allow: true},
+		{user: teamObserverPlus, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamObserverPlus, object: hostTeam1, action: write, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: read, allow: false},
+		{user: teamObserverPlus, object: hostTeam2, action: selectiveRead, allow: false},
 		{user: teamObserverPlus, object: hostTeam2, action: write, allow: false},
 
 		// Team maintainer can read/write only on appropriate team
 		{user: teamMaintainer, object: host, action: read, allow: false},
+		{user: teamMaintainer, object: host, action: selectiveRead, allow: false},
 		{user: teamMaintainer, object: host, action: write, allow: false},
 		{user: teamMaintainer, object: host, action: list, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: read, allow: true},
+		{user: teamMaintainer, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamMaintainer, object: hostTeam1, action: write, allow: true},
 		{user: teamMaintainer, object: hostTeam2, action: read, allow: false},
 		{user: teamMaintainer, object: hostTeam2, action: write, allow: false},
 
 		// Team admin can read/write only on appropriate team
 		{user: teamAdmin, object: host, action: read, allow: false},
+		{user: teamAdmin, object: host, action: selectiveRead, allow: false},
 		{user: teamAdmin, object: host, action: write, allow: false},
 		{user: teamAdmin, object: host, action: list, allow: true},
 		{user: teamAdmin, object: hostTeam1, action: read, allow: true},
@@ -629,14 +661,17 @@ func TestAuthorizeHost(t *testing.T) {
 		{user: teamAdmin, object: hostTeam2, action: read, allow: false},
 		{user: teamAdmin, object: hostTeam2, action: write, allow: false},
 
-		// Team GitOps can cannot read hosts, but it can read them.
+		// Team GitOps can cannot read hosts, but it can write and selectively read them.
 		{user: teamGitOps, object: host, action: read, allow: false},
 		{user: teamGitOps, object: host, action: write, allow: false},
-		{user: teamGitOps, object: hostTeam1, action: read, allow: true},
-		{user: teamGitOps, object: hostTeam1, action: list, allow: true},
+		{user: teamGitOps, object: host, action: selectiveRead, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: read, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: list, allow: false},
+		{user: teamGitOps, object: hostTeam1, action: selectiveRead, allow: true},
 		{user: teamGitOps, object: hostTeam1, action: write, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: read, allow: false},
 		{user: teamGitOps, object: hostTeam2, action: write, allow: false},
+		{user: teamGitOps, object: hostTeam2, action: selectiveRead, allow: false},
 	})
 }
 
