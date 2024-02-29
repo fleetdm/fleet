@@ -322,7 +322,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 		var sce kithttp.StatusCoder
 		if errors.As(err, &sce) {
 			if sce.StatusCode() == http.StatusForbidden {
-				return nil, nil, errors.New("Permission denied. You don't have permission to " + actionType + " this host.")
+				return nil, nil, fmt.Errorf("Permission denied. You don't have permission to %s this host.", actionType)
 			}
 		}
 		return nil, nil, err
@@ -332,7 +332,7 @@ func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (cl
 	if host.Platform == "windows" || host.Platform == "darwin" {
 		if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
 			host.MDM.Name != fleet.WellKnownMDMFleet {
-			return nil, nil, errors.New(`Can't ` + actionType + ` the host because it doesn't have MDM turned on.`)
+			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
 		}
 	}
 
