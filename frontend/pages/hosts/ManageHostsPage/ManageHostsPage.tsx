@@ -1034,7 +1034,6 @@ const ManageHostsPage = ({
     setIsUpdatingHosts(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
-    const currentTeam = teamIdForApi;
 
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1046,7 +1045,7 @@ const ManageHostsPage = ({
         query: searchQuery,
         status,
         labelId,
-        currentTeam,
+        currentTeam: teamIdForApi,
         policyId,
         policyResponse,
         softwareId,
@@ -1055,6 +1054,18 @@ const ManageHostsPage = ({
         osName,
         osVersionId,
         osVersion,
+        // DisableFailingPolicies
+        // MacOSSettings
+        // MacOSDiskEncryptionFilter
+        // MDMBootstrapPackage
+        mdmId,
+        // MDMName
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        // OSSettings
+        // OSSettingsDiskEncryption
+        vulnerability,
       });
     }
 

@@ -15,6 +15,7 @@ import {
   BootstrapPackageStatus,
   IMdmSolution,
   MdmProfileStatus,
+  MdmEnrollmentStatus,
 } from "interfaces/mdm";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import { PolicyResponse } from "utilities/constants";
@@ -126,6 +127,18 @@ export interface IActionByFilter {
   osName?: string;
   osVersion?: string;
   osVersionId?: number | null;
+  // DisableFailingPolicies
+  // MacOSSettings
+  // MacOSDiskEncryptionFilter
+  // MDMBootstrapPackage
+  mdmId?: number | null;
+  // MDMName
+  mdmEnrollmentStatus?: MdmEnrollmentStatus;
+  munkiIssueId?: number | null;
+  lowDiskSpaceHosts?: number | null;
+  // OSSettings
+  // OSSettingsDiskEncryption
+  vulnerability?: string;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -378,6 +391,18 @@ export default {
     osName,
     osVersion,
     osVersionId,
+    // DisableFailingPolicies
+    // MacOSSettings
+    // MacOSDiskEncryptionFilter
+    // MDMBootstrapPackage
+    mdmId,
+    // MDMName
+    mdmEnrollmentStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    // OSSettings
+    // OSSettingsDiskEncryption
+    vulnerability,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
@@ -395,6 +420,18 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
+        // DisableFailingPolicies
+        // MacOSSettings
+        // MacOSDiskEncryptionFilter
+        // MDMBootstrapPackage
+        mdm_id: mdmId,
+        // MDMName
+        mdm_enrollment_status: mdmEnrollmentStatus,
+        munki_issue_id: munkiIssueId,
+        low_disk_space_host: lowDiskSpaceHosts,
+        // OSSettings
+        // OSSettingsDiskEncryption
+        vulnerability,
       },
     });
   },
