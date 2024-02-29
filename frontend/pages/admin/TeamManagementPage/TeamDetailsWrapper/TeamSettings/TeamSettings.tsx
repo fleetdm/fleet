@@ -185,6 +185,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
     return (
       <form onSubmit={updateTeamSettings}>
+        <SectionHeader title="Webhook settings" />
+        <SectionHeader title="Host expiry settings" />
         {globalHostExpiryEnabled !== undefined && (
           <TeamHostExpiryToggle
             globalHostExpiryEnabled={globalHostExpiryEnabled}
@@ -218,11 +220,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     );
   };
 
-  return (
-    <section className={`${baseClass}`}>
-      <SectionHeader title="Host expiry settings" />
-      {renderForm()}
-    </section>
-  );
+  return <section className={`${baseClass}`}>{renderForm()}</section>;
 };
 export default TeamSettings;
