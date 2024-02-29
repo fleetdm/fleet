@@ -277,11 +277,11 @@ func mdmWipeCommand() *cli.Command {
 			}
 
 			fmt.Fprintf(c.App.Writer, `
-		The host will wipe when it comes online.
+The host will wipe when it comes online.
 
-		Copy and run this command to see results:
+Copy and run this command to see results:
 
-		fleetctl get host %s`, hostIdent)
+fleetctl get host %s`, hostIdent)
 
 			return nil
 		},

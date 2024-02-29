@@ -11127,7 +11127,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 			// try to wipe a locked host
 			res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
 			errMsg = extractServerErrorText(res.Body)
-			require.Contains(t, errMsg, "Host cannot be wiped when it is locked.")
+			require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 			// unlock the host
 			s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", host.ID), nil, http.StatusNoContent)
@@ -11321,7 +11321,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	// try to wipe a locked host
 	res = s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", host.ID), nil, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Host cannot be wiped when it is locked.")
+	require.Contains(t, errMsg, "Host cannot be wiped until it is unlocked.")
 
 	// unlock the host
 	unlockResp = unlockHostResponse{}
