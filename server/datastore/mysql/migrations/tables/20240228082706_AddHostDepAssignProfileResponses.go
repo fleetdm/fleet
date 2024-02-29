@@ -25,7 +25,7 @@ ALTER TABLE host_dep_assignments
 	-- retry_job_id is the id of job to retry a failed DEP profile assignment
 	ADD COLUMN retry_job_id int(10) UNSIGNED NOT NULL DEFAULT 0,
 
-	ADD INDEX idx_host_dep_assign_prof_resp (assign_profile_response);`
+	ADD INDEX idx_hdep_response (assign_profile_response, response_updated_at);`
 
 	if _, err := tx.Exec(stmt); err != nil {
 		return errors.Wrap(err, "alter host_dep_assignments table")

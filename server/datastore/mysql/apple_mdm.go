@@ -2950,8 +2950,7 @@ const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
 	stmt := `
 SELECT
-	CASE WHEN assign_profile_response = ?
-		AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
+	CASE WHEN assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
 		'skip'
 	ELSE
 		'assign'
@@ -2998,10 +2997,11 @@ SELECT
 	hardware_serial
 FROM
 	host_dep_assignments
-	JOIN hosts ON id = host_id
+	JOIN hosts h ON h.id = host_id
+	LEFT JOIN jobs j ON j.id = retry_job_id
 WHERE
 	assign_profile_response = ?
-	AND(retry_job_id = 0 OR EXISTS (SELECT 1 FROM jobs WHERE id = retry_job_id AND state = ?))
+	AND(retry_job_id = 0 OR j.state = ?)
 	AND(response_updated_at IS NULL
 		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
 

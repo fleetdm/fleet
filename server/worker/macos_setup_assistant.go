@@ -381,7 +381,7 @@ func QueueMacosSetupAssistantJob(
 func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
 	serialsByTeamId, err := ds.GetDEPAssignProfileExpiredCooldowns(ctx)
 	if err != nil {
-		return fmt.Errorf("getting cooldowns: %w", err)
+		return ctxerr.Wrap(ctx, err, "getting cooldowns")
 	}
 	if len(serialsByTeamId) == 0 {
 		logger.Log("msg", "no cooldowns to process")
@@ -394,7 +394,7 @@ func ProcessDEPCooldowns(ctx context.Context, ds fleet.Datastore, logger kitlog.
 			logger.Log("msg", "no cooldowns", "team_id", teamID)
 			continue
 		}
-		logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", fmt.Sprintf("%s", serials))
+		logger.Log("msg", "processing cooldowns", "team_id", teamID, "serials", serials)
 
 		var tid *uint
 		if teamID != 0 {

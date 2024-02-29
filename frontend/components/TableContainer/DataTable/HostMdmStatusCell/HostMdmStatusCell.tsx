@@ -33,7 +33,7 @@ const HostMdmStatusCell = ({
           <span
             className={`tooltip tooltip__tooltip-icon`}
             data-tip
-            data-for={`host-mdm-status__${id.toString()}`}
+            data-for={`host-mdm-status__${id}`}
             data-tip-disable={false}
           >
             <Icon name="error-outline" color="status-error" size="medium" />
@@ -42,7 +42,7 @@ const HostMdmStatusCell = ({
             place="top"
             effect="solid"
             backgroundColor={COLORS["tooltip-bg"]}
-            id={`host-mdm-status__${id.toString()}`}
+            id={`host-mdm-status__${id}`}
             data-html
           >
             <span className={`tooltip__tooltip-text`}>
