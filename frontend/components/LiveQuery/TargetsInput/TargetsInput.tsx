@@ -7,7 +7,7 @@ import { HOSTS_SEARCH_BOX_PLACEHOLDER } from "utilities/constants";
 
 import DataError from "components/DataError";
 // @ts-ignore
-import Input from "components/forms/fields/InputFieldWithIcon";
+import InputFieldWithIcon from "components/forms/fields/InputFieldWithIcon/InputFieldWithIcon";
 import TableContainer from "components/TableContainer";
 import { generateTableHeaders } from "./TargetsInputHostsTableConfig";
 
@@ -47,7 +47,7 @@ const TargetsInput = ({
   return (
     <div>
       <div className={baseClass}>
-        <Input
+        <InputFieldWithIcon
           autofocus
           type="search"
           iconSvg="search"
