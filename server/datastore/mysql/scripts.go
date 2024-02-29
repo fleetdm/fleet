@@ -146,7 +146,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}

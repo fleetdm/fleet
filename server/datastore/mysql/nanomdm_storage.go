@@ -86,7 +86,6 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	cmd *mdm.Command,
 	pin string,
 ) error {
-
 	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err

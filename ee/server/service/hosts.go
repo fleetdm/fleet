@@ -280,7 +280,7 @@ func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
 	case lockWipe.IsPendingWipe():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
 	case lockWipe.IsLocked():
-		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped when it is locked."))
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
 	case lockWipe.IsWiped():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
 	}
