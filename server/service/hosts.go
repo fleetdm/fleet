@@ -200,9 +200,6 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 			if err != nil {
 				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
 			}
-			if hp == nil {
-				hp = []*fleet.HostPolicy{}
-			}
 			host.Policies = &hp
 		}
 	}
