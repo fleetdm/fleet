@@ -1,0 +1,7 @@
+- name: Collect fleetd update channels
+  description: "Collects the update channels for all fleetd components: osquery, Orbit, and Fleet Desktop. To see which version number each channel is on, ask in #help-engineering."
+  query: SELECT desktop_channel, orbit_channel, osqueryd_channel FROM orbit_info;
+  interval: 300 # 5 minutes
+  observer_can_run: true
+  automations_enabled: false
+  platform: darwin,linux,windows
