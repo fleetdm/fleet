@@ -61,7 +61,7 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
-    goarch_value=${GOARCH:-amd64}
+    goarch_value=${GOARCH:-}
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
     fi
