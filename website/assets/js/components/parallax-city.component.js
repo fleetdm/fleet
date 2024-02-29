@@ -110,7 +110,7 @@ parasails.registerComponent('parallaxCity', {
       this.scrollParallaxLayers();
       setTimeout(()=>{
         this.parallaxLayersAreCurrentlyAnimating = false;
-      }, 300);
+      }, 100);
     }
   }
 });
