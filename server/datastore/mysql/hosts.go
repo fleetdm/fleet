@@ -1076,7 +1076,11 @@ func (ds *Datastore) applyHostFilters(
 	sqlStmt, params = filterHostsByTeam(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByPolicy(sqlStmt, opt, params)
 	sqlStmt, params = filterHostsByMDM(sqlStmt, opt, params)
-	sqlStmt, params = filterHostsByMacOSSettingsStatus(sqlStmt, opt, params)
+	var err error
+	sqlStmt, params, err = filterHostsByMacOSSettingsStatus(sqlStmt, opt, params)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building query to filter macOS settings status")
+	}
 	sqlStmt, params = filterHostsByMacOSDiskEncryptionStatus(sqlStmt, opt, params)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
@@ -1197,9 +1201,9 @@ func filterHostsByStatus(now time.Time, sql string, opt fleet.HostListOptions, p
 	return sql, params
 }
 
-func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
+func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, params []any) (string, []any, error) {
 	if !opt.MacOSSettingsFilter.IsValid() {
-		return sql, params
+		return sql, params, nil
 	}
 
 	newSQL := ""
@@ -1210,22 +1214,26 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	var subquery string
-	var subqueryParams []interface{}
+	var subqueryParams []any
+	var err error
 	switch opt.MacOSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusFailed()
+		subquery, subqueryParams, err = subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
 	case fleet.OSSettingsPending:
-		subquery, subqueryParams = subqueryHostsMacOSSettingsStatusPending()
+		subquery, subqueryParams, err = subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
 	case fleet.OSSettingsVerifying:
-		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerifying()
+		subquery, subqueryParams, err = subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
 	case fleet.OSSettingsVerified:
-		subquery, subqueryParams = subqueryHostsMacOSSetttingsStatusVerified()
+		subquery, subqueryParams, err = subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
+	}
+	if err != nil {
+		return "", nil, fmt.Errorf("building subquery for %s filter: %w", opt.MacOSSettingsFilter, err)
 	}
 	if subquery != "" {
 		newSQL += fmt.Sprintf(` AND EXISTS (%s)`, subquery)
 	}
 
-	return sql + newSQL, append(params, subqueryParams...)
+	return sql + newSQL, append(params, subqueryParams...), nil
 }
 
 func filterHostsByMacOSDiskEncryptionStatus(sql string, opt fleet.HostListOptions, params []interface{}) (string, []interface{}) {
@@ -1278,15 +1286,19 @@ func (ds *Datastore) filterHostsByOSSettingsStatus(sql string, opt fleet.HostLis
 	// construct the WHERE for macOS
 	var subqueryMacOS string
 	var paramsMacOS []interface{}
+	var err error
 	switch opt.OSSettingsFilter {
 	case fleet.OSSettingsFailed:
-		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSettingsStatusFailed()
+		subqueryMacOS, paramsMacOS, err = subqueryAppleProfileStatus(fleet.MDMDeliveryFailed)
 	case fleet.OSSettingsPending:
-		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSettingsStatusPending()
+		subqueryMacOS, paramsMacOS, err = subqueryAppleProfileStatus(fleet.MDMDeliveryPending)
 	case fleet.OSSettingsVerifying:
-		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSetttingsStatusVerifying()
+		subqueryMacOS, paramsMacOS, err = subqueryAppleProfileStatus(fleet.MDMDeliveryVerifying)
 	case fleet.OSSettingsVerified:
-		subqueryMacOS, paramsMacOS = subqueryHostsMacOSSetttingsStatusVerified()
+		subqueryMacOS, paramsMacOS, err = subqueryAppleProfileStatus(fleet.MDMDeliveryVerified)
+	}
+	if err != nil {
+		return "", nil, fmt.Errorf("building subquery for %s filter: %w", opt.OSSettingsFilter, err)
 	}
 	if subqueryMacOS != "" {
 		whereMacOS = "EXISTS (" + subqueryMacOS + ")"
