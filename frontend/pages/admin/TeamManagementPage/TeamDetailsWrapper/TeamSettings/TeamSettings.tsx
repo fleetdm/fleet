@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useCallback, useContext, useState } from "react";
 
 import { useQuery } from "react-query";
 
@@ -38,14 +38,6 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
-
-  const setTeamExpiryEnabled = (enabled: boolean) => {
-    setFormData({ ...formData, teamHostExpiryEnabled: enabled });
-  };
-
-  const setTeamHostExpiryWindow = (window: number | string) => {
-    setFormData({ ...formData, teamHostExpiryWindow: window });
-  };
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -100,32 +92,60 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
   );
 
-  const validate = useCallback(() => {
-    const errors: Record<string, string> = {};
-    const numHostExpiryWindow = Number(formData.teamHostExpiryWindow);
-    if (
-      // with no global setting, team window can't be empty if enabled
-      (!globalHostExpiryEnabled &&
-        formData.teamHostExpiryEnabled &&
-        !numHostExpiryWindow) ||
-      // if nonempty, must be a positive number
-      isNaN(numHostExpiryWindow) ||
-      // if overriding a global setting, can be empty to disable local setting
-      numHostExpiryWindow < 0
-    ) {
-      errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
-    }
+  const validateTeamSettingsFormData = useCallback(
+    (
+      // will never be called if global setting is not loaded, default to satisfy typechecking
+      curGlobalHostExpiryEnabled = false,
+      curFormData: typeof formData
+    ) => {
+      const errors: Record<string, string> = {};
 
-    setFormErrors(errors);
-  }, [
-    formData.teamHostExpiryEnabled,
-    formData.teamHostExpiryWindow,
-    globalHostExpiryEnabled,
-  ]);
+      // validate host expiry fields
+      const numHostExpiryWindow = Number(curFormData.teamHostExpiryWindow);
+      if (
+        // with no global setting, team window can't be empty if enabled
+        (!curGlobalHostExpiryEnabled &&
+          curFormData.teamHostExpiryEnabled &&
+          !numHostExpiryWindow) ||
+        // if nonempty, must be a positive number
+        isNaN(numHostExpiryWindow) ||
+        // if overriding a global setting, can be empty to disable local setting
+        numHostExpiryWindow < 0
+      ) {
+        errors.host_expiry_window = HOST_EXPIRY_ERROR_TEXT;
+      }
 
-  useEffect(() => {
-    validate();
-  }, [formData.teamHostExpiryEnabled, formData.teamHostExpiryWindow, validate]);
+      // validate host webhook fields
+
+      return errors;
+    },
+    // pure function, no dependencies
+    []
+  );
+
+  const onChangeTeamExpiryEnabled = useCallback(
+    (isEnabled: boolean) => {
+      // non-state form data needed for validation
+      const newFormData = { ...formData, teamHostExpiryEnabled: isEnabled };
+      setFormData(newFormData);
+      setFormErrors(
+        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
+      );
+    },
+    [formData, validateTeamSettingsFormData, globalHostExpiryEnabled]
+  );
+
+  const onChangeTeamHostExpiryWindow = useCallback(
+    (window: number | string) => {
+      // non-state form data needed for validation
+      const newFormData = { ...formData, teamHostExpiryWindow: window };
+      setFormData(newFormData);
+      setFormErrors(
+        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
+      );
+    },
+    [formData, validateTeamSettingsFormData, globalHostExpiryEnabled]
+  );
 
   const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
@@ -192,7 +212,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             globalHostExpiryEnabled={globalHostExpiryEnabled}
             globalHostExpiryWindow={globalHostExpiryWindow}
             teamExpiryEnabled={formData.teamHostExpiryEnabled}
-            setTeamExpiryEnabled={setTeamExpiryEnabled}
+            setTeamExpiryEnabled={onChangeTeamExpiryEnabled}
           />
         )}
         {formData.teamHostExpiryEnabled && (
@@ -201,7 +221,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             // type="text" allows `validate` to differentiate between
             // non-numerical input and an empty input
             type="text"
-            onChange={setTeamHostExpiryWindow}
+            onChange={onChangeTeamHostExpiryWindow}
             name="host-expiry-window"
             value={formData.teamHostExpiryWindow}
             error={formErrors.host_expiry_window}
