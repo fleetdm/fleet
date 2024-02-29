@@ -407,11 +407,18 @@ func TestBuildCommandFromProfileBytes(t *testing.T) {
 
 func syncMLForTest(locURI string) []byte {
 	return []byte(fmt.Sprintf(`
+<Add>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+  </Item>
+</Add>
 <Replace>
   <Item>
     <Target>
       <LocURI>%s</LocURI>
     </Target>
   </Item>
-</Replace>`, locURI))
+</Replace>`, locURI, locURI))
 }
