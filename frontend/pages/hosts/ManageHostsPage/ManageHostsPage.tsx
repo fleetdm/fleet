@@ -387,7 +387,7 @@ const ManageHostsPage = ({
         vulnerability,
         page: tableQueryData ? tableQueryData.pageIndex : 0,
         perPage: tableQueryData ? tableQueryData.pageSize : 50,
-        device_mapping: true,
+        deviceMapping: true,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
         bootstrapPackageStatus,
