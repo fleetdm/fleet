@@ -23,7 +23,8 @@ run := "run"
 # Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
 
-# TODO
+# Selective prefixes over actions mean that they can be allowed in specific
+# cases for roles that usually aren't allowed to perform them.
 selective_read := "selective_read"
 selective_list := "selective_list"
 
@@ -215,19 +216,19 @@ allow {
 # Hosts
 ##
 
-# Function to get allowed roles based on the action
-read_role_eval(action, base_roles, extra_roles) = result {
-	action == "selective_read"
+# allowed_read_roles evaulates which roles are allowed for read based on the given action.
+allowed_read_roles(action, base_roles, extra_roles) = result {
+	action == selective_read
 	result := base_roles | extra_roles
 } else = result {
-	action == "read"
+	action == read
 	result := base_roles
 } else = result {
 	result := null
 }
 
-# Function to get allowed roles based on the action
-list_role_eval(action, base_roles, extra_roles) = result {
+# allowed_list_roles evaulates which roles are allowed for list based on the given action.
+allowed_list_roles(action, base_roles, extra_roles) = result {
 	action == "selective_list"
 	result := base_roles | extra_roles
 } else = result {
@@ -242,7 +243,7 @@ allow {
 	object.type == "host"
 	base_roles := {admin, maintainer, observer_plus, observer}
 	extra_roles := {gitops}
-	list_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
+	allowed_list_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
 # Team admins, maintainers, observer_plus and observers can list and selective_list hosts.
@@ -253,7 +254,7 @@ allow {
 	base_roles := {admin, maintainer, observer_plus, observer}
 	# Or gitops for selective reads
 	extra_roles := {gitops}
-	list_role_eval(action, base_roles, extra_roles)[_] == team_role(subject, subject.teams[_].id)
+	allowed_list_roles(action, base_roles, extra_roles)[_] == team_role(subject, subject.teams[_].id)
 }
 
 # Allow read for global admin/maintainer, selective_read for gitops.
@@ -261,7 +262,7 @@ allow {
 	object.type == "host"
 	base_roles := {admin, maintainer}
 	extra_roles := {gitops}
-	read_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
 # Global gitops, admin and mantainers can write hosts.
@@ -276,7 +277,7 @@ allow {
 	object.type == "host"
 	base_roles := {observer_plus, observer}
 	extra_roles := {gitops}
-	read_role_eval(action, base_roles, extra_roles)[_] == subject.global_role
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
 # Allow read for matching team admin/maintainer/observer/observer_plus, selective read for gitops.
@@ -284,7 +285,7 @@ allow {
 	object.type == "host"
 	base_roles := {admin, maintainer, observer, observer_plus}
 	extra_roles := {gitops}
-	read_role_eval(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
+	allowed_read_roles(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
 }
 
 # Team admins and maintainers can write to hosts of their own team
