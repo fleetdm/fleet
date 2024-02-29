@@ -6,7 +6,6 @@ on:
       - main
     paths:
       - 'it-and-security/**'
-      - 'mdm_profiles/**'
       - '.github/workflows/dogfood-gitops.yml'
   workflow_dispatch: # allows manual triggering
 
