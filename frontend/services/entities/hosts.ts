@@ -48,18 +48,18 @@ export const HOSTS_QUERY_PARAMS = {
   DISK_ENCRYPTION: "os_settings_disk_encryption",
 } as const;
 
-export interface ILoadHostsQueryKey extends ILoadHostsOptions {
+export interface ILoadHostsQueryKey extends IBaseHostsOptions {
   scope: "hosts";
 }
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 
-export interface ILoadHostsOptions {
+export interface IBaseHostsOptions {
   page?: number;
   perPage?: number;
+  sortBy: ISortOption[];
   selectedLabels?: string[];
   globalFilter?: string;
-  sortBy?: ISortOption[];
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
@@ -69,48 +69,19 @@ export interface ILoadHostsOptions {
   softwareVersionId?: number;
   status?: HostStatus;
   mdmId?: number;
+  munkiIssueId?: number;
   mdmEnrollmentStatus?: string;
   lowDiskSpaceHosts?: number;
-  osVersionId?: number;
   osName?: string;
   osVersion?: string;
   vulnerability?: string;
-  munkiIssueId?: number;
-  device_mapping?: boolean;
+  deviceMapping?: boolean;
   columns?: string;
   visibleColumns?: string;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
-}
-
-export interface IExportHostsOptions {
-  sortBy: ISortOption[];
-  page?: number;
-  perPage?: number;
-  selectedLabels?: string[];
-  globalFilter?: string;
-  teamId?: number;
-  policyId?: number;
-  policyResponse?: string;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
-  softwareTitleId?: number;
-  softwareVersionId?: number;
-  status?: HostStatus;
-  mdmId?: number;
-  munkiIssueId?: number;
-  mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: number;
-  osId?: number;
-  osName?: string;
-  osVersion?: string;
-  vulnerability?: string;
-  device_mapping?: boolean;
-  columns?: string;
-  visibleColumns?: string;
-  osSettings?: MdmProfileStatus;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  osVersionId?: number;
 }
 
 export interface IActionByFilter {
@@ -242,7 +213,7 @@ export default {
       },
     });
   },
-  exportHosts: (options: IExportHostsOptions) => {
+  exportHosts: (options: IBaseHostsOptions) => {
     const sortBy = options.sortBy;
     const selectedLabels = options?.selectedLabels || [];
     const globalFilter = options?.globalFilter || "";
@@ -325,13 +296,13 @@ export default {
     osName,
     osVersion,
     vulnerability,
-    device_mapping,
+    deviceMapping,
     selectedLabels,
     sortBy,
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
-  }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
+  }: IBaseHostsOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -339,7 +310,7 @@ export default {
       page,
       per_page: perPage,
       query: globalFilter,
-      device_mapping,
+      device_mapping: deviceMapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
