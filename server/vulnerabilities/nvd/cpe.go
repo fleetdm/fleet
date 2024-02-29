@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/pkg/download"
@@ -470,7 +471,7 @@ func TranslateSoftwareToCPE(
 
 func containsNonASCII(s string) bool {
 	for _, char := range s {
-		if char > 127 {
+		if char > unicode.MaxASCII {
 			return true
 		}
 	}

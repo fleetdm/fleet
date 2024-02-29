@@ -1394,3 +1394,21 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
 	}
 }
+
+func TestContainsNonASCII(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"hello", false},
+		{"hello world", false},
+		{"hello world!", false},
+		{"😊👍", true},
+		{"hello world! 😊👍", true},
+		{"Девушка Фонарём", true},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
+	}
+}
