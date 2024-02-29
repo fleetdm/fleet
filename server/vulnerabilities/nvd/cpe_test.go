@@ -656,7 +656,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password – Password Manager",
+				Name:             "1Password - Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -674,7 +674,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.1",
 				Vendor:           "",
@@ -683,7 +683,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.2",
 				Vendor:           "",
