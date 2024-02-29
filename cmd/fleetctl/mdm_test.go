@@ -1119,7 +1119,7 @@ func setupTestServer(t *testing.T) *mock.Store {
 	return ds
 }
 
-// setsup common data store mocks that are needed for the tests.
+// sets up common data store mocks that are needed for the tests.
 func setupDSMocks(ds *mock.Store, hostByUUID map[string]*fleet.Host, hostsByID map[uint]*fleet.Host) {
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
 		h, ok := hostByUUID[identifier]
