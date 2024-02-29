@@ -145,9 +145,9 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 			MDMEnrollmentStatus      fleet.MDMEnrollStatus      `json:"mdm_enrollment_status"`
 			MunkiIssueID             *uint                      `json:"munki_issue_id"`
 			LowDiskSpace             *int                       `json:"low_disk_space"`
-			Vulnerability            *string                    `json:"vulnerability"`
 			OSSettings               fleet.OSSettingsStatus     `json:"os_settings"`
 			OSSettingsDiskEncryption fleet.DiskEncryptionStatus `json:"os_settings_disk_encryption"`
+			Vulnerability            *string                    `json:"vulnerability"`
 		}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr},
 	}
 	return c.authenticatedRequest(params, verb, path, &responseBody)
