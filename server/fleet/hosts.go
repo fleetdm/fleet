@@ -344,7 +344,7 @@ type Host struct {
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
 
 	// Policies is the list of policies and whether it passes for the host
-	Policies *[]*HostPolicy `json:"policies,omitempty"`
+	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
