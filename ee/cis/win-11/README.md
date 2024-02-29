@@ -2,7 +2,11 @@
 
 Fleet's policies have been written against v2.0.0 of the benchmark. You can refer to the [CIS website](https://www.cisecurity.org/cis-benchmarks) for full details about this version.
 
-These policies cover all 521 CIS items for this benchmark. For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
+For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com/docs/using-fleet/cis-benchmarks) documentation.
+
+### Limitations
+
+> None. All items in this version of the benchmark are able to be automated.
 
 
 ### Checks that require a Group Policy template

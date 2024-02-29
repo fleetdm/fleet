@@ -90,9 +90,13 @@ fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 ```
 
 ## Limitations
-Although Fleet is able to cover a large majority of benchmarks, Fleet's current set of benchmarks only implements benchmark auditing steps that can be automated.
 
-For a list of specific checks which are not covered by Fleet, please visit the README for each benchmark.
+Certain benchmarks require human action to audit, and cannot be automated by Fleet. For a list of specific checks which are not covered, please visit the README for each benchmark:
+
+- [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
+- [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
+- [Windows 10 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-10/README.md)
+- [Windows 11 Enterprise](https://github.com/fleetdm/fleet/blob/main/ee/cis/win-11/README.md)
 
 ### Audit vs. remediation
 Each benchmark has two elements:
@@ -105,11 +109,7 @@ To implement automated remediation, you can install a separate agent such as Mun
 
 ### Manual vs. automated
 
-For both the audit and remediation elements of a CIS Benchmark, there are two types:
-1. Automated - the element can be audited or remediated without human intervention
-2. Manual - the element requires human intervention to be audited or remediated
-
-Fleet implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check. You can find more details in the README for each benchmark.
+Certain checks require human action to remediate, while others can be handled automatically. Many CIS policy resolutions in Fleet are prefixed with "Automated method:" to help clarify which can be resolved automatically.
 
 
 ## Levels 1 and 2
