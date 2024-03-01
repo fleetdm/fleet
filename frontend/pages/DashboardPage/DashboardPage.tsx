@@ -733,6 +733,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     return (
       <MdmSolutionModal
         mdmSolutions={selectedMdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
         onCancel={() => {
           setShowMdmSolutionModal(false);
           selectedMdmSolution.current = null;
