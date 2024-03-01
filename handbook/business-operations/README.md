@@ -86,24 +86,19 @@ Every quarter, payroll and tax filings are due for each state. Gusto can handle 
 Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
 
 Here's how:
-- For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- If any direct report is hourly in Pilot.co and does not submit their hours until the end of the month, still list them, but explain.  (See example below.)
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+- For every hourly core team member in Gusto or Plane.com, find the DRI by looking up ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
+- If any direct report is hourly in Plane.com and does not submit their hours until the end of the month, still list them, but explain. 
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure. They submit their hours through Gusto (US consultants) or Plane.com (international consultants), which require approval from a DRI. You can find the DRI by looking at the Business Operations [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
-Then, send **the CEO** and **each manager** a direct message in Slack by copying and pasting the following template:
+Then, send the DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight and tasks undertaken during those hours (if provided). Ensure the screenshot does not contain any compensation information.
 
-> Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
-> - 🧑‍🚀 Alice Bobberson: 21.25
-> - 🧑‍🚀 Charles David: 3.5
-> - 🧑‍🚀 Philippe Timebender: (hours not available until they invoice at the end of the month)
->
-> And here are the hours worked by consultants:
-> - 💁 Bombalurina: 0
-> - 💁 Jennyanydots: 0
-> - 💁 Skimbleshanks: 19
-> - 💁 Griza Bella: 0
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
+
+### Change the DRI of a consultant
+
+1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
+2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
 
 
 ### Run US contractor payroll
