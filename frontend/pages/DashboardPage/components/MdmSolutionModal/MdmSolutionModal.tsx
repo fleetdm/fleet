@@ -4,6 +4,7 @@ import { IMdmSolution } from "interfaces/mdm";
 
 import Modal from "components/Modal";
 import TableContainer from "components/TableContainer";
+import Button from "components/buttons/Button";
 
 import {
   generateSolutionsDataSet,
@@ -46,18 +47,29 @@ const MdmSolutionsModal = ({
       width="large"
       onExit={onCancel}
     >
-      <TableContainer
-        isLoading={false}
-        emptyComponent={() => null} // if this modal is shown, this table should never be empty
-        columnConfigs={solutionsTableHeaders}
-        data={solutionsDataSet}
-        defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
-        defaultSortDirection={DEFAULT_SORT_DIRECTION}
-        resultsTitle="MDM"
-        showMarkAllPages={false}
-        isAllPagesSelected={false}
-        disableCount
-      />
+      <>
+        <div className={`${baseClass}__modal-content`}>
+          <TableContainer
+            isLoading={false}
+            emptyComponent={() => null} // if this modal is shown, this table should never be empty
+            columnConfigs={solutionsTableHeaders}
+            data={solutionsDataSet}
+            defaultSortHeader={SOLUTIONS_DEFAULT_SORT_HEADER}
+            defaultSortDirection={DEFAULT_SORT_DIRECTION}
+            resultsTitle="MDM"
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            disableCount
+            disablePagination
+            disableTableHeader
+          />
+        </div>
+        <div className="modal-cta-wrap">
+          <Button type="button" onClick={onCancel} variant="brand">
+            Done
+          </Button>
+        </div>
+      </>
     </Modal>
   );
 };

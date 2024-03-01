@@ -32,12 +32,6 @@ interface IHeaderProps {
   };
 }
 
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
 interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;

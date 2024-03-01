@@ -4,6 +4,8 @@ import { IMdmSolution } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import TooltipWrapper from "components/TooltipWrapper";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -28,12 +30,6 @@ interface IHeaderProps {
   };
 }
 
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
 interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
@@ -49,7 +45,24 @@ export const generateSolutionsTableHeaders = (
 ): IDataColumn[] => [
   {
     title: "Server URL",
-    Header: "Server URL",
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          position="top-start"
+          tipContent={
+            <>
+              The MDM server URL is used to connect hosts with the MDM service.
+              For cross-platform MDM solutions, each operating system has a
+              different URL.
+            </>
+          }
+          className="server-url-header"
+        >
+          Status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
     disableSortBy: true,
     accessor: "server_url",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
