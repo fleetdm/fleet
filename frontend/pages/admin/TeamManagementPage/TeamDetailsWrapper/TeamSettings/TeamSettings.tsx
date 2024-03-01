@@ -84,12 +84,15 @@ const validateTeamSettingsFormData = (
       userJustEnabledWebhook &&
       !curFormData.teamHostStatusWebhookDestinationUrl;
 
+    // if the user just enabled the webhook, don't show an error until they've entered a URL or tried to submit the form without one
     if (
       !shouldNotError &&
       !validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })
     ) {
-      // if the user just enabled the webhook, don't show an error until they've entered a URL or tried to submit the form without one
-      errors.host_status_webhook_destination_url = "Invalid URL";
+      const errorPrefix = curFormData.teamHostStatusWebhookDestinationUrl
+        ? `${curFormData.teamHostStatusWebhookDestinationUrl} is not`
+        : "Please enter";
+      errors.host_status_webhook_destination_url = `${errorPrefix} a valid URL`;
     }
   }
 
