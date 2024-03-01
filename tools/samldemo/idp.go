@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"encoding/xml"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -113,8 +114,7 @@ J6k/4lrVU/5lJWohLx7BSfGCc9OrH6DYG++YSlHy</ds:X509Certificate></ds:X509Data></ds:
 	return &res
 }()
 
-type identityProvider struct {
-}
+type identityProvider struct{}
 
 func (i *identityProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
 	log.Printf("request id: %s", serviceProviderID)
@@ -126,7 +126,12 @@ func (i *identityProvider) GetSession(w http.ResponseWriter, r *http.Request, re
 	log.Printf("auth email: %+v", email)
 
 	if err := checkForEmail(email); err != nil {
-		http.Error(w, err.Error(), http.StatusUnauthorized)
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<html>
+		<body>
+		<img src="/img/failure.png" style="width:80%; display: block;  margin-left: auto;  margin-right: auto;" />
+		</body>
+		</html>`)
 		return nil
 	}
 

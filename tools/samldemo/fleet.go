@@ -7,10 +7,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 )
 
-const fleetKey = "jdrS2C9j0TR2bbDPil3jywHwyq5uujyAT1idiymuJMoivsplD5fLRpsJkepLail4Zgfu5kIV8kshwjwou+tbiw=="
 const fleetURL = "https://dogfood.fleetdm.com"
+
+var fleetKey = os.Getenv("FLEET_KEY")
 
 type basicHost struct {
 	ID       int    `json:"id"`
@@ -37,7 +39,7 @@ func hostsForUser(email string) ([]basicHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	//log.Println("body: ", string(body))
+	// log.Println("body: ", string(body))
 
 	var hosts struct{ Hosts []basicHost }
 	err = json.Unmarshal(body, &hosts)
