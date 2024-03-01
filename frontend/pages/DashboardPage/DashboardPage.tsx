@@ -139,7 +139,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
 
-  const selectedMdmSolution = useRef<string>("");
+  const selectedMdmSolution = useRef<string | null>(null);
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
     IMunkiIssuesAggregate[]
@@ -618,8 +618,8 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             mdmSolutions={mdmSolutions}
             selectedPlatformLabelId={selectedPlatformLabelId}
             selectedTeamId={currentTeamId}
-            onClickMdmSolution={(solutionName) => {
-              selectedMdmSolution.current = solutionName;
+            onClickMdmSolution={(mdmSolution) => {
+              selectedMdmSolution.current = mdmSolution.name;
               setShowMdmSolutionModal(true);
             }}
           />
@@ -722,7 +722,23 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   };
 
   const renderMdmSolutionModal = () => {
-    // return <MdmSolutionModal mdmSolution={} />;
+    if (!mdmSolutions) {
+      return null;
+    }
+
+    const selectedMdmSolutions = mdmSolutions?.filter(
+      (solution) => solution.name === selectedMdmSolution.current
+    );
+
+    return (
+      <MdmSolutionModal
+        mdmSolutions={selectedMdmSolutions}
+        onCancel={() => {
+          setShowMdmSolutionModal(false);
+          selectedMdmSolution.current = null;
+        }}
+      />
+    );
   };
 
   const renderDashboardHeader = () => {

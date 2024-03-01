@@ -2,12 +2,8 @@ import React from "react";
 
 import { IMdmSolution } from "interfaces/mdm";
 
-import { greyCell } from "utilities/helpers";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -48,22 +44,31 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-export const generateSolutionsTableHeaders = (): IDataColumn[] => [
+export const generateSolutionsTableHeaders = (
+  teamId?: number
+): IDataColumn[] => [
   {
-    title: "Name",
-    Header: "Name",
+    title: "Server URL",
+    Header: "Server URL",
     disableSortBy: true,
-    accessor: "name",
-    Cell: (cellProps: ICellProps) => (
-      <InternalLinkCell value={cellProps.cell.value} />
-    ),
+    accessor: "server_url",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Hosts",
     Header: "Hosts",
     disableSortBy: true,
     accessor: "hosts_count",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <div className="host-count-cell">
+        <TextCell value={cellProps.cell.value} classes="" />
+        <ViewAllHostsLink
+          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
+          className="mdm-solution-link"
+          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
+        />
+      </div>
+    ),
   },
 ];
 

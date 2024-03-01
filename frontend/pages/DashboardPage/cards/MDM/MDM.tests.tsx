@@ -1,4 +1,5 @@
 import React from "react";
+import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
@@ -10,6 +11,7 @@ describe("MDM Card", () => {
   it("render the correct number of MDM solutions", () => {
     render(
       <MDM
+        onClickMdmSolution={noop}
         error={null}
         isFetching={false}
         mdmStatusData={[]}
@@ -26,6 +28,7 @@ describe("MDM Card", () => {
   it("render the correct number of Enrollment status", async () => {
     const { user } = renderWithSetup(
       <MDM
+        onClickMdmSolution={noop}
         error={null}
         isFetching={false}
         mdmStatusData={[
