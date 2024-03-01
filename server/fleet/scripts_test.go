@@ -72,12 +72,12 @@ func TestValidateHostScriptContents(t *testing.T) {
 		{
 			name:    "too large by byte count",
 			script:  strings.Repeat("a", utf8.UTFMax*MaxScriptRuneLen+1),
-			wantErr: errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
+			wantErr: errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."),
 		},
 		{
 			name:    "too large by rune count",
 			script:  strings.Repeat("🙂", MaxScriptRuneLen+1),
-			wantErr: errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
+			wantErr: errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."),
 		},
 		{
 			name:    "invalid utf8 encoding",

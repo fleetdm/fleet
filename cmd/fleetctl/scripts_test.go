@@ -49,7 +49,7 @@ func TestRunScriptCommand(t *testing.T) {
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
 	}
-	maxChars := strings.Repeat("a", 10001)
+	maxChars := strings.Repeat("a", 500001)
 
 	type testCase struct {
 		name           string
@@ -90,7 +90,7 @@ func TestRunScriptCommand(t *testing.T) {
 			scriptPath: func() string {
 				return writeTmpScriptContents(t, maxChars, ".sh")
 			},
-			expectErrMsg: `Script is too large. It's limited to 10,000 characters (approximately 125 lines).`,
+			expectErrMsg: `Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).`,
 		},
 		{
 			name:         "script empty",

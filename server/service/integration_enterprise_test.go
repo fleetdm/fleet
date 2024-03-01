@@ -4667,7 +4667,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 500001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large.")
 
@@ -4777,7 +4777,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to sync run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 500001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large.")
 
@@ -5383,10 +5383,10 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// file content is too large
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
+		"script2.sh", []byte(strings.Repeat("a", 500001)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
 	// invalid hashbang
 	body, headers = generateNewScriptMultipartRequest(t,

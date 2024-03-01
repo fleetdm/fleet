@@ -248,7 +248,7 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const MaxScriptRuneLen = 500000
 
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
@@ -261,13 +261,13 @@ func ValidateHostScriptContents(s string) error {
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
 	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+		return errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).")
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
 	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+		return errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).")
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we
