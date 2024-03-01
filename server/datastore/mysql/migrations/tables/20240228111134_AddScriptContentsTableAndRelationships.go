@@ -43,11 +43,12 @@ func Up_20240228111134(tx *sql.Tx) error {
 	//   and we need to support a wide variety of MySQL installations in
 	//   the wild. (sha1 is also available without this constraint but also broken)
 	//   - it's same as what we use elsewhere in the DB, e.g. mdm apple profiles
+	// Note: MEDIUMTEXT can handle up to ~16 million bytes, so it should be plenty for our use case.
 	createScriptContentsStmt := `
 CREATE TABLE script_contents (
 	id            INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
 	md5_checksum  BINARY(16) NOT NULL,
-	contents      TEXT COLLATE utf8mb4_unicode_ci NOT NULL,
+	contents      MEDIUMTEXT COLLATE utf8mb4_unicode_ci NOT NULL,
 	created_at    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
 	UNIQUE KEY idx_script_contents_md5_checksum (md5_checksum)
