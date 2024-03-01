@@ -17,7 +17,10 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
-import { percentageOfHosts } from "pages/admin/OrgSettingsPage/cards/constants";
+import {
+  numberOfDays,
+  percentageOfHosts,
+} from "pages/admin/OrgSettingsPage/cards/constants";
 
 import validURL from "components/forms/validators/valid_url";
 
@@ -41,6 +44,7 @@ type ITeamSettingsFormData = {
   teamHostStatusWebhookEnabled: boolean;
   teamHostStatusWebhookDestinationUrl: string;
   teamHostStatusWebhookHostPercentage: number;
+  teamHostStatusWebhookWindow: number;
 };
 
 type FormNames = keyof ITeamSettingsFormData;
@@ -85,7 +89,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostExpiryWindow: "" as number | string,
     teamHostStatusWebhookEnabled: false,
     teamHostStatusWebhookDestinationUrl: "",
-    teamHostStatusWebhookHostPercentage: 0,
+    teamHostStatusWebhookHostPercentage: 1,
+    teamHostStatusWebhookWindow: 1,
   });
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
@@ -158,7 +163,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               ?.destination_url ?? "",
           teamHostStatusWebhookHostPercentage:
             teamConfig?.webhook_settings?.host_status_webhook
-              ?.host_percentage ?? 0,
+              ?.host_percentage ?? 1,
+          teamHostStatusWebhookWindow:
+            teamConfig?.webhook_settings?.host_status_webhook?.days_count ?? 1,
         });
       },
     }
@@ -204,6 +211,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
                   formData.teamHostStatusWebhookEnabled,
                 destination_url: formData.teamHostStatusWebhookDestinationUrl,
                 host_percentage: formData.teamHostStatusWebhookHostPercentage,
+                days_count: formData.teamHostStatusWebhookWindow,
               },
             },
           },
@@ -290,6 +298,25 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
                   must fail to check into Fleet in order to trigger
                   <br />
                   the webhook request.
+                </p>
+              }
+            />
+            <Dropdown
+              label="Host status webhook window"
+              options={numberOfDays}
+              onChange={onInputChange}
+              name="teamHostStatusWebhookWindow"
+              value={formData.teamHostStatusWebhookWindow}
+              parseTarget
+              tooltip={
+                <p>
+                  Select the minimum number of days that the
+                  <br />
+                  configured <b>Percentage of hosts</b> must fail to
+                  <br />
+                  check into Fleet in order to trigger the
+                  <br />
+                  webhook request.
                 </p>
               }
             />
