@@ -11,6 +11,7 @@ func main() {
 	idp := getIDP()
 	mux := http.NewServeMux()
 
+	// Essentially these two endpoints would be added to the Fleet server.
 	mux.HandleFunc("/metadata", idp.ServeMetadata)
 	mux.HandleFunc("/sso", idp.ServeSSO)
 
