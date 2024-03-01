@@ -39,8 +39,6 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
 	const (
-		// TODO(JVE): fix this: change column to allow empty default string, or just leave as is if
-		// that's ok
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', '', ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
@@ -270,7 +268,6 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 		return err
 	})
 	if err != nil {
-		// TODO(JVE): find out if we need different error handling/logging here
 		return nil, err
 	}
 	id, _ := res.LastInsertId()
@@ -278,10 +275,6 @@ func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*flee
 }
 
 func insertScript(ctx context.Context, script *fleet.Script, scriptContentsID uint, tx sqlx.ExtContext) (sql.Result, error) {
-	// TODO(JVE): decide what to do with script contents here. Should we
-	// not insert it (requires a migration to set a default value on this column so it can be empty)
-	// insert an empty string
-	// delete the column
 	const insertStmt = `
 INSERT INTO
   scripts (
@@ -295,7 +288,6 @@ VALUES
 		globalOrTeamID = *script.TeamID
 	}
 	res, err := tx.ExecContext(ctx, insertStmt,
-		// TODO(JVE): fix this if we decide to do something different for the script contents column
 		script.TeamID, globalOrTeamID, script.Name, "", scriptContentsID)
 	if err != nil {
 		if isDuplicate(err) {
@@ -324,8 +316,7 @@ ON DUPLICATE KEY UPDATE
 	md5Checksum := md5ChecksumScriptContent(contents)
 	res, err := tx.ExecContext(ctx, insertStmt, md5Checksum, contents)
 	if err != nil {
-		// TODO(JVE): do we need different handling/logging?
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "insert script contents")
 	}
 
 	return res, nil

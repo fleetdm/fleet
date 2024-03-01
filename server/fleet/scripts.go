@@ -13,7 +13,6 @@ import (
 )
 
 // Script represents a saved script that can be executed on a host.
-// TODO(JVE): do we need to store the script_contents ID in this type?
 type Script struct {
 	ID     uint   `json:"id" db:"id"`
 	TeamID *uint  `json:"team_id" db:"team_id"`
@@ -26,8 +25,9 @@ type Script struct {
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
-	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
-	ScriptContentID uint      `json:"-" db:"script_content_id"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
