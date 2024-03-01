@@ -1,3 +1,19 @@
+## Fleet 4.46.1 (Feb 27, 2024)
+
+### Bug fixes
+
+* Fixed a bug in running queries via API.
+	- Query campaign not clearing from Redis after timeout
+* Added logging when a Redis connection is blocked for a long time waiting for live query results.
+* Added support for the `redis.conn_wait_timeout` configuration setting for Redis standalone (it was previously only supported on Redis cluster).
+* Added Redis cleanup of inactive queries in a cron job, so temporary Redis failures to stop a live query doesn't leave such queries around for a long time.
+* Fixed orphaned live queries in Redis when client terminates connection 
+	- `POST /api/latest/fleet/queries/{id}/run`
+	- `GET /api/latest/fleet/queries/run`
+	- `POST /api/latest/fleet/hosts/identifier/{identifier}/query` 
+	- `POST /api/latest/fleet/hosts/{id}/query`
+* Added --server_frequent_cleanups_enabled (FLEET_SERVER_FREQUENT_CLEANUPS_ENABLED) flag to enable cron job to clean up stale data running every 15 minutes. Currently disabled by default.
+
 ## Fleet 4.46.0 (Feb 26, 2024)
 
 ### Changes
