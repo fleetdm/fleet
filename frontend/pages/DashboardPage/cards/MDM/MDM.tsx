@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
 
@@ -19,6 +20,10 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+interface IRowProps extends Row {
+  original: IMdmSolution;
+}
+
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
@@ -26,6 +31,7 @@ interface IMdmCardProps {
   mdmSolutions: IMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
+  onClickMdmSolution: (solution: IMdmSolution) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -66,6 +72,7 @@ const Mdm = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
+  onClickMdmSolution,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -113,6 +120,10 @@ const Mdm = ({
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
 
+  const handleSolutionRowClick = (row: IRowProps) => {
+    onClickMdmSolution(row.original);
+  };
+
   return (
     <div className={baseClass}>
       {isFetching && (
@@ -131,7 +142,7 @@ const Mdm = ({
               {error ? (
                 <TableDataError card />
               ) : (
-                <TableContainer
+                <TableContainer<IRowProps>
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -143,7 +154,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
-                  pageSize={PAGE_SIZE}
+                  onClickRow={handleSolutionRowClick}
                 />
               )}
             </TabPanel>
