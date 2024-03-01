@@ -22,6 +22,16 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 	var res *fleet.HostScriptResult
 	return res, ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
+		if request.ScriptContentID == 0 {
+			// then we are doing a sync execution, so create the contents first
+			scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+			if err != nil {
+				return err
+			}
+
+			id, _ := scRes.LastInsertId()
+			request.ScriptContentID = uint(id)
+		}
 		res, err = newHostScriptExecutionRequest(ctx, request, tx)
 		return err
 	})
