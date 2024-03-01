@@ -610,7 +610,7 @@
   description:
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  comingSoonOn: 2024-04-22 #Customer-reedtimmer
+  comingSoonOn: 2024-04-22 #customer-reedtimmer,customer-flacourtia 
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
