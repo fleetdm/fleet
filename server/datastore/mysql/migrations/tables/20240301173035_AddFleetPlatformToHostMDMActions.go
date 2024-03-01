@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240226133702, Down_20240226133702)
+	MigrationClient.AddMigration(Up_20240301173035, Down_20240301173035)
 }
 
-func Up_20240226133702(tx *sql.Tx) error {
+func Up_20240301173035(tx *sql.Tx) error {
 	_, err := tx.Exec(`
 ALTER TABLE host_mdm_actions
 	ADD COLUMN fleet_platform VARCHAR(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT ''
@@ -20,6 +20,6 @@ ALTER TABLE host_mdm_actions
 	return nil
 }
 
-func Down_20240226133702(tx *sql.Tx) error {
+func Down_20240301173035(tx *sql.Tx) error {
 	return nil
 }
