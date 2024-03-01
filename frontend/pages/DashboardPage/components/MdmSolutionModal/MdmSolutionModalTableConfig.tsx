@@ -77,8 +77,9 @@ export const generateSolutionsTableHeaders = (
         <TextCell value={cellProps.cell.value} classes="" />
         <ViewAllHostsLink
           queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
-          className="mdm-solution-link"
+          className="view-mdm-solution-link"
           platformLabelId={cellProps.row.original.selectedPlatformLabelId}
+          rowHover
         />
       </div>
     ),
