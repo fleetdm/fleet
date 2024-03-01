@@ -220,3 +220,8 @@ $max-width: 2560px;
   // compensate in layout for extra clickable area button height
   margin: -8px 0;
 }
+
+@mixin placeholder {
+  color: $ui-fleet-black-50;
+  opacity: 0.75;
+}
