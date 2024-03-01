@@ -3698,9 +3698,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "SELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match"
-    ],
+    "examples": "```\nSELECT chrome_extension_content_scripts.* FROM users JOIN chrome_extension_content_scripts USING (uid) GROUP BY identifier, match\n```",
     "columns": [
       {
         "name": "browser_type",
@@ -8933,10 +8931,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "select * from docker_volumes",
-      "select * from docker_volumes where name = 'btrfs'"
-    ],
+    "examples": "```\nselect * from docker_volumes where name = 'btrfs'\n```",
     "columns": [
       {
         "name": "name",
@@ -11881,11 +11876,7 @@
     "evented": false,
     "cacheable": true,
     "notes": "",
-    "examples": [
-      "select interface, mac, type, idrops as input_drops from interface_details;",
-      "select interface, mac, type, flags, (1<<8) as promisc_flag from interface_details where (flags & promisc_flag) > 0;",
-      "select interface, mac, type, flags, (1<<3) as loopback_flag from interface_details where (flags & loopback_flag) > 0;"
-    ],
+    "examples": "```\nselect interface, mac, type, flags, (1<<3) as loopback_flag from interface_details where (flags & loopback_flag) > 0;\n```",
     "columns": [
       {
         "name": "interface",
@@ -13343,9 +13334,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "",
-    "examples": [
-      "select * from users join known_hosts using (uid)"
-    ],
+    "examples": "```\nselect * from users join known_hosts using (uid)\n```",
     "columns": [
       {
         "name": "uid",
@@ -22907,10 +22896,7 @@
     "evented": false,
     "cacheable": false,
     "notes": "- Includes installed extensions for all system users.",
-    "examples": [
-      "select * from safari_extensions where uid=501",
-      "select count(*) from users JOIN safari_extensions using (uid)"
-    ],
+    "examples": "```\nselect count(*) from users JOIN safari_extensions using (uid)\n```",
     "columns": [
       {
         "name": "uid",

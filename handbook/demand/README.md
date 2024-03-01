@@ -61,15 +61,11 @@ The Head of Demand is the DRI for deploying Fleet's event budget, and events are
 ### Optimize ads through experimentation
 Fleet improves click-through rates in their campaigns to make the most of their advertising budget and attract more engaged users, boosting product adoption and community participation.
 
-[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
-1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
-2. Test one headline change for two weeks
-3. Pause the ad with the lower CTR
-4. Duplicate best-performing ad
-5. Test one description change for two weeks
-6. Pause the ad with the lower CTR
-7. Repeat this process
+Here's how:
+1. Remove all but the top 5 performing ads in [each LinkedIn campaign in the "Evergreen awareness" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678329963%5D).
+2. Replace the ad in [each Linkedin campaign in the "ABM maneuvers" campaign group](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B633848103%5D) so that it matches the top performer.
 
+<!-- TODO: either delete this or expand
 [**LinkedIn**:](https://www.linkedin.com/campaignmanager/) Ad experimentation on LinkedIn Campaign Manager for better click-through rate (CTR)
 1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
 2. Test one intro text change for two weeks
@@ -78,6 +74,16 @@ Fleet improves click-through rates in their campaigns to make the most of their 
 5. Test headline change for two weeks
 6. Pause the ad with the lower CTR
 7. Repeat this process
+
+[**Google Ads**:](https://ads.google.com/home/) Ad experimentation on Google Ads for better click-through rate (CTR)
+1. Duplicate the ad with the highest CTR. (If there are already two ads running, pause the ad with the lower CTR.)
+2. Test one headline change for two weeks
+3. Pause the ad with the lower CTR
+4. Duplicate best-performing ad
+5. Test one description change for two weeks
+6. Pause the ad with the lower CTR
+7. Repeat this process
+-->
 
 
 ### Process pending swag requests from the website

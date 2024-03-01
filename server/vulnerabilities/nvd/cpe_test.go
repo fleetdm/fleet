@@ -46,6 +46,10 @@ func TestCPEFromSoftware(t *testing.T) {
 	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
+
+	// Does not error on Unicode Names
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -652,7 +656,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password – Password Manager",
+				Name:             "1Password - Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -670,7 +674,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.1",
 				Vendor:           "",
@@ -679,7 +683,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.2",
 				Vendor:           "",
@@ -1388,5 +1392,23 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
+	}
+}
+
+func TestContainsNonASCII(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"hello", false},
+		{"hello world", false},
+		{"hello world!", false},
+		{"😊👍", true},
+		{"hello world! 😊👍", true},
+		{"Девушка Фонарём", true},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
 	}
 }

@@ -1,7 +1,7 @@
 import React from "react";
 
-import { IActivity } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import { IPastActivity } from "interfaces/activity";
+import { IPastActivitiesResponse } from "services/entities/activities";
 
 // @ts-ignore
 import FleetIcon from "components/icons/FleetIcon";
@@ -9,13 +9,14 @@ import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 
 import EmptyFeed from "../EmptyFeed/EmptyFeed";
-import PastActivity from "../PastActivity/PastActivity";
 import { ShowActivityDetailsHandler } from "../Activity";
+
+import { pastActivityComponentMap } from "../ActivityConfig";
 
 const baseClass = "past-activity-feed";
 
 interface IPastActivityFeedProps {
-  activities?: IActivitiesResponse;
+  activities?: IPastActivitiesResponse;
   isError?: boolean;
   onDetailsClick: ShowActivityDetailsHandler;
   onNextPage: () => void;
@@ -52,9 +53,16 @@ const PastActivityFeed = ({
   return (
     <div className={baseClass}>
       <div>
-        {activitiesList.map((activity: IActivity) => (
-          <PastActivity activity={activity} onDetailsClick={onDetailsClick} />
-        ))}
+        {activitiesList.map((activity: IPastActivity) => {
+          const ActivityItemComponent = pastActivityComponentMap[activity.type];
+          return (
+            <ActivityItemComponent
+              key={activity.id}
+              activity={activity}
+              onShowDetails={onDetailsClick}
+            />
+          );
+        })}
       </div>
       <div className={`${baseClass}__pagination`}>
         <Button

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/pkg/download"
@@ -184,6 +185,11 @@ func cpeGeneralSearchQuery(software *fleet.Software) (string, []interface{}, err
 // and is optimized for lookups, see `GenerateCPEDB`. `translations` are used to aid in cpe matching. When searching for cpes, we first check if it matches
 // any translations, and then lookup in the cpe database based on the title, product and vendor.
 func CPEFromSoftware(logger log.Logger, db *sqlx.DB, software *fleet.Software, translations CPETranslations, reCache *regexpCache) (string, error) {
+	if containsNonASCII(software.Name) {
+		level.Debug(logger).Log("msg", "skipping software with non-ascii characters", "software", software.Name, "version", software.Version, "source", software.Source)
+		return "", nil
+	}
+
 	translation, match, err := translations.Translate(reCache, software)
 	if err != nil {
 		return "", fmt.Errorf("translate software: %w", err)
@@ -461,4 +467,13 @@ func TranslateSoftwareToCPE(
 	}
 
 	return nil
+}
+
+func containsNonASCII(s string) bool {
+	for _, char := range s {
+		if char > unicode.MaxASCII {
+			return true
+		}
+	}
+	return false
 }

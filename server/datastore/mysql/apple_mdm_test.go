@@ -67,7 +67,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleConfigProfileHash", testMDMAppleConfigProfileHash},
 		{"TestResetMDMAppleEnrollment", testResetMDMAppleEnrollment},
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
-		{"CleanMacOSMDMLock", testCleanMacOSMDMLock},
+		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 	}
 
 	for _, c := range cases {
@@ -4416,17 +4416,8 @@ func testMDMAppleDeleteHostDEPAssignments(t *testing.T, ds *Datastore) {
 	}
 }
 
-func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
+func testLockUnlockWipeMacOS(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
-
-	checkState := func(t *testing.T, status *fleet.HostLockWipeStatus, unlocked, locked, wiped, pendingUnlock, pendingLock, pendingWipe bool) {
-		require.Equal(t, unlocked, status.IsUnlocked())
-		require.Equal(t, locked, status.IsLocked())
-		require.Equal(t, wiped, status.IsWiped())
-		require.Equal(t, pendingLock, status.IsPendingLock())
-		require.Equal(t, pendingUnlock, status.IsPendingUnlock())
-		require.Equal(t, pendingWipe, status.IsPendingWipe())
-	}
 
 	host, err := ds.NewHost(ctx, &fleet.Host{
 		Hostname:      "test-host1-name",
@@ -4439,11 +4430,11 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	nanoEnroll(t, ds, host, false)
 
-	status, err := ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
+	status, err := ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
 
 	// default state
-	checkState(t, status, true, false, false, false, false, false)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 
 	appleStore, err := ds.NewMDMAppleMDMStorage(nil, nil)
 	require.NoError(t, err)
@@ -4457,18 +4448,117 @@ func testCleanMacOSMDMLock(t *testing.T, ds *Datastore) {
 	err = appleStore.EnqueueDeviceLockCommand(ctx, host, cmd, "123456")
 	require.NoError(t, err)
 
-	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	// it is now pending lock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, true, false, false, false, true, false)
+	checkLockWipeState(t, status, true, false, false, false, true, false)
+
+	// record a command result to simulate locked state
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		RequestType: "DeviceLock",
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, "DeviceLock", true)
+	require.NoError(t, err)
+
+	// it is now locked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, false, false, false)
+
+	// request an unlock, to make it pending unlock
+	err = ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC())
+	require.NoError(t, err)
+
+	// it is now locked pending unlock
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, true, false, true, false, false)
 
 	// execute CleanMacOSMDMLock to simulate successful unlock
 	err = ds.CleanMacOSMDMLock(ctx, host.UUID)
 	require.NoError(t, err)
 
-	status, err = ds.GetHostLockWipeStatus(ctx, host.ID, "macos")
+	// it is back to unlocked state
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
 	require.NoError(t, err)
-	checkState(t, status, true, false, false, false, false, false)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
 	require.Empty(t, status.UnlockPIN)
+
+	// record a request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is now pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result failure to simulate failed wipe (back to unlocked)
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Error",
+		RequestType: cmd.Command.RequestType,
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, false)
+	require.NoError(t, err)
+
+	// it is back to unlocked
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, false)
+
+	// record a new request to wipe the host
+	cmd = &mdm.Command{
+		CommandUUID: uuid.NewString(),
+		Raw:         []byte("<?xml"),
+	}
+	cmd.Command.RequestType = "EraseDevice"
+	err = appleStore.EnqueueDeviceWipeCommand(ctx, host, cmd)
+	require.NoError(t, err)
+
+	// it is back to pending wipe
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, true, false, false, false, false, true)
+
+	// record a command result success to simulate wipe
+	err = appleStore.StoreCommandReport(&mdm.Request{
+		EnrollID: &mdm.EnrollID{ID: host.UUID},
+		Context:  ctx,
+	}, &mdm.CommandResults{
+		CommandUUID: cmd.CommandUUID,
+		Status:      "Acknowledged",
+		RequestType: cmd.Command.RequestType,
+		Raw:         cmd.Raw,
+	})
+	require.NoError(t, err)
+
+	err = ds.UpdateHostLockWipeStatusFromAppleMDMResult(ctx, host.UUID, cmd.CommandUUID, cmd.Command.RequestType, true)
+	require.NoError(t, err)
+
+	// it is wiped
+	status, err = ds.GetHostLockWipeStatus(ctx, host)
+	require.NoError(t, err)
+	checkLockWipeState(t, status, false, false, true, false, false, false)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {
