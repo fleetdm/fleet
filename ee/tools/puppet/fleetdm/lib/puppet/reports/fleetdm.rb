@@ -10,7 +10,7 @@ Puppet::Reports.register_report(:fleetdm) do
     return if noop
 
     node_name = Puppet[:node_name_value]
-    if resource_statuses.any? { |r| r.include?('error pre-setting fleetdm::profile') }
+    if resource_statuses.any? { |r, _| r.downcase.include?('error pre-setting fleetdm::profile') }
       Puppet.err("Some resources failed to be assigned, not matching profiles for #{node_name}")
       return
     end
