@@ -11902,16 +11902,19 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
 	// ack all commands to install profiles
 	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
 	for cmd != nil {
 		cmd, err = manualEnrolledDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
 	for cmd != nil {
 		cmd, err = automaticEnrolledDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
 	for cmd != nil {
 		cmd, err = automaticEnrolledDeviceWithRef.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)

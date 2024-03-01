@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
-	"database/sql"
 	"fmt"
 	"sort"
 	"strconv"
@@ -3270,7 +3269,7 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
 
 	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
-	require.ErrorIs(t, err, sql.ErrNoRows)
+	require.Error(t, err)
 
 	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
 	require.NoError(t, err)

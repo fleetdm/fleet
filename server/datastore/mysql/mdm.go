@@ -1037,6 +1037,14 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 	SET renew_command_uuid = NULL
 	WHERE id = ?`
 
-	_, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
-	return ctxerr.Wrap(ctx, err, "cleaning SCEP renew references")
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning SCEP renew references")
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ctxerr.Errorf(ctx, "nano association for host.uuid %s doesn't exist", hostUUID)
+	}
+
+	return nil
 }
