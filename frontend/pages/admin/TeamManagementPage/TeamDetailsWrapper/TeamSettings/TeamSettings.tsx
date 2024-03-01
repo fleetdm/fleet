@@ -54,7 +54,8 @@ const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
 const validateTeamSettingsFormData = (
   // will never be called if global setting is not loaded, default to satisfy typechecking
   curGlobalHostExpiryEnabled = false,
-  curFormData: ITeamSettingsFormData
+  curFormData: ITeamSettingsFormData,
+  prevFormData?: ITeamSettingsFormData
 ) => {
   const errors: Record<string, string> = {};
 
@@ -75,7 +76,19 @@ const validateTeamSettingsFormData = (
 
   // validate host webhook fields
   if (curFormData.teamHostStatusWebhookEnabled) {
-    if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
+    const userJustEnabledWebhook =
+      !!prevFormData &&
+      !prevFormData?.teamHostStatusWebhookEnabled &&
+      curFormData.teamHostStatusWebhookEnabled;
+    const shouldNotError =
+      userJustEnabledWebhook &&
+      !curFormData.teamHostStatusWebhookDestinationUrl;
+
+    if (
+      !shouldNotError &&
+      !validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })
+    ) {
+      // if the user just enabled the webhook, don't show an error until they've entered a URL or tried to submit the form without one
       errors.host_status_webhook_destination_url = "Invalid URL";
     }
   }
@@ -174,10 +187,18 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const onInputChange = useCallback(
     (newVal: { name: FormNames; value: string | number | boolean }) => {
       const { name, value } = newVal;
-      const newFormData = { ...formData, [name]: value };
+      // these are compared to determine if the user just enabled the webhook
+      const [newFormData, prevFormData] = [
+        { ...formData, [name]: value },
+        { ...formData },
+      ];
       setFormData(newFormData);
       setFormErrors(
-        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
+        validateTeamSettingsFormData(
+          globalHostExpiryEnabled,
+          newFormData,
+          prevFormData
+        )
       );
     },
     [formData, globalHostExpiryEnabled]
@@ -186,6 +207,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const updateTeamSettings = useCallback(
     (evt: React.MouseEvent<HTMLFormElement>) => {
       evt.preventDefault();
+
+      const errors = validateTeamSettingsFormData(
+        globalHostExpiryEnabled,
+        formData
+      );
+      if (Object.keys(errors).length > 0) {
+        setFormErrors(errors);
+        return;
+      }
+
       setUpdatingTeamSettings(true);
       const castedHostExpiryWindow = Number(formData.teamHostExpiryWindow);
       let enableHostExpiry;
