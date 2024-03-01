@@ -442,6 +442,14 @@ func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
 	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
 }
 
+type DEPAssignProfileResponseStatus string
+
+const (
+	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
+	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
+	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
+)
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly

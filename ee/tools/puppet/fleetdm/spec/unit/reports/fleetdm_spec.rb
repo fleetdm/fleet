@@ -32,7 +32,7 @@ describe 'Puppet::Reports::Fleetdm' do
   end
 
   it 'logs an error if resources failed to be assigned' do
-    allow(report).to receive(:resource_statuses).and_return({ 'myresource' => 'error pre-setting fleetdm::profile' })
+    allow(report).to receive(:resource_statuses).and_return({ 'error pre-setting fleetdm::profile com.apple.SoftwareUpdate as present: forbidden : base forbidden' => 'anything' })
     expect(Puppet).to receive(:err).with(%r{Some resources failed to be assigned})
     expect(fleet_client_mock).not_to receive(:match_profiles)
     report.process
