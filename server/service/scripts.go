@@ -205,8 +205,11 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, err
 		}
 		request.ScriptContents = string(contents)
+		request.ScriptContentID = script.ScriptContentID
 	}
 
+	// TODO(JVE): should we stop storing the contents in the request var and just fetch and check
+	// them here?
 	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}

@@ -29,15 +29,17 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
-		getStmt = `SELECT id, host_id, execution_id, script_contents, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
+		// TODO(JVE): fix this: change column to allow empty default string, or just leave as is if
+		// that's ok
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', '', ?, ?, ?)`
+		getStmt = `SELECT id, host_id, execution_id, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
 	)
 
 	execID := uuid.New().String()
 	result, err := tx.ExecContext(ctx, insStmt,
 		request.HostID,
 		execID,
-		request.ScriptContents,
+		request.ScriptContentID,
 		request.ScriptID,
 		request.UserID,
 		request.SyncRequest,
@@ -210,21 +212,26 @@ func (ds *Datastore) GetHostScriptExecutionResult(ctx context.Context, execID st
 func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.QueryerContext, execID string) (*fleet.HostScriptResult, error) {
 	const getStmt = `
   SELECT
-    id,
-    host_id,
-    execution_id,
-    script_contents,
-    script_id,
-    output,
-    runtime,
-    exit_code,
-    created_at,
-    user_id,
-    sync_request
+    hsr.id,
+    hsr.host_id,
+    hsr.execution_id,
+    sc.contents as script_contents,
+    hsr.script_id,
+    hsr.output,
+    hsr.runtime,
+    hsr.exit_code,
+    hsr.created_at,
+    hsr.user_id,
+    hsr.sync_request
   FROM
-    host_script_results
+    host_script_results hsr
+  JOIN
+	script_contents sc
   WHERE
-    execution_id = ?`
+    hsr.execution_id = ?
+  AND
+	hsr.script_content_id = sc.id
+`
 
 	var result fleet.HostScriptResult
 	if err := sqlx.GetContext(ctx, q, &result, getStmt, execID); err != nil {
@@ -330,7 +337,8 @@ SELECT
   team_id,
   name,
   created_at,
-  updated_at
+  updated_at,
+  script_content_id
 FROM
   scripts
 WHERE
