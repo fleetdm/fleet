@@ -4,18 +4,18 @@ $metadata['https://localhost:8080'] = array(
     'AssertionConsumerService' => [
         'https://localhost:8080/api/v1/fleet/sso/callback',
         'https://localhost:8080/api/v1/fleet/mdm/sso/callback',
-
     ],
     'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddres',
     'simplesaml.nameidattribute' => 'email',
 );
 
-$metadata['https://www.okta.com/saml2/service-provider/spxarorktvzekztynake'] = array(
+# used in integration tests and to validate SSO flows that use a
+# separate application for MDM SSO (with a single
+# AssertionConsumerService)
+$metadata['mdm.test.com'] = array(
     'AssertionConsumerService' => [
-        'https://trial-1930681.okta.com/sso/saml2/0oabi74v9iGQEsLVT697',
-
+        'https://localhost:8080/api/v1/fleet/mdm/sso/callback',
     ],
-    'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress',
+    'NameIDFormat' => 'urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddres',
     'simplesaml.nameidattribute' => 'email',
 );
-

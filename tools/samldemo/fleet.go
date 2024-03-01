@@ -12,6 +12,8 @@ import (
 
 const fleetURL = "https://dogfood.fleetdm.com"
 
+// This environment variable needs to be set in order to auth the Fleet API. Observer permission
+// should be sufficient.
 var fleetKey = os.Getenv("FLEET_KEY")
 
 type basicHost struct {
@@ -23,6 +25,7 @@ type basicHost struct {
 	} `json:"issues"`
 }
 
+// Get all the hosts for a user (by email address)
 func hostsForUser(email string) ([]basicHost, error) {
 	req, err := http.NewRequest("GET", fleetURL+"/api/latest/fleet/hosts?page=0&per_page=50&query="+email, &bytes.Buffer{})
 	req.Header.Set("Authorization", "Bearer "+fleetKey)
@@ -39,7 +42,6 @@ func hostsForUser(email string) ([]basicHost, error) {
 	if err != nil {
 		return nil, err
 	}
-	// log.Println("body: ", string(body))
 
 	var hosts struct{ Hosts []basicHost }
 	err = json.Unmarshal(body, &hosts)
@@ -50,6 +52,7 @@ func hostsForUser(email string) ([]basicHost, error) {
 	return hosts.Hosts, nil
 }
 
+// Check all the hosts for a user (by email address) -- if any have failing policies, return an error.
 func checkForEmail(email string) error {
 	hosts, err := hostsForUser(email)
 	if err != nil {
