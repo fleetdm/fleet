@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/boltdb/bolt"
+	bolt "go.etcd.io/bbolt"
 )
 
 type Depot struct {
