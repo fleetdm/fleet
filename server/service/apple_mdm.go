@@ -2217,15 +2217,22 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	host.SerialNumber = m.SerialNumber
 	host.UDID = m.UDID
 	host.Model = m.Model
+
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+	}
+
+	if info.SCEPRenewalInProgress {
+		svc.logger.Log("info", "Authenticate message received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
+		return nil
+	}
+
 	if err := svc.ds.IngestMDMAppleDeviceFromCheckin(r.Context, host); err != nil {
 		return ctxerr.Wrap(r.Context, err, "ingesting device in Authenticate message")
 	}
 	if err := svc.ds.ResetMDMAppleEnrollment(r.Context, host.UDID); err != nil {
 		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
-	}
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
-	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,
@@ -2233,6 +2240,7 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
+
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2241,19 +2249,28 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/token_update
 func (svc *MDMAppleCheckinAndCommandService) TokenUpdate(r *mdm.Request, m *mdm.TokenUpdate) error {
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "retrieving host checkin info on TokenUpdate")
+	}
+
+	if info.SCEPRenewalInProgress {
+		svc.logger.Log("info", "TokenUpdate message received for a SCEP renewal in process", "host_uuid", r.ID)
+		err := svc.ds.CleanSCEPRenewRefs(r.Context, r.ID)
+		return ctxerr.Wrap(r.Context, err, "cleaning SCEP refs on TokenUpdate")
+	}
+
 	nanoEnroll, err := svc.ds.GetNanoMDMEnrollment(r.Context, r.ID)
 	if err != nil {
-		return err
+		return ctxerr.Wrap(r.Context, err, "retrieving nano enrollment info on TokenUpdate")
 	}
+
 	if nanoEnroll != nil && nanoEnroll.Enabled &&
 		nanoEnroll.Type == "Device" && nanoEnroll.TokenUpdateTally == 1 {
 		// device is enrolled for the first time, not a token update
-		if err := svc.ds.BulkSetPendingMDMHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
-			return err
-		}
+		svc.logger.Log("info", "TokenUpdate message received for a new enrollment", "host_uuid", r.ID)
 
-		info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
-		if err != nil {
+		if err := svc.ds.BulkSetPendingMDMHostProfiles(r.Context, nil, nil, nil, []string{r.ID}); err != nil {
 			return err
 		}
 

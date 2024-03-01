@@ -1000,7 +1000,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 }
 
-func TestMDMAuthenticate(t *testing.T) {
+func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	svc := MDMAppleCheckinAndCommandService{ds: ds}
 	ctx := context.Background()
@@ -1015,7 +1015,11 @@ func TestMDMAuthenticate(t *testing.T) {
 
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
-		return &fleet.HostMDMCheckinInfo{HardwareSerial: serial, DisplayName: fmt.Sprintf("%s (%s)", model, serial), InstalledFromDEP: false}, nil
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:   serial,
+			DisplayName:      fmt.Sprintf("%s (%s)", model, serial),
+			InstalledFromDEP: false,
+		}, nil
 	}
 
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -1050,6 +1054,104 @@ func TestMDMAuthenticate(t *testing.T) {
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
 	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
+}
+
+func TestMDMAuthenticateADE(t *testing.T) {
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds}
+	ctx := context.Background()
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	ds.IngestMDMAppleDeviceFromCheckinFunc = func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+		require.Equal(t, uuid, mdmHost.UDID)
+		require.Equal(t, serial, mdmHost.SerialNumber)
+		require.Equal(t, model, mdmHost.Model)
+		return nil
+	}
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:     serial,
+			DisplayName:        fmt.Sprintf("%s (%s)", model, serial),
+			DEPAssignedToFleet: true,
+		}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
+		require.True(t, ok)
+		require.Nil(t, user)
+		require.Equal(t, "mdm_enrolled", activity.ActivityName())
+		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
+		require.True(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
+		return nil
+	}
+
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx},
+		&mdm.Authenticate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+			SerialNumber: serial,
+			Model:        model,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
+	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
+}
+
+func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+	ctx := context.Background()
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:        serial,
+			DisplayName:           fmt.Sprintf("%s (%s)", model, serial),
+			SCEPRenewalInProgress: true,
+		}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	ds.IngestMDMAppleDeviceFromCheckinFunc = func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
+		&mdm.Authenticate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+			SerialNumber: serial,
+			Model:        model,
+		},
+	)
+	require.NoError(t, err)
+	require.False(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
+	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.False(t, ds.NewActivityFuncInvoked)
+	require.False(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {

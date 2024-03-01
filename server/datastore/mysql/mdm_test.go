@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"database/sql"
 	"fmt"
 	"sort"
 	"strconv"
@@ -3267,4 +3268,11 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
+
+	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
+	require.ErrorIs(t, err, sql.ErrNoRows)
+
+	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], nil)
 }
