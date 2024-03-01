@@ -325,6 +325,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               name="teamHostStatusWebhookHostPercentage"
               value={formData.teamHostStatusWebhookHostPercentage}
               parseTarget
+              searchable={false}
               tooltip={
                 <p>
                   Select the minimum percentage of hosts that
@@ -342,6 +343,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               name="teamHostStatusWebhookWindow"
               value={formData.teamHostStatusWebhookWindow}
               parseTarget
+              searchable={false}
               tooltip={
                 <p>
                   Select the minimum number of days that the

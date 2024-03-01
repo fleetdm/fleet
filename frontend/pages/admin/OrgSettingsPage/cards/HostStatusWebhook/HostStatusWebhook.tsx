@@ -159,6 +159,7 @@ const HostStatusWebhook = ({
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
             parseTarget
+            searchable={false}
             onBlur={validateForm}
             tooltip={
               <p>
@@ -177,6 +178,7 @@ const HostStatusWebhook = ({
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
             parseTarget
+            searchable={false}
             onBlur={validateForm}
             tooltip={
               <p>
