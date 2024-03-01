@@ -9,7 +9,8 @@
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
   
-  // Apply personalization for who people come from ads, so that the website makes more sense for them:
+  // Applies personalization for who people come from ads, so that the website makes more sense for them:
+  var primaryBuyingSituation;
   var defaultMetaTitle = 'Fleet | Open-source '+(primaryBuyingSituation === 'mdm' ? 'device management' : primaryBuyingSituation === 'vm' ? 'vulnerability management' : 'endpoint ops');
   var defaultMetaDescription = 'Open-source '+(['mdm'].includes(primaryBuyingSituation) ? 'IT' : ['eo-security','vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(primaryBuyingSituation === 'mdm' ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
   var corporationDisplayName = 'Fleet' + (primaryBuyingSituation === 'mdm' ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
