@@ -836,15 +836,21 @@ type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uin
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
 
-type GetHostLockWipeStatusFunc func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error)
+type GetHostLockWipeStatusFunc func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error)
 
-type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
+type LockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
-type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) error
+type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
-type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, ts time.Time) error
+type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
+
+type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
+
+type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
+
+type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -2088,6 +2094,15 @@ type DataStore struct {
 
 	CleanMacOSMDMLockFunc        CleanMacOSMDMLockFunc
 	CleanMacOSMDMLockFuncInvoked bool
+
+	WipeHostViaScriptFunc        WipeHostViaScriptFunc
+	WipeHostViaScriptFuncInvoked bool
+
+	WipeHostViaWindowsMDMFunc        WipeHostViaWindowsMDMFunc
+	WipeHostViaWindowsMDMFuncInvoked bool
+
+	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
+	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4955,32 +4970,32 @@ func (s *DataStore) BatchSetScripts(ctx context.Context, tmID *uint, scripts []*
 	return s.BatchSetScriptsFunc(ctx, tmID, scripts)
 }
 
-func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+func (s *DataStore) GetHostLockWipeStatus(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 	s.mu.Lock()
 	s.GetHostLockWipeStatusFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostLockWipeStatusFunc(ctx, hostID, fleetPlatform)
+	return s.GetHostLockWipeStatusFunc(ctx, host)
 }
 
-func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (s *DataStore) LockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	s.mu.Lock()
 	s.LockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.LockHostViaScriptFunc(ctx, request)
+	return s.LockHostViaScriptFunc(ctx, request, hostFleetPlatform)
 }
 
-func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+func (s *DataStore) UnlockHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
 	s.mu.Lock()
 	s.UnlockHostViaScriptFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnlockHostViaScriptFunc(ctx, request)
+	return s.UnlockHostViaScriptFunc(ctx, request, hostFleetPlatform)
 }
 
-func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error {
+func (s *DataStore) UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error {
 	s.mu.Lock()
 	s.UnlockHostManuallyFuncInvoked = true
 	s.mu.Unlock()
-	return s.UnlockHostManuallyFunc(ctx, hostID, ts)
+	return s.UnlockHostManuallyFunc(ctx, hostID, hostFleetPlatform, ts)
 }
 
 func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) error {
@@ -4988,4 +5003,25 @@ func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) erro
 	s.CleanMacOSMDMLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanMacOSMDMLockFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {
+	s.mu.Lock()
+	s.WipeHostViaScriptFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaScriptFunc(ctx, request, hostFleetPlatform)
+}
+
+func (s *DataStore) WipeHostViaWindowsMDM(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error {
+	s.mu.Lock()
+	s.WipeHostViaWindowsMDMFuncInvoked = true
+	s.mu.Unlock()
+	return s.WipeHostViaWindowsMDMFunc(ctx, host, cmd)
+}
+
+func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error {
+	s.mu.Lock()
+	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
+	s.mu.Unlock()
+	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
 }

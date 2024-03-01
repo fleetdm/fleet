@@ -1312,24 +1312,38 @@ type Datastore interface {
 	BatchSetScripts(ctx context.Context, tmID *uint, scripts []*Script) error
 
 	// GetHostLockWipeStatus gets the lock/unlock and wipe status for the host.
-	GetHostLockWipeStatus(ctx context.Context, hostID uint, fleetPlatform string) (*HostLockWipeStatus, error)
+	GetHostLockWipeStatus(ctx context.Context, host *Host) (*HostLockWipeStatus, error)
 
 	// LockHostViaScript sends a script to lock a host and updates the
 	// states in host_mdm_actions
-	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	LockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
 	// UnlockHostViaScript sends a script to unlock a host and updates the
 	// states in host_mdm_actions
-	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload) error
+	UnlockHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
 
 	// UnlockHostmanually records a request to unlock a host that requires manual
 	// intervention (such as for macOS). It indicates the an unlock request is
 	// pending.
-	UnlockHostManually(ctx context.Context, hostID uint, ts time.Time) error
+	UnlockHostManually(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
 	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
+
+	// WipeHostViaScript sends a script to wipe a host and updates the
+	// states in host_mdm_actions.
+	WipeHostViaScript(ctx context.Context, request *HostScriptRequestPayload, hostFleetPlatform string) error
+
+	// WipeHostViaWindowsMDM sends a Windows MDM command to wipe a host and
+	// updates the states in host_mdm_actions.
+	WipeHostViaWindowsMDM(ctx context.Context, host *Host, cmd *MDMWindowsCommand) error
+
+	// UpdateHostLockWipeStatusFromAppleMDMResult updates the host_mdm_actions
+	// table to reflect the result of the corresponding lock/wipe MDM command for
+	// Apple hosts. It is optimized to update using only the information
+	// available in the Apple MDM protocol.
+	UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Context, hostUUID, cmdUUID, requestType string, succeeded bool) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
@@ -1337,6 +1351,7 @@ type Datastore interface {
 type MDMAppleStore interface {
 	storage.AllStorage
 	EnqueueDeviceLockCommand(ctx context.Context, host *Host, cmd *mdm.Command, pin string) error
+	EnqueueDeviceWipeCommand(ctx context.Context, host *Host, cmd *mdm.Command) error
 }
 
 // Cloner represents any type that can clone itself. Used for the cached_mysql

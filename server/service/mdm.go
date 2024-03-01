@@ -545,24 +545,6 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		return nil, ctxerr.Wrap(ctx, err, "decode plist command")
 	}
 
-	// TODO(mna): as per the story's spec:
-	//   Make macOS and Windows MDM, low-level lock command available for free
-	//   users. Remove validation where we check for Premium for custom MDM
-	//   commands that contain the lock command
-	//
-	// So we'd need to not only remove this validation to allow DeviceLock (and
-	// eventually EraseDevice for the Wipe story), but it needs to behave
-	// similarly to how the /lock endpoint would've:
-	//
-	// see https://fleetdm.slack.com/archives/C03C41L5YEL/p1707169116154199?thread_ts=1707162619.655219&cid=C03C41L5YEL
-	//   Regarding Free use of “lock” command as custom command, remove the validation but does that behave the same as if /lock had been used?
-	//				@Martin Angers
-	//				 that’s right.
-	//
-	// So it looks like we'd need to parse the command's XML to get the unlock
-	// PIN, and TBD how to behave if there is no PIN or if it's larger than
-	// supported.
-
 	if appleMDMPremiumCommands[strings.TrimSpace(cmd.Command.RequestType)] {
 		lic, err := svc.License(ctx)
 		if err != nil {
@@ -620,15 +602,6 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 		err = fleet.NewInvalidArgumentError("command", err.Error())
 		return nil, ctxerr.Wrap(ctx, err, "decode SyncML command")
 	}
-
-	// TODO(mna): as per the story's spec:
-	//   Make macOS and Windows MDM, low-level lock command available for Free
-	//   users. Remove validation where we check for Premium for custom MDM
-	//   commands that contain the lock command
-	//
-	// However for Windows, it looks like we only prevent the RemoteWipe command,
-	// nothing for lock, so looks like nothing to do here for now (will need a
-	// change for the wipe command).
 
 	if cmdMsg.IsPremium() {
 		lic, err := svc.License(ctx)
