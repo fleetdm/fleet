@@ -71,6 +71,10 @@
             }
           }
         }
+        .button--inverse {
+          // compensate for button's padding
+          margin-left: -$pad-small;
+        }
       }
 
       &__section-description {
