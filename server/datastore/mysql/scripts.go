@@ -7,7 +7,6 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -238,12 +237,12 @@ func (ds *Datastore) getHostScriptExecutionResultDB(ctx context.Context, q sqlx.
 }
 
 func (ds *Datastore) NewScript(ctx context.Context, script *fleet.Script) (*fleet.Script, error) {
-	var res, scRes sql.Result
+	var res sql.Result
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
 
 		// first insert script contents
-		scRes, err = insertScriptContents(ctx, script.ScriptContents, tx)
+		scRes, err := insertScriptContents(ctx, script.ScriptContents, tx)
 		if err != nil {
 			return err
 		}
@@ -279,7 +278,8 @@ VALUES
 		globalOrTeamID = *script.TeamID
 	}
 	res, err := tx.ExecContext(ctx, insertStmt,
-		script.TeamID, globalOrTeamID, script.Name, script.ScriptContents, scriptContentsID)
+		// TODO(JVE): fix this if we decide to do something different for the script contents column
+		script.TeamID, globalOrTeamID, script.Name, "", scriptContentsID)
 	if err != nil {
 		if isDuplicate(err) {
 			// name already exists for this team/global
@@ -294,22 +294,20 @@ VALUES
 }
 
 func insertScriptContents(ctx context.Context, contents string, tx sqlx.ExtContext) (sql.Result, error) {
-	// md5 hash the contents
-	// attempt to insert them into the table. TODO: what do with duplicates?
-	// return the result because we need to store the ID in the scripts table
 	const insertStmt = `
 INSERT INTO
   script_contents (
 	  md5_checksum, contents
   )
 VALUES (UNHEX(?),?)
+ON DUPLICATE KEY UPDATE
+  id=LAST_INSERT_ID(id)
 	`
 
 	md5Checksum := md5ChecksumScriptContent(contents)
-	slog.With("filename", "server/datastore/mysql/scripts.go", "func", "insertScriptContents").Info("JVE_LOG: inserting script contents ", "contents", contents, "md5sc", md5Checksum)
 	res, err := tx.ExecContext(ctx, insertStmt, md5Checksum, contents)
 	if err != nil {
-		// TODO(JVE): do we need duplicate error checking here? or different handling/logging?
+		// TODO(JVE): do we need different handling/logging?
 		return nil, err
 	}
 
@@ -351,11 +349,13 @@ WHERE
 func (ds *Datastore) GetScriptContents(ctx context.Context, id uint) ([]byte, error) {
 	const getStmt = `
 SELECT
-  script_contents
+  sc.contents
 FROM
-  scripts
+  script_contents sc
+  JOIN scripts s
 WHERE
-  id = ?
+  s.script_content_id = sc.id
+  AND s.id = ?;
 `
 	var contents []byte
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &contents, getStmt, id); err != nil {

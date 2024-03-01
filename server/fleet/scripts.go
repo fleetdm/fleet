@@ -26,7 +26,8 @@ type Script struct {
 	CreatedAt      time.Time `json:"created_at" db:"created_at"`
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
-	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	UpdatedAt       time.Time `json:"updated_at" db:"updated_at"`
+	ScriptContentID uint      `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
