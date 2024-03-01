@@ -2852,6 +2852,189 @@ func (ds *Datastore) GetMDMAppleDefaultSetupAssistant(ctx context.Context, teamI
 	return asst.ProfileUUID, asst.UploadedAt, nil
 }
 
+func (ds *Datastore) UpdateHostDEPAssignProfileResponses(ctx context.Context, payload *godep.ProfileResponse) error {
+	if payload == nil {
+		// caller should ensure this does not happen
+		level.Debug(ds.logger).Log("msg", "update host dep assign profiles responses received nil payload")
+		return nil
+	}
+
+	// we expect all devices to success so pre-allocate just the success slice
+	success := make([]string, 0, len(payload.Devices))
+	var (
+		notAccessible []string
+		failed        []string
+	)
+
+	for serial, status := range payload.Devices {
+		switch status {
+		case string(fleet.DEPAssignProfileResponseSuccess):
+			success = append(success, serial)
+		case string(fleet.DEPAssignProfileResponseNotAccessible):
+			notAccessible = append(notAccessible, serial)
+		case string(fleet.DEPAssignProfileResponseFailed):
+			failed = append(failed, serial)
+		default:
+			// this should never happen unless Apple changes the response format, so we log it for
+			// future debugging
+			level.Debug(ds.logger).Log("msg", "unrecognized assign profile response", "serial", serial, "status", status)
+		}
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, success, string(fleet.DEPAssignProfileResponseSuccess)); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, notAccessible, string(fleet.DEPAssignProfileResponseNotAccessible)); err != nil {
+			return err
+		}
+		if err := updateHostDEPAssignProfileResponses(ctx, tx, ds.logger, payload.ProfileUUID, failed, string(fleet.DEPAssignProfileResponseFailed)); err != nil {
+			return err
+		}
+		return nil
+	})
+}
+
+func updateHostDEPAssignProfileResponses(ctx context.Context, tx sqlx.ExtContext, logger log.Logger, profileUUID string, serials []string, status string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_dep_assignments
+JOIN 
+	hosts ON id = host_id
+SET
+	profile_uuid = ?,
+	assign_profile_response = ?,
+	response_updated_at = CURRENT_TIMESTAMP,
+	retry_job_id = 0
+WHERE
+	hardware_serial IN (?)
+`
+	stmt, args, err := sqlx.In(stmt, profileUUID, status, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+	res, err := tx.ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host dep assignments")
+	}
+
+	n, _ := res.RowsAffected()
+	level.Info(logger).Log("msg", "update host dep assign profile responses", "profile_uuid", profileUUID, "status", status, "devices", n, "serials", fmt.Sprintf("%s", serials))
+
+	return nil
+}
+
+// depCooldownPeriod is the waiting period following a failed DEP assign profile request for a host.
+const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
+
+func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+	stmt := `
+SELECT
+	CASE WHEN assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN
+		'skip'
+	ELSE
+		'assign'
+	END AS status,
+	hardware_serial
+FROM
+	host_dep_assignments
+	JOIN hosts ON id = host_id
+WHERE 
+	hardware_serial IN (?)	
+`
+
+	stmt, args, err := sqlx.In(stmt, string(fleet.DEPAssignProfileResponseFailed), depCooldownPeriod.Seconds(), serials)
+	if err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: prepare statement arguments")
+	}
+
+	var rows []struct {
+		Status         string `db:"status"`
+		HardwareSerial string `db:"hardware_serial"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "screen dep serials: get rows")
+	}
+
+	for _, r := range rows {
+		switch r.Status {
+		case "assign":
+			assignSerials = append(assignSerials, r.HardwareSerial)
+		case "skip":
+			skipSerials = append(skipSerials, r.HardwareSerial)
+		default:
+			return nil, nil, ctxerr.New(ctx, fmt.Sprintf("screen dep serials: %s unrecognized status: %s", r.HardwareSerial, r.Status))
+		}
+	}
+
+	return skipSerials, assignSerials, nil
+}
+
+func (ds *Datastore) GetDEPAssignProfileExpiredCooldowns(ctx context.Context) (map[uint][]string, error) {
+	const stmt = `
+SELECT
+	COALESCE(team_id, 0) AS team_id,
+	hardware_serial
+FROM
+	host_dep_assignments
+	JOIN hosts h ON h.id = host_id
+	LEFT JOIN jobs j ON j.id = retry_job_id
+WHERE
+	assign_profile_response = ?
+	AND(retry_job_id = 0 OR j.state = ?)
+	AND(response_updated_at IS NULL
+		OR response_updated_at <= DATE_SUB(NOW(), INTERVAL ? SECOND))`
+
+	var rows []struct {
+		TeamID         uint   `db:"team_id"`
+		HardwareSerial string `db:"hardware_serial"`
+	}
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &rows, stmt, string(fleet.DEPAssignProfileResponseFailed), string(fleet.JobStateFailure), depCooldownPeriod.Seconds()); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get host dep assign profile expired cooldowns")
+	}
+
+	serialsByTeamID := make(map[uint][]string, len(rows))
+	for _, r := range rows {
+		serialsByTeamID[r.TeamID] = append(serialsByTeamID[r.TeamID], r.HardwareSerial)
+	}
+	return serialsByTeamID, nil
+}
+
+func (ds *Datastore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error {
+	if len(serials) == 0 {
+		return nil
+	}
+
+	stmt := `
+UPDATE
+	host_dep_assignments
+JOIN
+	hosts ON id = host_id
+SET
+	retry_job_id = ?
+WHERE
+	hardware_serial IN (?)`
+
+	stmt, args, err := sqlx.In(stmt, jobID, serials)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "prepare statement arguments")
+	}
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, args...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update dep assign profile retry pending")
+	}
+
+	n, _ := res.RowsAffected()
+	level.Info(ds.logger).Log("msg", "update dep assign profile retry pending", "job_id", jobID, "devices", n, "serials", fmt.Sprintf("%s", serials))
+
+	return nil
+}
+
 func (ds *Datastore) ResetMDMAppleEnrollment(ctx context.Context, hostUUID string) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		// it's okay if we didn't update any rows, `nano_enrollments` entries

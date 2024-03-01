@@ -2787,7 +2787,7 @@ func (svc *Service) restorePendingDEPHost(ctx context.Context, host *fleet.Host,
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}
 
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger,
 		worker.MacosSetupAssistantHostsTransferred, tmID, host.HardwareSerial); err != nil {
 		return ctxerr.Wrap(ctx, err, "restore pending dep host")
 	}

@@ -643,6 +643,9 @@ func newWorkerIntegrationsSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
+			return worker.ProcessDEPCooldowns(ctx, ds, logger)
+		}),
 	)
 
 	return s, nil
