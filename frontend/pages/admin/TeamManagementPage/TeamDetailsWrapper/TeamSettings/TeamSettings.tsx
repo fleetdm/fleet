@@ -18,6 +18,8 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
+import validURL from "components/forms/validators/valid_url";
+
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 // @ts-ignore
@@ -30,12 +32,21 @@ import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
 
 const baseClass = "team-settings";
 
+type ITeamSettingsFormData = {
+  teamHostExpiryEnabled: boolean;
+  teamHostExpiryWindow: number | string;
+  teamHostStatusWebhookEnabled: boolean;
+  teamHostStatusWebhookDestinationUrl: string;
+};
+
+type FormNames = keyof ITeamSettingsFormData;
+
 const HOST_EXPIRY_ERROR_TEXT = "Host expiry window must be a positive number.";
 
 const validateTeamSettingsFormData = (
   // will never be called if global setting is not loaded, default to satisfy typechecking
   curGlobalHostExpiryEnabled = false,
-  curFormData: Record<string, boolean | number | string>
+  curFormData: ITeamSettingsFormData
 ) => {
   const errors: Record<string, string> = {};
 
@@ -55,14 +66,19 @@ const validateTeamSettingsFormData = (
   }
 
   // validate host webhook fields
+  if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
+    errors.host_status_webhook_destination_url = "Invalid URL";
+  }
 
   return errors;
 };
+
 const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ITeamSettingsFormData>({
     teamHostExpiryEnabled: false,
     teamHostExpiryWindow: "" as number | string,
     teamHostStatusWebhookEnabled: false,
+    teamHostStatusWebhookDestinationUrl: "",
   });
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
@@ -130,13 +146,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           teamHostStatusWebhookEnabled:
             teamConfig?.webhook_settings?.host_status_webhook
               ?.enable_host_status_webhook ?? false,
+          teamHostStatusWebhookDestinationUrl:
+            teamConfig?.webhook_settings?.host_status_webhook
+              ?.destination_url ?? "",
         });
       },
     }
   );
 
   const onInputChange = useCallback(
-    (newVal: { name: string; value: string | number | boolean }) => {
+    (newVal: { name: FormNames; value: string | number | boolean }) => {
       const { name, value } = newVal;
       const newFormData = { ...formData, [name]: value };
       setFormData(newFormData);
@@ -173,6 +192,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
               host_status_webhook: {
                 enable_host_status_webhook:
                   formData.teamHostStatusWebhookEnabled,
+                destination_url: formData.teamHostStatusWebhookDestinationUrl,
               },
             },
           },
@@ -228,6 +248,23 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         >
           Preview request
         </Button>
+        {formData.teamHostStatusWebhookEnabled && (
+          <InputField
+            placeholder="https://server.com/example"
+            label="Host status webhook destination URL"
+            onChange={onInputChange}
+            name="teamHostStatusWebhookDestinationUrl"
+            value={formData.teamHostStatusWebhookDestinationUrl}
+            parseTarget
+            error={formErrors.host_status_webhook_destination_url}
+            tooltip={
+              <p>
+                Provide a URL to deliver <br />
+                the webhook request to.
+              </p>
+            }
+          />
+        )}
         <SectionHeader title="Host expiry settings" />
         {globalHostExpiryEnabled !== undefined && (
           <TeamHostExpiryToggle
