@@ -182,6 +182,9 @@ type HostListOptions struct {
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 
+	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
+	PopulatePolicies bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
 	VulnerabilityFilter *string
 }
@@ -339,6 +342,9 @@ type Host struct {
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+
+	// Policies is the list of policies and whether it passes for the host
+	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
@@ -722,8 +728,6 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
-	// Policies is the list of policies and whether it passes for the host
-	Policies *[]*HostPolicy `json:"policies,omitempty"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
