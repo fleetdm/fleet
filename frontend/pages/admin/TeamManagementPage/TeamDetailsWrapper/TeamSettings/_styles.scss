@@ -6,4 +6,8 @@
       margin-top: $pad-medium;
     }
   }
+  .button--inverse {
+    // compensate for button's padding
+    margin: -$pad-small 0;
+  }
 }

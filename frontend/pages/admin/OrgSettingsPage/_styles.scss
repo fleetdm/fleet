@@ -94,14 +94,6 @@
         margin-bottom: $pad-medium;
       }
 
-      &__host-status-webhook-preview-modal {
-        .flex-end {
-          margin-top: 20px;
-          display: flex;
-          justify-content: flex-end;
-        }
-      }
-
       &__disabled-usage-statistics-checkbox {
         @include disabled;
       }

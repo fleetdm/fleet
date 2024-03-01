@@ -16,6 +16,8 @@ import { ITeamSubnavProps } from "interfaces/team_subnav";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
+
 import Button from "components/buttons/Button";
 import DataError from "components/DataError";
 // @ts-ignore
@@ -66,6 +68,14 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
   );
+  const [
+    showHostStatusWebhookPreviewModal,
+    setShowHostStatusWebhookPreviewModal,
+  ] = useState(false);
+
+  const toggleHostStatusWebhookPreviewModal = () => {
+    setShowHostStatusWebhookPreviewModal(!showHostStatusWebhookPreviewModal);
+  };
 
   const { renderFlash } = useContext(NotificationContext);
 
@@ -240,6 +250,13 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         >
           Enable host status webhook
         </Checkbox>
+        <Button
+          type="button"
+          variant="inverse"
+          onClick={toggleHostStatusWebhookPreviewModal}
+        >
+          Preview request
+        </Button>
         <SectionHeader title="Host expiry settings" />
         {globalHostExpiryEnabled !== undefined && (
           <TeamHostExpiryToggle
@@ -274,6 +291,16 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     );
   };
 
-  return <section className={`${baseClass}`}>{renderForm()}</section>;
+  return (
+    <section className={`${baseClass}`}>
+      {renderForm()}
+      {showHostStatusWebhookPreviewModal && (
+        <HostStatusWebhookPreviewModal
+          toggleModal={toggleHostStatusWebhookPreviewModal}
+          isTeamScope
+        />
+      )}
+    </section>
+  );
 };
 export default TeamSettings;
