@@ -105,6 +105,11 @@ Then, send **the CEO** and **each manager** a direct message in Slack by copying
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
 
+### Change the DRI of a consultant
+
+1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
+2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
+
 
 ### Run US contractor payroll
 For Fleet's US contractors, running payroll is a manual process:
