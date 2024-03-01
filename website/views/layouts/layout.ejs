@@ -8,24 +8,30 @@
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
+  
+  // Applies personalization for who people come from ads, so that the website makes more sense for them:
+  var primaryBuyingSituation;
+  var defaultMetaTitle = 'Fleet | Open-source '+(primaryBuyingSituation === 'mdm' ? 'device management' : primaryBuyingSituation === 'vm' ? 'vulnerability management' : 'endpoint ops');
+  var defaultMetaDescription = 'Open-source '+(['mdm'].includes(primaryBuyingSituation) ? 'IT' : ['eo-security','vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(primaryBuyingSituation === 'mdm' ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var corporationDisplayName = 'Fleet' + (primaryBuyingSituation === 'mdm' ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %></title>
-    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
     <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'  %>" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription  %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-white-square-1200x1200@2x.png' %>" />
     <%// Meta tags for other social previews %>
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
-    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
-    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -339,7 +345,7 @@
                 <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="text-sm-nowrap d-block d-sm-inline">
-                © <%= (new Date()).getFullYear() %> <a href="/handbook">Fleet Device Management Inc.</a>
+                © <%= (new Date()).getFullYear() %> <a href="/handbook"><%= corporationDisplayName %></a>
                 <span purpose="legal-links">
                   <a href="/legal/privacy">Privacy</a>
                 </span>
@@ -378,7 +384,7 @@
                 <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="d-flex">
-                © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
+                © <%= (new Date()).getFullYear() %> <%= corporationDisplayName %>
                 <a style="margin-left: 12px; font-size: 12px; text-underline-offset: 2.5px; text-decoration: underline; color: #515774" href="/legal/privacy">Privacy</a>
               </div>
           </div>
