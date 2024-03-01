@@ -7,7 +7,6 @@ on:
     paths:
       - 'it-and-security/**'
       - '.github/workflows/dogfood-gitops.yml'
-  pull_request:
   workflow_dispatch: # allows manual triggering
 
 defaults:
