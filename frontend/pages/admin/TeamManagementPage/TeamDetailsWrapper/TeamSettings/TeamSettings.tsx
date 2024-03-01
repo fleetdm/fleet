@@ -135,40 +135,10 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     }
   );
 
-  // host expiry onChange handlers
-
-  const onChangeTeamExpiryEnabled = useCallback(
-    (isEnabled: boolean) => {
-      // non-state form data needed for validation
-      const newFormData = { ...formData, teamHostExpiryEnabled: isEnabled };
-      setFormData(newFormData);
-      setFormErrors(
-        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
-      );
-    },
-    [formData, globalHostExpiryEnabled]
-  );
-
-  const onChangeTeamHostExpiryWindow = useCallback(
-    (window: number | string) => {
-      // non-state form data needed for validation
-      const newFormData = { ...formData, teamHostExpiryWindow: window };
-      setFormData(newFormData);
-      setFormErrors(
-        validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
-      );
-    },
-    [formData, globalHostExpiryEnabled]
-  );
-
-  // host status webhook onChange handlers
-  const onChangeTeamHostStatusWebhookEnabled = useCallback(
-    (isEnabled: boolean) => {
-      const newFormData = {
-        ...formData,
-        onChangeTeamHostStatusWebhookEnabled: isEnabled,
-      };
-
+  const onInputChange = useCallback(
+    (newVal: { name: string; value: string | number | boolean }) => {
+      const { name, value } = newVal;
+      const newFormData = { ...formData, [name]: value };
       setFormData(newFormData);
       setFormErrors(
         validateTeamSettingsFormData(globalHostExpiryEnabled, newFormData)
@@ -242,8 +212,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       <form onSubmit={updateTeamSettings}>
         <SectionHeader title="Webhook settings" />
         <Checkbox
-          name="enableTeamHostStatusWebhook"
-          onChange={onChangeTeamHostStatusWebhookEnabled}
+          name="teamHostStatusWebhookEnabled"
+          onChange={onInputChange}
+          parseTarget
           value={formData.teamHostStatusWebhookEnabled}
           helpText="This will trigger webhooks specific to this team, separate from the global host status webhook."
           tooltipContent="Send an alert if a portion of your hosts go offline."
@@ -263,7 +234,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             globalHostExpiryEnabled={globalHostExpiryEnabled}
             globalHostExpiryWindow={globalHostExpiryWindow}
             teamExpiryEnabled={formData.teamHostExpiryEnabled}
-            setTeamExpiryEnabled={onChangeTeamExpiryEnabled}
+            setTeamExpiryEnabled={(isEnabled: boolean) =>
+              onInputChange({ name: "teamHostExpiryEnabled", value: isEnabled })
+            }
           />
         )}
         {formData.teamHostExpiryEnabled && (
@@ -272,8 +245,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             // type="text" allows `validate` to differentiate between
             // non-numerical input and an empty input
             type="text"
-            onChange={onChangeTeamHostExpiryWindow}
-            name="host-expiry-window"
+            onChange={onInputChange}
+            parseTarget
+            name="teamHostExpiryWindow"
             value={formData.teamHostExpiryWindow}
             error={formErrors.host_expiry_window}
           />
