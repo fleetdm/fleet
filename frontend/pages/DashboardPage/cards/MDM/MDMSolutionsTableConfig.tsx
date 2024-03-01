@@ -6,6 +6,8 @@ import { greyCell } from "utilities/helpers";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
+import LinkCell from "components/TableContainer/DataTable/LinkCell";
+import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -53,10 +55,7 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
     disableSortBy: true,
     accessor: "name",
     Cell: (cellProps: ICellProps) => (
-      <TextCell
-        greyed={greyCell(cellProps.cell.value)}
-        value={cellProps.cell.value}
-      />
+      <InternalLinkCell value={cellProps.cell.value} />
     ),
   },
   // {

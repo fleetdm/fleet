@@ -93,8 +93,6 @@ const Mdm = ({
     }, []);
   }, [mdmSolutions]);
 
-  console.log(rolledupMdmSolutionsData);
-
   const solutionsTableHeaders = useMemo(
     () => generateSolutionsTableHeaders(),
     []
