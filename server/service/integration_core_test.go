@@ -6761,6 +6761,57 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestChangePassword() {
+	t := s.T()
+
+	endpoint := "/api/latest/fleet/change_password"
+	// create a new user
+	var createResp createUserResponse
+	userRawPwd := test.GoodPassword
+	params := fleet.UserPayload{
+		Name:       ptr.String("Test Change Password"),
+		Email:      ptr.String("changepwd@example.com"),
+		Password:   ptr.String(userRawPwd),
+		GlobalRole: ptr.String(fleet.RoleObserver),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	// test valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
+	testCases := []struct {
+		oldPw          string
+		newPw          string
+		expectedStatus int
+	}{
+		{userRawPwd, "password123$", http.StatusOK},
+		{"password123$", "Password$321", http.StatusOK},
+
+		// empty old
+		{"", "PassworD$321", http.StatusUnprocessableEntity},
+		// empty new
+		{"password123$", "", http.StatusUnprocessableEntity},
+		// too short
+		{"password123$", "Password$21", http.StatusUnprocessableEntity},
+		// too long
+		{"password123$", "Password$321Password$321Password$321Password$321Password$321", http.StatusUnprocessableEntity},
+		// no numbers
+		{"password123$", "Password$!@#", http.StatusUnprocessableEntity},
+		// no symbols
+		{"password123$", "Password4321", http.StatusUnprocessableEntity},
+		// new pw is same as old
+		{"password123$", "password123$", http.StatusUnprocessableEntity},
+		// wrong old pw
+		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+	}
+
+	for _, tc := range testCases {
+		t.Run("test valid password", func(t *testing.T) {
+			var changePwResp changePasswordResponse
+			s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+		})
+	}
+}
+
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
