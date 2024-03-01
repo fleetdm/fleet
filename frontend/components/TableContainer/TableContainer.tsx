@@ -87,9 +87,13 @@ interface ITableContainerProps<T = any> {
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
+  /** This is called when you click on a row. This was added as `onSelectSingleRow`
+   * only work if `disableMultiRowSelect` is also set to `true`. TODO: figure out
+   * if we want to keep this
+   */
+  onClickRow?: (row: T) => void;
   /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
    * key */
-  onClickRow?: (row: T) => void;
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
