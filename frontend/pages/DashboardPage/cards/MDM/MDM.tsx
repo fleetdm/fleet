@@ -73,16 +73,38 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
+  const rolledupMdmSolutionsData = useMemo(() => {
+    if (!mdmSolutions) {
+      return [];
+    }
+
+    return mdmSolutions.reduce<IMdmSolution[]>((acc, nextSolution) => {
+      const existingSolution = acc.find(
+        (solution) => solution.name === nextSolution.name
+      );
+
+      if (existingSolution) {
+        existingSolution.hosts_count += nextSolution.hosts_count;
+      } else {
+        acc.push(nextSolution);
+      }
+
+      return acc;
+    }, []);
+  }, [mdmSolutions]);
+
+  console.log(rolledupMdmSolutionsData);
+
   const solutionsTableHeaders = useMemo(
-    () => generateSolutionsTableHeaders(selectedTeamId),
-    [selectedTeamId]
+    () => generateSolutionsTableHeaders(),
+    []
   );
   const statusTableHeaders = useMemo(
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
   const solutionsDataSet = generateSolutionsDataSet(
-    mdmSolutions,
+    rolledupMdmSolutionsData,
     selectedPlatformLabelId
   );
   const statusDataSet = generateStatusDataSet(
@@ -121,8 +143,8 @@ const Mdm = ({
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
-                  isClientSidePagination
                   disableCount
+                  disablePagination
                   pageSize={PAGE_SIZE}
                 />
               )}

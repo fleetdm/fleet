@@ -46,9 +46,7 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-export const generateSolutionsTableHeaders = (
-  teamId?: number
-): IDataColumn[] => [
+export const generateSolutionsTableHeaders = (): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
@@ -61,41 +59,37 @@ export const generateSolutionsTableHeaders = (
       />
     ),
   },
-  {
-    title: "Server URL",
-    Header: "Server URL",
-    disableSortBy: true,
-    accessor: "server_url",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
-  },
+  // {
+  //   title: "Server URL",
+  //   Header: "Server URL",
+  //   disableSortBy: true,
+  //   accessor: "server_url",
+  //   Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+  // },
   {
     title: "Hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: "Hosts",
+    disableSortBy: true,
     accessor: "hosts_count",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
-  {
-    title: "",
-    Header: "",
-    disableSortBy: true,
-    disableGlobalFilter: true,
-    accessor: "linkToFilteredHosts",
-    Cell: (cellProps: IStringCellProps) => {
-      return (
-        <ViewAllHostsLink
-          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
-          className="mdm-solution-link"
-          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
-        />
-      );
-    },
-    disableHidden: true,
-  },
+  // {
+  //   title: "",
+  //   Header: "",
+  //   disableSortBy: true,
+  //   disableGlobalFilter: true,
+  //   accessor: "linkToFilteredHosts",
+  //   Cell: (cellProps: IStringCellProps) => {
+  //     return (
+  //       <ViewAllHostsLink
+  //         queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
+  //         className="mdm-solution-link"
+  //         platformLabelId={cellProps.row.original.selectedPlatformLabelId}
+  //       />
+  //     );
+  //   },
+  //   disableHidden: true,
+  // },
 ];
 
 const enhanceSolutionsData = (
