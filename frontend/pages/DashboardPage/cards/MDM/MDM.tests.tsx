@@ -8,8 +8,8 @@ import { createMockMdmSolution } from "__mocks__/mdmMock";
 import MDM from "./MDM";
 
 describe("MDM Card", () => {
-  it("render the correct number of MDM solutions", () => {
-    render(
+  it("rolls up the data by mdm solution name and render the correct number of MDM solutions", () => {
+    const { debug } = render(
       <MDM
         onClickMdmSolution={noop}
         error={null}
@@ -18,11 +18,18 @@ describe("MDM Card", () => {
         mdmSolutions={[
           createMockMdmSolution(),
           createMockMdmSolution({ id: 2 }),
+          createMockMdmSolution({ name: "Test Solution", id: 3 }),
+          createMockMdmSolution({ name: "Test Solution", id: 4 }),
+          createMockMdmSolution({ name: "Test Solution 2", id: 5 }),
         ]}
       />
     );
 
-    expect(screen.getAllByText("MDM Solution").length).toBe(2);
+    debug();
+
+    expect(screen.getAllByText("MDM Solution").length).toBe(1);
+    expect(screen.getAllByText("Test Solution").length).toBe(1);
+    expect(screen.getAllByText("Test Solution 2").length).toBe(1);
   });
 
   it("render the correct number of Enrollment status", async () => {
