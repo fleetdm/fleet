@@ -42,7 +42,7 @@ func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScrip
 		// TODO(JVE): fix this: change column to allow empty default string, or just leave as is if
 		// that's ok
 		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', '', ?, ?, ?)`
-		getStmt = `SELECT id, host_id, execution_id, created_at, script_id, user_id, sync_request FROM host_script_results WHERE id = ?`
+		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
 	execID := uuid.New().String()
@@ -557,12 +557,12 @@ WHERE
 	const insertNewOrEditedScript = `
 INSERT INTO
   scripts (
-    team_id, global_or_team_id, name, script_contents
+    team_id, global_or_team_id, name, script_contents, script_content_id
   )
 VALUES
-  (?, ?, ?, ?)
+  (?, ?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
-  script_contents = VALUES(script_contents)
+  script_content_id = VALUES(script_content_id)
 `
 
 	// use a team id of 0 if no-team
@@ -625,7 +625,12 @@ ON DUPLICATE KEY UPDATE
 
 		// insert the new scripts and the ones that have changed
 		for _, s := range incomingScripts {
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, s.ScriptContents); err != nil {
+			scRes, err := insertScriptContents(ctx, s.ScriptContents, tx)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
+			}
+			id, _ := scRes.LastInsertId()
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, "", uint(id)); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
@@ -741,6 +746,15 @@ func (ds *Datastore) LockHostViaScript(ctx context.Context, request *fleet.HostS
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
+
+		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		if err != nil {
+			return err
+		}
+
+		id, _ := scRes.LastInsertId()
+		request.ScriptContentID = uint(id)
+
 		res, err = newHostScriptExecutionRequest(ctx, request, tx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "lock host via script create execution")
@@ -781,6 +795,15 @@ func (ds *Datastore) UnlockHostViaScript(ctx context.Context, request *fleet.Hos
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
+
+		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		if err != nil {
+			return err
+		}
+
+		id, _ := scRes.LastInsertId()
+		request.ScriptContentID = uint(id)
+
 		res, err = newHostScriptExecutionRequest(ctx, request, tx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "unlock host via script create execution")
