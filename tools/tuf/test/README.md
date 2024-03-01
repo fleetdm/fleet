@@ -55,6 +55,14 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 ./tools/tuf/test/main.sh
 ```
 
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+GOARCH=arm64 # defaults to amd64
+[...]
+./tools/tuf/test/main.sh
+```
+
 # Add new updates
 
 To add new updates (osqueryd or orbit), use `push_target.sh`.

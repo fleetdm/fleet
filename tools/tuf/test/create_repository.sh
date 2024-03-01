@@ -61,13 +61,9 @@ for system in $SYSTEMS; do
     rm $osqueryd_path
 
     goose_value="$system"
-    goarch_value="" # leave it empty to use the default for the system
+    goarch_value=${GOARCH:-}
     if [[ $system == "macos" ]]; then
         goose_value="darwin"
-	# for all platforms except Darwin, GOARCH is hardcoded to amd64 to
-	# prevent cross compilation issues when building macOS arm64 binaries
-	# from Linux (CGO + libraries are required)
-	goarch_value="amd64"
     fi
     orbit_target=orbit-$system
     if [[ $system == "windows" ]]; then
