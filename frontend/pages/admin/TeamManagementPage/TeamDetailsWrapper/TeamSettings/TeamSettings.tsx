@@ -17,6 +17,7 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
+import { percentageOfHosts } from "pages/admin/OrgSettingsPage/cards/constants";
 
 import validURL from "components/forms/validators/valid_url";
 
@@ -26,6 +27,8 @@ import DataError from "components/DataError";
 import InputField from "components/forms/fields/InputField";
 import Spinner from "components/Spinner";
 import SectionHeader from "components/SectionHeader";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import Checkbox from "components/forms/fields/Checkbox";
 
 import TeamHostExpiryToggle from "./components/TeamHostExpiryToggle";
@@ -37,6 +40,7 @@ type ITeamSettingsFormData = {
   teamHostExpiryWindow: number | string;
   teamHostStatusWebhookEnabled: boolean;
   teamHostStatusWebhookDestinationUrl: string;
+  teamHostStatusWebhookHostPercentage: number;
 };
 
 type FormNames = keyof ITeamSettingsFormData;
@@ -66,8 +70,10 @@ const validateTeamSettingsFormData = (
   }
 
   // validate host webhook fields
-  if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
-    errors.host_status_webhook_destination_url = "Invalid URL";
+  if (curFormData.teamHostStatusWebhookEnabled) {
+    if (!validURL({ url: curFormData.teamHostStatusWebhookDestinationUrl })) {
+      errors.host_status_webhook_destination_url = "Invalid URL";
+    }
   }
 
   return errors;
@@ -79,6 +85,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostExpiryWindow: "" as number | string,
     teamHostStatusWebhookEnabled: false,
     teamHostStatusWebhookDestinationUrl: "",
+    teamHostStatusWebhookHostPercentage: 0,
   });
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
@@ -149,6 +156,9 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           teamHostStatusWebhookDestinationUrl:
             teamConfig?.webhook_settings?.host_status_webhook
               ?.destination_url ?? "",
+          teamHostStatusWebhookHostPercentage:
+            teamConfig?.webhook_settings?.host_status_webhook
+              ?.host_percentage ?? 0,
         });
       },
     }
@@ -193,6 +203,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
                 enable_host_status_webhook:
                   formData.teamHostStatusWebhookEnabled,
                 destination_url: formData.teamHostStatusWebhookDestinationUrl,
+                host_percentage: formData.teamHostStatusWebhookHostPercentage,
               },
             },
           },
@@ -249,21 +260,40 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
           Preview request
         </Button>
         {formData.teamHostStatusWebhookEnabled && (
-          <InputField
-            placeholder="https://server.com/example"
-            label="Host status webhook destination URL"
-            onChange={onInputChange}
-            name="teamHostStatusWebhookDestinationUrl"
-            value={formData.teamHostStatusWebhookDestinationUrl}
-            parseTarget
-            error={formErrors.host_status_webhook_destination_url}
-            tooltip={
-              <p>
-                Provide a URL to deliver <br />
-                the webhook request to.
-              </p>
-            }
-          />
+          <>
+            <InputField
+              placeholder="https://server.com/example"
+              label="Host status webhook destination URL"
+              onChange={onInputChange}
+              name="teamHostStatusWebhookDestinationUrl"
+              value={formData.teamHostStatusWebhookDestinationUrl}
+              parseTarget
+              error={formErrors.host_status_webhook_destination_url}
+              tooltip={
+                <p>
+                  Provide a URL to deliver <br />
+                  the webhook request to.
+                </p>
+              }
+            />
+            <Dropdown
+              label="Host status webhook %"
+              options={percentageOfHosts}
+              onChange={onInputChange}
+              name="teamHostStatusWebhookHostPercentage"
+              value={formData.teamHostStatusWebhookHostPercentage}
+              parseTarget
+              tooltip={
+                <p>
+                  Select the minimum percentage of hosts that
+                  <br />
+                  must fail to check into Fleet in order to trigger
+                  <br />
+                  the webhook request.
+                </p>
+              }
+            />
+          </>
         )}
         <SectionHeader title="Host expiry settings" />
         {globalHostExpiryEnabled !== undefined && (
