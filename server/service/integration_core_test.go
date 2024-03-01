@@ -6777,15 +6777,16 @@ func (s *integrationTestSuite) TestChangePassword() {
 	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
 	require.NotZero(t, createResp.User.ID)
 
-	// test valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
 	testCases := []struct {
 		oldPw          string
 		newPw          string
 		expectedStatus int
 	}{
+		// valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
 		{userRawPwd, "password123$", http.StatusOK},
 		{"password123$", "Password$321", http.StatusOK},
 
+		// invalid changes
 		// empty old
 		{"", "PassworD$321", http.StatusUnprocessableEntity},
 		// empty new
