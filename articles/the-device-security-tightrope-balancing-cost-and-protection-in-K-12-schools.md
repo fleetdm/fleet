@@ -38,7 +38,7 @@ Juan Hernandez's article in [The Prey Project in August 2023](https://preyprojec
 
 
 * **Embrace open-source:** Consider open-source solutions for their affordability, agility, and strong community support. 
-* **Cost-effectiveness: **Explore solutions that replace redundant, unused tools and avoid vendor lock-in.
+* **Cost-effectiveness:** Explore solutions that replace redundant, unused tools and avoid vendor lock-in.
 * **Converge IT solutions:** Integrate tools and processes into IT operations for a holistic approach.
 * **Consolidate and automate tasks:** Integrate and automate IT operations to reduce redundancy and free up staff for strategic initiatives.
 * **Prioritize updates:** Act fast on critical patches to minimize vulnerabilities. Be intentional about what you patch. Focus on known exploits and vulnerabilities that exist in your environment first.
@@ -50,7 +50,7 @@ Juan Hernandez's article in [The Prey Project in August 2023](https://preyprojec
 
 
 
-* **Compliance: **Ensure adherence to data privacy regulations like COPPA, FERPA, and GDPR.
+* **Compliance:** Ensure adherence to data privacy regulations like COPPA, FERPA, and GDPR.
 * **Continuous adaptation:** Regularly evaluate and adapt your security posture to stay ahead of evolving threats.
 
 
