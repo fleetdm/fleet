@@ -2313,8 +2313,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	// - existing device with "added"
 	// - new device with "added"
 	require.Len(t, profileAssignmentReqs[ix2Devices].Devices, 2, "%#+v", profileAssignmentReqs)
-	require.Equal(t, devices[0].SerialNumber, profileAssignmentReqs[ix2Devices].Devices[0]) // FIXME: this test seems to be flaky
-	require.Equal(t, addedSerial, profileAssignmentReqs[ix2Devices].Devices[1])
+	require.ElementsMatch(t, []string{devices[0].SerialNumber, addedSerial}, profileAssignmentReqs[ix2Devices].Devices)
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[ix2Devices].Devices, profileAssignmentReqs[ix2Devices].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 
 	// - existing device with "modified" and a different team (thus different profile request)
