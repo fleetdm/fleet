@@ -145,6 +145,19 @@ will be disabled and/or hidden in the UI.
               res.locals.me = undefined;
             }//ﬁ
 
+            // Check for UTM parameters for website personalization.
+            // [?] https://en.wikipedia.org/wiki/UTM_parameters
+            // e.g.
+            //   https://fleetdm.com/device-management?utm_source=linkedin&utm_campaign=evergreen+leadgen&utm_content=mdm
+            if (['eo-security', 'eo-it', 'mdm', 'vm'].includes(req.param('utm_content'))) {
+              // If this is set to something weird, then we silently ignore it.
+              // Modify the active session instance. (This will be persisted when the response is sent.)
+              req.session.primaryBuyingSituation = req.param('utm_content');
+
+              // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
+              // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
+            }//ﬁ
+
             // Next, if we're running in our actual "production" or "staging" Sails
             // environment, check if this is a GET request via some other host,
             // for example a subdomain like `webhooks.` or `click.`.  If so, we'll
@@ -232,7 +245,6 @@ will be disabled and/or hidden in the UI.
                 // Nothing else to do here.
               });//_∏_  (Meanwhile...)
             }//ﬁ
-
 
             // If this is a GET request, then also expose an extra view local (`<%= me %>`).
             // > Note that we make sure a local named `me` doesn't already exist first.

@@ -7,7 +7,7 @@
           <%/* Hero text */%>
           <div purpose="hero-text"  class="d-flex flex-column justify-content-center">
             <h4>For teams with lots of different endpoints</h4>
-            <h1>Focus on data, not vendors</h1>
+            <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
             <p>Replace the sprawl with open-source code that works the way you want.</p>
             <div purpose="button-row" class="d-flex flex-sm-row flex-column justify-content-center align-items-center">
               <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
@@ -312,7 +312,7 @@
     <div purpose="homepage-content" class="container">
       <div class="text-center" purpose="bottom-cta">
         <h4>For teams with lots of different endpoints</h4>
-        <h1>Focus on data, not vendors</h1>
+        <h1><%- partial('../partials/primary-tagline.partial.ejs') %></h1>
         <div purpose="button-row" style="margin-top: 60px;" class="d-flex flex-sm-row flex-column justify-content-center align-items-center mx-auto">
           <a purpose="cta-button" @click="clickOpenChatWidget()">Show me</a>
           <a purpose="animated-arrow-button-red" href="/pricing">Try it out</a>

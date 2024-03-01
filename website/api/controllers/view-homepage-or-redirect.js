@@ -25,7 +25,9 @@ module.exports = {
 
   fn: async function () {
 
-    return {};
+    return {
+      primaryBuyingSituation: this.req.session.primaryBuyingSituation || undefined // if set in the session (e.g. from an ad) use the primary buying situation to personalize that sweet, sweet homepage
+    };
 
   }
 
