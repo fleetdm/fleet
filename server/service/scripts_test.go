@@ -283,6 +283,17 @@ func TestHostRunScript(t *testing.T) {
 					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: nonExistingHost.ID, ScriptContents: "abc"}, 0)
 					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 				}
+
+				// test auth for run sync saved script by name
+				if tt.scriptID != nil {
+					ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
+						return *tt.scriptID, nil
+					}
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: ptr.Uint(1)}, 1)
+					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: ptr.Uint(1)}, 1)
+					checkAuthErr(t, tt.shouldFailTeamWrite, err)
+				}
 			})
 		}
 	})

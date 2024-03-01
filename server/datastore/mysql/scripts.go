@@ -146,7 +146,6 @@ func (ds *Datastore) SetHostScriptExecutionResult(ctx context.Context, result *f
 		}
 		return nil
 	})
-
 	if err != nil {
 		return nil, err
 	}
@@ -353,6 +352,31 @@ WHERE
 		}
 	}
 	return scripts, metaData, nil
+}
+
+func (ds *Datastore) GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error) {
+	const selectStmt = `
+SELECT
+  id
+FROM
+  scripts
+WHERE
+  global_or_team_id = ?
+  AND name = ?
+`
+	var globalOrTeamID uint
+	if teamID != nil {
+		globalOrTeamID = *teamID
+	}
+
+	var id uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &id, selectStmt, globalOrTeamID, name); err != nil {
+		if err == sql.ErrNoRows {
+			return 0, notFound("Script").WithName(name)
+		}
+		return 0, ctxerr.Wrap(ctx, err, "get script by name")
+	}
+	return id, nil
 }
 
 func (ds *Datastore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opt fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {

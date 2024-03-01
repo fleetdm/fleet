@@ -135,12 +135,47 @@ type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+	ScriptName     string `json:"script_name"`
+	TeamID         *uint  `json:"team_id"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+}
+
+func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
+	if r.ScriptID != nil {
+		switch {
+		case r.ScriptContents != "":
+			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_name" can be provided.`)
+		case r.TeamID != nil:
+			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "team_id" can be provided.`)
+		}
+	}
+	if r.ScriptContents != "" {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_contents", `Only one of "script_contents" or "script_name" can be provided.`)
+		case r.TeamID != nil:
+			return NewInvalidArgumentError("script_contents", `Only one of "script_contents" or "team_id" can be provided.`)
+		}
+	}
+	//
+	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
+	if waitForResult <= 0 {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the "script_name" parameter.`)
+		case r.TeamID != nil:
+			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the "team_id" parameter.`)
+		}
+	}
+
+	return nil
 }
 
 type HostScriptResultPayload struct {
@@ -191,7 +226,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"`
+	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
