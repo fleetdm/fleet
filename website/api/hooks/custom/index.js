@@ -155,14 +155,12 @@ will be disabled and/or hidden in the UI.
               req.session.primaryBuyingSituation = req.param('utm_content');
               // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
               // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
-            } else {
-              req.session.primaryBuyingSituation = undefined;
-            }
+            }//ﬁ
             if (req.method === 'GET') {
               // Include information about the primary buying situation
               // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
               res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
-            }
+            }//ﬁ
 
             // Next, if we're running in our actual "production" or "staging" Sails
             // environment, check if this is a GET request via some other host,
