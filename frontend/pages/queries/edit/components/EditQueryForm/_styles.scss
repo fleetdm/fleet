@@ -47,6 +47,9 @@
       .query-name-wrapper {
         display: flex;
         align-items: center;
+        .no-value {
+          min-width: 168px;
+        }
 
         &:not(.edit-query-form--editing) {
           textarea:hover {
@@ -70,6 +73,9 @@
             cursor: pointer;
             color: $core-vibrant-blue;
           }
+        }
+        .no-value {
+          min-width: 144px;
         }
       }
       .edit-icon {
