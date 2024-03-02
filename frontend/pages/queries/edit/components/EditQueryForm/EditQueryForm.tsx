@@ -502,6 +502,7 @@ const EditQueryForm = ({
               variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingName(true)}
+              tabIndex={-1}
             >
               <Icon
                 name="pencil"
@@ -539,6 +540,7 @@ const EditQueryForm = ({
               variant="text-icon"
               className="edit-link"
               onClick={() => setIsEditingDescription(true)}
+              tabIndex={-1}
             >
               <Icon
                 name="pencil"
