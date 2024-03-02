@@ -155,8 +155,6 @@ will be disabled and/or hidden in the UI.
               req.session.primaryBuyingSituation = req.param('utm_content');
               // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
               // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
-            } else {
-              req.session.primaryBuyingSituation = undefined;
             }
             if (req.method === 'GET') {
               // Include information about the primary buying situation
