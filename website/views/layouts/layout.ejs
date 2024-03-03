@@ -180,31 +180,29 @@
                   <div class="d-block">
                     <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                       <a href="/docs">Docs</a>
-                      <a href="/releases">Releases</a>
+                      <a href="/docs/rest-api">REST API</a>
                       <a href="/queries">Built-in queries</a>
                       <a href="/tables">Data tables</a>
-                      <a href="/support">Support</a>
-                      <span>GUIDES</span>
-                      <a class="pl-3" href="/deploy">Deployment guides</a>
-                      <a class="pl-3" href="/guides">How-to guides</a>
+                      <span>SUPPORT</span>
+                      <a href="/support">Chat</a>
+                      <a href="/docs/deploy/introduction">Hosting</a>
+                      <a href="/releases">Release notes</a>
+                      <a href="/customers/register">Get your license</a>
+                      <a href="/contribute">Contribute</a>
                     </div>
                   </div>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
                   <div class="d-block">
                     <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <span>ARTICLES</span>
-                      <a class="pl-3" href="/announcements">Announcements</a>
-                      <a class="pl-3" href="/securing">Security</a>
-                      <a class="pl-3" href="/engineering">Engineering</a>
+                      <a class="pl-3" href="/support">Chat</a>
+                      <a class="pl-3" href="/announcements">News</a>
                       <a class="pl-3" href="/podcasts">Podcasts</a>
-                      <a class="pl-3" href="/reports/state-of-device-management">Reports</a>
-                      <span>CONTRIBUTE</span>
-                      <a class="pl-3" href="/slack" target="_blank">Join the conversation</a>
-                      <a class="pl-3" href="/contribute">Contribute to Fleet</a>
-                      <span>RESOURCES</span>
+                      <a class="pl-3" href="/articles">Articles</a>
+                      <span>COMPANY</span>
                       <a class="pl-3" href="/handbook">Handbook</a>
                       <a class="pl-3" href="/logos">Logos & artwork</a>
+                      <a class="pl-3" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                     </div>
                   </div>
                   <hr>
@@ -231,33 +229,29 @@
                   <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                    <a class="dropdown-item mb-1" href="/releases">Releases</a>
+                    <a class="dropdown-item mb-1" href="/docs/rest-api">REST API</a>
                     <a class="dropdown-item mb-1" href="/queries">Built-in queries</a>
                     <a class="dropdown-item mb-1" href="/tables">Data tables</a>
-                    <a class="dropdown-item mb-1" href="/support">Support</a>
-                    <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">GUIDES</span>
-                    <a class="dropdown-item" href="/deploy">Deployment guides</a>
-                    <a class="dropdown-item" href="/guides">How-to guides</a>
+                    <span class="muted dropdown-header">SUPPORT</span>
+                    <a class="dropdown-item mb-1" href="/support">Chat</a>
+                    <a class="dropdown-item mb-1" href="/docs/deploy/introduction">Hosting</a>
+                    <a class="dropdown-item mb-1" href="/releases">Release notes</a>
+                    <a class="dropdown-item mb-1" href="/customers/register">Get your license</a>
+                    <a class="dropdown-item mb-1" href="/contribute">Contribute</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group">
                   <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <span class="muted dropdown-header">ARTICLES</span>
-                    <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
-                    <a class="dropdown-item mb-1" href="/securing">Security</a>
-                    <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                    <a class="dropdown-item mb-1" href="/support">Chat</a>
+                    <a class="dropdown-item mb-1" href="/announcements">News</a>
                     <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
-                    <a class="dropdown-item mb-1" href="/reports/state-of-device-management">Reports</a>
+                    <a class="dropdown-item mb-1" href="/articles">Articles</a>
                     <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">CONTRIBUTE</span>
-                    <a class="dropdown-item mb-1" href="/slack" target="_blank">Join the conversation</a>
-                    <a class="dropdown-item mb-1" href="/contribute">Contribute to Fleet</a>
-                    <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">RESOURCES</span>
+                    <span class="muted dropdown-header">COMPANY</span>
                     <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
-                    <a class="dropdown-item" href="/logos">Logos & artwork</a>
+                    <a class="dropdown-item" href="/logos">Logos/artwork</a>
+                    <a class="dropdown-item" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                   </div>
                 </div>
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
@@ -328,8 +322,8 @@
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Company</strong>
-            <a href="/handbook">About</a>
-            <a href="/blog">Blog</a>
+            <a href="/handbook/company">About</a>
+            <a href="/articles">Blog</a>
             <a href="/apply">Jobs</a>
             <a href="/logos">Logos/artwork</a>
             <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
@@ -345,7 +339,7 @@
                 <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="text-sm-nowrap d-block d-sm-inline">
-                © <%= (new Date()).getFullYear() %> <a href="/handbook"><%= corporationDisplayName %></a>
+                © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
                 <span purpose="legal-links">
                   <a href="/legal/privacy">Privacy</a>
                 </span>
