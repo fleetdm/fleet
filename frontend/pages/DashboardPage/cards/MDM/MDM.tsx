@@ -10,7 +10,6 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
-import { createMockMdmSolution } from "__mocks__/mdmMock";
 
 import {
   generateSolutionsTableHeaders,
@@ -154,6 +153,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer<IRowProps>
+                  className={`${baseClass}__mdm-solutions-table`}
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -174,6 +174,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
+                  className={`${baseClass}__mdm-status-table`}
                   columnConfigs={statusTableHeaders}
                   data={statusDataSet}
                   isLoading={isFetching}

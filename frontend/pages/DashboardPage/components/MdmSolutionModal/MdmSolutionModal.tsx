@@ -29,8 +29,6 @@ const MdmSolutionsModal = ({
   selectedTeamId,
   onCancel,
 }: IMdmSolutionModalProps) => {
-  console.log(mdmSolutions);
-
   const solutionsTableHeaders = useMemo(
     () => generateSolutionsTableHeaders(selectedTeamId),
     [selectedTeamId]

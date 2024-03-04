@@ -27,8 +27,6 @@ describe("MDM Card", () => {
       />
     );
 
-    debug();
-
     expect(screen.getAllByText("MDM Solution").length).toBe(1);
     expect(screen.getAllByText("Test Solution").length).toBe(1);
     expect(screen.getAllByText("Test Solution 2").length).toBe(1);
