@@ -1315,6 +1315,10 @@ type Datastore interface {
 	// CleanMacOSMDMLock cleans the lock status and pin for a macOS device
 	// after it has been unlocked.
 	CleanMacOSMDMLock(ctx context.Context, hostUUID string) error
+
+	// CleanupUnusedScriptContents will remove script contents that have no references to them from
+	// the scripts or host_script_results tables.
+	CleanupUnusedScriptContents(ctx context.Context) error
 }
 
 // MDMAppleStore wraps nanomdm's storage and adds methods to deal with
