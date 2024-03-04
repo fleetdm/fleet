@@ -73,8 +73,19 @@ The only thing left to do is to add the `fleetdm/fleetdm` module to your server.
 
 1. Bump the module version in the [metadata.json](https://github.com/fleetdm/fleet/blob/main/ee/tools/puppet/fleetdm/metadata.json) file.
 2. From the `ee/tools/puppet/fleetdm` directory, run `pdk build`. This will generate a `tar.gz` file in the `ee/tools/puppet/fleetdm/pkg/` directory.
-3. Login into the [Puppet Forge](https://forge.puppet.com/), credentials are in 1Password.
-4. Visit the [upload page](https://forge.puppet.com/upload) and upload the `tar.gz` file you generated.
+3. Perform a last sanity check running `pdk validate`
+4. Test the build by extracting the file you just created and executing a Puppet run:
+```
+# extract the build
+rm -rf /tmp/puppet-module/fleetdm
+mkdir -p /tmp/puppet-module/fleetdm
+tar -xzf pkg/fleetdm-fleetdm-0.2.4.tar.gz -C /tmp/puppet-module/fleetdm --strip-components=1
+
+# run Puppet
+puppet apply --debug --test --modulepath="/tmp/puppet-module" --reports=fleetdm  --hiera_config hiera.yaml examples/multiple-teams.pp
+```
+5. Login into the [Puppet Forge](https://forge.puppet.com/), credentials are in 1Password.
+6. Visit the [upload page](https://forge.puppet.com/upload) and upload the `tar.gz` file you generated.
 
 
 ## Development cheatsheet
