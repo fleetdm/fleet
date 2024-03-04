@@ -205,6 +205,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, err
 		}
 		request.ScriptContents = string(contents)
+		request.ScriptContentID = script.ScriptContentID
 	}
 
 	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
