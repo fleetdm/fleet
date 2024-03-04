@@ -1315,9 +1315,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
+		HostStatusWebhook: fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook",
+		},
 	}}, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{

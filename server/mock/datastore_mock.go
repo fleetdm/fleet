@@ -200,7 +200,7 @@ type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (total int, unseen int, err error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
@@ -2744,11 +2744,11 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
 	s.mu.Lock()
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	s.mu.Unlock()
-	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
+	return s.TotalAndUnseenHostsSinceFunc(ctx, teamID, daysCount)
 }
 
 func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {

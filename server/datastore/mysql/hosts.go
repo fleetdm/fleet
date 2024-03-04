@@ -2819,30 +2819,41 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, users
 	return nil
 }
 
-func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
-	var counts struct {
-		Total  int `db:"total"`
-		Unseen int `db:"unseen"`
+func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
+	// convert daysCount to integer number of seconds for more precision in sql query
+	var args []interface{}
+	totalQuery := `SELECT COUNT(*) FROM hosts`
+	if teamID != nil {
+		totalQuery += " WHERE team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	// convert daysCount to integer number of seconds for more precision in sql query
-	unseenSeconds := daysCount * 24 * 60 * 60
-
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &counts,
-		`SELECT
-			COUNT(*) as total,
-			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
-		FROM hosts h
-		LEFT JOIN host_seen_times hst
-		ON h.id = hst.host_id`,
-		unseenSeconds,
-	)
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &total, totalQuery, args...)
 
 	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
+		return 0, nil, ctxerr.Wrap(ctx, err, "getting total host counts")
 	}
 
-	return counts.Total, counts.Unseen, nil
+	unseenSeconds := daysCount * 24 * 60 * 60
+	args = []interface{}{unseenSeconds}
+	unseenQuery := `SELECT id
+		FROM hosts h
+		LEFT JOIN host_seen_times hst
+		ON h.id = hst.host_id
+		WHERE TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?`
+
+	if teamID != nil {
+		unseenQuery += " AND team_id = ?"
+		args = append(args, *teamID)
+	}
+
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
+
+	if err != nil {
+		return total, nil, ctxerr.Wrap(ctx, err, "getting unseen host counts")
+	}
+
+	return
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {

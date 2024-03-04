@@ -272,7 +272,7 @@ type Datastore interface {
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
+	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 	// DeleteHosts deletes associated tables for multiple hosts.
 	//
