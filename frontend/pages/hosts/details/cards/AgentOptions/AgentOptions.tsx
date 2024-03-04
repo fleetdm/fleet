@@ -23,7 +23,7 @@ const AgentOptions = ({
   isChromeOS = false,
 }: IAgentOptionsProps): JSX.Element => {
   const classNames = classnames(baseClass, {
-    [`${baseClass}--chrome-os`]: isChromeOS,
+    [`${baseClass}__chrome-os`]: isChromeOS,
   });
 
   let configTLSRefresh;

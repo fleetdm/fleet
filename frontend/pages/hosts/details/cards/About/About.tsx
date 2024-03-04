@@ -192,7 +192,6 @@ const About = ({
       return null;
     }
     return (
-      // <DataSet title= value= />
       <DataSet
         title="Battery condition"
         value={aboutData.batteries?.[0]?.health}
