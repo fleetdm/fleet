@@ -28,9 +28,9 @@
 ### Changes
 
 * Fixed issues with how errors were captured in Sentry:
-	- The stack trace is now more precise.
-	- More error paths were captured in Sentry.
-	- **Note: Many more entries could be generated in Sentry compared to earlier Fleet versions. Sentry capacity should be planned accordingly.**
+        - The stack trace is now more precise.
+        - More error paths were captured in Sentry.
+        - **Note: Many more entries could be generated in Sentry compared to earlier Fleet versions. Sentry capacity should be planned accordingly.**
 - User settings/profile page officially renamed to account page
 - UI Edit team more properly labeled as rename team
 - Fixed issue where the "Type" column was empty for Windows MDM profile commands when running `fleetctl get mdm-commands` and `fleetctl get mdm-command-results`.
