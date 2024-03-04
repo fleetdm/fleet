@@ -378,6 +378,7 @@ module.exports = {
 
     const kpiResults = [];
 
+    // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
     kpiResults.push(
       averageDaysContributorPullRequestsAreOpenFor,
       daysSinceContributorPullRequestsWereOpened.length,
