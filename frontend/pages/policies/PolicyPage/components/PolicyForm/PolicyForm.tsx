@@ -118,7 +118,6 @@ const PolicyForm = ({
     isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
-    isSandboxMode,
     config,
   } = useContext(AppContext);
 
@@ -443,12 +442,6 @@ const PolicyForm = ({
   const renderCriticalPolicy = () => {
     return (
       <div className="critical-checkbox-wrapper">
-        {isSandboxMode && (
-          <PremiumFeatureIconWithTooltip
-            tooltipDelayHide={500}
-            tooltipPositionOverrides={{ leftAdj: 84, topAdj: -4 }}
-          />
-        )}
         <Checkbox
           name="critical-policy"
           className="critical-policy"
