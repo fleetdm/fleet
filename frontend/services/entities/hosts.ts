@@ -114,6 +114,7 @@ export interface IActionByFilter {
   query: string;
   status: string;
   labelId?: number;
+  currentTeam?: number | null;
 }
 
 export type ILoadHostDetailsExtension = "device_mapping" | "macadmins";
@@ -353,6 +354,7 @@ export default {
     query,
     status,
     labelId,
+    currentTeam,
   }: IActionByFilter) => {
     const { HOSTS_TRANSFER_BY_FILTER } = endpoints;
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
@@ -361,6 +363,7 @@ export default {
         query,
         status,
         label_id: labelId,
+        team_id: currentTeam,
       },
     });
   },
