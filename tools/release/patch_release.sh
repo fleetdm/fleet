@@ -130,7 +130,7 @@ check_grep() {
 check_required_binaries() {
     local missing_counter=0
     # List of required binaries used in the script
-    local required_binaries=("jq" "gh" "git" "curl" "awk" "sed" "make")
+    local required_binaries=("jq" "gh" "git" "curl" "awk" "sed" "make" "ack")
 
     for bin in "${required_binaries[@]}"; do
         if ! command -v "$bin" &> /dev/null; then
@@ -314,6 +314,7 @@ if [ "$force" = "false" ]; then
             ;;
     esac
 fi
+start_milestone="${start_version:1}"
 target_milestone="${next_ver:1}"
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
 target_patch_branch="patch-fleet-$next_ver"
@@ -517,7 +518,14 @@ if [[ "$failed" == "false" ]]; then
         git checkout -b $update_changelog_branch
         cp /tmp/CHANGELOG.md .
         git add CHANGELOG.md
-        ack -l --ignore-file=is:CHANGELOG.md '4\.46\.1' | xargs sed -i '' 's/4\.46\.1/4.46.2/g'
+        escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
+        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+        unameOut="$(uname -s)"
+        case "${unameOut}" in
+            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
+            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
+            *)          echo "unknown distro to parse version"
+        esac
         git add terraform charts infrastructure tools
         git commit -m "Updating changelog for $target_milestone"
         git push origin $update_changelog_branch -f
