@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useRef } from "react";
 import { InjectedRouter } from "react-router";
 import { useQuery } from "react-query";
 
@@ -61,6 +61,7 @@ import Mdm from "./cards/MDM";
 import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
+import MdmSolutionModal from "./components/MdmSolutionModal";
 
 const baseClass = "dashboard-page";
 
@@ -132,10 +133,13 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
   const [showMdmCard, setShowMdmCard] = useState(true);
   const [showSoftwareCard, setShowSoftwareCard] = useState(false);
   const [showAddHostsModal, setShowAddHostsModal] = useState(false);
+  const [showMdmSolutionModal, setShowMdmSolutionModal] = useState(false);
   const [showOperatingSystemsUI, setShowOperatingSystemsUI] = useState(false);
   const [showHostsUI, setShowHostsUI] = useState(false); // Hides UI on first load only
   const [mdmStatusData, setMdmStatusData] = useState<IMdmStatusCardData[]>([]);
   const [mdmSolutions, setMdmSolutions] = useState<IMdmSolution[] | null>([]);
+
+  const selectedMdmSolution = useRef<string | null>(null);
 
   const [munkiIssuesData, setMunkiIssuesData] = useState<
     IMunkiIssuesAggregate[]
@@ -614,6 +618,10 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             mdmSolutions={mdmSolutions}
             selectedPlatformLabelId={selectedPlatformLabelId}
             selectedTeamId={currentTeamId}
+            onClickMdmSolution={(mdmSolution) => {
+              selectedMdmSolution.current = mdmSolution.name;
+              setShowMdmSolutionModal(true);
+            }}
           />
         ),
       })}
@@ -713,6 +721,28 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
     );
   };
 
+  const renderMdmSolutionModal = () => {
+    if (!mdmSolutions) {
+      return null;
+    }
+
+    const selectedMdmSolutions = mdmSolutions?.filter(
+      (solution) => solution.name === selectedMdmSolution.current
+    );
+
+    return (
+      <MdmSolutionModal
+        mdmSolutions={selectedMdmSolutions}
+        selectedPlatformLabelId={selectedPlatformLabelId}
+        selectedTeamId={currentTeamId}
+        onCancel={() => {
+          setShowMdmSolutionModal(false);
+          selectedMdmSolution.current = null;
+        }}
+      />
+    );
+  };
+
   const renderDashboardHeader = () => {
     if (isPremiumTier) {
       if (userTeams) {
@@ -785,6 +815,7 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
         </div>
         {renderCards()}
         {showAddHostsModal && renderAddHostsModal()}
+        {showMdmSolutionModal && renderMdmSolutionModal()}
       </div>
     </MainContent>
   );

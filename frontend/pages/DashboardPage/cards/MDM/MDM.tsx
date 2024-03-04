@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
 
@@ -19,6 +20,10 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+interface IRowProps extends Row {
+  original: IMdmSolution;
+}
+
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
@@ -26,6 +31,7 @@ interface IMdmCardProps {
   mdmSolutions: IMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
+  onClickMdmSolution: (solution: IMdmSolution) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -66,6 +72,7 @@ const Mdm = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
+  onClickMdmSolution,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -73,16 +80,36 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
+  const rolledupMdmSolutionsData = useMemo(() => {
+    if (!mdmSolutions) {
+      return [];
+    }
+
+    return mdmSolutions.reduce<IMdmSolution[]>((acc, nextSolution) => {
+      const existingSolution = acc.find(
+        (solution) => solution.name === nextSolution.name
+      );
+
+      if (existingSolution) {
+        existingSolution.hosts_count += nextSolution.hosts_count;
+      } else {
+        acc.push(nextSolution);
+      }
+
+      return acc;
+    }, []);
+  }, [mdmSolutions]);
+
   const solutionsTableHeaders = useMemo(
-    () => generateSolutionsTableHeaders(selectedTeamId),
-    [selectedTeamId]
+    () => generateSolutionsTableHeaders(),
+    []
   );
   const statusTableHeaders = useMemo(
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
   const solutionsDataSet = generateSolutionsDataSet(
-    mdmSolutions,
+    rolledupMdmSolutionsData,
     selectedPlatformLabelId
   );
   const statusDataSet = generateStatusDataSet(
@@ -92,6 +119,10 @@ const Mdm = ({
 
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
+
+  const handleSolutionRowClick = (row: IRowProps) => {
+    onClickMdmSolution(row.original);
+  };
 
   return (
     <div className={baseClass}>
@@ -111,7 +142,7 @@ const Mdm = ({
               {error ? (
                 <TableDataError card />
               ) : (
-                <TableContainer
+                <TableContainer<IRowProps>
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -121,9 +152,9 @@ const Mdm = ({
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
-                  isClientSidePagination
                   disableCount
-                  pageSize={PAGE_SIZE}
+                  disablePagination
+                  onClickRow={handleSolutionRowClick}
                 />
               )}
             </TabPanel>

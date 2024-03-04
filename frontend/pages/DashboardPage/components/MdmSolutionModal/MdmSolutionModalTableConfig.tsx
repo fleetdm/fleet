@@ -2,12 +2,10 @@ import React from "react";
 
 import { IMdmSolution } from "interfaces/mdm";
 
-import { greyCell } from "utilities/helpers";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
-import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
+import TooltipWrapper from "components/TooltipWrapper";
+import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -42,22 +40,49 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-export const generateSolutionsTableHeaders = (): IDataColumn[] => [
+export const generateSolutionsTableHeaders = (
+  teamId?: number
+): IDataColumn[] => [
   {
-    title: "Name",
-    Header: "Name",
+    title: "Server URL",
+    Header: (): JSX.Element => {
+      const titleWithToolTip = (
+        <TooltipWrapper
+          position="top-start"
+          tipContent={
+            <>
+              The MDM server URL is used to connect hosts with the MDM service.
+              For cross-platform MDM solutions, each operating system has a
+              different URL.
+            </>
+          }
+          className="server-url-header"
+        >
+          Status
+        </TooltipWrapper>
+      );
+      return <HeaderCell value={titleWithToolTip} disableSortBy />;
+    },
     disableSortBy: true,
-    accessor: "name",
-    Cell: (cellProps: ICellProps) => (
-      <InternalLinkCell value={cellProps.cell.value} />
-    ),
+    accessor: "server_url",
+    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Hosts",
     Header: "Hosts",
     disableSortBy: true,
     accessor: "hosts_count",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
+    Cell: (cellProps: ICellProps) => (
+      <div className="host-count-cell">
+        <TextCell value={cellProps.cell.value} classes="" />
+        <ViewAllHostsLink
+          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
+          className="view-mdm-solution-link"
+          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
+          rowHover
+        />
+      </div>
+    ),
   },
 ];
 
