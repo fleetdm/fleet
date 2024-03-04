@@ -353,10 +353,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
-}
-
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	logger = log.With(logger,
 		"component", "service",
@@ -375,16 +371,13 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	// Attempt to extract public IP from the HTTP request.
 	ipStr := publicip.FromContext(ctx)
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		if isPublicIP(ip) {
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
 			host.PublicIP = ipStr
 		} else {
-			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
-			host.PublicIP = ""
+			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
 		}
-	} else {
-		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
 	}
 
 	return nil

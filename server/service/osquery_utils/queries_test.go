@@ -19,6 +19,7 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
@@ -1875,5 +1876,32 @@ func TestShouldRemoveSoftware(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
 		})
+	}
+}
+
+func TestIngestNetworkInterface(t *testing.T) {
+	for _, tc := range []struct {
+		ip    string
+		valid bool
+	}{
+		{"598b:6910:e935:63ff:54db:1753:9c01:4c84", true}, // public IPv6
+		{"fd42:fdaa:1234:5678::1a2b", true},               // private IPv6
+		{"190.18.97.12", true},                            // public IPv4
+		{"127.0.0.1", true},                               // private IPv4
+		{"", true},                                        // IP could not be determined
+		{"invalid-ip", false},                             // invalid value ends up in the context
+	} {
+		h := fleet.Host{}
+		err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, []map[string]string{
+			{
+				"address": "192.168.0.100",
+			},
+		})
+		require.NoError(t, err)
+		if tc.valid {
+			require.Equal(t, tc.ip, h.PublicIP)
+		} else {
+			require.Empty(t, h.PublicIP)
+		}
 	}
 }
