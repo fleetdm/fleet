@@ -2218,12 +2218,13 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	host.UDID = m.UDID
 	host.Model = m.Model
 
-	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	existingDeviceInfo, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
 	if err != nil {
-		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
-	}
-
-	if info.SCEPRenewalInProgress {
+		var nfe fleet.NotFoundError
+		if !errors.As(err, &nfe) {
+			return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
+		}
+	} else if existingDeviceInfo.SCEPRenewalInProgress {
 		svc.logger.Log("info", "Authenticate message received for a SCEP renewal in process, skipping host ingestion and cleanups", "host_uuid", r.ID)
 		return nil
 	}
@@ -2233,6 +2234,10 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 	}
 	if err := svc.ds.ResetMDMAppleEnrollment(r.Context, host.UDID); err != nil {
 		return ctxerr.Wrap(r.Context, err, "resetting nano enrollment info in Authenticate message")
+	}
+	info, err := svc.ds.GetHostMDMCheckinInfo(r.Context, m.Enrollment.UDID)
+	if err != nil {
+		return ctxerr.Wrap(r.Context, err, "getting checkin info in Authenticate message")
 	}
 	return svc.ds.NewActivity(r.Context, nil, &fleet.ActivityTypeMDMEnrolled{
 		HostSerial:       info.HardwareSerial,
