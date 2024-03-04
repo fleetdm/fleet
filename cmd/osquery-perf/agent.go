@@ -657,10 +657,9 @@ func (a *agent) removeBuffered(batchSize int) {
 			if count > b {
 				a.bufferedResults[result] -= b
 				return
-			} else {
-				delete(a.bufferedResults, result)
-				b -= count
 			}
+			delete(a.bufferedResults, result)
+			b -= count
 		}
 	}
 }
