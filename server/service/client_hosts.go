@@ -123,31 +123,38 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{
 		TeamID: teamIDPtr, Filters: struct {
-			MatchQuery        string           `json:"query"`
-			Status            fleet.HostStatus `json:"status"`
-			LabelID           *uint            `json:"label_id"`
-			TeamID            *uint            `json:"team_id"`
-			PolicyID          *uint            `json:"policy_id"`
-			PolicyResponse    *bool            `json:"policy_response"`
-			SoftwareID        *uint            `json:"software_id"`
-			SoftwareTitleID   *uint            `json:"software_title_id"`
-			SoftwareVersionID *uint            `json:"software_version_id"`
-			// MacOSSettings
-			// MacOSDiskEncryptionFilter
-			// MDMBootstrapPackage
-			OSID                     *uint                      `json:"os_id"`
-			OSName                   *string                    `json:"os_name"`
-			OSVersion                *string                    `json:"os_version"`
-			OSVersionID              *uint                      `json:"os_version_id"`
-			MDMID                    *uint                      `json:"mdm_id"`
-			MDMName                  *string                    `json:"mdm_name"`
-			MDMEnrollmentStatus      fleet.MDMEnrollStatus      `json:"mdm_enrollment_status"`
-			MunkiIssueID             *uint                      `json:"munki_issue_id"`
-			LowDiskSpace             *int                       `json:"low_disk_space"`
-			OSSettings               fleet.OSSettingsStatus     `json:"os_settings"`
-			OSSettingsDiskEncryption fleet.DiskEncryptionStatus `json:"os_settings_disk_encryption"`
-			Vulnerability            *string                    `json:"vulnerability"`
-		}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr},
+			fleet.HostListOptions
+			// MatchQuery        string           `json:"query"`
+			// Status            fleet.HostStatus `json:"status"`
+			LabelID *uint `json:"label_id"`
+			// TeamID            *uint            `json:"team_id"`
+			// PolicyID          *uint            `json:"policy_id"`
+			// PolicyResponse    *bool            `json:"policy_response"`
+			// SoftwareID        *uint            `json:"software_id"`
+			// SoftwareTitleID   *uint            `json:"software_title_id"`
+			// SoftwareVersionID *uint            `json:"software_version_id"`
+			// // MacOSSettings
+			// // MacOSDiskEncryptionFilter
+			// MDMBootstrapPackage      *fleet.MDMBootstrapPackageStatus `json:"bootstrap_package"`
+			// OSID                     *uint                            `json:"os_id"`
+			// OSName                   *string                          `json:"os_name"`
+			// OSVersion                *string                          `json:"os_version"`
+			// OSVersionID              *uint                            `json:"os_version_id"`
+			// MDMID                    *uint                            `json:"mdm_id"`
+			// MDMName                  *string                          `json:"mdm_name"`
+			// MDMEnrollmentStatus      fleet.MDMEnrollStatus            `json:"mdm_enrollment_status"`
+			// MunkiIssueID             *uint                            `json:"munki_issue_id"`
+			// LowDiskSpace             *int                             `json:"low_disk_space"`
+			// OSSettings               fleet.OSSettingsStatus           `json:"os_settings"`
+			// OSSettingsDiskEncryption fleet.DiskEncryptionStatus       `json:"os_settings_disk_encryption"`
+			// Vulnerability            *string                          `json:"vulnerability"`
+		}{
+			HostListOptions: fleet.HostListOptions{
+				ListOptions:  fleet.ListOptions{MatchQuery: searchQuery},
+				StatusFilter: fleet.HostStatus(status),
+			},
+			LabelID: labelIDPtr,
+		},
 	}
 	return c.authenticatedRequest(params, verb, path, &responseBody)
 }

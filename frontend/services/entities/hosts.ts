@@ -129,7 +129,7 @@ export interface IActionByFilter {
   osVersionId?: number | null;
   // MacOSSettings
   // MacOSDiskEncryptionFilter
-  bootstrapPackageStatus: BootstrapPackageStatus;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   mdmId?: number | null;
   mdmEnrollmentStatus?: MdmEnrollmentStatus;
   munkiIssueId?: number | null;
