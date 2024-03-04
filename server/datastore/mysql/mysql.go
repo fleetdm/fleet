@@ -857,6 +857,14 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
+	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
+}
+
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+	filter fleet.TeamFilter, globalSqlFilter string, teamIDSqlFilter string,
+) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
@@ -865,9 +873,9 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	defaultAllowClause := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	defaultAllowClause := globalSqlFilter
 	if filter.TeamID != nil {
-		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", filterTableAlias, *filter.TeamID)
+		defaultAllowClause = fmt.Sprintf("%s = %d", teamIDSqlFilter, *filter.TeamID)
 	}
 
 	if filter.User.GlobalRole != nil {
@@ -912,7 +920,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	return fmt.Sprintf("%s.team_id IN (%s)", filterTableAlias, strings.Join(idStrs, ","))
+	return fmt.Sprintf("%s IN (%s)", teamIDSqlFilter, strings.Join(idStrs, ","))
 }
 
 // whereFilterTeams returns the appropriate condition to use in the WHERE

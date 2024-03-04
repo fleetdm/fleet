@@ -6284,11 +6284,17 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 5, &team1.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 5, &fleet.TeamFilter{TeamID: &team1.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team1.ID)
+	userAdmin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team1.ID, User: userAdmin})
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{User: userTeam1})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
 
@@ -6302,13 +6308,17 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 3, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
+
+	// Wrong team
+	osVersion, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{User: userTeam1})
+	require.True(t, fleet.IsNotFound(err))
 
 	// team 3 (no hosts assigned to team)
 	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
@@ -6316,7 +6326,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team3.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team3.ID})
 	require.Error(t, err)
 	require.Nil(t, osVersion)
 

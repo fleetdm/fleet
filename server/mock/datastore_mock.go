@@ -250,7 +250,7 @@ type OSVersionsByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]
 
 type SoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableSoftware, time.Time, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (*fleet.OSVersion, *time.Time, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
@@ -2919,11 +2919,11 @@ func (s *DataStore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint)
 	return s.SoftwareByCVEFunc(ctx, cve, teamID)
 }
 
-func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID)
+	return s.OSVersionFunc(ctx, osVersionID, teamFilter)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {

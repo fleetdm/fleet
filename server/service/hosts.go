@@ -1928,15 +1928,42 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
 		exists, err := svc.ds.TeamExists(ctx, *teamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
 		}
 	}
-	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	osVersion, updateTime, err := svc.ds.OSVersion(
+		ctx, osID, &fleet.TeamFilter{
+			User:            vc.User,
+			IncludeObserver: true,
+			TeamID:          teamID,
+		},
+	)
 	if err != nil {
+		if fleet.IsNotFound(err) && teamID == nil {
+			// here we use a global admin as filter because we want
+			// to check if the os version exists
+			filter := fleet.TeamFilter{User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}}
+
+			if _, _, err = svc.ds.OSVersion(ctx, osID, &filter); err != nil {
+				return nil, nil, ctxerr.Wrap(ctx, err, "checked using a global admin")
+			}
+
+			return nil, nil, fleet.NewPermissionError("Error: You don’t have permission to view specified OS version. It is installed on hosts that belong to team you don’t have permissions to view.")
+		}
 		return nil, nil, err
 	}
 
