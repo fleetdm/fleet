@@ -12157,6 +12157,32 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, automaticHostWithRef.ID, false, true, s.server.URL, true, fleet.WellKnownMDMFleet, "foo"))
 	require.NoError(t, err)
 
+	// add global profiles
+	globalProfiles := [][]byte{
+		mobileconfigForTest("N1", "I1"),
+		mobileconfigForTest("N2", "I2"),
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: globalProfiles}, http.StatusNoContent)
+	// ack all commands to install profiles
+	cmd, err := manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = manualEnrolledDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = automaticEnrolledDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmd, err = automaticEnrolledDeviceWithRef.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
 	cert, key, err := generateCertWithAPNsTopic()
 	require.NoError(t, err)
 	fleetCfg := config.TestConfig()
@@ -12166,7 +12192,7 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	// run without expired certs, no command enqueued
 	err = RenewSCEPCertificates(ctx, logger, s.ds, &fleetCfg, s.mdmCommander)
 	require.NoError(t, err)
-	cmd, err := manualEnrolledDevice.Idle()
+	cmd, err = manualEnrolledDevice.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
 
@@ -12226,6 +12252,25 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	cmd, err = automaticEnrolledDeviceWithRef.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
+
+	// devices renew their SCEP cert by re-enrolling.
+	require.NoError(t, manualEnrolledDevice.Enroll())
+	require.NoError(t, automaticEnrolledDevice.Enroll())
+	require.NoError(t, automaticEnrolledDeviceWithRef.Enroll())
+
+	// no new commands are enqueued right after enrollment
+	cmd, err = manualEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDevice.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
+	cmd, err = automaticEnrolledDeviceWithRef.Idle()
+	require.NoError(t, err)
+	require.Nil(t, cmd)
+
 }
 
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {

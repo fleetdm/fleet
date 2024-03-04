@@ -1012,7 +1012,7 @@ func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs
 			renew_command_uuid = VALUES(renew_command_uuid)
 	`, strings.TrimSuffix(sb.String(), ","))
 
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt, args...)
 		if err != nil {
 			return fmt.Errorf("failed to update cert associations: %w", err)
@@ -1029,4 +1029,22 @@ func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs
 
 		return nil
 	})
+}
+
+func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) error {
+	stmt := `
+	UPDATE nano_cert_auth_associations
+	SET renew_command_uuid = NULL
+	WHERE id = ?`
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning SCEP renew references")
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ctxerr.Errorf(ctx, "nano association for host.uuid %s doesn't exist", hostUUID)
+	}
+
+	return nil
 }
