@@ -73,6 +73,7 @@ usage() {
     echo "  -h, --help             Display this help message and exit"
     echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
+    echo "  -p, --print            If the release is already drafted then print out the helpful info"
     echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
     echo "  -v, --target_version   Set the target version for the release"
@@ -171,6 +172,17 @@ validate_and_format_date() {
     echo "Validated and formatted date: $target_date"
 }
 
+print_announce_info() {
+    echo
+    echo "For announcing in #help-engineering"
+    echo "===================================================="
+    echo "Release $target_milestone QA ticket and docker publish"
+    echo "QA ticket for Release $target_milestone " `gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
+    echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
+    echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
+    echo 
+}
+
 # Validate we have all commands required to perform this script
 check_required_binaries
 
@@ -182,6 +194,7 @@ open_api_key=""
 start_version=""
 target_date=""
 target_version=""
+print_info=false
 
 # Parse long options manually
 for arg in "$@"; do
@@ -192,6 +205,7 @@ for arg in "$@"; do
     "--help") set -- "$@" "-h" ;;
     "--minor") set -- "$@" "-m" ;;
     "--open_api_key") set -- "$@" "-o" ;;
+    "--print") set -- "$@" "-p" ;;
     "--start_version") set -- "$@" "-s" ;;
     "--target_date") set -- "$@" "-t" ;;
     "--target_version") set -- "$@" "-v" ;;
@@ -200,13 +214,14 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "dfhmo:s:t:v:" opt; do
+while getopts "dfhmo:ps:t:v:" opt; do
     case "$opt" in
         d) dry_run=true ;;
         f) force=true ;;
         h) usage; exit 0 ;;
         m) minor=true ;;
         o) open_api_key=$OPTARG ;;
+        p) print_info=true ;;
         s) start_version=$OPTARG ;;
         t) target_date=$OPTARG ;;
         v) target_version=$OPTARG ;;
@@ -258,7 +273,8 @@ if [ -z "$start_version" ]; then
         # grab latest draft excluding test version 9.99.9
         draft=`gh release list | $GREP_CMD Draft | $GREP_CMD -v 9.99.9`
         if [[ "$draft" != "" ]]; then
-            start_version=`echo $draft | awk '{print $1}' | cut -d '-' -f2`
+            target_version=`echo $draft | awk '{print $1}' | cut -d '-' -f2`
+            start_version=`gh release list | $GREP_CMD Draft -A1 | tail -n1 | awk '{print $1}' | cut -d '-' -f2`
         else
             start_version=`gh release list | $GREP_CMD Latest | awk '{print $1}' | cut -d '-' -f2`
         fi
@@ -286,8 +302,6 @@ fi
 
 start_ver_tag=fleet-$start_version
 
-
-
 echo "Patch release from $start_version to $next_ver"
 if [ "$force" = "false" ]; then
     read -r -p "If this is correct confirm yes to continue? [y/N] " response
@@ -302,7 +316,12 @@ if [ "$force" = "false" ]; then
 fi
 target_milestone="${next_ver:1}"
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
+target_patch_branch="patch-fleet-$next_ver"
 
+if [ "$print_info" = "true" ]; then
+    print_announce_info
+    exit 0
+fi
 
 if [[ "$target_milestone_number" == "" ]]; then
     echo "Missing milestone $target_milestone, Please create one and tie tickets to the milestone to continue"
@@ -321,7 +340,6 @@ else
     echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
 fi
 
-target_patch_branch="patch-fleet-$next_ver"
 
 local_exists=`git branch | $GREP_CMD $target_patch_branch`
 
@@ -470,7 +488,7 @@ if [[ "$failed" == "false" ]]; then
 
     if [ "$dry_run" = "false" ]; then
         git checkout CHANGELOG.md
-        if [ -n "$target_date" ]; then
+        if [[ "$target_date" == "" ]]; then
             tartget_date=`date +"%b %d, %Y"`
         fi
         echo "## Fleet $target_milestone ($tartget_date)" > temp_changelog
@@ -482,7 +500,6 @@ if [[ "$failed" == "false" ]]; then
         cp CHANGELOG.md old_changelog
         cat temp_changelog > CHANGELOG.md
         cat old_changelog >> CHANGELOG.md
-        #rm -f temp_changelog
         rm -f old_changelog
         git add CHANGELOG.md
         git commit -m "Adding changes for patch $target_milestone"
@@ -491,11 +508,19 @@ if [[ "$failed" == "false" ]]; then
         cp CHANGELOG.md /tmp
         git checkout main 
         git pull origin main
-        git checkout -b update-changelog-$target_milestone
+        update_changelog_branch="update-changelog-$target_milestone"
+        local_exists=`git branch | $GREP_CMD $update_changelog_branch`
+        if [[ $local_exists != "" ]]; then
+            # Clear previous
+            git branch -D $update_changelog_branch
+        fi
+        git checkout -b $update_changelog_branch
         cp /tmp/CHANGELOG.md .
         git add CHANGELOG.md
+        ack -l --ignore-file=is:CHANGELOG.md '4\.46\.1' | xargs sed -i '' 's/4\.46\.1/4.46.2/g'
+        git add terraform charts infrastructure tools
         git commit -m "Updating changelog for $target_milestone"
-        git push origin update-changelog-$target_milestone
+        git push origin $update_changelog_branch -f
         gh pr create -f
 
         git checkout $target_patch_branch
@@ -520,15 +545,7 @@ if [[ "$failed" == "false" ]]; then
         echo "Waiting for github actions to propogate..."
         show_spinner 200
         # For announce in #help-engineering
-        echo
-        echo "For announcing in #help-engineering"
-        echo "===================================================="
-        echo "Release $target_milestone QA ticket and docker publish"
-        echo "QA ticket for Release $target_milestone " `gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
-        echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
-        echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
-
-        echo 
+        print_announce_info
     else
         echo "DRYRUN: Would have printed announce in #help-engineering text w/ qa ticket, deploy to docker link, and milestone issue list link"
     fi
@@ -557,9 +574,9 @@ if [[ "$failed" == "false" ]]; then
 
 
     if [ "$dry_run" = "false" ]; then
-        echo "### Changes" > release_notes
-        echo "" >> release_notes
-        cat temp_changelog >> release_notes
+        # echo "### Changes" > release_notes
+        # echo "" >> release_notes
+        cat temp_changelog | tail -n +3 >> release_notes
         echo "" >> release_notes
         echo "### Upgrading" >> release_notes
         echo "" >> release_notes
@@ -582,6 +599,8 @@ if [[ "$failed" == "false" ]]; then
         echo "============== Release Notes ========================"
         cat release_notes
         echo "============== Release Notes ========================"
+
+        gh release edit --draft -F release_notes $next_tag
     else
         echo "DRYRUN: Would have created release notes text for update."
     fi
