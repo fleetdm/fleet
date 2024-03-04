@@ -1056,7 +1056,7 @@ const ManageHostsPage = ({
         osVersion,
         // MacOSSettings
         // MacOSDiskEncryptionFilter
-        // MDMBootstrapPackage
+        bootstrapPackageStatus,
         mdmId,
         mdmEnrollmentStatus,
         munkiIssueId,
