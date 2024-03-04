@@ -26,6 +26,8 @@ type Script struct {
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
@@ -132,9 +134,10 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 }
 
 type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptID       *uint  `json:"script_id"`
-	ScriptContents string `json:"script_contents"`
+	HostID          uint   `json:"host_id"`
+	ScriptID        *uint  `json:"script_id"`
+	ScriptContents  string `json:"script_contents"`
+	ScriptContentID uint   `json:"-"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -245,7 +248,7 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const MaxScriptRuneLen = 500000
 
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
@@ -258,13 +261,13 @@ func ValidateHostScriptContents(s string) error {
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
 	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+		return errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).")
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
 	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+		return errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).")
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we

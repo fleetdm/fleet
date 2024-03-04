@@ -1258,7 +1258,7 @@ CREATE TABLE `scheduled_query_stats` (
 CREATE TABLE `script_contents` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `md5_checksum` binary(16) NOT NULL,
-  `contents` text COLLATE utf8mb4_unicode_ci NOT NULL,
+  `contents` mediumtext COLLATE utf8mb4_unicode_ci NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `idx_script_contents_md5_checksum` (`md5_checksum`)
