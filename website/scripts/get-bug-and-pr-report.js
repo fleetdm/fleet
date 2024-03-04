@@ -408,6 +408,8 @@ module.exports = {
     ---------------------------
     ${kpiResults.join(',')}
 
+    Note: Copy the values above, then in Google sheets paste them into a cell and select "Split text to columns" to paste the values into separate cells.
+
     Pull requests:
     ---------------------------
     Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
