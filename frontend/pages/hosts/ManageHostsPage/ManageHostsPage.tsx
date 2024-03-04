@@ -1054,12 +1054,10 @@ const ManageHostsPage = ({
         osName,
         osVersionId,
         osVersion,
-        // DisableFailingPolicies
         // MacOSSettings
         // MacOSDiskEncryptionFilter
         // MDMBootstrapPackage
         mdmId,
-        // MDMName
         mdmEnrollmentStatus,
         munkiIssueId,
         lowDiskSpaceHosts,
