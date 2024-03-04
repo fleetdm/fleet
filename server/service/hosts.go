@@ -868,12 +868,11 @@ type addHostsToTeamByFilterRequest struct {
 		OSName            *string          `json:"os_name"`
 		OSVersion         *string          `json:"os_version"`
 		OSVersionID       *uint            `json:"os_version_id"`
-		// DisableFailingPolicies
 		// MacOSSettings
 		// MacOSDiskEncryptionFilter
 		// MDMBootstrapPackage
-		MDMID *uint `json:"mdm_id"`
-		// MDMName
+		MDMID                    *uint                      `json:"mdm_id"`
+		MDMName                  *string                    `json:"mdm_name"`
 		MDMEnrollmentStatus      fleet.MDMEnrollStatus      `json:"mdm_enrollment_status"`
 		MunkiIssueID             *uint                      `json:"munki_issue_id"`
 		LowDiskSpace             *int                       `json:"low_disk_space"`
@@ -902,16 +901,15 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 		SoftwareIDFilter:        req.Filters.SoftwareID,
 		SoftwareTitleIDFilter:   req.Filters.SoftwareTitleID,
 		SoftwareVersionIDFilter: req.Filters.SoftwareVersionID,
-		// DisableFailingPolicies
 		// MacOSSettings
 		// MacOSDiskEncryptionFilter
 		// MDMBootstrapPackage
-		OSIDFilter:        req.Filters.OSID,
-		OSNameFilter:      req.Filters.OSName,
-		OSVersionFilter:   req.Filters.OSVersion,
-		OSVersionIDFilter: req.Filters.OSVersionID,
-		MDMIDFilter:       req.Filters.MDMID,
-		// MDMName
+		OSIDFilter:                     req.Filters.OSID,
+		OSNameFilter:                   req.Filters.OSName,
+		OSVersionFilter:                req.Filters.OSVersion,
+		OSVersionIDFilter:              req.Filters.OSVersionID,
+		MDMIDFilter:                    req.Filters.MDMID,
+		MDMNameFilter:                  req.Filters.MDMName,
 		MDMEnrollmentStatusFilter:      req.Filters.MDMEnrollmentStatus,
 		MunkiIssueIDFilter:             req.Filters.MunkiIssueID,
 		LowDiskSpaceFilter:             req.Filters.LowDiskSpace,
