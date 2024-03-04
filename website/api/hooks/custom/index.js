@@ -153,9 +153,13 @@ will be disabled and/or hidden in the UI.
               // If this is set to something weird, then we silently ignore it.
               // Modify the active session instance. (This will be persisted when the response is sent.)
               req.session.primaryBuyingSituation = req.param('utm_content');
-
               // FUTURE: Auto-redirect without the querystring after absorbtion to make it prettier in the URL bar.
               // (except this probably messes up analytics so before doing that, figure out how to solve that problem)
+            }//ﬁ
+            if (req.method === 'GET' || req.method === 'HEAD') {
+              // Include information about the primary buying situation
+              // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
+              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
             }//ﬁ
 
             // Next, if we're running in our actual "production" or "staging" Sails
@@ -271,6 +275,10 @@ will be disabled and/or hidden in the UI.
               // are enabled for this app, and whether email verification is required.
               res.locals.isBillingEnabled = sails.config.custom.enableBillingFeatures;
               res.locals.isEmailVerificationRequired = sails.config.custom.verifyEmailAddresses;
+
+              // Include information about the primary buying situation
+              // If set in the session (e.g. from an ad), use the primary buying situation for personalization.
+              res.locals.primaryBuyingSituation = req.session.primaryBuyingSituation || undefined;
 
             }//ﬁ
 

@@ -14,27 +14,27 @@ controls:
   enable_disk_encryption: true
   macos_settings:
     custom_settings:
-      - path: ../../mdm_profiles/automatic_updates.mobileconfig
-      - path: ../../mdm_profiles/chrome_enrollment.mobileconfig
-      - path: ../../mdm_profiles/disable_bluetooth_file_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_content_caching.mobileconfig
-      - path: ../../mdm_profiles/disable_guest_account.mobileconfig
-      - path: ../../mdm_profiles/disable_guest_shares.mobileconfig
-      - path: ../../mdm_profiles/disable_internet_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_media_sharing.mobileconfig
-      - path: ../../mdm_profiles/disable_safari_safefiles.mobileconfig
-      - path: ../../mdm_profiles/enable_doh.mobileconfig
-      - path: ../../mdm_profiles/enable_firewall_logging.mobileconfig
-      - path: ../../mdm_profiles/enable_gatekeeper.mobileconfig
-      - path: ../../mdm_profiles/enforce_library_validation.mobileconfig
-      - path: ../../mdm_profiles/firewall.mobileconfig
-      - path: ../../mdm_profiles/full_disk_access_for_orbit.mobileconfig
-      - path: ../../mdm_profiles/limit_ad_tracking.mobileconfig
-      - path: ../../mdm_profiles/misc.mobileconfig
-      - path: ../../mdm_profiles/password_policy.mobileconfig
-      - path: ../../mdm_profiles/prevent_autologon.mobileconfig
-      - path: ../../mdm_profiles/secure_terminal_keyboard.mobileconfig
-      - path: ../../mdm_profiles/time_and_date.mobileconfig
+      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
+      - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
+      - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-content-caching.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-account.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-shares.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-internet-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-media-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-safari-safefiles.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-doh.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-firewall-logging.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-gatekeeper.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enforce-library-validation.mobileconfig
+      - path: ../lib/configuration-profiles/macos-firewall.mobileconfig
+      - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
+      - path: ../lib/configuration-profiles/macos-misc.mobileconfig
+      - path: ../lib/configuration-profiles/macos-password.mobileconfig
+      - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
+      - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
   macos_setup:
     bootstrap_package: ""
     enable_end_user_authentication: true

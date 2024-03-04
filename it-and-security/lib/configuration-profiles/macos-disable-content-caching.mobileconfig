@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>PayloadDescription</key>
+	<string>This profile configuration is designed to apply the CIS Benchmark for macOS 10.14 (v2.0.0), 10.15 (v2.0.0), 11.0 (v2.0.0), and 12.0 (v1.0.0)</string>
+	<key>PayloadIdentifier</key>
+	<string>cis.macOSBenchmark.section2.ContentCaching</string>
+	<key>PayloadScope</key>
+	<string>System</string>
+	<key>PayloadType</key>
+	<string>Configuration</string>
+	<key>PayloadUUID</key>
+	<string>D1DCE625-F264-4F01-81A0-B091EABC89AF</string>
+	<key>PayloadDisplayName</key>
+	<string>Disable content caching</string>
+	<key>PayloadEnabled</key>
+	<true/>
+	<key>PayloadVersion</key>
+	<integer>1</integer>
+    <key>PayloadRemovalDisallowed</key>
+    <true/>
+	<key>PayloadContent</key>
+	<array>
+		<dict>
+			<key>PayloadDisplayName</key>
+			<string>Restrictions</string>
+			<key>PayloadIdentifier</key>
+			<string>com.apple.applicationaccess.8647A91D-E292-4149-B6A3-DD87558C86BF</string>
+			<key>PayloadType</key>
+			<string>com.apple.applicationaccess</string>
+			<key>PayloadUUID</key>
+			<string>4A37CAB3-28C4-41EC-892E-0A5B1721BAD0</string>
+			<key>PayloadVersion</key>
+			<integer>1</integer>
+			<key>allowContentCaching</key>
+			<false/>
+		</dict>
+	</array>
+</dict>
+</plist>

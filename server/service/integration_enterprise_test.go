@@ -6867,7 +6867,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 }
 
-func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
+func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -6889,19 +6889,22 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
-	// try to lock/unlock the Windows host, fails because Windows MDM must be enabled
+	// try to lock/unlock/wipe the Windows host, fails because Windows MDM must be enabled
 	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", winHost.ID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 
-	// try to lock/unlock the Linux host succeeds, no MDM constraints
+	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 
 	// simulate a successful script result for the lock command
-	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
 	var orbitScriptResp orbitPostScriptResultResponse
@@ -6923,6 +6926,12 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to Wipe the linux host fails due to pending unlock, not because
+	// of MDM not enabled
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host cannot be wiped until unlock is complete.")
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with

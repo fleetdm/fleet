@@ -104,7 +104,7 @@ func TestMDMAppleCommander(t *testing.T) {
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 
-	host := &fleet.Host{ID: 1, UUID: "A"}
+	host := &fleet.Host{ID: 1, UUID: "A", Platform: "darwin"}
 	cmdUUID = uuid.New().String()
 	mdmStorage.EnqueueDeviceLockCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command, pin string) error {
 		require.NotNil(t, gotHost)
@@ -112,12 +112,29 @@ func TestMDMAppleCommander(t *testing.T) {
 		require.Equal(t, host.UUID, gotHost.UUID)
 		require.Equal(t, "DeviceLock", cmd.Command.RequestType)
 		require.Contains(t, string(cmd.Raw), cmdUUID)
+		require.Len(t, pin, 6)
 		return nil
 	}
 	err = cmdr.DeviceLock(ctx, host, cmdUUID)
 	require.NoError(t, err)
 	require.True(t, mdmStorage.EnqueueDeviceLockCommandFuncInvoked)
 	mdmStorage.EnqueueDeviceLockCommandFuncInvoked = false
+	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
+	mdmStorage.RetrievePushInfoFuncInvoked = false
+
+	cmdUUID = uuid.New().String()
+	mdmStorage.EnqueueDeviceWipeCommandFunc = func(ctx context.Context, gotHost *fleet.Host, cmd *mdm.Command) error {
+		require.NotNil(t, gotHost)
+		require.Equal(t, host.ID, gotHost.ID)
+		require.Equal(t, host.UUID, gotHost.UUID)
+		require.Equal(t, "EraseDevice", cmd.Command.RequestType)
+		require.Contains(t, string(cmd.Raw), cmdUUID)
+		return nil
+	}
+	err = cmdr.EraseDevice(ctx, host, cmdUUID)
+	require.NoError(t, err)
+	require.True(t, mdmStorage.EnqueueDeviceWipeCommandFuncInvoked)
+	mdmStorage.EnqueueDeviceWipeCommandFuncInvoked = false
 	require.True(t, mdmStorage.RetrievePushInfoFuncInvoked)
 	mdmStorage.RetrievePushInfoFuncInvoked = false
 }
