@@ -129,24 +129,14 @@ WHERE
 	// scripts
 	for hexChecksum, ids := range hostScriptsLookup {
 		scID := scriptContentsIDLookup[hexChecksum]
-		stmt, args, err := sqlx.In(updateHostScriptsStmt, scID, ids)
-		if err != nil {
-			return fmt.Errorf("prepare statement to update host_script_results with script_content_id: %w", err)
-		}
-		// TODO: process in batches in case there are more than x thousand ids
-		if _, err := txx.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("update host_script_results with script_content_id: %w", err)
+		if err := updateScriptContentIDInBatches(txx, "host_script_results", updateHostScriptsStmt, scID, ids); err != nil {
+			return err
 		}
 	}
 	for hexChecksum, ids := range savedScriptsLookup {
 		scID := scriptContentsIDLookup[hexChecksum]
-		stmt, args, err := sqlx.In(updateSavedScriptsStmt, scID, ids)
-		if err != nil {
-			return fmt.Errorf("prepare statement to update saved scripts with script_content_id: %w", err)
-		}
-		// TODO: process in batches in case there are more than x thousand ids
-		if _, err := txx.Exec(stmt, args...); err != nil {
-			return fmt.Errorf("update saved scripts with script_content_id: %w", err)
+		if err := updateScriptContentIDInBatches(txx, "saved scripts", updateSavedScriptsStmt, scID, ids); err != nil {
+			return err
 		}
 	}
 
@@ -156,6 +146,36 @@ WHERE
 	// There's no harm in leaving it in there unused for now, as stored scripts
 	// were previously smallish.
 
+	return nil
+}
+
+var testBatchSize int
+
+func updateScriptContentIDInBatches(txx *sqlx.Tx, stmtTable, stmt string, scriptContentID uint, allIDs []uint) error {
+	const maxBatchSize = 10000
+
+	batchSize := maxBatchSize
+	if testBatchSize > 0 {
+		// to allow override for tests
+		batchSize = testBatchSize
+	}
+
+	var startIx int
+	for startIx < len(allIDs) {
+		batchIDs := allIDs[startIx:]
+		if len(batchIDs) > batchSize {
+			batchIDs = batchIDs[startIx : startIx+batchSize]
+		}
+		startIx += len(batchIDs)
+
+		stmt, args, err := sqlx.In(stmt, scriptContentID, batchIDs)
+		if err != nil {
+			return fmt.Errorf("prepare statement to update %s with script_content_id: %w", stmtTable, err)
+		}
+		if _, err := txx.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("update %s with script_content_id: %w", stmtTable, err)
+		}
+	}
 	return nil
 }
 
