@@ -9,7 +9,7 @@
 
 * Displayed disk encryption status in macOS as "verifying" while Fleet verified if the escrowed key could be decrypted.
 
-- Fixed UI styling of loading state for automatic enrollment settings page.
+* Fixed UI styling of loading state for automatic enrollment settings page.
 ```
 
 
