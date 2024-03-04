@@ -4034,7 +4034,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve activities, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusForbidden, &listActivitiesResponse{})
 
-	// Attempt to retrieve hosts, should succeed.
+	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
 	// Attempt to retrieve a host by identifier should succeed
