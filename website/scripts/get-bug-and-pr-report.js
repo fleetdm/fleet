@@ -350,7 +350,6 @@ module.exports = {
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
     let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
     let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
-    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
