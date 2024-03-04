@@ -557,7 +557,11 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/lock", deviceLockEndpoint, deviceLockRequest{})
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/wipe", deviceWipeEndpoint, deviceWipeRequest{})
+
+	// Deprecated: GET /mdm/hosts/:id/profiles is now deprecated, replaced by
+	// GET /hosts/:id/configuration_profiles.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/hosts/{id:[0-9]+}/profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
+	mdmAppleMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/configuration_profiles", getHostProfilesEndpoint, getHostProfilesRequest{})
 
 	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
@@ -588,10 +592,26 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAnyMW.GET("/api/_version_/fleet/hosts/{id:[0-9]+}/encryption_key", getHostEncryptionKey, getHostEncryptionKeyRequest{})
 
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/summary", getMDMProfilesSummaryEndpoint, getMDMProfilesSummaryRequest{})
-	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+
+	// Deprecated: GET /mdm/profiles/:profile_uuid is now deprecated, replaced by
+	// GET /configuration_profiles/:profile_uuid.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles/{profile_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles/{profile_uuid}", getMDMConfigProfileEndpoint, getMDMConfigProfileRequest{})
+
+	// Deprecated: DELETE /mdm/profiles/:profile_uuid is now deprecated, replaced by
+	// DELETE /configuration_profiles/:profile_uuid.
 	mdmAnyMW.DELETE("/api/_version_/fleet/mdm/profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
+	mdmAnyMW.DELETE("/api/_version_/fleet/configuration_profiles/{profile_uuid}", deleteMDMConfigProfileEndpoint, deleteMDMConfigProfileRequest{})
+
+	// Deprecated: GET /mdm/profiles is now deprecated, replaced by the
+	// GET /configuration_profiles endpoint.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/profiles", listMDMConfigProfilesEndpoint, listMDMConfigProfilesRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/configuration_profiles", listMDMConfigProfilesEndpoint, listMDMConfigProfilesRequest{})
+
+	// Deprecated: POST /mdm/profiles is now deprecated, replaced by the
+	// POST /configuration_profiles endpoint.
+	mdmAnyMW.POST("/api/_version_/fleet/mdm/profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/configuration_profiles", newMDMConfigProfileEndpoint, newMDMConfigProfileRequest{})
 
 	// Deprecated: PATCH /mdm/apple/settings is deprecated, replaced by POST /disk_encryption.
 	// It was only used to set disk encryption.
@@ -605,7 +625,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
 	// Deprecated: POST /mdm/apple/profiles/batch is now deprecated, replaced by the
-	// platform-agnostic POST /mdm/apple/profiles/batch. It is still supported
+	// platform-agnostic POST /mdm/profiles/batch. It is still supported
 	// indefinitely for backwards compatibility.
 	//
 	// batch-apply is accessible even though MDM is not enabled, it needs
