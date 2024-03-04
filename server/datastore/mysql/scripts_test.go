@@ -22,15 +22,15 @@ func TestScripts(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		// {"HostScriptResult", testHostScriptResult},
-		// {"Scripts", testScripts},
-		// {"ListScripts", testListScripts},
-		// {"GetHostScriptDetails", testGetHostScriptDetails},
-		// {"BatchSetScripts", testBatchSetScripts},
-		// {"TestLockHostViaScript", testLockHostViaScript},
-		// {"TestUnlockHostViaScript", testUnlockHostViaScript},
-		// {"TestLockUnlockViaScripts", testLockUnlockViaScripts},
-		// {"TestLockUnlockManually", testLockUnlockManually},
+		{"HostScriptResult", testHostScriptResult},
+		{"Scripts", testScripts},
+		{"ListScripts", testListScripts},
+		{"GetHostScriptDetails", testGetHostScriptDetails},
+		{"BatchSetScripts", testBatchSetScripts},
+		{"TestLockHostViaScript", testLockHostViaScript},
+		{"TestUnlockHostViaScript", testUnlockHostViaScript},
+		{"TestLockUnlockViaScripts", testLockUnlockViaScripts},
+		{"TestLockUnlockManually", testLockUnlockManually},
 		{"TestInsertScriptContents", testInsertScriptContents},
 	}
 	for _, c := range cases {
@@ -1005,6 +1005,7 @@ func testInsertScriptContents(t *testing.T, ds *Datastore) {
 		&sc, stmt,
 		id,
 	)
+	require.NoError(t, err)
 
 	require.Len(t, sc, 1)
 	require.Equal(t, uint(id), sc[0].ID)
