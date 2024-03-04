@@ -6415,6 +6415,16 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	// 'No team' selected
+	countResp = countTargetsResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		http.StatusOK, &countResp,
+	)
+	assert.Equal(t, uint(2), countResp.TargetsCount)
+	assert.Equal(t, uint(0), countResp.TargetsOnline)
+	assert.Equal(t, uint(2), countResp.TargetsOffline)
+
 	// host id selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)

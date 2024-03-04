@@ -1,0 +1,2 @@
+- API endpoint GET fleet/targets/count can target 'No team' with team_id=0
+- API endpoint POST fleet/queries/run (for async live queries) can target 'No team' with team_id=0
