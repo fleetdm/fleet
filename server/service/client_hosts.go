@@ -126,7 +126,9 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 			MatchQuery string           `json:"query"`
 			Status     fleet.HostStatus `json:"status"`
 			LabelID    *uint            `json:"label_id"`
-		}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr}}
+			TeamID     *uint            `json:"team_id"`
+		}{MatchQuery: searchQuery, Status: fleet.HostStatus(status), LabelID: labelIDPtr},
+	}
 	return c.authenticatedRequest(params, verb, path, &responseBody)
 }
 

@@ -867,6 +867,7 @@ type addHostsToTeamByFilterRequest struct {
 		MatchQuery string           `json:"query"`
 		Status     fleet.HostStatus `json:"status"`
 		LabelID    *uint            `json:"label_id"`
+		TeamID     *uint            `json:"team_id"`
 	} `json:"filters"`
 }
 
@@ -883,6 +884,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 			MatchQuery: req.Filters.MatchQuery,
 		},
 		StatusFilter: req.Filters.Status,
+		TeamFilter:   req.Filters.TeamID,
 	}
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
 	if err != nil {
