@@ -360,3 +360,8 @@ export const HOST_OSQUERY_DATA = [
   "logger_tls_period",
   "distributed_interval",
 ];
+
+export const DEFAULT_USE_QUERY_OPTIONS = {
+  retry: 3,
+  refetchOnWindowFocus: false,
+};
