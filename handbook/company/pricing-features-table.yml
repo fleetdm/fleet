@@ -587,12 +587,6 @@
   waysToUse:
     - description: Enforce macOS updates via Nudge.
     - description: Automatically update Windows after the end user reaches a deadline.
-- industryName: Encrypt macOS hard disks with FileVault
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 - industryName: Cross-platform remote lock and wipe
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
@@ -696,6 +690,7 @@
   usualDepartment: IT
   tier: Free
 - industryName: Disk encryption
+  documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
   pricingTableCategories: [Device management]
