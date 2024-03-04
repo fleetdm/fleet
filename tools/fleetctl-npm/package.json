@@ -16,7 +16,7 @@
   },
   "homepage": "https://fleetdm.com",
   "dependencies": {
-    "axios": "^0.21.2",
+    "axios": "^0.28.0",
     "rimraf": "3.0.2",
     "tar": "^6.1.9"
   },
