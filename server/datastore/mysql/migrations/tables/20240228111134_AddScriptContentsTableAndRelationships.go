@@ -16,7 +16,7 @@ func init() {
 }
 
 func Up_20240228111134(tx *sql.Tx) error {
-	txx := sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
+	txx := &sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	// at the time of this migration, we have two tables that deal with scripts:
 	//   - host_script_results: stores both the contents of the script and
@@ -56,21 +56,14 @@ CREATE TABLE script_contents (
 		return fmt.Errorf("create table script_contents: %w", err)
 	}
 
-	insertScriptContentsStmt := `
-	INSERT INTO
-		script_contents (md5_checksum, contents)
-	VALUES
-		(UNHEX(?), ?)
-	ON DUPLICATE KEY UPDATE
-		created_at = created_at
-`
+	// map tracking the script_contents id for a given md5 checksum
+	scriptContentsIDLookup := make(map[string]uint)
+	// map tracking the host_script_results and scripts ids for a given md5
+	// checksum
+	hostScriptsLookup := make(map[string][]uint)
+	savedScriptsLookup := make(map[string][]uint)
 
-	type scriptContent struct {
-		ID             uint   `db:"id"`
-		ScriptContents string `db:"script_contents"`
-	}
-
-	// load all contents found in host_script_results to next insert in
+	// load all contents found in host_script_results to insert in
 	// script_contents
 	readHostScriptsStmt := `
 	SELECT
@@ -79,12 +72,11 @@ CREATE TABLE script_contents (
 	FROM
 		host_script_results
 `
-	var hostScripts []scriptContent
-	if err := txx.Select(&hostScripts, readHostScriptsStmt); err != nil {
-		return fmt.Errorf("load host_script_results contents: %w", err)
+	if err := createScriptContentsEntries(txx, "host_script_results", readHostScriptsStmt, scriptContentsIDLookup, hostScriptsLookup); err != nil {
+		return err
 	}
 
-	// load all contents found in scripts to next insert in script_contents
+	// load all contents found in scripts to insert in script_contents
 	readScriptsStmt := `
 	SELECT
 		id,
@@ -92,29 +84,8 @@ CREATE TABLE script_contents (
 	FROM
 		scripts
 `
-	var savedScripts []scriptContent
-	if err := txx.Select(&savedScripts, readScriptsStmt); err != nil {
-		return fmt.Errorf("load saved scripts contents: %w", err)
-	}
-
-	// for every script content, md5-hash it and keep track of the hash
-	// associated with the ids to update the host_script_results and scripts
-	// tables with the new script_content_id later on.
-	hostScriptsLookup := make(map[string][]uint, len(hostScripts))
-	savedScriptsLookup := make(map[string][]uint, len(savedScripts))
-	for _, s := range hostScripts {
-		hexChecksum := md5ChecksumScriptContent(s.ScriptContents)
-		hostScriptsLookup[hexChecksum] = append(hostScriptsLookup[hexChecksum], s.ID)
-		if _, err := txx.Exec(insertScriptContentsStmt, hexChecksum, s.ScriptContents); err != nil {
-			return fmt.Errorf("create script_contents from host_script_results: %w", err)
-		}
-	}
-	for _, s := range savedScripts {
-		hexChecksum := md5ChecksumScriptContent(s.ScriptContents)
-		savedScriptsLookup[hexChecksum] = append(savedScriptsLookup[hexChecksum], s.ID)
-		if _, err := txx.Exec(insertScriptContentsStmt, hexChecksum, s.ScriptContents); err != nil {
-			return fmt.Errorf("create script_contents from saved scripts: %w", err)
-		}
+	if err := createScriptContentsEntries(txx, "saved scripts", readScriptsStmt, scriptContentsIDLookup, savedScriptsLookup); err != nil {
+		return err
 	}
 
 	alterAddHostScriptsStmt := `
@@ -137,10 +108,10 @@ ALTER TABLE scripts
 UPDATE
 	host_script_results
 SET
-	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)),
+	script_content_id = ?,
 	updated_at = updated_at
 WHERE
-	id = ?`
+	id IN (?)`
 
 	// for saved scripts, the `updated_at` timestamp is used as the "uploaded_at"
 	// information in the UI, so we ensure that it doesn't change with this
@@ -149,35 +120,96 @@ WHERE
 UPDATE
 	scripts
 SET
-	script_content_id = (SELECT id FROM script_contents WHERE md5_checksum = UNHEX(?)),
+	script_content_id = ?,
 	updated_at = updated_at
 WHERE
-	id = ?`
+	id IN (?)`
 
 	// insert the associated script_content_id into host_script_results and
 	// scripts
 	for hexChecksum, ids := range hostScriptsLookup {
-		for _, id := range ids {
-			if _, err := txx.Exec(updateHostScriptsStmt, hexChecksum, id); err != nil {
-				return fmt.Errorf("update host_script_results with script_content_id: %w", err)
-			}
+		scID := scriptContentsIDLookup[hexChecksum]
+		stmt, args, err := sqlx.In(updateHostScriptsStmt, scID, ids)
+		if err != nil {
+			return fmt.Errorf("prepare statement to update host_script_results with script_content_id: %w", err)
+		}
+		// TODO: process in batches in case there are more than x thousand ids
+		if _, err := txx.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("update host_script_results with script_content_id: %w", err)
 		}
 	}
 	for hexChecksum, ids := range savedScriptsLookup {
-		for _, id := range ids {
-			if _, err := txx.Exec(updateSavedScriptsStmt, hexChecksum, id); err != nil {
-				return fmt.Errorf("update saved scripts with script_content_id: %w", err)
-			}
+		scID := scriptContentsIDLookup[hexChecksum]
+		stmt, args, err := sqlx.In(updateSavedScriptsStmt, scID, ids)
+		if err != nil {
+			return fmt.Errorf("prepare statement to update saved scripts with script_content_id: %w", err)
+		}
+		// TODO: process in batches in case there are more than x thousand ids
+		if _, err := txx.Exec(stmt, args...); err != nil {
+			return fmt.Errorf("update saved scripts with script_content_id: %w", err)
 		}
 	}
 
-	// TODO(mna): we cannot drop the "script_contents" column immediately from
-	// the host_script_results and scripts tables because that would break the
+	// NOTE: we cannot drop the "script_contents" column immediately from the
+	// host_script_results and scripts tables because that would break the
 	// current code, we need to wait for the feature to be fully implemented.
 	// There's no harm in leaving it in there unused for now, as stored scripts
 	// were previously smallish.
 
 	return nil
+}
+
+func createScriptContentsEntries(txx *sqlx.Tx, stmtTable, stmt string, scriptContentsIDLookup map[string]uint, contentHashToStmtTableIDs map[string][]uint) error {
+	type scriptContent struct {
+		ID             uint   `db:"id"`
+		ScriptContents string `db:"script_contents"`
+	}
+
+	// using id = LAST_INSERT_ID(id) to get the id of the row that was  updated
+	// in case of a duplicate key.
+	insertScriptContentsStmt := `
+	INSERT INTO
+		script_contents (md5_checksum, contents)
+	VALUES
+		(UNHEX(?), ?)
+	ON DUPLICATE KEY UPDATE
+		id = LAST_INSERT_ID(id)
+`
+
+	// we cannot use a txx.Query and iterate over the rows, because we would need
+	// another connection to be able to insert into script_contents while
+	// iterating. So instead, we load the scripts in reasonably-sized batches.
+	const batchSize = 1000 // at most ~10MB of script contents
+	var lastID uint
+	stmt += ` WHERE id > ? ORDER BY id LIMIT ?`
+
+	for {
+		var scriptContents []scriptContent
+		if err := txx.Select(&scriptContents, stmt, lastID, batchSize); err != nil {
+			return fmt.Errorf("load %s contents: %w", stmtTable, err)
+		}
+
+		if len(scriptContents) == 0 {
+			return nil
+		}
+
+		for _, s := range scriptContents {
+			lastID = s.ID
+
+			hexChecksum := md5ChecksumScriptContent(s.ScriptContents)
+			contentHashToStmtTableIDs[hexChecksum] = append(contentHashToStmtTableIDs[hexChecksum], s.ID)
+			if id := scriptContentsIDLookup[hexChecksum]; id == 0 {
+				// insert the script content into the script_contents table, we don't
+				// have its id yet
+				res, err := txx.Exec(insertScriptContentsStmt, hexChecksum, s.ScriptContents)
+				if err != nil {
+					return fmt.Errorf("create script_contents from %s: %w", stmtTable, err)
+				}
+				id, _ := res.LastInsertId()
+				scriptContentsIDLookup[hexChecksum] = uint(id)
+			}
+		}
+	}
 }
 
 func md5ChecksumScriptContent(s string) string {
