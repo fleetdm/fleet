@@ -1631,37 +1631,13 @@ func (r updateMDMAppleSettingsResponse) Status() int { return http.StatusNoConte
 // team endpoints only allow write access to admins.
 func updateMDMAppleSettingsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*updateMDMAppleSettingsRequest)
-	if err := svc.UpdateMDMAppleSettings(ctx, req.MDMAppleSettingsPayload); err != nil {
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.MDMAppleSettingsPayload.TeamID, req.MDMAppleSettingsPayload.EnableDiskEncryption); err != nil {
 		return updateMDMAppleSettingsResponse{Err: err}, nil
 	}
 	return updateMDMAppleSettingsResponse{}, nil
 }
 
-func (svc *Service) UpdateMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
-	// for now, assume all settings require premium (this is true for the first
-	// supported setting, enable_disk_encryption. Adjust as needed in the future
-	// if this is not always the case).
-	lic, _ := license.FromContext(ctx)
-	if lic == nil || !lic.IsPremium() {
-		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
-		return ErrMissingLicense
-	}
-
-	if err := svc.authz.Authorize(ctx, payload, fleet.ActionWrite); err != nil {
-		return ctxerr.Wrap(ctx, err)
-	}
-
-	if payload.TeamID != nil {
-		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, payload.TeamID, nil)
-		if err != nil {
-			return err
-		}
-		return svc.EnterpriseOverrides.UpdateTeamMDMAppleSettings(ctx, tm, payload)
-	}
-	return svc.updateAppConfigMDMAppleSettings(ctx, payload)
-}
-
-func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload fleet.MDMAppleSettingsPayload) error {
+func (svc *Service) updateAppConfigMDMDiskEncryption(ctx context.Context, enabled *bool) error {
 	// appconfig is only used internally, it's fine to read it unobfuscated
 	// (svc.AppConfigObfuscated must not be used because the write-only users
 	// such as gitops will fail to access it).
@@ -1671,9 +1647,9 @@ func (svc *Service) updateAppConfigMDMAppleSettings(ctx context.Context, payload
 	}
 
 	var didUpdate, didUpdateMacOSDiskEncryption bool
-	if payload.EnableDiskEncryption != nil {
-		if ac.MDM.EnableDiskEncryption.Value != *payload.EnableDiskEncryption {
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(*payload.EnableDiskEncryption)
+	if enabled != nil {
+		if ac.MDM.EnableDiskEncryption.Value != *enabled {
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(*enabled)
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}
