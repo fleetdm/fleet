@@ -129,7 +129,7 @@ export interface IActionByFilter {
   osVersionId?: number | null;
   // MacOSSettings
   // MacOSDiskEncryptionFilter
-  // MDMBootstrapPackage
+  bootstrapPackageStatus: BootstrapPackageStatus;
   mdmId?: number | null;
   mdmEnrollmentStatus?: MdmEnrollmentStatus;
   munkiIssueId?: number | null;
@@ -394,9 +394,8 @@ export default {
     osVersionId,
     // MacOSSettings
     // MacOSDiskEncryptionFilter
-    // MDMBootstrapPackage
+    bootstrapPackageStatus,
     mdmId,
-
     mdmEnrollmentStatus,
     munkiIssueId,
     lowDiskSpaceHosts,
@@ -422,7 +421,7 @@ export default {
         os_version_id: osVersionId,
         // MacOSSettings
         // MacOSDiskEncryptionFilter
-        // MDMBootstrapPackage
+        bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,
         munki_issue_id: munkiIssueId,
