@@ -15,8 +15,7 @@ parasails.registerPage('pricing', {
   mounted: async function(){
     $('[data-toggle="tooltip"]').tooltip({
       container: '#pricing',
-      trigger: 'hover click',
-      delay: {show :100, hide: 500}
+      trigger: 'hover focus click',
     });
   },
 
@@ -29,5 +28,8 @@ parasails.registerPage('pricing', {
         window.HubSpotConversations.widget.open();
       }
     },
+    clickChangePricingMode: async function(pricingMode){
+      this.pricingMode = pricingMode;
+    }
   }
 });

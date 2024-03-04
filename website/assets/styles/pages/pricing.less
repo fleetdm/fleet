@@ -269,8 +269,11 @@
     width: 110%;
   }
 
-  [purpose='features-table'] {
-    // padding-top: 80px;
+  [purpose='features-table'].hide {
+    height: 0px;
+    opacity: 0;
+    position: relative;
+    z-index: -99;
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
