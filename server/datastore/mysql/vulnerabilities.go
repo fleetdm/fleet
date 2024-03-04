@@ -108,7 +108,7 @@ func (ds *Datastore) Vulnerability(ctx context.Context, cve string, teamID *uint
 }
 
 func (ds *Datastore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (vos []*fleet.VulnerableOS, updatedAt time.Time, err error) {
-	osvs, err := ds.OSVersions(ctx, teamID, nil, nil, nil)
+	osvs, err := ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: teamID}, nil, nil, nil)
 	if err != nil && !fleet.IsNotFound(err) {
 		return nil, updatedAt, ctxerr.Wrap(ctx, err, "fetching team OS versions")
 	}

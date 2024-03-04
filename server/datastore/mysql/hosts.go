@@ -4502,7 +4502,9 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamFilter
 // counts for the same macOS version on x86_64 and arm64 architectures are counted together.
 // Results can be filtered using the following optional criteria: team id, platform, or name and
 // version. Name cannot be used without version, and conversely, version cannot be used without name.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (ds *Datastore) OSVersions(
+	ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+) (*fleet.OSVersions, error) {
 	if name != nil && version == nil {
 		return nil, errors.New("invalid usage: cannot filter by name without version")
 	}
@@ -4510,10 +4512,6 @@ func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *str
 		return nil, errors.New("invalid usage: cannot filter by version without name")
 	}
 
-	var teamFilter *fleet.TeamFilter
-	if teamID != nil {
-		teamFilter = &fleet.TeamFilter{TeamID: teamID}
-	}
 	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamFilter)
 	if err != nil {
 		return nil, err

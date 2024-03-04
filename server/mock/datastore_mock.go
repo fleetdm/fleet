@@ -244,7 +244,7 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error)
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
+type OSVersionsFunc func(ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
 type OSVersionsByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableOS, time.Time, error)
 
@@ -2898,11 +2898,11 @@ func (s *DataStore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMS
 	return s.GetMDMSolutionFunc(ctx, mdmID)
 }
 
-func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (s *DataStore) OSVersions(ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
+	return s.OSVersionsFunc(ctx, teamFilter, platform, name, version)
 }
 
 func (s *DataStore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableOS, time.Time, error) {
