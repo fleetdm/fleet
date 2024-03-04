@@ -86,6 +86,7 @@ const TYPE_CONVERSION: Record<string, string> = {
   ie_extensions: "Browser plugin (IE)",
   chocolatey_packages: "Package (Chocolatey)",
   pkg_packages: "Package (pkg)",
+  vscode_extensions: "IDE extension (VS Code)",
 };
 
 const formatSoftwareType = (source: string) => {
