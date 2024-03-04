@@ -371,6 +371,9 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	// Attempt to extract public IP from the HTTP request.
 	ipStr := publicip.FromContext(ctx)
+	// First set host.PublicIP to empty to not hide an infrastructure change that
+	// misses to set or sets an invalid value in the expected HTTP headers.
+	host.PublicIP = ""
 	if ipStr != "" {
 		ip := net.ParseIP(ipStr)
 		if ip != nil {

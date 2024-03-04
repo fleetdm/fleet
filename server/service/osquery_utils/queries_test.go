@@ -1891,7 +1891,7 @@ func TestIngestNetworkInterface(t *testing.T) {
 		{"", true},                                        // IP could not be determined
 		{"invalid-ip", false},                             // invalid value ends up in the context
 	} {
-		h := fleet.Host{}
+		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
 		err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, []map[string]string{
 			{
 				"address": "192.168.0.100",
