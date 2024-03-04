@@ -58,8 +58,7 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
 ];
 
 export const generateSolutionsDataSet = (
-  solutions: IMdmSolution[] | null,
-  selectedPlatformLabelId?: number
+  solutions: IMdmSolution[] | null
 ): IMdmSolution[] => {
   if (!solutions) {
     return [];
@@ -69,7 +68,6 @@ export const generateSolutionsDataSet = (
     return {
       ...solution,
       displayName: solution.name ?? "Unknown",
-      selectedPlatformLabelId,
     };
   });
 };

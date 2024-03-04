@@ -75,12 +75,12 @@ const reduceSolutionsToObj = (mdmSolutions: IMdmSolution[]) => {
       if (acc.Unknown) {
         acc.Unknown.hosts_count += nextSolution.hosts_count;
       } else {
-        acc.Unknown = nextSolution;
+        acc.Unknown = Object.assign({ ...nextSolution });
       }
     } else if (acc[nextSolution.name]) {
       acc[nextSolution.name].hosts_count += nextSolution.hosts_count;
     } else {
-      acc[nextSolution.name] = nextSolution;
+      acc[nextSolution.name] = Object.assign({ ...nextSolution });
     }
 
     return acc;
@@ -118,10 +118,7 @@ const Mdm = ({
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
-  const solutionsDataSet = generateSolutionsDataSet(
-    rolledupMdmSolutionsData,
-    selectedPlatformLabelId
-  );
+  const solutionsDataSet = generateSolutionsDataSet(rolledupMdmSolutionsData);
   const statusDataSet = generateStatusDataSet(
     mdmStatusData,
     selectedPlatformLabelId
