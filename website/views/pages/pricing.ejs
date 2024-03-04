@@ -79,7 +79,13 @@
               <tbody>
                 <% for( let feature of category.features){ %>
                   <tr>
-                    <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <%if(feature.description && feature.documentationUrl) {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%= feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon-with-link" src="/images/icon-more-info-14x14@2x.png" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description + [feature.documentationUrl ? '<br><br> <a purpose="tooltip-link" :href="'+feature.documentationUrl+'">Click to learn more</a>' : ''] %> "></a></td>
+                    <% } else if(feature.description) {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
+                    <% } else {%>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %></td>
+                    <% } %>
                     <%if(feature.tier === 'Free') {%>
                       <td purpose="table-checkmark"><img class="mx-auto" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png"></td>
                     <%} else {%>
