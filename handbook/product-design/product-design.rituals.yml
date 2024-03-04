@@ -12,50 +12,43 @@
   task: "Design sprint review"
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "After the last estimation session, the Head of Product Design reviews the board with each group designer and de-prioritizes all design issues that were not estimated. The Head of Product Design also collects all items that are product-driven and puts them in the 🎁🗣 Feature fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet." 
+  description: "Clear out the drafting board of all issues that are not estimated but leave the items we want to take in the next sprint on the drafting board. Record the number of dropped stories for KPIs (all user stories that did not meet the 3 week drafting timeline)." 
   moreInfoUrl:  
   dri: "noahtalerman" 
 -
   task: "🎁 Feature fest"
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one." 
-  moreInfoUrl: 
-  dri: "noahtalerman" 
--
-  task: "🎁 Feature fest cleanup"
-  startedOn: "2024-03-07" 
-  frequency: "Triweekly" 
-  description: "Clean up the agenda in anticipation of the next meeting." 
+  description: "We make a decision regarding which customer and community feature requests can be committed to in the next six weeks." 
   moreInfoUrl: 
   dri: "noahtalerman" 
 -
   task: "Design sprint kickoff"
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "Clean up the agenda in anticipation of the next meeting." 
+  description: "Add stories prioritized during Feature fest to Drafting board, assign stories to product designers, and align on priorities." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "Sprint kickoff review"
   startedOn: "2024-03-07" 
   frequency: "Triweekly" 
-  description: "After each sprint kickoff, the Head of Product Design reviews the Estimated column with each group EM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet." 
+  description: "Identify stories that did not make it into this sprint and remove them from the board. Notify relevant requesters/stakeholders. Ensure bugs have been effectively prioritized across teams. Recommend highlights for next release notes. Record the number of drops for KPI reporting. Consider product group staffing. Are we scheduling what we prioritized?  Did we finish what we scheduled in the sprint?  (Look at org chart.)" 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
   task: "🦢🗣 Design review (#g-mdm)"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Review designs from the MDM team." 
-  moreInfoUrl: 
+  description: "Contributors present wireframes (UI changes) that are "Ready for review". Head of Product Design provides feedback on UI/CLI/API changes." 
+  moreInfoUrl: https://docs.google.com/document/d/1AduqZ9yuMQ8uvC5Z6GJFJtE0pbdqdX9zHIau_VCOqGI/edit#
   dri: "marko-lisica"
 -
   task: "🦢🗣 Design review (#g-endpoint-ops)"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Review designs from the Endpoint ops team." 
-  moreInfoUrl: 
+  description: "Contributors present wireframes (UI changes) that are "Ready for review". Head of Product Design provides feedback on UI/CLI/API changes." 
+  moreInfoUrl: https://docs.google.com/document/d/1_lIlhaIpR7yYZz-sp8iE5OIipDgrq7AdZTkeoz3Mf9c/edit#
   dri: "rachaelshaw"
 -
   task: "Maintenance"
@@ -65,17 +58,10 @@
   moreInfoUrl: 
   dri: "noahtalerman"
 -
-  task: "Quality check"
-  startedOn: "2024-03-01" 
-  frequency: "Daily" 
-  description: "Every day, Head of Product design will review the “Settled” column on the drafting board to ensure all product action items are complete." 
-  moreInfoUrl: 
-  dri: "noahtalerman"
--
   task: "Product confirm and celebrate"
   startedOn: "2024-02-27" 
   frequency: "Weekly" 
-  description: "The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps." 
+  description: "Review user stories we shipped but haven't closed/ Confirm all the loose ends are tied up: docs, internal and external comms, guides, pricing page, transparency page, user permissions." 
   moreInfoUrl: 
   dri: "noahtalerman"
 -
@@ -85,14 +71,4 @@
   description: "The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the “Stories dropped” product KPI." 
   moreInfoUrl: 
   dri: "noahtalerman"
-
-
-
-
-
-
-
-
-
-
 
