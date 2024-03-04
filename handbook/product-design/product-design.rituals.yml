@@ -40,15 +40,15 @@
   task: "🦢🗣 Design review (#g-mdm)"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are "Ready for review". Head of Product Design provides feedback on UI/CLI/API changes." 
-  moreInfoUrl: https://docs.google.com/document/d/1AduqZ9yuMQ8uvC5Z6GJFJtE0pbdqdX9zHIau_VCOqGI/edit#
+  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
+  moreInfoUrl: "https://docs.google.com/document/d/1AduqZ9yuMQ8uvC5Z6GJFJtE0pbdqdX9zHIau_VCOqGI/edit#"
   dri: "marko-lisica"
 -
   task: "🦢🗣 Design review (#g-endpoint-ops)"
   startedOn: "2024-03-07" 
   frequency: "Daily" 
-  description: "Contributors present wireframes (UI changes) that are "Ready for review". Head of Product Design provides feedback on UI/CLI/API changes." 
-  moreInfoUrl: https://docs.google.com/document/d/1_lIlhaIpR7yYZz-sp8iE5OIipDgrq7AdZTkeoz3Mf9c/edit#
+  description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
+  moreInfoUrl: "https://docs.google.com/document/d/1_lIlhaIpR7yYZz-sp8iE5OIipDgrq7AdZTkeoz3Mf9c/edit#"
   dri: "rachaelshaw"
 -
   task: "Maintenance"
