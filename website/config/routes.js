@@ -518,6 +518,7 @@ module.exports.routes = {
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
+  'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
 
   // Sitemap
   // =============================================================================================================
