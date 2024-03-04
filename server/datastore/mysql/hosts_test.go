@@ -6295,6 +6295,7 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 
 	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
 	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{User: userTeam1}, nil, nil, nil)
+	require.NoError(t, err)
 	require.Equal(t, expected, osVersions.OSVersions)
 
 	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{User: userTeam1})
