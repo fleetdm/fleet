@@ -318,14 +318,23 @@
     height: 16px;
     width: 16px;
   }
-  [purpose='tooltip-icon-with-link'] {
-    margin-left: 6px;
-    height: 14px;
-    cursor: pointer;
+
+  .tooltip-inner {
+    p {
+      font-size: 12px;
+      line-height: 150%;
+      color: #FFF;
+      margin-bottom: 8px;
+    }
+    a {
+      text-decoration: underline;
+      color: #FFF;
+    }
   }
   [purpose='tooltip-icon'] {
     margin-left: 6px;
     height: 14px;
+    cursor: pointer;
   }
 
   [purpose='table-checkmark'] {

@@ -13,7 +13,11 @@ parasails.registerPage('pricing', {
     //…
   },
   mounted: async function(){
-    $('[data-toggle="tooltip"]').tooltip();
+    $('[data-toggle="tooltip"]').tooltip({
+      container: '#pricing',
+      trigger: 'hover click',
+      delay: {show :100, hide: 500}
+    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗

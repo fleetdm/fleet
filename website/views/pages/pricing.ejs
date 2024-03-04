@@ -80,7 +80,7 @@
                 <% for( let feature of category.features){ %>
                   <tr>
                     <%if(feature.description && feature.documentationUrl) {%>
-                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><a href="<%= feature.documentationUrl %>" target="_blank"><img class="d-inline has-link" purpose="tooltip-icon-with-link" src="/images/icon-more-info-14x14@2x.png" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description + [feature.documentationUrl ? '<br><br> <a purpose="tooltip-link" :href="'+feature.documentationUrl+'">Click to learn more</a>' : ''] %> "></a></td>
+                      <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p>'+ [feature.documentationUrl ? '<a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</u>' : ''] %> "></td>
                     <% } else if(feature.description) {%>
                       <td purpose="feature-name"><%- feature.name %><%- feature.comingSoon ? '*' : '' %><img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" data-toggle="tooltip" tabindex="0" data-placement="top" data-html="true" title="<%= feature.description %> "></td>
                     <% } else {%>
@@ -105,7 +105,7 @@
             <h4><%- category.categoryName %></h4>
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
-                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
                   <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
