@@ -401,8 +401,6 @@ module.exports = {
       allBugsWithReleasedLabel.length,
       allBugsWithUnreleasedLabel.length);
 
-    console.log(kpiResults.join(','));
-
     // Log the results
     sails.log(`
 
