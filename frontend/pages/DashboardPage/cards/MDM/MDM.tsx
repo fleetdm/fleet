@@ -10,6 +10,7 @@ import Spinner from "components/Spinner";
 import TableDataError from "components/DataError";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import { createMockMdmSolution } from "__mocks__/mdmMock";
 
 import {
   generateSolutionsTableHeaders,
@@ -65,6 +66,28 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
+type IMdmSolutionMap = Record<string, IMdmSolution>;
+
+const reduceSolutionsToObj = (mdmSolutions: IMdmSolution[]) => {
+  return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
+    // The solution name can be null so we add an Unknown key to the
+    // accumulator in this case.
+    if (nextSolution.name === null) {
+      if (acc.Unknown) {
+        acc.Unknown.hosts_count += nextSolution.hosts_count;
+      } else {
+        acc.Unknown = nextSolution;
+      }
+    } else if (acc[nextSolution.name]) {
+      acc[nextSolution.name].hosts_count += nextSolution.hosts_count;
+    } else {
+      acc[nextSolution.name] = nextSolution;
+    }
+
+    return acc;
+  }, {});
+};
+
 const Mdm = ({
   isFetching,
   error,
@@ -85,19 +108,7 @@ const Mdm = ({
       return [];
     }
 
-    return mdmSolutions.reduce<IMdmSolution[]>((acc, nextSolution) => {
-      const existingSolution = acc.find(
-        (solution) => solution.name === nextSolution.name
-      );
-
-      if (existingSolution) {
-        existingSolution.hosts_count += nextSolution.hosts_count;
-      } else {
-        acc.push(nextSolution);
-      }
-
-      return acc;
-    }, []);
+    return Object.values(reduceSolutionsToObj(mdmSolutions));
   }, [mdmSolutions]);
 
   const solutionsTableHeaders = useMemo(

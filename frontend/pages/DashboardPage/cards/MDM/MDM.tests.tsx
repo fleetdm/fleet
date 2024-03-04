@@ -21,6 +21,8 @@ describe("MDM Card", () => {
           createMockMdmSolution({ name: "Test Solution", id: 3 }),
           createMockMdmSolution({ name: "Test Solution", id: 4 }),
           createMockMdmSolution({ name: "Test Solution 2", id: 5 }),
+          createMockMdmSolution({ name: null, id: 6 }),
+          createMockMdmSolution({ name: null, id: 7 }),
         ]}
       />
     );
@@ -30,6 +32,7 @@ describe("MDM Card", () => {
     expect(screen.getAllByText("MDM Solution").length).toBe(1);
     expect(screen.getAllByText("Test Solution").length).toBe(1);
     expect(screen.getAllByText("Test Solution 2").length).toBe(1);
+    expect(screen.getAllByText("Unknown").length).toBe(1);
   });
 
   it("render the correct number of Enrollment status", async () => {

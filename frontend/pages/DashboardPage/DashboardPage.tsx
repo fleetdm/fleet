@@ -62,6 +62,7 @@ import Munki from "./cards/Munki";
 import OperatingSystems from "./cards/OperatingSystems";
 import AddHostsModal from "../../components/AddHostsModal";
 import MdmSolutionModal from "./components/MdmSolutionModal";
+import { createMockMdmSolution } from "__mocks__/mdmMock";
 
 const baseClass = "dashboard-page";
 
@@ -368,7 +369,17 @@ const DashboardPage = ({ router, location }: IDashboardProps): JSX.Element => {
             hosts: pending_hosts_count || 0,
           });
         setMdmStatusData(statusData);
-        setMdmSolutions(mobile_device_management_solution);
+
+        let test: any[] = [];
+        if (mobile_device_management_solution !== null) {
+          test = mobile_device_management_solution;
+        }
+
+        setMdmSolutions([
+          ...test,
+          createMockMdmSolution({ name: null }),
+          createMockMdmSolution({ name: null }),
+        ]);
         setShowMdmCard(true);
       },
     }

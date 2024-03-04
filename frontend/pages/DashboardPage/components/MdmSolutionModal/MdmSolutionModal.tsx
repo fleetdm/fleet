@@ -43,7 +43,7 @@ const MdmSolutionsModal = ({
   return (
     <Modal
       className={baseClass}
-      title={mdmSolutions[0].name ?? "Mdm solution"}
+      title={mdmSolutions[0].name ?? "Unknown mdm solution"}
       width="large"
       onExit={onCancel}
     >
