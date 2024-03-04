@@ -15,7 +15,7 @@ parasails.registerPage('pricing', {
   mounted: async function(){
     $('[data-toggle="tooltip"]').tooltip({
       container: '#pricing',
-      trigger: 'hover focus click',
+      trigger: 'hover',
     });
   },
 
