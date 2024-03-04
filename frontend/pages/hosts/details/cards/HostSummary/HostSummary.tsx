@@ -13,6 +13,8 @@ import getHostStatusTooltipText from "pages/hosts/helpers";
 import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
+import Card from "components/Card";
+import DataSet from "components/DataSet";
 import DiskSpaceGraph from "components/DiskSpaceGraph";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
@@ -218,50 +220,65 @@ const HostSummary = ({
   };
 
   const renderIssues = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">
-        Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}
-      </span>
-      <span className="info-flex__data">
-        <span
-          className="host-issue tooltip tooltip__tooltip-icon"
-          data-tip
-          data-for="host-issue-count"
-          data-tip-disable={false}
-        >
-          <Icon name="error-outline" color="ui-fleet-black-50" />
-        </span>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          backgroundColor={COLORS["tooltip-bg"]}
-          id="host-issue-count"
-          data-html
-        >
-          <span className={`tooltip__tooltip-text`}>
-            Failing policies ({summaryData.issues.failing_policies_count})
+    <DataSet
+      title={<>Issues{isSandboxMode && <PremiumFeatureIconWithTooltip />}</>}
+      value={
+        <>
+          <span
+            className="host-issue tooltip tooltip__tooltip-icon"
+            data-tip
+            data-for="host-issue-count"
+            data-tip-disable={false}
+          >
+            <Icon name="error-outline" color="ui-fleet-black-50" />
           </span>
-        </ReactTooltip>
-        <span className="info-flex__data__text">
-          {summaryData.issues.total_issues_count}
-        </span>
-      </span>
-    </div>
+          <ReactTooltip
+            place="bottom"
+            effect="solid"
+            backgroundColor={COLORS["tooltip-bg"]}
+            id="host-issue-count"
+            data-html
+          >
+            <span className={`tooltip__tooltip-text`}>
+              Failing policies ({summaryData.issues.failing_policies_count})
+            </span>
+          </ReactTooltip>
+          <span>{summaryData.issues.total_issues_count}</span>
+        </>
+      }
+    />
   );
 
   const renderHostTeam = () => (
-    <div className="info-flex__item info-flex__item--title">
-      <span className="info-flex__header">Team</span>
-      <span className={`info-flex__data`}>
-        {summaryData.team_name ? (
+    <DataSet
+      title="Team"
+      value={
+        summaryData.team_name !== "---" ? (
           `${summaryData.team_name}`
         ) : (
-          <span className="info-flex__no-team">No team</span>
-        )}
-      </span>
-    </div>
+          <span className="no-team">No team</span>
+        )
+      }
+    />
   );
 
+  const renderDiskSpaceSummary = () => {
+    return (
+      <DataSet
+        title="Disk space"
+        value={
+          <DiskSpaceGraph
+            baseClass="info-flex"
+            gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
+            percentDiskSpaceAvailable={summaryData.percent_disk_space_available}
+            id={`disk-space-tooltip-${summaryData.id}`}
+            platform={platform}
+            tooltipPosition="bottom"
+          />
+        }
+      />
+    );
+  };
   const renderDiskEncryptionSummary = () => {
     // TODO: improve this typing, platforms!
     if (!["darwin", "windows", "chrome"].includes(platform)) {
@@ -290,12 +307,14 @@ const HostSummary = ({
     }
 
     return (
-      <div className="info-flex__item info-flex__item--title">
-        <span className="info-flex__header">Disk encryption</span>
-        <TooltipWrapper tipContent={tooltipMessage}>
-          {statusText}
-        </TooltipWrapper>
-      </div>
+      <DataSet
+        title="Disk encryption"
+        value={
+          <TooltipWrapper tipContent={tooltipMessage}>
+            {statusText}
+          </TooltipWrapper>
+        }
+      />
     );
   };
 
@@ -318,18 +337,24 @@ const HostSummary = ({
     }
 
     return (
-      <div className="info-flex">
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Status</span>
-          <StatusIndicator
-            value={status || ""} // temporary work around of integration test bug
-            tooltip={{
-              tooltipText: getHostStatusTooltipText(status),
-              position: "bottom",
-            }}
-          />
-        </div>
-
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={`${baseClass}-card`}
+      >
+        <DataSet
+          title="Status"
+          value={
+            <StatusIndicator
+              value={status || ""} // temporary work around of integration test bug
+              tooltip={{
+                tooltipText: getHostStatusTooltipText(status),
+                position: "bottom",
+              }}
+            />
+          }
+        />
         {(summaryData.issues?.total_issues_count > 0 || isSandboxMode) &&
           isPremiumTier &&
           renderIssues()}
@@ -361,43 +386,18 @@ const HostSummary = ({
           </HostSummaryIndicator>
         )}
 
-        {platform !== "chrome" && (
-          <div className="info-flex__item info-flex__item--title">
-            <span className="info-flex__header">Disk space</span>
-            <DiskSpaceGraph
-              baseClass="info-flex"
-              gigsDiskSpaceAvailable={summaryData.gigs_disk_space_available}
-              percentDiskSpaceAvailable={
-                summaryData.percent_disk_space_available
-              }
-              id={`disk-space-tooltip-${summaryData.id}`}
-              platform={platform}
-              tooltipPosition="bottom"
-            />
-          </div>
-        )}
+        {platform !== "chrome" && renderDiskSpaceSummary()}
 
         {renderDiskEncryptionSummary()}
 
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Memory</span>
-          <span className="info-flex__data">
-            {wrapFleetHelper(humanHostMemory, summaryData.memory)}
-          </span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Processor type</span>
-          <span className="info-flex__data">{summaryData.cpu_type}</span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Operating system</span>
-          <span className="info-flex__data">{summaryData.os_version}</span>
-        </div>
-        <div className="info-flex__item info-flex__item--title">
-          <span className="info-flex__header">Osquery</span>
-          <span className="info-flex__data">{summaryData.osquery_version}</span>
-        </div>
-      </div>
+        <DataSet
+          title="Memory"
+          value={wrapFleetHelper(humanHostMemory, summaryData.memory)}
+        />
+        <DataSet title="Processor type" value={summaryData.cpu_type} />
+        <DataSet title="Operating system" value={summaryData.os_version} />
+        <DataSet title="Osquery" value={summaryData.osquery_version} />
+      </Card>
     );
   };
 
@@ -460,9 +460,7 @@ const HostSummary = ({
         </div>
         {renderActionButtons()}
       </div>
-      <div className="section title">
-        <div className="title__inner">{renderSummary()}</div>
-      </div>
+      {renderSummary()}
     </div>
   );
 };

@@ -3,12 +3,15 @@ import React from "react";
 import { IHostPolicy } from "interfaces/policy";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
+import Card from "components/Card";
 
 import {
   generatePolicyTableHeaders,
   generatePolicyDataSet,
 } from "./HostPoliciesTable/HostPoliciesTableConfig";
 import PolicyFailingCount from "./HostPoliciesTable/PolicyFailingCount";
+
+const baseClass = "policies-card";
 
 interface IPoliciesProps {
   policies: IHostPolicy[];
@@ -25,8 +28,13 @@ const Policies = ({
 }: IPoliciesProps): JSX.Element => {
   if (policies.length === 0) {
     return (
-      <div className="section section--policies">
-        <p className="section__header">Policies</p>
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={baseClass}
+      >
+        <p className="card__header">Policies</p>
         <EmptyTable
           header={
             <>
@@ -42,7 +50,7 @@ const Policies = ({
             </>
           }
         />
-      </div>
+      </Card>
     );
   }
 
@@ -55,8 +63,13 @@ const Policies = ({
     policies.filter((policy: IHostPolicy) => policy.response === "fail") || [];
 
   return (
-    <div className="section section--policies">
-      <p className="section__header">Policies</p>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">Policies</p>
 
       {policies.length > 0 && (
         <>
@@ -74,10 +87,11 @@ const Policies = ({
             isAllPagesSelected={false}
             disablePagination
             disableCount
+            disableMultiRowSelect
           />
         </>
       )}
-    </div>
+    </Card>
   );
 };
 
