@@ -696,7 +696,7 @@
   pricingTableCategories: [Device management]
   usualDepartment: Security
   description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
-  tier: Free
+  tier: Premium
   waysToUse:
     - description: Report on disk encryption status
     - description: Encrypt hard disks on macOS with FileVault
