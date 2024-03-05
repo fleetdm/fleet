@@ -865,7 +865,7 @@ func (c *Client) DoGitOps(
 	baseDir string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
-	premium bool,
+	appConfig *fleet.EnrichedAppConfig,
 ) error {
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -990,11 +990,9 @@ func (c *Client) DoGitOps(
 	} else {
 		mdmAppConfig["windows_settings"] = map[string]interface{}{}
 	}
-	if mdmAppConfig["windows_enabled_and_configured"] == true {
-		windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
-		if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
-			windowsSettings["custom_settings"] = []interface{}{}
-		}
+	windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
+	if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
+		windowsSettings["custom_settings"] = []interface{}{}
 	}
 	// Put in default values for windows_updates
 	if config.Controls.WindowsUpdates != nil {
@@ -1002,7 +1000,7 @@ func (c *Client) DoGitOps(
 	} else {
 		mdmAppConfig["windows_updates"] = map[string]interface{}{}
 	}
-	if premium {
+	if appConfig.License.IsPremium() {
 		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
 		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
 			windowsUpdates["deadline_days"] = 0

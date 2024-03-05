@@ -24,16 +24,6 @@ func TestBasicGlobalGitOps(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
-	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
-	) error {
-		return nil
-	}
-	ds.BulkSetPendingMDMHostProfilesFunc = func(
-		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
-	) error {
-		return nil
-	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
@@ -569,4 +559,10 @@ team_settings:
 	assert.Equal(t, secret, enrolledSecrets[0].Secret)
 	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
+	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 }

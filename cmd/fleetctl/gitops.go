@@ -63,7 +63,7 @@ func gitopsCommand() *cli.Command {
 			if appConfig.License == nil {
 				return errors.New("no license struct found in app config")
 			}
-			err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig.License.IsPremium())
+			err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
 			if err != nil {
 				return err
 			}
