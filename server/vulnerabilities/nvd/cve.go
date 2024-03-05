@@ -404,66 +404,69 @@ func checkCVEs(
 						// No such vendor in the Vulnerability dictionary
 						continue
 					}
-					cacheHits := cache.Get([]*wfn.Attributes{CPEItem.GetMeta()})
-					for _, matches := range cacheHits {
-						if len(matches.CPEs) == 0 {
-							continue
-						}
 
-						if rule, ok := knownNVDBugRules.FindMatch(
-							matches.CVE.ID(),
-						); ok {
-							if !rule.CPEMatches(CPEItem.GetMeta()) {
+					cpeItemsWithAliases := expandCPEAliases(CPEItem.GetMeta())
+					for _, cpeItem := range cpeItemsWithAliases {
+						cacheHits := cache.Get([]*wfn.Attributes{cpeItem})
+						for _, matches := range cacheHits {
+							if len(matches.CPEs) == 0 {
 								continue
 							}
-						}
 
-						// For chrome/firefox extensions we only want to match vulnerabilities
-						// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
-						//
-						// Why? In many ocassions the NVD dataset reports vulnerabilities in client applications
-						// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
-						// Such rules we want to ignore here to prevent many false positives that do not apply to the
-						// Chrome or Firefox environment.
-						if CPEItem.GetMeta().TargetSW == "chrome" || CPEItem.GetMeta().TargetSW == "firefox" {
-							if !matchesExactTargetSW(
-								CPEItem.GetMeta().TargetSW,
-								[]string{"chrome", "firefox"},
-								matches.CVE.Config(),
-							) {
-								continue
-							}
-						}
-
-						resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), CPEItem.GetMeta(), dict, logger)
-						if err != nil {
-							level.Debug(logger).Log("err", err)
-						}
-
-						if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
-
-							vuln := fleet.SoftwareVulnerability{
-								SoftwareID:        CPEItem.GetID(),
-								CVE:               matches.CVE.ID(),
-								ResolvedInVersion: ptr.String(resolvedVersion),
+							if rule, ok := knownNVDBugRules.FindMatch(
+								matches.CVE.ID(),
+							); ok {
+								if !rule.CPEMatches(cpeItem) {
+									continue
+								}
 							}
 
-							softwareMu.Lock()
-							foundSoftwareVulns = append(foundSoftwareVulns, vuln)
-							softwareMu.Unlock()
-						} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
-
-							vuln := fleet.OSVulnerability{
-								OSID:              CPEItem.GetID(),
-								CVE:               matches.CVE.ID(),
-								ResolvedInVersion: ptr.String(resolvedVersion),
+							// For chrome/firefox extensions we only want to match vulnerabilities
+							// that are reported explicitly for target_sw == "chrome" or target_sw = "firefox".
+							//
+							// Why? In many occasions the NVD dataset reports vulnerabilities in client applications
+							// with target_sw == "*", meaning the client application is vulnerable on all operating systems.
+							// Such rules we want to ignore here to prevent many false positives that do not apply to the
+							// Chrome or Firefox environment.
+							if cpeItem.TargetSW == "chrome" || cpeItem.TargetSW == "firefox" {
+								if !matchesExactTargetSW(
+									cpeItem.TargetSW,
+									[]string{"chrome", "firefox"},
+									matches.CVE.Config(),
+								) {
+									continue
+								}
 							}
 
-							osMu.Lock()
-							foundOSVulns = append(foundOSVulns, vuln)
-							osMu.Unlock()
-						}
+							resolvedVersion, err := getMatchingVersionEndExcluding(ctx, matches.CVE.ID(), cpeItem, dict, logger)
+							if err != nil {
+								level.Debug(logger).Log("err", err)
+							}
 
+							if _, ok := CPEItem.(softwareCPEWithNVDMeta); ok {
+								vuln := fleet.SoftwareVulnerability{
+									SoftwareID:        CPEItem.GetID(),
+									CVE:               matches.CVE.ID(),
+									ResolvedInVersion: ptr.String(resolvedVersion),
+								}
+
+								softwareMu.Lock()
+								foundSoftwareVulns = append(foundSoftwareVulns, vuln)
+								softwareMu.Unlock()
+							} else if _, ok := CPEItem.(osCPEWithNVDMeta); ok {
+
+								vuln := fleet.OSVulnerability{
+									OSID:              CPEItem.GetID(),
+									CVE:               matches.CVE.ID(),
+									ResolvedInVersion: ptr.String(resolvedVersion),
+								}
+
+								osMu.Lock()
+								foundOSVulns = append(foundOSVulns, vuln)
+								osMu.Unlock()
+							}
+
+						}
 					}
 				case <-ctx.Done():
 					level.Debug(logger).Log("msg", "quitting")
@@ -483,6 +486,45 @@ func checkCVEs(
 	wg.Wait()
 
 	return foundSoftwareVulns, foundOSVulns, nil
+}
+
+// expandCPEAliases will generate new *wfn.Attributes from the given cpeItem.
+// It returns a slice with the given cpeItem plus the generated *wfn.Attributes.
+//
+// We need this because entries in the CPE database are not consistent.
+// E.g. some Visual Studio Code extensions are defined with target_sw=visual_studio_code
+// and others are defined with target_sw=visual_studio.
+// E.g. The python extension for Visual Studio Code is defined with
+// product=python_extension,target_sw=visual_studio_code and with
+// product=visual_studio_code,target_sw=python.
+func expandCPEAliases(cpeItem *wfn.Attributes) []*wfn.Attributes {
+	cpeItems := []*wfn.Attributes{cpeItem}
+
+	// Some VSCode extensions are defined with target_sw=visual_studio_code
+	// and others are defined with target_sw=visual_studio.
+	for _, cpeItem := range cpeItems {
+		if cpeItem.TargetSW == "visual_studio_code" {
+			cpeItem2 := *cpeItem
+			cpeItem2.TargetSW = "visual_studio"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	// The python extension is defined in two ways in the CPE database:
+	// 	cpe:2.3:a:microsoft:python_extension:2024.2.1:*:*:*:*:visual_studio_code:*:*
+	//	cpe:2.3:a:microsoft:visual_studio_code:2024.2.1:*:*:*:*:python:*:*
+	for _, cpeItem := range cpeItems {
+		if cpeItem.TargetSW == "visual_studio_code" &&
+			cpeItem.Vendor == "microsoft" &&
+			cpeItem.Product == "python_extension" {
+			cpeItem2 := *cpeItem
+			cpeItem2.Product = "visual_studio_code"
+			cpeItem2.TargetSW = "python"
+			cpeItems = append(cpeItems, &cpeItem2)
+		}
+	}
+
+	return cpeItems
 }
 
 // Returns the versionEndExcluding string for the given CVE and host software meta

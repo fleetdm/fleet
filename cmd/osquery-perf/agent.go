@@ -36,17 +36,21 @@ var (
 	//go:embed *.tmpl
 	templatesFS embed.FS
 
-	//go:embed *.software
+	//go:embed macos_vulnerable.software
 	macOSVulnerableSoftwareFS embed.FS
+
+	//go:embed vscode_extensions_vulnerable.software
+	vsCodeExtensionsVulnerableSoftwareFS embed.FS
 
 	//go:embed ubuntu_2204-software.json.bz2
 	ubuntuSoftwareFS embed.FS
 	//go:embed windows_11-software.json.bz2
 	windowsSoftwareFS embed.FS
 
-	macosVulnerableSoftware []fleet.Software
-	windowsSoftware         []map[string]string
-	ubuntuSoftware          []map[string]string
+	macosVulnerableSoftware            []fleet.Software
+	vsCodeExtensionsVulnerableSoftware []fleet.Software
+	windowsSoftware                    []map[string]string
+	ubuntuSoftware                     []map[string]string
 )
 
 func loadMacOSVulnerableSoftware() {
@@ -68,6 +72,28 @@ func loadMacOSVulnerableSoftware() {
 		})
 	}
 	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
+}
+
+func loadExtraVulnerableSoftware() {
+	vsCodeExtensionsVulnerableSoftwareData, err := vsCodeExtensionsVulnerableSoftwareFS.ReadFile("vscode_extensions_vulnerable.software")
+	if err != nil {
+		log.Fatal("reading vulnerable vscode_extensions software file: ", err)
+	}
+	lines := bytes.Split(vsCodeExtensionsVulnerableSoftwareData, []byte("\n"))
+	for _, line := range lines {
+		parts := bytes.Split(line, []byte("##"))
+		if len(parts) < 3 {
+			log.Println("skipping", string(line))
+			continue
+		}
+		vsCodeExtensionsVulnerableSoftware = append(vsCodeExtensionsVulnerableSoftware, fleet.Software{
+			Vendor:  strings.TrimSpace(string(parts[0])),
+			Name:    strings.TrimSpace(string(parts[1])),
+			Version: strings.TrimSpace(string(parts[2])),
+			Source:  "vscode_extensions",
+		})
+	}
+	log.Printf("Loaded %d vulnerable extra software", len(vsCodeExtensionsVulnerableSoftware))
 }
 
 func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
@@ -101,6 +127,7 @@ func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
 
 func init() {
 	loadMacOSVulnerableSoftware()
+	loadExtraVulnerableSoftware()
 	windowsSoftware = loadSoftwareItems(windowsSoftwareFS, "windows_11-software.json.bz2")
 	ubuntuSoftware = loadSoftwareItems(ubuntuSoftwareFS, "ubuntu_2204-software.json.bz2")
 }
@@ -325,6 +352,7 @@ func (n *nodeKeyManager) Add(nodekey string) {
 type agent struct {
 	agentIndex             int
 	softwareCount          softwareEntityCount
+	softwareExtraCount     softwareExtraEntityCount
 	userCount              entityCount
 	policyPassProb         float64
 	munkiIssueProb         float64
@@ -359,6 +387,9 @@ type agent struct {
 	// atomic boolean is set to true when executing scripts, so that only a
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
+
+	softwareFailProb      float64
+	softwareExtraFailProb float64
 
 	//
 	// The following are exported to be used by the templates.
@@ -400,13 +431,23 @@ type softwareEntityCount struct {
 	uniqueSoftwareUninstallCount int
 	uniqueSoftwareUninstallProb  float64
 }
+type softwareExtraEntityCount struct {
+	entityCount
+	commonSoftwareUninstallCount int
+	commonSoftwareUninstallProb  float64
+	uniqueSoftwareUninstallCount int
+	uniqueSoftwareUninstallProb  float64
+}
 
 func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
 	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
+	softwareQueryFailureProb float64,
+	softwareExtraQueryFailureProb float64,
 	softwareCount softwareEntityCount,
+	softwareExtraCount softwareExtraEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
 	orbitProb float64,
@@ -444,6 +485,7 @@ func newAgent(
 		agentIndex:             agentIndex,
 		serverAddress:          serverAddress,
 		softwareCount:          softwareCount,
+		softwareExtraCount:     softwareExtraCount,
 		userCount:              userCount,
 		strings:                make(map[string]string),
 		policyPassProb:         policyPassProb,
@@ -462,6 +504,9 @@ func newAgent(
 		MDMCheckInInterval: mdmCheckInInterval,
 		UUID:               uuid,
 		SerialNumber:       serialNumber,
+
+		softwareFailProb:      softwareQueryFailureProb,
+		softwareExtraFailProb: softwareExtraQueryFailureProb,
 
 		mdmClient:           mdmClient,
 		disableScriptExec:   disableScriptExec,
@@ -1105,12 +1150,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		commonSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Common_%d", i),
+			"name":              fmt.Sprintf("Common_%d.app", i),
 			"version":           "0.0.1",
-			"bundle_identifier": "com.fleetdm.osquery-perf",
-			"source":            "osquery-perf",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.common_%s_%d", a.CachedString("hostname"), i),
+			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Common_%d", i),
+			"installed_path":    fmt.Sprintf("/some/path/Common_%d.app", i),
 		}
 	}
 	if a.softwareCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
@@ -1126,12 +1171,12 @@ func (a *agent) softwareMacOS() []map[string]string {
 			lastOpenedAt = l.Format(time.UnixDate)
 		}
 		uniqueSoftware[i] = map[string]string{
-			"name":              fmt.Sprintf("Unique_%s_%d", a.CachedString("hostname"), i),
+			"name":              fmt.Sprintf("Unique_%s_%d.app", a.CachedString("hostname"), i),
 			"version":           "1.1.1",
-			"bundle_identifier": "com.fleetdm.osquery-perf",
-			"source":            "osquery-perf",
+			"bundle_identifier": fmt.Sprintf("com.fleetdm.osquery-perf.unique_%s_%d", a.CachedString("hostname"), i),
+			"source":            "apps",
 			"last_opened_at":    lastOpenedAt,
-			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d", a.CachedString("hostname"), i),
+			"installed_path":    fmt.Sprintf("/some/path/Unique_%s_%d.app", a.CachedString("hostname"), i),
 		}
 	}
 	if a.softwareCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.uniqueSoftwareUninstallProb {
@@ -1158,6 +1203,52 @@ func (a *agent) softwareMacOS() []map[string]string {
 	}
 	software := append(commonSoftware, uniqueSoftware...)
 	software = append(software, randomVulnerableSoftware...)
+	rand.Shuffle(len(software), func(i, j int) {
+		software[i], software[j] = software[j], software[i]
+	})
+	return software
+}
+
+func (a *agent) softwareExtra() []map[string]string {
+	commonExtraSoftware := make([]map[string]string, a.softwareExtraCount.common)
+	for i := 0; i < len(commonExtraSoftware); i++ {
+		commonExtraSoftware[i] = map[string]string{
+			"name":    fmt.Sprintf("common.extension_%d", i),
+			"version": "0.0.1",
+			"source":  "vscode_extensions",
+		}
+	}
+	if a.softwareExtraCount.commonSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareCount.commonSoftwareUninstallProb {
+		rand.Shuffle(len(commonExtraSoftware), func(i, j int) {
+			commonExtraSoftware[i], commonExtraSoftware[j] = commonExtraSoftware[j], commonExtraSoftware[i]
+		})
+		commonExtraSoftware = commonExtraSoftware[:a.softwareExtraCount.common-a.softwareExtraCount.commonSoftwareUninstallCount]
+	}
+	uniqueExtraSoftware := make([]map[string]string, a.softwareExtraCount.unique)
+	for i := 0; i < len(uniqueExtraSoftware); i++ {
+		uniqueExtraSoftware[i] = map[string]string{
+			"name":    fmt.Sprintf("unique.extension_%s_%d", a.CachedString("hostname"), i),
+			"version": "1.1.1",
+			"source":  "vscode_extensions",
+		}
+	}
+	if a.softwareExtraCount.uniqueSoftwareUninstallProb > 0.0 && rand.Float64() <= a.softwareExtraCount.uniqueSoftwareUninstallProb {
+		rand.Shuffle(len(uniqueExtraSoftware), func(i, j int) {
+			uniqueExtraSoftware[i], uniqueExtraSoftware[j] = uniqueExtraSoftware[j], uniqueExtraSoftware[i]
+		})
+		uniqueExtraSoftware = uniqueExtraSoftware[:a.softwareExtraCount.unique-a.softwareExtraCount.uniqueSoftwareUninstallCount]
+	}
+	var vulnerableExtraSoftware []map[string]string
+	for _, vsCodeExtension := range vsCodeExtensionsVulnerableSoftware {
+		vulnerableExtraSoftware = append(vulnerableExtraSoftware, map[string]string{
+			"name":    vsCodeExtension.Name,
+			"version": vsCodeExtension.Version,
+			"vendor":  vsCodeExtension.Vendor,
+			"source":  vsCodeExtension.Source,
+		})
+	}
+	software := append(commonExtraSoftware, uniqueExtraSoftware...)
+	software = append(software, vulnerableExtraSoftware...)
 	rand.Shuffle(len(software), func(i, j int) {
 		software[i], software[j] = software[j], software[i]
 	})
@@ -1472,6 +1563,7 @@ func (a *agent) processQuery(name, query string) (
 	)
 	statusOK := fleet.StatusOK
 	statusNotOK := fleet.OsqueryStatus(1)
+	results = []map[string]string{} // if a query fails, osquery returns empty results array
 
 	switch {
 	case strings.HasPrefix(name, liveQueryPrefix):
@@ -1518,24 +1610,42 @@ func (a *agent) processQuery(name, query string) (
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.StatusOK
+		if a.softwareFailProb > 0.0 && rand.Float64() <= a.softwareFailProb {
+			ss = fleet.OsqueryStatus(1)
+		}
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.StatusOK
+		if a.softwareFailProb > 0.0 && rand.Float64() <= a.softwareFailProb {
+			ss = fleet.OsqueryStatus(1)
+		}
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
+		ss := fleet.StatusOK
+		if a.softwareFailProb > 0.0 && rand.Float64() <= a.softwareFailProb {
+			ss = fleet.OsqueryStatus(1)
+		}
 		if ss == fleet.StatusOK {
 			switch a.os {
 			case "ubuntu_22.04":
 				results = ubuntuSoftware
 			}
+		}
+		return true, results, &ss, nil, nil
+	case name == hostDetailQueryPrefix+"software_extra":
+		ss := fleet.StatusOK
+		if a.softwareExtraFailProb > 0.0 && rand.Float64() <= a.softwareExtraFailProb {
+			ss = fleet.OsqueryStatus(1)
+		}
+		if ss == fleet.StatusOK {
+			results = a.softwareExtra()
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
@@ -1783,13 +1893,22 @@ func main() {
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
-		commonSoftwareCount          = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
-		commonSoftwareUninstallCount = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
-		commonSoftwareUninstallProb  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
+		softwareQueryFailureProb      = flag.Float64("software_query_fail_prob", 0.5, "Probability of the software query failing")
+		softwareExtraQueryFailureProb = flag.Float64("software_extra_query_fail_prob", 0.5, "Probability of the software extra query failing")
 
-		uniqueSoftwareCount          = flag.Int("unique_software_count", 1, "Number of unique software installed on each host")
-		uniqueSoftwareUninstallCount = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
-		uniqueSoftwareUninstallProb  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
+		commonSoftwareCount               = flag.Int("common_software_count", 10, "Number of common installed applications reported to fleet")
+		commonExtraSoftwareCount          = flag.Int("common_extra_software_count", 5, "Number of common extra installed applications reported to fleet")
+		commonSoftwareUninstallCount      = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
+		commonExtraSoftwareUninstallCount = flag.Int("common_extra_software_uninstall_count", 1, "Number of common extra software to uninstall")
+		commonSoftwareUninstallProb       = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
+		commonExtraSoftwareUninstallProb  = flag.Float64("common_extra_software_uninstall_prob", 0.1, "Probability of uninstalling extra common_software_uninstall_count unique software/s")
+
+		uniqueSoftwareCount               = flag.Int("unique_software_count", 1, "Number of unique software installed on each host")
+		uniqueExtraSoftwareCount          = flag.Int("unique_extra_software_count", 1, "Number of unique extra software installed on each host")
+		uniqueSoftwareUninstallCount      = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
+		uniqueExtraSoftwareUninstallCount = flag.Int("unique_extra_software_uninstall_count", 1, "Number of unique extra software to uninstall")
+		uniqueSoftwareUninstallProb       = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
+		uniqueExtraSoftwareUninstallProb  = flag.Float64("unique_extra_software_uninstall_prob", 0.1, "Probability of uninstalling unique_extra_software_uninstall_count common software/s")
 
 		vulnerableSoftwareCount     = flag.Int("vulnerable_software_count", 10, "Number of vulnerable installed applications reported to fleet")
 		withLastOpenedSoftwareCount = flag.Int("with_last_opened_software_count", 10, "Number of applications that may report a last opened timestamp to fleet")
@@ -1910,6 +2029,8 @@ func main() {
 			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
+			*softwareQueryFailureProb,
+			*softwareExtraQueryFailureProb,
 			softwareEntityCount{
 				entityCount: entityCount{
 					common: *commonSoftwareCount,
@@ -1922,7 +2043,18 @@ func main() {
 				commonSoftwareUninstallProb:  *commonSoftwareUninstallProb,
 				uniqueSoftwareUninstallCount: *uniqueSoftwareUninstallCount,
 				uniqueSoftwareUninstallProb:  *uniqueSoftwareUninstallProb,
-			}, entityCount{
+			},
+			softwareExtraEntityCount{
+				entityCount: entityCount{
+					common: *commonExtraSoftwareCount,
+					unique: *uniqueExtraSoftwareCount,
+				},
+				commonSoftwareUninstallCount: *commonExtraSoftwareUninstallCount,
+				commonSoftwareUninstallProb:  *commonExtraSoftwareUninstallProb,
+				uniqueSoftwareUninstallCount: *uniqueExtraSoftwareUninstallCount,
+				uniqueSoftwareUninstallProb:  *uniqueExtraSoftwareUninstallProb,
+			},
+			entityCount{
 				common: *commonUserCount,
 				unique: *uniqueUserCount,
 			},

@@ -10,7 +10,7 @@ To test these changes locally, you can:
 2. host this file on a local web server
 
     ```bash
-    ./tools/file-server 8082 ./server/vulnerabilities/nvd/cpe_translations.json
+    go run ./tools/file-server/main.go 8082 ./server/vulnerabilities/nvd/
     ```
 
 3. (re)launch your local fleet server with the following `--config`
@@ -19,6 +19,8 @@ To test these changes locally, you can:
     vulnerabilities:
     cpe_translations_url: "http://localhost:8082/cpe_translations.json"
     ```
+
+    (You can also use the following cli argument: `--vulnerabilities_cpe_translations_url=http://localhost:8082/cpe_translations.json`.)
 
 4. trigger the vulnerabilities scan
 
