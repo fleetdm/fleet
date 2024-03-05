@@ -4,6 +4,7 @@ import { IMdmSolution } from "interfaces/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
+import { IMdmSolutionTableData } from "./MDM";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -58,16 +59,12 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
 ];
 
 export const generateSolutionsDataSet = (
-  solutions: IMdmSolution[] | null
-): IMdmSolution[] => {
-  if (!solutions) {
-    return [];
-  }
-
+  solutions: IMdmSolutionTableData[]
+): IMdmSolutionTableData[] => {
   return solutions.map((solution) => {
     return {
       ...solution,
-      displayName: solution.name ?? "Unknown",
+      displayName: solution.name || "Unknown",
     };
   });
 };

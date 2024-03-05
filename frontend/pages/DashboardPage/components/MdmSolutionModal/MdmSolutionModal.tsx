@@ -15,6 +15,7 @@ const baseClass = "mdm-solution-modal";
 
 const SOLUTIONS_DEFAULT_SORT_HEADER = "hosts_count";
 const DEFAULT_SORT_DIRECTION = "desc";
+const DEFAULT_TITLE = "Unknown MDM solution";
 
 interface IMdmSolutionModalProps {
   mdmSolutions: IMdmSolution[];
@@ -41,7 +42,7 @@ const MdmSolutionsModal = ({
   return (
     <Modal
       className={baseClass}
-      title={mdmSolutions[0].name ?? "Unknown mdm solution"}
+      title={mdmSolutions[0].name || DEFAULT_TITLE}
       width="large"
       onExit={onCancel}
     >
