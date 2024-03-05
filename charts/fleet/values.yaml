@@ -210,6 +210,19 @@ environments:
   FLEET_MDM_APPLE_SCEP_CERT_BYTES: ""
   FLEET_MDM_APPLE_SCEP_KEY_BYTES: ""
 
+## Section: Environment Variables from Secrets/CMs
+# envsFrom:
+# - name: MY_ENV_NAME_1
+#   valueFrom:
+#     configMapKeyRef:
+#       name: cm-name
+#       key: cm-key-name
+# - name: MY_ENV_NAME_2
+#   valueFrom:
+#     secretKeyRef:
+#       name: secret-name
+#       key: secret-key-name
+
 mysql:
   enabled: false
 
