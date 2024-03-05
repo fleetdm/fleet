@@ -916,6 +916,15 @@ func (ds *Datastore) WipeHostViaScript(ctx context.Context, request *fleet.HostS
 	var res *fleet.HostScriptResult
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
+
+		scRes, err := insertScriptContents(ctx, request.ScriptContents, tx)
+		if err != nil {
+			return err
+		}
+
+		id, _ := scRes.LastInsertId()
+		request.ScriptContentID = uint(id)
+
 		res, err = newHostScriptExecutionRequest(ctx, request, tx)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "wipe host via script create execution")
