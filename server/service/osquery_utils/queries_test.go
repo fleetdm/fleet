@@ -1880,28 +1880,34 @@ func TestShouldRemoveSoftware(t *testing.T) {
 }
 
 func TestIngestNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	// NOTE: It was decided that we should allow ingesting private IPs on the PublicIP field,
+	// see https://github.com/fleetdm/fleet/issues/11102.
 	for _, tc := range []struct {
+		name  string
 		ip    string
 		valid bool
 	}{
-		{"598b:6910:e935:63ff:54db:1753:9c01:4c84", true}, // public IPv6
-		{"fd42:fdaa:1234:5678::1a2b", true},               // private IPv6
-		{"190.18.97.12", true},                            // public IPv4
-		{"127.0.0.1", true},                               // private IPv4
-		{"", true},                                        // IP could not be determined
-		{"invalid-ip", false},                             // invalid value ends up in the context
+		{"public IPv6", "598b:6910:e935:63ff:54db:1753:9c01:4c84", true},
+		{"private IPv6", "fd42:fdaa:1234:5678::1a2b", true},
+		{"public IPv4", "190.18.97.12", true},
+		{"private IPv4", "127.0.0.1", true},
+		{"IP could not be determined", "", true},
+		{"invalid value ends up in the context", "invalid-ip", false},
 	} {
-		h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
-		err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, []map[string]string{
-			{
-				"address": "192.168.0.100",
-			},
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			require.NoError(t, err)
+			if tc.valid {
+				require.Equal(t, tc.ip, h.PublicIP)
+			} else {
+				require.Empty(t, h.PublicIP)
+			}
 		})
-		require.NoError(t, err)
-		if tc.valid {
-			require.Equal(t, tc.ip, h.PublicIP)
-		} else {
-			require.Empty(t, h.PublicIP)
-		}
 	}
 }

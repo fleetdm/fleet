@@ -361,15 +361,9 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		"platform", host.Platform,
 	)
 
-	if len(rows) != 1 {
-		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
-		return nil
-	}
-
-	host.PrimaryIP = rows[0]["address"]
-	host.PrimaryMac = rows[0]["mac"]
-
 	// Attempt to extract public IP from the HTTP request.
+	// NOTE: We are executing the IP extraction first to not depend on the network
+	// interface query succeeding and returning results.
 	ipStr := publicip.FromContext(ctx)
 	// First set host.PublicIP to empty to not hide an infrastructure change that
 	// misses to set or sets an invalid value in the expected HTTP headers.
@@ -382,6 +376,14 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
 		}
 	}
+
+	if len(rows) != 1 {
+		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
+		return nil
+	}
+
+	host.PrimaryIP = rows[0]["address"]
+	host.PrimaryMac = rows[0]["mac"]
 
 	return nil
 }
