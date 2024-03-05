@@ -194,6 +194,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	if opt.PopulatePolicies {
+		for _, host := range hosts {
+			hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
+			}
+			host.Policies = &hp
+		}
+	}
+
 	return hosts, nil
 }
 
@@ -775,7 +785,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -857,6 +867,7 @@ type addHostsToTeamByFilterRequest struct {
 		MatchQuery string           `json:"query"`
 		Status     fleet.HostStatus `json:"status"`
 		LabelID    *uint            `json:"label_id"`
+		TeamID     *uint            `json:"team_id"`
 	} `json:"filters"`
 }
 
@@ -873,6 +884,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 			MatchQuery: req.Filters.MatchQuery,
 		},
 		StatusFilter: req.Filters.Status,
+		TeamFilter:   req.Filters.TeamID,
 	}
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
 	if err != nil {
@@ -911,7 +923,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -1093,7 +1105,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
-	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
@@ -1104,10 +1116,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.PendingAction = ptr.String("")
 	// device status
 	switch {
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
 	case mdmActions.IsWiped():
 		host.MDM.DeviceStatus = ptr.String("wiped")
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
 	}
 
 	// pending action, if any
@@ -1120,11 +1132,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		host.MDM.PendingAction = ptr.String("wipe")
 	}
 
+	host.Policies = policies
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
 		Packs:     packs,
-		Policies:  policies,
 		Batteries: &bats,
 	}, nil
 }

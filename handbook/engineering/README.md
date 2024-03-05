@@ -211,21 +211,6 @@ The on-call developer is responsible for:
 - [Escalating community questions and issues](https://fleetdm.com/handbook/company/product-groups#escalations).
 - Successfully [transferring the on-call persona to the next developer](https://fleetdm.com/handbook/company/product-groups#changing-of-the-guard).
 
-### Notify community members about a critical bug
-<!-- TODO: Move back to product groups, it touches multiple departments -->
-We inform customers and the community about critical bugs immediately so they don’t trigger it themselves. When a bug meeting the definition of critical is found, the bug finder is responsible for raising an alarm. Raising an alarm means pinging @here in the #help-product-design channel with the filed bug.
-
-If the bug finder is not a Fleetie (e.g., a member of the community), then whoever sees the critical bug should raise the alarm. (We would expect this to be Customer success in the community Slack or QA in the bug inbox, though it could be anyone.) Note that the bug finder here is NOT necessarily the **first** person who sees the bug. If you come across a bug you think is critical, but it has not been escalated, raise the alarm!
-
-Once raised, product confirms whether or not it's critical and defines expected behavior.
-When outside of working hours for the product team or if no one from product responds within 1 hour, then fall back to the #help-p1.
-
-Once the critical bug is confirmed, Customer success needs to ping both customers and the community to warn them. If Customer success is not available, the on-call engineer is responsible for doing this. If a quick fix workaround exists, that should be communicated as well for those who are already upgraded.
-
-When a critical bug is identified, we will then follow the patch release process in [our documentation](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md#patch-releases).
-
-> After a critical bug is fixed, [an incident postmortem](https://fleetdm.com/handbook/engineering#preform-an-incident-postmortem) is scheduled by the EM of the product group that fixed the bug.
-
 ### Notify stakeholders when a user story is pushed to the next release
 [User stories](https://fleetdm.com/handbook/company/product-groups#scrum-items) are intended to be completed in a single sprint. When a user story selected for a release has not merged into `main` by the time the [merge freeze](https://fleetdm.com/handbook/engineering#begin-a-merge-freeze) begins, it is the product group EM's responsibility to notify stakeholders:
 

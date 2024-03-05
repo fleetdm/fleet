@@ -312,7 +312,12 @@ type HostLockWipeStatus struct {
 	// windows and linux hosts use a script to unlock
 	UnlockScript *HostScriptResult
 
-	// TODO: add wipe status when implementing the Wipe story.
+	// macOS and Windows use MDM commands for Wipe
+	WipeMDMCommand       *MDMCommand
+	WipeMDMCommandResult *MDMCommandResult
+
+	// Linux uses a script for Wipe
+	WipeScript *HostScriptResult
 }
 
 func (s *HostLockWipeStatus) IsPendingLock() bool {
@@ -334,8 +339,12 @@ func (s HostLockWipeStatus) IsPendingUnlock() bool {
 }
 
 func (s HostLockWipeStatus) IsPendingWipe() bool {
-	// TODO(mna): implement when addressing Wipe story, for now wipe is never pending
-	return false
+	if s.HostFleetPlatform == "linux" {
+		// pending wipe if script execution request is queued but no result yet
+		return s.WipeScript != nil && s.WipeScript.ExitCode == nil
+	}
+	// pending wipe if an MDM command is queued but no result received yet
+	return s.WipeMDMCommand != nil && s.WipeMDMCommandResult == nil
 }
 
 func (s HostLockWipeStatus) IsLocked() bool {
@@ -359,6 +368,20 @@ func (s HostLockWipeStatus) IsUnlocked() bool {
 }
 
 func (s HostLockWipeStatus) IsWiped() bool {
-	// TODO(mna): implement when addressing Wipe story, for now never wiped
-	return false
+	switch s.HostFleetPlatform {
+	case "linux":
+		// wiped if script was sent and succeeded
+		return s.WipeScript != nil && s.WipeScript.ExitCode != nil &&
+			*s.WipeScript.ExitCode == 0
+	case "windows":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			strings.HasPrefix(s.WipeMDMCommandResult.Status, "2")
+	case "darwin":
+		// wiped if an MDM command was sent and succeeded
+		return s.WipeMDMCommand != nil && s.WipeMDMCommandResult != nil &&
+			s.WipeMDMCommandResult.Status == MDMAppleStatusAcknowledged
+	default:
+		return false
+	}
 }

@@ -913,6 +913,18 @@ func (c *Client) DoGitOps(
 		}
 		team["scripts"] = scripts
 		team["secrets"] = config.TeamSettings["secrets"]
+		team["webhook_settings"] = map[string]interface{}{}
+		clearHostStatusWebhook := true
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
+				clearHostStatusWebhook = false
+				team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
+			}
+		}
+		if clearHostStatusWebhook {
+			// Clear out any existing host_status_webhook settings
+			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
+		}
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}

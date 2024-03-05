@@ -253,8 +253,8 @@
   waysToUse:
     - description: 
 - industryName: Incident response
-  friendlyName: # TODO: live query, triage, figuring out scope of impact, remediate using scripts, MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
-  description: 
+  friendlyName: Interrogate hosts in real time
+  description: Live query, triage, figuring out scope of impact, remediate using scripts or MDM commands (e.g. remote wipe), and quarantine or reimage using other systems and APIs (e.g. remove from network, decommission container)
   documentationUrl:
   tier: Free
   dri: mikermcneil
@@ -276,7 +276,7 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
-  comingSoonOn: YYYY-MM-DD
+  comingSoonOn: 2025-06-30
   buzzwords: [Mandatory Access Control (MAC),Privilege confinement,Binary authorization,Santa,Binary allowlisting,Binary whitelisting]
   demos:
     - description: 
@@ -838,6 +838,7 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
+  buzzwords: [Real-time export,Ship logs]
   waysToUse:
     - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999

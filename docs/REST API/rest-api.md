@@ -2994,7 +2994,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | **Required** Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. Note: `label_id` and `status` cannot be used at the same time. |
 
 #### Example
 
@@ -3006,7 +3006,8 @@ _Available in Fleet Premium_
 {
   "team_id": 1,
   "filters": {
-    "status": "online"
+    "status": "online",
+    "team_id": 2,
   }
 }
 ```
@@ -8404,7 +8405,7 @@ _Available in Fleet Premium_
 | id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
 | name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
 | host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
-| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                                                             |
+| user_ids                                                | list    | body | A list of users on the team.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                                                                   |
 | &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
