@@ -175,6 +175,4 @@ func (s *enterpriseNoMdmIntegrationGitopsTestSuite) removeControls(file string) 
 	require.NoError(t, err)
 	err = os.WriteFile(file, dataToWrite, os.ModePerm)
 	require.NoError(t, err)
-	b, err = os.ReadFile(file)
-	require.NoError(t, err)
 }
