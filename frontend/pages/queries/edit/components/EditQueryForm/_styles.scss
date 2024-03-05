@@ -9,6 +9,7 @@
   &__title-bar {
     display: flex;
     justify-content: space-between;
+    gap: 1.5rem;
 
     .form-field {
       margin-bottom: 0px;
@@ -40,6 +41,8 @@
       .query-name-wrapper,
       .query-description-wrapper {
         display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
         width: fit-content;
         &:not(.edit-query-form--editing) {
           &:hover {
@@ -52,7 +55,6 @@
         }
       }
       .query-name-wrapper {
-        align-items: center;
         .no-value {
           min-width: 168px;
         }
@@ -71,8 +73,7 @@
         }
       }
       .edit-icon {
-        width: 14px;
-        height: 14px;
+        align-self: initial;
         opacity: 1;
         transition: opacity 0.2s;
         &.hide {
