@@ -1035,36 +1035,32 @@ const ManageHostsPage = ({
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
 
-    let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
-
-    if (isAllMatchingHostsSelected) {
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.transferToTeamByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-        currentTeam: teamIdForApi,
-        policyId,
-        policyResponse,
-        softwareId,
-        softwareTitleId,
-        softwareVersionId,
-        osName,
-        osVersionId,
-        osVersion,
-        macSettingsStatus,
-        bootstrapPackageStatus,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        osSettings: osSettingsStatus,
-        diskEncryptionStatus,
-        vulnerability,
-      });
-    }
+    const action = isAllMatchingHostsSelected
+      ? hostsAPI.transferToTeamByFilter({
+          teamId,
+          query: searchQuery,
+          status,
+          labelId: selectedLabel?.id,
+          currentTeam: teamIdForApi,
+          policyId,
+          policyResponse,
+          softwareId,
+          softwareTitleId,
+          softwareVersionId,
+          osName,
+          osVersionId,
+          osVersion,
+          macSettingsStatus,
+          bootstrapPackageStatus,
+          mdmId,
+          mdmEnrollmentStatus,
+          munkiIssueId,
+          lowDiskSpaceHosts,
+          osSettings: osSettingsStatus,
+          diskEncryptionStatus,
+          vulnerability,
+        })
+      : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     try {
       await action;
