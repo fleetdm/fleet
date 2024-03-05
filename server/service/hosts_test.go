@@ -898,8 +898,6 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
 
-// TODO: test add hosts to team by filter for 1. search query 2. status filter 3. team filter
-
 func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil)
