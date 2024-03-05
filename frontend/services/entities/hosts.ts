@@ -127,9 +127,8 @@ export interface IActionByFilter {
   osName?: string;
   osVersion?: string;
   osVersionId?: number | null;
-  // MacOSSettings
-  // MacOSDiskEncryptionFilter
-  bootstrapPackageStatus: BootstrapPackageStatus;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   mdmId?: number | null;
   mdmEnrollmentStatus?: MdmEnrollmentStatus;
   munkiIssueId?: number | null;
@@ -193,7 +192,30 @@ export default {
 
     return sendRequest("POST", HOSTS_DELETE, { ids: hostIds });
   },
-  destroyByFilter: ({ teamId, query, status, labelId }: IActionByFilter) => {
+  destroyByFilter: ({
+    teamId,
+    query,
+    status,
+    labelId,
+    currentTeam,
+    policyId,
+    policyResponse,
+    softwareId,
+    softwareTitleId,
+    softwareVersionId,
+    osName,
+    osVersion,
+    osVersionId,
+    macSettingsStatus,
+    bootstrapPackageStatus,
+    mdmId,
+    mdmEnrollmentStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    osSettings,
+    diskEncryptionStatus,
+    vulnerability,
+  }: IActionByFilter) => {
     const { HOSTS_DELETE } = endpoints;
     return sendRequest("POST", HOSTS_DELETE, {
       filters: {
@@ -201,6 +223,23 @@ export default {
         status,
         label_id: labelId,
         team_id: teamId,
+        policy_id: policyId,
+        policy_response: policyResponse,
+        software_id: softwareId,
+        software_title_id: softwareTitleId,
+        software_version_id: softwareVersionId,
+        os_name: osName,
+        os_version: osVersion,
+        os_version_id: osVersionId,
+        macos_settings: macSettingsStatus,
+        bootstrap_package: bootstrapPackageStatus,
+        mdm_id: mdmId,
+        mdm_enrollment_status: mdmEnrollmentStatus,
+        munki_issue_id: munkiIssueId,
+        low_disk_space_host: lowDiskSpaceHosts,
+        os_settings: osSettings,
+        os_settings_disk_encryption: diskEncryptionStatus,
+        vulnerability,
       },
     });
   },
@@ -294,8 +333,6 @@ export default {
     diskEncryptionStatus,
     bootstrapPackageStatus,
   }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
-    console.log("osSettings", osSettings);
-    console.log("diskEncryptionStatus", diskEncryptionStatus);
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -392,8 +429,7 @@ export default {
     osName,
     osVersion,
     osVersionId,
-    // MacOSSettings
-    // MacOSDiskEncryptionFilter
+    macSettingsStatus,
     bootstrapPackageStatus,
     mdmId,
     mdmEnrollmentStatus,
@@ -419,8 +455,7 @@ export default {
         os_name: osName,
         os_version: osVersion,
         os_version_id: osVersionId,
-        // MacOSSettings
-        // MacOSDiskEncryptionFilter
+        macos_settings: macSettingsStatus,
         bootstrap_package: bootstrapPackageStatus,
         mdm_id: mdmId,
         mdm_enrollment_status: mdmEnrollmentStatus,

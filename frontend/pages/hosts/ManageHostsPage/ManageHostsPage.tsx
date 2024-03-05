@@ -1054,8 +1054,7 @@ const ManageHostsPage = ({
         osName,
         osVersionId,
         osVersion,
-        // MacOSSettings
-        // MacOSDiskEncryptionFilter
+        macSettingsStatus,
         bootstrapPackageStatus,
         mdmId,
         mdmEnrollmentStatus,
@@ -1101,6 +1100,24 @@ const ManageHostsPage = ({
             query: searchQuery,
             status,
             labelId,
+            currentTeam: teamIdForApi,
+            policyId,
+            policyResponse,
+            softwareId,
+            softwareTitleId,
+            softwareVersionId,
+            osName,
+            osVersionId,
+            osVersion,
+            macSettingsStatus,
+            bootstrapPackageStatus,
+            mdmId,
+            mdmEnrollmentStatus,
+            munkiIssueId,
+            lowDiskSpaceHosts,
+            osSettings: osSettingsStatus,
+            diskEncryptionStatus,
+            vulnerability,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
