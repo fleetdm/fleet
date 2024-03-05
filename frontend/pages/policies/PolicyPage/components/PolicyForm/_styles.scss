@@ -70,7 +70,8 @@
       .policy-description-wrapper,
       .policy-resolution-wrapper {
         display: flex;
-        align-items: center;
+        align-items: baseline;
+        gap: 0.5rem;
         width: fit-content;
         &:not(.edit-query-form--editing) {
           &:hover {
@@ -102,6 +103,7 @@
         opacity: 1;
         transition: opacity 0.2s;
         margin-left: 0;
+        align-self: initial;
         &.hide {
           opacity: 0;
         }
