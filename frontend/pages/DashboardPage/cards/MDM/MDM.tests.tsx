@@ -3,26 +3,27 @@ import { noop } from "lodash";
 import { render, screen } from "@testing-library/react";
 import { renderWithSetup } from "test/test-utils";
 
-import { createMockMdmSolution } from "__mocks__/mdmMock";
+import { createMockMdmSummaryMdmSolution } from "__mocks__/mdmMock";
 
 import MDM from "./MDM";
 
 describe("MDM Card", () => {
   it("rolls up the data by mdm solution name and render the correct number of MDM solutions", () => {
-    const { debug } = render(
+    render(
       <MDM
         onClickMdmSolution={noop}
         error={null}
         isFetching={false}
         mdmStatusData={[]}
         mdmSolutions={[
-          createMockMdmSolution(),
-          createMockMdmSolution({ id: 2 }),
-          createMockMdmSolution({ name: "Test Solution", id: 3 }),
-          createMockMdmSolution({ name: "Test Solution", id: 4 }),
-          createMockMdmSolution({ name: "Test Solution 2", id: 5 }),
-          createMockMdmSolution({ name: null, id: 6 }),
-          createMockMdmSolution({ name: null, id: 7 }),
+          createMockMdmSummaryMdmSolution(),
+          createMockMdmSummaryMdmSolution({ id: 2 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution", id: 3 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution", id: 4 }),
+          createMockMdmSummaryMdmSolution({ name: "Test Solution 2", id: 5 }),
+          // "" should render a row of "Unknown"
+          createMockMdmSummaryMdmSolution({ name: "", id: 8 }),
+          createMockMdmSummaryMdmSolution({ name: "", id: 9 }),
         ]}
       />
     );
