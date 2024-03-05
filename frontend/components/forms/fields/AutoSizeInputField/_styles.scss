@@ -3,7 +3,7 @@
   color: $core-fleet-black;
 
   &::placeholder {
-    color: $ui-fleet-black-50;
+    @include placeholder;
   }
 
   &:focus {
@@ -20,7 +20,9 @@
     &::after,
     input,
     textarea {
+      white-space: pre-wrap;
       width: auto;
+      max-width: 100%;
       grid-area: 1 / 2;
       resize: none;
       background: none;

@@ -17,7 +17,6 @@ require (
 	github.com/aws/aws-sdk-go v1.44.288
 	github.com/beevik/etree v1.1.0
 	github.com/beevik/ntp v0.3.0
-	github.com/boltdb/bolt v1.3.1
 	github.com/briandowns/spinner v1.13.0
 	github.com/cenkalti/backoff v2.2.1+incompatible
 	github.com/cenkalti/backoff/v4 v4.2.1
@@ -104,6 +103,7 @@ require (
 	go.elastic.co/apm/module/apmgorilla/v2 v2.3.0
 	go.elastic.co/apm/module/apmsql/v2 v2.4.3
 	go.elastic.co/apm/v2 v2.4.3
+	go.etcd.io/bbolt v1.3.6
 	go.mozilla.org/pkcs7 v0.0.0-20210826202110-33d05740a352
 	go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux v0.44.0
 	go.opentelemetry.io/otel v1.19.0

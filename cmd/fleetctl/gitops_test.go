@@ -514,4 +514,39 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedScripts, 1)
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
+	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+
+	// Now clear the settings
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	secret := "TestSecret"
+	t.Setenv("TEST_SECRET", secret)
+
+	_, err = tmpFile.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+name: ${TEST_TEAM_NAME}
+team_settings:
+  secrets: [{"secret":"${TEST_SECRET}"}]
+`,
+	)
+	require.NoError(t, err)
+
+	// Dry run
+	savedTeam = nil
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	assert.Nil(t, savedTeam)
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, teamName, savedTeam.Name)
+	require.Len(t, enrolledSecrets, 1)
+	assert.Equal(t, secret, enrolledSecrets[0].Secret)
+	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 }

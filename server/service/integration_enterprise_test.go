@@ -1315,9 +1315,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
+		HostStatusWebhook: fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook",
+		},
 	}}, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -3889,7 +3895,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
-// TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -3904,7 +3910,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
-		Hostname: t.Name() + "foo.local",
+		Hostname: strings.Replace(t.Name()+"foo.local", "/", "_", -1),
 	})
 	require.NoError(t, err)
 	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -4036,6 +4042,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+
+	// Attempt to retrieve a host by identifier should succeed
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
@@ -4964,7 +4973,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run with both script contents and id
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of "script_id" or "script_contents" can be provided.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
 	// attempt to run with unknown script id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
@@ -6910,7 +6919,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 }
 
-func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
+func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -6932,19 +6941,22 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
-	// try to lock/unlock the Windows host, fails because Windows MDM must be enabled
+	// try to lock/unlock/wipe the Windows host, fails because Windows MDM must be enabled
 	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", winHost.ID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 
-	// try to lock/unlock the Linux host succeeds, no MDM constraints
+	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 
 	// simulate a successful script result for the lock command
-	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
 	var orbitScriptResp orbitPostScriptResultResponse
@@ -6966,6 +6978,12 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to Wipe the linux host fails due to pending unlock, not because
+	// of MDM not enabled
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host cannot be wiped until unlock is complete.")
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with

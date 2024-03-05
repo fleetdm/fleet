@@ -385,6 +385,60 @@ spec:
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	// enroll secret not cleared since not provided
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
+
+	// Apply team host_status_webhook
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    webhook_settings:
+      host_status_webhook:
+        days_count: 14
+        destination_url: https://example.com
+        enable_host_status_webhook: true
+        host_percentage: 25
+`,
+	)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// Ensure the webhook settings are applied
+	assert.Equal(
+		t, fleet.HostStatusWebhookSettings{
+			DaysCount:      14,
+			DestinationURL: "https://example.com",
+			Enable:         true,
+			HostPercentage: 25,
+		}, teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
+	)
+	assert.Equal(t, fleet.FailingPoliciesWebhookSettings{}, teamsByName["team1"].Config.WebhookSettings.FailingPoliciesWebhook)
+	// enroll secret not cleared since not provided
+	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "BBB"}}, enrolledSecretsCalled[uint(42)])
+
+	// Apply empty webhook settings
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    webhook_settings:
+`,
+	)
+
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	// Ensure the webhook settings have not changed
+	assert.Equal(
+		t, fleet.HostStatusWebhookSettings{
+			DaysCount:      14,
+			DestinationURL: "https://example.com",
+			Enable:         true,
+			HostPercentage: 25,
+		}, teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
+	)
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
