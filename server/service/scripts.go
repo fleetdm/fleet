@@ -158,6 +158,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 	if request.TeamID > 0 {
 		lic, _ := license.FromContext(ctx)
 		if !lic.IsPremium() {
+			svc.authz.SkipAuthorization(ctx)
 			return nil, fleet.ErrMissingLicense
 		}
 	}
@@ -242,7 +243,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		}
 		request.ScriptContents = string(contents)
 		request.ScriptContentID = script.ScriptContentID
-    isSavedScript = true
+		isSavedScript = true
 	}
 
 	if err := fleet.ValidateHostScriptContents(request.ScriptContents, isSavedScript); err != nil {

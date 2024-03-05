@@ -305,8 +305,8 @@ func TestHostRunScript(t *testing.T) {
 			wantErr string
 		}{
 			{"empty script", "", "Script contents must not be empty."},
-			{"overly long script", strings.Repeat("a", 500001), "Script is too large."},
-			{"large script", strings.Repeat("a", 500000), ""},
+			{"overly long script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1), "Script is too large."},
+			{"large script", strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen), ""},
 			{"invalid utf8", "\xff\xfa", "Wrong data format."},
 			{"valid without hashbang", "echo 'a'", ""},
 			{"valid with hashbang", "#!/bin/sh\necho 'a'", ""},

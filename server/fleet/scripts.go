@@ -135,12 +135,12 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 }
 
 type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptID       *uint  `json:"script_id"`
-	ScriptContents string `json:"script_contents"`
-  ScriptContentID uint   `json:"-"`
-	ScriptName     string `json:"script_name"`
-	TeamID         uint   `json:"team_id,omitempty"`
+	HostID          uint   `json:"host_id"`
+	ScriptID        *uint  `json:"script_id"`
+	ScriptContents  string `json:"script_contents"`
+	ScriptContentID uint   `json:"-"`
+	ScriptName      string `json:"script_name"`
+	TeamID          uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
