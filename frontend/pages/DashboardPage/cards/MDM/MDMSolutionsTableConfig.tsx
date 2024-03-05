@@ -2,11 +2,7 @@ import React from "react";
 
 import { IMdmSolution } from "interfaces/mdm";
 
-import { greyCell } from "utilities/helpers";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
-import LinkCell from "components/TableContainer/DataTable/LinkCell";
 import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
 
 // NOTE: cellProps come from react-table
@@ -47,7 +43,7 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
     title: "Name",
     Header: "Name",
     disableSortBy: true,
-    accessor: "name",
+    accessor: "displayName",
     Cell: (cellProps: ICellProps) => (
       <InternalLinkCell value={cellProps.cell.value} />
     ),
@@ -61,27 +57,17 @@ export const generateSolutionsTableHeaders = (): IDataColumn[] => [
   },
 ];
 
-const enhanceSolutionsData = (
-  solutions: IMdmSolution[],
-  selectedPlatformLabelId?: number
-): IMdmSolution[] => {
-  return Object.values(solutions).map((solution) => {
-    return {
-      id: solution.id,
-      name: solution.name || "Unknown",
-      server_url: solution.server_url,
-      hosts_count: solution.hosts_count,
-      selectedPlatformLabelId,
-    };
-  });
-};
-
 export const generateSolutionsDataSet = (
-  solutions: IMdmSolution[] | null,
-  selectedPlatformLabelId?: number
+  solutions: IMdmSolution[] | null
 ): IMdmSolution[] => {
   if (!solutions) {
     return [];
   }
-  return [...enhanceSolutionsData(solutions, selectedPlatformLabelId)];
+
+  return solutions.map((solution) => {
+    return {
+      ...solution,
+      displayName: solution.name ?? "Unknown",
+    };
+  });
 };

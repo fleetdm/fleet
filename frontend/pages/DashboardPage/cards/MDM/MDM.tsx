@@ -65,6 +65,28 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
+type IMdmSolutionMap = Record<string, IMdmSolution>;
+
+const reduceSolutionsToObj = (mdmSolutions: IMdmSolution[]) => {
+  return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
+    // The solution name can be null so we add an Unknown key to the
+    // accumulator in this case.
+    if (nextSolution.name === null) {
+      if (acc.Unknown) {
+        acc.Unknown.hosts_count += nextSolution.hosts_count;
+      } else {
+        acc.Unknown = Object.assign({ ...nextSolution });
+      }
+    } else if (acc[nextSolution.name]) {
+      acc[nextSolution.name].hosts_count += nextSolution.hosts_count;
+    } else {
+      acc[nextSolution.name] = Object.assign({ ...nextSolution });
+    }
+
+    return acc;
+  }, {});
+};
+
 const Mdm = ({
   isFetching,
   error,
@@ -85,19 +107,7 @@ const Mdm = ({
       return [];
     }
 
-    return mdmSolutions.reduce<IMdmSolution[]>((acc, nextSolution) => {
-      const existingSolution = acc.find(
-        (solution) => solution.name === nextSolution.name
-      );
-
-      if (existingSolution) {
-        existingSolution.hosts_count += nextSolution.hosts_count;
-      } else {
-        acc.push(nextSolution);
-      }
-
-      return acc;
-    }, []);
+    return Object.values(reduceSolutionsToObj(mdmSolutions));
   }, [mdmSolutions]);
 
   const solutionsTableHeaders = useMemo(
@@ -108,10 +118,7 @@ const Mdm = ({
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
-  const solutionsDataSet = generateSolutionsDataSet(
-    rolledupMdmSolutionsData,
-    selectedPlatformLabelId
-  );
+  const solutionsDataSet = generateSolutionsDataSet(rolledupMdmSolutionsData);
   const statusDataSet = generateStatusDataSet(
     mdmStatusData,
     selectedPlatformLabelId
@@ -143,6 +150,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer<IRowProps>
+                  className={`${baseClass}__mdm-solutions-table`}
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -163,6 +171,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
+                  className={`${baseClass}__mdm-status-table`}
                   columnConfigs={statusTableHeaders}
                   data={statusDataSet}
                   isLoading={isFetching}
