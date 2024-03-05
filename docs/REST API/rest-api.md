@@ -5558,17 +5558,17 @@ Notifications are used to notify about important actions that are required to ma
 {
   "notifications": [
     {
-   	  "event": "apns_expire_approaching",
-   	  "priority": 1,
-	     "scope": "global", // scope can be "global", "host"
-	     "host": {
+      "event": "apns_expire_approaching",
+      "priority": 1,
+      "scope": "global", // scope can be "global", "host"
+      "host": {
         "id": 0,
-	     }, // host is `null` if scope is not host
-	     "details": {
-	       "message": "Your Apple Push Notification service...",
-	       "link": "https://fleetdm.com/renew-apns"
-	     }
-	   },
+      }, // host is `null` if scope is not host
+      "details": {
+        "message": "Your Apple Push Notification service...",
+        "link": "https://fleetdm.com/renew-apns"
+      }
+    },
   ],
   "meta": ..pagination meta..
 }
@@ -5597,17 +5597,17 @@ Notifications are used to notify about important actions that are required to ma
 {
   "notifications": [
     {
-   	  "event": "disk_encryption",
-   	  "priority": 6,
-	     "scope": "host", // scope can be "global", "host"
-	     "host": {
+      "event": "disk_encryption",
+      "priority": 6,
+      "scope": "host", // scope can be "global", "host"
+      "host": {
         "id": 1,
-	     }, // host is `null` if scope is not host
-	     "details": {
-	       "message": "Disk encryption: Reset your disk encryption key. This lets your organization help you unlock your device if you forget your password",
-	       "link": ""
-	     }
-	   },
+      }, // host is `null` if scope is not host
+      "details": {
+        "message": "Disk encryption: Reset your disk encryption key. This lets your organization help you unlock your device if you forget your password",
+        "link": ""
+      }
+    },
   ],
   "meta": ..pagination meta..
 }
