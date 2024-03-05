@@ -35,8 +35,10 @@
             <textarea class="form-control" id="message" name="message" :class="[formErrors.message ? 'is-invalid' : '']" v-model.trim="formData.message" autocomplete="none"></textarea>
             <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
           </div>
-          <!-- <p style="color: #FF5C83">Fields marked with an asterisk (*) are required.</p> -->
-          <cloud-error v-if="cloudError"></cloud-error>
+          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
+            <p>The email address provided could not be used. Please use your work email address.</p>
+          </cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
           <div class="form-group btn-container">
             <ajax-button type="submit" :syncing="syncing" class="btn btn-primary">Send</ajax-button>
           </div>
@@ -86,8 +88,10 @@
            <p purpose="devices-note" class="mt-3 mb-0">Includes computers, servers, containers, and other hosts.</p>
            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices</div>
          </div>
-          <!-- <p style="color: #FF5C83">Fields marked with an asterisk (*) are required.</p> -->
-          <cloud-error v-if="cloudError"></cloud-error>
+          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
+            <p>The email address provided could not be used. Please use your work email address.</p>
+          </cloud-error>
+          <cloud-error v-else-if="cloudError"></cloud-error>
           <div class="form-group btn-container">
             <ajax-button type="submit" :syncing="syncing" class="btn btn-primary">Schedule a call</ajax-button>
           </div>
