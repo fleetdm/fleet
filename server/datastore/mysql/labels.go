@@ -584,10 +584,14 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 		params = append(params, *opt.LowDiskSpaceFilter)
 	}
 
+	var err error
 	query, params = filterHostsByStatus(ds.clock.Now(), query, opt, params)
 	query, params = filterHostsByTeam(query, opt, params)
 	query, params = filterHostsByMDM(query, opt, params)
-	query, params = filterHostsByMacOSSettingsStatus(query, opt, params)
+	query, params, err = filterHostsByMacOSSettingsStatus(query, opt, params)
+	if err != nil {
+		return "", nil, ctxerr.Wrap(ctx, err, "building macOS settings status filter")
+	}
 	query, params = filterHostsByMacOSDiskEncryptionStatus(query, opt, params)
 	query, params = filterHostsByMDMBootstrapPackageStatus(query, opt, params)
 	if enableDiskEncryption, err := ds.getConfigEnableDiskEncryption(ctx, opt.TeamFilter); err != nil {

@@ -23,6 +23,11 @@ run := "run"
 # Action used on object "query" used for running "new" live queries.
 run_new := "run_new"
 
+# Selective prefixes over actions mean that they can be allowed in specific
+# cases for roles that usually aren't allowed to perform them.
+selective_read := "selective_read"
+selective_list := "selective_list"
+
 # Roles
 admin := "admin"
 maintainer := "maintainer"
@@ -211,47 +216,76 @@ allow {
 # Hosts
 ##
 
+# allowed_read_roles evaulates which roles are allowed for read based on the given action.
+allowed_read_roles(action, base_roles, extra_roles) = result {
+	action == selective_read
+	result := base_roles | extra_roles
+} else = result {
+	action == read
+	result := base_roles
+} else = result {
+	result := null
+}
+
+# allowed_list_roles evaulates which roles are allowed for list based on the given action.
+allowed_list_roles(action, base_roles, extra_roles) = result {
+	action == "selective_list"
+	result := base_roles | extra_roles
+} else = result {
+	action == "list"
+	result := base_roles
+} else = result {
+	result := null
+}
+
 # Global admins, maintainers, observer_plus and observers can list hosts.
 allow {
-  object.type == "host"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
-  action == list
+	object.type == "host"
+	base_roles := {admin, maintainer, observer_plus, observer}
+	extra_roles := {gitops}
+	allowed_list_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Team admins, maintainers, observer_plus and observers can list hosts.
+# Team admins, maintainers, observer_plus and observers can list and selective_list hosts.
+# Gitops can selective_list hosts
 allow {
 	object.type == "host"
-  # If role is admin, maintainer, observer_plus or observer on any team.
-  team_role(subject, subject.teams[_].id) == [admin, maintainer, observer_plus, observer][_]
-	action == list
+	# If role is admin, maintainer, observer_plus or observer on any team.
+	base_roles := {admin, maintainer, observer_plus, observer}
+	# Or gitops for selective reads
+	extra_roles := {gitops}
+	allowed_list_roles(action, base_roles, extra_roles)[_] == team_role(subject, subject.teams[_].id)
 }
 
-# Allow read/write for global admin/maintainer.
+# Allow read for global admin/maintainer, selective_read for gitops.
 allow {
 	object.type == "host"
-  subject.global_role == [admin, maintainer][_]
-	action == [read, write][_]
+	base_roles := {admin, maintainer}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Global gitops can write hosts.
+# Global gitops, admin and mantainers can write hosts.
 allow {
 	object.type == "host"
-  subject.global_role == gitops
+	subject.global_role == [admin, maintainer, gitops][_]
 	action == write
 }
 
-# Allow read for global observer and observer_plus.
+# Allow read for global observer and observer_plus, selective_read for gitops.
 allow {
 	object.type == "host"
-	subject.global_role == [observer, observer_plus][_]
-	action == read
+	base_roles := {observer_plus, observer}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == subject.global_role
 }
 
-# Allow read for matching team admin/maintainer/observer/observer_plus.
+# Allow read for matching team admin/maintainer/observer/observer_plus, selective read for gitops.
 allow {
 	object.type == "host"
-	team_role(subject, object.team_id) == [admin, maintainer, observer, observer_plus][_]
-	action == read
+	base_roles := {admin, maintainer, observer, observer_plus}
+	extra_roles := {gitops}
+	allowed_read_roles(action, base_roles, extra_roles)[_] == team_role(subject, object.team_id)
 }
 
 # Team admins and maintainers can write to hosts of their own team
@@ -598,36 +632,20 @@ allow {
 # Apple and Windows MDM
 ##
 
-# Global admins and maintainers can read and write MDM config profiles.
+# Global admins, maintainers and gitops can read and write MDM config profiles.
 allow {
   object.type == "mdm_config_profile"
-  subject.global_role == [admin, maintainer][_]
+  subject.global_role == [admin, maintainer, gitops][_]
   action == [read, write][_]
 }
 
-# Global gitops can write MDM config profiles.
-allow {
-  object.type == "mdm_config_profile"
-  subject.global_role == gitops
-  action == write
-}
-
-# Team admins and maintainers can read and write MDM config profiles on their teams.
+# Team admins, maintainers and gitops can read and write MDM config profiles on their teams.
 allow {
   not is_null(object.team_id)
   object.team_id != 0
   object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == [admin, maintainer][_]
+  team_role(subject, object.team_id) == [admin, maintainer, gitops][_]
   action == [read, write][_]
-}
-
-# Team gitops can write MDM config profiles on their teams.
-allow {
-  not is_null(object.team_id)
-  object.team_id != 0
-  object.type == "mdm_config_profile"
-  team_role(subject, object.team_id) == gitops
-  action == write
 }
 
 # Global admins can read and write MDM apple information.

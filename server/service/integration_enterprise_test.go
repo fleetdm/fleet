@@ -1315,9 +1315,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
+		HostStatusWebhook: fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook",
+		},
 	}}, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -3889,7 +3895,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
-// TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -3904,7 +3910,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
-		Hostname: t.Name() + "foo.local",
+		Hostname: strings.Replace(t.Name()+"foo.local", "/", "_", -1),
 	})
 	require.NoError(t, err)
 	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -4036,6 +4042,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
+
+	// Attempt to retrieve a host by identifier should succeed
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
 
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
@@ -4667,7 +4676,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 500001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large.")
 
@@ -4777,7 +4786,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to sync run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 500001)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Script is too large.")
 
@@ -4964,7 +4973,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run with both script contents and id
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of "script_id" or "script_contents" can be provided.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
 	// attempt to run with unknown script id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
@@ -5383,10 +5392,10 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// file content is too large
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
+		"script2.sh", []byte(strings.Repeat("a", 500001)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
 	// invalid hashbang
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -5722,18 +5731,40 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output, sync_request)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_content_id, output, sync_request)
 VALUES
 	(%s ?,?,?,?,?,?, 1)`
 
 		args := []interface{}{}
+		var scID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	script_contents (md5_checksum, contents, created_at)
+VALUES
+	(?,?,?)`,
+				uuid.NewString(),
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			scID = uint(id)
+			return nil
+		})
 		if script.ID == 0 {
 			stmt = fmt.Sprintf(stmt, "", "")
 		} else {
 			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
 			args = append(args, script.ID)
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+		args = append(args, hostID, createdAt, execID, exitCode, scID, "")
 
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
@@ -5942,22 +5973,43 @@ VALUES
 
 	t.Run("get script results user message", func(t *testing.T) {
 		// add a script with an older created_at timestamp
-		var oldScriptID uint
+		var oldScriptID, oldScriptContentsID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			// create script_contents first
 			res, err := tx.ExecContext(ctx, `
 INSERT INTO
-	scripts (name, script_contents, created_at, updated_at)
+	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?,?)`,
-				"test-script-details-timeout.sh",
+	(?,?,?)`,
+
+				uuid.NewString(),
 				"echo test-script-details-timeout",
-				now.Add(-1*time.Hour),
 				now.Add(-1*time.Hour),
 			)
 			if err != nil {
 				return err
 			}
 			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			oldScriptContentsID = uint(id)
+
+			res, err = tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_content_id, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				oldScriptContentsID,
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err = res.LastInsertId()
 			if err != nil {
 				return err
 			}
@@ -6009,7 +6061,7 @@ VALUES
 			},
 		} {
 			t.Run(c.name, func(t *testing.T) {
-				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, ScriptContentID: oldScriptContentsID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
 
 				var resp getScriptResultResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
@@ -6867,7 +6919,7 @@ func (s *integrationEnterpriseTestSuite) TestAllSoftwareTitles() {
 	)
 }
 
-func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
+func (s *integrationEnterpriseTestSuite) TestLockUnlockWipeWindowsLinux() {
 	ctx := context.Background()
 	t := s.T()
 
@@ -6889,19 +6941,22 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "", *getHostResp.Host.MDM.PendingAction)
 
-	// try to lock/unlock the Windows host, fails because Windows MDM must be enabled
+	// try to lock/unlock/wipe the Windows host, fails because Windows MDM must be enabled
 	res := s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", winHost.ID), nil, http.StatusBadRequest)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", winHost.ID), nil, http.StatusBadRequest)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Windows MDM isn't turned on.")
 
-	// try to lock/unlock the Linux host succeeds, no MDM constraints
+	// try to lock/unlock/wipe the Linux host succeeds, no MDM constraints
 	s.Do("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", linuxHost.ID), nil, http.StatusNoContent)
 
 	// simulate a successful script result for the lock command
-	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost.ID, linuxHost.FleetPlatform())
+	status, err := s.ds.GetHostLockWipeStatus(ctx, linuxHost)
 	require.NoError(t, err)
 
 	var orbitScriptResp orbitPostScriptResultResponse
@@ -6923,6 +6978,12 @@ func (s *integrationEnterpriseTestSuite) TestLockUnlockWindowsLinux() {
 	require.Equal(t, "locked", *getHostResp.Host.MDM.DeviceStatus)
 	require.NotNil(t, getHostResp.Host.MDM.PendingAction)
 	require.Equal(t, "unlock", *getHostResp.Host.MDM.PendingAction)
+
+	// attempting to Wipe the linux host fails due to pending unlock, not because
+	// of MDM not enabled
+	res = s.DoRaw("POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", linuxHost.ID), nil, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host cannot be wiped until unlock is complete.")
 }
 
 // checks that the specified team/no-team has the Windows OS Updates profile with

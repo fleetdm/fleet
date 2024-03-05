@@ -923,6 +923,11 @@ type Service interface {
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
 
+	// GetScriptIDByName returns the ID of a script matching the provided name and team. If no team
+	// is provided, it will return the ID of the script with the provided name that is not
+	// associated with any team.
+	GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error)
+
 	// GetHostScript returns information about a host script execution.
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
 
@@ -956,4 +961,5 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint) error
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	WipeHost(ctx context.Context, hostID uint) error
 }

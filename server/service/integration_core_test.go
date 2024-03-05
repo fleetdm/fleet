@@ -1495,12 +1495,16 @@ func (s *integrationTestSuite) TestListHosts() {
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
-	})
+	globalPolicy0, err := s.ds.NewGlobalPolicy(
+		context.Background(), &user1.ID, fleet.PolicyPayload{
+			QueryID: &q.ID,
+		})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: ptr.Bool(false)}, time.Now(), false),
+	)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
@@ -1720,13 +1724,54 @@ func (s *integrationTestSuite) TestListHosts() {
 			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
 			require.Nil(t, h.Software[0].Vulnerabilities[0].ResolvedInVersion)
 		}
+		assert.Nil(t, h.Policies)
 	}
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false", "populate_policies", "false")
 	require.Len(t, resp.Hosts, 4)
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
+		assert.Nil(t, h.Policies)
+	}
+
+	// Populate policies for hosts. One policy was created earlier.
+	ctx := context.Background()
+	globalPolicy1, err := s.ds.NewGlobalPolicy(
+		ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+			Name:  "foobar0",
+			Query: "SELECT 0;",
+		},
+	)
+	require.NoError(t, err)
+
+	for _, host := range hosts {
+		// All hosts pass the globalPolicy1
+		err := s.ds.RecordPolicyQueryExecutions(
+			context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_policies", "true")
+	require.Len(t, resp.Hosts, len(hosts)+1) // +1 for the pending MDM host
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[0].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		} else if h.ID == hosts[2].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "fail", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		}
 	}
 }
 
@@ -5350,9 +5395,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"team_id", "1",
 	)
 
-	// lock/unlock a host
+	// lock/unlock/wipe a host
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -5376,6 +5422,16 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	body, headers := generateNewScriptMultipartRequest(t,
 		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// run a saved script by name without team id (should fail host not found)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host was not found in the datastore")
+
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
 	var delScriptResp deleteScriptResponse
@@ -6369,6 +6425,16 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	// 'No team' selected
+	countResp = countTargetsResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		http.StatusOK, &countResp,
+	)
+	assert.Equal(t, uint(2), countResp.TargetsCount)
+	assert.Equal(t, uint(0), countResp.TargetsOnline)
+	assert.Equal(t, uint(2), countResp.TargetsOffline)
+
 	// host id selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
@@ -7047,7 +7113,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 50)         // total number of cols
+	assert.Len(t, rows[0], 51)         // total number of cols
 
 	const (
 		idCol        = 3
@@ -9149,7 +9215,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 50)         // total number of cols
+	assert.Len(t, rows1[0], 51)         // total number of cols
 
 	var (
 		idIdx     int
@@ -9176,7 +9242,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 50)         // total number of cols
+	assert.Len(t, rows2[0], 51)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {
