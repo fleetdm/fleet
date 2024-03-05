@@ -5423,6 +5423,16 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
 
+	// run a saved script by name without team id (should fail host not found)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host was not found in the datastore")
+
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
+
 	// delete a saved script
 	var delScriptResp deleteScriptResponse
 	s.DoJSON("DELETE", "/api/latest/fleet/scripts/123", nil, http.StatusNotFound, &delScriptResp)

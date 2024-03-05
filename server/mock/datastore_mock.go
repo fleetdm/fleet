@@ -834,6 +834,8 @@ type DeleteScriptFunc func(ctx context.Context, id uint) error
 
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
 
+type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) (uint, error)
+
 type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
 type BatchSetScriptsFunc func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error
@@ -2078,6 +2080,9 @@ type DataStore struct {
 
 	ListScriptsFunc        ListScriptsFunc
 	ListScriptsFuncInvoked bool
+
+	GetScriptIDByNameFunc        GetScriptIDByNameFunc
+	GetScriptIDByNameFuncInvoked bool
 
 	GetHostScriptDetailsFunc        GetHostScriptDetailsFunc
 	GetHostScriptDetailsFuncInvoked bool
@@ -4966,6 +4971,13 @@ func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.Lis
 	s.ListScriptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScriptsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error) {
+	s.mu.Lock()
+	s.GetScriptIDByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetScriptIDByNameFunc(ctx, name, teamID)
 }
 
 func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {

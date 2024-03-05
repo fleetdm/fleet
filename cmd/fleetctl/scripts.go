@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -18,18 +19,28 @@ func runScriptCommand() *cli.Command {
 	return &cli.Command{
 		Name:      "run-script",
 		Aliases:   []string{"run_script"},
-		Usage:     `Run a live script on one host and get results back.`,
+		Usage:     `Run a live script on one host and get results back (5 minute timeout).`,
 		UsageText: `fleetctl run-script [options]`,
 		Flags: []cli.Flag{
 			&cli.StringFlag{
 				Name:     "script-path",
 				Usage:    "The path to the script.",
-				Required: true,
+				Required: false,
 			},
 			&cli.StringFlag{
 				Name:     "host",
 				Usage:    "A host, specified by hostname, serial number, UUID, osquery host ID, or node key.",
 				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "script-name",
+				Usage:    "Name of saved script to run.",
+				Required: false,
+			},
+			&cli.UintFlag{
+				Name:     "team-id",
+				Usage:    `Available in Fleet Premium. ID of the team that the saved script belongs to. 0 targets hosts assigned to “No team” (default: 0).`,
+				Required: false,
 			},
 			configFlag(),
 			contextFlag(),
@@ -51,8 +62,20 @@ func runScriptCommand() *cli.Command {
 			}
 
 			path := c.String("script-path")
-			if err := validateScriptPath(path); err != nil {
-				return err
+			name := c.String("script-name")
+
+			if path == "" && name == "" {
+				return errors.New("One of --script-path or --script-name must be specified.")
+			}
+
+			if path != "" && name != "" {
+				return errors.New("Only one of --script-path or --script-name is allowed.")
+			}
+
+			if path != "" {
+				if err := validateScriptPath(path); err != nil {
+					return err
+				}
 			}
 
 			ident := c.String("host")
@@ -75,19 +98,30 @@ func runScriptCommand() *cli.Command {
 				return errors.New(fleet.RunScriptHostOfflineErrMsg)
 			}
 
-			b, err := os.ReadFile(path)
-			if err != nil {
-				return err
-			}
+			var b []byte
+			if path != "" {
+				b, err = os.ReadFile(path)
+				if err != nil {
+					return err
+				}
 
-			if err := fleet.ValidateHostScriptContents(string(b)); err != nil {
-				return err
+				// validate script contents with isSavedScript flag set to false so that we check
+				// for the shorter
+				if err := fleet.ValidateHostScriptContents(string(b), false); err != nil {
+					if err.Error() == fleet.RunScripUnsavedMaxLenErrMsg {
+						return errors.New("Script is too large. Script referenced by '--script-path' is limited to 10,000 characters. To run larger script save it to Fleet and use '--script-name'.")
+					}
+					return err
+				}
 			}
 
 			fmt.Println("\nScript is running. Please wait for it to finish...")
 
-			res, err := client.RunHostScriptSync(h.ID, b)
+			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team-id"))
 			if err != nil {
+				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
+					return errors.New("Only one of --script-path or --team-id is allowed.")
+				}
 				return err
 			}
 
@@ -144,7 +178,7 @@ Output {{- if .ExecTimeout }} before timeout {{- end }}:
 		data.ExitMessage = "Script ran successfully."
 	}
 
-	if len(res.Output) >= fleet.MaxScriptRuneLen && utf8.RuneCountInString(res.Output) >= fleet.MaxScriptRuneLen {
+	if len(res.Output) >= fleet.UnsavedScriptMaxRuneLen && utf8.RuneCountInString(res.Output) >= fleet.UnsavedScriptMaxRuneLen {
 		data.Output = "Fleet records the last 10,000 characters to prevent downtime.\n\n" + res.Output
 	} else {
 		data.Output = res.Output

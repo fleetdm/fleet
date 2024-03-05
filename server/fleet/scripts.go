@@ -26,13 +26,15 @@ type Script struct {
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
 	return "script"
 }
 
-func (s *Script) Validate() error {
+func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
@@ -40,7 +42,8 @@ func (s *Script) Validate() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {
+	// validate the script contents as if it were alreay a saved script
+	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}
 
@@ -132,15 +135,51 @@ func (hs *HostScriptDetail) setLastExecution(executionID *string, executedAt *ti
 }
 
 type HostScriptRequestPayload struct {
-	HostID         uint   `json:"host_id"`
-	ScriptID       *uint  `json:"script_id"`
-	ScriptContents string `json:"script_contents"`
+	HostID          uint   `json:"host_id"`
+	ScriptID        *uint  `json:"script_id"`
+	ScriptContents  string `json:"script_contents"`
+	ScriptContentID uint   `json:"-"`
+	ScriptName      string `json:"script_name"`
+	TeamID          uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
 	// SyncRequest is filled automatically based on the endpoint used to create
 	// the execution request (synchronous or asynchronous).
 	SyncRequest bool `json:"-"`
+}
+
+func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) error {
+	if r.ScriptID != nil {
+		switch {
+		case r.ScriptContents != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_contents' is allowed.`)
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
+		}
+	}
+	if r.ScriptContents != "" {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
+		}
+	}
+	//
+	// TODO: script_name and team_id are only allowed for synchronous requests; they probably should be allowed for asynchronous requests too, but we need to get a product decision on this
+	if waitForResult <= 0 {
+		switch {
+		case r.ScriptName != "":
+			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
+		}
+	}
+
+	return nil
 }
 
 type HostScriptResultPayload struct {
@@ -191,7 +230,7 @@ type HostScriptResult struct {
 
 	// TeamID is only used for authorization, it must be set to the team id of
 	// the host when checking authorization and is otherwise not set.
-	TeamID *uint `json:"team_id" db:"-"`
+	TeamID *uint `json:"team_id" db:"-"` // TODO: should we omit this from the json result?
 
 	// Message is the UserMessage associated with a response from an execution.
 	// It may be set by the endpoint and included in the resulting JSON but it is
@@ -245,26 +284,36 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const (
+	SavedScriptMaxRuneLen   = 500000
+	UnsavedScriptMaxRuneLen = 10000
+)
 
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
-func ValidateHostScriptContents(s string) error {
+func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
 		return errors.New("Script contents must not be empty.")
 	}
 
+	maxLen := SavedScriptMaxRuneLen
+	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	if !isSavedScript {
+		maxLen = UnsavedScriptMaxRuneLen
+		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
+	}
+
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
-	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if len(s) > utf8.UTFMax*maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if utf8.RuneCountInString(s) > maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we

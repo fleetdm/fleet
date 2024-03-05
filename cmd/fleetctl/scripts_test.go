@@ -45,6 +45,15 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 	}
+	ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
+		return 1, nil
+	}
+	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) ([]*uint, error) {
+		return []*uint{}, nil
+	}
+	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+		return []byte("echo hello world"), nil
+	}
 
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
@@ -54,6 +63,8 @@ func TestRunScriptCommand(t *testing.T) {
 	type testCase struct {
 		name           string
 		scriptPath     func() string
+		scriptName     string
+		teamID         *uint
 		scriptResult   *fleet.HostScriptResult
 		expectOutput   string
 		expectErrMsg   string
@@ -86,11 +97,27 @@ func TestRunScriptCommand(t *testing.T) {
 			expectErrMsg: `Interpreter not supported. Bash scripts must run in "#!/bin/sh”.`,
 		},
 		{
-			name: "script too long",
+			name: "script too long (unsaved)",
 			scriptPath: func() string {
 				return writeTmpScriptContents(t, maxChars, ".sh")
 			},
-			expectErrMsg: `Script is too large. It's limited to 10,000 characters (approximately 125 lines).`,
+			expectErrMsg: "Script is too large. Script referenced by '--script-path' is limited to 10,000 characters. To run larger script save it to Fleet and use '--script-name'.",
+		},
+		{
+			name:         "script-path and script-name disallowed",
+			scriptPath:   generateValidPath,
+			scriptName:   "foo",
+			expectErrMsg: `Only one of --script-path or --script-name is allowed.`,
+		},
+		{
+			name:         "missing one of script-path and script-nqme",
+			expectErrMsg: `One of --script-path or --script-name must be specified.`,
+		},
+		{
+			name:         "script-path and team-id disallowed",
+			scriptPath:   generateValidPath,
+			teamID:       ptr.Uint(1),
+			expectErrMsg: `Only one of --script-path or --team-id is allowed.`,
 		},
 		{
 			name:         "script empty",
@@ -255,18 +282,33 @@ Fleet records the last 10,000 characters to prevent downtime.
 			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: true}}, nil
 			}
+		} else {
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
+			}
 		}
 	}
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			setupDS(t, c)
-			scriptPath := c.scriptPath()
-			defer os.Remove(scriptPath)
+			args := []string{"run-script", "--host", "host1"}
 
-			b, err := runAppNoChecks([]string{
-				"run-script", "--host", "host1", "--script-path", scriptPath,
-			})
+			if c.scriptPath != nil {
+				scriptPath := c.scriptPath()
+				defer os.Remove(scriptPath)
+				args = append(args, "--script-path", scriptPath)
+			}
+
+			if c.scriptName != "" {
+				args = append(args, "--script-name", c.scriptName)
+			}
+
+			if c.teamID != nil {
+				args = append(args, "--team-id", fmt.Sprintf("%d", *c.teamID))
+			}
+
+			b, err := runAppNoChecks(args)
 			if c.expectErrMsg != "" {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), c.expectErrMsg)
