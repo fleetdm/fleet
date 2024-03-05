@@ -10,7 +10,7 @@ func init() {
 }
 
 func Up_20240304143416(tx *sql.Tx) error {
-	stmt := `ALTER TABLE scripts DROP COLUMN script_contents;`
+	stmt := `ALTER TABLE scripts DROP COLUMN script_contents`
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("remove scripts.script_contents column: %w", err)
 	}

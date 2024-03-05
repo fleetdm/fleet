@@ -457,9 +457,9 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
 VALUES
-	(%s ?,?,?,?,?,?)`
+	(%s ?,?,?,?,?)`
 
 		args := []interface{}{}
 		if script.ID == 0 {
@@ -468,7 +468,7 @@ VALUES
 			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
 			args = append(args, script.ID)
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+		args = append(args, hostID, createdAt, execID, exitCode, "")
 
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
