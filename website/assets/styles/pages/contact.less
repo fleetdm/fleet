@@ -2,7 +2,8 @@
 
   label {
     font-weight: 700;
-    font-size: 18px;
+    font-size: 14px;
+    line-height: 150%;
   }
   a {
     font-size: 14px;
@@ -11,8 +12,12 @@
   }
   input {
     border-radius: 8px;
+    height: 48px;
   }
-
+  .form-control {
+    color: #515774;
+    font-size: 14px;
+  }
   .btn-primary {
     display: flex;
     padding: 16px 32px;
@@ -86,6 +91,11 @@
       width: 50%;
       // transform: translateX(416px);
     }
+  }
+  [purpose='devices-note'] {
+    font-size: 12px;
+    line-height: 150%;
+    color: @core-fleet-black-75;
   }
   [purpose='form-container'] {
     padding-right: 60px;
