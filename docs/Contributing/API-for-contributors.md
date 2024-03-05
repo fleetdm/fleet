@@ -1347,11 +1347,15 @@ If the `name` is not already associated with an existing team, this API route cr
             "path": "path/to/profile1.mobileconfig"
             "labels": ["Label 1", "Label 2"]
           },
+          {
+            "path": "path/to/profile2.json"
+            "labels": ["Label 3", "Label 4"]
+          },
           "enable_disk_encryption": true
         },
         "windows_settings": {
           "custom_settings": {
-            "path": "path/to/profile1.xml"
+            "path": "path/to/profile3.xml"
             "labels": ["Label 1", "Label 2"]
           },
         }
