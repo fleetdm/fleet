@@ -15,7 +15,10 @@
     .form-field--input {
       margin: 0;
     }
+  }
 
+  &__wrapper,
+  &__save-modal-form {
     .critical-checkbox-wrapper {
       // override form child width: 100%
       width: auto;
