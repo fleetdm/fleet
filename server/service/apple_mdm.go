@@ -1841,6 +1841,10 @@ type bootstrapPackageMetadataRequest struct {
 	// "write" instead of a "read", this is needed specifically for the gitops
 	// user which is a write-only user, but needs to call this endpoint to check
 	// if it needs to upload the bootstrap package (if the hashes are different).
+	//
+	// NOTE: this parameter is going to be removed in a future version.
+	// Prefer other ways to allow gitops read access.
+	// For context, see: https://github.com/fleetdm/fleet/issues/15337#issuecomment-1932878997
 	ForUpdate bool `query:"for_update,optional"`
 }
 
