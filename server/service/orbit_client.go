@@ -302,8 +302,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				return err
 			}
 		},
-		retry.WithInterval(OrbitRetryInterval()),
+		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
+		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
 	); err != nil {
 		return "", fmt.Errorf("orbit node key enroll failed, attempts=%d", constant.OrbitEnrollMaxRetries)
 	}
@@ -402,7 +403,7 @@ func (oc *OrbitClient) setLastRecordedError(err error) {
 	oc.lastRecordedErr = fmt.Errorf("%s: %w", time.Now().UTC().Format("2006-01-02T15:04:05Z"), err)
 }
 
-func OrbitRetryInterval() time.Duration {
+func orbitEnrollRetryInterval() time.Duration {
 	interval := os.Getenv("FLEETD_ENROLL_RETRY_INTERVAL")
 	if interval != "" {
 		d, err := time.ParseDuration(interval)
