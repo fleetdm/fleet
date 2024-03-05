@@ -71,10 +71,14 @@
       .policy-resolution-wrapper {
         display: flex;
         align-items: center;
-        &:not(.policy-form--editing) {
-          textarea:hover {
+        width: fit-content;
+        &:not(.edit-query-form--editing) {
+          &:hover {
             cursor: pointer;
-            color: $core-vibrant-blue;
+            * {
+              color: $core-vibrant-blue;
+              cursor: pointer;
+            }
           }
         }
       }
@@ -146,14 +150,6 @@
     white-space: normal;
     background-color: transparent;
     overflow: hidden;
-    &:hover:not(.focus-visible):not(.no-hover) {
-      color: $core-vibrant-blue;
-      cursor: pointer;
-    }
-    &.focus-visible {
-      outline: 0;
-      cursor: text;
-    }
   }
 
   &__policy-resolution {

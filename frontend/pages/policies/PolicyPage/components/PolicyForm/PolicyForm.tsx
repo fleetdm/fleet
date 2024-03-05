@@ -304,23 +304,52 @@ const PolicyForm = ({
     );
   };
 
-  const policyNameClasses = classnames("policy-name-wrapper", {
+  const editName = () => {
+    if (!isEditingName) {
+      setIsEditingName(true);
+    }
+  };
+
+  const editDescription = () => {
+    if (!isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  };
+
+  const editResolution = () => {
+    if (!isEditingResolution) {
+      setIsEditingResolution(true);
+    }
+  };
+
+  const policyNameWrapperClasses = classnames("policy-name-wrapper", {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const policyDescriptionClasses = classnames("policy-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const policyDescriptionWrapperClasses = classnames(
+    "policy-description-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
-  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
-    [`${baseClass}--editing`]: isEditingResolution,
-  });
+  const policyResolutionWrapperClasses = classnames(
+    "policy-resolution-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingResolution,
+    }
+  );
 
   const renderName = () => {
     if (isEditMode) {
       return (
         <>
-          <div className={policyNameClasses}>
+          <div
+            className={policyNameWrapperClasses}
+            onFocus={() => setIsEditingName(true)}
+            onBlur={() => setIsEditingName(false)}
+            onClick={editName}
+          >
             <AutoSizeInputField
               name="policy-name"
               placeholder="Add name here"
@@ -329,21 +358,14 @@ const PolicyForm = ({
               inputClassName={`${baseClass}__policy-name`}
               maxLength={160}
               onChange={setLastEditedQueryName}
-              onFocus={() => setIsEditingName(true)}
-              onBlur={() => setIsEditingName(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingName(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingName ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingName ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
         </>
       );
@@ -362,7 +384,12 @@ const PolicyForm = ({
     if (isEditMode) {
       return (
         <>
-          <div className={policyDescriptionClasses}>
+          <div
+            className={policyDescriptionWrapperClasses}
+            onFocus={() => setIsEditingDescription(true)}
+            onBlur={() => setIsEditingDescription(false)}
+            onClick={editDescription}
+          >
             <AutoSizeInputField
               name="policy-description"
               placeholder="Add description here."
@@ -370,21 +397,14 @@ const PolicyForm = ({
               inputClassName={`${baseClass}__policy-description`}
               maxLength={250}
               onChange={setLastEditedQueryDescription}
-              onFocus={() => setIsEditingDescription(true)}
-              onBlur={() => setIsEditingDescription(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingDescription(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
         </>
       );
@@ -398,7 +418,12 @@ const PolicyForm = ({
       return (
         <div className={`form-field ${baseClass}__policy-resolve`}>
           <div className="form-field__label">Resolve:</div>
-          <div className={policyResolutionClasses}>
+          <div
+            className={policyResolutionWrapperClasses}
+            onFocus={() => setIsEditingResolution(true)}
+            onBlur={() => setIsEditingResolution(false)}
+            onClick={editResolution}
+          >
             <AutoSizeInputField
               name="policy-resolution"
               placeholder="Add resolution here."
@@ -406,21 +431,14 @@ const PolicyForm = ({
               inputClassName={`${baseClass}__policy-resolution`}
               maxLength={500}
               onChange={setLastEditedQueryResolution}
-              onFocus={() => setIsEditingResolution(true)}
-              onBlur={() => setIsEditingResolution(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingResolution}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingResolution(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
         </div>
       );
