@@ -36,28 +36,9 @@ type enterpriseNoMdmIntegrationGitopsTestSuite struct {
 func (s *enterpriseNoMdmIntegrationGitopsTestSuite) SetupSuite() {
 	s.withDS.SetupSuite("enterpriseNoMdmIntegrationGitopsTestSuite")
 
-	//appConf, err := s.ds.AppConfig(context.Background())
-	//require.NoError(s.T(), err)
-	//appConf.MDM.EnabledAndConfigured = true
-	//appConf.MDM.AppleBMEnabledAndConfigured = true
-	//err = s.ds.SaveAppConfig(context.Background(), appConf)
-	//require.NoError(s.T(), err)
-	//
-	//testCert, testKey, err := appleMdm.NewSCEPCACertKey()
-	//require.NoError(s.T(), err)
-	//testCertPEM := tokenpki.PEMCertificate(testCert.Raw)
-	//testKeyPEM := tokenpki.PEMRSAPrivateKey(testKey)
-
 	fleetCfg := config.TestConfig()
-	//config.SetTestMDMConfig(s.T(), &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
 	fleetCfg.Osquery.EnrollCooldown = 0
 
-	//mdmStorage, err := s.ds.NewMDMAppleMDMStorage(testCertPEM, testKeyPEM)
-	//require.NoError(s.T(), err)
-	//depStorage, err := s.ds.NewMDMAppleDEPStorage(*testBMToken)
-	//require.NoError(s.T(), err)
-	//scepStorage, err := s.ds.NewSCEPDepot(testCertPEM, testKeyPEM)
-	//require.NoError(s.T(), err)
 	redisPool := redistest.SetupRedis(s.T(), "zz", false, false, false)
 
 	serverConfig := service.TestServerOpts{
@@ -65,11 +46,7 @@ func (s *enterpriseNoMdmIntegrationGitopsTestSuite) SetupSuite() {
 			Tier: fleet.TierPremium,
 		},
 		FleetConfig: &fleetCfg,
-		//MDMStorage:  mdmStorage,
-		//DEPStorage:  depStorage,
-		//SCEPStorage: scepStorage,
-		Pool: redisPool,
-		//APNSTopic:   "com.apple.mgmt.External.10ac3ce5-4668-4e58-b69a-b2b5ce667589",
+		Pool:        redisPool,
 	}
 	users, server := service.RunServerForTestsWithDS(s.T(), s.ds, &serverConfig)
 	s.T().Setenv("FLEET_SERVER_ADDRESS", server.URL) // fleetctl always uses this env var in tests
