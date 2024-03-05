@@ -1087,7 +1087,6 @@ const ManageHostsPage = ({
     setIsUpdatingHosts(true);
 
     const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-    const labelId = selectedLabel?.id;
 
     try {
       await (isAllMatchingHostsSelected
@@ -1095,7 +1094,7 @@ const ManageHostsPage = ({
             teamId,
             query: searchQuery,
             status,
-            labelId,
+            labelId: selectedLabel?.id,
             currentTeam: teamIdForApi,
             policyId,
             policyResponse,
