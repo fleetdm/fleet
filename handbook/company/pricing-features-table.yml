@@ -847,9 +847,9 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
-- industryName: Asset discovery* #Coming soon (TBD)
+- industryName: Asset discovery
   tier: Premium
+  comingSoonOn: 2024-06-30
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
-  comingSoonOn: 2024-06-30
