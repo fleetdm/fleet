@@ -511,6 +511,7 @@ const EditQueryForm = ({
           <Icon
             name="pencil"
             className={`edit-icon ${isEditingName ? "hide" : ""}`}
+            size="small-medium"
           />
         </div>
       );
@@ -549,6 +550,7 @@ const EditQueryForm = ({
           <Icon
             name="pencil"
             className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+            size="small-medium"
           />
         </div>
       );
