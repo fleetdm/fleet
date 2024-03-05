@@ -255,7 +255,7 @@ func TestAutomationsSchedule(t *testing.T) {
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
-	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, teamID *uint, daysCount int) (int, []uint, error) {
 		defer func() {
 			select {
 			case <-calledOnce:
@@ -268,7 +268,7 @@ func TestAutomationsSchedule(t *testing.T) {
 				close(calledOnce)
 			}
 		}()
-		return 10, 6, nil
+		return 10, []uint{1, 2, 3, 4, 5, 6}, nil
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())

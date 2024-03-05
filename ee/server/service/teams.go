@@ -519,6 +519,9 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 	mdmHostSerials := make([]string, 0, len(hosts))
 	for _, host := range hosts {
 		hostIDs = append(hostIDs, host.ID)
+		// FIXME: These checks don't work here because host.MDMInfo is not being populated by
+		// ds.ListHosts call (it populates host.MDM instead). This may be happening in other
+		// places too.
 		if host.MDMInfo.IsPendingDEPFleetEnrollment() || host.MDMInfo.IsDEPFleetEnrolled() {
 			mdmHostSerials = append(mdmHostSerials, host.HardwareSerial)
 		}
@@ -538,7 +541,7 @@ func (svc *Service) DeleteTeam(ctx context.Context, teamID uint) error {
 		}
 
 		if len(mdmHostSerials) > 0 {
-			if err := worker.QueueMacosSetupAssistantJob(
+			if _, err := worker.QueueMacosSetupAssistantJob(
 				ctx,
 				svc.ds,
 				svc.logger,
@@ -866,22 +869,31 @@ func (svc *Service) createTeamFromSpec(
 		}
 	}
 
+	invalid := &fleet.InvalidArgumentError{}
 	if enableDiskEncryption && !appCfg.MDM.AtLeastOnePlatformEnabledAndConfigured() {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm",
-			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`))
+		invalid.Append(
+			"mdm",
+			`Couldn't edit enable_disk_encryption. Neither macOS MDM nor Windows is turned on. Visit https://fleetdm.com/docs/using-fleet to learn how to turn on MDM.`,
+		)
 	}
 
 	var hostExpirySettings fleet.HostExpirySettings
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
-			return nil, ctxerr.Wrap(
-				ctx, fleet.NewInvalidArgumentError(
-					"host_expiry_settings.host_expiry_window",
-					`When enabling host expiry, host expiry window must be a positive number.`,
-				),
+			invalid.Append(
+				"host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.",
 			)
 		}
 		hostExpirySettings = *spec.HostExpirySettings
+	}
+
+	hostStatusWebhook := fleet.HostStatusWebhookSettings{}
+	if spec.WebhookSettings.HostStatusWebhook != nil {
+		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
+		hostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+	}
+	if invalid.HasErrors() {
+		return nil, ctxerr.Wrap(ctx, invalid)
 	}
 
 	if dryRun {
@@ -901,6 +913,9 @@ func (svc *Service) createTeamFromSpec(
 				MacOSSetup:           macOSSetup,
 			},
 			HostExpirySettings: hostExpirySettings,
+			WebhookSettings: fleet.TeamWebhookSettings{
+				HostStatusWebhook: hostStatusWebhook,
+			},
 		},
 		Secrets: secrets,
 	})
@@ -1038,16 +1053,23 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	// if host_expiry_settings are not provided, do not change them
+	invalid := &fleet.InvalidArgumentError{}
 	if spec.HostExpirySettings != nil {
 		if spec.HostExpirySettings.HostExpiryEnabled && spec.HostExpirySettings.HostExpiryWindow <= 0 {
-			return ctxerr.Wrap(
-				ctx, fleet.NewInvalidArgumentError(
-					"host_expiry_settings.host_expiry_window",
-					`When enabling host expiry, host expiry window must be a positive number.`,
-				),
+			invalid.Append(
+				"host_expiry_settings.host_expiry_window", "When enabling host expiry, host expiry window must be a positive number.",
 			)
 		}
 		team.Config.HostExpirySettings = *spec.HostExpirySettings
+	}
+
+	// If host status webhook is not provided, do not change it
+	if spec.WebhookSettings.HostStatusWebhook != nil {
+		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
+		team.Config.WebhookSettings.HostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+	}
+	if invalid.HasErrors() {
+		return ctxerr.Wrap(ctx, invalid)
 	}
 
 	if dryRun {

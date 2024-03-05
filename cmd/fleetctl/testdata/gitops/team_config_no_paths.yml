@@ -4,10 +4,11 @@ team_settings:
     - secret: "SampleSecret123"
     - secret: "ABC"
   webhook_settings:
-    failing_policies_webhook:
-      enable_failing_policies_webhook: true
-      destination_url: https://example.tines.com/webhook
-      policy_ids: [1, 2, 3, 4, 5, 6 ,7, 8, 9]
+    host_status_webhook:
+      days_count: 14
+      destination_url: https://example.com/host_status_webhook
+      enable_host_status_webhook: true
+      host_percentage: 25
   features:
     enable_host_users: true
     enable_software_inventory: true

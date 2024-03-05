@@ -1034,6 +1034,8 @@ const ManageHostsPage = ({
     setIsUpdatingHosts(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
+    const currentTeam = teamIdForApi;
+
     let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     if (isAllMatchingHostsSelected) {
@@ -1044,6 +1046,7 @@ const ManageHostsPage = ({
         query: searchQuery,
         status,
         labelId,
+        currentTeam,
       });
     }
 

@@ -185,35 +185,6 @@ Some of the data is forwarded to [Datadog](https://us5.datadoghq.com/dashboard/7
 ## Rituals
 <rituals :rituals="rituals['handbook/product-design/product-design.rituals.yml']"></rituals>
 
-<!-- TODO: Transfer to yaml 
-Directly Responsible Individuals (DRI) engage in the ritual(s) below at the frequency specified.
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-------------------------|:----------------------------------------------------|-------------------|
-| Design sprint review | Sprintly (Thursday) | After the last estimation session, the Head of Product Design reviews the board with each group designer and de-prioritizes all design issues that were not estimated. The Head of Product Design also collects all items that are product-driven and puts them in the 🎁🗣 Feature fest meeting agenda to consider for continuing work. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
-| 🎁 Feature fest prep | Sprintly (Thursday) | The Head of Product Design reviews the agenda and pre-comments on items in order to be well-prepared for the discussion. | Noah Talerman |
-| 🎁🗣 Feature fest  | Sprintly (Thursday) | We make a decision regarding which customer and community feature requests can be committed to in the next six weeks. We create issues for any requests that don't already have one. | Noah Talerman |
-| 🎁 Feature fest cleanup | Sprintly (Thursday) | Clean up the agenda in anticipation of the next meeting | Noah Talerman |
-| Design sprint kickoff | Sprintly (Friday) | The Head of Product Design introduces and determines the order of the newly prioritized list of work with each group designer | Noah Talerman |
-| 🗣 Product office hours  | Weekly (Tuesday) | Ask questions to the product team | Noah Talerman |
-| Sprint kickoff review | Sprintly (Monday) | After each sprint kickoff, the Head of Product Design reviews the Estimated column with each group EM and de-prioritizes the features that were not included in the sprint and prepares recommended highlights for the release notes. The number of de-prioritized issues should be recorded in the KPI spreadsheet. | Noah Talerman |
-| 🦢🗣 Design review (#g-mdm)  | Daily | Review designs from the MDM team | Marko Lisica |
-| 🦢🗣 Design review (#g-endpoint-ops)   | Daily | Review designs from the Endpoint ops team | Rachael Shaw |
-| Product development process review | Sprintly | CEO, Director of Product Development, and Head of Product get together to review boards and process to make sure everything still makes sense | Noah Talerman |
-| Maintenance | Weekly (Friday) | Head of Product Design checks the latest versions of relevant platforms, updates the maintenance tracker, and notifies the #help-product-design Slack channel. | Noah Talerman |
-| Quality check  | Daily         | Every day, Head of Product design will review the "Settled" column on the drafting board to ensure all product action items are complete.                                | Noah Talerman |
-| Product confirm and celebrate                 | Weekly (Wednesday)       | The Head of Product meets with the designers and product managers to discuss completed user stories. They also verify all updates to documentation, communications, guides, and the pricing and transparency pages, ensuring everything is set for the next steps.                                      | Noah Talerman            |
-| Pre-sprint prioritization          | Sprintly (Monday)        | The Head of Product Design and each group's EM meet before each sprint to align on priorities and discuss what stories weren't completed in the previous sprint. Head of Product Design records number of stories that weren't completed in the "Stories dropped" product KPI.                                                                                                                                                              | Noah Talerman            |
-| Bug round-up   | Mid-sprint | Head of Product Design will compile a list of churned bugs, including issue numbers, specifics, and age. They will also notify the Customer Success team of any churned bugs that have customer tags  | Noah Talerman |
-| Churned bug review                            | Mid-sprint     | The Head of Product Design meets with the Head of Product Development to examine churned bugs and categorize them as either schedule, needs prioritization, or de-prioritize.                                                                    | Churned bug clean-up | Mid-sprint  | Following the churned bug review, Head of Product Design completes the churned bug clean-up, ensuring all necessary follow-up tasks are actioned to classify bugs as schedule, needs prioritization, or de-prioritized. This may include relocating bug tickets, adjusting labels, communicating with stakeholders, writing documentation, and closing issues. | Noah Talerman |                                                                 | Noah Talerman            |
-| Stand-up (#g-digital-experience)           | Daily (Monday - Thursday) | The Digital Experience team meets to discuss completed tasks, upcoming work, and address any questions. | Mike Thomas |
-| Prioritization session (#g-digital-experience) | Sprintly                | The website product team meets to prioritize tasks for the upcoming sprint. | Mike Thomas |
-| Design review (#g-digital-experience)      | Daily (Monday - Thursday) | Review designs from the website team.                                       | Mike Thomas |
-| PMMs R Us                     | Weekly (Sunday)         | The CEO meets with the Head of Design to discuss product marketing strategies. | Mike Thomas |
-
-                                                            |
--->
-
 
 #### Stubs
 The following stubs are included only to make links backward compatible.

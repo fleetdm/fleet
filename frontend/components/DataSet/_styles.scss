@@ -1,7 +1,18 @@
 .data-set {
   font-size: $x-small;
+  min-width: max-content;
 
   dt {
     font-weight: $bold;
+    display: flex;
+    gap: $pad-xsmall; // For deprecated sandbox icons
+  }
+
+  dd {
+    display: flex;
+    gap: $pad-small;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }

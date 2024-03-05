@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from "react";
 import classnames from "classnames";
-import { Row } from "react-table";
+import { Row, UseExpandedRowProps } from "react-table";
 import ReactTooltip from "react-tooltip";
 import useDeepEffect from "hooks/useDeepEffect";
 
@@ -34,7 +34,7 @@ interface IRowProps extends Row {
   };
 }
 
-interface ITableContainerProps {
+interface ITableContainerProps<T = any> {
   columnConfigs: any; // TODO: Figure out type
   data: any; // TODO: Figure out type
   isLoading: boolean;
@@ -87,7 +87,13 @@ interface ITableContainerProps {
   customControl?: () => JSX.Element;
   stackControls?: boolean;
   onSelectSingleRow?: (value: Row | IRowProps) => void;
-  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as key */
+  /** This is called when you click on a row. This was added as `onSelectSingleRow`
+   * only work if `disableMultiRowSelect` is also set to `true`. TODO: figure out
+   * if we want to keep this
+   */
+  onClickRow?: (row: T) => void;
+  /** Use for clientside filtering: Use key global for filtering on any column, or use column id as
+   * key */
   filters?: Record<string, string | number | boolean>;
   renderCount?: () => JSX.Element | null;
   renderFooter?: () => JSX.Element | null;
@@ -101,7 +107,7 @@ const baseClass = "table-container";
 const DEFAULT_PAGE_SIZE = 20;
 const DEFAULT_PAGE_INDEX = 0;
 
-const TableContainer = ({
+const TableContainer = <T,>({
   columnConfigs,
   data,
   filters,
@@ -144,12 +150,13 @@ const TableContainer = ({
   customControl,
   stackControls,
   onSelectSingleRow,
+  onClickRow,
   renderCount,
   renderFooter,
   setExportRows,
   resetPageIndex,
   disableTableHeader,
-}: ITableContainerProps): JSX.Element => {
+}: ITableContainerProps<T>) => {
   const [searchQuery, setSearchQuery] = useState(defaultSearchQuery);
   const [sortHeader, setSortHeader] = useState(defaultSortHeader || "");
   const [sortDirection, setSortDirection] = useState(
@@ -437,6 +444,7 @@ const TableContainer = ({
                 primarySelectAction={primarySelectAction}
                 secondarySelectActions={secondarySelectActions}
                 onSelectSingleRow={onSelectSingleRow}
+                onClickRow={onClickRow}
                 onResultsCountChange={onResultsCountChange}
                 isClientSidePagination={isClientSidePagination}
                 onClientSidePaginationChange={onClientSidePaginationChange}

@@ -1,0 +1,62 @@
+name: "Workstations"
+team_settings:
+  features:
+    enable_host_users: true
+    enable_software_inventory: true
+  host_expiry_settings:
+    host_expiry_enabled: false
+    host_expiry_window: 0
+  secrets:
+    - secret: $DOGFOOD_WORKSTATIONS_ENROLL_SECRET
+agent_options:
+  path: ../lib/agent-options.yml
+controls:
+  enable_disk_encryption: true
+  macos_settings:
+    custom_settings:
+      - path: ../lib/configuration-profiles/macos-automatic-updates.mobileconfig
+      - path: ../lib/configuration-profiles/macos-date-time.mobileconfig
+      - path: ../lib/configuration-profiles/macos-chrome-enrollment.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-bluetooth-file-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-content-caching.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-account.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-guest-shares.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-internet-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-media-sharing.mobileconfig
+      - path: ../lib/configuration-profiles/macos-disable-safari-safefiles.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-doh.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-firewall-logging.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enable-gatekeeper.mobileconfig
+      - path: ../lib/configuration-profiles/macos-enforce-library-validation.mobileconfig
+      - path: ../lib/configuration-profiles/macos-firewall.mobileconfig
+      - path: ../lib/configuration-profiles/macos-full-disk-access-for-fleetd.mobileconfig
+      - path: ../lib/configuration-profiles/macos-limit-ad-tracking.mobileconfig
+      - path: ../lib/configuration-profiles/macos-misc.mobileconfig
+      - path: ../lib/configuration-profiles/macos-password.mobileconfig
+      - path: ../lib/configuration-profiles/macos-prevent-autologon.mobileconfig
+      - path: ../lib/configuration-profiles/macos-secure-terminal-keyboard.mobileconfig
+  macos_setup:
+    bootstrap_package: ""
+    enable_end_user_authentication: true
+    macos_setup_assistant: null
+  macos_updates:
+    deadline: "2023-12-19"
+    minimum_version: "14.2"
+  windows_settings:
+    custom_settings: null
+  windows_updates:
+    deadline_days: 7
+    grace_period_days: 2
+  scripts:
+    - path: ../lib/collect-fleetd-logs.sh
+    - path: ../lib/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/windows-remove-fleetd.ps1
+    - path: ../lib/windows-turn-off-mdm.ps1
+policies:
+  - path: ../lib/macos-device-health.policies.yml
+  - path: ../lib/windows-device-health.policies.yml
+  - path: ../lib/linux-device-health.policies.yml
+queries:
+  - path: ../lib/collect-failed-login-attempts.queries.yml
+  - path: ../lib/collect-usb-devices.queries.yml
+  - path: ../lib/collect-vs-code-extensions.queries.yml

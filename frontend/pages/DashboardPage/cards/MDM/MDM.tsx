@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
+import { Row } from "react-table";
 
 import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
 
@@ -19,6 +20,10 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+interface IRowProps extends Row {
+  original: IMdmSolution;
+}
+
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
@@ -26,6 +31,7 @@ interface IMdmCardProps {
   mdmSolutions: IMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
+  onClickMdmSolution: (solution: IMdmSolution) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -59,6 +65,28 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
+type IMdmSolutionMap = Record<string, IMdmSolution>;
+
+const reduceSolutionsToObj = (mdmSolutions: IMdmSolution[]) => {
+  return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
+    // The solution name can be null so we add an Unknown key to the
+    // accumulator in this case.
+    if (nextSolution.name === null) {
+      if (acc.Unknown) {
+        acc.Unknown.hosts_count += nextSolution.hosts_count;
+      } else {
+        acc.Unknown = Object.assign({ ...nextSolution });
+      }
+    } else if (acc[nextSolution.name]) {
+      acc[nextSolution.name].hosts_count += nextSolution.hosts_count;
+    } else {
+      acc[nextSolution.name] = Object.assign({ ...nextSolution });
+    }
+
+    return acc;
+  }, {});
+};
+
 const Mdm = ({
   isFetching,
   error,
@@ -66,6 +94,7 @@ const Mdm = ({
   mdmSolutions,
   selectedPlatformLabelId,
   selectedTeamId,
+  onClickMdmSolution,
 }: IMdmCardProps): JSX.Element => {
   const [navTabIndex, setNavTabIndex] = useState(0);
 
@@ -73,18 +102,23 @@ const Mdm = ({
     setNavTabIndex(index);
   };
 
+  const rolledupMdmSolutionsData = useMemo(() => {
+    if (!mdmSolutions) {
+      return [];
+    }
+
+    return Object.values(reduceSolutionsToObj(mdmSolutions));
+  }, [mdmSolutions]);
+
   const solutionsTableHeaders = useMemo(
-    () => generateSolutionsTableHeaders(selectedTeamId),
-    [selectedTeamId]
+    () => generateSolutionsTableHeaders(),
+    []
   );
   const statusTableHeaders = useMemo(
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
-  const solutionsDataSet = generateSolutionsDataSet(
-    mdmSolutions,
-    selectedPlatformLabelId
-  );
+  const solutionsDataSet = generateSolutionsDataSet(rolledupMdmSolutionsData);
   const statusDataSet = generateStatusDataSet(
     mdmStatusData,
     selectedPlatformLabelId
@@ -92,6 +126,10 @@ const Mdm = ({
 
   // Renders opaque information as host information is loading
   const opacity = isFetching ? { opacity: 0 } : { opacity: 1 };
+
+  const handleSolutionRowClick = (row: IRowProps) => {
+    onClickMdmSolution(row.original);
+  };
 
   return (
     <div className={baseClass}>
@@ -111,7 +149,8 @@ const Mdm = ({
               {error ? (
                 <TableDataError card />
               ) : (
-                <TableContainer
+                <TableContainer<IRowProps>
+                  className={`${baseClass}__mdm-solutions-table`}
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -121,9 +160,9 @@ const Mdm = ({
                   emptyComponent={EmptyMdmSolutions}
                   showMarkAllPages={false}
                   isAllPagesSelected={false}
-                  isClientSidePagination
                   disableCount
-                  pageSize={PAGE_SIZE}
+                  disablePagination
+                  onClickRow={handleSolutionRowClick}
                 />
               )}
             </TabPanel>
@@ -132,6 +171,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
+                  className={`${baseClass}__mdm-status-table`}
                   columnConfigs={statusTableHeaders}
                   data={statusDataSet}
                   isLoading={isFetching}
