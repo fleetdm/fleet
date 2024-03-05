@@ -537,7 +537,7 @@ const EditQueryForm = ({
         >
           <AutoSizeInputField
             name="query-description"
-            placeholder="Add description here."
+            placeholder="Add description here"
             value={lastEditedQueryDescription}
             maxLength={250}
             inputClassName={`${baseClass}__query-description ${
