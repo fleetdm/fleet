@@ -2,7 +2,11 @@ import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 
-import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
+import {
+  IMdmStatusCardData,
+  IMdmSolution,
+  IMdmSummaryMdmSolution,
+} from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
@@ -20,18 +24,23 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+export type IMdmSolutionTableData = Pick<
+  IMdmSummaryMdmSolution,
+  "name" | "hosts_count"
+>;
+
 interface IRowProps extends Row {
-  original: IMdmSolution;
+  original: IMdmSolutionTableData;
 }
 
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
   mdmStatusData: IMdmStatusCardData[];
-  mdmSolutions: IMdmSolution[] | null;
+  mdmSolutions: IMdmSummaryMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
-  onClickMdmSolution: (solution: IMdmSolution) => void;
+  onClickMdmSolution: (solution: IMdmSolutionTableData) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -65,22 +74,17 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
-type IMdmSolutionMap = Record<string, IMdmSolution>;
+type IMdmSolutionMap = Record<string, IMdmSolutionTableData>;
 
-const reduceSolutionsToObj = (mdmSolutions: IMdmSolution[]) => {
+const reduceSolutionsToObj = (mdmSolutions: IMdmSummaryMdmSolution[]) => {
   return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
-    // The solution name can be null so we add an Unknown key to the
-    // accumulator in this case.
-    if (nextSolution.name === null) {
-      if (acc.Unknown) {
-        acc.Unknown.hosts_count += nextSolution.hosts_count;
-      } else {
-        acc.Unknown = Object.assign({ ...nextSolution });
-      }
-    } else if (acc[nextSolution.name]) {
-      acc[nextSolution.name].hosts_count += nextSolution.hosts_count;
+    // The solution name can be an empty string so we add a key for "Unknown"
+    // for this case.
+    const key = nextSolution.name || "Unknown";
+    if (acc[key]) {
+      acc[key].hosts_count += nextSolution.hosts_count;
     } else {
-      acc[nextSolution.name] = Object.assign({ ...nextSolution });
+      acc[key] = Object.assign({ ...nextSolution });
     }
 
     return acc;
