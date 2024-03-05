@@ -887,16 +887,13 @@ func (ds *Datastore) updateHostLockWipeStatusFromResult(ctx context.Context, tx 
 
 func (ds *Datastore) CleanupUnusedScriptContents(ctx context.Context) error {
 	deleteStmt := `
-
 DELETE FROM
   script_contents
 WHERE
-  id NOT IN(
-    SELECT
-      script_content_id FROM host_script_results)
-  OR id NOT IN(
-    SELECT
-     script_content_id FROM scripts)
+  NOT EXISTS (
+    SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
 		`
 	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
 	if err != nil {
