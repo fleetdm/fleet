@@ -7,6 +7,7 @@
 - [Hosts](#hosts)
 - [Labels](#labels)
 - [Mobile device management (MDM)](#mobile-device-management-mdm)
+- [Notifications](#notifications)
 - [Policies](#policies)
 - [Queries](#queries)
 - [Schedule (deprecated)](#schedule)
@@ -5526,6 +5527,94 @@ Body: <blob>
 ```
 
 ---
+
+## Notifications
+
+- [List notifications](#list-notifications)
+- [List notifications by host](#list-notifications-by-host)
+
+Notifications are used to notify about important actions that are required to maintain core features.
+
+### List notifications
+
+`GET /api/v1/fleet/notifications`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.
+
+#### Example
+
+`GET /api/v1/fleet/notifications`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "notifications": [
+    {
+   	  "event": "apns_expire_approaching",
+   	  "priority": 1,
+	     "scope": "global", // scope can be "global", "host"
+	     "host": {
+        "id": 0,
+	     }, // host is `null` if scope is not host
+	     "details": {
+	       "message": "Your Apple Push Notification service...",
+	       "link": "https://fleetdm.com/renew-apns"
+	     }
+	   },
+  ],
+  "meta": ..pagination meta..
+}
+```
+
+### List notifications by host
+
+`GET /api/v1/fleet/hosts/:id/notifications`
+
+#### Parameters
+
+| Name                    | Type    | In    | Description                                                                                                                                                                                                                                                                                                                                 |
+| ----------------------- | ------- | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                                                                                                                                                                                        |
+| per_page                | integer | query | Results per page.
+
+#### Example
+
+`GET /api/v1/fleet/hosts/1/notifications`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "notifications": [
+    {
+   	  "event": "disk_encryption",
+   	  "priority": 6,
+	     "scope": "host", // scope can be "global", "host"
+	     "host": {
+        "id": 1,
+	     }, // host is `null` if scope is not host
+	     "details": {
+	       "message": "Disk encryption: Reset your disk encryption key. This lets your organization help you unlock your device if you forget your password",
+	       "link": ""
+	     }
+	   },
+  ],
+  "meta": ..pagination meta..
+}
+```
+
+---
+
 
 ## Policies
 
