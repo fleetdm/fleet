@@ -355,7 +355,10 @@ const PolicyForm = ({
               placeholder="Add name here"
               value={lastEditedQueryName}
               hasError={errors && errors.name}
-              inputClassName={`${baseClass}__policy-name`}
+              inputClassName={`${baseClass}__policy-name ${
+                !lastEditedQueryName ? "no-value" : ""
+              }
+              `}
               maxLength={160}
               onChange={setLastEditedQueryName}
               onKeyPress={onInputKeypress}
@@ -394,7 +397,9 @@ const PolicyForm = ({
               name="policy-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
-              inputClassName={`${baseClass}__policy-description`}
+              inputClassName={`${baseClass}__policy-description ${
+                !lastEditedQueryDescription ? "no-value" : ""
+              }`}
               maxLength={250}
               onChange={setLastEditedQueryDescription}
               onKeyPress={onInputKeypress}
@@ -428,7 +433,9 @@ const PolicyForm = ({
               name="policy-resolution"
               placeholder="Add resolution here."
               value={lastEditedQueryResolution}
-              inputClassName={`${baseClass}__policy-resolution`}
+              inputClassName={`${baseClass}__policy-resolution ${
+                !lastEditedQueryResolution ? "no-value" : ""
+              }`}
               maxLength={500}
               onChange={setLastEditedQueryResolution}
               onKeyPress={onInputKeypress}

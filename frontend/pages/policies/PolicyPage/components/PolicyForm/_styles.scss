@@ -84,6 +84,9 @@
         }
       }
       .policy-name-wrapper {
+        .no-value {
+          min-width: 112px;
+        }
         .policy-form__policy-name,
         .input-sizer::after {
           font-size: $large;
@@ -94,9 +97,17 @@
         }
       }
       .policy-description-wrapper {
+        .no-value {
+          min-width: 106px;
+        }
         .edit-icon {
           position: relative;
           top: 0;
+        }
+      }
+      .policy-resolution-wrapper {
+        .no-value {
+          min-width: 106px;
         }
       }
       .edit-icon {
