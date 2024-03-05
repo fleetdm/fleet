@@ -2954,7 +2954,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		return res, err
 	}
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
-	// trying again with the other endpoint fails with 409 as it is alreayd unenrolled
+	// trying again fails with 409 as it is alreayd unenrolled
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusConflict)
 
 	require.NoError(t, checkoutErr)
