@@ -600,7 +600,10 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.PATCH("/api/_version_/fleet/mdm/apple/setup", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
 	mdmAppleMW.PATCH("/api/_version_/fleet/setup_experience", updateMDMAppleSetupEndpoint, updateMDMAppleSetupRequest{})
 
+	// Deprecated: GET /mdm/apple is now deprecated, replaced by the
+	// GET /apns endpoint.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
+	mdmAppleMW.GET("/api/_version_/fleet/apns", getAppleMDMEndpoint, nil) // TODO(mna): to be confirmed: https://github.com/fleetdm/fleet/pull/16728/files#r1488694302
 
 	// EULA routes
 
@@ -630,9 +633,21 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	mdmAppleMW.POST("/api/_version_/fleet/mdm/apple/profiles/match", matchMDMApplePreassignmentEndpoint, matchMDMApplePreassignmentRequest{})
 
 	mdmAnyMW := ue.WithCustomMiddleware(mdmConfiguredMiddleware.VerifyAppleOrWindowsMDM())
+
+	// Deprecated: POST /mdm/commands/run is now deprecated, replaced by the
+	// POST /commands/run endpoint.
 	mdmAnyMW.POST("/api/_version_/fleet/mdm/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})
+	mdmAnyMW.POST("/api/_version_/fleet/commands/run", runMDMCommandEndpoint, runMDMCommandRequest{})
+
+	// Deprecated: GET /mdm/commandresults is now deprecated, replaced by the
+	// GET /commands/results endpoint.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/commandresults", getMDMCommandResultsEndpoint, getMDMCommandResultsRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/commands/results", getMDMCommandResultsEndpoint, getMDMCommandResultsRequest{})
+
+	// Deprecated: GET /mdm/commands is now deprecated, replaced by the
+	// GET /commands endpoint.
 	mdmAnyMW.GET("/api/_version_/fleet/mdm/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
+	mdmAnyMW.GET("/api/_version_/fleet/commands", listMDMCommandsEndpoint, listMDMCommandsRequest{})
 
 	// Deprecated: GET /mdm/disk_encryption/summary is now deprecated, replaced by the
 	// GET /disk_encryption endpoint.
@@ -679,7 +694,12 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// (generates CSR request for APNs, plus the SCEP and ABM keypairs).
 	ue.POST("/api/_version_/fleet/mdm/apple/request_csr", requestMDMAppleCSREndpoint, requestMDMAppleCSRRequest{})
 	ue.POST("/api/_version_/fleet/mdm/apple/dep/key_pair", newMDMAppleDEPKeyPairEndpoint, nil)
+
+	// Deprecated: GET /mdm/apple_bm is now deprecated, replaced by the
+	// GET /abm endpoint.
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
+	ue.GET("/api/_version_/fleet/abm", getAppleBMEndpoint, nil) // TODO(mna): to be confirmed: https://github.com/fleetdm/fleet/pull/16728/files#r1488694787
+
 	// Deprecated: POST /mdm/apple/profiles/batch is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/profiles/batch. It is still supported
 	// indefinitely for backwards compatibility.
