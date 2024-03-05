@@ -17,7 +17,6 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 
 import {
