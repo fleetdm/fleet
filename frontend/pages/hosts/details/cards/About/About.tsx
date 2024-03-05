@@ -1,9 +1,7 @@
 import React from "react";
 
-import ReactTooltip from "react-tooltip";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 
 import {
@@ -16,7 +14,6 @@ import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
-import { COLORS } from "styles/var/colors";
 import DataSet from "components/DataSet";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
