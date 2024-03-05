@@ -70,8 +70,8 @@ interface IWrapperComponentProps {
 }
 
 const createWrapperComponent = (
-  CurrentWrapper: React.FC<React.PropsWithChildren<any>>, // TODO: types
-  WrapperComponent: React.FC<React.PropsWithChildren<any>>, // TODO: types
+  CurrentWrapper: React.FC<React.PropsWithChildren<React.PropsWithChildren<any>>>, // TODO: types
+  WrapperComponent: React.FC<React.PropsWithChildren<React.PropsWithChildren<any>>>, // TODO: types
   props: IWrapperComponentProps
 ) => {
   return ({ children }: IChildrenProp) => (

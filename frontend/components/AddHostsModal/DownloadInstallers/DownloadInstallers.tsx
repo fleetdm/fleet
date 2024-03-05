@@ -76,7 +76,7 @@ const displayIcon = (platform: IInstallerPlatform, isSelected: boolean) => {
   }
 };
 
-const DownloadForm: FunctionComponent<IDownloadFormProps> = ({
+const DownloadForm: FunctionComponent<React.PropsWithChildren<IDownloadFormProps>> = ({
   url,
   onSubmit,
   token,
