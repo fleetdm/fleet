@@ -127,7 +127,14 @@ func (svc *Service) GetScriptIDByName(ctx context.Context, scriptName string, te
 		return 0, err
 	}
 
-	return svc.ds.GetScriptIDByName(ctx, scriptName, teamID)
+	id, err := svc.ds.GetScriptIDByName(ctx, scriptName, teamID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return 0, fleet.NewInvalidArgumentError("script_name", fmt.Sprintf(`Script '%s' doesn’t exist.`, scriptName))
+		}
+		return 0, err
+	}
+	return id, nil
 }
 
 const maxPendingScripts = 1000
