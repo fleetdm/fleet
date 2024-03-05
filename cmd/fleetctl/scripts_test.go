@@ -59,7 +59,6 @@ func TestRunScriptCommand(t *testing.T) {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
 	}
 	maxChars := strings.Repeat("a", 10001)
-	// maxCharsSavedScriptContents := strings.Repeat("a", 500001)
 
 	type testCase struct {
 		name           string

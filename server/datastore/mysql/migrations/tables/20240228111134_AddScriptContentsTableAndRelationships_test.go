@@ -7,6 +7,9 @@ import (
 )
 
 func TestUp_20240228111134(t *testing.T) {
+	testBatchSize = 2
+	defer func() { testBatchSize = 0 }()
+
 	db := applyUpToPrev(t)
 
 	scriptA, scriptB, scriptC, scriptD := "scriptA", "scriptB", "scriptC", "scriptD"

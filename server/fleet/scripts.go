@@ -26,6 +26,8 @@ type Script struct {
 	// UpdatedAt serves as the "uploaded at" timestamp, since it is updated each
 	// time the script record gets updated.
 	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+	// ScriptContentID is the ID of the script contents, which are stored separately from the Script.
+	ScriptContentID uint `json:"-" db:"script_content_id"`
 }
 
 func (s Script) AuthzType() string {
@@ -136,6 +138,7 @@ type HostScriptRequestPayload struct {
 	HostID         uint   `json:"host_id"`
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
+  ScriptContentID uint   `json:"-"`
 	ScriptName     string `json:"script_name"`
 	TeamID         uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
