@@ -1315,6 +1315,24 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	ctx := context.Background()
 	t := s.T()
 
+	// Use a gitops user for all Puppet actions
+	u := &fleet.User{
+		Name:       "GitOps",
+		Email:      "gitops-TestPuppetMatchPreassignProfiles@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, "gitops-TestPuppetMatchPreassignProfiles@example.com", test.GoodPassword)
+
+	runWithAdminToken := func(cb func()) {
+		s.token = s.getTestAdminToken()
+		cb()
+		s.token = s.getCachedUserToken("gitops-TestPuppetMatchPreassignProfiles@example.com", test.GoodPassword)
+
+	}
+
 	// create a host enrolled in fleet
 	mdmHost, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
@@ -1380,26 +1398,28 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 	require.NoError(t, err)
 	require.Equal(t, "g1", tm1.Name)
 
-	// it create activities for the new team, the profiles assigned to it,
-	// the host moved to it, and setup assistant
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeCreatedTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
-		0)
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
-		0)
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
-			tm1.ID, tm1.Name, h.ID, h.DisplayName()),
-		0)
-	s.lastActivityOfTypeMatches(
-		fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
-		fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q}`,
-			tm1.ID, globalAsstResp.Name, tm1.Name),
-		0)
+	runWithAdminToken(func() {
+		// it create activities for the new team, the profiles assigned to it,
+		// the host moved to it, and setup assistant
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeCreatedTeam{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+			0)
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeEditedMacosProfile{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm1.ID, tm1.Name),
+			0)
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "team_name": %q, "host_ids": [%d], "host_display_names": [%q]}`,
+				tm1.ID, tm1.Name, h.ID, h.DisplayName()),
+			0)
+		s.lastActivityOfTypeMatches(
+			fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
+			fmt.Sprintf(`{"team_id": %d, "name": %q, "team_name": %q}`,
+				tm1.ID, globalAsstResp.Name, tm1.Name),
+			0)
+	})
 
 	// and the team has the expected profiles
 	profs, err := s.ds.ListMDMAppleConfigProfiles(ctx, &tm1.ID)
@@ -1566,6 +1586,17 @@ func (s *integrationMDMTestSuite) TestPuppetRun() {
 	host2, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	host3, _ := createHostThenEnrollMDM(s.ds, s.server.URL, t)
 	s.runWorker()
+
+	// Use a gitops user for all Puppet actions
+	u := &fleet.User{
+		Name:       "GitOps",
+		Email:      "gitops-TestPuppetRun@example.com",
+		GlobalRole: ptr.String(fleet.RoleGitOps),
+	}
+	require.NoError(t, u.SetPassword(test.GoodPassword, 10, 10))
+	_, err := s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+	s.setTokenForTest(t, "gitops-TestPuppetRun@example.com", test.GoodPassword)
 
 	// preassignAndMatch simulates the puppet module doing all the
 	// preassign/match calls for a given set of profiles.
@@ -6798,7 +6829,7 @@ var testBMToken = &nanodep_client.OAuth1Tokens{
 	AccessTokenExpiry: time.Date(2999, 1, 1, 0, 0, 0, 0, time.UTC),
 }
 
-// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using-Fleet/Permissions.md.
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -6935,6 +6966,20 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{
 		Profiles: teamProfiles,
 	}, http.StatusForbidden, "team_id", strconv.Itoa(int(t2.ID)))
+
+	// Attempt to retrieve host profiles fails if the host doesn't belong to the team
+	h1, err := s.ds.NewHost(ctx, &fleet.Host{
+		NodeKey:  ptr.String(t.Name() + "1"),
+		UUID:     t.Name() + "1",
+		Hostname: t.Name() + "foo.local",
+	})
+	require.NoError(t, err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusForbidden, &getHostResponse{})
+
+	err = s.ds.AddHostsToTeam(ctx, &t1.ID, []uint{h1.ID})
+	require.NoError(t, err)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
+
 }
 
 func (s *integrationMDMTestSuite) TestOrgLogo() {
