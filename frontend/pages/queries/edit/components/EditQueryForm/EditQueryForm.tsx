@@ -497,7 +497,7 @@ const EditQueryForm = ({
         >
           <AutoSizeInputField
             name="query-name"
-            placeholder="Add name here"
+            placeholder="Add name"
             value={lastEditedQueryName}
             inputClassName={`${baseClass}__query-name ${
               !lastEditedQueryName ? "no-value" : ""
@@ -537,7 +537,7 @@ const EditQueryForm = ({
         >
           <AutoSizeInputField
             name="query-description"
-            placeholder="Add description here"
+            placeholder="Add description"
             value={lastEditedQueryDescription}
             maxLength={250}
             inputClassName={`${baseClass}__query-description ${
