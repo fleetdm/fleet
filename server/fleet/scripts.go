@@ -32,7 +32,7 @@ func (s Script) AuthzType() string {
 	return "script"
 }
 
-func (s *Script) Validate() error {
+func (s *Script) ValidateNewScript() error {
 	if s.Name == "" {
 		return errors.New("The file name must not be empty.")
 	}
@@ -40,7 +40,8 @@ func (s *Script) Validate() error {
 		return errors.New("File type not supported. Only .sh and .ps1 file type is allowed.")
 	}
 
-	if err := ValidateHostScriptContents(s.ScriptContents); err != nil {
+	// validate the script contents as if it were alreay a saved script
+	if err := ValidateHostScriptContents(s.ScriptContents, true); err != nil {
 		return err
 	}
 
@@ -136,7 +137,7 @@ type HostScriptRequestPayload struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         *uint  `json:"team_id"`
+	TeamID         uint   `json:"team_id,omitempty"`
 	// UserID is filled automatically from the context's user (the authenticated
 	// user that made the API request).
 	UserID *uint `json:"-"`
@@ -149,19 +150,19 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 	if r.ScriptID != nil {
 		switch {
 		case r.ScriptContents != "":
-			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_contents" can be provided.`)
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_contents' is allowed.`)
 		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "script_name" can be provided.`)
-		case r.TeamID != nil:
-			return NewInvalidArgumentError("script_id", `Only one of "script_id" or "team_id" can be provided.`)
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_id", `Only one of 'script_id' or 'team_id' is allowed.`)
 		}
 	}
 	if r.ScriptContents != "" {
 		switch {
 		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_contents", `Only one of "script_contents" or "script_name" can be provided.`)
-		case r.TeamID != nil:
-			return NewInvalidArgumentError("script_contents", `Only one of "script_contents" or "team_id" can be provided.`)
+			return NewInvalidArgumentError("script_contents", `Only one of 'script_contents' or 'script_name' is allowed.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("script_contents", `"Only one of 'script_contents' or 'team_id' is allowed.`)
 		}
 	}
 	//
@@ -169,9 +170,9 @@ func (r HostScriptRequestPayload) ValidateParams(waitForResult time.Duration) er
 	if waitForResult <= 0 {
 		switch {
 		case r.ScriptName != "":
-			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the "script_name" parameter.`)
-		case r.TeamID != nil:
-			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the "team_id" parameter.`)
+			return NewInvalidArgumentError("script_name", `Only synchronous script execution requests can use the 'script_name' parameter.`)
+		case r.TeamID > 0:
+			return NewInvalidArgumentError("team_id", `Only synchronous script execution requests can use the 'team_id' parameter.`)
 		}
 	}
 
@@ -280,26 +281,36 @@ func (hsr HostScriptResult) HostTimeout(waitForResultTime time.Duration) bool {
 	return hsr.SyncRequest && hsr.ExitCode == nil && time.Now().After(hsr.CreatedAt.Add(waitForResultTime))
 }
 
-const MaxScriptRuneLen = 10000
+const (
+	SavedScriptMaxRuneLen   = 500000
+	UnsavedScriptMaxRuneLen = 10000
+)
 
 // anchored, so that it matches to the end of the line
 var scriptHashbangValidation = regexp.MustCompile(`^#!\s*/bin/sh\s*$`)
 
-func ValidateHostScriptContents(s string) error {
+func ValidateHostScriptContents(s string, isSavedScript bool) error {
 	if s == "" {
 		return errors.New("Script contents must not be empty.")
 	}
 
+	maxLen := SavedScriptMaxRuneLen
+	maxLenErrMsg := RunScripSavedMaxLenErrMsg
+	if !isSavedScript {
+		maxLen = UnsavedScriptMaxRuneLen
+		maxLenErrMsg = RunScripUnsavedMaxLenErrMsg
+	}
+
 	// look for the script length in bytes first, as rune counting a huge string
 	// can be expensive.
-	if len(s) > utf8.UTFMax*MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if len(s) > utf8.UTFMax*maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// now that we know that the script is at most 4*maxScriptRuneLen bytes long,
 	// we can safely count the runes for a precise check.
-	if utf8.RuneCountInString(s) > MaxScriptRuneLen {
-		return errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines).")
+	if utf8.RuneCountInString(s) > maxLen {
+		return errors.New(maxLenErrMsg)
 	}
 
 	// script must be a "text file", but that's not so simple to validate, so we

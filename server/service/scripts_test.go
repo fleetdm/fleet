@@ -289,9 +289,9 @@ func TestHostRunScript(t *testing.T) {
 					ds.GetScriptIDByNameFunc = func(ctx context.Context, name string, teamID *uint) (uint, error) {
 						return *tt.scriptID, nil
 					}
-					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: ptr.Uint(1)}, 1)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: noTeamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
 					checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: ptr.Uint(1)}, 1)
+					_, err = svc.RunHostScript(ctx, &fleet.HostScriptRequestPayload{HostID: teamHost.ID, ScriptContents: "", ScriptID: nil, ScriptName: "Foo", TeamID: 1}, 1)
 					checkAuthErr(t, tt.shouldFailTeamWrite, err)
 				}
 			})

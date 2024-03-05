@@ -5382,10 +5382,10 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Host was not found in the datastore")
 
-	// run a saved script by name with team id (should fail script not found)
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: ptr.Uint(1)}, http.StatusNotFound)
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "myscript.sh was not found in the datastore")
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
 	var delScriptResp deleteScriptResponse

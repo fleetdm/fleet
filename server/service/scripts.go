@@ -15,6 +15,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -63,7 +64,7 @@ type runScriptSyncRequest struct {
 	ScriptID       *uint  `json:"script_id"`
 	ScriptContents string `json:"script_contents"`
 	ScriptName     string `json:"script_name"`
-	TeamID         *uint  `json:"team_id"`
+	TeamID         uint   `json:"team_id"`
 }
 
 type runScriptSyncResponse struct {
@@ -154,8 +155,15 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, err
 	}
 
+	if request.TeamID > 0 {
+		lic, _ := license.FromContext(ctx)
+		if !lic.IsPremium() {
+			return nil, fleet.ErrMissingLicense
+		}
+	}
+
 	if request.ScriptName != "" {
-		scriptID, err := svc.GetScriptIDByName(ctx, request.ScriptName, request.TeamID)
+		scriptID, err := svc.GetScriptIDByName(ctx, request.ScriptName, &request.TeamID)
 		if err != nil {
 			return nil, err
 		}
@@ -194,6 +202,7 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 		return nil, err
 	}
 
+	var isSavedScript bool
 	if request.ScriptID != nil {
 		script, err := svc.ds.Script(ctx, *request.ScriptID)
 		if err != nil {
@@ -232,9 +241,10 @@ func (svc *Service) RunHostScript(ctx context.Context, request *fleet.HostScript
 			return nil, err
 		}
 		request.ScriptContents = string(contents)
+		isSavedScript = true
 	}
 
-	if err := fleet.ValidateHostScriptContents(request.ScriptContents); err != nil {
+	if err := fleet.ValidateHostScriptContents(request.ScriptContents, isSavedScript); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script_contents", err.Error())
 	}
 
@@ -471,7 +481,7 @@ func (svc *Service) NewScript(ctx context.Context, teamID *uint, name string, r 
 		Name:           name,
 		ScriptContents: string(b),
 	}
-	if err := script.Validate(); err != nil {
+	if err := script.ValidateNewScript(); err != nil {
 		return nil, fleet.NewInvalidArgumentError("script", err.Error())
 	}
 
@@ -817,7 +827,7 @@ func (svc *Service) BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeT
 			TeamID:         teamID,
 		}
 
-		if err := script.Validate(); err != nil {
+		if err := script.ValidateNewScript(); err != nil {
 			return ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(fmt.Sprintf("scripts[%d]", i), err.Error()))
 		}
