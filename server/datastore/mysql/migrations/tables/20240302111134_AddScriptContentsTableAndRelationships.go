@@ -12,10 +12,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240228111134, Down_20240228111134)
+	MigrationClient.AddMigration(Up_20240302111134, Down_20240302111134)
 }
 
-func Up_20240228111134(tx *sql.Tx) error {
+func Up_20240302111134(tx *sql.Tx) error {
 	txx := &sqlx.Tx{Tx: tx, Mapper: reflectx.NewMapperFunc("db", sqlx.NameMapper)}
 
 	// at the time of this migration, we have two tables that deal with scripts:
@@ -238,6 +238,6 @@ func md5ChecksumScriptContent(s string) string {
 	return strings.ToUpper(hex.EncodeToString(rawChecksum[:]))
 }
 
-func Down_20240228111134(tx *sql.Tx) error {
+func Down_20240302111134(tx *sql.Tx) error {
 	return nil
 }
