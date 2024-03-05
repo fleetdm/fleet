@@ -14,6 +14,7 @@
   }
 
   .btn-primary {
+    display: flex;
     padding: 16px 32px;
     height: 48px;
     font-size: 16px;
@@ -93,7 +94,7 @@
 
   }
   [purpose='quote-and-logos'] {
-    width: 392px;
+    min-width: 392px;
   }
   [purpose='quote'] {
     display: flex;
@@ -151,18 +152,26 @@
     box-sizing: border-box;
     border-radius: 16px;
   }
+  [purpose='two-column-logos'] {
+    display: none;
+  }
   [purpose='logos'] {
+    display: flex;
     padding-top: 60px;
-    [purpose='logo-row'] {
-      margin-bottom: 32px;
-      width: 100%;
-      img {
-        max-height: 24px;
-      }
+  }
+  [purpose='logo-row'] {
+    margin-bottom: 32px;
+    width: 100%;
+    img {
+      max-height: 24px;
     }
   }
 
   @media (max-width: 991px) {
+    [purpose='page-container'] {
+      padding-left: 40px;
+      padding-right: 40px;
+    }
     [purpose='form-container'] {
       padding-right: 0px;
       width: 100%;
@@ -171,6 +180,7 @@
     }
     [purpose='quote-and-logos'] {
       width: 100%;
+      min-width: unset;
     }
     [purpose='quote'] {
       max-width: 100%;
@@ -178,21 +188,64 @@
       margin-right: auto;
     }
     [purpose='logos'] {
-      max-width: 600px;
+      max-width: 392px;
       margin-left: auto;
       margin-right: auto;
     }
 
   }
   @media (max-width: 575px) {
-    h2, p, .btn-container {
-      text-align: center;
+    [purpose='page-container'] {
+      padding-left: 24px;
+      padding-right: 24px;
+    }
+    [purpose='contact-form-switch'] {
+      width: 100%;
+      [purpose='switch'] {
+        height: 56px;
+        left: 0px;
+      }
+      [purpose='switch-option'] {
+        height: 56px;
+        width: 100%;
+      }
+      .contact-selected {
+        width: 100%;
+        transform: translateY(56px);
+      }
+      .talk-to-us-selected {
+        width: 100%;
+      }
+    }
+    [purpose='quote-and-logos'] {
+      width: 100%;
+      min-width: unset;
+    }
+    [purpose='quote'] {
+      width: 100%;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    button {
+      width: 100%;
+    }
+  }
+  @media (max-width: 440px) {
+    [purpose='logos'] {
+      display: none;
     }
 
-    button {
-      display: inline;
-      width: 100%;
-      max-width: 325px;
+    [purpose='two-column-logos'] {
+      padding-top: 60px;
+      display: flex;
+      img {
+        width: fit-content;
+        height: 24px;
+        margin-bottom: 8px;
+      }
+      img:first-of-type {
+        margin-right: 32px;
+      }
     }
   }
 }

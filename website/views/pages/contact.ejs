@@ -18,7 +18,7 @@
           </div>
           <div class="form-group">
             <div class="row">
-              <div class="col-sm">
+              <div class="col-sm mb-4 mb-sm-0">
                 <label for="first-name">First name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
                 <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name">
                 <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
@@ -51,7 +51,7 @@
           </div>
           <div class="form-group">
             <div class="row">
-              <div class="col-sm">
+              <div class="col-sm mb-4 mb-sm-0">
                 <label for="first-name">First name<span style="font-weight: 400; color: #FF5C83"> *</span></label>
                 <input class="form-control" id="first-name" name="first-name" type="text" :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="given-name">
                 <div class="invalid-feedback" v-if="formErrors.firstName">Please let us know what to call you.</div>
@@ -173,14 +173,14 @@
           </div>
         </div>
       </div>
-      <div purpose="logos" class="d-flex flex-column align-items-center w-100">
+      <div purpose="logos" class="flex-column flex-wrap align-items-center w-100">
         <div purpose="logo-row" class="d-flex flex-row justify-content-between">
           <img alt="Notion logo" src="/images/logo-notion-68x24@2x.png">
           <img alt="Pinterest logo" src="/images/logo-pinterest-98x24@2x.png">
           <img alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png">
           <img alt="Epic Games logo" src="/images/logo-epic-games-28x32@2x.png">
         </div>
-        <div purpose="logo-row" class="d-flex flex-row justify-content-between">
+        <div purpose="logo-row" class="d-flex flex-row flex-wrap justify-content-between">
           <img alt="Rivian logo" src="/images/logo-rivian-120x24@2x.png">
           <img alt="Flywire logo" src="/images/logo-flywire-69x24@2x.png">
           <img alt="Snowflake logo" src="/images/logo-snowflake-101x24@2x.png">
@@ -197,6 +197,40 @@
         </div>
         <div purpose="logo-row" class="d-flex flex-row justify-content-between mb-0">
           <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x24@2x.png">
+          <img alt="Dropbox logo" src="/images/logo-dropbox-122x24@2x.png">
+          <img alt="Reddit logo" src="/images/logo-reddit-80x24@2x.png">
+        </div>
+      </div>
+      <div purpose="two-column-logos" class="flex-column flex-wrap align-items-center w-100">
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Notion logo" src="/images/logo-notion-68x24@2x.png">
+          <img alt="Pinterest logo" src="/images/logo-pinterest-98x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png">
+          <img alt="Epic Games logo" src="/images/logo-epic-games-28x32@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row flex-wrap justify-content-center">
+          <img alt="Rivian logo" src="/images/logo-rivian-120x24@2x.png">
+          <img alt="Flywire logo" src="/images/logo-flywire-69x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Snowflake logo" src="/images/logo-snowflake-101x24@2x.png">
+          <img alt="Uber logo" src="/images/logo-uber-70x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Atlassian logo" src="/images/logo-atlassian-140x18@2x.png">
+          <img alt="Gusto logo" src="/images/logo-gusto-64x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Deloitte logo" src="/images/logo-deloitte-97x18@2x.png">
+          <img alt="Toast logo" src="/images/logo-toast-91x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center">
+          <img alt="Fastly logo" src="/images/logo-fastly-75x30@2x.png">
+          <img alt="Hashicorp logo" src="/images/logo-hashicorp-103x24@2x.png">
+        </div>
+        <div purpose="logo-row" class="d-flex flex-row justify-content-center mb-0">
           <img alt="Dropbox logo" src="/images/logo-dropbox-122x24@2x.png">
           <img alt="Reddit logo" src="/images/logo-reddit-80x24@2x.png">
         </div>

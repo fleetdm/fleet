@@ -6,13 +6,6 @@ module.exports = {
 
   description: 'Display "Contact" page.',
 
-  inputs: {
-    talkToUs: {
-      type: 'boolean',
-      description: 'A boolean that determines whether or not to display the talk to us form when the contact page loads.',
-      defaultsTo: false,
-    },
-  },
   exits: {
 
     success: {
@@ -22,13 +15,11 @@ module.exports = {
   },
 
 
-  fn: async function ({talkToUs}) {
-    let formToDisplay = 'contact';
-    if(talkToUs) {
-      formToDisplay = 'talk-to-us';
-    }
+  fn: async function () {
+
+
     // Respond with view.
-    return {formToDisplay};
+    return {};
 
   }
 
