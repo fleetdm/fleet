@@ -500,7 +500,7 @@ const EditQueryForm = ({
               inputClassName={`${baseClass}__query-name ${
                 !lastEditedQueryName ? "no-value" : ""
               }`}
-              maxLength="160"
+              maxLength={160}
               hasError={errors && errors.name}
               onChange={setLastEditedQueryName}
               onKeyPress={onInputKeypress}
@@ -538,7 +538,7 @@ const EditQueryForm = ({
               name="query-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
-              maxLength="250"
+              maxLength={250}
               inputClassName={`${baseClass}__query-description ${
                 !lastEditedQueryDescription ? "no-value" : ""
               }`}

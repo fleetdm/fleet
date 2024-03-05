@@ -12,7 +12,7 @@ interface IAutoSizeInputFieldProps {
   placeholder: string;
   value: string;
   inputClassName?: string;
-  maxLength: string;
+  maxLength: number;
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
@@ -87,7 +87,7 @@ const AutoSizeInputField = ({
           onChange={onInputChange}
           placeholder={placeholder}
           value={inputValue}
-          maxLength={parseInt(maxLength, 10)}
+          maxLength={maxLength}
           className={inputClasses}
           cols={1}
           rows={1}
