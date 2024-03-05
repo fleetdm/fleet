@@ -2471,6 +2471,15 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostCooldown(eHost.HardwareSerial, profUUID, fleet.DEPAssignProfileResponseFailed, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
+	// run with devices that already have profiles assigned, we shouldn't re-assign.
+	devices = []godep.Device{
+		{SerialNumber: addedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: profUUID},
+		{SerialNumber: eHost.HardwareSerial, Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: profUUID},
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.Empty(t, profileAssignmentReqs)
+
 	// create a new team
 	var tmResp teamResponse
 	s.DoJSON("POST", "/api/latest/fleet/teams", &fleet.Team{

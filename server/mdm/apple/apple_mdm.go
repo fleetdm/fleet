@@ -75,6 +75,11 @@ func ResolveAppleSCEPURL(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, SCEPPath, true)
 }
 
+type DEPAssigner interface {
+	AssignProfile(ctx context.Context, name, uuid string, serials ...string) (*godep.ProfileResponse, error)
+	DefineProfile(ctx context.Context, name string, profile *godep.Profile) (*godep.ProfileResponse, error)
+}
+
 // DEPService is used to encapsulate tasks related to DEP enrollment.
 //
 // This service doesn't perform any authentication checks, so its suitable for
@@ -86,6 +91,7 @@ type DEPService struct {
 	depStorage nanodep_storage.AllDEPStorage
 	syncer     *depsync.Syncer
 	logger     kitlog.Logger
+	depClient  DEPAssigner
 }
 
 // getDefaultProfile returns a godep.Profile with default values set.
@@ -147,12 +153,12 @@ func (d *DEPService) createDefaultAutomaticProfile(ctx context.Context) error {
 	return nil
 }
 
-// RegisterProfileWithAppleDEPServer registers the enrollment profile in
+// registerProfileWithAppleDEPServer registers the enrollment profile in
 // Apple's servers via the DEP API, so it can be used for assignment. If
 // setupAsst is nil, the default profile is registered. It assigns the
 // up-to-date dynamic settings such as the server URL and MDM SSO URL if
 // end-user authentication is enabled for that team/no-team.
-func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant) error {
+func (d *DEPService) registerProfileWithAppleDEPServer(ctx context.Context, team *fleet.Team, setupAsst *fleet.MDMAppleSetupAssistant) error {
 	appCfg, err := d.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "fetching app config")
@@ -208,8 +214,7 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	// to get a token without SSO enabled
 	jsonProf.URL = jsonProf.ConfigurationWebURL
 
-	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
-	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
+	res, err := d.depClient.DefineProfile(ctx, DEPName, &jsonProf)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "apple POST /profile request failed")
 	}
@@ -262,7 +267,7 @@ func (d *DEPService) EnsureDefaultSetupAssistant(ctx context.Context, team *flee
 	}
 	if profUUID == "" {
 		d.logger.Log("msg", "default DEP profile not set, registering")
-		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, nil); err != nil {
+		if err := d.registerProfileWithAppleDEPServer(ctx, team, nil); err != nil {
 			return "", time.Time{}, ctxerr.Wrap(ctx, err, "register default setup assistant with Apple")
 		}
 		profUUID, modTime, err = d.ds.GetMDMAppleDefaultSetupAssistant(ctx, tmID)
@@ -293,7 +298,7 @@ func (d *DEPService) EnsureCustomSetupAssistantIfExists(ctx context.Context, tea
 	}
 
 	if asst.ProfileUUID == "" {
-		if err := d.RegisterProfileWithAppleDEPServer(ctx, team, asst); err != nil {
+		if err := d.registerProfileWithAppleDEPServer(ctx, team, asst); err != nil {
 			return "", time.Time{}, err
 		}
 	}
@@ -361,6 +366,7 @@ func NewDEPService(
 		depStorage: depStorage,
 		logger:     logger,
 		ds:         ds,
+		depClient:  depClient,
 	}
 
 	depSvc.syncer = depsync.NewSyncer(
@@ -371,7 +377,7 @@ func NewDEPService(
 		depsync.WithCallback(func(ctx context.Context, isFetch bool, resp *godep.DeviceResponse) error {
 			// the nanodep syncer just logs the error of the callback, so in order to
 			// capture it we need to do this here.
-			err := depSvc.processDeviceResponse(ctx, depClient, resp)
+			err := depSvc.processDeviceResponse(ctx, resp)
 			if err != nil {
 				ctxerr.Handle(ctx, err)
 			}
@@ -385,7 +391,7 @@ func NewDEPService(
 // processDeviceResponse processes the device response from the device sync
 // DEP API endpoints and assigns the profile UUID associated with the DEP
 // client DEP name.
-func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep.Client, resp *godep.DeviceResponse) error {
+func (d *DEPService) processDeviceResponse(ctx context.Context, resp *godep.DeviceResponse) error {
 	if len(resp.Devices) < 1 {
 		// no devices means we can't assign anything
 		return nil
@@ -393,8 +399,8 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 
 	var addedDevices []godep.Device
 	var deletedSerials []string
-	var modifiedDevices []godep.Device
 	var modifiedSerials []string
+	modifiedDevices := map[string]godep.Device{}
 	for _, device := range resp.Devices {
 		level.Debug(d.logger).Log(
 			"msg", "device",
@@ -415,7 +421,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		case "added", "":
 			addedDevices = append(addedDevices, device)
 		case "modified":
-			modifiedDevices = append(modifiedDevices, device)
+			modifiedDevices[device.SerialNumber] = device
 			modifiedSerials = append(modifiedSerials, device.SerialNumber)
 		case "deleted":
 			deletedSerials = append(deletedSerials, device.SerialNumber)
@@ -428,22 +434,56 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 	}
 
+	// find out if we already have entries in the `hosts` table with
+	// matching serial numbers for any devices with op_type = "modified"
 	existingSerials, err := d.ds.GetMatchingHostSerials(ctx, modifiedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching host serials")
 	}
 
-	// treat device that's coming as "modified" but doesn't exist in the
+	// treat devices with op_type = "modified" that doesn't exist in the
 	// `hosts` table, as an "added" device.
+	//
+	// we need to do this because _sometimes_, ABM sends op_type = "modified"
+	// if the IT admin changes the MDM server assignment in the ABM UI. In
+	// these cases, the device is new ("added") to us, but it comes with
+	// the wrong op_type.
 	for _, d := range modifiedDevices {
 		if _, ok := existingSerials[d.SerialNumber]; !ok {
 			addedDevices = append(addedDevices, d)
 		}
 	}
 
-	err = d.ds.DeleteHostDEPAssignments(ctx, deletedSerials)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "deleting DEP assignments")
+	if err := d.processDeviceDeletions(ctx, deletedSerials); err != nil {
+		return ctxerr.Wrap(ctx, err, "processing deletions from ABM")
+	}
+
+	// each new device should be assigned the DEP profile of the default
+	// ABM team as configured by the IT admin.
+	if err := d.processDeviceAdditions(ctx, addedDevices); err != nil {
+		return ctxerr.Wrap(ctx, err, "assigning ADE profiles to new devices")
+	}
+
+	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
+	if err := d.processDeviceModifications(ctx, existingSerials, modifiedDevices); err != nil {
+		return ctxerr.Wrap(ctx, err, "assigning ADE profiles to existing devices")
+	}
+
+	return nil
+}
+
+func (d *DEPService) processDeviceDeletions(ctx context.Context, deletedSerials []string) error {
+	err := d.ds.DeleteHostDEPAssignments(ctx, deletedSerials)
+	return ctxerr.Wrap(ctx, err, "deleting ADE assignments")
+}
+
+// processDeviceAdditions performs operations for devices coming from ABM that
+// are new to Fleet. This method tries to create a new entry in the `hosts`
+// table, and assign the JSON profile of the default ABM team.
+func (d *DEPService) processDeviceAdditions(ctx context.Context, addedDevices []godep.Device) error {
+	if len(addedDevices) == 0 {
+		level.Debug(kitlog.With(d.logger)).Log("msg", "no added devices to assign ADE profiles")
+		return nil
 	}
 
 	n, defaultABMTeamID, err := d.ds.IngestMDMAppleDevicesFromDEPSync(ctx, addedDevices)
@@ -454,68 +494,102 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	case n > 0:
 		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 	case n == 0:
-		level.Info(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
+		level.Info(kitlog.With(d.logger)).Log("msg", "no ADE hosts to add")
 	}
 
-	// at this point, the hosts rows are created for the devices, with the
-	// correct team_id, so we know what team-specific profile needs to be applied.
-	//
-	// collect a map of all the profiles => serials we need to assign.
-	profileToSerials := map[string][]string{}
+	level.Debug(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
+	profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID)
+	if err != nil {
+		return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
+	}
 
-	// each new device should be assigned the DEP profile of the default
-	// ABM team as configured by the IT admin.
-	if len(addedDevices) > 0 {
-		level.Info(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
-		profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID)
-		if err != nil {
-			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
-		}
-
-		var addedSerials []string
-		for _, d := range addedDevices {
+	var addedSerials []string
+	var skippedSerials []string
+	for _, d := range addedDevices {
+		if d.ProfileUUID != profUUID {
 			addedSerials = append(addedSerials, d.SerialNumber)
+			continue
 		}
-		profileToSerials[profUUID] = addedSerials
-	} else {
-		level.Info(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
+
+		skippedSerials = append(skippedSerials, d.SerialNumber)
 	}
 
-	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
-	if len(existingSerials) > 0 {
-		level.Info(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
-		serialsByTeam := map[*uint][]string{}
-		hosts := []fleet.Host{}
-		for _, host := range existingSerials {
-			if serialsByTeam[host.TeamID] == nil {
-				serialsByTeam[host.TeamID] = []string{}
-			}
-			serialsByTeam[host.TeamID] = append(serialsByTeam[host.TeamID], host.HardwareSerial)
-			hosts = append(hosts, *host)
-		}
-		for team, serials := range serialsByTeam {
-			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
-			if err != nil {
-				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
-			}
-			if profileToSerials[profUUID] == nil {
-				profileToSerials[profUUID] = []string{}
-			}
-			profileToSerials[profUUID] = append(profileToSerials[profUUID], serials...)
+	if len(skippedSerials) > 0 {
+		level.Info(kitlog.With(d.logger)).Log("msg", "found added devices that already have the right profile, skipping assignment", "serials", fmt.Sprintf("%s", skippedSerials))
+	}
 
+	return d.assignProfiles(ctx, map[string][]string{profUUID: addedSerials})
+
+}
+
+// processDeviceModifications finds out the right ADE profile to assign to devices
+// that already exist in the `host` table (have a matching `hardware_serial`)
+// based on the team on which they belong.
+func (d *DEPService) processDeviceModifications(
+	ctx context.Context,
+	existingSerials map[string]*fleet.Host,
+	modifiedDevices map[string]godep.Device,
+) error {
+	if len(existingSerials) == 0 {
+		level.Debug(kitlog.With(d.logger)).Log("msg", "no existing devices to assign ADE profiles")
+		return nil
+	}
+
+	level.Debug(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
+
+	targetMap := map[string][]string{}
+	serialsByTeam := make(map[*uint][]string)
+	hosts := make([]fleet.Host, 0, len(existingSerials))
+	skippedSerials := []string{}
+
+	for _, host := range existingSerials {
+		serialsByTeam[host.TeamID] = append(serialsByTeam[host.TeamID], host.HardwareSerial)
+		hosts = append(hosts, *host)
+	}
+
+	for team, serials := range serialsByTeam {
+		profUUID, err := d.getProfileUUIDForTeam(ctx, team)
+		if err != nil {
+			return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 		}
 
-		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
-			return ctxerr.Wrap(ctx, err, "upserting dep assignment for existing device")
+		for _, s := range serials {
+			if dd := modifiedDevices[s]; dd.ProfileUUID == profUUID {
+				skippedSerials = append(skippedSerials, dd.SerialNumber)
+				continue
+			}
+
+			if targetMap[profUUID] == nil {
+				targetMap[profUUID] = []string{}
+			}
+			targetMap[profUUID] = append(targetMap[profUUID], s)
 		}
 
-	} else {
-		level.Info(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
+	}
+
+	if len(skippedSerials) > 0 {
+		level.Info(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials", fmt.Sprintf("%s", skippedSerials))
+	}
+
+	if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
+		return ctxerr.Wrap(ctx, err, "upserting ADE assignment for existing device")
+	}
+
+	return d.assignProfiles(ctx, targetMap)
+}
+
+func (d *DEPService) assignProfiles(ctx context.Context, profileToSerials map[string][]string) error {
+	if len(profileToSerials) == 0 {
+		return nil
 	}
 
 	for profUUID, serials := range profileToSerials {
+		if len(serials) == 0 {
+			continue
+		}
+
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
-		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
+		level.Info(logger).Log("msg", "calling ADE client to assign profile", "profile_uuid", profUUID)
 
 		skipSerials, assignSerials, err := d.ds.ScreenDEPAssignProfileSerialsForCooldown(ctx, serials)
 		if err != nil {
@@ -531,7 +605,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			continue
 		}
 
-		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, assignSerials...)
+		apiResp, err := d.depClient.AssignProfile(ctx, DEPName, profUUID, assignSerials...)
 		if err != nil {
 			level.Info(logger).Log(
 				"msg", "assign profile",
@@ -549,7 +623,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		level.Info(logger).Log(logs...)
 
 		if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
-			return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
+			return ctxerr.Wrap(ctx, err, "update host ADE assign profile responses")
 		}
 	}
 
