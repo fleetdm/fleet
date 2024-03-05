@@ -475,43 +475,44 @@ const EditQueryForm = ({
       setIsEditingName(true);
     }
   };
-  const queryNameClasses = classnames("query-name-wrapper", {
+  const queryNameWrapperClasses = classnames("query-name-wrapper", {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const queryDescriptionClasses = classnames("query-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const queryDescriptionWrapperClasses = classnames(
+    "query-description-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <>
-          <div
-            className={queryNameClasses}
-            onFocus={() => setIsEditingName(true)}
-            onBlur={() => setIsEditingName(false)}
-            onClick={editName}
-          >
-            <AutoSizeInputField
-              name="query-name"
-              placeholder="Add name here"
-              value={lastEditedQueryName}
-              inputClassName={`${baseClass}__query-name ${
-                !lastEditedQueryName ? "no-value" : ""
-              }`}
-              maxLength={160}
-              hasError={errors && errors.name}
-              onChange={setLastEditedQueryName}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingName}
-            />
-            <Icon
-              name="pencil"
-              className={`edit-icon ${isEditingName ? "hide" : ""}`}
-            />
-          </div>
-        </>
+        <div
+          className={queryNameWrapperClasses}
+          onFocus={() => setIsEditingName(true)}
+          onBlur={() => setIsEditingName(false)}
+          onClick={editName}
+        >
+          <AutoSizeInputField
+            name="query-name"
+            placeholder="Add name here"
+            value={lastEditedQueryName}
+            inputClassName={`${baseClass}__query-name ${
+              !lastEditedQueryName ? "no-value" : ""
+            }`}
+            maxLength={160}
+            hasError={errors && errors.name}
+            onChange={setLastEditedQueryName}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingName}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingName ? "hide" : ""}`}
+          />
+        </div>
       );
     }
 
@@ -527,31 +528,29 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <>
-          <div
-            className={queryDescriptionClasses}
-            onFocus={() => setIsEditingDescription(true)}
-            onBlur={() => setIsEditingDescription(false)}
-            onClick={editDescription}
-          >
-            <AutoSizeInputField
-              name="query-description"
-              placeholder="Add description here."
-              value={lastEditedQueryDescription}
-              maxLength={250}
-              inputClassName={`${baseClass}__query-description ${
-                !lastEditedQueryDescription ? "no-value" : ""
-              }`}
-              onChange={setLastEditedQueryDescription}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingDescription}
-            />
-            <Icon
-              name="pencil"
-              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-            />
-          </div>
-        </>
+        <div
+          className={queryDescriptionWrapperClasses}
+          onFocus={() => setIsEditingDescription(true)}
+          onBlur={() => setIsEditingDescription(false)}
+          onClick={editDescription}
+        >
+          <AutoSizeInputField
+            name="query-description"
+            placeholder="Add description here."
+            value={lastEditedQueryDescription}
+            maxLength={250}
+            inputClassName={`${baseClass}__query-description ${
+              !lastEditedQueryDescription ? "no-value" : ""
+            }`}
+            onChange={setLastEditedQueryDescription}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingDescription}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+          />
+        </div>
       );
     }
     return null;
