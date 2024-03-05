@@ -5771,6 +5771,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	require.NoError(t, err)
 
 	err = s.ds.SetOrUpdateMDMData(context.Background(), winHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "")
+	require.NoError(t, err)
 
 	// create a host that's not enrolled into MDM
 	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
