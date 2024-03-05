@@ -2916,9 +2916,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	// 3 profiles added + 1 profile with fleetd configuration
 	require.Len(t, *hostResp.Host.MDM.Profiles, 4)
 
-	// try to unenroll the host, fails since the host doesn't respond (don't test
-	// with other aliases of this endpoint as it adds a 5s delay each time)
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusGatewayTimeout)
+	// try to unenroll the host, fails since the host doesn't respond
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusGatewayTimeout)
 
 	// we're going to modify this mock, make sure we restore its default
 	originalPushMock := s.pushProvider.PushFunc
@@ -2933,7 +2932,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 			},
 		}, nil
 	}
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusBadGateway)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusBadGateway)
 
 	// if there was an error unrelated to APNs
@@ -2946,7 +2944,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 		}
 		return res, errors.New("baz")
 	}
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusInternalServerError)
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusInternalServerError)
 
 	// try again, but this time the host is online and answers
@@ -2958,7 +2955,7 @@ func (s *integrationMDMTestSuite) TestMDMAppleUnenroll() {
 	}
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusOK)
 	// trying again with the other endpoint fails with 409 as it is alreayd unenrolled
-	s.Do("PATCH", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/unenroll", h.ID), nil, http.StatusConflict)
+	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/hosts/%d/mdm", h.ID), nil, http.StatusConflict)
 
 	require.NoError(t, checkoutErr)
 
@@ -3354,21 +3351,17 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	require.Equal(t, "", getHostResp.Host.MDM.OSSettings.DiskEncryption.Detail)
 
 	// request with no token
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
-	res.Body.Close()
-	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
 	res.Body.Close()
 
 	// encryption key not processed yet
 	resp := getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 
 	// unable to decrypt encryption key
 	err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, false, time.Now())
 	require.NoError(t, err)
 	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 
 	// get that host - it has an encryption key that is un-decryptable, so it
@@ -3399,9 +3392,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	checkDecryptableKey := func(u fleet.User) {
 		err = s.ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{host.ID}, true, time.Now())
 		require.NoError(t, err)
-		resp = getHostEncryptionKeyResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 		resp = getHostEncryptionKeyResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
 		require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
@@ -3528,7 +3518,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleHostDiskEncryption() {
 	// non-members aren't able to see the token
 	s.token = s.getTestToken(u.Email, test.GoodPassword)
 	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusForbidden, &resp)
 }
 
@@ -3542,19 +3531,15 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.NoError(t, err)
 
 	// request encryption key with no auth token
-	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
-	res.Body.Close()
-	res = s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
+	res := s.DoRawNoAuth("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusUnauthorized)
 	res.Body.Close()
 
 	// no encryption key
 	resp := getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 
 	// invalid host id
 	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID+999), nil, http.StatusNotFound, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID+999), nil, http.StatusNotFound, &resp)
 
 	// add an encryption key for the host
@@ -3568,21 +3553,17 @@ func (s *integrationMDMTestSuite) TestWindowsMDMGetEncryptionKey() {
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
 	require.Equal(t, host.ID, resp.HostID)
 	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 	s.lastActivityOfTypeMatches(fleet.ActivityTypeReadHostDiskEncryptionKey{}.ActivityName(),
 		fmt.Sprintf(`{"host_display_name": "%s", "host_id": %d}`, host.DisplayName(), host.ID), 0)
-	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusOK, &resp)
-	require.Equal(t, recoveryKey, resp.EncryptionKey.DecryptedValue)
 
 	// update the key to blank with a client error
 	err = s.ds.SetOrUpdateHostDiskEncryptionKey(ctx, host.ID, "", "failed", nil)
 	require.NoError(t, err)
 
 	resp = getHostEncryptionKeyResponse{}
-	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/encryption_key", host.ID), nil, http.StatusNotFound, &resp)
 }
 
@@ -3608,12 +3589,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		require.Len(t, listResp.ConfigProfiles, 0)
 
 		var hostProfilesResp getHostProfilesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
-		require.NotNil(t, hostProfilesResp.Profiles) // expect empty slice instead of nil
-		require.Len(t, hostProfilesResp.Profiles, 0)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
-
-		hostProfilesResp = getHostProfilesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
 		require.NotNil(t, hostProfilesResp.Profiles) // expect empty slice instead of nil
 		require.Len(t, hostProfilesResp.Profiles, 0)
@@ -3665,14 +3640,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		}
 
 		var hostProfilesResp getHostProfilesResponse
-		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
-		require.NotNil(t, hostProfilesResp.Profiles)
-		require.Len(t, hostProfilesResp.Profiles, 1)
-		require.Equal(t, p1.Name, hostProfilesResp.Profiles[0].Name)
-		require.Equal(t, p1.Identifier, hostProfilesResp.Profiles[0].Identifier)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
-
-		hostProfilesResp = getHostProfilesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
 		require.NotNil(t, hostProfilesResp.Profiles)
 		require.Len(t, hostProfilesResp.Profiles, 1)
@@ -3683,12 +3650,6 @@ func (s *integrationMDMTestSuite) TestMDMAppleListConfigProfiles() {
 		// add the host to a team
 		err = s.ds.AddHostsToTeam(ctx, &testTeam.ID, []uint{mdmHost.ID})
 		require.NoError(t, err)
-
-		hostProfilesResp = getHostProfilesResponse{}
-		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/mdm/hosts/%d/profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
-		require.NotNil(t, hostProfilesResp.Profiles)
-		require.Len(t, hostProfilesResp.Profiles, 2)
-		require.EqualValues(t, mdmHost.ID, hostProfilesResp.HostID)
 
 		hostProfilesResp = getHostProfilesResponse{}
 		s.DoJSON("GET", fmt.Sprintf("/api/v1/fleet/hosts/%d/configuration_profiles", mdmHost.ID), nil, http.StatusOK, &hostProfilesResp)
