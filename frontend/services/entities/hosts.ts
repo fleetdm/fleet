@@ -373,7 +373,6 @@ export default {
 
     const queryString = buildQueryStringFromParams(queryParams);
 
-    console.log("queryString", queryString);
     const endpoint = getHostEndpoint(selectedLabels);
     const path = `${endpoint}?${queryString}`;
     return sendRequest("GET", path);

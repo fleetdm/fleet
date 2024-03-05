@@ -861,7 +861,6 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 // Add Hosts to Team by Filter
 ////////////////////////////////////////////////////////////////////////////////
 
-// Filters match HostListOptions in server/fleet/hosts.go
 type addHostsToTeamByFilterRequest struct {
 	TeamID  *uint `json:"team_id"`
 	Filters struct {
