@@ -38,7 +38,7 @@ func runScriptCommand() *cli.Command {
 				Required: false,
 			},
 			&cli.UintFlag{
-				Name:     "team-id",
+				Name:     "team",
 				Usage:    `Available in Fleet Premium. ID of the team that the saved script belongs to. 0 targets hosts assigned to “No team” (default: 0).`,
 				Required: false,
 			},
@@ -65,11 +65,11 @@ func runScriptCommand() *cli.Command {
 			name := c.String("script-name")
 
 			if path == "" && name == "" {
-				return errors.New("One of --script-path or --script-name must be specified.")
+				return errors.New("One of '--script-path' or '--script-name' must be specified.")
 			}
 
 			if path != "" && name != "" {
-				return errors.New("Only one of --script-path or --script-name is allowed.")
+				return errors.New("Only one of '--script-path' or '--script-name' is allowed.")
 			}
 
 			if path != "" {
@@ -117,10 +117,10 @@ func runScriptCommand() *cli.Command {
 
 			fmt.Println("\nScript is running. Please wait for it to finish...")
 
-			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team-id"))
+			res, err := client.RunHostScriptSync(h.ID, b, name, c.Uint("team"))
 			if err != nil {
 				if strings.Contains(err.Error(), `Only one of 'script_contents' or 'team_id' is allowed`) {
-					return errors.New("Only one of --script-path or --team-id is allowed.")
+					return errors.New("Only one of '--script-path' or '--team' is allowed.")
 				}
 				return err
 			}

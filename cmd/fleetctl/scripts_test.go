@@ -51,26 +51,37 @@ func TestRunScriptCommand(t *testing.T) {
 	ds.IsExecutionPendingForHostFunc = func(ctx context.Context, hid uint, scriptID uint) ([]*uint, error) {
 		return []*uint{}, nil
 	}
-	ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
-		return []byte("echo hello world"), nil
-	}
 
 	generateValidPath := func() string {
 		return writeTmpScriptContents(t, "echo hello world", ".sh")
 	}
-	maxChars := strings.Repeat("a", 10001)
+	exceedsMaxCharsUnsaved := strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)
+	exceedsMaxCharsSaved := strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)
+
+	expectedOutputSuccess := `
+Exit code: 0 (Script ran successfully.)
+
+Output:
+
+-------------------------------------------------------------------------------------
+
+hello world
+
+-------------------------------------------------------------------------------------
+`
 
 	type testCase struct {
-		name           string
-		scriptPath     func() string
-		scriptName     string
-		teamID         *uint
-		scriptResult   *fleet.HostScriptResult
-		expectOutput   string
-		expectErrMsg   string
-		expectNotFound bool
-		expectOffline  bool
-		expectPending  bool
+		name                string
+		scriptPath          func() string
+		scriptName          string
+		teamID              *uint
+		savedScriptContents func() ([]byte, error)
+		scriptResult        *fleet.HostScriptResult
+		expectOutput        string
+		expectErrMsg        string
+		expectNotFound      bool
+		expectOffline       bool
+		expectPending       bool
 	}
 
 	cases := []testCase{
@@ -99,25 +110,56 @@ func TestRunScriptCommand(t *testing.T) {
 		{
 			name: "script too long (unsaved)",
 			scriptPath: func() string {
-				return writeTmpScriptContents(t, maxChars, ".sh")
+				return writeTmpScriptContents(t, exceedsMaxCharsUnsaved, ".sh")
 			},
 			expectErrMsg: "Script is too large. Script referenced by '--script-path' is limited to 10,000 characters. To run larger script save it to Fleet and use '--script-name'.",
+		},
+		{
+			name: "script not too long (unsaved)",
+			scriptPath: func() string {
+				return writeTmpScriptContents(t, exceedsMaxCharsUnsaved[:fleet.UnsavedScriptMaxRuneLen], ".sh")
+			},
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
+		},
+		{
+			name:       "script too long (saved)",
+			scriptName: "foo",
+			savedScriptContents: func() ([]byte, error) {
+				return []byte(exceedsMaxCharsSaved), nil
+			},
+			expectErrMsg: "Script is too large. It's limited to 500,000 characters (approximately 10,000 lines).",
+		},
+		{
+			name:       "script not too long (saved)",
+			scriptName: "foo",
+			savedScriptContents: func() ([]byte, error) {
+				return []byte(exceedsMaxCharsUnsaved), nil
+			},
+			scriptResult: &fleet.HostScriptResult{
+				ExitCode: ptr.Int64(0),
+				Output:   "hello world",
+			},
+			expectOutput: expectedOutputSuccess,
 		},
 		{
 			name:         "script-path and script-name disallowed",
 			scriptPath:   generateValidPath,
 			scriptName:   "foo",
-			expectErrMsg: `Only one of --script-path or --script-name is allowed.`,
+			expectErrMsg: `Only one of '--script-path' or '--script-name' is allowed.`,
 		},
 		{
 			name:         "missing one of script-path and script-nqme",
-			expectErrMsg: `One of --script-path or --script-name must be specified.`,
+			expectErrMsg: `One of '--script-path' or '--script-name' must be specified.`,
 		},
 		{
-			name:         "script-path and team-id disallowed",
+			name:         "script-path and team disallowed",
 			scriptPath:   generateValidPath,
 			teamID:       ptr.Uint(1),
-			expectErrMsg: `Only one of --script-path or --team-id is allowed.`,
+			expectErrMsg: `Only one of '--script-path' or '--team' is allowed.`,
 		},
 		{
 			name:         "script empty",
@@ -142,17 +184,7 @@ func TestRunScriptCommand(t *testing.T) {
 				ExitCode: ptr.Int64(0),
 				Output:   "hello world",
 			},
-			expectOutput: `
-Exit code: 0 (Script ran successfully.)
-
-Output:
-
--------------------------------------------------------------------------------------
-
-hello world
-
--------------------------------------------------------------------------------------
-`,
+			expectOutput: expectedOutputSuccess,
 		},
 		{
 			name:       "script failed",
@@ -211,7 +243,7 @@ Error: Scripts are disabled for this host. To run scripts, deploy the fleetd age
 			scriptPath: generateValidPath,
 			scriptResult: &fleet.HostScriptResult{
 				ExitCode: ptr.Int64(0),
-				Output:   maxChars,
+				Output:   exceedsMaxCharsUnsaved,
 			},
 			expectOutput: fmt.Sprintf(`
 Exit code: 0 (Script ran successfully.)
@@ -225,7 +257,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 %s
 
 -------------------------------------------------------------------------------------
-`, maxChars),
+`, exceedsMaxCharsUnsaved),
 		},
 		// TODO: this would take 5 minutes to run, we don't want that kind of slowdown in our test suite
 		// but can be useful to have around for manual testing.
@@ -287,6 +319,21 @@ Fleet records the last 10,000 characters to prevent downtime.
 				return &fleet.AppConfig{ServerSettings: fleet.ServerSettings{ScriptsDisabled: false}}, nil
 			}
 		}
+		if c.savedScriptContents != nil {
+			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return c.savedScriptContents()
+			}
+			ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+				return &fleet.Script{ID: id, Name: "foo"}, nil
+			}
+		} else {
+			ds.GetScriptContentsFunc = func(ctx context.Context, id uint) ([]byte, error) {
+				return []byte("echo hello world"), nil
+			}
+			ds.ScriptFunc = func(ctx context.Context, id uint) (*fleet.Script, error) {
+				return &fleet.Script{ID: id, Name: "foo"}, nil
+			}
+		}
 	}
 
 	for _, c := range cases {
@@ -305,7 +352,7 @@ Fleet records the last 10,000 characters to prevent downtime.
 			}
 
 			if c.teamID != nil {
-				args = append(args, "--team-id", fmt.Sprintf("%d", *c.teamID))
+				args = append(args, "--team", fmt.Sprintf("%d", *c.teamID))
 			}
 
 			b, err := runAppNoChecks(args)
