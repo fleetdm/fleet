@@ -71,3 +71,35 @@ func checkForEmail(email string) error {
 
 	return nil
 }
+
+func checkByIdentifier(identifier string) error {
+	req, err := http.NewRequest("GET", fleetURL+"/api/latest/fleet/device/"+identifier, &bytes.Buffer{})
+	req.Header.Set("Authorization", "Bearer "+fleetKey)
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	var host basicHost
+	err = json.Unmarshal(body, &host)
+	if err != nil {
+		return err
+	}
+
+	log.Println(host)
+
+	if host.Issues.FailingPoliciesCount > 0 {
+		return errors.New("host is failing policies")
+	}
+
+	return nil
+}

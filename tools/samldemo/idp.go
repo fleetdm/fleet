@@ -6,6 +6,7 @@ import (
 	"encoding/pem"
 	"encoding/xml"
 	"fmt"
+	"html/template"
 	"log"
 	"net/http"
 	"net/url"
@@ -118,7 +119,9 @@ J6k/4lrVU/5lJWohLx7BSfGCc9OrH6DYG++YSlHy</ds:X509Certificate></ds:X509Data></ds:
 	return &res
 }()
 
-type identityProvider struct{}
+type identityProvider struct {
+	saml.IdentityProvider
+}
 
 func (i *identityProvider) GetServiceProvider(r *http.Request, serviceProviderID string) (*saml.EntityDescriptor, error) {
 	log.Printf("request id: %s", serviceProviderID)
@@ -149,7 +152,162 @@ func (i *identityProvider) GetSession(w http.ResponseWriter, r *http.Request, re
 	}
 }
 
-func getIDP() *saml.IdentityProvider {
+func getRequestValues(r *http.Request) url.Values {
+	switch r.Method {
+	case "GET":
+		return r.URL.Query()
+	case "POST":
+		if err := r.ParseForm(); err != nil {
+			panic(err)
+		}
+		return r.PostForm
+	default:
+		panic("unsupported request method")
+	}
+}
+
+// ServeSSO handles the initial SSO request.
+//
+// First we validate the SAML request and then we return HTML/JS that will collect the device
+// identifier from the locally running agent. That JS then redirects back to the secondary SSO
+// request where we can process both the user's email and the device identifier.
+func (idp *identityProvider) ServeSSO(w http.ResponseWriter, r *http.Request) {
+	req, err := saml.NewIdpAuthnRequest(&idp.IdentityProvider, r)
+	if err != nil {
+		idp.Logger.Printf("failed to parse request: %s", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		idp.Logger.Printf("failed to validate request: %s", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	type tmplParams struct {
+		Email       string
+		SAMLRequest string
+		RelayState  string
+	}
+	t, err := template.New("").Parse(`
+<html>
+	<head>
+	<script type="text/javascript">
+	(async () => {
+		const email = {{ .Email }};
+		const saml = {{ .SAMLRequest }};
+		const relay = {{ .RelayState }};
+		// This is where we would want to try all the different predetermined localhost addresses in
+		// case the default port is bound
+		const resp = await fetch("http://localhost:9339/identifier");
+		const json = await resp.json();
+		console.log("got parameters: ", json.identifier, email, saml);
+
+		// Now that we have the parameters, let's redirect to the second step
+		const form = document.createElement('form');
+  		form.method = "post";
+  		form.action = "/ssowithidentifier";
+
+		const identifierField = document.createElement("input");
+		identifierField.type = "hidden";
+		identifierField.name = "FleetIdentifier";
+		identifierField.value = json.identifier;
+		form.appendChild(identifierField);
+
+		const samlField = document.createElement("input");
+		samlField.type = "hidden";
+		samlField.name = "SAMLRequest";
+		samlField.value = saml;
+		form.appendChild(samlField);
+
+		const relayField = document.createElement("input");
+		relayField.type = "hidden";
+		relayField.name = "RelayState";
+		relayField.value = relay;
+		form.appendChild(relayField);
+
+		document.body.appendChild(form);
+  		form.submit();
+	})();
+	</script>
+	</head>
+	<body>
+		If you are seeing this, javascript is disabled or an error occurred. See the console for more.
+	</body>
+</html>
+	`)
+	if err != nil {
+		panic(err)
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+
+	values := getRequestValues(r)
+
+	err = t.Execute(w, tmplParams{
+		Email:       req.Request.Subject.NameID.Value,
+		SAMLRequest: values.Get("SAMLRequest"),
+		RelayState:  values.Get("RelayState"),
+	})
+	if err != nil {
+		panic(err)
+	}
+}
+
+// ServeSSO handles SAML auth requests after we've retrieved the device identifier
+
+func (idp *identityProvider) ServeSSOWithIdentifier(w http.ResponseWriter, r *http.Request) {
+	req, err := saml.NewIdpAuthnRequest(&idp.IdentityProvider, r)
+	if err != nil {
+		idp.Logger.Printf("failed to parse request: %s", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	if err := req.Validate(); err != nil {
+		idp.Logger.Printf("failed to validate request: %s", err)
+		http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
+
+	///////////
+
+	// Here's where we know the device identifier and the user's email
+
+	if err := r.ParseForm(); err != nil {
+		panic(err)
+	}
+	fleetID := r.PostForm.Get("FleetIdentifier")
+	log.Println("got fleet ID: ", fleetID)
+
+	if err := checkByIdentifier(fleetID); err != nil {
+		http.Error(w, "failing policies", http.StatusUnauthorized)
+		return
+	}
+
+	session := &saml.Session{
+		NameID: req.Request.Subject.NameID.Value,
+	}
+
+	///////////
+
+	assertionMaker := idp.AssertionMaker
+	if assertionMaker == nil {
+		assertionMaker = saml.DefaultAssertionMaker{}
+	}
+	if err := assertionMaker.MakeAssertion(req, session); err != nil {
+		idp.Logger.Printf("failed to make assertion: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+	if err := req.WriteResponse(w); err != nil {
+		idp.Logger.Printf("failed to write response: %s", err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+}
+
+func getIDP() *identityProvider {
 	u, err := url.Parse("http://" + addr)
 	if err != nil {
 		panic(err)
@@ -160,8 +318,7 @@ func getIDP() *saml.IdentityProvider {
 	ssoURL.Path = ssoURL.Path + "/sso"
 
 	i := &identityProvider{}
-
-	idp := &saml.IdentityProvider{
+	idp := saml.IdentityProvider{
 		Key:                     key,
 		SignatureMethod:         dsig.RSASHA256SignatureMethod,
 		Logger:                  log.New(os.Stderr, "idp: ", 0),
@@ -171,5 +328,6 @@ func getIDP() *saml.IdentityProvider {
 		ServiceProviderProvider: i,
 		SessionProvider:         i,
 	}
-	return idp
+	i.IdentityProvider = idp
+	return i
 }
