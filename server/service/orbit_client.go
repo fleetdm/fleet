@@ -302,6 +302,9 @@ func (oc *OrbitClient) getNodeKeyOrEnroll() (string, error) {
 				return err
 			}
 		},
+		// The below configuration means the following retry intervals (exponential backoff):
+		// 10s, 20s, 40s, 80s, 160s and then return the failure (max attempts = 6)
+		// thus executing no more than ~6 enroll request failures every ~5 minutes.
 		retry.WithInterval(orbitEnrollRetryInterval()),
 		retry.WithMaxAttempts(constant.OrbitEnrollMaxRetries),
 		retry.WithBackoffMultiplier(constant.OrbitEnrollBackoffMultiplier),
