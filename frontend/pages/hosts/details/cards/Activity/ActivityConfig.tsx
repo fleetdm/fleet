@@ -25,8 +25,10 @@ export interface IHostActivityItemComponentPropsWithShowDetails
 
 export const pastActivityComponentMap: Record<
   IHostPastActivityType,
-  | React.FC<IHostActivityItemComponentProps>
-  | React.FC<IHostActivityItemComponentPropsWithShowDetails>
+  | React.FC<React.PropsWithChildren<IHostActivityItemComponentProps>>
+  | React.FC<
+      React.PropsWithChildren<IHostActivityItemComponentPropsWithShowDetails>
+    >
 > = {
   [ActivityType.RanScript]: RanScriptActivityItem,
   [ActivityType.LockedHost]: LockedHostActivityItem,
