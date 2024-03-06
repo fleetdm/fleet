@@ -76,6 +76,7 @@ parasails.registerPage('contact', {
     clickSwitchForms: function(form) {
       this.formData = {};
       this.formErrors = {};
+      this.cloudError = '';
       this.formToDisplay = form;
     }
 

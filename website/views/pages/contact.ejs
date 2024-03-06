@@ -36,7 +36,7 @@
             <div class="invalid-feedback" v-if="formErrors.message">Message cannot be empty.</div>
           </div>
           <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
-            <p>The email address provided could not be used. Please use your work email address.</p>
+            <p>Please enter a valid work email address</p>
           </cloud-error>
           <cloud-error v-else-if="cloudError"></cloud-error>
           <div class="form-group btn-container">
@@ -89,9 +89,9 @@
            <p purpose="devices-note" class="mt-3 mb-0">Includes computers, servers, containers, and other hosts.</p>
            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices</div>
          </div>
-          <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
-            <p>The email address provided could not be used. Please use your work email address.</p>
-          </cloud-error>
+         <cloud-error v-if="cloudError && cloudError === 'invalidEmailDomain'">
+           <p>Please enter a valid work email address</p>
+         </cloud-error>
           <cloud-error v-else-if="cloudError"></cloud-error>
           <div class="form-group btn-container">
             <ajax-button type="submit" purpose="submit-button" :syncing="syncing" class="btn btn-primary">Schedule a call</ajax-button>
