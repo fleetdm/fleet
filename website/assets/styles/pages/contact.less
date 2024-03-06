@@ -108,8 +108,15 @@
     padding-right: 60px;
     width: 100%;
     max-width: 664px;
-
   }
+  [purpose='success-message'] {
+    padding-right: 60px;
+    padding-top: 80px;
+    text-align: center;
+    // max-width: 604px;
+    width: 100%;
+  }
+
   [purpose='quote-and-logos'] {
     min-width: 392px;
   }
@@ -184,7 +191,13 @@
       padding-right: 0px;
       width: 100%;
       max-width: 100%;
-
+    }
+    [purpose='success-message'] {
+      padding-right: 0px;
+      padding-top: 0px;
+      padding-bottom: 40px;
+      text-align: center;
+      width: 100%;
     }
     [purpose='quote-and-logos'] {
       width: 100%;
@@ -264,6 +277,8 @@
   }
   @media (max-width: 375px) {
     [purpose='page-container'] {
+      padding-top: 40px;
+      padding-bottom: 40px;
       padding-left: 16px;
       padding-right: 16px;
     }
