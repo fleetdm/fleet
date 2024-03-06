@@ -67,7 +67,7 @@ Fleet uses advertising to spread awareness through a broader audience and foster
 It's important for Fleet to engage at events. This provides an opportunity to directly engage with potential users and contributors, build relationships, gather feedback, and create a stronger sense of community and trust.
 
 #### Event lead follow-up
-Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event.
+Eventgoers are expecting a timely follow-up from Fleet based on the conversations that they had at the event. It is up to Head of Demand to make sure this process is followed.
 
 1. Once a list of badge scans is available, Fleeties that attended the event are to add any follow up notes that note buying situation, amount of endpoints, level of interest, and general talking points.
 2. Within 3 business days of returning from the event, attendees will set up a debrief meeting with the demand team to discuss follow-up.
