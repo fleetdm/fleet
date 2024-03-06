@@ -227,7 +227,7 @@ type deleteHostsFilters struct {
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *fleet.HostListOptions `json:"filters"`
+	Filters *deleteHostsFilters `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -242,10 +242,17 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	listOpts := req.Filters
+	var listOpts *fleet.HostListOptions
 	var labelID *uint
-	if listOpts != nil {
-		labelID = listOpts.LabelID
+	if req.Filters != nil {
+		listOpts = &fleet.HostListOptions{
+			ListOptions: fleet.ListOptions{
+				MatchQuery: req.Filters.MatchQuery,
+			},
+			StatusFilter: req.Filters.Status,
+			TeamFilter:   req.Filters.TeamID,
+		}
+		labelID = req.Filters.LabelID
 	}
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
