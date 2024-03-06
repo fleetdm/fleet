@@ -3,7 +3,7 @@ parasails.registerPage('contact', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
-    formToDisplay: 'contact',
+    formToDisplay: 'talk-to-us',
     audience: undefined,
     // Main syncing/loading state for this page.
     syncing: false,
@@ -43,8 +43,8 @@ parasails.registerPage('contact', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    if(this.formToShow === 'talk-to-us'){
-      this.formToDisplay = 'talk-to-us';
+    if(this.formToShow === 'contact'){
+      this.formToDisplay = this.formToShow;
     }
     if(window.location.search){
       window.history.replaceState({}, document.title, '/contact' );
