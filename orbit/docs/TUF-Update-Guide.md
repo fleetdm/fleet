@@ -40,6 +40,8 @@ aws s3 sync s3://fleet-tuf-repo ./repository --exact-timestamps
 
 ## Building the components for releasing to `edge`
 
+### fleetd
+
 > Assuming we are releasing version 1.21.0 of fleetd.
 
 1. Create the fleetd changelog for the new release:
@@ -84,6 +86,30 @@ $HOME/release-friday
     │   └── orbit
     └── windows
         └── orbit.exe
+```
+7. With the executables on your workstation, proceed to [Pushing updates](#pushing-updates) (`edge`).
+
+### osqueryd
+
+> Assuming we are releasing version 5.12.0 of osqueryd.
+
+1. Bump osquery version in https://github.com/fleetdm/fleet/blob/30a36b0b3a1fd50e48d98a4c3c955595022f5277/.github/workflows/generate-osqueryd-targets.yml#L27.
+1. Commit the changes, push the branch (assuming branch name is `bump-osqueryd-5.12.0`) and create a PR.
+1. Once the Github action completes run:
+```sh
+go run ./tools/tuf/download-artifacts osqueryd \
+    --git-branch bump-osqueryd-5.12.0 \
+    --output-directory $HOME/release-friday/osqueryd \
+    --github-username $GITHUB_USERNAME \
+    --github-api-token $GITHUB_TOKEN
+tree $HOME/release-friday/osqueryd
+$HOME/release-friday/osqueryd
+├── linux
+│   └── osqueryd
+├── macos
+│   └── osqueryd.app.tar.gz
+└── windows
+    └── osqueryd.exe
 ```
 7. With the executables on your workstation, proceed to [Pushing updates](#pushing-updates) (`edge`).
 
@@ -188,11 +214,11 @@ Such action is triggered by submitting a PR with the [following version string](
 
 ```sh
 # macOS
-fleetctl updates add --target /path/to/downloaded/macos/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/macos/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.9.1 -t edge
 # Linux
-fleetctl updates add --target /path/to/downloaded/linux/osqueryd --platform linux --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/linux/osqueryd --platform linux --name osqueryd --version 5.9.1 -t edge
 # Windows
-fleetctl updates add --target /path/to/downloaded/windows/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/desktop/windows/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t edge
 ```
 
 #### Push updates
