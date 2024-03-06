@@ -286,6 +286,7 @@ const QueriesTable = ({
   const searchable =
     !(queriesList?.length === 0 && searchQuery === "") && !isInherited;
 
+  const trimmedSearchQuery = searchQuery.trim();
   return columnConfigs && !isLoading ? (
     <div className={`${baseClass}`}>
       <TableContainer
@@ -293,11 +294,11 @@ const QueriesTable = ({
         resultsTitle="queries"
         columnConfigs={columnConfigs}
         data={queriesList}
-        filters={{ name: isInherited ? "" : searchQuery.trim() }}
+        filters={{ name: isInherited ? "" : trimmedSearchQuery }}
         isLoading={isLoading}
         defaultSortHeader={sortHeader || DEFAULT_SORT_HEADER}
         defaultSortDirection={sortDirection || DEFAULT_SORT_DIRECTION}
-        defaultSearchQuery={isInherited ? "" : searchQuery}
+        defaultSearchQuery={isInherited ? "" : trimmedSearchQuery}
         defaultPageIndex={page}
         pageSize={DEFAULT_PAGE_SIZE}
         inputPlaceHolder="Search by name"
