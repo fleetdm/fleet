@@ -211,8 +211,6 @@ func targetSW(s *fleet.Software) string {
 		return `node.js`
 	case "programs":
 		return "windows"
-	case "vscode_extensions":
-		return "visual_studio_code"
 	}
 	return "*"
 }
