@@ -48,16 +48,13 @@ export const HOSTS_QUERY_PARAMS = {
   DISK_ENCRYPTION: "os_settings_disk_encryption",
 } as const;
 
-export interface ILoadHostsQueryKey extends IBaseHostsOptions {
+export interface ILoadHostsQueryKey extends IPaginateHostOptions {
   scope: "hosts";
 }
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 
 export interface IBaseHostsOptions {
-  page?: number;
-  perPage?: number;
-  sortBy: ISortOption[];
   selectedLabels?: string[];
   globalFilter?: string;
   teamId?: number;
@@ -82,6 +79,12 @@ export interface IBaseHostsOptions {
   diskEncryptionStatus?: DiskEncryptionStatus;
   bootstrapPackageStatus?: BootstrapPackageStatus;
   osVersionId?: number;
+}
+
+export interface IPaginateHostOptions extends IBaseHostsOptions {
+  page?: number;
+  perPage?: number;
+  sortBy: ISortOption[];
 }
 
 export interface IActionByFilter {
@@ -213,9 +216,11 @@ export default {
       },
     });
   },
-  exportHosts: (options: IBaseHostsOptions) => {
+  exportHosts: (options: IPaginateHostOptions) => {
+    console.log("options", options);
+    const visibleColumns = options?.visibleColumns;
     const sortBy = options.sortBy;
-    const selectedLabels = options?.selectedLabels || [];
+    const label = getLabelParam(options?.selectedLabels || []);
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const policyId = options?.policyId;
@@ -228,12 +233,14 @@ export default {
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
-    const visibleColumns = options?.visibleColumns;
-    const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
     const osSettings = options?.osSettings;
-    const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const osName = options?.osName;
+    const osVersion = options?.osVersion;
+    const osVersionId = options?.osVersionId;
     const vulnerability = options?.vulnerability;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -260,9 +267,13 @@ export default {
         softwareTitleId,
         softwareVersionId,
         lowDiskSpaceHosts,
-        osSettings,
-        diskEncryptionStatus,
+        osVersionId,
+        osName,
+        osVersion,
         vulnerability,
+        diskEncryptionStatus,
+        osSettings,
+        bootstrapPackageStatus,
       }),
       status,
       label_id: label,
@@ -271,6 +282,7 @@ export default {
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
+    console.log("queryString", queryString);
     const endpoint = endpoints.HOSTS_REPORT;
     const path = `${endpoint}?${queryString}`;
 
@@ -279,6 +291,7 @@ export default {
   loadHosts: ({
     page = 0,
     perPage = 100,
+    sortBy,
     globalFilter,
     teamId,
     policyId,
@@ -298,11 +311,10 @@ export default {
     vulnerability,
     deviceMapping,
     selectedLabels,
-    sortBy,
     osSettings,
     diskEncryptionStatus,
     bootstrapPackageStatus,
-  }: IBaseHostsOptions): Promise<ILoadHostsResponse> => {
+  }: IPaginateHostOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
