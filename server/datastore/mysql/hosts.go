@@ -1504,6 +1504,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}
 
+	subquery += ` AND hh.platform = 'darwin'`
+
 	newSQL := ""
 	if opt.TeamFilter == nil {
 		// macOS setup filter is not compatible with the "all teams" option so append the "no
@@ -2829,7 +2831,6 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 	}
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &total, totalQuery, args...)
-
 	if err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "getting total host counts")
 	}
@@ -2848,7 +2849,6 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
-
 	if err != nil {
 		return total, nil, ctxerr.Wrap(ctx, err, "getting unseen host counts")
 	}

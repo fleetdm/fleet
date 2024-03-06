@@ -1330,7 +1330,6 @@ func (s *integrationMDMTestSuite) TestPuppetMatchPreassignProfiles() {
 		s.token = s.getTestAdminToken()
 		cb()
 		s.token = s.getCachedUserToken("gitops-TestPuppetMatchPreassignProfiles@example.com", test.GoodPassword)
-
 	}
 
 	// create a host enrolled in fleet
@@ -5753,13 +5752,17 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	createHostThenEnrollMDM(s.ds, s.server.URL, t)
 
 	// create a non-macOS host
-	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+	winHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
 		OsqueryHostID: ptr.String("non-macos-host"),
 		NodeKey:       ptr.String("non-macos-host"),
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
 		Platform:      "windows",
+		MDM:           mdm_types.MDMHostData{},
 	})
+	require.NoError(t, err)
+
+	err = s.ds.SetOrUpdateMDMData(context.Background(), winHost.ID, false, true, "https://example.com", true, fleet.WellKnownMDMFleet, "")
 	require.NoError(t, err)
 
 	// create a host that's not enrolled into MDM
@@ -5810,6 +5813,10 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	var summaryResp getMDMAppleBootstrapPackageSummaryResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/bootstrap/summary", nil, http.StatusOK, &summaryResp)
 	require.Equal(t, fleet.MDMAppleBootstrapPackageSummary{Pending: uint(len(noTeamDevices))}, summaryResp.MDMAppleBootstrapPackageSummary)
+
+	var lhr listHostsResponse
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &lhr, "team_id", "0", "bootstrap_package", "pending")
+	require.Len(t, lhr.Hosts, len(noTeamDevices))
 
 	// set the default bm assignment to `team`
 	acResp := appConfigResponse{}
@@ -6979,7 +6986,6 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	err = s.ds.AddHostsToTeam(ctx, &t1.ID, []uint{h1.ID})
 	require.NoError(t, err)
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/mdm/hosts/%d/profiles", h1.ID), getHostRequest{}, http.StatusOK, &getHostResponse{})
-
 }
 
 func (s *integrationMDMTestSuite) TestOrgLogo() {
@@ -12315,7 +12321,6 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 	cmd, err = automaticEnrolledDeviceWithRef.Idle()
 	require.NoError(t, err)
 	require.Nil(t, cmd)
-
 }
 
 func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {
