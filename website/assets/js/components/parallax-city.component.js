@@ -36,13 +36,13 @@ parasails.registerComponent('parallaxCity', {
   template: `
   <div>
     <div purpose="parallax-city-container">
-      <div class="parallax-layer" purpose="background-cloud-2" scroll-amount=12></div>
-      <div class="parallax-layer" purpose="background-cloud-1" scroll-amount=28></div>
-      <div class="parallax-layer" purpose="small-island-2" scroll-amount=20></div>
-      <div class="parallax-layer" purpose="small-island-1" scroll-amount=40></div>
-      <div class="parallax-layer" purpose="large-island" scroll-amount=60></div>
-      <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount=100></div>
-      <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount=120></div>
+      <div class="parallax-layer" purpose="background-cloud-2" scroll-amount=4></div>
+      <div class="parallax-layer" purpose="background-cloud-1" scroll-amount=6></div>
+      <div class="parallax-layer" purpose="small-island-2" scroll-amount=16></div>
+      <div class="parallax-layer" purpose="small-island-1" scroll-amount=12></div>
+      <div class="parallax-layer" purpose="large-island" scroll-amount=24></div>
+      <div class="parallax-layer" purpose="foreground-cloud-2" scroll-amount=32></div>
+      <div class="parallax-layer" purpose="foreground-cloud-1" scroll-amount=40></div>
     </div>
   </div>
   `,
