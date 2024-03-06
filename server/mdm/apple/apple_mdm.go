@@ -24,7 +24,7 @@ import (
 
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	depsync "github.com/fleetdm/fleet/v4/server/mdm/nanodep/sync"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 )
 
 // DEPName is the identifier/name used in nanodep MySQL storage which
@@ -393,8 +393,8 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 
 	var addedDevices []godep.Device
 	var deletedSerials []string
-	var modifiedDevices []godep.Device
 	var modifiedSerials []string
+	modifiedDevices := map[string]godep.Device{}
 	for _, device := range resp.Devices {
 		level.Debug(d.logger).Log(
 			"msg", "device",
@@ -415,7 +415,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		case "added", "":
 			addedDevices = append(addedDevices, device)
 		case "modified":
-			modifiedDevices = append(modifiedDevices, device)
+			modifiedDevices[device.SerialNumber] = device
 			modifiedSerials = append(modifiedSerials, device.SerialNumber)
 		case "deleted":
 			deletedSerials = append(deletedSerials, device.SerialNumber)
@@ -428,13 +428,20 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 	}
 
+	// find out if we already have entries in the `hosts` table with
+	// matching serial numbers for any devices with op_type = "modified"
 	existingSerials, err := d.ds.GetMatchingHostSerials(ctx, modifiedSerials)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get matching host serials")
 	}
 
-	// treat device that's coming as "modified" but doesn't exist in the
+	// treat devices with op_type = "modified" that doesn't exist in the
 	// `hosts` table, as an "added" device.
+	//
+	// we need to do this because _sometimes_, ABM sends op_type = "modified"
+	// if the IT admin changes the MDM server assignment in the ABM UI. In
+	// these cases, the device is new ("added") to us, but it comes with
+	// the wrong op_type.
 	for _, d := range modifiedDevices {
 		if _, ok := existingSerials[d.SerialNumber]; !ok {
 			addedDevices = append(addedDevices, d)
@@ -454,55 +461,49 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 	case n > 0:
 		level.Info(kitlog.With(d.logger)).Log("msg", fmt.Sprintf("added %d new mdm device(s) to pending hosts", n))
 	case n == 0:
-		level.Info(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
+		level.Debug(kitlog.With(d.logger)).Log("msg", "no DEP hosts to add")
 	}
 
 	// at this point, the hosts rows are created for the devices, with the
 	// correct team_id, so we know what team-specific profile needs to be applied.
 	//
 	// collect a map of all the profiles => serials we need to assign.
-	profileToSerials := map[string][]string{}
+	profileToDevices := map[string][]godep.Device{}
 
 	// each new device should be assigned the DEP profile of the default
 	// ABM team as configured by the IT admin.
 	if len(addedDevices) > 0 {
-		level.Info(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
+		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering added serials to assign devices", "len", len(addedDevices))
 		profUUID, err := d.getProfileUUIDForTeam(ctx, defaultABMTeamID)
 		if err != nil {
 			return ctxerr.Wrapf(ctx, err, "getting profile for default team with id: %v", defaultABMTeamID)
 		}
 
-		var addedSerials []string
-		for _, d := range addedDevices {
-			addedSerials = append(addedSerials, d.SerialNumber)
-		}
-		profileToSerials[profUUID] = addedSerials
+		profileToDevices[profUUID] = addedDevices
 	} else {
-		level.Info(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
+		level.Debug(kitlog.With(d.logger)).Log("msg", "no added devices to assign DEP profiles")
 	}
 
 	// for all other hosts we received, find out the right DEP profile to assign, based on the team.
 	if len(existingSerials) > 0 {
-		level.Info(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
-		serialsByTeam := map[*uint][]string{}
+		level.Debug(kitlog.With(d.logger)).Log("msg", "gathering existing serials to assign devices", "len", len(existingSerials))
+		devicesByTeam := map[*uint][]godep.Device{}
 		hosts := []fleet.Host{}
 		for _, host := range existingSerials {
-			if serialsByTeam[host.TeamID] == nil {
-				serialsByTeam[host.TeamID] = []string{}
+			dd, ok := modifiedDevices[host.HardwareSerial]
+			if !ok {
+				return ctxerr.Errorf(ctx, "serial %s coming from ABM is in the databse, but it's not in the list of modified devices", host.HardwareSerial)
 			}
-			serialsByTeam[host.TeamID] = append(serialsByTeam[host.TeamID], host.HardwareSerial)
 			hosts = append(hosts, *host)
+			devicesByTeam[host.TeamID] = append(devicesByTeam[host.TeamID], dd)
 		}
-		for team, serials := range serialsByTeam {
+		for team, devices := range devicesByTeam {
 			profUUID, err := d.getProfileUUIDForTeam(ctx, team)
 			if err != nil {
 				return ctxerr.Wrapf(ctx, err, "getting profile for team with id: %v", team)
 			}
-			if profileToSerials[profUUID] == nil {
-				profileToSerials[profUUID] = []string{}
-			}
-			profileToSerials[profUUID] = append(profileToSerials[profUUID], serials...)
 
+			profileToDevices[profUUID] = append(profileToDevices[profUUID], devices...)
 		}
 
 		if err := d.ds.UpsertMDMAppleHostDEPAssignments(ctx, hosts); err != nil {
@@ -510,10 +511,22 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		}
 
 	} else {
-		level.Info(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
+		level.Debug(kitlog.With(d.logger)).Log("msg", "no existing devices to assign DEP profiles")
 	}
 
-	for profUUID, serials := range profileToSerials {
+	// keep track of the serials we're going to skip for all profiles in
+	// order to log them later.
+	var skippedSerials []string
+	for profUUID, devices := range profileToDevices {
+		var serials []string
+		for _, device := range devices {
+			if device.ProfileUUID == profUUID {
+				skippedSerials = append(skippedSerials, device.SerialNumber)
+				continue
+			}
+			serials = append(serials, device.SerialNumber)
+		}
+
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
 		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
@@ -533,7 +546,7 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 
 		apiResp, err := depClient.AssignProfile(ctx, DEPName, profUUID, assignSerials...)
 		if err != nil {
-			level.Info(logger).Log(
+			level.Error(logger).Log(
 				"msg", "assign profile",
 				"devices", len(assignSerials),
 				"err", err,
@@ -551,6 +564,10 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 		if err := d.ds.UpdateHostDEPAssignProfileResponses(ctx, apiResp); err != nil {
 			return ctxerr.Wrap(ctx, err, "update host dep assign profile responses")
 		}
+	}
+
+	if len(skippedSerials) > 0 {
+		level.Debug(kitlog.With(d.logger)).Log("msg", "found devices that already have the right profile, skipping assignment", "serials", fmt.Sprintf("%s", skippedSerials))
 	}
 
 	return nil
