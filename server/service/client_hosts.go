@@ -123,7 +123,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{
 		TeamID: teamIDPtr,
-		Filters: fleet.HostListOptions{
+		Filters: &fleet.HostListOptions{
 			ListOptions: fleet.ListOptions{
 				MatchQuery: searchQuery,
 			},

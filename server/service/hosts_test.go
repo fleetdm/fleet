@@ -732,7 +732,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.RefetchHost(ctx, 1)
@@ -855,7 +855,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -893,7 +893,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, expectedLabel))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -912,7 +912,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, &fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
