@@ -89,6 +89,7 @@ export interface IPaginateHostOptions extends IBaseHostsOptions {
 }
 
 export interface IActionByFilter {
+  // Order matches rest-api.md > List hosts parameters
   teamId?: number | null;
   query: string;
   status: string;
