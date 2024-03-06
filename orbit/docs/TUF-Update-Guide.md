@@ -214,11 +214,11 @@ Such action is triggered by submitting a PR with the [following version string](
 
 ```sh
 # macOS
-fleetctl updates add --target $HOME/release-friday/desktop/macos/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/osqueryd/macos/osqueryd.app.tar.gz --platform macos-app --name osqueryd --version 5.9.1 -t edge
 # Linux
-fleetctl updates add --target $HOME/release-friday/desktop/linux/osqueryd --platform linux --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/osqueryd/linux/osqueryd --platform linux --name osqueryd --version 5.9.1 -t edge
 # Windows
-fleetctl updates add --target $HOME/release-friday/desktop/windows/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t edge
+fleetctl updates add --target $HOME/release-friday/osqueryd/windows/osqueryd.exe --platform windows --name osqueryd --version 5.9.1 -t edge
 ```
 
 #### Push updates
