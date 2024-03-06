@@ -345,8 +345,11 @@ type agent struct {
 	deviceAuthToken *string
 	orbitNodeKey    *string
 
-	// mdmClient simulates a device running the MDM protocol (client side).
-	mdmClient *mdmtest.TestAppleMDMClient
+	// macMDMClient and winMDMClient simulate a device running the MDM protocol
+	// (client side) against Fleet MDM.
+	macMDMClient *mdmtest.TestAppleMDMClient
+	winMDMClient *mdmtest.TestWindowsMDMClient
+
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
@@ -428,18 +431,46 @@ func newAgent(
 	if rand.Float64() <= emptySerialProb {
 		serialNumber = ""
 	}
-	uuid := strings.ToUpper(uuid.New().String())
-	var mdmClient *mdmtest.TestAppleMDMClient
+	hostUUID := strings.ToUpper(uuid.New().String())
+
+	// determine the simulated host's OS based on the template name (see
+	// validTemplateNames below for the list of possible names, the OS is always
+	// the part before the underscore). Note that it is the OS and not the
+	// "normalized" platform, so "ubuntu" and not "linux", "macos" and not
+	// "darwin".
+	agentOS := strings.TrimRight(templates.Name(), ".tmpl")
+	agentOS, _, _ = strings.Cut(agentOS, "_")
+	fmt.Println(">>> agent os: ", agentOS)
+
+	var (
+		macMDMClient *mdmtest.TestAppleMDMClient
+		winMDMClient *mdmtest.TestWindowsMDMClient
+	)
 	if rand.Float64() <= mdmProb {
-		mdmClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-			SCEPChallenge: mdmSCEPChallenge,
-			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
-			MDMURL:        serverAddress + apple_mdm.MDMPath,
-		})
-		// Have the osquery agent match the MDM device serial number and UUID.
-		serialNumber = mdmClient.SerialNumber
-		uuid = mdmClient.UUID
+		switch agentOS {
+		case "macos":
+			macMDMClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+				SCEPChallenge: mdmSCEPChallenge,
+				SCEPURL:       serverAddress + apple_mdm.SCEPPath,
+				MDMURL:        serverAddress + apple_mdm.MDMPath,
+			})
+			// Have the osquery agent match the MDM device serial number and UUID.
+			serialNumber = macMDMClient.SerialNumber
+			hostUUID = macMDMClient.UUID
+
+		case "windows":
+			// windows MDM enrollment requires orbit enrollment
+			if deviceAuthToken == nil {
+				deviceAuthToken = ptr.String(uuid.NewString())
+			}
+			// creating the Windows MDM client requires the orbit node key, but we
+			// only get it after orbit enrollment. So here we just set the value to a
+			// placeholder (non-nil) client, the actual usable client will be created
+			// after orbit enrollment.
+			winMDMClient = new(mdmtest.TestWindowsMDMClient)
+		}
 	}
+
 	return &agent{
 		agentIndex:             agentIndex,
 		serverAddress:          serverAddress,
@@ -453,17 +484,18 @@ func newAgent(
 		liveQueryNoResultsProb: liveQueryNoResultsProb,
 		templates:              templates,
 		deviceAuthToken:        deviceAuthToken,
-		os:                     strings.TrimRight(templates.Name(), ".tmpl"),
+		os:                     agentOS,
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
 		LogInterval:        logInterval,
 		QueryInterval:      queryInterval,
 		MDMCheckInInterval: mdmCheckInInterval,
-		UUID:               uuid,
+		UUID:               hostUUID,
 		SerialNumber:       serialNumber,
 
-		mdmClient:           mdmClient,
+		macMDMClient:        macMDMClient,
+		winMDMClient:        winMDMClient,
 		disableScriptExec:   disableScriptExec,
 		disableFleetDesktop: disableFleetDesktop,
 		loggerTLSMaxLines:   loggerTLSMaxLines,
@@ -498,7 +530,14 @@ func (a *agent) isOrbit() bool {
 func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 	if a.isOrbit() {
 		if err := a.orbitEnroll(); err != nil {
+			// clean-up any placeholder mdm client that depended on orbit enrollment
+			// - there's no concurrency yet for a given agent instance, runLoop is
+			// the place where the goroutines will be started later on.
+			a.winMDMClient = nil
 			return
+		}
+		if a.winMDMClient != nil {
+			a.winMDMClient = mdmtest.NewTestMDMClientWindowsProgramatic(a.serverAddress, *a.orbitNodeKey)
 		}
 	}
 
@@ -519,15 +558,24 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runOrbitLoop()
 	}
 
-	if a.mdmClient != nil {
-		if err := a.mdmClient.Enroll(); err != nil {
-			log.Printf("MDM enroll failed: %s", err)
+	if a.macMDMClient != nil {
+		if err := a.macMDMClient.Enroll(); err != nil {
+			log.Printf("macOS MDM enroll failed: %s", err)
 			a.stats.IncrementMDMErrors()
 			return
 		}
 		a.setMDMEnrolled()
 		a.stats.IncrementMDMEnrollments()
-		go a.runMDMLoop()
+		go a.runMacosMDMLoop()
+	} else if a.winMDMClient != nil {
+		if err := a.winMDMClient.Enroll(); err != nil {
+			log.Printf("Windows MDM enroll failed: %s", err)
+			a.stats.IncrementMDMErrors()
+			return
+		}
+		a.setMDMEnrolled()
+		a.stats.IncrementMDMEnrollments()
+		go a.runWindowsMDMLoop()
 	}
 
 	//
@@ -806,11 +854,11 @@ func (a *agent) runOrbitLoop() {
 	}
 }
 
-func (a *agent) runMDMLoop() {
+func (a *agent) runMacosMDMLoop() {
 	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
 
 	for range mdmCheckInTicker {
-		mdmCommandPayload, err := a.mdmClient.Idle()
+		mdmCommandPayload, err := a.macMDMClient.Idle()
 		if err != nil {
 			log.Printf("MDM Idle request failed: %s", err)
 			a.stats.IncrementMDMErrors()
@@ -819,13 +867,28 @@ func (a *agent) runMDMLoop() {
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
-			mdmCommandPayload, err = a.mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
+			mdmCommandPayload, err = a.macMDMClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			if err != nil {
 				log.Printf("MDM Acknowledge request failed: %s", err)
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
 		}
+	}
+}
+
+func (a *agent) runWindowsMDMLoop() {
+	mdmCheckInTicker := time.Tick(a.MDMCheckInInterval)
+
+	for range mdmCheckInTicker {
+		cmds, err := a.winMDMClient.StartManagementSession()
+		if err != nil {
+			log.Printf("MDM check-in start session request failed: %s", err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
+		// TODO(mna): send responses for each command (probably ack with success?)
+		_ = cmds
 	}
 }
 
@@ -1244,21 +1307,6 @@ func (a *agent) randomQueryStats() []map[string]string {
 	return stats
 }
 
-var possibleMDMServerURLs = []string{
-	"https://kandji.com/1",
-	"https://jamf.com/1",
-	"https://airwatch.com/1",
-	"https://microsoft.com/1",
-	"https://simplemdm.com/1",
-	"https://example.com/1",
-	"https://kandji.com/2",
-	"https://jamf.com/2",
-	"https://airwatch.com/2",
-	"https://microsoft.com/2",
-	"https://simplemdm.com/2",
-	"https://example.com/2",
-}
-
 // mdmMac returns the results for the `mdm` table query.
 //
 // If the host is enrolled via MDM it will return installed_from_dep as false
@@ -1273,7 +1321,12 @@ func (a *agent) mdmMac() []map[string]string {
 		}
 	}
 	return []map[string]string{
-		{"enrolled": "true", "server_url": a.mdmClient.EnrollInfo.MDMURL, "installed_from_dep": "false"},
+		{
+			"enrolled":           "true",
+			"server_url":         a.macMDMClient.EnrollInfo.MDMURL,
+			"installed_from_dep": "false",
+			"payload_identifier": apple_mdm.FleetPayloadIdentifier, // TODO(mna): is it correct to provide it like this? Ensures the MDM solution is recognize as Fleet in osquery ingestion.
+		},
 	}
 }
 
@@ -1292,26 +1345,20 @@ func (a *agent) setMDMEnrolled() {
 }
 
 func (a *agent) mdmWindows() []map[string]string {
-	autopilot := rand.Intn(2) == 1
-	ix := rand.Intn(len(possibleMDMServerURLs))
-	serverURL := possibleMDMServerURLs[ix]
-	providerID := fleet.MDMNameFromServerURL(serverURL)
-	installType := "Microsoft Workstation"
-	if rand.Intn(4) == 1 {
-		installType = "Microsoft Server"
+	if !a.mdmEnrolled() {
+		return []map[string]string{
+			// empty service url means not enrolled
+			{"is_federated": "0", "discovery_service_url": "", "provider_id": "", "installation_type": "client"},
+		}
 	}
-
-	rows := []map[string]string{
-		{"key": "discovery_service_url", "value": serverURL},
-		{"key": "installation_type", "value": installType},
+	return []map[string]string{
+		{
+			"is_federated":          "0",
+			"discovery_service_url": a.serverAddress,
+			"provider_id":           fleet.WellKnownMDMFleet,
+			"installation_type":     "client",
+		},
 	}
-	if providerID != "" {
-		rows = append(rows, map[string]string{"key": "provider_id", "value": providerID})
-	}
-	if autopilot {
-		rows = append(rows, map[string]string{"key": "autopilot", "value": "true"})
-	}
-	return rows
 }
 
 var munkiIssues = func() []string {
@@ -1533,7 +1580,7 @@ func (a *agent) processQuery(name, query string) (
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			switch a.os {
-			case "ubuntu_22.04":
+			case "ubuntu":
 				results = ubuntuSoftware
 			}
 		}
@@ -1779,7 +1826,7 @@ func main() {
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
-		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
+		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
 
@@ -1805,8 +1852,8 @@ func main() {
 		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
 		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
-		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
-		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running MDM enroll")
+		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via Fleet MDM (applies for macOS and Windows hosts, implies orbit enrollment on Windows) [0, 1]")
+		mdmSCEPChallenge = flag.String("mdm_scep_challenge", "", "SCEP challenge to use when running macOS MDM enroll")
 
 		liveQueryFailProb      = flag.Float64("live_query_fail_prob", 0.0, "Probability of a live query failing execution in the host")
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
