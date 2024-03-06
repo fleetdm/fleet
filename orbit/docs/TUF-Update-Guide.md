@@ -95,7 +95,7 @@ $HOME/release-friday
 
 1. Bump osquery version in https://github.com/fleetdm/fleet/blob/30a36b0b3a1fd50e48d98a4c3c955595022f5277/.github/workflows/generate-osqueryd-targets.yml#L27.
 1. Commit the changes, push the branch (assuming branch name is `bump-osqueryd-5.12.0`) and create a PR.
-1. Once the Github action completes run:
+1. Once the Github action completes run the following (the [GitHub API token](https://github.com/settings/tokens?type=beta) does not need any special permissions -- public repository access is sufficient):
 ```sh
 go run ./tools/tuf/download-artifacts osqueryd \
     --git-branch bump-osqueryd-5.12.0 \
