@@ -27,28 +27,28 @@ export default {
   load: (
     options: IBaseHostsOptions | undefined
   ): Promise<IHostsCountResponse> => {
-    const selectedLabels = options?.selectedLabels || [];
+    // Order matches rest-api.md > List hosts parameters
+    const status = options?.status;
+    const globalFilter = options?.globalFilter || "";
     const policyId = options?.policyId;
     const policyResponse = options?.policyResponse;
-    const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
-    const macSettingsStatus = options?.macSettingsStatus;
-    const status = options?.status;
+    const label = getLabelParam(options?.selectedLabels || []);
+    const osName = options?.osName;
+    const osVersionId = options?.osVersionId;
+    const osVersion = options?.osVersion;
+    const vulnerability = options?.vulnerability;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
+    const macSettingsStatus = options?.macSettingsStatus;
     const munkiIssueId = options?.munkiIssueId;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
-    const label = getLabelParam(selectedLabels);
-    const osVersionId = options?.osVersionId;
-    const osName = options?.osName;
-    const osVersion = options?.osVersion;
-    const osSettings = options?.osSettings;
-    const vulnerability = options?.vulnerability;
-    const diskEncryptionStatus = options?.diskEncryptionStatus;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
+    const osSettings = options?.osSettings;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     const queryParams = {
       query: globalFilter,
@@ -58,6 +58,7 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
+        // TODO: Order matches rest-api.md > List hosts parameters
         label,
         policyId,
         policyResponse,

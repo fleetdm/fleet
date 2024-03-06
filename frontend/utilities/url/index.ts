@@ -105,23 +105,24 @@ export const reconcileMutuallyInclusiveHostParams = ({
   return reconciled;
 };
 export const reconcileMutuallyExclusiveHostParams = ({
-  label,
+  // Order matches rest-api.md > List hosts parameters
   policyId,
   policyResponse,
+  softwareId,
+  softwareTitleId,
+  softwareVersionId,
+  label,
+  osName,
+  osVersionId,
+  osVersion,
+  vulnerability,
   mdmId,
   mdmEnrollmentStatus,
   munkiIssueId,
   lowDiskSpaceHosts,
-  softwareId,
-  softwareVersionId,
-  softwareTitleId,
-  osVersionId,
-  osName,
-  osVersion,
-  osSettings,
-  vulnerability,
-  diskEncryptionStatus,
   bootstrapPackageStatus,
+  osSettings,
+  diskEncryptionStatus,
 }: IMutuallyExclusiveHostParams): Record<string, unknown> => {
   if (label) {
     // backend api now allows (label + low disk space) OR (label + mdm id) OR
@@ -138,35 +139,36 @@ export const reconcileMutuallyExclusiveHostParams = ({
     return {};
   }
 
+  // Order matches rest-api.md > List hosts parameters
   switch (true) {
     case !!policyId:
       return { policy_id: policyId, policy_response: policyResponse };
+    case !!softwareId:
+      return { software_id: softwareId };
+    case !!softwareTitleId:
+      return { software_title_id: softwareTitleId };
+    case !!softwareVersionId:
+      return { software_version_id: softwareVersionId };
+    case !!osName && !!osVersion:
+      return { os_name: osName, os_version: osVersion };
+    case !!osVersionId:
+      return { os_version_id: osVersionId };
+    case !!vulnerability:
+      return { vulnerability };
     case !!mdmId:
       return { mdm_id: mdmId };
     case !!mdmEnrollmentStatus:
       return { mdm_enrollment_status: mdmEnrollmentStatus };
     case !!munkiIssueId:
       return { munki_issue_id: munkiIssueId };
-    case !!softwareTitleId:
-      return { software_title_id: softwareTitleId };
-    case !!softwareVersionId:
-      return { software_version_id: softwareVersionId };
-    case !!softwareId:
-      return { software_id: softwareId };
-    case !!osVersionId:
-      return { os_version_id: osVersionId };
-    case !!osName && !!osVersion:
-      return { os_name: osName, os_version: osVersion };
-    case !!vulnerability:
-      return { vulnerability };
     case !!lowDiskSpaceHosts:
       return { low_disk_space: lowDiskSpaceHosts };
+    case !!bootstrapPackageStatus:
+      return { bootstrap_package: bootstrapPackageStatus };
     case !!osSettings:
       return { [HOSTS_QUERY_PARAMS.OS_SETTINGS]: osSettings };
     case !!diskEncryptionStatus:
       return { [HOSTS_QUERY_PARAMS.DISK_ENCRYPTION]: diskEncryptionStatus };
-    case !!bootstrapPackageStatus:
-      return { bootstrap_package: bootstrapPackageStatus };
     default:
       return {};
   }

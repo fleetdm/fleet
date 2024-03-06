@@ -54,34 +54,35 @@ export interface ILoadHostsQueryKey extends IPaginateHostOptions {
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 
+/** For organization purposes, order matches rest-api.md > List hosts parameters
+and all code added should follow suit */
 export interface IBaseHostsOptions {
-  selectedLabels?: string[];
+  status?: HostStatus;
   globalFilter?: string;
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
-  status?: HostStatus;
-  mdmId?: number;
-  munkiIssueId?: number;
-  mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: number;
+  selectedLabels?: string[];
   osName?: string;
   osVersionId?: number;
   osVersion?: string;
   vulnerability?: string;
   deviceMapping?: boolean;
-  columns?: string;
-  visibleColumns?: string;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
+  munkiIssueId?: number;
+  lowDiskSpaceHosts?: number;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
-  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export interface IPaginateHostOptions extends IBaseHostsOptions {
+  visibleColumns?: string;
   page?: number;
   perPage?: number;
   sortBy: ISortOption[];
@@ -217,10 +218,10 @@ export default {
     });
   },
   exportHosts: (options: IPaginateHostOptions) => {
-    console.log("options", options);
+    // Order matches rest-api.md > List hosts parameters
     const visibleColumns = options?.visibleColumns;
     const sortBy = options.sortBy;
-    const label = getLabelParam(options?.selectedLabels || []);
+    const status = options?.status;
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const policyId = options?.policyId;
@@ -228,19 +229,19 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
-    const macSettingsStatus = options?.macSettingsStatus;
     const osName = options?.osName;
     const osVersionId = options?.osVersionId;
     const osVersion = options?.osVersion;
-    const status = options?.status;
+    const label = getLabelParam(options?.selectedLabels || []);
+    const vulnerability = options?.vulnerability;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
-    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
+    const macSettingsStatus = options?.macSettingsStatus;
     const munkiIssueId = options?.munkiIssueId;
-    const osSettings = options?.osSettings;
-    const vulnerability = options?.vulnerability;
-    const diskEncryptionStatus = options?.diskEncryptionStatus;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
     const bootstrapPackageStatus = options?.bootstrapPackageStatus;
+    const osSettings = options?.osSettings;
+    const diskEncryptionStatus = options?.diskEncryptionStatus;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -257,23 +258,24 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
-        label,
+        // Order matches rest-api.md > List hosts parameters
         policyId,
         policyResponse,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        label,
         osName,
         osVersionId,
         osVersion,
-        lowDiskSpaceHosts,
         vulnerability,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        bootstrapPackageStatus,
         diskEncryptionStatus,
         osSettings,
-        bootstrapPackageStatus,
       }),
       status,
       label_id: label,
@@ -282,38 +284,39 @@ export default {
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
-    console.log("queryString", queryString);
+
     const endpoint = endpoints.HOSTS_REPORT;
     const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
   loadHosts: ({
+    // Order matches rest-api.md > List hosts parameters
     page = 0,
     perPage = 100,
     sortBy,
+    status,
     globalFilter,
     teamId,
     policyId,
     policyResponse = "passing",
-    macSettingsStatus,
     softwareId,
     softwareTitleId,
     softwareVersionId,
-    status,
-    mdmId,
-    mdmEnrollmentStatus,
-    munkiIssueId,
-    lowDiskSpaceHosts,
-    osVersionId,
+    selectedLabels,
     osName,
+    osVersionId,
     osVersion,
     vulnerability,
     deviceMapping,
-    selectedLabels,
+    mdmId,
+    mdmEnrollmentStatus,
+    macSettingsStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    bootstrapPackageStatus,
     osSettings,
     diskEncryptionStatus,
-    bootstrapPackageStatus,
   }: IPaginateHostOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
