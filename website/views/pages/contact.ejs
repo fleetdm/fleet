@@ -75,9 +75,10 @@
             <div class="selectbox">
             <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
               <option disabled hidden value="undefined">Choose an option</option>
-              <option value="Endpoint ops">Endpoint ops</option>
-              <option value="Device management">Device management</option>
-              <option value="Vulnerability management">Vulnerability management</option>
+              <option value="endpoint-ops-security">Endpoint operations for security engineers</option>
+              <option value="endpoint-ops-it">Endpoint operations for IT admins</option>
+              <option value="device-management">Device management</option>
+              <option value="vulnerability-management">Vulnerability management</option>
             </select>
             </div>
             <div class="d-block invalid-feedback" v-if="formErrors.topic">Please select an option.</div>

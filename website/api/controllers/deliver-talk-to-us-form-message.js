@@ -46,9 +46,10 @@ module.exports = {
       required: true,
       description: 'What this user will be using Fleet for',
       isIn: [
-        'Vulnerability management',
-        'Device management',
-        'Endpoint ops',
+        'vulnerability-management',
+        'device-management',
+        'endpoint-ops-it',
+        'endpoint-ops-security',
       ],
     },
 
