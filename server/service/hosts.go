@@ -2156,9 +2156,7 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 }
 
 func validateAndPopulateHostListOptionsFilters(ctx context.Context, opt fleet.HostListOptions) (fleet.HostListOptions, error) {
-	if fleet.HostStatus(opt.StatusFilter).IsValid() {
-		opt.StatusFilter = fleet.HostStatus(opt.StatusFilter)
-	} else {
+	if !opt.StatusFilter.IsValid() {
 		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid status %s", opt.StatusFilter)))
 	}
 
@@ -2188,36 +2186,20 @@ func validateAndPopulateHostListOptionsFilters(ctx context.Context, opt fleet.Ho
 		return opt, ctxerr.Wrap(ctx, badRequest("OS name must be provided when filtering by OS version"))
 	}
 
-	if opt.MDMEnrollmentStatusFilter != "" {
-		if fleet.MDMEnrollStatus(opt.MDMEnrollmentStatusFilter).IsValid() {
-			opt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(opt.MDMEnrollmentStatusFilter)
-		} else {
-			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM enrollment status %s", opt.MDMEnrollmentStatusFilter)))
-		}
+	if opt.MDMEnrollmentStatusFilter != "" && !opt.MDMEnrollmentStatusFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM enrollment status %s", opt.MDMEnrollmentStatusFilter)))
 	}
 
-	if opt.OSSettingsFilter != "" {
-		if fleet.OSSettingsStatus(opt.OSSettingsFilter).IsValid() {
-			opt.OSSettingsFilter = fleet.OSSettingsStatus(opt.OSSettingsFilter)
-		} else {
-			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid OS settings status %s", opt.OSSettingsFilter)))
-		}
+	if opt.OSSettingsFilter != "" && !opt.OSSettingsFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid OS settings status %s", opt.OSSettingsFilter)))
 	}
 
-	if opt.OSSettingsDiskEncryptionFilter != "" {
-		if fleet.DiskEncryptionStatus(opt.OSSettingsDiskEncryptionFilter).IsValid() {
-			opt.OSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(opt.OSSettingsDiskEncryptionFilter)
-		} else {
-			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid disk encryption status %s", opt.OSSettingsDiskEncryptionFilter)))
-		}
+	if opt.OSSettingsDiskEncryptionFilter != "" && !opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid disk encryption status %s", opt.OSSettingsDiskEncryptionFilter)))
 	}
 
-	if opt.MDMBootstrapPackageFilter != nil {
-		if bsp := fleet.MDMBootstrapPackageStatus(*opt.MDMBootstrapPackageFilter); bsp.IsValid() {
-			opt.MDMBootstrapPackageFilter = &bsp
-		} else {
-			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM bootstrap status %s", *opt.MDMBootstrapPackageFilter)))
-		}
+	if opt.MDMBootstrapPackageFilter != nil && !opt.MDMBootstrapPackageFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM bootstrap status %s", *opt.MDMBootstrapPackageFilter)))
 	}
 
 	if opt.LowDiskSpaceFilter != nil {
