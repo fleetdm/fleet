@@ -62,7 +62,7 @@ func TestHostStatusIsValid(t *testing.T) {
 		{"offline", StatusOffline, true},
 		{"new", StatusNew, true},
 		{"missing", StatusMissing, true},
-		{"mia", StatusMIA, false}, // As of Fleet 4.15, StatusMIA is deprecated in favor of StatusOffline
+		{"mia", StatusMIA, true}, // As of Fleet 4.15, StatusMIA is deprecated in favor of StatusOffline
 		{"empty", HostStatus(""), false},
 		{"invalid", HostStatus("invalid"), false},
 	} {

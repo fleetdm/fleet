@@ -41,7 +41,7 @@ const (
 
 func (s HostStatus) IsValid() bool {
 	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing:
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
 		return true
 	default:
 		return false
