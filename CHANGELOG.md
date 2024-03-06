@@ -1,3 +1,9 @@
+## Fleet 4.46.3 ()
+
+### Bug fixes
+
+* Fixed a bug where transferring or removing hosts based on a filter could include more hosts in the list
+
 ## Fleet 4.46.2 ()
 
 ### Bug fixes
