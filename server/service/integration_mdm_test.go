@@ -5661,14 +5661,6 @@ func (s *integrationMDMTestSuite) TestBootstrapPackage() {
 	s.DoJSON("DELETE", "/api/latest/fleet/mdm/bootstrap/0", nil, http.StatusNotFound, &deleteResp)
 }
 
-func (s *integrationMDMTestSuite) TestBootstrapStatusFilterOnlyMacOS() {
-	t := s.T()
-	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
-	require.NoError(t, err)
-
-	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: pkg, Name: "pkg.pkg", TeamID: 0}, http.StatusOK, "")
-}
-
 func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 	t := s.T()
 	pkg, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
