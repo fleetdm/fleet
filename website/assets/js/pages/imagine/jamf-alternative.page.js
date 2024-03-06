@@ -20,10 +20,6 @@ parasails.registerPage('jamf-alternative', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
+    //…
   }
 });
