@@ -34,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -54,8 +53,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/go-kit/kit/log"
-	kitlog "github.com/go-kit/kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
 	"github.com/jmoiron/sqlx"
@@ -287,7 +285,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	// ensure global disk encryption is disabled on exit
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	// ensure global Windows OS updates are always disabled for the next test
-	appCfg.MDM.WindowsUpdates = mdm_types.WindowsUpdates{}
+	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
 	require.NoError(t, err)
 
@@ -1024,15 +1022,15 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 		"N2": {{"200", "L2", "D2"}, {"200", "L3", "D3"}},
 	}
 	reportHostProfs := func(t *testing.T, profileNames ...string) {
-		var responseOps []*mdm_types.SyncMLCmd
+		var responseOps []*fleet.SyncMLCmd
 		for _, profileName := range profileNames {
 			report, ok := hostProfileReports[profileName]
 			require.True(t, ok)
 
 			for _, p := range report {
 				ref := microsoft_mdm.HashLocURI(profileName, p.LocURI)
-				responseOps = append(responseOps, &mdm_types.SyncMLCmd{
-					XMLName: xml.Name{Local: mdm_types.CmdStatus},
+				responseOps = append(responseOps, &fleet.SyncMLCmd{
+					XMLName: xml.Name{Local: fleet.CmdStatus},
 					CmdID:   fleet.CmdID{Value: uuid.NewString()},
 					CmdRef:  &ref,
 					Data:    ptr.String(p.Status),
@@ -1041,11 +1039,11 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				// the protocol can respond with only a `Status`
 				// command if the status failed
 				if p.Status != "200" || p.Data != "" {
-					responseOps = append(responseOps, &mdm_types.SyncMLCmd{
-						XMLName: xml.Name{Local: mdm_types.CmdResults},
+					responseOps = append(responseOps, &fleet.SyncMLCmd{
+						XMLName: xml.Name{Local: fleet.CmdResults},
 						CmdID:   fleet.CmdID{Value: uuid.NewString()},
 						CmdRef:  &ref,
-						Items: []mdm_types.CmdItem{
+						Items: []fleet.CmdItem{
 							{Target: ptr.String(p.LocURI), Data: &fleet.RawXmlData{Content: p.Data}},
 						},
 					})
@@ -1074,7 +1072,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileRetries() {
 				atomicCmds++
 			}
 			mdmDevice.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: mdm_types.CmdStatus},
+				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  ptr.String(c.Cmd.CmdID.Value),
 				Cmd:     ptr.String(c.Verb),
@@ -2209,6 +2207,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 	require.Len(t, profileAssignmentReqs[1].Devices, len(devices))
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[1].Devices, profileAssignmentReqs[1].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+	// record the default profile to be used in other tests
+	defaultProfileUUID := profileAssignmentReqs[1].ProfileUUID
 
 	// create a new host
 	nonDEPHost := createHostAndDeviceToken(t, s.ds, "not-dep")
@@ -2688,6 +2688,23 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Empty(t, profileAssignmentReqs)
 	checkHostCooldown(serial, expectProfileUUID, fleet.DEPAssignProfileResponseNotAccessible, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
+
+	// run with devices that already have valid and invalid profiles assigned, we shouldn't re-assign the valid ones.
+	devices = []godep.Device{
+		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},     // matches existing profile
+		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID}, // matches existing profile
+		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: "bar"},                  // doesn't match an existing profile
+		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: "foo"},              // doesn't match an existing profile
+		{SerialNumber: addedSerial, Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},          // matches existing profile
+		{SerialNumber: serial, Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID},           // matches existing profile
+	}
+	expectAssignProfileResponseNotAccessible = ""
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.NotEmpty(t, profileAssignmentReqs)
+	require.Len(t, profileAssignmentReqs[0].Devices, 2)
+	require.ElementsMatch(t, []string{devices[2].SerialNumber, devices[3].SerialNumber}, profileAssignmentReqs[0].Devices)
+	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
@@ -4719,7 +4736,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		})
 	}
 
-	assignHostToTeam := func(h *mdm_types.Host, teamID *uint) {
+	assignHostToTeam := func(h *fleet.Host, teamID *uint) {
 		var moveHostResp addHostsToTeamResponse
 		s.DoJSON("POST", "/api/v1/fleet/hosts/transfer",
 			addHostsToTeamRequest{TeamID: teamID, HostIDs: []uint{h.ID}}, http.StatusOK, &moveHostResp)
@@ -5155,7 +5172,7 @@ func (s *integrationMDMTestSuite) TestHostMDMAppleProfilesStatus() {
 		return sqlx.GetContext(ctx, q, &uid, `SELECT profile_uuid FROM mdm_apple_configuration_profiles WHERE identifier = ?`, "label_prof")
 	})
 
-	label, err := s.ds.NewLabel(ctx, &mdm_types.Label{Name: "test label 1", Query: "select 1;"})
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "test label 1", Query: "select 1;"})
 	require.NoError(t, err)
 
 	// Update label with host membership
@@ -7419,7 +7436,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["mdm"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		kitlog.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -7433,7 +7450,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	}
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		kitlog.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		rows,
@@ -7472,7 +7489,7 @@ func (s *integrationMDMTestSuite) TestSSO() {
 	// reporting google chrome profiles only clears chrome profiles from device mapping
 	err = detailQueries["google_chrome_profiles"].DirectIngestFunc(
 		context.Background(),
-		log.NewNopLogger(),
+		kitlog.NewNopLogger(),
 		&fleet.Host{ID: hostResp.Host.ID},
 		s.ds,
 		[]map[string]string{},
@@ -8514,7 +8531,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	require.NoError(t, err)
 
 	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdOneUUID,
 		Cmd:     ptr.String("Exec"),
@@ -8618,7 +8635,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 
 	// status 200 for command Two  (Get)
 	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdTwoUUID,
 		Cmd:     ptr.String("Get"),
@@ -8629,7 +8646,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	// results for command two (Get)
 	cmdTwoRespUUID := uuid.NewString()
 	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdResults},
+		XMLName: xml.Name{Local: fleet.CmdResults},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdTwoUUID,
 		Cmd:     ptr.String("Replace"),
@@ -8644,7 +8661,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	})
 	// status 200 for command Three (Replace)
 	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdThreeUUID,
 		Cmd:     ptr.String("Replace"),
@@ -8654,7 +8671,7 @@ func (s *integrationMDMTestSuite) TestWindowsMDM() {
 	})
 	// status 200 for command Four (Add)
 	d.AppendResponse(fleet.SyncMLCmd{
-		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		XMLName: xml.Name{Local: fleet.CmdStatus},
 		MsgRef:  &msgID,
 		CmdRef:  &cmdFourUUID,
 		Cmd:     ptr.String("Add"),
@@ -9559,7 +9576,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:   "tG",
 		TeamID: &tm2.ID,
 		SyncML: []byte(`<Add></Add>`),
-		Labels: []mdm_types.ConfigurationProfileLabel{
+		Labels: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblFoo.ID, LabelName: lblFoo.Name},
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 		},
@@ -9593,7 +9610,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []mdm_types.ConfigurationProfileLabel{
+		Labels: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
@@ -9609,7 +9626,7 @@ func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
 		Name:        tm2ProfG.Name,
 		Platform:    "windows",
 		// labels are ordered by name
-		Labels: []mdm_types.ConfigurationProfileLabel{
+		Labels: []fleet.ConfigurationProfileLabel{
 			{LabelID: lblBar.ID, LabelName: lblBar.Name},
 			{LabelID: 0, LabelName: lblFoo.Name, Broken: true},
 		},
@@ -10811,7 +10828,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 			})
 
 			wantDeliveryStatus := fleet.WindowsResponseToDeliveryStatus(wantStatus)
-			if gotProfile.Retries <= servermdm.MaxProfileRetries && wantDeliveryStatus == mdm_types.MDMDeliveryFailed {
+			if gotProfile.Retries <= servermdm.MaxProfileRetries && wantDeliveryStatus == fleet.MDMDeliveryFailed {
 				require.EqualValues(t, "pending", gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
 			} else {
 				require.EqualValues(t, wantDeliveryStatus, gotProfile.Status, "command_uuid", cmd.Cmd.CmdID.Value)
@@ -10845,7 +10862,7 @@ func (s *integrationMDMTestSuite) TestWindowsProfileManagement() {
 				}
 			}
 			device.AppendResponse(fleet.SyncMLCmd{
-				XMLName: xml.Name{Local: mdm_types.CmdStatus},
+				XMLName: xml.Name{Local: fleet.CmdStatus},
 				MsgRef:  &msgID,
 				CmdRef:  &cmdID.Value,
 				Cmd:     ptr.String(c.Verb),
@@ -11719,7 +11736,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeWindowsLinux() {
 				require.NoError(t, err)
 
 				winMDMClient.AppendResponse(fleet.SyncMLCmd{
-					XMLName: xml.Name{Local: mdm_types.CmdStatus},
+					XMLName: xml.Name{Local: fleet.CmdStatus},
 					MsgRef:  &msgID,
 					CmdRef:  &status.WipeMDMCommand.CommandUUID,
 					Cmd:     ptr.String("Exec"),
@@ -11809,7 +11826,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, "DeviceLock", cmd.Command.RequestType)
-	cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 
 	// refresh the host's status, it is now locked
@@ -11887,7 +11904,7 @@ func (s *integrationMDMTestSuite) TestLockUnlockWipeMacOS() {
 	require.NoError(t, err)
 	require.NotNil(t, cmd)
 	require.Equal(t, "EraseDevice", cmd.Command.RequestType)
-	cmd, err = mdmClient.Acknowledge(cmd.CommandUUID)
+	_, err = mdmClient.Acknowledge(cmd.CommandUUID)
 	require.NoError(t, err)
 
 	// refresh the host's status, it is wiped
