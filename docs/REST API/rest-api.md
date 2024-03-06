@@ -3029,7 +3029,7 @@ _Available in Fleet Premium_
 
 #### Example
 
-`DELETE /api/v1/fleet/hosts/:42/mdm`
+`DELETE /api/v1/fleet/hosts/42/mdm`
 
 ##### Default response
 
