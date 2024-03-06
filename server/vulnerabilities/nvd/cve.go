@@ -225,11 +225,9 @@ func TranslateCPEToCVE(
 
 		foundSoftwareVulns, foundOSVulns, err := checkCVEs(
 			ctx,
-			ds,
 			logger,
 			interfaceParsed,
 			file,
-			collectVulns,
 			knownNVDBugRules,
 		)
 		if err != nil {
@@ -339,11 +337,9 @@ func matchesExactTargetSW(softwareCPETargetSW string, targetSWs []string, config
 
 func checkCVEs(
 	ctx context.Context,
-	ds fleet.Datastore,
 	logger kitlog.Logger,
 	CPEItems []itemWithNVDMeta,
 	jsonFile string,
-	collectVulns bool,
 	knownNVDBugRules CPEMatchingRules,
 ) ([]fleet.SoftwareVulnerability, []fleet.OSVulnerability, error) {
 	dict, err := cvefeed.LoadJSONDictionary(jsonFile)
@@ -351,9 +347,30 @@ func checkCVEs(
 		return nil, nil, err
 	}
 
-	cache := cvefeed.NewCache(dict).SetRequireVersion(true).SetMaxSize(-1)
-	// This index consumes too much RAM
-	// cache.Idx = cvefeed.NewIndex(dict)
+	// Group dictionary by vendor using a map.
+	// This is done to speed up the matching process (PR https://github.com/fleetdm/fleet/pull/17298).
+	// A map uses a hash table to store the key-value pairs. By putting multiple vulnerabilities with the same vendor into a map,
+	// we reduce the number of comparisons needed to find the vulnerabilities that match the CPEs. Specifically, we no longer need to
+	// compare each CPE with each vulnerability, but only with the vulnerabilities that have the same vendor.
+	// Further optimization can be done by also using a map for product name comparison.
+	dictGrouped := make(map[string]cvefeed.Dictionary, len(dict))
+	for key, vuln := range dict {
+		attrsArray := vuln.Config()
+		for _, attrs := range attrsArray {
+			subDict, ok := dictGrouped[attrs.Vendor]
+			if !ok {
+				subDict = make(cvefeed.Dictionary, 1)
+				dictGrouped[attrs.Vendor] = subDict
+			}
+			subDict[key] = vuln
+		}
+	}
+
+	cacheGrouped := make(map[string]*cvefeed.Cache, len(dictGrouped))
+	for vendor, subDict := range dictGrouped {
+		cache := cvefeed.NewCache(subDict).SetRequireVersion(true).SetMaxSize(-1)
+		cacheGrouped[vendor] = cache
+	}
 
 	CPEItemCh := make(chan itemWithNVDMeta)
 	var foundSoftwareVulns []fleet.SoftwareVulnerability
@@ -382,6 +399,11 @@ func checkCVEs(
 						return
 					}
 
+					cache, ok := cacheGrouped[CPEItem.GetMeta().Vendor]
+					if !ok {
+						// No such vendor in the Vulnerability dictionary
+						continue
+					}
 					cacheHits := cache.Get([]*wfn.Attributes{CPEItem.GetMeta()})
 					for _, matches := range cacheHits {
 						if len(matches.CPEs) == 0 {

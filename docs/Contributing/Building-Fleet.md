@@ -87,6 +87,16 @@ To do this, run the following from the root of the repository:
 make deps
 ```
 
+Note: If you are using python >= `3.12`, you may have to install `distutils` using pip.
+
+```sh
+pip install setuptools
+```
+or 
+```sh
+pip3 install setuptools
+```
+
 When pulling changes, it may be necessary to re-run `make deps` if a new Go or JavaScript dependency was added.
 
 ### Generating the packaged JavaScript

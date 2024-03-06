@@ -60,7 +60,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 | Create, edit, and delete policies for all hosts assigned to team\*                                                                         |          |            | ✅         | ✅    | ✅      |
 | Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                           |          |            |            | ✅    | ✅      |
 | Create, edit, view, and delete users                                                                                                       |          |            |            | ✅    |         |
-| Add and remove team members\*                                                                                                              |          |            |            | ✅    | ✅      |
+| Add and remove team users\*                                                                                                              |          |            |            | ✅    | ✅      |
 | Create, edit, and delete teams\*                                                                                                           |          |            |            | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets](https://fleetdm.com/docs/deploying/faq#when-do-i-need-to-deploy-a-new-enroll-secret-to-my-hosts) |          |            | ✅         | ✅    | ✅      |
 | Create, edit, and delete [enroll secrets for teams](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)\*         |          |            | ✅         | ✅    |         |
@@ -98,7 +98,7 @@ GitOps is an API-only and write-only role that can be used on CI/CD pipelines.
 
 \** Applies only to [Fleet REST API](https://fleetdm.com/docs/using-fleet/rest-api)
 
-## Team member permissions
+## Team user permissions
 
 `Applies only to Fleet Premium`
 
@@ -111,9 +111,9 @@ Users with global access have access to all
 [hosts](https://fleetdm.com/docs/using-fleet/rest-api#hosts), [software](https://fleetdm.com/docs/using-fleet/rest-api#software), [queries](https://fleetdm.com/docs/using-fleet/rest-api#queries), and [policies](https://fleetdm.com/docs/using-fleet/rest-api#policies). Check out [the user permissions
 table](#user-permissions) above for global user permissions.
 
-Users can be a member of multiple teams in Fleet.
+Users can be assigned to multiple teams in Fleet.
 
-Users that are members of multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
+Users with access to multiple teams can be assigned different roles for each team. For example, a user can be given access to the "Workstations" team and assigned the "Observer" role. This same user can be given access to the "Servers" team and assigned the "Maintainer" role.
 
 | **Action**                                                                                                                       | Team observer | Team observer+ | Team maintainer | Team admin | Team GitOps |
 | -------------------------------------------------------------------------------------------------------------------------------- | ------------- | -------------- | --------------- | ---------- | ----------- |
@@ -137,7 +137,7 @@ Users that are members of multiple teams can be assigned different roles for eac
 | Filter hosts using policies                                                                                                      | ✅            | ✅             | ✅              | ✅         |             |
 | Create, edit, and delete team policies                                                                                           |               |                | ✅              | ✅         | ✅          |
 | Manage [policy automations](https://fleetdm.com/docs/using-fleet/automations#policy-automations)                                 |               |                |                 | ✅         | ✅          |
-| Add and remove team members                                                                                                      |               |                |                 | ✅         | ✅          |
+| Add and remove team users                                                                                                      |               |                |                 | ✅         | ✅          |
 | Edit team name                                                                                                                   |               |                |                 | ✅         | ✅          |
 | Create, edit, and delete [team enroll secrets](https://fleetdm.com/docs/using-fleet/rest-api#get-enroll-secrets-for-a-team)      |               |                | ✅              | ✅         |             |
 | Read organization settings\*                                                                                                     | ✅            | ✅             | ✅              | ✅         |             |

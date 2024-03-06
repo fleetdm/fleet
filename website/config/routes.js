@@ -17,8 +17,6 @@ module.exports.routes = {
     action: 'view-homepage-or-redirect',
     locals: {
       isHomepage: true,
-      pageTitleForMeta: 'Fleet | Open-source device management',
-      pageDescriptionForMeta: 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'
     }
   },
 
@@ -520,6 +518,7 @@ module.exports.routes = {
   'GET /sign-in-to/microsoft-automatic-enrollment-tool': 'https://portal.azure.com',
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
+  'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
 
   // Sitemap
   // =============================================================================================================
