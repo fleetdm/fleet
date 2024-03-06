@@ -918,7 +918,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 // whereFilterTeams returns the appropriate condition to use in the WHERE
 // clause to render only the appropriate teams.
 //
-// filter provides the filtering parameters that should be used. hostKey is the
+// filter provides the filtering parameters that should be used. teamKey is the
 // name/alias of the teams table to use in generating the SQL.
 func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
 	if filter.User == nil {
@@ -1188,8 +1188,6 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// time of the Exec call, and the result simply returns the integers it
 	// already holds:
 	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
-	//
-	// TODO(mna): would that work on mariadb too?
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()

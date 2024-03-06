@@ -52,7 +52,7 @@ func TestScriptValidate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := tt.script.Validate()
+			err := tt.script.ValidateNewScript()
 			require.Equal(t, tt.wantErr, err)
 		})
 	}
@@ -60,9 +60,10 @@ func TestScriptValidate(t *testing.T) {
 
 func TestValidateHostScriptContents(t *testing.T) {
 	tests := []struct {
-		name    string
-		script  string
-		wantErr error
+		name      string
+		script    string
+		isUnsaved bool
+		wantErr   error
 	}{
 		{
 			name:    "empty script",
@@ -70,14 +71,26 @@ func TestValidateHostScriptContents(t *testing.T) {
 			wantErr: errors.New("Script contents must not be empty."),
 		},
 		{
-			name:    "too large by byte count",
-			script:  strings.Repeat("a", utf8.UTFMax*MaxScriptRuneLen+1),
-			wantErr: errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
+			name:    "too large by byte count (saved)",
+			script:  strings.Repeat("a", utf8.UTFMax*SavedScriptMaxRuneLen+1),
+			wantErr: errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."),
 		},
 		{
-			name:    "too large by rune count",
-			script:  strings.Repeat("🙂", MaxScriptRuneLen+1),
-			wantErr: errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
+			name:      "too large by byte count (unsaved)",
+			script:    strings.Repeat("a", utf8.UTFMax*UnsavedScriptMaxRuneLen+1),
+			isUnsaved: true,
+			wantErr:   errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
+		},
+		{
+			name:    "too large by rune count (saved)",
+			script:  strings.Repeat("🙂", SavedScriptMaxRuneLen+1),
+			wantErr: errors.New("Script is too large. It's limited to 500,000 characters (approximately 10,000 lines)."),
+		},
+		{
+			name:      "too large by byte count (unsaved)",
+			script:    strings.Repeat("a", utf8.UTFMax*UnsavedScriptMaxRuneLen+1),
+			isUnsaved: true,
+			wantErr:   errors.New("Script is too large. It's limited to 10,000 characters (approximately 125 lines)."),
 		},
 		{
 			name:    "invalid utf8 encoding",
@@ -98,7 +111,7 @@ func TestValidateHostScriptContents(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateHostScriptContents(tt.script)
+			err := ValidateHostScriptContents(tt.script, !tt.isUnsaved)
 			require.Equal(t, tt.wantErr, err)
 		})
 	}

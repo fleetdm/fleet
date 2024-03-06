@@ -8,24 +8,30 @@
   var hideHeaderLinks;// Hides the header navigation links.
   var hideFooterLinks;// Hides footer links, reduces the height of the footer to 60px;
   var showAdminLinks;// Shows links to admin pages to admin users.
+  
+  // Applies personalization for who people come from ads, so that the website makes more sense for them:
+  var primaryBuyingSituation;
+  var defaultMetaTitle = 'Fleet | Open-source '+(primaryBuyingSituation === 'mdm' ? 'device management' : primaryBuyingSituation === 'vm' ? 'vulnerability management' : 'endpoint ops');
+  var defaultMetaDescription = 'Open-source '+(['mdm'].includes(primaryBuyingSituation) ? 'IT' : ['eo-security','vm'].includes(primaryBuyingSituation) ? 'security' : 'IT and security')+' for teams with lots of '+(primaryBuyingSituation === 'mdm' ? 'computers. (macOS, Windows, Linux, ChromeOS)' : 'workstations and servers. (Linux, macOS, Windows, cloud, data center, OT/ICS, Chrome)');
+  var corporationDisplayName = 'Fleet' + (primaryBuyingSituation === 'mdm' ? ' Device Management' : '') + ' Inc.'; // « Fleet has a DBA as "Fleet", with an official Delaware corporation name of "Fleet Device Management Inc".  -mikermcneil, 2024-03-01
 %><!DOCTYPE html>
 <html>
   <head>
-    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %></title>
-    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
+    <title><%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %></title>
+    <meta name="description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
 
     <% /* Viewport tag for sensible mobile support */ %>
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
     <%// Twitter meta tags%>
     <meta name="twitter:card" content="<%= typeof pageImageForMeta !== 'undefined' ? 'summary_large_image' : 'summary' %>" />
     <meta name="twitter:site" content="https://fleetdm.com" />
-    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)'  %>" />
-    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
+    <meta name="twitter:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription  %>" />
+    <meta name="twitter:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %>" />
     <meta name="twitter:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-logo-white-square-1200x1200@2x.png' %>" />
     <%// Meta tags for other social previews %>
     <meta property="og:image" content="<%= typeof pageImageForMeta !== 'undefined' ? 'https://fleetdm.com' + pageImageForMeta : 'https://fleetdm.com/images/fleet-cloud-city-1200x627@2x.png' %>" />
-    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : 'Fleet | Open-source device management' %>" />
-    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : 'Open-source device management and security for teams with thousands of laptops and servers. (macOS, Windows, Linux, ChromeOS)' %>" />
+    <meta property="og:title" content="<%= typeof pageTitleForMeta !== 'undefined' ? pageTitleForMeta : defaultMetaTitle %>" />
+    <meta property="og:description" content="<%= typeof pageDescriptionForMeta !== 'undefined' ? pageDescriptionForMeta : defaultMetaDescription %>" />
     <% /* Script tags should normally be included further down the page- but any
     scripts that load fonts (e.g. Fontawesome ≥v5) are special exceptions to the
     rule. (Include them up here along with any hard-coded «link» tags for Typekit,
@@ -163,10 +169,10 @@
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleUseCases" aria-haspopup="true" aria-expanded="false">Platform</a>
                   <div class="d-block">
                     <div id="mobileNavbarToggleUseCases" purpose="mobile-dropdown" class="collapse align-items-start" data-parent="#mobileDropdowns">
-                      <a href="/integrations">Integrations</a>
-                      <a href="/vulnerability-management">Vulnerability management</a>
                       <a href="/endpoint-ops">Endpoint operations</a>
                       <a href="/device-management">Device management (MDM)</a>
+                      <a href="/vulnerability-management">Vulnerability management</a>
+                      <a href="/integrations">Integrations</a>
                     </div>
                   </div>
                   <hr>
@@ -174,31 +180,29 @@
                   <div class="d-block">
                     <div id="mobileNavbarToggleDocumentation" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
                       <a href="/docs">Docs</a>
-                      <a href="/releases">Releases</a>
+                      <a href="/docs/rest-api">REST API</a>
                       <a href="/queries">Built-in queries</a>
                       <a href="/tables">Data tables</a>
-                      <a href="/support">Support</a>
-                      <span>GUIDES</span>
-                      <a class="pl-3" href="/deploy">Deployment guides</a>
-                      <a class="pl-3" href="/guides">How-to guides</a>
+                      <span>SUPPORT</span>
+                      <a class="pl-3" href="/support">Chat</a>
+                      <a class="pl-3" href="/docs/deploy/introduction">Hosting</a>
+                      <a class="pl-3" href="/releases">Release notes</a>
+                      <a class="pl-3" href="/customers/register">Get your license</a>
+                      <a class="pl-3" href="/contribute">Contribute</a>
                     </div>
                   </div>
                   <hr>
                   <a purpose="mobile-dropdown-toggle" class="d-flex align-items-center mr-4 collapsed" data-toggle="collapse" data-target="#mobileNavbarToggleCommunity">Community</a>
                   <div class="d-block">
                     <div id="mobileNavbarToggleCommunity" purpose="mobile-dropdown" class="collapse" data-parent="#mobileDropdowns">
-                      <span>ARTICLES</span>
-                      <a class="pl-3" href="/announcements">Announcements</a>
-                      <a class="pl-3" href="/securing">Security</a>
-                      <a class="pl-3" href="/engineering">Engineering</a>
-                      <a class="pl-3" href="/podcasts">Podcasts</a>
-                      <a class="pl-3" href="/reports/state-of-device-management">Reports</a>
-                      <span>CONTRIBUTE</span>
-                      <a class="pl-3" href="/slack" target="_blank">Join the conversation</a>
-                      <a class="pl-3" href="/contribute">Contribute to Fleet</a>
-                      <span>RESOURCES</span>
+                      <a href="/support">Chat</a>
+                      <a href="/announcements">News</a>
+                      <a href="/podcasts">Podcasts</a>
+                      <a href="/articles">Articles</a>
+                      <span>COMPANY</span>
                       <a class="pl-3" href="/handbook">Handbook</a>
                       <a class="pl-3" href="/logos">Logos & artwork</a>
+                      <a class="pl-3" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                     </div>
                   </div>
                   <hr>
@@ -215,43 +219,39 @@
                 <div purpose="dropdown-button" class="btn-group">
                   <a purpose="header-nav-btn" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'platform' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Platform</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
-                    <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
                     <a class="dropdown-item mb-1" href="/endpoint-ops">Endpoint operations</a>
                     <a class="dropdown-item mb-1" href="/device-management">Device management (MDM)</a>
+                    <a class="dropdown-item mb-1" href="/vulnerability-management">Vulnerability management</a>
+                    <a class="dropdown-item mb-1" href="/integrations">Integrations</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group">
                   <a purpose="header-nav-btn" button-text="Documentation" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'documentation' ? 'current-section' : '' %>" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">Documentation</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
                     <a class="dropdown-item mb-1" href="/docs">Docs</a>
-                    <a class="dropdown-item mb-1" href="/releases">Releases</a>
+                    <a class="dropdown-item mb-1" href="/docs/rest-api">REST API</a>
                     <a class="dropdown-item mb-1" href="/queries">Built-in queries</a>
                     <a class="dropdown-item mb-1" href="/tables">Data tables</a>
-                    <a class="dropdown-item mb-1" href="/support">Support</a>
-                    <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">GUIDES</span>
-                    <a class="dropdown-item" href="/deploy">Deployment guides</a>
-                    <a class="dropdown-item" href="/guides">How-to guides</a>
+                    <span class="muted dropdown-header">SUPPORT</span>
+                    <a class="dropdown-item mb-1" href="/support">Chat</a>
+                    <a class="dropdown-item mb-1" href="/docs/deploy/introduction">Hosting</a>
+                    <a class="dropdown-item mb-1" href="/releases">Release notes</a>
+                    <a class="dropdown-item mb-1" href="/customers/register">Get your license</a>
+                    <a class="dropdown-item mb-1" href="/contribute">Contribute</a>
                   </div>
                 </div>
                 <div purpose="dropdown-button" class="btn-group">
                   <a purpose="header-nav-btn" button-text="Community" class="dropdown-toggle d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'community' ? 'current-section' : '' %>" data-toggle="dropdown">Community</a>
                   <div purpose="header-dropdown" class="dropdown-menu">
-                    <span class="muted dropdown-header">ARTICLES</span>
-                    <a class="dropdown-item mb-1" href="/announcements">Announcements</a>
-                    <a class="dropdown-item mb-1" href="/securing">Security</a>
-                    <a class="dropdown-item mb-1" href="/engineering">Engineering</a>
+                    <a class="dropdown-item mb-1" href="/support">Chat</a>
+                    <a class="dropdown-item mb-1" href="/announcements">News</a>
                     <a class="dropdown-item mb-1" href="/podcasts">Podcasts</a>
-                    <a class="dropdown-item mb-1" href="/reports/state-of-device-management">Reports</a>
+                    <a class="dropdown-item mb-1" href="/articles">Articles</a>
                     <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">CONTRIBUTE</span>
-                    <a class="dropdown-item mb-1" href="/slack" target="_blank">Join the conversation</a>
-                    <a class="dropdown-item mb-1" href="/contribute">Contribute to Fleet</a>
-                    <div class="dropdown-divider"></div>
-                    <span class="muted dropdown-header">RESOURCES</span>
+                    <span class="muted dropdown-header">COMPANY</span>
                     <a class="dropdown-item mb-1" href="/handbook">Handbook</a>
-                    <a class="dropdown-item" href="/logos">Logos & artwork</a>
+                    <a class="dropdown-item" href="/logos">Logos/artwork</a>
+                    <a class="dropdown-item" href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
                   </div>
                 </div>
                 <a purpose="header-nav-btn" button-text="Pricing" href="/pricing" class="d-inline-block align-items-center py-2 px-3 <%= typeof currentSection !== 'undefined' && currentSection === 'pricing' ? 'current-section' : '' %>" style="text-decoration: none; line-height: 23px;">Pricing</a>
@@ -306,9 +306,9 @@
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Platform</strong>
+            <a href="/endpoint-ops">Endpoint ops</a>
             <a href="/device-management">Device management</a>
             <a href="/vulnerability-management">Vulnerability management</a>
-            <a href="/endpoint-ops">Endpoint ops</a>
             <a href="/integrations">Integrations</a>
             <a href="/pricing">Pricing</a>
           </div>
@@ -322,8 +322,8 @@
           </div>
           <div purpose="footer-nav-column" class="d-flex flex-column col-lg-3 col-md-4 col-sm-6 col-12">
             <strong purpose="footer-nav-header">Company</strong>
-            <a href="/handbook">About</a>
-            <a href="/blog">Blog</a>
+            <a href="/handbook/company">About</a>
+            <a href="/articles">Blog</a>
             <a href="/apply">Jobs</a>
             <a href="/logos">Logos/artwork</a>
             <a href="/handbook/company/why-this-way#why-open-source">Why open source?</a>
@@ -339,7 +339,7 @@
                 <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="text-sm-nowrap d-block d-sm-inline">
-                © <%= (new Date()).getFullYear() %> <a href="/handbook">Fleet Device Management Inc.</a>
+                © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
                 <span purpose="legal-links">
                   <a href="/legal/privacy">Privacy</a>
                 </span>
@@ -378,7 +378,7 @@
                 <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
               </div>
               <div class="d-flex">
-                © <%= (new Date()).getFullYear() %> Fleet Device Management Inc.
+                © <%= (new Date()).getFullYear() %> <%= corporationDisplayName %>
                 <a style="margin-left: 12px; font-size: 12px; text-underline-offset: 2.5px; text-decoration: underline; color: #515774" href="/legal/privacy">Privacy</a>
               </div>
           </div>

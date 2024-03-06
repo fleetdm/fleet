@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
+		Filters: &fleet.HostListOptions{TeamFilter: ptr.Uint(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
+		Filters: &fleet.HostListOptions{LabelID: ptr.Uint(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1120,7 +1120,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{},
+		Filters: &fleet.HostListOptions{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
+		Filters: &fleet.HostListOptions{LabelID: ptr.Uint(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -1495,12 +1495,16 @@ func (s *integrationTestSuite) TestListHosts() {
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
-	})
+	globalPolicy0, err := s.ds.NewGlobalPolicy(
+		context.Background(), &user1.ID, fleet.PolicyPayload{
+			QueryID: &q.ID,
+		})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: ptr.Bool(false)}, time.Now(), false),
+	)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
@@ -1720,13 +1724,54 @@ func (s *integrationTestSuite) TestListHosts() {
 			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
 			require.Nil(t, h.Software[0].Vulnerabilities[0].ResolvedInVersion)
 		}
+		assert.Nil(t, h.Policies)
 	}
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false", "populate_policies", "false")
 	require.Len(t, resp.Hosts, 4)
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
+		assert.Nil(t, h.Policies)
+	}
+
+	// Populate policies for hosts. One policy was created earlier.
+	ctx := context.Background()
+	globalPolicy1, err := s.ds.NewGlobalPolicy(
+		ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+			Name:  "foobar0",
+			Query: "SELECT 0;",
+		},
+	)
+	require.NoError(t, err)
+
+	for _, host := range hosts {
+		// All hosts pass the globalPolicy1
+		err := s.ds.RecordPolicyQueryExecutions(
+			context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_policies", "true")
+	require.Len(t, resp.Hosts, len(hosts)+1) // +1 for the pending MDM host
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[0].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		} else if h.ID == hosts[2].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "fail", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		}
 	}
 }
 
@@ -2769,7 +2814,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
-	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
+	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID, Filters: &fleet.HostListOptions{}}
 	req.Filters.MatchQuery = hosts[2].Hostname
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
@@ -5350,9 +5395,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"team_id", "1",
 	)
 
-	// lock/unlock a host
+	// lock/unlock/wipe a host
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -5363,10 +5409,10 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 
 	// run a script
 	var runResp runScriptResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// run a script sync
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// get script result
 	var scriptResultResp getScriptResultResponse
@@ -5376,6 +5422,16 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	body, headers := generateNewScriptMultipartRequest(t,
 		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// run a saved script by name without team id (should fail host not found)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host was not found in the datastore")
+
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
 	var delScriptResp deleteScriptResponse
@@ -6369,6 +6425,16 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	// 'No team' selected
+	countResp = countTargetsResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		http.StatusOK, &countResp,
+	)
+	assert.Equal(t, uint(2), countResp.TargetsCount)
+	assert.Equal(t, uint(0), countResp.TargetsOnline)
+	assert.Equal(t, uint(2), countResp.TargetsOffline)
+
 	// host id selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
@@ -7047,7 +7113,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 50)         // total number of cols
+	assert.Len(t, rows[0], 51)         // total number of cols
 
 	const (
 		idCol        = 3
@@ -7572,7 +7638,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	}
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
@@ -7599,7 +7665,7 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	require.Empty(t, resp.Err)
 
 	for _, vuln := range resp.Vulnerabilities {
-		expectedVuln, ok := expected[vuln.CVE]
+		expectedVuln, ok := expected[vuln.CVE.CVE]
 		require.True(t, ok)
 		require.Equal(t, expectedVuln.HostCount, vuln.HostsCount)
 		require.Equal(t, expectedVuln.DetailsLink, vuln.DetailsLink)
@@ -7619,14 +7685,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 	// Valid Global Request
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1234", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE)
+	require.Equal(t, "CVE-2021-1234", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2021-1234", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
-	require.Empty(t, gResp.Vulnerability.Published)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.OSVersions, 1)
 	require.Equal(t, "Windows 11 Enterprise 22H2 10.0.19042.1234", gResp.OSVersions[0].Name)
 	require.Equal(t, "Windows 11 Enterprise 22H2", gResp.OSVersions[0].NameOnly)
@@ -7637,14 +7703,14 @@ func (s *integrationTestSuite) TestListVulnerabilities() {
 
 	s.DoJSON("GET", "/api/latest/fleet/vulnerabilities/CVE-2021-1235", nil, http.StatusOK, &gResp)
 	require.Empty(t, gResp.Err)
-	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE)
+	require.Equal(t, "CVE-2021-1235", gResp.Vulnerability.CVE.CVE)
 	require.Equal(t, uint(1), gResp.Vulnerability.HostsCount)
 	require.Equal(t, "https://nvd.nist.gov/vuln/detail/CVE-2021-1235", gResp.Vulnerability.DetailsLink)
 	require.Empty(t, gResp.Vulnerability.Description)
 	require.Empty(t, gResp.Vulnerability.CVSSScore)
 	require.Empty(t, gResp.Vulnerability.CISAKnownExploit)
 	require.Empty(t, gResp.Vulnerability.EPSSProbability)
-	require.Empty(t, gResp.Vulnerability.Published)
+	require.Empty(t, gResp.Vulnerability.CVEPublished)
 	require.Len(t, gResp.Software, 1)
 	require.Equal(t, "Google Chrome", gResp.Software[0].Name)
 	require.Equal(t, "0.0.1", gResp.Software[0].Version)
@@ -9149,7 +9215,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 50)         // total number of cols
+	assert.Len(t, rows1[0], 51)         // total number of cols
 
 	var (
 		idIdx     int
@@ -9176,7 +9242,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 50)         // total number of cols
+	assert.Len(t, rows2[0], 51)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

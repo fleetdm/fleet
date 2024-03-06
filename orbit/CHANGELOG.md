@@ -1,3 +1,11 @@
+## Orbit 1.22.0 (Feb 26, 2024)
+
+* Reduce error logs when orbit cannot connect to Fleet.
+
+* Allow configuring a custom osquery database directory (`ORBIT_OSQUERY_DB` environment variable or `--osquery-db` flag).
+
+* Upgrade go version to 1.21.7.
+
 ## Orbit 1.21.0 (Jan 30, 2024)
 
 * For macOS hosts, fleetd now stores and retrieves enroll secret from macOS keychain. This feature is enabled for non-MDM flow. The MDM profile flow will be supported in a future release.

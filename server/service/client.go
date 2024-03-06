@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"io"
 	"net/http"
 	"os"
@@ -754,6 +755,7 @@ func extractTmSpecsMDMCustomSettings(tmSpecs []json.RawMessage) map[string][]fle
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
 			var macOSSettings []fleet.MDMProfileSpec
 			var windowsSettings []fleet.MDMProfileSpec
@@ -810,6 +812,7 @@ func extractTmSpecsScripts(tmSpecs []json.RawMessage) map[string][]string {
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" && len(spec.Scripts) > 0 {
 			if m == nil {
 				m = make(map[string][]string)
@@ -844,6 +847,7 @@ func extractTmSpecsMacOSSetup(tmSpecs []json.RawMessage) map[string]*fleet.MacOS
 			// ignore, this will fail in the call to apply team specs
 			continue
 		}
+		spec.Name = norm.NFC.String(spec.Name)
 		if spec.Name != "" {
 			if m == nil {
 				m = make(map[string]*fleet.MacOSSetup)
@@ -909,6 +913,18 @@ func (c *Client) DoGitOps(
 		}
 		team["scripts"] = scripts
 		team["secrets"] = config.TeamSettings["secrets"]
+		team["webhook_settings"] = map[string]interface{}{}
+		clearHostStatusWebhook := true
+		if webhookSettings, ok := config.TeamSettings["webhook_settings"]; ok {
+			if hostStatusWebhook, ok := webhookSettings.(map[string]interface{})["host_status_webhook"]; ok {
+				clearHostStatusWebhook = false
+				team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = hostStatusWebhook
+			}
+		}
+		if clearHostStatusWebhook {
+			// Clear out any existing host_status_webhook settings
+			team["webhook_settings"].(map[string]interface{})["host_status_webhook"] = map[string]interface{}{}
+		}
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}

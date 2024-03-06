@@ -13,8 +13,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
-	"github.com/micromdm/nanodep/tokenpki"
 )
 
 const (

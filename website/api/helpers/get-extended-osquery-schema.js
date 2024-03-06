@@ -159,6 +159,13 @@ module.exports = {
           } else {
             expandedTableToPush.examples = _.clone(fleetOverridesForTable.examples);
           }
+        } else {
+          // If the override file does not contain an 'examples' value, we'll use the last example from the osquery schema (See above for more information about the reasoning behind this)
+          let examplesFromOsquerySchema = expandedTableToPush.examples;
+          if (examplesFromOsquerySchema.length > 0) {
+            // Examples are parsed as markdown, so we wrap the example in a code fence so it renders as a code block.
+            expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+          }
         }
         if(fleetOverridesForTable.notes !== undefined) {
           if(typeof fleetOverridesForTable.notes !== 'string') {

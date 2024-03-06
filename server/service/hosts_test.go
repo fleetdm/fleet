@@ -4,9 +4,11 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -19,11 +21,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.mozilla.org/pkcs7"
@@ -67,7 +69,7 @@ func TestHostDetails(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return dsBats, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 	// Health should be replaced at the service layer with custom values determined by the cycle count. See https://github.com/fleetdm/fleet/issues/6763.
@@ -108,7 +110,7 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 	ds.ListHostBatteriesFunc = func(ctx context.Context, hostID uint) ([]*fleet.HostBattery, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -144,9 +146,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
-			fleet.DiskEncryptionEnforcing,
+			fleet.DiskEncryptionVerifying,
 			"",
-			&fleet.MDMDeliveryPending,
+			&fleet.MDMDeliveryVerifying,
 		},
 		{
 			"installed profile, not decryptable",
@@ -385,7 +387,7 @@ func TestHostDetailsOSSettings(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -497,7 +499,7 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -600,7 +602,7 @@ func TestHostAuth(t *testing.T) {
 	ds.ListHostUpcomingActivitiesFunc = func(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
 		return nil, nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -732,7 +734,7 @@ func TestHostAuth(t *testing.T) {
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &fleet.HostListOptions{}, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.RefetchHost(ctx, 1)
@@ -855,7 +857,7 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -893,7 +895,7 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, &fleet.HostListOptions{}, expectedLabel))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -912,7 +914,7 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, &fleet.HostListOptions{}, nil))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -1383,7 +1385,7 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hid uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
@@ -1445,15 +1447,20 @@ func TestHostMDMProfileDetail(t *testing.T) {
 	}
 }
 
-func TestLockUnlockHostAuth(t *testing.T) {
+func TestLockUnlockWipeHostAuth(t *testing.T) {
 	ds := new(mock.Store)
 	svc, ctx := newTestService(t, ds, nil, nil, &TestServerOpts{License: &fleet.LicenseInfo{Tier: fleet.TierPremium}})
+
+	const (
+		teamHostID   = 1
+		globalHostID = 2
+	)
 
 	teamHost := &fleet.Host{TeamID: ptr.Uint(1), Platform: "darwin"}
 	globalHost := &fleet.Host{Platform: "darwin"}
 
 	ds.HostByIdentifierFunc = func(ctx context.Context, identifier string) (*fleet.Host, error) {
-		if identifier == "1" {
+		if identifier == fmt.Sprint(teamHostID) {
 			return teamHost, nil
 		}
 
@@ -1483,14 +1490,14 @@ func TestLockUnlockHostAuth(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
-	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload) error {
+	ds.LockHostViaScriptFunc = func(ctx context.Context, request *fleet.HostScriptRequestPayload, platform string) error {
 		return nil
 	}
 	ds.HostLiteFunc = func(ctx context.Context, hostID uint) (*fleet.Host, error) {
-		if hostID == 1 {
+		if hostID == teamHostID {
 			return teamHost, nil
 		}
 
@@ -1505,7 +1512,7 @@ func TestLockUnlockHostAuth(t *testing.T) {
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
-	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, ts time.Time) error {
+	ds.UnlockHostManuallyFunc = func(ctx context.Context, hostID uint, platform string, ts time.Time) error {
 		return nil
 	}
 
@@ -1596,24 +1603,246 @@ func TestLockUnlockHostAuth(t *testing.T) {
 			}
 			ctx := viewer.NewContext(ctx, viewer.Viewer{User: tt.user})
 
-			err := svc.LockHost(ctx, 2)
+			err := svc.LockHost(ctx, globalHostID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			err = svc.LockHost(ctx, 1)
+			err = svc.LockHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Pretend we locked the host
-			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
-				return &fleet.HostLockWipeStatus{HostFleetPlatform: fleetPlatform, LockMDMCommand: &fleet.MDMCommand{}, LockMDMCommandResult: &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}}, nil
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+				return &fleet.HostLockWipeStatus{HostFleetPlatform: host.FleetPlatform(), LockMDMCommand: &fleet.MDMCommand{}, LockMDMCommandResult: &fleet.MDMCommandResult{Status: fleet.MDMAppleStatusAcknowledged}}, nil
 			}
 
-			_, err = svc.UnlockHost(ctx, 2)
+			_, err = svc.UnlockHost(ctx, globalHostID)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
-			_, err = svc.UnlockHost(ctx, 1)
+			_, err = svc.UnlockHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			// Reset so we're now pretending host is unlocked
-			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+			ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 				return &fleet.HostLockWipeStatus{}, nil
+			}
+
+			err = svc.WipeHost(ctx, globalHostID)
+			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
+			err = svc.WipeHost(ctx, teamHostID)
+			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+		})
+	}
+}
+
+func TestValidateAndPopulateHostListOptionsFilters(t *testing.T) {
+	cases := []struct {
+		name        string
+		jsonBody    string
+		expected    *fleet.HostListOptions
+		has400Error bool
+	}{
+		{
+			name: "no filter",
+			jsonBody: `{
+					"somevalue": "somevalue"
+				}`,
+			expected: nil,
+		},
+		{
+			name: "empty filter",
+			jsonBody: `{
+					"somevalue": "somevalue",
+					"filter": {}
+				}`,
+			expected: &fleet.HostListOptions{},
+		},
+		{
+			name: "all valid filters",
+			jsonBody: `{
+					"somevalue": "somevalue",
+					"filter": {
+						"query": "foo",
+						"status": "new",
+						"team_id": 1,
+						"policy_id": 2,
+						"policy_response": "passing",
+						"os_name": "macOS",
+						"os_version": "11.1",
+						"os_version_id": 3,
+						"os_settings": "pending",
+						"os_settings_disk_encryption": "failed",
+						"bootstrap_package": "installed",
+						"munki_issue_id": 4,
+						"vulnerability": "CVE-2021-1234",
+						"mdm_id": 4,
+						"mdm_name": "mdm_name",
+						"mdm_enrollment_status": "automatic",
+						"low_disk_space": 99
+					}
+				}`,
+			expected: &fleet.HostListOptions{
+				ListOptions: fleet.ListOptions{
+					MatchQuery: "foo",
+				},
+				StatusFilter:                   fleet.StatusNew,
+				TeamFilter:                     ptr.Uint(1),
+				PolicyIDFilter:                 ptr.Uint(2),
+				PolicyResponseFilter:           ptr.Bool(true),
+				PolicyResponseFilterRequest:    ptr.String("passing"),
+				OSNameFilter:                   ptr.String("macOS"),
+				OSVersionFilter:                ptr.String("11.1"),
+				OSVersionIDFilter:              ptr.Uint(3),
+				OSSettingsFilter:               fleet.OSSettingsPending,
+				OSSettingsDiskEncryptionFilter: fleet.DiskEncryptionFailed,
+				MDMBootstrapPackageFilter:      (*fleet.MDMBootstrapPackageStatus)(ptr.String(string(fleet.MDMBootstrapPackageInstalled))),
+				MunkiIssueIDFilter:             ptr.Uint(4),
+				VulnerabilityFilter:            ptr.String("CVE-2021-1234"),
+				MDMIDFilter:                    ptr.Uint(4),
+				MDMNameFilter:                  ptr.String("mdm_name"),
+				MDMEnrollmentStatusFilter:      fleet.MDMEnrollStatusAutomatic,
+				LowDiskSpaceFilter:             ptr.Int(99),
+			},
+		},
+
+		{
+			name: "filter with invalid status",
+			jsonBody: `{
+					"filter": {
+						"status": "invalid"
+					}
+				}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "policy ID must be provided with policy response",
+			jsonBody: `{
+					"filter": {
+						"policy_response": "passing"
+					}
+				}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "invalid policy response",
+			jsonBody: `{
+				"filter": {
+					"policy_id": 1,
+					"policy_response": "invalid"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "software title and versionID cannot be used together",
+			jsonBody: `{
+				"filter": {
+					"software_title_id": 2,
+					"software_version_id": 1
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "os version must be provided with os name",
+			jsonBody: `{
+				"filter": {
+					"os_version": "11.1"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "os name must be provided with os version",
+			jsonBody: `{
+				"filter": {
+					"os_name": "macOS"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "invalid mdm enrollment status",
+			jsonBody: `{
+				"filter": {
+					"mdm_enrollment_status": "invalid"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "invalid os settings",
+			jsonBody: `{
+				"filter": {
+					"os_settings": "invalid"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "invalid os settings disk encryption",
+			jsonBody: `{
+				"filter": {
+					"os_settings_disk_encryption": "invalid"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "invalid mdm bootstrap package",
+			jsonBody: `{
+				"filter": {
+					"bootstrap_package": "invalid"
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "low disk space is too low",
+			jsonBody: `{
+				"filter": {
+					"low_disk_space": 0
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+		{
+			name: "low disk space is too high",
+			jsonBody: `{
+				"filter": {
+					"low_disk_space": 101
+				}
+			}`,
+			expected:    &fleet.HostListOptions{},
+			has400Error: true,
+		},
+	}
+
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			type request struct {
+				Somevalue string                 `json:"somevalue"`
+				Filter    *fleet.HostListOptions `json:"filter"`
+			}
+			var in request
+			err := json.NewDecoder(strings.NewReader(tt.jsonBody)).Decode(&in)
+			require.NoError(t, err)
+
+			opts, err := validateAndPopulateHostListOptionsFilters(context.Background(), in.Filter)
+			if tt.has400Error {
+				require.Error(t, err)
+				var be *fleet.BadRequestError
+				require.ErrorAs(t, err, &be)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tt.expected, opts)
 			}
 		})
 	}

@@ -77,7 +77,7 @@ const SoftwareVulnerabilitiesTable = ({
             return val !== currentPage;
           case "searchQuery":
             return val !== query;
-          case "exploited":
+          case "exploit":
             return val !== showExploitedVulnerabilitiesOnly.toString();
           default:
             return false;
@@ -98,7 +98,7 @@ const SoftwareVulnerabilitiesTable = ({
     (newTableQuery: ITableQueryData, changedParam: string) => {
       return {
         team_id: teamId,
-        exploited: showExploitedVulnerabilitiesOnly.toString(),
+        exploit: showExploitedVulnerabilitiesOnly.toString(),
         query: newTableQuery.searchQuery,
         order_direction: newTableQuery.sortDirection,
         order_key: newTableQuery.sortHeader,
@@ -132,7 +132,9 @@ const SoftwareVulnerabilitiesTable = ({
   // determines if a user be able to search in the table
   const searchable =
     isSoftwareEnabled &&
-    (!!data || query !== "" || showExploitedVulnerabilitiesOnly);
+    (!!data?.vulnerabilities ||
+      query !== "" ||
+      showExploitedVulnerabilitiesOnly);
 
   const vulnerabilitiesTableHeaders = useMemo(() => {
     if (!data) return [];
@@ -161,7 +163,7 @@ const SoftwareVulnerabilitiesTable = ({
           team_id: teamId,
           order_direction: orderDirection,
           order_key: orderKey,
-          exploited: isFilterExploited.toString(),
+          exploit: isFilterExploited.toString(),
           page: 0, // resets page index
         },
       })
@@ -267,7 +269,6 @@ const SoftwareVulnerabilitiesTable = ({
         customControl={
           searchable ? renderExploitedVulnerabilitiesDropdown : undefined
         }
-        stackControls
         renderCount={renderVulnerabilityCount}
         renderFooter={renderTableFooter}
         disableMultiRowSelect

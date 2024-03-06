@@ -14,13 +14,13 @@ import (
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service/certauth"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanodep/tokenpki"
 	"github.com/stretchr/testify/require"
 )
 
@@ -3267,4 +3267,11 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
+
+	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
+	require.Error(t, err)
+
+	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], nil)
 }

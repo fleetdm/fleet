@@ -18,6 +18,14 @@
     }
   }
 
+  // Relative input wrapper with absolute icon corrects icon alignment on all browsers
+  &__input-wrapper {
+    position: relative;
+    height: 40px;
+    display: flex;
+    align-items: center;
+  }
+
   // Refactor to include svg icons
   &--icon-start {
     margin-top: 0;
@@ -25,10 +33,11 @@
     .input-icon-field__icon {
       position: absolute;
       left: 12px;
-      top: 13px;
+      top: 0;
+      height: 40px;
       width: 16px;
-      font-size: $x-small;
-      color: $core-fleet-blue;
+      flex-wrap: wrap;
+      align-content: center;
       z-index: 1;
     }
   }
@@ -51,20 +60,6 @@
       color: $core-fleet-blue;
     }
 
-    &:hover,
-    &:focus {
-      border: 1px solid $core-vibrant-blue;
-
-      // Icon color matches border color on focus and on hover
-      + .input-icon-field__icon {
-        svg {
-          path {
-            fill: $core-vibrant-blue;
-          }
-        }
-      }
-    }
-
     &:focus {
       outline: none;
     }
@@ -82,6 +77,33 @@
     }
   }
 
+  &__input-wrapper:hover {
+    .input-icon-field__input {
+      border: 1px solid $core-vibrant-blue;
+    }
+
+    // Icon color matches border color on focus and on hover
+    .input-icon-field__icon {
+      svg {
+        path {
+          fill: $core-vibrant-blue;
+        }
+      }
+    }
+  }
+
+  .input-icon-field__input:focus {
+    border: 1px solid $core-vibrant-blue;
+
+    // Icon color matches border color on focus and on hover
+    + .input-icon-field__icon {
+      svg {
+        path {
+          fill: $core-vibrant-blue;
+        }
+      }
+    }
+  }
   &__label {
     display: block;
     font-size: $x-small;

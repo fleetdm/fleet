@@ -470,79 +470,89 @@ const EditQueryForm = ({
     return platformCompatibility.render();
   };
 
-  const queryNameClasses = classnames("query-name-wrapper", {
+  const editName = () => {
+    if (!isEditingName) {
+      setIsEditingName(true);
+    }
+  };
+  const queryNameWrapperClasses = classnames("query-name-wrapper", {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const queryDescriptionClasses = classnames("query-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const queryDescriptionWrapperClasses = classnames(
+    "query-description-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <>
-          <div className={queryNameClasses}>
-            <AutoSizeInputField
-              name="query-name"
-              placeholder="Add name here"
-              value={lastEditedQueryName}
-              inputClassName={`${baseClass}__query-name`}
-              maxLength="160"
-              hasError={errors && errors.name}
-              onChange={setLastEditedQueryName}
-              onFocus={() => setIsEditingName(true)}
-              onBlur={() => setIsEditingName(false)}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingName}
-            />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingName(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingName ? "hide" : ""}`}
-              />
-            </Button>
-          </div>
-        </>
+        <div
+          className={queryNameWrapperClasses}
+          onFocus={() => setIsEditingName(true)}
+          onBlur={() => setIsEditingName(false)}
+          onClick={editName}
+        >
+          <AutoSizeInputField
+            name="query-name"
+            placeholder="Add name"
+            value={lastEditedQueryName}
+            inputClassName={`${baseClass}__query-name ${
+              !lastEditedQueryName ? "no-value" : ""
+            }`}
+            maxLength={160}
+            hasError={errors && errors.name}
+            onChange={setLastEditedQueryName}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingName}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingName ? "hide" : ""}`}
+            size="small-medium"
+          />
+        </div>
       );
     }
 
     return <h1 className={`${baseClass}__query-name no-hover`}>New query</h1>;
   };
 
+  const editDescription = () => {
+    if (!isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  };
+
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <>
-          <div className={queryDescriptionClasses}>
-            <AutoSizeInputField
-              name="query-description"
-              placeholder="Add description here."
-              value={lastEditedQueryDescription}
-              maxLength="250"
-              inputClassName={`${baseClass}__query-description`}
-              onChange={setLastEditedQueryDescription}
-              onFocus={() => setIsEditingDescription(true)}
-              onBlur={() => setIsEditingDescription(false)}
-              onKeyPress={onInputKeypress}
-              isFocused={isEditingDescription}
-            />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingDescription(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-              />
-            </Button>
-          </div>
-        </>
+        <div
+          className={queryDescriptionWrapperClasses}
+          onFocus={() => setIsEditingDescription(true)}
+          onBlur={() => setIsEditingDescription(false)}
+          onClick={editDescription}
+        >
+          <AutoSizeInputField
+            name="query-description"
+            placeholder="Add description"
+            value={lastEditedQueryDescription}
+            maxLength={250}
+            inputClassName={`${baseClass}__query-description ${
+              !lastEditedQueryDescription ? "no-value" : ""
+            }`}
+            onChange={setLastEditedQueryDescription}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingDescription}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+            size="small-medium"
+          />
+        </div>
       );
     }
     return null;

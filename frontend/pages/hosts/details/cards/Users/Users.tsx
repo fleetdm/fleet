@@ -5,6 +5,7 @@ import TableContainer from "components/TableContainer";
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import Card from "components/Card";
 
 import generateUsersTableHeaders from "./UsersTable/UsersTableConfig";
 
@@ -15,6 +16,8 @@ interface IUsersProps {
   onUsersTableSearchChange: (queryData: ITableQueryData) => void;
   hostUsersEnabled?: boolean;
 }
+
+const baseClass = "users-card";
 
 const Users = ({
   users,
@@ -27,8 +30,13 @@ const Users = ({
 
   if (!hostUsersEnabled) {
     return (
-      <div className="section section--users">
-        <p className="section__header">Users</p>
+      <Card
+        borderRadiusSize="large"
+        includeShadow
+        largePadding
+        className={baseClass}
+      >
+        <p className="card__header">Users</p>
         <EmptyTable
           header="User collection has been disabled"
           info={
@@ -42,44 +50,51 @@ const Users = ({
             </>
           }
         />
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="section section--users">
-      <p className="section__header">Users</p>
-      {users?.length ? (
-        <TableContainer
-          columnConfigs={tableHeaders}
-          data={usersState}
-          isLoading={isLoading}
-          defaultSortHeader="username"
-          defaultSortDirection="asc"
-          inputPlaceHolder="Search users by username"
-          onQueryChange={onUsersTableSearchChange}
-          resultsTitle="users"
-          emptyComponent={() => (
-            <EmptyTable
-              header="No users match your search criteria"
-              info="Try a different search."
-            />
-          )}
-          showMarkAllPages={false}
-          isAllPagesSelected={false}
-          searchable
-          wideSearch
-          filteredCount={usersState.length}
-          isClientSidePagination
-        />
-      ) : (
-        <EmptyTable
-          header="No users detected on this host"
-          info="Expecting to see users? Try again in a few seconds as the system
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <>
+        <p className="card__header">Users</p>
+        {users?.length ? (
+          <TableContainer
+            columnConfigs={tableHeaders}
+            data={usersState}
+            isLoading={isLoading}
+            defaultSortHeader="username"
+            defaultSortDirection="asc"
+            inputPlaceHolder="Search users by username"
+            onQueryChange={onUsersTableSearchChange}
+            resultsTitle="users"
+            emptyComponent={() => (
+              <EmptyTable
+                header="No users match your search criteria"
+                info="Try a different search."
+              />
+            )}
+            showMarkAllPages={false}
+            isAllPagesSelected={false}
+            searchable
+            wideSearch
+            filteredCount={usersState.length}
+            isClientSidePagination
+          />
+        ) : (
+          <EmptyTable
+            header="No users detected on this host"
+            info="Expecting to see users? Try again in a few seconds as the system
               catches up."
-        />
-      )}
-    </div>
+          />
+        )}
+      </>
+    </Card>
   );
 };
 

@@ -194,6 +194,16 @@ func (svc *Service) ListHosts(ctx context.Context, opt fleet.HostListOptions) ([
 		}
 	}
 
+	if opt.PopulatePolicies {
+		for _, host := range hosts {
+			hp, err := svc.ds.ListPoliciesForHost(ctx, host)
+			if err != nil {
+				return nil, ctxerr.Wrap(ctx, err, fmt.Sprintf("get policies for host %d", host.ID))
+			}
+			host.Policies = &hp
+		}
+	}
+
 	return hosts, nil
 }
 
@@ -207,17 +217,10 @@ var (
 	deleteHostsSkipAuthorization = false
 )
 
-type deleteHostsFilters struct {
-	MatchQuery string           `json:"query"`
-	Status     fleet.HostStatus `json:"status"`
-	LabelID    *uint            `json:"label_id"`
-	TeamID     *uint            `json:"team_id"`
-}
-
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *deleteHostsFilters `json:"filters"`
+	Filters *fleet.HostListOptions `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -232,16 +235,9 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	var listOpts *fleet.HostListOptions
+
 	var labelID *uint
 	if req.Filters != nil {
-		listOpts = &fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{
-				MatchQuery: req.Filters.MatchQuery,
-			},
-			StatusFilter: req.Filters.Status,
-			TeamFilter:   req.Filters.TeamID,
-		}
 		labelID = req.Filters.LabelID
 	}
 
@@ -251,7 +247,7 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	deleteDone := make(chan bool, 1)
 	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
 	go func() {
-		err = svc.DeleteHosts(ctx, req.IDs, listOpts, labelID)
+		err = svc.DeleteHosts(ctx, req.IDs, req.Filters, labelID)
 		if err != nil {
 			// logging the error for future debug in case we already sent http.StatusAccepted
 			logging.WithErr(ctx, err)
@@ -274,7 +270,13 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 }
 
 func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	var err error
+	if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+
+	opts, err = validateAndPopulateHostListOptionsFilters(ctx, opts)
+	if err != nil {
 		return err
 	}
 
@@ -657,7 +659,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -667,7 +669,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); err != nil {
 		return nil, err
 	}
 
@@ -775,7 +777,7 @@ func (svc *Service) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -852,12 +854,8 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint `json:"team_id"`
-	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-	} `json:"filters"`
+	TeamID  *uint                  `json:"team_id"`
+	Filters *fleet.HostListOptions `json:"filters"`
 }
 
 type addHostsToTeamByFilterResponse struct {
@@ -868,13 +866,8 @@ func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
-	listOpt := fleet.HostListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: req.Filters.MatchQuery,
-		},
-		StatusFilter: req.Filters.Status,
-	}
-	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
+
+	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters, req.Filters.LabelID)
 	if err != nil {
 		return addHostsToTeamByFilterResponse{Err: err}, nil
 	}
@@ -882,7 +875,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 	return addHostsToTeamByFilterResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt fleet.HostListOptions, lid *uint) error {
+func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt *fleet.HostListOptions, lid *uint) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -891,7 +884,16 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return err
 	}
 
-	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, opt, lid)
+	if opt == nil {
+		return &fleet.BadRequestError{Message: "filters must be specified"}
+	}
+
+	opt, err := validateAndPopulateHostListOptionsFilters(ctx, opt)
+	if err != nil {
+		return err
+	}
+
+	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
 	if err != nil {
 		return err
 	}
@@ -911,7 +913,7 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return ctxerr.Wrap(ctx, err, "list mdm dep serials in host ids")
 	}
 	if len(serials) > 0 {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -1093,7 +1095,7 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	}
 	host.MDM.MacOSSetup = macOSSetup
 
-	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	mdmActions, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get host mdm lock/wipe status")
 	}
@@ -1104,10 +1106,10 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 	host.MDM.PendingAction = ptr.String("")
 	// device status
 	switch {
-	case mdmActions.IsLocked():
-		host.MDM.DeviceStatus = ptr.String("locked")
 	case mdmActions.IsWiped():
 		host.MDM.DeviceStatus = ptr.String("wiped")
+	case mdmActions.IsLocked():
+		host.MDM.DeviceStatus = ptr.String("locked")
 	}
 
 	// pending action, if any
@@ -1120,11 +1122,11 @@ func (svc *Service) getHostDetails(ctx context.Context, host *fleet.Host, opts f
 		host.MDM.PendingAction = ptr.String("wipe")
 	}
 
+	host.Policies = policies
 	return &fleet.HostDetail{
 		Host:      *host,
 		Labels:    labels,
 		Packs:     packs,
-		Policies:  policies,
 		Batteries: &bats,
 	}, nil
 }
@@ -2147,4 +2149,64 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	}
 
 	return host, nil
+}
+
+func validateAndPopulateHostListOptionsFilters(ctx context.Context, opt *fleet.HostListOptions) (*fleet.HostListOptions, error) {
+	if opt == nil {
+		return nil, nil
+	}
+
+	if opt.StatusFilter != "" && !opt.StatusFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid status %s", opt.StatusFilter)))
+	}
+
+	if opt.PolicyResponseFilterRequest != nil && opt.PolicyIDFilter == nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("Policy ID must be provided when filtering by policy response"))
+	}
+
+	if opt.PolicyResponseFilterRequest != nil {
+		if *opt.PolicyResponseFilterRequest == "passing" {
+			opt.PolicyResponseFilter = ptr.Bool(true)
+		} else if *opt.PolicyResponseFilterRequest == "failing" {
+			opt.PolicyResponseFilter = ptr.Bool(false)
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid policy response filter %s", *opt.PolicyResponseFilterRequest)))
+		}
+	}
+
+	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareVersionIDFilter != nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("Software title ID and name cannot be used together"))
+	}
+
+	if opt.OSNameFilter != nil && opt.OSVersionFilter == nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("OS version must be provided when filtering by OS name"))
+	}
+
+	if opt.OSNameFilter == nil && opt.OSVersionFilter != nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("OS name must be provided when filtering by OS version"))
+	}
+
+	if opt.MDMEnrollmentStatusFilter != "" && !opt.MDMEnrollmentStatusFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM enrollment status %s", opt.MDMEnrollmentStatusFilter)))
+	}
+
+	if opt.OSSettingsFilter != "" && !opt.OSSettingsFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid OS settings status %s", opt.OSSettingsFilter)))
+	}
+
+	if opt.OSSettingsDiskEncryptionFilter != "" && !opt.OSSettingsDiskEncryptionFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid disk encryption status %s", opt.OSSettingsDiskEncryptionFilter)))
+	}
+
+	if opt.MDMBootstrapPackageFilter != nil && !opt.MDMBootstrapPackageFilter.IsValid() {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM bootstrap status %s", *opt.MDMBootstrapPackageFilter)))
+	}
+
+	if opt.LowDiskSpaceFilter != nil {
+		if *opt.LowDiskSpaceFilter > 100 || *opt.LowDiskSpaceFilter < 1 {
+			return opt, ctxerr.Wrap(ctx, badRequest("Low disk space filter must be between 1 and 100"))
+		}
+	}
+
+	return opt, nil
 }

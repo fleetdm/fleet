@@ -4,6 +4,7 @@ import ReactTooltip from "react-tooltip";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
 import CustomLink from "components/CustomLink";
+import Card from "components/Card";
 
 import {
   IHostMdmData,
@@ -16,6 +17,7 @@ import {
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
 import { COLORS } from "styles/var/colors";
+import DataSet from "components/DataSet";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
   if (deviceMapping.length === 0) {
@@ -38,6 +40,8 @@ interface IAboutProps {
   munki?: IMunkiData | null;
   mdm?: IHostMdmData;
 }
+
+const baseClass = "about-card";
 
 const About = ({
   aboutData,
@@ -83,18 +87,9 @@ const About = ({
   const renderSerialAndIPs = () => {
     return (
       <>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Serial number</span>
-          <span className="info-grid__data">{aboutData.hardware_serial}</span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Private IP address</span>
-          <span className="info-grid__data">{aboutData.primary_ip}</span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Public IP address</span>
-          <span className="info-grid__data">{renderPublicIp()}</span>
-        </div>
+        <DataSet title="Serial number" value={aboutData.hardware_serial} />
+        <DataSet title="Private IP address" value={aboutData.primary_ip} />
+        <DataSet title="Public IP address" value={renderPublicIp()} />
       </>
     );
   };
@@ -102,12 +97,10 @@ const About = ({
   const renderMunkiData = () => {
     return munki ? (
       <>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Munki version</span>
-          <span className="info-grid__data">
-            {munki.version || DEFAULT_EMPTY_CELL_VALUE}
-          </span>
-        </div>
+        <DataSet
+          title="Munki version"
+          value={munki.version || DEFAULT_EMPTY_CELL_VALUE}
+        />
       </>
     ) : null;
   };
@@ -118,22 +111,20 @@ const About = ({
     }
     return (
       <>
-        <div className="info-grid__block">
-          <span className="info-grid__header">MDM status</span>
-          <span className="info-grid__data">
+        <DataSet
+          title="MDM status"
+          value={
             <TooltipWrapper
               tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
             >
               {mdm.enrollment_status}
             </TooltipWrapper>
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">MDM server URL</span>
-          <span className="info-grid__data">
-            {mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
-          </span>
-        </div>
+          }
+        />
+        <DataSet
+          title="MDM server URL"
+          value={mdm.server_url || DEFAULT_EMPTY_CELL_VALUE}
+        />
       </>
     );
   };
@@ -159,12 +150,11 @@ const About = ({
         );
       }
     }
-
     return (
-      <div className="info-grid__block">
-        <span className="info-grid__header">Used by</span>
-        <span className="info-grid__data">
-          {newDeviceMapping.length > 1 ? (
+      <DataSet
+        title="Used by"
+        value={
+          newDeviceMapping.length > 1 ? (
             <TooltipWrapper
               tipContent={getDeviceUserTipContent(newDeviceMapping)}
             >
@@ -175,9 +165,9 @@ const About = ({
             </TooltipWrapper>
           ) : (
             displayPrimaryUser
-          )}
-        </span>
-      </div>
+          )
+        }
+      />
     );
   };
 
@@ -191,12 +181,7 @@ const About = ({
     const location = [geolocation?.city_name, geolocation?.country_iso]
       .filter(Boolean)
       .join(", ");
-    return (
-      <div className="info-grid__block">
-        <span className="info-grid__header">Location</span>
-        <span className="info-grid__data">{location}</span>
-      </div>
-    );
+    return <DataSet title="Location" value={location} />;
   };
 
   const renderBattery = () => {
@@ -207,39 +192,39 @@ const About = ({
       return null;
     }
     return (
-      <div className="info-grid__block">
-        <span className="info-grid__header">Battery condition</span>
-        <span className="info-grid__data">
-          {aboutData.batteries?.[0]?.health}
-        </span>
-      </div>
+      <DataSet
+        title="Battery condition"
+        value={aboutData.batteries?.[0]?.health}
+      />
     );
   };
 
   return (
-    <div className="section about">
-      <p className="section__header">About</p>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">About</p>
       <div className="info-grid">
-        <div className="info-grid__block">
-          <span className="info-grid__header">Added to Fleet</span>
-          <span className="info-grid__data">
+        <DataSet
+          title="Added to Fleet"
+          value={
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={aboutData.last_enrolled_at ?? "Unavailable"}
             />
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Last restarted</span>
-          <span className="info-grid__data">
+          }
+        />
+        <DataSet
+          title="Last restarted"
+          value={
             <HumanTimeDiffWithFleetLaunchCutoff
               timeString={aboutData.last_restarted_at}
             />
-          </span>
-        </div>
-        <div className="info-grid__block">
-          <span className="info-grid__header">Hardware model</span>
-          <span className="info-grid__data">{aboutData.hardware_model}</span>
-        </div>
+          }
+        />
+        <DataSet title="Hardware model" value={aboutData.hardware_model} />
         {renderSerialAndIPs()}
         {renderMunkiData()}
         {renderMdmData()}
@@ -247,7 +232,7 @@ const About = ({
         {renderGeolocation()}
         {renderBattery()}
       </div>
-    </div>
+    </Card>
   );
 };
 

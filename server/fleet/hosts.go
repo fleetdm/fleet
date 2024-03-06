@@ -39,6 +39,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+func (s HostStatus) IsValid() bool {
+	switch s {
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+		return true
+	default:
+		return false
+	}
+}
+
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
@@ -49,6 +58,15 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
+
+func (s MDMEnrollStatus) IsValid() bool {
+	switch s {
+	case MDMEnrollStatusManual, MDMEnrollStatusAutomatic, MDMEnrollStatusPending, MDMEnrollStatusUnenrolled, MDMEnrollStatusEnrolled:
+		return true
+	default:
+		return false
+	}
+}
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
 // status of MDM configuration profiles and non-profile settings applied the host.
@@ -119,12 +137,15 @@ type HostListOptions struct {
 	// populated.
 	AdditionalFilters []string
 	// StatusFilter selects the online status of the hosts.
-	StatusFilter HostStatus
+	StatusFilter HostStatus `json:"status"`
 	// TeamFilter selects the hosts for specified team
-	TeamFilter *uint
+	TeamFilter *uint `json:"team_id"`
 
-	PolicyIDFilter       *uint
-	PolicyResponseFilter *bool
+	PolicyIDFilter              *uint   `json:"policy_id"`
+	PolicyResponseFilterRequest *string `json:"policy_response"`
+	PolicyResponseFilter        *bool
+
+	LabelID *uint `json:"label_id"`
 
 	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
 	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
@@ -132,16 +153,16 @@ type HostListOptions struct {
 	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
-	SoftwareVersionIDFilter *uint
+	SoftwareVersionIDFilter *uint `json:"software_version_id"`
 	// SoftwareTitleIDFilter filers the hosts by the software title ID that they
 	// use. This identifies a "software title" independent of the specific
 	// version.
-	SoftwareTitleIDFilter *uint
+	SoftwareTitleIDFilter *uint `json:"software_title_id"`
 
 	OSIDFilter        *uint
-	OSNameFilter      *string
-	OSVersionFilter   *string
-	OSVersionIDFilter *uint
+	OSNameFilter      *string `json:"os_name"`
+	OSVersionFilter   *string `json:"os_version"`
+	OSVersionIDFilter *uint   `json:"os_version_id"`
 
 	DisableFailingPolicies bool
 
@@ -155,35 +176,38 @@ type HostListOptions struct {
 
 	// OSSettingsFilter filters the hosts by the status of MDM configuration profiles and
 	// non-profile settings applied to the hosts.
-	OSSettingsFilter OSSettingsStatus
+	OSSettingsFilter OSSettingsStatus `json:"os_settings"`
 	// OSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// OS setting.
-	OSSettingsDiskEncryptionFilter DiskEncryptionStatus
+	OSSettingsDiskEncryptionFilter DiskEncryptionStatus `json:"os_settings_disk_encryption"`
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
-	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
+	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus `json:"bootstrap_package"`
 
 	// MDMIDFilter filters the hosts by MDM ID.
-	MDMIDFilter *uint
+	MDMIDFilter *uint `json:"mdm_id"`
 	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
 	// fleet.WellKnownMDM... constants).
-	MDMNameFilter *string
+	MDMNameFilter *string `json:"mdm_name"`
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
-	MDMEnrollmentStatusFilter MDMEnrollStatus
+	MDMEnrollmentStatusFilter MDMEnrollStatus `json:"mdm_enrollment_status"`
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
-	MunkiIssueIDFilter *uint
+	MunkiIssueIDFilter *uint `json:"munki_issue_id"`
 
 	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
 	// with less than N gigs of disk space available). Note that this is a Fleet
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
-	LowDiskSpaceFilter *int
+	LowDiskSpaceFilter *int `json:"low_disk_space"`
 
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
 
+	// PopulatePolicies adds the `Policies` array field to all Hosts returned.
+	PopulatePolicies bool
+
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
-	VulnerabilityFilter *string
+	VulnerabilityFilter *string `json:"vulnerability"`
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
@@ -339,6 +363,9 @@ type Host struct {
 
 	// LastRestartedAt is a UNIX timestamp that indicates when the Host was last restarted.
 	LastRestartedAt time.Time `json:"last_restarted_at" db:"last_restarted_at" csv:"last_restarted_at"`
+
+	// Policies is the list of policies and whether it passes for the host
+	Policies *[]*HostPolicy `json:"policies,omitempty" csv:"-"`
 }
 
 // HostHealth contains a subset of Host data that indicates how healthy a Host is. For fields with
@@ -364,6 +391,10 @@ type MDMHostData struct {
 	// EnrollmentStatus is a string representation of state derived from
 	// booleans stored in the host_mdm table, loaded by JOIN in datastore
 	EnrollmentStatus *string `json:"enrollment_status" db:"-" csv:"mdm.enrollment_status"`
+	// DEPProfileError is a boolean representing whether Fleet received a "FAILED" response when
+	// attempting to assign a DEP profile for the host.
+	// See https://developer.apple.com/documentation/devicemanagement/assignprofileresponse
+	DEPProfileError bool `json:"dep_profile_error" db:"dep_profile_error" csv:"mdm.dep_profile_error"`
 	// ServerURL is the server_url stored in the host_mdm table, loaded by
 	// JOIN in datastore
 	ServerURL *string `json:"server_url" db:"-" csv:"mdm.server_url"`
@@ -505,10 +536,10 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 				if d.rawDecryptable != nil && *d.rawDecryptable == 1 {
 					//  if a FileVault profile has been successfully installed on the host
 					//  AND we have fetched and are able to decrypt the key
-					switch {
-					case *fvprof.Status == MDMDeliveryVerifying:
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying:
 						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
-					case *fvprof.Status == MDMDeliveryVerified:
+					case MDMDeliveryVerified:
 						settings.DiskEncryption = DiskEncryptionVerified.addrOf()
 					}
 				} else if d.rawDecryptable != nil {
@@ -525,7 +556,12 @@ func (d *MDMHostData) PopulateOSSettingsAndMacOSSettings(profiles []HostMDMApple
 					// if [a FileVault profile is pending to be installed or] the
 					// matching row in host_disk_encryption_keys has a field decryptable
 					// = NULL
-					settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					switch *fvprof.Status {
+					case MDMDeliveryVerifying, MDMDeliveryVerified:
+						settings.DiskEncryption = DiskEncryptionVerifying.addrOf()
+					case MDMDeliveryPending:
+						settings.DiskEncryption = DiskEncryptionEnforcing.addrOf()
+					}
 				}
 
 			case fvprof.Status != nil && *fvprof.Status == MDMDeliveryFailed:
@@ -713,8 +749,6 @@ type HostDetail struct {
 	Labels []*Label `json:"labels"`
 	// Packs is the list of packs the host is a member of.
 	Packs []*Pack `json:"packs"`
-	// Policies is the list of policies and whether it passes for the host
-	Policies *[]*HostPolicy `json:"policies,omitempty"`
 	// Batteries is the list of batteries for the host. It is a pointer to a
 	// slice so that when set, it gets marhsaled even if the slice is empty,
 	// but when unset, it doesn't get marshaled (e.g. we don't return that
@@ -975,6 +1009,7 @@ var mdmNameFromServerURLChecks = map[string]string{
 	"jamf":      WellKnownMDMJamf,
 	"jumpcloud": WellKnownMDMJumpCloud,
 	"airwatch":  WellKnownMDMVMWare,
+	"awmdm":     WellKnownMDMVMWare,
 	"microsoft": WellKnownMDMIntune,
 	"simplemdm": WellKnownMDMSimpleMDM,
 	"fleetdm":   WellKnownMDMFleet,
@@ -1171,12 +1206,13 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
-	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName           string `json:"display_name" db:"display_name"`
+	TeamID                uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 }
 
 type HostDiskEncryptionKey struct {

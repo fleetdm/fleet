@@ -232,7 +232,7 @@ Set Fleet to be the MDM for all future Macs purchased via Apple or an authorized
 
 All hosts that automatically enroll will be assigned to the default team. If no default team is set, then the host will be placed in "No team". 
 
-> A host can be transferred to a new (not default) team before it enrolls. Learn how [here](./Teams.md#transfer-hosts-to-a-team).
+> A host can be transferred to a new (not default) team before it enrolls. In the Fleet UI, you can do this under **Settings** > **Teams**.
 
 Use either of the following methods to change the default team:
 
