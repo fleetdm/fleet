@@ -207,7 +207,7 @@ type HostListOptions struct {
 	PopulatePolicies bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
-	VulnerabilityFilter *string `json:"vulnerability_filter"`
+	VulnerabilityFilter *string `json:"vulnerability"`
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
