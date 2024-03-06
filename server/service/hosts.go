@@ -276,6 +276,9 @@ func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.Hos
 	}
 
 	opts, err = validateAndPopulateHostListOptionsFilters(ctx, opts)
+	if err != nil {
+		return err
+	}
 
 	if len(ids) == 0 && lid == nil && opts == nil {
 		return &fleet.BadRequestError{Message: "list of ids or filters must be specified"}
