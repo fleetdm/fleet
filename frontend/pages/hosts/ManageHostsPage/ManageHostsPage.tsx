@@ -1090,7 +1090,6 @@ const ManageHostsPage = ({
             query: searchQuery,
             status,
             labelId: selectedLabel?.id,
-            currentTeam: teamIdForApi,
             policyId,
             policyResponse,
             softwareId,
