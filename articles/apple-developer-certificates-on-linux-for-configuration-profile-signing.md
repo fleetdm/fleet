@@ -15,7 +15,7 @@ Before we generate the CSR and deal with private keys, we must understand the im
 
 
 
-1. On your Linux host, do updates or upgrades as needed, then navigate to the `/tmp` directory: \
+1. On your Linux host, do updates or upgrades as needed, then navigate to the `/tmp` directory:
 ```
 sudo apt get update
 sudo apt get upgrade
@@ -24,11 +24,11 @@ sudo apt-get install -y ca-certificates
 cd /tmp
 ```
 
-2. Create a 2048-bit key pair, and a certificate signing request with the following command: \
+2. Create a 2048-bit key pair, and a certificate signing request with the following command:
 ```
 openssl req -nodes -newkey rsa:2048 -keyout application.key -out application.csr
 ````
-3. The `.csr` can be viewed with the following command (which will show the password used to create these files in plain text): \
+3. The `.csr` can be viewed with the following command (which will show the password used to create these files in plain text):
 ```
 openssl req -in installer.csr -noout -text
 ```
@@ -43,32 +43,32 @@ To securely transfer the file from your Linux system to another computer, use th
 
 
 1. Execute the following command in your Linux system's terminal, replacing `&lt;FQDN or IP>` with the fully qualified domain name or IP address of your target computer: 
-``` \
+```
 scp admin@<FQDN or IP>:/tmp/application.csr /Users/Shared/
 ``` 
 This command prompts you to authenticate with the target computer's credentials. Once authenticated, it will copy the `application.csr` file to the specified directory, readying it for the next steps in the Apple Developer portal.
 
 2. Log into [developer.apple.com](http://developer.apple.com) with your Apple Developer credentials.
 3. Navigate to Account > Certificates, IDs & Profiles > Certificates.
-4. Click the **+** button next to Certificates: \
-\
+4. Click the **+** button next to Certificates:
+
 ![Click the **+** button next to Certificates](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing4-567x126@2x.png "Click the **+** button next to Certificates")
 
 
 
 
-5. Scroll to the bottom of the page, and download all current Apple Intermediate Certificates (NOTE: certificates may be listed with dates past expiry.): \
- \
+5. Scroll to the bottom of the page, and download all current Apple Intermediate Certificates (NOTE: certificates may be listed with dates past expiry.):
+
 ![download all current Apple Intermediate Certificates](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing3-717x236@2x.png "download all current Apple Intermediate Certificates")
 
-6. Once you've downloaded the intermediate certificate, scroll up to the "Software" section and select "Developer ID Application," then click "Continue".\
-\
+6. Once you've downloaded the intermediate certificate, scroll up to the "Software" section and select "Developer ID Application," then click "Continue".
+
 ![Select Developer ID Application, then click Continue](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing1-732x181@2x.png "select Developer ID Application, then click Continue")
 7. Select the "G2 Sub-CA" profile type (or whatever Profile Type is NOT listed as "Previous Sub-CA").
 8. Click **Choose File** to upload the` application.csr `file created and copied from your Linux host.
-9. After completing the upload, click "Continue" to download the certificate. \
-\
-![After completing the upload, click \"Continue\" to download the certificate](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png "After completing the upload, click \"Continue\" to download the certificate")
+9. After completing the upload, click "Continue" to download the certificate.
+
+![After completing the upload, click"Continue\" to download the certificate](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png "After completing the upload, click"Continue\" to download the certificate")
 
 
 10. Move all downloaded certificates, and a `.mobileconfig` file to your Linux host with a command like:
