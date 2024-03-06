@@ -1302,20 +1302,20 @@ const ManageHostsPage = ({
     }
 
     let options = {
+      visibleColumns,
+      sortBy,
       selectedLabels: selectedFilters,
       globalFilter: searchQuery,
-      sortBy,
       teamId: teamIdForApi,
       policyId,
       policyResponse,
-      macSettingsStatus,
       softwareId,
       softwareTitleId,
       softwareVersionId,
+      macSettingsStatus,
       status,
       mdmId,
       mdmEnrollmentStatus,
-      munkiIssueId,
       lowDiskSpaceHosts,
       osName,
       osVersionId,
@@ -1323,7 +1323,7 @@ const ManageHostsPage = ({
       osSettings: osSettingsStatus,
       bootstrapPackageStatus,
       vulnerability,
-      visibleColumns,
+      diskEncryptionStatus,
     };
 
     options = {

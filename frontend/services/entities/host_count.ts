@@ -2,19 +2,13 @@
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import {
-  DiskEncryptionStatus,
-  BootstrapPackageStatus,
-  MdmProfileStatus,
-} from "interfaces/mdm";
-import { HostStatus } from "interfaces/host";
-import {
   buildQueryStringFromParams,
   getLabelParam,
   reconcileMutuallyExclusiveHostParams,
   reconcileMutuallyInclusiveHostParams,
 } from "utilities/url";
 
-import { MacSettingsStatusQueryParam } from "./hosts";
+import { IBaseHostsOptions } from "./hosts";
 
 export interface ISortOption {
   key: string;
@@ -25,39 +19,13 @@ export interface IHostsCountResponse {
   count: number;
 }
 
-export interface IHostsCountQueryKey extends IHostCountLoadOptions {
+export interface IHostsCountQueryKey extends IBaseHostsOptions {
   scope: "hosts_count";
-}
-
-export interface IHostCountLoadOptions {
-  page?: number;
-  perPage?: number;
-  selectedLabels?: string[];
-  globalFilter?: string;
-  status?: HostStatus;
-  teamId?: number;
-  policyId?: number;
-  policyResponse?: string;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
-  softwareTitleId?: number;
-  softwareVersionId?: number;
-  lowDiskSpaceHosts?: number;
-  mdmId?: number;
-  mdmEnrollmentStatus?: string;
-  munkiIssueId?: number;
-  osVersionId?: number;
-  osName?: string;
-  osVersion?: string;
-  osSettings?: MdmProfileStatus;
-  vulnerability?: string;
-  diskEncryptionStatus?: DiskEncryptionStatus;
-  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
 export default {
   load: (
-    options: IHostCountLoadOptions | undefined
+    options: IBaseHostsOptions | undefined
   ): Promise<IHostsCountResponse> => {
     const selectedLabels = options?.selectedLabels || [];
     const policyId = options?.policyId;
