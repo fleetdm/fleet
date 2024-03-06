@@ -1,7 +1,7 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver talk to us form message',
+  friendlyName: 'Deliver talk to us form submission',
 
 
   description: '',
