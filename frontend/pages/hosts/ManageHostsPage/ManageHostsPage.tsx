@@ -1041,28 +1041,29 @@ const ManageHostsPage = ({
 
     const action = isAllMatchingHostsSelected
       ? hostsAPI.transferToTeamByFilter({
+          // Order matches rest-api.md > List hosts parameters
+          status,
           teamId,
           query: searchQuery,
-          status,
-          labelId: selectedLabel?.id,
           currentTeam: teamIdForApi,
           policyId,
           policyResponse,
           softwareId,
           softwareTitleId,
           softwareVersionId,
+          labelId: selectedLabel?.id,
           osName,
           osVersionId,
           osVersion,
-          macSettingsStatus,
-          bootstrapPackageStatus,
+          vulnerability,
           mdmId,
           mdmEnrollmentStatus,
+          macSettingsStatus,
           munkiIssueId,
           lowDiskSpaceHosts,
+          bootstrapPackageStatus,
           osSettings: osSettingsStatus,
           diskEncryptionStatus,
-          vulnerability,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1096,27 +1097,28 @@ const ManageHostsPage = ({
     try {
       await (isAllMatchingHostsSelected
         ? hostsAPI.destroyByFilter({
-            teamId,
-            query: searchQuery,
+            // Order matches rest-api.md > List hosts parameters
             status,
-            labelId: selectedLabel?.id,
+            query: searchQuery,
+            teamId,
             policyId,
             policyResponse,
             softwareId,
             softwareTitleId,
             softwareVersionId,
+            labelId: selectedLabel?.id,
             osName,
             osVersionId,
             osVersion,
-            macSettingsStatus,
-            bootstrapPackageStatus,
+            vulnerability,
             mdmId,
             mdmEnrollmentStatus,
+            macSettingsStatus,
             munkiIssueId,
             lowDiskSpaceHosts,
+            bootstrapPackageStatus,
             osSettings: osSettingsStatus,
             diskEncryptionStatus,
-            vulnerability,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
