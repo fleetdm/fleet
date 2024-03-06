@@ -51,6 +51,20 @@
   moreInfoUrl: "https://docs.google.com/document/d/1_lIlhaIpR7yYZz-sp8iE5OIipDgrq7AdZTkeoz3Mf9c/edit#"
   dri: "rachaelshaw"
 -
+  task: "🦢🔄 Product design sync"
+  startedOn: "2023-07-11" 
+  frequency: "Weekly" 
+  description: "Weekly time to chat about product design work (design reviews, conventions & best practices, using Figma, etc.)" 
+  moreInfoUrl: "https://docs.google.com/document/d/1GDEcXuTUjHI2CD9Jqega_GyF9DL6-PBmcyJpj55Lmos/edit"
+  dri: "noahtalerman"
+-
+  task: "🦢🗣 Product office hours"
+  startedOn: "2023-07-11" 
+  frequency: "Weekly" 
+  description: "Head of Product Design +  any other contributors who would like to attend. 30 minutes reserved to talk about any product." 
+  moreInfoUrl: "https://docs.google.com/document/d/1Znyp2a9qcM9JdYHrzLudvcPwEdhnCg7RiKi22s8yGWw/edit"
+  dri: "noahtalerman"
+-
   task: "Maintenance"
   startedOn: "2024-03-01" 
   frequency: "Weekly" 
