@@ -528,6 +528,34 @@ Note that:
 3. To login into https://identity.apple.com/pushcert you can use your ABM account generated in the previous step.
 4. Save all the certificates and keys in a safe place.
 
+Internally, the certificates are generated using this flow. Note that the fleet sails API base url can be changed using the `TEST_FLEETDM_API_URL` environment variable.
+
+```mermaid
+sequenceDiagram
+    participant user as user email
+    participant fleetctl as fleetctl
+    participant server as fleet server
+    participant fleetdm as fleetdm.com sails app
+    participant apple as identity.apple.com
+    link apple: PushCert @ https://identity.apple.com/pushcert
+
+    note over fleetctl: fleetctl login
+    fleetctl->>+server: login
+    server-->>-fleetctl: token
+    note over fleetctl: fleetctl generate mdm_apple
+    fleetctl->>+server: generate certificates
+    server->>server: generate self-signed SCEP cert & key
+    server->>server: generate APNs key
+    server->>server: generate APNs CSR
+    server-)+fleetdm: request vendor signature on APNs CSR
+    server-->>-fleetctl: SCEP cert, SCEP key, APNs key
+    note over fleetdm: calls /ee/tools/mdm/cert
+    fleetdm--)-user: vendor-signed APNs CSR
+    user->>+apple: vendor-signed APNs CSR
+    note right of apple: managed through web ui
+    apple-->>-user: Apple-signed APNs certificate
+```
+
 Another option, if for some reason, generating the certificates and keys fails or you don't have a supported email address handy is to use `openssl` to generate your SCEP key pair:
 
 ```sh
