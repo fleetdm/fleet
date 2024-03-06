@@ -72,6 +72,26 @@ func TestHostStatusIsValid(t *testing.T) {
 	}
 }
 
+func TestMDMEnrollStatusIsValid(t *testing.T) {
+	for _, tt := range []struct {
+		name     string
+		status   MDMEnrollStatus
+		expected bool
+	}{
+		{"manual", MDMEnrollStatusManual, true},
+		{"automatic", MDMEnrollStatusAutomatic, true},
+		{"pending", MDMEnrollStatusPending, true},
+		{"unenrolled", MDMEnrollStatusUnenrolled, true},
+		{"enrolled", MDMEnrollStatusEnrolled, true},
+		{"empty", MDMEnrollStatus(""), false},
+		{"invalid", MDMEnrollStatus("invalid"), false},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.status.IsValid())
+		})
+	}
+}
+
 func TestHostIsNew(t *testing.T) {
 	mockClock := clock.NewMockClock()
 

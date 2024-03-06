@@ -227,7 +227,7 @@ type deleteHostsFilters struct {
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *deleteHostsFilters `json:"filters"`
+	Filters *fleet.HostListOptions `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -242,17 +242,10 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
-	var listOpts *fleet.HostListOptions
+	listOpts := req.Filters
 	var labelID *uint
-	if req.Filters != nil {
-		listOpts = &fleet.HostListOptions{
-			ListOptions: fleet.ListOptions{
-				MatchQuery: req.Filters.MatchQuery,
-			},
-			StatusFilter: req.Filters.Status,
-			TeamFilter:   req.Filters.TeamID,
-		}
-		labelID = req.Filters.LabelID
+	if listOpts != nil {
+		labelID = listOpts.LabelID
 	}
 
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
@@ -862,13 +855,8 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint `json:"team_id"`
-	Filters struct {
-		MatchQuery string           `json:"query"`
-		Status     fleet.HostStatus `json:"status"`
-		LabelID    *uint            `json:"label_id"`
-		TeamID     *uint            `json:"team_id"`
-	} `json:"filters"`
+	TeamID  *uint                 `json:"team_id"`
+	Filters fleet.HostListOptions `json:"filters"`
 }
 
 type addHostsToTeamByFilterResponse struct {
@@ -879,14 +867,8 @@ func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
-	listOpt := fleet.HostListOptions{
-		ListOptions: fleet.ListOptions{
-			MatchQuery: req.Filters.MatchQuery,
-		},
-		StatusFilter: req.Filters.Status,
-		TeamFilter:   req.Filters.TeamID,
-	}
-	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
+
+	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters, req.Filters.LabelID)
 	if err != nil {
 		return addHostsToTeamByFilterResponse{Err: err}, nil
 	}
@@ -903,7 +885,12 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return err
 	}
 
-	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, opt, lid)
+	listOpt, err := validateAndPopulateHostListOptionsFilters(ctx, opt)
+	if err != nil {
+		return err
+	}
+
+	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, listOpt, lid)
 	if err != nil {
 		return err
 	}
@@ -2159,4 +2146,78 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	}
 
 	return host, nil
+}
+
+func validateAndPopulateHostListOptionsFilters(ctx context.Context, opt fleet.HostListOptions) (fleet.HostListOptions, error) {
+	if fleet.HostStatus(opt.StatusFilter).IsValid() {
+		opt.StatusFilter = fleet.HostStatus(opt.StatusFilter)
+	} else {
+		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid status %s", opt.StatusFilter)))
+	}
+
+	if opt.PolicyResponseFilterRequest != nil && opt.PolicyIDFilter == nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("Policy ID must be provided when filtering by policy response"))
+	}
+
+	if opt.PolicyResponseFilterRequest != nil {
+		if *opt.PolicyResponseFilterRequest == "passing" {
+			opt.PolicyResponseFilter = ptr.Bool(true)
+		} else if *opt.PolicyResponseFilterRequest == "failing" {
+			opt.PolicyResponseFilter = ptr.Bool(false)
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid policy response filter %s", *opt.PolicyResponseFilterRequest)))
+		}
+	}
+
+	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareVersionIDFilter != nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("Software title ID and name cannot be used together"))
+	}
+
+	if opt.OSNameFilter != nil && opt.OSVersionFilter == nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("OS version must be provided when filtering by OS name"))
+	}
+
+	if opt.OSNameFilter == nil && opt.OSVersionFilter != nil {
+		return opt, ctxerr.Wrap(ctx, badRequest("OS name must be provided when filtering by OS version"))
+	}
+
+	if opt.MDMEnrollmentStatusFilter != "" {
+		if fleet.MDMEnrollStatus(opt.MDMEnrollmentStatusFilter).IsValid() {
+			opt.MDMEnrollmentStatusFilter = fleet.MDMEnrollStatus(opt.MDMEnrollmentStatusFilter)
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM enrollment status %s", opt.MDMEnrollmentStatusFilter)))
+		}
+	}
+
+	if opt.OSSettingsFilter != "" {
+		if fleet.OSSettingsStatus(opt.OSSettingsFilter).IsValid() {
+			opt.OSSettingsFilter = fleet.OSSettingsStatus(opt.OSSettingsFilter)
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid OS settings status %s", opt.OSSettingsFilter)))
+		}
+	}
+
+	if opt.OSSettingsDiskEncryptionFilter != "" {
+		if fleet.DiskEncryptionStatus(opt.OSSettingsDiskEncryptionFilter).IsValid() {
+			opt.OSSettingsDiskEncryptionFilter = fleet.DiskEncryptionStatus(opt.OSSettingsDiskEncryptionFilter)
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid disk encryption status %s", opt.OSSettingsDiskEncryptionFilter)))
+		}
+	}
+
+	if opt.MDMBootstrapPackageFilter != nil {
+		if bsp := fleet.MDMBootstrapPackageStatus(*opt.MDMBootstrapPackageFilter); bsp.IsValid() {
+			opt.MDMBootstrapPackageFilter = &bsp
+		} else {
+			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM bootstrap status %s", *opt.MDMBootstrapPackageFilter)))
+		}
+	}
+
+	if opt.LowDiskSpaceFilter != nil {
+		if *opt.LowDiskSpaceFilter > 100 || *opt.LowDiskSpaceFilter < 1 {
+			return opt, ctxerr.Wrap(ctx, badRequest("Low disk space filter must be between 1 and 100"))
+		}
+	}
+
+	return opt, nil
 }
