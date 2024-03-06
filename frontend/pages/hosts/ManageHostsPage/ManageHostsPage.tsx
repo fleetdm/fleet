@@ -212,36 +212,37 @@ const ManageHostsPage = ({
   const [isUpdatingSecret, setIsUpdatingSecret] = useState<boolean>(false);
   const [isUpdatingHosts, setIsUpdatingHosts] = useState<boolean>(false);
 
-  // ========= queryParams
+  // ========= queryParams(order matches rest-api.md)
+  const status = isAcceptableStatus(queryParams?.status)
+    ? queryParams?.status
+    : undefined;
+  const missingHosts = queryParams?.status === "missing";
   const policyId = queryParams?.policy_id;
   const policyResponse: PolicyResponse = queryParams?.policy_response;
-  const macSettingsStatus = queryParams?.macos_settings;
   const softwareId =
     queryParams?.software_id !== undefined
       ? parseInt(queryParams.software_id, 10)
-      : undefined;
-  const softwareVersionId =
-    queryParams?.software_version_id !== undefined
-      ? parseInt(queryParams.software_version_id, 10)
       : undefined;
   const softwareTitleId =
     queryParams?.software_title_id !== undefined
       ? parseInt(queryParams.software_title_id, 10)
       : undefined;
-  const status = isAcceptableStatus(queryParams?.status)
-    ? queryParams?.status
-    : undefined;
+  const softwareVersionId =
+    queryParams?.software_version_id !== undefined
+      ? parseInt(queryParams.software_version_id, 10)
+      : undefined;
+  const vulnerability = queryParams?.vulnerability;
   const mdmId =
     queryParams?.mdm_id !== undefined
       ? parseInt(queryParams.mdm_id, 10)
       : undefined;
   const mdmEnrollmentStatus = queryParams?.mdm_enrollment_status;
+  const macSettingsStatus = queryParams?.macos_settings;
   const {
     os_version_id: osVersionId,
     os_name: osName,
     os_version: osVersion,
   } = queryParams;
-  const vulnerability = queryParams?.vulnerability;
   const munkiIssueId =
     queryParams?.munki_issue_id !== undefined
       ? parseInt(queryParams.munki_issue_id, 10)
@@ -250,12 +251,11 @@ const ManageHostsPage = ({
     queryParams?.low_disk_space !== undefined
       ? parseInt(queryParams.low_disk_space, 10)
       : undefined;
-  const missingHosts = queryParams?.status === "missing";
+  const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
+    queryParams?.bootstrap_package;
   const osSettingsStatus = queryParams?.[PARAMS.OS_SETTINGS];
   const diskEncryptionStatus: DiskEncryptionStatus | undefined =
     queryParams?.[PARAMS.DISK_ENCRYPTION];
-  const bootstrapPackageStatus: BootstrapPackageStatus | undefined =
-    queryParams?.bootstrap_package;
 
   // ========= routeParams
   const { active_label: activeLabel, label_id: labelID } = routeParams;
@@ -366,32 +366,33 @@ const ManageHostsPage = ({
   >(
     [
       {
+        // Order matches rest-api.md > List hosts parameters
         scope: "hosts",
-        selectedLabels: selectedFilters,
-        globalFilter: searchQuery,
+        page: tableQueryData ? tableQueryData.pageIndex : 0,
+        perPage: tableQueryData ? tableQueryData.pageSize : 50,
         sortBy,
+        selectedLabels: selectedFilters,
+        status,
+        globalFilter: searchQuery,
         teamId: teamIdForApi,
         policyId,
         policyResponse,
         softwareId,
         softwareTitleId,
         softwareVersionId,
-        status,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        osVersionId,
         osName,
+        osVersionId,
         osVersion,
         vulnerability,
-        page: tableQueryData ? tableQueryData.pageIndex : 0,
-        perPage: tableQueryData ? tableQueryData.pageSize : 50,
         deviceMapping: true,
+        mdmId,
+        mdmEnrollmentStatus,
+        macSettingsStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        bootstrapPackageStatus,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
-        bootstrapPackageStatus,
-        macSettingsStatus,
       },
     ],
     ({ queryKey }) => hostsAPI.loadHosts(queryKey[0]),
@@ -410,8 +411,9 @@ const ManageHostsPage = ({
   } = useQuery<IHostsCountResponse, Error, number, IHostsCountQueryKey[]>(
     [
       {
+        // Order matches rest-api.md > List hosts parameters
         scope: "hosts_count",
-        selectedLabels: selectedFilters,
+        status,
         globalFilter: searchQuery,
         teamId: teamIdForApi,
         policyId,
@@ -419,19 +421,19 @@ const ManageHostsPage = ({
         softwareId,
         softwareTitleId,
         softwareVersionId,
-        status,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
-        lowDiskSpaceHosts,
-        osVersionId,
+        selectedLabels: selectedFilters,
         osName,
+        osVersionId,
         osVersion,
         vulnerability,
+        mdmId,
+        mdmEnrollmentStatus,
+        macSettingsStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        bootstrapPackageStatus,
         osSettings: osSettingsStatus,
         diskEncryptionStatus,
-        bootstrapPackageStatus,
-        macSettingsStatus,
       },
     ],
     ({ queryKey }) => hostCountAPI.load(queryKey[0]),
@@ -850,32 +852,32 @@ const ManageHostsPage = ({
     [
       isRouteOk,
       tableQueryData,
-      sortBy,
-      searchQuery,
-      teamIdForApi,
-      status,
-      policyId,
-      policyResponse,
-      macSettingsStatus,
-      softwareId,
-      softwareVersionId,
-      softwareTitleId,
-      mdmId,
-      mdmEnrollmentStatus,
-      munkiIssueId,
-      missingHosts,
-      lowDiskSpaceHosts,
       isPremiumTier,
-      osVersionId,
-      osName,
-      osVersion,
       page,
       router,
       routeTemplate,
       routeParams,
-      osSettingsStatus,
+      sortBy,
+      searchQuery,
+      status,
+      teamIdForApi,
+      policyId,
+      policyResponse,
+      macSettingsStatus,
+      softwareId,
+      softwareTitleId,
+      softwareVersionId,
+      mdmId,
+      mdmEnrollmentStatus,
+      munkiIssueId,
       diskEncryptionStatus,
       bootstrapPackageStatus,
+      lowDiskSpaceHosts,
+      osSettingsStatus,
+      osName,
+      osVersion,
+      osVersionId,
+      missingHosts,
       vulnerability,
     ]
   );
@@ -1309,10 +1311,10 @@ const ManageHostsPage = ({
       teamId: teamIdForApi,
       policyId,
       policyResponse,
+      macSettingsStatus,
       softwareId,
       softwareTitleId,
       softwareVersionId,
-      macSettingsStatus,
       status,
       mdmId,
       mdmEnrollmentStatus,
