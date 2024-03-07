@@ -43,7 +43,7 @@ echo "Deleting old fleet package"
 [ -f fleet-osquery.pkg ] && rm fleet-osquery.pkg
 
 echo "Creating fleet package..."
-./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
+./build/fleetctl package --type=pkg --enable-scripts --fleet-desktop --disable-open-folder --fleet-url="$FLEET_URL" --enroll-secret="$FLEET_ENROLL_SECRET"
 
 
 if tart list | grep $vm_name >/dev/null 2>&1; then
