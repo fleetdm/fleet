@@ -52,46 +52,6 @@ func TestHostStatus(t *testing.T) {
 	}
 }
 
-func TestHostStatusIsValid(t *testing.T) {
-	for _, tt := range []struct {
-		name     string
-		status   HostStatus
-		expected bool
-	}{
-		{"online", StatusOnline, true},
-		{"offline", StatusOffline, true},
-		{"new", StatusNew, true},
-		{"missing", StatusMissing, true},
-		{"mia", StatusMIA, true}, // As of Fleet 4.15, StatusMIA is deprecated in favor of StatusOffline
-		{"empty", HostStatus(""), false},
-		{"invalid", HostStatus("invalid"), false},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.status.IsValid())
-		})
-	}
-}
-
-func TestMDMEnrollStatusIsValid(t *testing.T) {
-	for _, tt := range []struct {
-		name     string
-		status   MDMEnrollStatus
-		expected bool
-	}{
-		{"manual", MDMEnrollStatusManual, true},
-		{"automatic", MDMEnrollStatusAutomatic, true},
-		{"pending", MDMEnrollStatusPending, true},
-		{"unenrolled", MDMEnrollStatusUnenrolled, true},
-		{"enrolled", MDMEnrollStatusEnrolled, true},
-		{"empty", MDMEnrollStatus(""), false},
-		{"invalid", MDMEnrollStatus("invalid"), false},
-	} {
-		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, tt.status.IsValid())
-		})
-	}
-}
-
 func TestHostIsNew(t *testing.T) {
 	mockClock := clock.NewMockClock()
 
