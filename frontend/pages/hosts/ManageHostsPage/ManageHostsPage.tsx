@@ -1476,27 +1476,25 @@ const ManageHostsPage = ({
     };
 
     // Shortterm fix for #17257
-    const unsupportedFilter = () => {
-      return !!(
-        policyId ||
-        policyResponse ||
-        softwareId ||
-        softwareTitleId ||
-        softwareVersionId ||
-        osName ||
-        osVersionId ||
-        osVersion ||
-        macSettingsStatus ||
-        bootstrapPackageStatus ||
-        mdmId ||
-        mdmEnrollmentStatus ||
-        munkiIssueId ||
-        lowDiskSpaceHosts ||
-        osSettingsStatus ||
-        diskEncryptionStatus ||
-        vulnerability
-      );
-    };
+    const unsupportedFilter = !!(
+      policyId ||
+      policyResponse ||
+      softwareId ||
+      softwareTitleId ||
+      softwareVersionId ||
+      osName ||
+      osVersionId ||
+      osVersion ||
+      macSettingsStatus ||
+      bootstrapPackageStatus ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      munkiIssueId ||
+      lowDiskSpaceHosts ||
+      osSettingsStatus ||
+      diskEncryptionStatus ||
+      vulnerability
+    );
 
     return (
       <TableContainer
@@ -1529,7 +1527,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages={!unsupportedFilter()} // Shortterm fix for #17257
+        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
