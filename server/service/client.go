@@ -1093,7 +1093,12 @@ func (c *Client) DoGitOps(
 		team = make(map[string]interface{})
 		team["name"] = *config.TeamName
 		team["integrations"] = map[string]interface{}{"google_calendar": teamCalendarIntegration}
-		_, err := c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
+		rawTeam, err := json.Marshal(team)
+		if err != nil {
+			return fmt.Errorf("error marshalling team spec: %w", err)
+		}
+		group.Teams = []json.RawMessage{rawTeam}
+		_, err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
 		if err != nil {
 			return err
 		}
