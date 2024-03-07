@@ -13,8 +13,9 @@ import (
 // TeamIntegrations contains the configuration for external services'
 // integrations for a specific team.
 type TeamIntegrations struct {
-	Jira    []*TeamJiraIntegration    `json:"jira"`
-	Zendesk []*TeamZendeskIntegration `json:"zendesk"`
+	Jira           []*TeamJiraIntegration           `json:"jira"`
+	Zendesk        []*TeamZendeskIntegration        `json:"zendesk"`
+	GoogleCalendar []*TeamGoogleCalendarIntegration `json:"google_calendar"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -108,6 +109,16 @@ type TeamZendeskIntegration struct {
 // UniqueKey returns the unique key of this integration.
 func (z TeamZendeskIntegration) UniqueKey() string {
 	return z.URL + "\n" + strconv.FormatInt(z.GroupID, 10)
+}
+
+type GoogleCalendarWebhookSettings struct {
+	DestinationURL string `json:"destination_url"`
+}
+type TeamGoogleCalendarIntegration struct {
+	Email     string                        `json:"email"`
+	Enable    bool                          `json:"enable_calendar_events"`
+	PolicyIDs []uint                        `json:"policy_ids"`
+	Webhook   GoogleCalendarWebhookSettings `json:"webhook_settings"`
 }
 
 // JiraIntegration configures an instance of an integration with the Jira
@@ -335,10 +346,17 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 	return nil
 }
 
+type GoogleCalendarIntegration struct {
+	Email      string `json:"email"`
+	PrivateKey string `json:"private_key"`
+	Domain     string `json:"domain"`
+}
+
 // Integrations configures the integrations with external systems.
 type Integrations struct {
-	Jira    []*JiraIntegration    `json:"jira"`
-	Zendesk []*ZendeskIntegration `json:"zendesk"`
+	Jira           []*JiraIntegration           `json:"jira"`
+	Zendesk        []*ZendeskIntegration        `json:"zendesk"`
+	GoogleCalendar []*GoogleCalendarIntegration `json:"google_calendar"`
 }
 
 // ValidateEnabledHostStatusIntegrations checks that the host status integrations
@@ -355,6 +373,26 @@ func ValidateEnabledHostStatusIntegrations(webhook HostStatusWebhookSettings, in
 		}
 		if webhook.HostPercentage <= 0 {
 			invalid.Append("host_percentage", "host_percentage must be > 0 to enable the host status webhook")
+		}
+	}
+}
+
+func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, invalid *InvalidArgumentError) {
+	if len(intgs) > 1 {
+		invalid.Append("integrations.google_calendar", "only one Google Calendar integration is allowed at this time")
+	}
+	for _, intg := range intgs {
+		intg.Email = strings.TrimSpace(intg.Email)
+		if intg.Email == "" {
+			invalid.Append("integrations.google_calendar.email", "email is required")
+		}
+		intg.PrivateKey = strings.TrimSpace(intg.PrivateKey)
+		if intg.PrivateKey == "" || intg.PrivateKey == MaskedPassword {
+			invalid.Append("integrations.google_calendar.private_key", "private_key is required")
+		}
+		intg.Domain = strings.TrimSpace(intg.Domain)
+		if intg.Domain == "" {
+			invalid.Append("integrations.google_calendar.domain", "domain is required")
 		}
 	}
 }

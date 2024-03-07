@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1068,6 +1070,13 @@ func (svc *Service) editTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if spec.Integrations.GoogleCalendar != nil {
+		cals := *spec.Integrations.GoogleCalendar
+		svc.validateTeamCalendarIntegrations(ctx, team, cals, appCfg, invalid)
+		team.Config.Integrations.GoogleCalendar = cals
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1124,12 +1133,61 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateMacOSEndUserAuth {
-		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(
+			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
+		); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func (svc *Service) validateTeamCalendarIntegrations(
+	ctx context.Context, team *fleet.Team, calendarIntegrations []*fleet.TeamGoogleCalendarIntegration,
+	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) {
+	if len(calendarIntegrations) > 1 {
+		invalid.Append("integrations.google_calendar[]", "only one Google Calendar integration is allowed at this time")
+	}
+	for _, calendarIntegration := range calendarIntegrations {
+		if calendarIntegration.Enable {
+			// Validate email
+			emailValid := false
+			calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
+			for _, globalCals := range appCfg.Integrations.GoogleCalendar {
+				if globalCals.Email == calendarIntegration.Email {
+					emailValid = true
+					break
+				}
+			}
+			if !emailValid {
+				invalid.Append("integrations.google_calendar[].email", "email must match a global Google Calendar integration email")
+			}
+			// Validate URL
+			if u, err := url.ParseRequestURI(calendarIntegration.Webhook.DestinationURL); err != nil {
+				invalid.Append("integrations.google_calendar[].webhook_settings.destination_url", err.Error())
+			} else if u.Scheme != "https" && u.Scheme != "http" {
+				invalid.Append("integrations.google_calendar[].webhook_settings.destination_url", "destination_url must be https or http")
+			}
+			// Validate policy ids
+			if len(calendarIntegration.PolicyIDs) == 0 {
+				invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids are required")
+			}
+			if len(calendarIntegration.PolicyIDs) > 0 {
+				policyMap, err := svc.ds.PoliciesByID(ctx, calendarIntegration.PolicyIDs)
+				if err != nil {
+					level.Error(svc.logger).Log("err", "error getting policies by id", "id", calendarIntegration.PolicyIDs, "details", err)
+					invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids are invalid")
+				}
+				for _, policy := range policyMap {
+					if policy.TeamID != nil && *policy.TeamID != team.ID {
+						invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids must be global or from the same team")
+					}
+				}
+			}
+		}
+	}
 }
 
 func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) error {
