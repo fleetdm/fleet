@@ -1478,25 +1478,23 @@ const ManageHostsPage = ({
     // Shortterm fix for #17257
     const unsupportedFilter = () => {
       return !!(
-        (
-          policyId ||
-          policyResponse ||
-          softwareId ||
-          softwareTitleId ||
-          softwareVersionId ||
-          osName ||
-          osVersionId ||
-          osVersion ||
-          macSettingsStatus ||
-          bootstrapPackageStatus ||
-          mdmId ||
-          mdmEnrollmentStatus ||
-          munkiIssueId ||
-          lowDiskSpaceHosts ||
-          osSettingsStatus ||
-          diskEncryptionStatus
-        )
-        // || vulnerability TODO: Add for 4.47.0 feature #15919
+        policyId ||
+        policyResponse ||
+        softwareId ||
+        softwareTitleId ||
+        softwareVersionId ||
+        osName ||
+        osVersionId ||
+        osVersion ||
+        macSettingsStatus ||
+        bootstrapPackageStatus ||
+        mdmId ||
+        mdmEnrollmentStatus ||
+        munkiIssueId ||
+        lowDiskSpaceHosts ||
+        osSettingsStatus ||
+        diskEncryptionStatus ||
+        vulnerability
       );
     };
 
