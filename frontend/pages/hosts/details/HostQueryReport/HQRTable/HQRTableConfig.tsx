@@ -7,7 +7,7 @@ import {
 } from "interfaces/datatable_config";
 import React from "react";
 
-import { Column } from "react-table";
+import { CellProps, Column } from "react-table";
 import {
   getUniqueColumnNamesFromRows,
   humanHostLastSeen,
@@ -16,7 +16,7 @@ import {
 
 type IHQRTTableColumn = Column<IWebSocketData>;
 type ITableHeaderProps = IHeaderProps<IWebSocketData>;
-type ITableStringCellProps = IStringCellProps<IWebSocketData>;
+type ITableStringCellProps = CellProps<IWebSocketData, string | unknown>;
 
 const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
   // casting necessary because of loose typing of below method
@@ -37,15 +37,17 @@ const generateColumnConfigs = (rows: IWebSocketData[]): IHQRTTableColumn[] =>
       ),
       accessor: colName,
       Cell: (cellProps: ITableStringCellProps) => {
+        if (typeof cellProps?.cell?.value !== "string") return null;
+
         // Sorts chronologically by date, but UI displays readable last fetched
         if (cellProps.column.id === "last_fetched") {
-          return humanHostLastSeen(cellProps?.cell?.value);
+          return <>{humanHostLastSeen(cellProps?.cell?.value)}</>;
         }
         // truncate columns longer than 300 characters
         const val = cellProps?.cell?.value;
         return !!val?.length && val.length > 300
           ? internallyTruncateText(val)
-          : val ?? null;
+          : <>val</> ?? null;
       },
       Filter: DefaultColumnFilter, // Component hides filter for last_fetched
       filterType: "text",

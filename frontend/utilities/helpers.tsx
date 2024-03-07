@@ -49,7 +49,6 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
-import { IWebSocketData } from "interfaces/datatable_config";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -858,7 +857,7 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) => (
+): JSX.Element => (
   <>
     {original.slice(0, prefixLength)}...
     {original.slice(original.length - suffixLength)} <em>(truncated)</em>
