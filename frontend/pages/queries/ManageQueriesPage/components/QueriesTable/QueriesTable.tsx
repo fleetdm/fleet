@@ -123,7 +123,8 @@ const QueriesTable = ({
       ? parseInt(queryParams?.inherited_page, 10)
       : 0)();
 
-  // Never set as state as URL is source of truth
+  // Source of truth is state held within TableContainer. That state is initialized using URL
+  // params, then subsquent updates to that state are pushed to the URL.
   const searchQuery = initialSearchQuery;
   const platform = initialPlatform;
   const page = isInherited ? initialInheritedPage : initialPage;
