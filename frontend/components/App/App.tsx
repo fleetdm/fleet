@@ -44,9 +44,7 @@ interface IAppProps {
 // prop is not required explicitly in React 18. We do it this way to avoid
 // having to update the react-query package version and typings for now.
 // When we upgrade React Query we should be able to remove this.
-type ICustomQueryClientProviderProps = QueryClientProviderProps & {
-  children: ReactNode;
-};
+type ICustomQueryClientProviderProps = React.PropsWithChildren<QueryClientProviderProps>;
 const CustomQueryClientProvider: FC<ICustomQueryClientProviderProps> = QueryClientProvider;
 
 const baseClass = "app";

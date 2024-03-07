@@ -15,10 +15,7 @@ interface ISoftwareIconProps {
 }
 
 const matchInMap = (
-  map: Record<
-    string,
-    ComponentType<React.PropsWithChildren<React.PropsWithChildren<SVGProps<SVGSVGElement>>>>
-  >,
+  map: Record<string, ComponentType<SVGProps<SVGSVGElement>>>,
   potentialKey?: string
 ) => {
   if (!potentialKey) {
