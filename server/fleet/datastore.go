@@ -272,7 +272,7 @@ type Datastore interface {
 	// AddHostsToTeam adds hosts to an existing team, clearing their team settings if teamID is nil.
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-	TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error)
+	TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 	// DeleteHosts deletes associated tables for multiple hosts.
 	//
@@ -794,6 +794,9 @@ type Datastore interface {
 	// SetCommandForPendingSCEPRenewal tracks the command used to renew a scep certificate
 	SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []SCEPIdentityAssociation, cmdUUID string) error
 
+	// CleanSCEPRenewRefs cleans all references after a successful SCEP renewal.
+	CleanSCEPRenewRefs(ctx context.Context, hostUUID string) error
+
 	// UpdateVerificationHostMacOSProfiles updates status of macOS profiles installed on a given
 	// host. The toVerify, toFail, and toRetry slices contain the identifiers of the profiles that
 	// should be verified, failed, and retried, respectively. For each profile in the toRetry slice,
@@ -1303,6 +1306,9 @@ type Datastore interface {
 	// ListScripts returns a paginated list of scripts corresponding to the
 	// criteria.
 	ListScripts(ctx context.Context, teamID *uint, opt ListOptions) ([]*Script, *PaginationMetadata, error)
+
+	// GetScriptIDByName returns the id of the script with the given name and team id.
+	GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error)
 
 	// GetHostScriptDetails returns the list of host script details for saved scripts applicable to
 	// a given host.

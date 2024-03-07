@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { syntaxHighlight } from "utilities/helpers";
+
+import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
 import Button from "components/buttons/Button";
 import Checkbox from "components/forms/fields/Checkbox";
@@ -10,14 +11,12 @@ import InputField from "components/forms/fields/InputField";
 import validUrl from "components/forms/validators/valid_url";
 import SectionHeader from "components/SectionHeader";
 
-import Modal from "components/Modal";
 import {
   IAppConfigFormProps,
   IFormField,
   IAppConfigFormErrors,
   percentageOfHosts,
   numberOfDays,
-  hostStatusPreview,
 } from "../constants";
 
 const baseClass = "app-config-form";
@@ -107,38 +106,6 @@ const HostStatusWebhook = ({
     handleSubmit(formDataToSubmit);
   };
 
-  const renderHostStatusWebhookPreviewModal = () => {
-    if (!showHostStatusWebhookPreviewModal) {
-      return null;
-    }
-
-    return (
-      <Modal
-        title="Host status webhook"
-        onExit={toggleHostStatusWebhookPreviewModal}
-        className={`${baseClass}__host-status-webhook-preview-modal`}
-      >
-        <>
-          <p>
-            An example request sent to your configured <b>Destination URL</b>.
-          </p>
-          <div className={`${baseClass}__host-status-webhook-preview`}>
-            <pre
-              dangerouslySetInnerHTML={{
-                __html: syntaxHighlight(hostStatusPreview),
-              }}
-            />
-          </div>
-          <div className="modal-cta-wrap">
-            <Button type="button" onClick={toggleHostStatusWebhookPreviewModal}>
-              Done
-            </Button>
-          </div>
-        </>
-      </Modal>
-    );
-  };
-
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
@@ -192,6 +159,7 @@ const HostStatusWebhook = ({
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
             parseTarget
+            searchable={false}
             onBlur={validateForm}
             tooltip={
               <p>
@@ -210,6 +178,7 @@ const HostStatusWebhook = ({
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
             parseTarget
+            searchable={false}
             onBlur={validateForm}
             tooltip={
               <p>
@@ -234,8 +203,11 @@ const HostStatusWebhook = ({
           </Button>
         </form>
       </div>
-      {showHostStatusWebhookPreviewModal &&
-        renderHostStatusWebhookPreviewModal()}
+      {showHostStatusWebhookPreviewModal && (
+        <HostStatusWebhookPreviewModal
+          toggleModal={toggleHostStatusWebhookPreviewModal}
+        />
+      )}
     </div>
   );
 };

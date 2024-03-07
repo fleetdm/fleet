@@ -86,21 +86,6 @@ export const generateSolutionsTableHeaders = (
   },
 ];
 
-const enhanceSolutionsData = (
-  solutions: IMdmSolution[],
-  selectedPlatformLabelId?: number
-): IMdmSolution[] => {
-  return Object.values(solutions).map((solution) => {
-    return {
-      id: solution.id,
-      name: solution.name || "Unknown",
-      server_url: solution.server_url,
-      hosts_count: solution.hosts_count,
-      selectedPlatformLabelId,
-    };
-  });
-};
-
 export const generateSolutionsDataSet = (
   solutions: IMdmSolution[] | null,
   selectedPlatformLabelId?: number
@@ -108,5 +93,11 @@ export const generateSolutionsDataSet = (
   if (!solutions) {
     return [];
   }
-  return [...enhanceSolutionsData(solutions, selectedPlatformLabelId)];
+
+  return solutions.map((solution) => {
+    return {
+      ...solution,
+      selectedPlatformLabelId,
+    };
+  });
 };

@@ -5409,10 +5409,10 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 
 	// run a script
 	var runResp runScriptResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// run a script sync
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// get script result
 	var scriptResultResp getScriptResultResponse
@@ -5422,6 +5422,16 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	body, headers := generateNewScriptMultipartRequest(t,
 		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// run a saved script by name without team id (should fail host not found)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host was not found in the datastore")
+
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
 	var delScriptResp deleteScriptResponse
@@ -6414,6 +6424,16 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(1), countResp.TargetsCount)
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
+
+	// 'No team' selected
+	countResp = countTargetsResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		http.StatusOK, &countResp,
+	)
+	assert.Equal(t, uint(2), countResp.TargetsCount)
+	assert.Equal(t, uint(0), countResp.TargetsOnline)
+	assert.Equal(t, uint(2), countResp.TargetsOffline)
 
 	// host id selected
 	countResp = countTargetsResponse{}

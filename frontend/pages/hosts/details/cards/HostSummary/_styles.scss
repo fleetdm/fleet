@@ -1,4 +1,8 @@
 .host-summary {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-medium;
+
   &__device-status-tag {
     margin-left: $pad-small;
     background-color: $ui-warning;
@@ -69,7 +73,7 @@
     }
   }
 
-  .info-flex {
+  .card {
     &__header {
       display: flex;
       align-items: center;
@@ -82,6 +86,19 @@
     }
     .component__tooltip-wrapper__tip-text {
       max-width: 326px;
+    }
+
+    display: flex;
+    gap: $pad-medium $pad-xxlarge;
+    padding: $pad-xxlarge;
+    flex-wrap: wrap;
+
+    .host-issue {
+      display: flex;
+      align-items: center;
+    }
+    .no-team {
+      color: $ui-fleet-black-50;
     }
   }
 }

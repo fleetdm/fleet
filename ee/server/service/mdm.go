@@ -147,7 +147,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 }
 
 func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 

@@ -667,7 +667,7 @@ func hostByIdentifierEndpoint(ctx context.Context, request interface{}, svc flee
 }
 
 func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opts fleet.HostDetailOptions) (*fleet.HostDetail, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -677,7 +677,7 @@ func (svc *Service) HostByIdentifier(ctx context.Context, identifier string, opt
 	}
 
 	// Authorize again with team loaded now that we have team_id
-	if err := svc.authz.Authorize(ctx, host, fleet.ActionRead); err != nil {
+	if err := svc.authz.Authorize(ctx, host, fleet.ActionSelectiveRead); err != nil {
 		return nil, err
 	}
 
@@ -867,6 +867,7 @@ type addHostsToTeamByFilterRequest struct {
 		MatchQuery string           `json:"query"`
 		Status     fleet.HostStatus `json:"status"`
 		LabelID    *uint            `json:"label_id"`
+		TeamID     *uint            `json:"team_id"`
 	} `json:"filters"`
 }
 
@@ -883,6 +884,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 			MatchQuery: req.Filters.MatchQuery,
 		},
 		StatusFilter: req.Filters.Status,
+		TeamFilter:   req.Filters.TeamID,
 	}
 	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, listOpt, req.Filters.LabelID)
 	if err != nil {

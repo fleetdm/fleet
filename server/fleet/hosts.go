@@ -1185,12 +1185,13 @@ type EnrollHostLimiter interface {
 }
 
 type HostMDMCheckinInfo struct {
-	HardwareSerial     string `json:"hardware_serial" db:"hardware_serial"`
-	InstalledFromDEP   bool   `json:"installed_from_dep" db:"installed_from_dep"`
-	DisplayName        string `json:"display_name" db:"display_name"`
-	TeamID             uint   `json:"team_id" db:"team_id"`
-	DEPAssignedToFleet bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
-	OsqueryEnrolled    bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	HardwareSerial        string `json:"hardware_serial" db:"hardware_serial"`
+	InstalledFromDEP      bool   `json:"installed_from_dep" db:"installed_from_dep"`
+	DisplayName           string `json:"display_name" db:"display_name"`
+	TeamID                uint   `json:"team_id" db:"team_id"`
+	DEPAssignedToFleet    bool   `json:"dep_assigned_to_fleet" db:"dep_assigned_to_fleet"`
+	OsqueryEnrolled       bool   `json:"osquery_enrolled" db:"osquery_enrolled"`
+	SCEPRenewalInProgress bool   `json:"-" db:"scep_renewal_in_progress"`
 }
 
 type HostDiskEncryptionKey struct {

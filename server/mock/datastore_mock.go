@@ -200,7 +200,7 @@ type HostLiteByIDFunc func(ctx context.Context, id uint) (*fleet.HostLite, error
 
 type AddHostsToTeamFunc func(ctx context.Context, teamID *uint, hostIDs []uint) error
 
-type TotalAndUnseenHostsSinceFunc func(ctx context.Context, daysCount int) (total int, unseen int, err error)
+type TotalAndUnseenHostsSinceFunc func(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error)
 
 type DeleteHostsFunc func(ctx context.Context, ids []uint) error
 
@@ -554,6 +554,8 @@ type GetHostCertAssociationsToExpireFunc func(ctx context.Context, expiryDays in
 
 type SetCommandForPendingSCEPRenewalFunc func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error
 
+type CleanSCEPRenewRefsFunc func(ctx context.Context, hostUUID string) error
+
 type UpdateHostMDMProfilesVerificationFunc func(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error
 
 type GetHostMDMProfilesExpectedForVerificationFunc func(ctx context.Context, host *fleet.Host) (map[string]*fleet.ExpectedMDMProfile, error)
@@ -831,6 +833,8 @@ type GetScriptContentsFunc func(ctx context.Context, id uint) ([]byte, error)
 type DeleteScriptFunc func(ctx context.Context, id uint) error
 
 type ListScriptsFunc func(ctx context.Context, teamID *uint, opt fleet.ListOptions) ([]*fleet.Script, *fleet.PaginationMetadata, error)
+
+type GetScriptIDByNameFunc func(ctx context.Context, name string, teamID *uint) (uint, error)
 
 type GetHostScriptDetailsFunc func(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error)
 
@@ -1657,6 +1661,9 @@ type DataStore struct {
 	SetCommandForPendingSCEPRenewalFunc        SetCommandForPendingSCEPRenewalFunc
 	SetCommandForPendingSCEPRenewalFuncInvoked bool
 
+	CleanSCEPRenewRefsFunc        CleanSCEPRenewRefsFunc
+	CleanSCEPRenewRefsFuncInvoked bool
+
 	UpdateHostMDMProfilesVerificationFunc        UpdateHostMDMProfilesVerificationFunc
 	UpdateHostMDMProfilesVerificationFuncInvoked bool
 
@@ -2073,6 +2080,9 @@ type DataStore struct {
 
 	ListScriptsFunc        ListScriptsFunc
 	ListScriptsFuncInvoked bool
+
+	GetScriptIDByNameFunc        GetScriptIDByNameFunc
+	GetScriptIDByNameFuncInvoked bool
 
 	GetHostScriptDetailsFunc        GetHostScriptDetailsFunc
 	GetHostScriptDetailsFuncInvoked bool
@@ -2744,11 +2754,11 @@ func (s *DataStore) AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []
 	return s.AddHostsToTeamFunc(ctx, teamID, hostIDs)
 }
 
-func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
+func (s *DataStore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
 	s.mu.Lock()
 	s.TotalAndUnseenHostsSinceFuncInvoked = true
 	s.mu.Unlock()
-	return s.TotalAndUnseenHostsSinceFunc(ctx, daysCount)
+	return s.TotalAndUnseenHostsSinceFunc(ctx, teamID, daysCount)
 }
 
 func (s *DataStore) DeleteHosts(ctx context.Context, ids []uint) error {
@@ -3983,6 +3993,13 @@ func (s *DataStore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs 
 	return s.SetCommandForPendingSCEPRenewalFunc(ctx, assocs, cmdUUID)
 }
 
+func (s *DataStore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.CleanSCEPRenewRefsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanSCEPRenewRefsFunc(ctx, hostUUID)
+}
+
 func (s *DataStore) UpdateHostMDMProfilesVerification(ctx context.Context, host *fleet.Host, toVerify []string, toFail []string, toRetry []string) error {
 	s.mu.Lock()
 	s.UpdateHostMDMProfilesVerificationFuncInvoked = true
@@ -4954,6 +4971,13 @@ func (s *DataStore) ListScripts(ctx context.Context, teamID *uint, opt fleet.Lis
 	s.ListScriptsFuncInvoked = true
 	s.mu.Unlock()
 	return s.ListScriptsFunc(ctx, teamID, opt)
+}
+
+func (s *DataStore) GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error) {
+	s.mu.Lock()
+	s.GetScriptIDByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetScriptIDByNameFunc(ctx, name, teamID)
 }
 
 func (s *DataStore) GetHostScriptDetails(ctx context.Context, hostID uint, teamID *uint, opts fleet.ListOptions, hostPlatform string) ([]*fleet.HostScriptDetail, *fleet.PaginationMetadata, error) {

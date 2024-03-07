@@ -15,7 +15,6 @@ import TooltipWrapper from "components/TooltipWrapper";
 import Button from "components/buttons/Button";
 import Modal from "components/Modal";
 import ReactTooltip from "react-tooltip";
-import PremiumFeatureIconWithTooltip from "components/PremiumFeatureIconWithTooltip";
 import { COLORS } from "styles/var/colors";
 
 export interface ISaveNewPolicyModalProps {
@@ -48,7 +47,7 @@ const SaveNewPolicyModal = ({
   platformSelector,
   isUpdatingPolicy,
 }: ISaveNewPolicyModalProps): JSX.Element => {
-  const { isPremiumTier, isSandboxMode } = useContext(AppContext);
+  const { isPremiumTier } = useContext(AppContext);
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
@@ -145,7 +144,6 @@ const SaveNewPolicyModal = ({
           {platformSelector.render()}
           {isPremiumTier && (
             <div className="critical-checkbox-wrapper">
-              {isSandboxMode && <PremiumFeatureIconWithTooltip />}
               <Checkbox
                 name="critical-policy"
                 onChange={(value: boolean) => setCritical(value)}

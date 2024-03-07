@@ -153,6 +153,23 @@ func testTargetsCountHosts(t *testing.T, ds *Datastore) {
 	assert.Equal(t, uint(0), metrics.OfflineHosts)
 	assert.Equal(t, uint(0), metrics.MissingInActionHosts)
 
+	// Get 'No team' hosts
+	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{0}}, mockClock.Now())
+	require.Nil(t, err)
+	assert.Equal(t, uint(2), metrics.TotalHosts)
+	assert.Equal(t, uint(1), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
+
+	metrics, err = ds.CountHostsInTargets(
+		context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID, 0}}, mockClock.Now(),
+	)
+	require.Nil(t, err)
+	assert.Equal(t, uint(3), metrics.TotalHosts)
+	assert.Equal(t, uint(2), metrics.OnlineHosts)
+	assert.Equal(t, uint(1), metrics.OfflineHosts)
+	assert.Equal(t, uint(1), metrics.MissingInActionHosts)
+
 	metrics, err = ds.CountHostsInTargets(context.Background(), filter, fleet.HostTargets{TeamIDs: []uint{team1.ID, team3.ID}}, mockClock.Now())
 	require.Nil(t, err)
 	assert.Equal(t, uint(1), metrics.TotalHosts)
@@ -592,6 +609,16 @@ func testTargetsHostIDsInTargets(t *testing.T, ds *Datastore) {
 		{
 			name:            "No selection",
 			expectedHostIDs: []uint{},
+		},
+		{
+			name:            "'No Team' team selection",
+			targetTeamIDs:   []uint{0},
+			expectedHostIDs: []uint{h5.ID, h6.ID},
+		},
+		{
+			name:            "'No Team' team, one team, and an empty team selection",
+			targetTeamIDs:   []uint{t1.ID, 0, t3.ID},
+			expectedHostIDs: []uint{h1.ID, h5.ID, h6.ID},
 		},
 		{
 			name:          "One team and an empty team selection",

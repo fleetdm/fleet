@@ -71,7 +71,12 @@ const Activity = ({
 }: IActivityProps) => {
   // TODO: add count to upcoming activities tab when available via API
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner />

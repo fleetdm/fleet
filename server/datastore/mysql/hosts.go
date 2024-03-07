@@ -1504,6 +1504,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}
 
+	subquery += ` AND hh.platform = 'darwin'`
+
 	newSQL := ""
 	if opt.TeamFilter == nil {
 		// macOS setup filter is not compatible with the "all teams" option so append the "no
@@ -2819,30 +2821,39 @@ func saveHostUsersDB(ctx context.Context, tx sqlx.ExtContext, hostID uint, users
 	return nil
 }
 
-func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, daysCount int) (total int, unseen int, err error) {
-	var counts struct {
-		Total  int `db:"total"`
-		Unseen int `db:"unseen"`
+func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint, daysCount int) (total int, unseen []uint, err error) {
+	// convert daysCount to integer number of seconds for more precision in sql query
+	var args []interface{}
+	totalQuery := `SELECT COUNT(*) FROM hosts`
+	if teamID != nil {
+		totalQuery += " WHERE team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	// convert daysCount to integer number of seconds for more precision in sql query
-	unseenSeconds := daysCount * 24 * 60 * 60
+	err = sqlx.GetContext(ctx, ds.reader(ctx), &total, totalQuery, args...)
+	if err != nil {
+		return 0, nil, ctxerr.Wrap(ctx, err, "getting total host counts")
+	}
 
-	err = sqlx.GetContext(ctx, ds.reader(ctx), &counts,
-		`SELECT
-			COUNT(*) as total,
-			SUM(IF(TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?, 1, 0)) as unseen
+	unseenSeconds := daysCount * 24 * 60 * 60
+	args = []interface{}{unseenSeconds}
+	unseenQuery := `SELECT id
 		FROM hosts h
 		LEFT JOIN host_seen_times hst
-		ON h.id = hst.host_id`,
-		unseenSeconds,
-	)
+		ON h.id = hst.host_id
+		WHERE TIMESTAMPDIFF(SECOND, COALESCE(hst.seen_time, h.created_at), CURRENT_TIMESTAMP) >= ?`
 
-	if err != nil {
-		return 0, 0, ctxerr.Wrap(ctx, err, "getting total and unseen host counts")
+	if teamID != nil {
+		unseenQuery += " AND team_id = ?"
+		args = append(args, *teamID)
 	}
 
-	return counts.Total, counts.Unseen, nil
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
+	if err != nil {
+		return total, nil, ctxerr.Wrap(ctx, err, "getting unseen host counts")
+	}
+
+	return
 }
 
 func (ds *Datastore) DeleteHosts(ctx context.Context, ids []uint) error {
@@ -3766,7 +3777,8 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 			hd.display_name,
 			COALESCE(h.team_id, 0) as team_id,
 			hda.host_id IS NOT NULL AND hda.deleted_at IS NULL as dep_assigned_to_fleet,
-			h.node_key IS NOT NULL as osquery_enrolled
+			h.node_key IS NOT NULL as osquery_enrolled,
+			ncaa.renew_command_uuid IS NOT NULL as scep_renewal_in_progress
 		FROM
 			hosts h
 		LEFT JOIN
@@ -3778,6 +3790,9 @@ func (ds *Datastore) GetHostMDMCheckinInfo(ctx context.Context, hostUUID string)
 		LEFT JOIN
 			host_dep_assignments hda
 		ON h.id = hda.host_id
+		LEFT JOIN
+			nano_cert_auth_associations ncaa
+		ON h.uuid = ncaa.id
 		WHERE h.uuid = ? LIMIT 1`, hostUUID)
 	if err != nil {
 		if err == sql.ErrNoRows {

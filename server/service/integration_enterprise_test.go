@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,6 +61,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			Tier: fleet.TierPremium,
 		},
 		Pool:           s.redisPool,
+		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
@@ -1315,9 +1317,15 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
+		HostStatusWebhook: fleet.HostStatusWebhookSettings{
+			Enable:         true,
+			DestinationURL: "http://example.com/host_status_webhook",
+		},
 	}}, http.StatusOK, &tmResp)
 	require.True(t, tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.Enable)
 	require.Equal(t, "http://example.com", tmResp.Team.Config.WebhookSettings.FailingPoliciesWebhook.DestinationURL)
+	require.True(t, tmResp.Team.Config.WebhookSettings.HostStatusWebhook.Enable)
+	require.Equal(t, "http://example.com/host_status_webhook", tmResp.Team.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 
 	// add an unknown automation - does not exist at the global level
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", team.ID), fleet.TeamPayload{Integrations: &fleet.TeamIntegrations{
@@ -3889,7 +3897,7 @@ func (s *integrationEnterpriseTestSuite) TestListSoftware() {
 	require.Equal(t, barPayload.Vulnerabilities[0].ResolvedInVersion, ptr.StringPtr("1.2.3"))
 }
 
-// TestGitOpsUserActions tests the permissions listed in ../../docs/Using-Fleet/Permissions.md.
+// TestGitOpsUserActions tests the MDM permissions listed in ../../docs/Using\ Fleet/manage-access.md
 func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	t := s.T()
 	ctx := context.Background()
@@ -3904,7 +3912,7 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	h1, err := s.ds.NewHost(ctx, &fleet.Host{
 		NodeKey:  ptr.String(t.Name() + "1"),
 		UUID:     t.Name() + "1",
-		Hostname: t.Name() + "foo.local",
+		Hostname: strings.Replace(t.Name()+"foo.local", "/", "_", -1),
 	})
 	require.NoError(t, err)
 	t1, err := s.ds.NewTeam(ctx, &fleet.Team{
@@ -4037,6 +4045,9 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	// Attempt to retrieve hosts, should fail.
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
+	// Attempt to retrieve a host by identifier should succeed
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s", h1.Hostname), hostByIdentifierRequest{}, http.StatusOK, &getHostResponse{})
+
 	// Attempt to filter hosts using labels, should fail (label ID 6 is the builtin label "All Hosts")
 	s.DoJSON("GET", "/api/latest/fleet/labels/6/hosts", nil, http.StatusForbidden, &listHostsResponse{})
 
@@ -4085,8 +4096,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
-	// Attempt to read app config, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusForbidden, &appConfigResponse{})
+	// Attempt to read app config, should pass.
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &appConfigResponse{})
 
 	// Attempt to write app config, should allow.
 	acr = appConfigResponse{}
@@ -4667,9 +4678,9 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	require.Contains(t, errMsg, "Script contents must not be empty.")
 
 	// attempt to run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large.")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// make sure the host is still seen as "online"
 	err := s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -4774,12 +4785,12 @@ func (s *integrationEnterpriseTestSuite) TestRunHostScript() {
 	// attempt to sync run an empty script
 	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: ""}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script contents must not be empty.")
+	require.Contains(t, errMsg, "One of 'script_id', 'script_contents', or 'script_name' is required.")
 
 	// attempt to sync run an overly long script
-	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", 10001)}, http.StatusUnprocessableEntity)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: strings.Repeat("a", fleet.UnsavedScriptMaxRuneLen+1)}, http.StatusUnprocessableEntity)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large.")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
 
 	// make sure the host is still seen as "online"
 	err = s.ds.MarkHostsSeen(ctx, []uint{host.ID}, time.Now())
@@ -4964,7 +4975,7 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	// attempt to run with both script contents and id
 	res := s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `Only one of "script_id" or "script_contents" can be provided.`)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
 
 	// attempt to run with unknown script id
 	res = s.Do("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusNotFound)
@@ -5054,6 +5065,36 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.True(t, runSyncResp.HostTimeout)
 	require.Contains(t, runSyncResp.Message, fleet.RunScriptHostTimeoutErrMsg)
 
+	// attempt to run sync with both script contents and script id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptID: ptr.Uint(savedTmScript.ID + 999)}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_contents' is allowed.`)
+
+	// attempt to run sync with both script contents and script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'script_name' is allowed.`)
+
+	// attempt to run sync with both script id and script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), ScriptName: savedTmScript.Name}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'script_name' is allowed.`)
+
+	// attempt to run sync with both script contents and team id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptContents: "echo", TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_contents' or 'team_id' is allowed.`)
+
+	// attempt to run sync with both script id and team id
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: ptr.Uint(savedTmScript.ID + 999), TeamID: 1}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Only one of 'script_id' or 'team_id' is allowed.`)
+
+	// attempt to run sync without script contents, script id, or script name
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `One of 'script_id', 'script_contents', or 'script_name' is required.`)
+
 	// deleting the saved script does not impact the pending script
 	s.Do("DELETE", fmt.Sprintf("/api/latest/fleet/scripts/%d", savedNoTmScript.ID), nil, http.StatusNoContent)
 
@@ -5092,6 +5133,50 @@ func (s *integrationEnterpriseTestSuite) TestRunHostSavedScript() {
 	require.NoError(t, err)
 
 	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: host.ID, ScriptID: &script.ID}, http.StatusConflict, &runResp)
+
+	// set up a new host, new team, and some new scripts
+	host2 := createOrbitEnrolledHost(t, "linux", "f1337", s.ds)
+	tm2, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "team 2"})
+	require.NoError(t, err)
+	savedNoTmScript2, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         nil,
+		Name:           "f1337.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+	savedTmScript2, err := s.ds.NewScript(ctx, &fleet.Script{
+		TeamID:         &tm2.ID,
+		Name:           "f1337.sh",
+		ScriptContents: "echo 'ALL YOUR BASE ARE BELONG TO US'",
+	})
+	require.NoError(t, err)
+	require.NotEqual(t, savedNoTmScript2.ID, savedTmScript2.ID)
+
+	// make sure the new host is seen as "online"
+	err = s.ds.MarkHostsSeen(ctx, []uint{host2.ID}, time.Now())
+	require.NoError(t, err)
+
+	// attempt to run sync with a script that does not exist on the specified team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Script 'f1337.sh' doesn’t exist.`)
+
+	// attempt to run sync with an existing team script that belongs to a team different from the host's team
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh", TeamID: tm2.ID}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `The script does not belong to the same team`)
+
+	// create a valid sync script execution request by script name, fails because the
+	// request will time-out waiting for a result.
+	var runSyncResp2 runScriptSyncResponse
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: host2.ID, ScriptName: "f1337.sh"}, http.StatusRequestTimeout, &runSyncResp2)
+	require.Equal(t, host2.ID, runSyncResp2.HostID)
+	require.NotEmpty(t, runSyncResp2.ExecutionID)
+	require.NotNil(t, runSyncResp2.ScriptID)
+	require.Equal(t, savedNoTmScript2.ID, *runSyncResp2.ScriptID)
+	require.Equal(t, "echo 'ALL YOUR BASE ARE BELONG TO US'", runSyncResp2.ScriptContents)
+	require.True(t, runSyncResp2.HostTimeout)
+	require.Contains(t, runSyncResp2.Message, fleet.RunScriptHostTimeoutErrMsg)
 
 	// attempt to run a script on a plain osquery host
 	plainOsqueryHost, err := s.ds.NewHost(context.Background(), &fleet.Host{
@@ -5383,10 +5468,10 @@ func (s *integrationEnterpriseTestSuite) TestSavedScripts() {
 
 	// file content is too large
 	body, headers = generateNewScriptMultipartRequest(t,
-		"script2.sh", []byte(strings.Repeat("a", 10001)), s.token, nil)
+		"script2.sh", []byte(strings.Repeat("a", fleet.SavedScriptMaxRuneLen+1)), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusUnprocessableEntity, headers)
 	errMsg = extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, "Script is too large. It's limited to 10,000 characters")
+	require.Contains(t, errMsg, "Script is too large. It's limited to 500,000 characters")
 
 	// invalid hashbang
 	body, headers = generateNewScriptMultipartRequest(t,
@@ -5722,18 +5807,40 @@ func (s *integrationEnterpriseTestSuite) TestHostScriptDetails() {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output, sync_request)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, script_content_id, output, sync_request)
 VALUES
 	(%s ?,?,?,?,?,?, 1)`
 
 		args := []interface{}{}
+		var scID uint
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			res, err := tx.ExecContext(ctx, `
+INSERT INTO
+	script_contents (md5_checksum, contents, created_at)
+VALUES
+	(?,?,?)`,
+				uuid.NewString(),
+				"echo test-script-details-timeout",
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			scID = uint(id)
+			return nil
+		})
 		if script.ID == 0 {
 			stmt = fmt.Sprintf(stmt, "", "")
 		} else {
 			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
 			args = append(args, script.ID)
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+		args = append(args, hostID, createdAt, execID, exitCode, scID, "")
 
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
@@ -5942,22 +6049,43 @@ VALUES
 
 	t.Run("get script results user message", func(t *testing.T) {
 		// add a script with an older created_at timestamp
-		var oldScriptID uint
+		var oldScriptID, oldScriptContentsID uint
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			// create script_contents first
 			res, err := tx.ExecContext(ctx, `
 INSERT INTO
-	scripts (name, script_contents, created_at, updated_at)
+	script_contents (md5_checksum, contents, created_at)
 VALUES
-	(?,?,?,?)`,
-				"test-script-details-timeout.sh",
+	(?,?,?)`,
+
+				uuid.NewString(),
 				"echo test-script-details-timeout",
-				now.Add(-1*time.Hour),
 				now.Add(-1*time.Hour),
 			)
 			if err != nil {
 				return err
 			}
 			id, err := res.LastInsertId()
+			if err != nil {
+				return err
+			}
+
+			oldScriptContentsID = uint(id)
+
+			res, err = tx.ExecContext(ctx, `
+INSERT INTO
+	scripts (name, script_content_id, created_at, updated_at)
+VALUES
+	(?,?,?,?)`,
+				"test-script-details-timeout.sh",
+				oldScriptContentsID,
+				now.Add(-1*time.Hour),
+				now.Add(-1*time.Hour),
+			)
+			if err != nil {
+				return err
+			}
+			id, err = res.LastInsertId()
 			if err != nil {
 				return err
 			}
@@ -6009,7 +6137,7 @@ VALUES
 			},
 		} {
 			t.Run(c.name, func(t *testing.T) {
-				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
+				insertResults(t, host0.ID, &fleet.Script{ID: oldScriptID, ScriptContentID: oldScriptContentsID, Name: "test-script-details-timeout.sh"}, c.executedAt, "test-user-message_"+c.name, c.exitCode)
 
 				var resp getScriptResultResponse
 				s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/scripts/results/%s", "test-user-message_"+c.name), nil, http.StatusOK, &resp)
