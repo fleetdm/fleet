@@ -562,7 +562,8 @@
     - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
 - industryName: Native macOS update reminders
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
+  description: Send low-level MDM commands to tell end users to update their OS.
+  moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
