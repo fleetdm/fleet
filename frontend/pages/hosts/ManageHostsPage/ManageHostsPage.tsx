@@ -1053,7 +1053,6 @@ const ManageHostsPage = ({
           lowDiskSpaceHosts,
           osSettings: osSettingsStatus,
           diskEncryptionStatus,
-          vulnerability,
         })
       : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
@@ -1106,7 +1105,6 @@ const ManageHostsPage = ({
             lowDiskSpaceHosts,
             osSettings: osSettingsStatus,
             diskEncryptionStatus,
-            vulnerability,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
