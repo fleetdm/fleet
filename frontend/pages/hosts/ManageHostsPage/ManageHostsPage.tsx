@@ -1475,6 +1475,7 @@ const ManageHostsPage = ({
       return emptyHosts;
     };
 
+    // Shortterm fix for #17257
     const unsupportedFilter = () => {
       return !!(
         (
@@ -1530,7 +1531,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages={!unsupportedFilter}
+        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
