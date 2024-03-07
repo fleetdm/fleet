@@ -39,6 +39,9 @@ type IHostTableColumnConfig = Column<IHost> & {
   // This is used to prevent these columns from being hidden. This will be
   // used in EditColumnsModal to prevent these columns from being hidden.
   disableHidden?: boolean;
+  // We add title in the column config to be able to use it in the EditColumnsModal
+  // as well
+  title?: string;
 };
 
 type IHostTableHeaderProps = IHeaderProps<IHost>;
@@ -165,6 +168,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     disableHidden: true,
   },
   {
+    title: "Hostname",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Hostname"
@@ -177,6 +181,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Computer name",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Computer name"
@@ -189,6 +194,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Team",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell value="Team" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
@@ -198,6 +204,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Status",
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
@@ -231,6 +238,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "Issues",
     Header: "Issues",
     disableSortBy: true,
     accessor: "issues",
@@ -242,6 +250,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Disk space available",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Disk space available"
@@ -270,6 +279,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "Operating system",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Operating system"
@@ -282,6 +292,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Osquery",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Osquery"
@@ -294,6 +305,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Used by",
     Header: "Used by",
     disableSortBy: true,
     accessor: "device_mapping",
@@ -331,6 +343,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "Private IP address",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Private IP address"
@@ -343,6 +356,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "MDM status",
     Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
@@ -365,6 +379,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     Cell: HostMdmStatusCell,
   },
   {
+    title: "MDM server URL",
     Header: () => {
       const titleWithToolTip = (
         <TooltipWrapper
@@ -395,6 +410,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "Public IP address",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Public IP address"
@@ -438,6 +454,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "Last fetched",
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
@@ -467,6 +484,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Last seen",
     Header: (cellProps: IHostTableHeaderProps) => {
       const titleWithToolTip = (
         <TooltipWrapper
@@ -496,6 +514,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "UUID",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell value="UUID" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
@@ -505,6 +524,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Last restarted",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Last restarted"
@@ -529,6 +549,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     },
   },
   {
+    title: "CPU",
     Header: "CPU",
     disableSortBy: true,
     accessor: "cpu_type",
@@ -537,6 +558,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "RAM",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell value="RAM" isSortedDesc={cellProps.column.isSortedDesc} />
     ),
@@ -546,6 +568,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "MAC address",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="MAC address"
@@ -558,6 +581,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Serial number",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Serial number"
@@ -570,6 +594,7 @@ const allHostTableHeaders: IHostTableColumnConfig[] = [
     ),
   },
   {
+    title: "Hardware model",
     Header: (cellProps: IHostTableHeaderProps) => (
       <HeaderCell
         value="Hardware model"
