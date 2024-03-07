@@ -865,6 +865,7 @@ func (c *Client) DoGitOps(
 	baseDir string,
 	logf func(format string, args ...interface{}),
 	dryRun bool,
+	appConfig *fleet.EnrichedAppConfig,
 ) error {
 	var err error
 	logFn := func(format string, args ...interface{}) {
@@ -898,8 +899,23 @@ func (c *Client) DoGitOps(
 			return errors.New("org_settings.mdm config is not a map")
 		}
 
-		mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
+		// Put in default values for macos_migration
+		if config.Controls.MacOSMigration != nil {
+			mdmAppConfig["macos_migration"] = config.Controls.MacOSMigration
+		} else {
+			mdmAppConfig["macos_migration"] = map[string]interface{}{}
+		}
+		macOSMigration := mdmAppConfig["macos_migration"].(map[string]interface{})
+		if enable, ok := macOSMigration["enable"]; !ok || enable == nil {
+			macOSMigration["enable"] = false
+		}
+		// Put in default values for windows_enabled_and_configured
 		mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		if config.Controls.WindowsEnabledAndConfigured != nil {
+			mdmAppConfig["windows_enabled_and_configured"] = config.Controls.WindowsEnabledAndConfigured
+		} else {
+			mdmAppConfig["windows_enabled_and_configured"] = false
+		}
 		group.AppConfig.(map[string]interface{})["scripts"] = scripts
 	} else {
 		team = make(map[string]interface{})
@@ -929,12 +945,76 @@ func (c *Client) DoGitOps(
 		mdmAppConfig = team["mdm"].(map[string]interface{})
 	}
 	// Common controls settings between org and team settings
-	mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
-	mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
-	mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
-	mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
-	mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
-	mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+	// Put in default values for macos_settings
+	if config.Controls.MacOSSettings != nil {
+		mdmAppConfig["macos_settings"] = config.Controls.MacOSSettings
+	} else {
+		mdmAppConfig["macos_settings"] = map[string]interface{}{}
+	}
+	macOSSettings := mdmAppConfig["macos_settings"].(map[string]interface{})
+	if customSettings, ok := macOSSettings["custom_settings"]; !ok || customSettings == nil {
+		macOSSettings["custom_settings"] = []interface{}{}
+	}
+	// Put in default values for macos_updates
+	if config.Controls.MacOSUpdates != nil {
+		mdmAppConfig["macos_updates"] = config.Controls.MacOSUpdates
+	} else {
+		mdmAppConfig["macos_updates"] = map[string]interface{}{}
+	}
+	macOSUpdates := mdmAppConfig["macos_updates"].(map[string]interface{})
+	if minimumVersion, ok := macOSUpdates["minimum_version"]; !ok || minimumVersion == nil {
+		macOSUpdates["minimum_version"] = ""
+	}
+	if deadline, ok := macOSUpdates["deadline"]; !ok || deadline == nil {
+		macOSUpdates["deadline"] = ""
+	}
+	// Put in default values for macos_setup
+	if config.Controls.MacOSSetup != nil {
+		mdmAppConfig["macos_setup"] = config.Controls.MacOSSetup
+	} else {
+		mdmAppConfig["macos_setup"] = map[string]interface{}{}
+	}
+	macOSSetup := mdmAppConfig["macos_setup"].(map[string]interface{})
+	if bootstrapPackage, ok := macOSSetup["bootstrap_package"]; !ok || bootstrapPackage == nil {
+		macOSSetup["bootstrap_package"] = ""
+	}
+	if enableEndUserAuthentication, ok := macOSSetup["enable_end_user_authentication"]; !ok || enableEndUserAuthentication == nil {
+		macOSSetup["enable_end_user_authentication"] = false
+	}
+	if macOSSetupAssistant, ok := macOSSetup["macos_setup_assistant"]; !ok || macOSSetupAssistant == nil {
+		macOSSetup["macos_setup_assistant"] = ""
+	}
+	// Put in default values for windows_settings
+	if config.Controls.WindowsSettings != nil {
+		mdmAppConfig["windows_settings"] = config.Controls.WindowsSettings
+	} else {
+		mdmAppConfig["windows_settings"] = map[string]interface{}{}
+	}
+	windowsSettings := mdmAppConfig["windows_settings"].(map[string]interface{})
+	if customSettings, ok := windowsSettings["custom_settings"]; !ok || customSettings == nil {
+		windowsSettings["custom_settings"] = []interface{}{}
+	}
+	// Put in default values for windows_updates
+	if config.Controls.WindowsUpdates != nil {
+		mdmAppConfig["windows_updates"] = config.Controls.WindowsUpdates
+	} else {
+		mdmAppConfig["windows_updates"] = map[string]interface{}{}
+	}
+	if appConfig.License.IsPremium() {
+		windowsUpdates := mdmAppConfig["windows_updates"].(map[string]interface{})
+		if deadlineDays, ok := windowsUpdates["deadline_days"]; !ok || deadlineDays == nil {
+			windowsUpdates["deadline_days"] = 0
+		}
+		if gracePeriodDays, ok := windowsUpdates["grace_period_days"]; !ok || gracePeriodDays == nil {
+			windowsUpdates["grace_period_days"] = 0
+		}
+	}
+	// Put in default value for enable_disk_encryption
+	if config.Controls.EnableDiskEncryption != nil {
+		mdmAppConfig["enable_disk_encryption"] = config.Controls.EnableDiskEncryption
+	} else {
+		mdmAppConfig["enable_disk_encryption"] = false
+	}
 	if config.TeamName != nil {
 		rawTeam, err := json.Marshal(team)
 		if err != nil {
