@@ -83,7 +83,7 @@ parasails.registerPage('new-license', {
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
-      window.location = 'https://calendly.com/fleetdm/demo?utm_source=self+service+100';
+      window.location = '/contact';
     },
 
     clickResetForm: async function() {

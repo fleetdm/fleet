@@ -3,6 +3,8 @@ parasails.registerPage('contact', {
   //  ║║║║║ ║ ║╠═╣║    ╚═╗ ║ ╠═╣ ║ ║╣
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
+    formToDisplay: 'talk-to-us',
+    audience: undefined,
     // Main syncing/loading state for this page.
     syncing: false,
 
@@ -13,12 +15,20 @@ parasails.registerPage('contact', {
     // > Has property set to `true` for each invalid property in `formData`.
     formErrors: { /* … */ },
 
-    // Form rules
-    formRules: {
+    // "talk to us" Form rules
+    talkToUsFormRules: {
       emailAddress: {isEmail: true, required: true},
       firstName: {required: true},
       lastName: {required: true},
-      topic: {required: true},
+      organization: {required: true},
+      primaryBuyingSituation: {required: true},
+      numberOfHosts: {required: true},
+    },
+    // Contact form rules
+    contactFormRules: {
+      emailAddress: {isEmail: true, required: true},
+      firstName: {required: true},
+      lastName: {required: true},
       message: {required: false},
     },
 
@@ -33,7 +43,15 @@ parasails.registerPage('contact', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    if(this.formToShow === 'contact'){
+      this.formToDisplay = this.formToShow;
+    }
+    if(window.location.search){
+      window.history.replaceState({}, document.title, '/contact' );
+    }
+    if(this.primaryBuyingSituation){
+      this.audience = this.primaryBuyingSituation;
+    }
   },
   mounted: async function() {
     //…
@@ -44,12 +62,23 @@ parasails.registerPage('contact', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    submittedForm: async function() {
+    submittedContactForm: async function() {
 
       // Show the success message.
       this.cloudSuccess = true;
 
     },
+    submittedTalkToUsForm: async function() {
+      this.syncing = true;
+      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${this.formData.firstName}+${this.formData.lastName}`;
+    },
+
+    clickSwitchForms: function(form) {
+      this.formData = {};
+      this.formErrors = {};
+      this.cloudError = '';
+      this.formToDisplay = form;
+    }
 
   }
 });

@@ -1,14 +1,13 @@
 module.exports = {
 
 
-  friendlyName: 'Deliver contact form message',
+  friendlyName: 'Deliver talk to us form submission',
 
 
-  description: 'Deliver a contact form message to the appropriate internal channel(s).',
+  description: '',
 
 
   inputs: {
-
     emailAddress: {
       required: true,
       type: 'string',
@@ -30,11 +29,29 @@ module.exports = {
       example: 'Watson'
     },
 
-    message: {
+    organization: {
       type: 'string',
       required: true,
-      description: 'The custom message, in plain text.'
-    }
+      description: 'The organization of the user who submitted the "talk to us" form'
+    },
+
+    numberOfHosts: {
+      type: 'string',
+      required: true,
+      description: 'The organization of the user who submitted the "talk to us" form'
+    },
+
+    primaryBuyingSituation: {
+      type: 'string',
+      required: true,
+      description: 'What this user will be using Fleet for',
+      isIn: [
+        'vulnerability-management',
+        'device-management',
+        'endpoint-ops-it',
+        'endpoint-ops-security',
+      ],
+    },
 
   },
 
@@ -45,21 +62,12 @@ module.exports = {
       description: 'This email address is on a denylist of domains and was not delivered.',
       responseType: 'badRequest'
     },
-    success: {
-      description: 'The message was sent successfully.'
-    }
 
   },
 
 
-  fn: async function({emailAddress, firstName, lastName, message}) {
+  fn: async function ({emailAddress, firstName, lastName, organization, numberOfHosts, primaryBuyingSituation}) {
 
-    if (!sails.config.custom.slackWebhookUrlForContactForm) {
-      throw new Error(
-        'Message not delivered: slackWebhookUrlForContactForm needs to be configured in sails.config.custom. Here\'s the undelivered message: ' +
-        `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
-      );
-    }
     const bannedEmailDomainsForContactFormMessages = [
       'gmail.com','yahoo.com', 'yahoo.co.uk','hotmail.com','hotmail.co.uk', 'outlook.com', 'icloud.com', 'proton.me','live.com','yandex.ru','ymail.com',
     ];
@@ -69,24 +77,18 @@ module.exports = {
     if(_.includes(bannedEmailDomainsForContactFormMessages, emailDomain.toLowerCase())){
       throw 'invalidEmailDomain';
     }
-
-    await sails.helpers.http.post(sails.config.custom.slackWebhookUrlForContactForm, {
-      text: `New contact form message: (Remember: we have to email back; can't just reply to this thread.) cc @sales `+
-      `Name: ${firstName + ' ' + lastName}, Email: ${emailAddress}, Message: ${message ? message : 'No message.'}`
-    });
-
-
-    // Send a POST request to Zapier
-    await sails.helpers.http.post(
-      'https://hooks.zapier.com/hooks/catch/3627242/3cxcriz/',
-      {
-        'emailAddress': emailAddress,
-        'firstName': firstName,
-        'lastName': lastName,
-        'message': message,
-        'webhookSecret': sails.config.custom.zapierSandboxWebhookSecret
+    await sails.helpers.http.post.with({
+      url: 'https://hooks.zapier.com/hooks/catch/3627242/3cxwxdo/',
+      data: {
+        emailAddress,
+        firstName,
+        lastName,
+        organization,
+        numberOfHosts,
+        primaryBuyingSituation,
+        webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
-    )
+    })
     .timeout(5000)
     .tolerate(['non200Response', 'requestFailed'], (err)=>{
       // Note that Zapier responds with a 2xx status code even if something goes wrong, so just because this message is not logged doesn't mean everything is hunky dory.  More info: https://github.com/fleetdm/fleet/pull/6380#issuecomment-1204395762
@@ -95,6 +97,10 @@ module.exports = {
     });
 
 
+
+    return;
+
   }
+
 
 };
