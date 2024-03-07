@@ -45,3 +45,9 @@ export type IBoolCellProps<T extends object> = CellProps<T, boolean>;
  * wrapper around the `HeaderProps` type from `react-table`.
  */
 export type IHeaderProps<T extends object> = HeaderProps<T>;
+
+/**
+ * The typing for web socket data is loose as we are getting the data is
+ * not typed and is not guaranteed to have the same shape every time.
+ * */
+export type IWebSocketData = Record<string, unknown>;

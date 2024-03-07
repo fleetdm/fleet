@@ -49,6 +49,7 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { IWebSocketData } from "interfaces/datatable_config";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -864,7 +865,11 @@ export const internallyTruncateText = (
   </>
 );
 
-export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+export const getUniqueColumnNamesFromRows = <
+  T extends Record<keyof T, unknown>
+>(
+  rows: T[]
+) =>
   // rows of type {col:val, col:val, ...}[]
   // cannot type more narrowly due to loose typing of websocket API and use of this function
   // by QueryResultsTableConfig, where results come from that API
@@ -872,11 +877,10 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   Array.from(
     rows.reduce(
       (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set()
+        Object.keys(row).reduce((accInner, colNameInRow) => {
+          return accInner.add(colNameInRow as keyof T);
+        }, accOuter),
+      new Set<keyof T>()
     )
   );
 

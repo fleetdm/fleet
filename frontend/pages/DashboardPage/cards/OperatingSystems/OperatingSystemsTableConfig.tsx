@@ -27,6 +27,8 @@ import {
   IStringCellProps,
 } from "interfaces/datatable_config";
 
+type ITableColumnConfig = Column<IOperatingSystemVersion>;
+
 type INameCellProps = IStringCellProps<IOperatingSystemVersion>;
 type IVersionCellProps = IStringCellProps<IOperatingSystemVersion>;
 type IVulnCellProps = CellProps<
@@ -35,8 +37,6 @@ type IVulnCellProps = CellProps<
 >;
 type IHostCountCellProps = INumberCellProps<IOperatingSystemVersion>;
 type IHostHeaderProps = HeaderProps<IOperatingSystemVersion>;
-
-type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
 interface IOSTableConfigOptions {
   includeName?: boolean;
