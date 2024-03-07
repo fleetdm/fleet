@@ -432,6 +432,8 @@ type ListGlobalPoliciesFunc func(ctx context.Context, opts fleet.ListOptions) ([
 
 type PoliciesByIDFunc func(ctx context.Context, ids []uint) (map[uint]*fleet.Policy, error)
 
+type PoliciesByNameFunc func(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error)
+
 type DeleteGlobalPoliciesFunc func(ctx context.Context, ids []uint) ([]uint, error)
 
 type CountPoliciesFunc func(ctx context.Context, teamID *uint, matchQuery string) (int, error)
@@ -1477,6 +1479,9 @@ type DataStore struct {
 
 	PoliciesByIDFunc        PoliciesByIDFunc
 	PoliciesByIDFuncInvoked bool
+
+	PoliciesByNameFunc        PoliciesByNameFunc
+	PoliciesByNameFuncInvoked bool
 
 	DeleteGlobalPoliciesFunc        DeleteGlobalPoliciesFunc
 	DeleteGlobalPoliciesFuncInvoked bool
@@ -3564,6 +3569,13 @@ func (s *DataStore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fle
 	s.PoliciesByIDFuncInvoked = true
 	s.mu.Unlock()
 	return s.PoliciesByIDFunc(ctx, ids)
+}
+
+func (s *DataStore) PoliciesByName(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
+	s.mu.Lock()
+	s.PoliciesByNameFuncInvoked = true
+	s.mu.Unlock()
+	return s.PoliciesByNameFunc(ctx, names, teamID)
 }
 
 func (s *DataStore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {

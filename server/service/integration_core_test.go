@@ -5190,7 +5190,7 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	appConfig := s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
 	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].Email)
-	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
+	assert.Equal(t, fleet.MaskedPassword, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Add 2nd config -- not allowed at this time
@@ -5245,7 +5245,7 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	appConfig = s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
 	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].Email)
-	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
+	assert.Equal(t, fleet.MaskedPassword, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Clearing other integrations does not clear Google Calendar integration

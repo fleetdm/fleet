@@ -444,6 +444,39 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	return policiesByID, nil
 }
 
+func (ds *Datastore) PoliciesByName(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
+	sqlQuery := `SELECT ` + policyCols + `
+	  FROM policies p
+	  WHERE p.team_id = ? AND p.name IN (?)`
+	query, args, err := sqlx.In(sqlQuery, teamID, names)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by name")
+	}
+
+	var policies []*fleet.Policy
+	err = sqlx.SelectContext(
+		ctx,
+		ds.reader(ctx),
+		&policies,
+		query, args...,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting policies by name")
+	}
+
+	policiesByName := make(map[string]*fleet.Policy, len(names))
+	for _, p := range policies {
+		policiesByName[p.Name] = p
+	}
+	for _, name := range names {
+		if policiesByName[name] == nil {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
+		}
+	}
+
+	return policiesByName, nil
+}
+
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }

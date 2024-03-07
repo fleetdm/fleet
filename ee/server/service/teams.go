@@ -1072,9 +1072,8 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		cals := *spec.Integrations.GoogleCalendar
-		svc.validateTeamCalendarIntegrations(ctx, team, cals, appCfg, invalid)
-		team.Config.Integrations.GoogleCalendar = cals
+		svc.validateTeamCalendarIntegrations(ctx, team, spec.Integrations.GoogleCalendar, appCfg, invalid)
+		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
 	}
 
 	if invalid.HasErrors() {
@@ -1144,46 +1143,51 @@ func (svc *Service) editTeamFromSpec(
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(
-	ctx context.Context, team *fleet.Team, calendarIntegrations []*fleet.TeamGoogleCalendarIntegration,
+	ctx context.Context, team *fleet.Team, calendarIntegration *fleet.TeamGoogleCalendarIntegration,
 	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
 ) {
-	if len(calendarIntegrations) > 1 {
-		invalid.Append("integrations.google_calendar[]", "only one Google Calendar integration is allowed at this time")
-	}
-	for _, calendarIntegration := range calendarIntegrations {
-		if calendarIntegration.Enable {
-			// Validate email
-			emailValid := false
-			calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
-			for _, globalCals := range appCfg.Integrations.GoogleCalendar {
-				if globalCals.Email == calendarIntegration.Email {
-					emailValid = true
-					break
-				}
+	if calendarIntegration.Enable {
+		// Validate email
+		emailValid := false
+		calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
+		for _, globalCals := range appCfg.Integrations.GoogleCalendar {
+			if globalCals.Email == calendarIntegration.Email {
+				emailValid = true
+				break
 			}
-			if !emailValid {
-				invalid.Append("integrations.google_calendar[].email", "email must match a global Google Calendar integration email")
+		}
+		if !emailValid {
+			invalid.Append("integrations.google_calendar.email", "email must match a global Google Calendar integration email")
+		}
+		// Validate URL
+		if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {
+			invalid.Append("integrations.google_calendar.webhook_url", err.Error())
+		} else if u.Scheme != "https" && u.Scheme != "http" {
+			invalid.Append("integrations.google_calendar.webhook_url", "webhook_url must be https or http")
+		}
+		// Validate policy ids
+		if len(calendarIntegration.Policies) == 0 {
+			invalid.Append("integrations.google_calendar.policies", "policies are required")
+		}
+		if len(calendarIntegration.Policies) > 0 {
+			for _, policy := range calendarIntegration.Policies {
+				policy.Name = strings.TrimSpace(policy.Name)
 			}
-			// Validate URL
-			if u, err := url.ParseRequestURI(calendarIntegration.Webhook.DestinationURL); err != nil {
-				invalid.Append("integrations.google_calendar[].webhook_settings.destination_url", err.Error())
-			} else if u.Scheme != "https" && u.Scheme != "http" {
-				invalid.Append("integrations.google_calendar[].webhook_settings.destination_url", "destination_url must be https or http")
+			calendarIntegration.Policies = server.RemoveDuplicatesFromSlice(calendarIntegration.Policies)
+			policyNames := make([]string, 0, len(calendarIntegration.Policies))
+			for _, policy := range calendarIntegration.Policies {
+				policy.Name = strings.TrimSpace(policy.Name)
+				policyNames = append(policyNames, policy.Name)
 			}
-			// Validate policy ids
-			if len(calendarIntegration.PolicyIDs) == 0 {
-				invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids are required")
-			}
-			if len(calendarIntegration.PolicyIDs) > 0 {
-				policyMap, err := svc.ds.PoliciesByID(ctx, calendarIntegration.PolicyIDs)
-				if err != nil {
-					level.Error(svc.logger).Log("err", "error getting policies by id", "id", calendarIntegration.PolicyIDs, "details", err)
-					invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids are invalid")
-				}
-				for _, policy := range policyMap {
-					if policy.TeamID != nil && *policy.TeamID != team.ID {
-						invalid.Append("integrations.google_calendar[].policy_ids", "policy_ids must be global or from the same team")
-					}
+			// Policies must be team policies. Global policies are not allowed.
+			policyMap, err := svc.ds.PoliciesByName(ctx, policyNames, team.ID)
+			if err != nil {
+				level.Error(svc.logger).Log("err", "error getting policies by name", "names", policyNames, "details", err)
+				invalid.Append("integrations.google_calendar.policies[].name", "name is invalid")
+			} else {
+				// PoliciesByName guarantees that all policies are present
+				for _, policy := range calendarIntegration.Policies {
+					policy.ID = policyMap[policy.Name].ID
 				}
 			}
 		}

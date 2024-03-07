@@ -466,6 +466,12 @@ func TestFullTeamGitOps(t *testing.T) {
 		}
 		return nil, nil
 	}
+	ds.PoliciesByNameFunc = func(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
+		if slices.Contains(names, "policy1") && slices.Contains(names, "policy2") {
+			return map[string]*fleet.Policy{"policy1": &policy, "policy2": &policy}, nil
+		}
+		return nil, nil
+	}
 	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, IDs []uint) ([]uint, error) {
 		policyDeleted = true
 		assert.Equal(t, []uint{policy.ID}, IDs)
@@ -545,10 +551,10 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedWinProfiles, 1)
 	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
-	require.Len(t, savedTeam.Config.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, "service@example.com", savedTeam.Config.Integrations.GoogleCalendar[0].Email)
-	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar[0].Enable)
-	assert.Equal(t, []uint{10, 20}, savedTeam.Config.Integrations.GoogleCalendar[0].PolicyIDs)
+	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.Equal(t, "service@example.com", savedTeam.Config.Integrations.GoogleCalendar.Email)
+	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+	assert.Len(t, savedTeam.Config.Integrations.GoogleCalendar.Policies, 2)
 
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -582,6 +588,8 @@ team_settings:
 	assert.Equal(t, secret, enrolledSecrets[0].Secret)
 	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 	assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
 	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)

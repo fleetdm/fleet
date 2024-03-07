@@ -140,18 +140,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 						"deadline":        "2021-01-01",
 					},
 				},
-				"integrations": map[string]any{
-					"google_calendar": []any{
-						map[string]any{
-							"email":                  calendarEmail,
-							"enable_calendar_events": true,
-							"policy_ids":             []uint{policy.ID},
-							"webhook_settings": map[string]any{
-								"destination_url": calendarWebhookUrl,
-							},
-						},
-					},
-				},
 			},
 		},
 	}
@@ -192,14 +180,50 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 		},
 	}, team.Config.MDM)
-	require.Len(t, team.Config.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, calendarEmail, team.Config.Integrations.GoogleCalendar[0].Email)
-	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar[0].Webhook.DestinationURL)
-	assert.True(t, team.Config.Integrations.GoogleCalendar[0].Enable)
-	assert.Equal(t, []uint{policy.ID}, team.Config.Integrations.GoogleCalendar[0].PolicyIDs)
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
+
+	// Create team policy
+	teamPolicy, err := s.ds.NewTeamPolicy(
+		context.Background(), team.ID, nil, fleet.PolicyPayload{Name: "TestSpecTeamPolicy", Query: "SELECT 1"},
+	)
+	require.NoError(t, err)
+	defer func() {
+		_, err = s.ds.DeleteTeamPolicies(context.Background(), team.ID, []uint{teamPolicy.ID})
+		require.NoError(t, err)
+	}()
+
+	// Apply calendar integration
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"integrations": map[string]any{
+					"google_calendar": map[string]any{
+						"email":                  calendarEmail,
+						"enable_calendar_events": true,
+						"policies": []any{
+							map[string]any{
+								"name": teamPolicy.Name,
+							},
+						},
+						"webhook_url": calendarWebhookUrl,
+					},
+				},
+			},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NotNil(t, team.Config.Integrations.GoogleCalendar)
+	assert.Equal(t, calendarEmail, team.Config.Integrations.GoogleCalendar.Email)
+	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
+	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
+	require.Len(t, team.Config.Integrations.GoogleCalendar.Policies, 1)
+	assert.Equal(t, teamPolicy.ID, team.Config.Integrations.GoogleCalendar.Policies[0].ID)
 
 	// dry-run with invalid windows updates
 	teamSpecs = map[string]any{

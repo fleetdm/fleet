@@ -13,9 +13,9 @@ import (
 // TeamIntegrations contains the configuration for external services'
 // integrations for a specific team.
 type TeamIntegrations struct {
-	Jira           []*TeamJiraIntegration           `json:"jira"`
-	Zendesk        []*TeamZendeskIntegration        `json:"zendesk"`
-	GoogleCalendar []*TeamGoogleCalendarIntegration `json:"google_calendar"`
+	Jira           []*TeamJiraIntegration         `json:"jira"`
+	Zendesk        []*TeamZendeskIntegration      `json:"zendesk"`
+	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 }
 
 // MatchWithIntegrations matches the team integrations to their corresponding
@@ -115,10 +115,14 @@ type GoogleCalendarWebhookSettings struct {
 	DestinationURL string `json:"destination_url"`
 }
 type TeamGoogleCalendarIntegration struct {
-	Email     string                        `json:"email"`
-	Enable    bool                          `json:"enable_calendar_events"`
-	PolicyIDs []uint                        `json:"policy_ids"`
-	Webhook   GoogleCalendarWebhookSettings `json:"webhook_settings"`
+	Email      string       `json:"email"`
+	Enable     bool         `json:"enable_calendar_events"`
+	Policies   []*PolicyRef `json:"policies"`
+	WebhookURL string       `json:"webhook_url"`
+}
+type PolicyRef struct {
+	Name string `json:"name"`
+	ID   uint   `json:"id"`
 }
 
 // JiraIntegration configures an instance of an integration with the Jira

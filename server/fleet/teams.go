@@ -415,7 +415,7 @@ type TeamSpecWebhookSettings struct {
 // integrations for a specific team.
 type TeamSpecIntegrations struct {
 	// If value is nil, we don't want to change the existing value.
-	GoogleCalendar *[]*TeamGoogleCalendarIntegration `json:"google_calendar"`
+	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
