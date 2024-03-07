@@ -34,6 +34,11 @@ if [ "$FLEET_ENROLL_SECRET" = "" ]; then
     exit 1
 fi
 
+if ! which tart >/dev/null; then
+    echo "install tart VM https://tart.run/"
+    exit 1
+fi
+
 echo "Deleting old fleet package"
 [ -f fleet-osquery.pkg ] && rm fleet-osquery.pkg
 
