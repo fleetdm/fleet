@@ -1030,6 +1030,7 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
@@ -1071,6 +1072,7 @@ const ManageHostsPage = ({
     }
   };
 
+  // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
@@ -1475,23 +1477,25 @@ const ManageHostsPage = ({
 
     const unsupportedFilter = () => {
       return !!(
-        policyId ||
-        policyResponse ||
-        softwareId ||
-        softwareTitleId ||
-        softwareVersionId ||
-        osName ||
-        osVersionId ||
-        osVersion ||
-        macSettingsStatus ||
-        bootstrapPackageStatus ||
-        mdmId ||
-        mdmEnrollmentStatus ||
-        munkiIssueId ||
-        lowDiskSpaceHosts ||
-        osSettingsStatus ||
-        diskEncryptionStatus ||
-        vulnerability
+        (
+          policyId ||
+          policyResponse ||
+          softwareId ||
+          softwareTitleId ||
+          softwareVersionId ||
+          osName ||
+          osVersionId ||
+          osVersion ||
+          macSettingsStatus ||
+          bootstrapPackageStatus ||
+          mdmId ||
+          mdmEnrollmentStatus ||
+          munkiIssueId ||
+          lowDiskSpaceHosts ||
+          osSettingsStatus ||
+          diskEncryptionStatus
+        )
+        // || vulnerability TODO: Add for 4.47.0 feature #15919
       );
     };
 
