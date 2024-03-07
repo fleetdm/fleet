@@ -5775,7 +5775,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
 		Platform:      "windows",
-		MDM:           mdm_types.MDMHostData{},
+		MDM:           fleet.MDMHostData{},
 	})
 	require.NoError(t, err)
 
