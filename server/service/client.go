@@ -894,13 +894,13 @@ func (c *Client) DoGitOps(
 			integrations = map[string]interface{}{}
 			group.AppConfig.(map[string]interface{})["integrations"] = integrations
 		}
-		if _, ok = integrations.(map[string]interface{})["jira"]; !ok {
+		if jira, ok := integrations.(map[string]interface{})["jira"]; !ok || jira == nil {
 			integrations.(map[string]interface{})["jira"] = []interface{}{}
 		}
-		if _, ok = integrations.(map[string]interface{})["zendesk"]; !ok {
+		if zendesk, ok := integrations.(map[string]interface{})["zendesk"]; !ok || zendesk == nil {
 			integrations.(map[string]interface{})["zendesk"] = []interface{}{}
 		}
-		if _, ok = integrations.(map[string]interface{})["google_calendar"]; !ok {
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
 			integrations.(map[string]interface{})["google_calendar"] = []interface{}{}
 		}
 
@@ -969,6 +969,10 @@ func (c *Client) DoGitOps(
 			return errors.New("team_settings.integrations config is not a map")
 		}
 		if calendar, ok := integrations.(map[string]interface{})["google_calendar"]; ok {
+			if calendar == nil {
+				calendar = map[string]interface{}{}
+				integrations.(map[string]interface{})["google_calendar"] = calendar
+			}
 			teamCalendarIntegration, ok = calendar.(map[string]interface{})
 			if !ok {
 				return errors.New("team_settings.integrations.google_calendar config is not a map")
