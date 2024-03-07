@@ -1473,6 +1473,28 @@ const ManageHostsPage = ({
       return emptyHosts;
     };
 
+    const unsupportedFilter = () => {
+      return !!(
+        policyId ||
+        policyResponse ||
+        softwareId ||
+        softwareTitleId ||
+        softwareVersionId ||
+        osName ||
+        osVersionId ||
+        osVersion ||
+        macSettingsStatus ||
+        bootstrapPackageStatus ||
+        mdmId ||
+        mdmEnrollmentStatus ||
+        munkiIssueId ||
+        lowDiskSpaceHosts ||
+        osSettingsStatus ||
+        diskEncryptionStatus ||
+        vulnerability
+      );
+    };
+
     return (
       <TableContainer
         resultsTitle="hosts"
@@ -1504,7 +1526,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages
+        showMarkAllPages={!unsupportedFilter}
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
