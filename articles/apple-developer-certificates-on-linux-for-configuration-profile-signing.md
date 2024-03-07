@@ -65,10 +65,12 @@ This command prompts you to authenticate with the target computer's credentials.
 
 ![Select Developer ID Application, then click Continue](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing1-732x181@2x.png "select Developer ID Application, then click Continue")
 7. Select the "G2 Sub-CA" profile type (or whatever Profile Type is NOT listed as "Previous Sub-CA").
-8. Click **Choose File** to upload the` application.csr `file created and copied from your Linux host.
+8. Click **Choose File** to upload the `application.csr` file created and copied from your Linux host.
 9. After completing the upload, click "Continue" to download the certificate.
 
-![After completing the upload, click"Continue\" to download the certificate](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png "After completing the upload, click"Continue\" to download the certificate")
+![After completing the upload, click Continue to download the
+certificate](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing2-734x383@2x.png
+"After completing the upload, click Continue to download the certificate")
 
 
 10. Move all downloaded certificates, and a `.mobileconfig` file to your Linux host with a command like:
