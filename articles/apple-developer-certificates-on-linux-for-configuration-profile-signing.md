@@ -42,7 +42,7 @@ To securely transfer the file from your Linux system to another computer, use th
 
 
 
-1. Execute the following command in your Linux system's terminal, replacing `&lt;FQDN or IP>` with the fully qualified domain name or IP address of your target computer: 
+1. Execute the following command in your Linux system's terminal, replacing `admin@<FQDN or IP>` with your user name and the fully qualified domain name or IP address of your target computer: 
 ```
 scp admin@<FQDN or IP>:/tmp/application.csr /Users/Shared/
 ``` 
@@ -147,7 +147,7 @@ openssl cms -in signed.mobileconfig -inform der -verify -nosigs -noverify -out u
 
 ## Streamlining your CI/CD workflow
 
-The above guide is a significant step towards integrating security practices into your Linux-based development environment. Signing `.mobileconfig` files on Linux allows you to automate the signing and deployment of MDM configuration profiles, ensuring that your device management workflows are secure and efficient.
+This guide should help integrate the Apple Developer security practices into your Linux-based development environment. Signing `.mobileconfig` files on Linux allows you to automate the signing and deployment of MDM configuration profiles, ensuring that your device management workflows are secure and efficient.
 
 Incorporating these steps into your CI/CD pipeline can streamline your deployment process. Automated signing eliminates manual intervention, reducing the potential for human error and freeing up time for other tasks. Consider exploring further automation opportunities within your CI/CD workflow. The goal is to create a seamless pipeline that enhances security and increases your team's productivity and deployment reliability.
 
