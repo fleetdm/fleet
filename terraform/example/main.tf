@@ -7,24 +7,25 @@ terraform {
   }
 }
 
-variable "domain_name" {
-  type        = string
-  description = "domain name to host fleet under"
-}
-
-variable "vpc_name" {
-  type        = string
-  description = "name of the vpc to provision"
-  default     = "fleet"
-}
-
-variable "zone_name" {
-  type        = string
-  description = "the name to give to your hosted zone"
-  default     = "fleet"
-}
-
 locals {
+  # Change these to match your environment.
+  domain_name = "fleet.example.com"
+  vpc_name = "fleet-vpc"
+  # This creates a subdomain in AWS to manage DNS Records.
+  # This allows for easy validation of TLS Certificates via ACM and
+  # the use of alias records to the load balancer.  Please note if
+  # this is a subdomain that NS records will be needed to be created
+  # in the primary zone.  These NS records will be included in the outputs
+  # of this terraform run.
+  zone_name = "fleet.example.com"
+
+  # Bucket names need to be unique across AWS.  Change this to a friendly
+  # name to make finding carves in s3 easier later.
+  osquery_carve_bucket_name = "fleet-osquery-carve"
+  osquery_carve_results_name = "fleet-osquery-results"
+  osquery_carve_status_name = "fleet-osquery-status"
+
+  # Extra ENV Vars for Fleet customization can be set here.
   fleet_environment_variables = {
     # Uncomment and provide license key to unlock premium features.
     #      FLEET_LICENSE_KEY = "<enter_license_key>"
@@ -45,7 +46,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
 
   vpc_config = {
-    name = var.vpc_name
+    name = local.vpc_name
   }
 
   fleet_config = {
@@ -69,7 +70,10 @@ module "fleet" {
     # Uncomment if enabling mdm module below.
     # extra_secrets = module.mdm.extra_secrets
     # extra_execution_iam_policies = module.mdm.extra_execution_iam_policies
-
+    extra_iam_policies = concat(
+      module.osquery-carve.fleet_extra_iam_policies,
+      module.firehose-logging.fleet_extra_iam_policies,
+    )
   }
   rds_config = {
     # See https://fleetdm.com/docs/deploy/reference-architectures#aws for instance classes.
@@ -110,23 +114,44 @@ module "migrations" {
   min_capacity             = module.fleet.byo-vpc.byo-db.byo-ecs.appautoscaling_target.min_capacity
 }
 
+module "osquery-carve" {
+  source = "github.com/fleetdm/fleet//terraform/addons/osquery-carve?ref=tf-mod-addon-osquery-carve-v1.0.1"
+  osquery_carve_s3_bucket = {
+    name = local.osquery_carve_bucket_name
+  }   
+} 
+
+module "firehose-logging" {
+  source = "github.com/fleetdm/fleet//terraform/addons/logging-destination-firehose?ref=tf-mod-addon-logging-destination-firehose-v1.1.0"
+  osquery_results_s3_bucket = {
+    name = local.osquery_results_bucket_name
+  }
+  osquery_status_s3_bucket = {
+    name = local.osquery_status_bucket_name
+  }
+}
+
+
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
   version = "4.3.1"
 
-  domain_name = var.domain_name
+  domain_name = local.domain_name
   zone_id     = aws_route53_zone.main.id
 
   wait_for_validation = true
 }
 
+# If you already are managing your zone in AWS in the same account,
+# this resource could be swapped with a data source instead to
+# read the properties of that resource.
 resource "aws_route53_zone" "main" {
-  name = var.zone_name
+  name = local.zone_name
 }
 
 resource "aws_route53_record" "main" {
   zone_id = aws_route53_zone.main.id
-  name    = var.domain_name
+  name    = local.domain_name
   type    = "A"
 
   alias {
@@ -134,4 +159,11 @@ resource "aws_route53_record" "main" {
     zone_id                = module.fleet.byo-vpc.byo-db.alb.lb_zone_id
     evaluate_target_health = true
   }
+}
+
+
+# Ensure that these records are added to the parent DNS zone
+# Delete this output if you switched the route53 zone above to a data source.
+output "route53_name_servers" {
+  value = aws_route53_zone.main.name_servers
 }
