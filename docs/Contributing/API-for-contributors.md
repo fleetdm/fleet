@@ -2578,7 +2578,7 @@ Notifies the server about an agent error, resulting in two outcomes:
 - The error gets saved in Redis and can later be accessed using `fleetctl debug archive`.
 - The server consistently replies with a `500` status code, which can serve as a signal to activate an alarm through a monitoring tool.
 
-> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors#fleet_enable_post_client_debug_errors)
+> Note: to allow `fleetd` agents to use this endpoint, you need to set a [custom environment variable](./Configuration-for-contributors.md#fleet_enable_post_client_debug_errors)
 
 `POST /api/v1/fleet/device/{token}/debug/errors`
 
