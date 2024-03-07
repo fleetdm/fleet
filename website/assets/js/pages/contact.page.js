@@ -70,7 +70,11 @@ parasails.registerPage('contact', {
     },
     submittedTalkToUsForm: async function() {
       this.syncing = true;
-      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${this.formData.firstName}+${this.formData.lastName}`;
+      if(this.formData.numberOfHosts > 700){
+        window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.formData.emailAddress)}&name=${this.formData.firstName}+${this.formData.lastName}`;
+      } else {
+        window.location = `https://calendly.com/fleetdm/chat?email=${encodeURIComponent(this.formData.emailAddress)}&name=${this.formData.firstName}+${this.formData.lastName}`;
+      }
     },
 
     clickSwitchForms: function(form) {
