@@ -15,6 +15,8 @@ Note: Please prefix versions with `fleet-v` (e.g., `fleet-v4.0.0`) in git tags, 
 - Terraform variables ([AWS](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/aws/variables.tf)/[GCP](https://github.com/fleetdm/fleet/blob/main/infrastructure/dogfood/terraform/gcp/variables.tf))
 - [Kubernetes `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml)
 - All Terraform (*.tf) files referencing the previous version of Fleet.
+- The full list can be found by using git grep:
+    % git grep "4\.3\.0"
 
 Commit these changes via Pull Request and pull the changes on the `main` branch locally.
 
@@ -57,20 +59,20 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 We issue scheduled patch releases every Monday between minor releases if any bug fixes have merged. We issue patches immediately for critical bugs as defined in [our handbook](https://fleetdm.com/handbook/quality#critical-bugs).
 
-1. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
-
-2. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
+1. Create a new branch, starting from the git tag of the prior release. Patch branches should be prefixed with `patch-`. In this example we are creating `v4.3.1`:
    
 ```sh
 git checkout fleet-v4.3.0
 git checkout --branch patch-fleet-v4.3.1
 ```
 
-3. Cherry picks the necessary commits from `main` into the new branch:
+2. Cherry picks the necessary commits from `main` into the new branch:
   
 ```sh
 git cherry-pick d34db33f
 ```
+
+3. Complete the steps above to [prepare a new version of Fleet](#prepare-a-new-version-of-fleet).
 
 > Commits must be cherry-picked in the order they appear on `main` to avoid conflicts. Make sure to also cherry-pick the commit containing changelog and version number updates.
 
