@@ -42,7 +42,7 @@ To securely transfer the file from your Linux system to another computer, use th
 
 
 
-1. Execute the following command in your Linux system's terminal, replacing `&lt;FQDN or IP>` with the fully qualified domain name or IP address of your target computer: 
+1. Execute the following command in your Linux system's terminal, replacing `admin@<FQDN or IP>` with your user name and the fully qualified domain name or IP address of your target computer: 
 ```
 scp admin@<FQDN or IP>:/tmp/application.csr /Users/Shared/
 ``` 
@@ -64,6 +64,7 @@ This command prompts you to authenticate with the target computer's credentials.
 6. Once you've downloaded the intermediate certificate, scroll up to the "Software" section and select "Developer ID Application," then click "Continue".
 
 ![Select Developer ID Application, then click Continue](../website/assets/images/articles/apple-developer-certificates-on-linux-for-configuration-profile-signing1-732x181@2x.png "select Developer ID Application, then click Continue")
+
 7. Select the "G2 Sub-CA" profile type (or whatever Profile Type is NOT listed as "Previous Sub-CA").
 8. Click **Choose File** to upload the `application.csr` file created and copied from your Linux host.
 9. After completing the upload, click "Continue" to download the certificate.
@@ -147,7 +148,7 @@ openssl cms -in signed.mobileconfig -inform der -verify -nosigs -noverify -out u
 
 ## Streamlining your CI/CD workflow
 
-The above guide is a significant step towards integrating security practices into your Linux-based development environment. Signing `.mobileconfig` files on Linux allows you to automate the signing and deployment of MDM configuration profiles, ensuring that your device management workflows are secure and efficient.
+This guide should help integrate the Apple Developer security practices into your Linux-based development environment. Signing `.mobileconfig` files on Linux allows you to automate the signing and deployment of MDM configuration profiles, ensuring that your device management workflows are secure and efficient.
 
 Incorporating these steps into your CI/CD pipeline can streamline your deployment process. Automated signing eliminates manual intervention, reducing the potential for human error and freeing up time for other tasks. Consider exploring further automation opportunities within your CI/CD workflow. The goal is to create a seamless pipeline that enhances security and increases your team's productivity and deployment reliability.
 
