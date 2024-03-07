@@ -4,7 +4,6 @@ parasails.registerPage('contact', {
   //  ╩╝╚╝╩ ╩ ╩╩ ╩╩═╝  ╚═╝ ╩ ╩ ╩ ╩ ╚═╝
   data: {
     formToDisplay: 'talk-to-us',
-    audience: undefined,
     // Main syncing/loading state for this page.
     syncing: false,
 
@@ -48,9 +47,6 @@ parasails.registerPage('contact', {
     }
     if(window.location.search){
       window.history.replaceState({}, document.title, '/contact' );
-    }
-    if(this.primaryBuyingSituation){
-      this.audience = this.primaryBuyingSituation;
     }
   },
   mounted: async function() {
