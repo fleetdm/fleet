@@ -20,7 +20,7 @@
     text-decoration: underline;
   }
   input {
-    border-radius: 8px;
+    border-radius: 6px;
     height: 48px;
   }
   .form-control {
@@ -40,21 +40,34 @@
   [purpose='page-container'] {
     padding: 64px;
   }
-
+  .invalid-feedback{
+    p {
+      font-size: 12px;
+    }
+  }
   .selectbox {
+
     position: relative;
   }
   .selectbox::after {
     content: url('/images/chevron-12x8@2x.png');
-    right: 16px;
+    right: 14px;
     transform: scale(0.5);
-    top: 16px;
+    top: 14px;
     position: absolute;
     pointer-events: none;
   }
   .selectbox select {
+    border-radius: 6px;
+    height: 48px;
     appearance: none;
     -webkit-appearance: none;
+  }
+  [purpose='last-name-column'] {
+    padding-left: 0px;
+  }
+  [purpose='first-name-column'] {
+    padding-right: 10px;
   }
 
   [purpose='contact-form-switch'] {
@@ -250,6 +263,12 @@
     [purpose='page-container'] {
       padding-left: 24px;
       padding-right: 24px;
+    }
+    [purpose='last-name-column'] {
+      padding-left: 15px;
+    }
+    [purpose='first-name-column'] {
+      padding-right: 15px;
     }
     [purpose='contact-form-switch'] {
       width: 100%;
