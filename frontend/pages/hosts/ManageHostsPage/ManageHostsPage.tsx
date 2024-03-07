@@ -1531,7 +1531,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
+        showMarkAllPages={!unsupportedFilter()} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
