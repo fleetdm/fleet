@@ -7,7 +7,7 @@ module.exports = {
   description: 'Display "Contact" page.',
 
   inputs: {
-    sendmessage: {
+    sendMessage: {
       type: 'boolean',
       description: 'A boolean that determines whether or not to display the talk to us form when the contact page loads.',
       defaultsTo: false,
@@ -23,15 +23,15 @@ module.exports = {
   },
 
 
-  fn: async function ({sendmessage}) {
+  fn: async function ({sendMessage}) {
 
-    let formToDisplay = 'talk-to-us';
+    let formToShow = 'talk-to-us';
 
-    if(sendmessage) {
-      formToDisplay = 'contact';
+    if(sendMessage) {
+      formToShow = 'contact';
     }
     // Respond with view.
-    return {formToDisplay};
+    return {formToShow};
 
   }
 
