@@ -34,7 +34,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis/redistest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	servermdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -5776,7 +5775,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		UUID:          uuid.New().String(),
 		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
 		Platform:      "windows",
-		MDM:           mdm_types.MDMHostData{},
+		MDM:           fleet.MDMHostData{},
 	})
 	require.NoError(t, err)
 
