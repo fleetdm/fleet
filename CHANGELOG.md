@@ -1,3 +1,12 @@
+## Fleet 4.46.2 (Mar 4, 2024)
+
+### Bug fixes
+
+* Fixed a bug where the pencil icons next to the edit query name and description fields were inconsistently spaced.
+* Fixed an issue with `mdm.enable_disk_encryption` where a `null` JSON value caused issues with MDM profiles in the `PATCH /api/v1/fleet/config` endpoint.
+* Displayed disk encryption status in macOS as "verifying" while Fleet verified if the escrowed key could be decrypted.
+* Fixed UI styling of loading state for automatic enrollment settings page.
+
 ## Fleet 4.46.1 (Feb 27, 2024)
 
 ### Bug fixes

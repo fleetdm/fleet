@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -60,6 +61,7 @@ func (s *integrationEnterpriseTestSuite) SetupSuite() {
 			Tier: fleet.TierPremium,
 		},
 		Pool:           s.redisPool,
+		Rs:             pubsub.NewInmemQueryResults(),
 		Lq:             s.lq,
 		Logger:         log.NewLogfmtLogger(os.Stdout),
 		EnableCachedDS: true,
@@ -4094,8 +4096,8 @@ func (s *integrationEnterpriseTestSuite) TestGitOpsUserActions() {
 	s.DoJSON("GET", "/api/latest/fleet/software/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 	s.DoJSON("GET", "/api/latest/fleet/software/versions/1", getSoftwareRequest{}, http.StatusForbidden, &getSoftwareResponse{})
 
-	// Attempt to read app config, should fail.
-	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusForbidden, &appConfigResponse{})
+	// Attempt to read app config, should pass.
+	s.DoJSON("GET", "/api/latest/fleet/config", nil, http.StatusOK, &appConfigResponse{})
 
 	// Attempt to write app config, should allow.
 	acr = appConfigResponse{}

@@ -24,7 +24,6 @@ import StatusIndicator from "components/StatusIndicator";
 import { COLORS } from "styles/var/colors";
 
 import OSSettingsIndicator from "./OSSettingsIndicator";
-import HostSummaryIndicator from "./HostSummaryIndicator";
 import BootstrapPackageIndicator from "./BootstrapPackageIndicator/BootstrapPackageIndicator";
 
 import {
@@ -369,21 +368,27 @@ const HostSummary = ({
           mdmName?.includes("Fleet") && // show if 1 - host is enrolled in Fleet MDM, and
           hostMdmProfiles &&
           hostMdmProfiles.length > 0 && ( // 2 - host has at least one setting (profile) enforced
-            <HostSummaryIndicator title="OS settings">
-              <OSSettingsIndicator
-                profiles={hostMdmProfiles}
-                onClick={toggleOSSettingsModal}
-              />
-            </HostSummaryIndicator>
+            <DataSet
+              title="OS settings"
+              value={
+                <OSSettingsIndicator
+                  profiles={hostMdmProfiles}
+                  onClick={toggleOSSettingsModal}
+                />
+              }
+            />
           )}
 
         {bootstrapPackageData?.status && (
-          <HostSummaryIndicator title="Bootstrap package">
-            <BootstrapPackageIndicator
-              status={bootstrapPackageData.status}
-              onClick={toggleBootstrapPackageModal}
-            />
-          </HostSummaryIndicator>
+          <DataSet
+            title="Bootstrap package"
+            value={
+              <BootstrapPackageIndicator
+                status={bootstrapPackageData.status}
+                onClick={toggleBootstrapPackageModal}
+              />
+            }
+          />
         )}
 
         {platform !== "chrome" && renderDiskSpaceSummary()}

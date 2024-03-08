@@ -876,6 +876,7 @@ const ManageHostsPage = ({
       osSettingsStatus,
       diskEncryptionStatus,
       bootstrapPackageStatus,
+      vulnerability,
     ]
   );
 
@@ -1030,6 +1031,7 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
@@ -1083,6 +1085,7 @@ const ManageHostsPage = ({
     }
   };
 
+  // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
@@ -1095,7 +1098,6 @@ const ManageHostsPage = ({
             query: searchQuery,
             status,
             labelId: selectedLabel?.id,
-            currentTeam: teamIdForApi,
             policyId,
             policyResponse,
             softwareId,
@@ -1502,6 +1504,27 @@ const ManageHostsPage = ({
       return emptyHosts;
     };
 
+    // Shortterm fix for #17257
+    const unsupportedFilter = !!(
+      policyId ||
+      policyResponse ||
+      softwareId ||
+      softwareTitleId ||
+      softwareVersionId ||
+      osName ||
+      osVersionId ||
+      osVersion ||
+      macSettingsStatus ||
+      bootstrapPackageStatus ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      munkiIssueId ||
+      lowDiskSpaceHosts ||
+      osSettingsStatus ||
+      diskEncryptionStatus ||
+      vulnerability
+    );
+
     return (
       <TableContainer
         resultsTitle="hosts"
@@ -1533,7 +1556,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages
+        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}
@@ -1642,6 +1665,7 @@ const ManageHostsPage = ({
               osSettingsStatus,
               diskEncryptionStatus,
               bootstrapPackageStatus,
+              vulnerability,
             }}
             selectedLabel={selectedLabel}
             isOnlyObserver={isOnlyObserver}

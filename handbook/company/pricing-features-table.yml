@@ -18,6 +18,8 @@
       moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
+    - description: Create a calendar event and auto-remediate all failing policies when users are free. Coming soon (2024-04-01).
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17230
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
     - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
     - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API.
@@ -562,7 +564,8 @@
     - description: See a list of the upcoming MDM commands and scripts in unified queue. Coming soon (2024-03-31)
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/15920
 - industryName: Native macOS update reminders
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-macos-updates
+  description: Send low-level MDM commands to tell end users to update their OS.
+  moreInfoUrl: https://developer.apple.com/documentation/devicemanagement/schedule_an_os_update
   tier: Free
   usualDepartment: IT
   productCategories: [Device management]
@@ -587,12 +590,6 @@
   waysToUse:
     - description: Enforce macOS updates via Nudge.
     - description: Automatically update Windows after the end user reaches a deadline.
-- industryName: Encrypt macOS hard disks with FileVault
-  documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
-  tier: Premium
-  usualDepartment: IT
-  productCategories: [Device management]
-  pricingTableCategories: [Device management]
 - industryName: Cross-platform remote lock and wipe
   documentationUrl: https://fleetdm.com/docs/using-fleet/mdm-commands
   waysToUse:
@@ -604,11 +601,11 @@
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
-- industryName: Deploy apps and packages on macOS, Windows, and Linux computers.
+- industryName: Deploy security agents on macOS, Windows, and Linux computers.
   description:
   moreInfoUrl: https://github.com/fleetdm/fleet/issues/14921
   tier: Premium
-  comingSoonOn: 2024-03-31 #Customer-reedtimmer
+  comingSoonOn: 2024-04-22 #customer-reedtimmer,customer-flacourtia 
   usualDepartment: IT
   productCategories: [Device management]
   pricingTableCategories: [Device management]
@@ -696,12 +693,13 @@
   usualDepartment: IT
   tier: Free
 - industryName: Disk encryption
+  documentationURL: https://fleetdm.com/docs/using-fleet/mdm-disk-encryption
   friendlyName: Ensure hard disks are encrypted
   productCategories: [Device management]
   pricingTableCategories: [Device management]
   usualDepartment: Security
   description: Encrypt hard disks of macOS and Windows computers, manage escrowed encryption keys, and report on disk encryption status (FileVault, BitLocker).
-  tier: Free
+  tier: Premium
   waysToUse:
     - description: Report on disk encryption status
     - description: Encrypt hard disks on macOS with FileVault
@@ -847,9 +845,9 @@
   usualDepartment: Security
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
-- industryName: Asset discovery* #Coming soon (TBD)
+- industryName: Asset discovery
   tier: Premium
+  comingSoonOn: 2024-06-30
   usualDepartment: Security
   productCategories: [Vulnerability management]
   pricingTableCategories: [Vulnerability management]
-  comingSoonOn: 2024-06-30
