@@ -58,7 +58,7 @@ export const generateSolutionsTableHeaders = (
           }
           className="server-url-header"
         >
-          Status
+          Server URL
         </TooltipWrapper>
       );
       return <HeaderCell value={titleWithToolTip} disableSortBy />;
