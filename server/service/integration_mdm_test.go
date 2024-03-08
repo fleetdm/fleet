@@ -2689,7 +2689,8 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	checkHostCooldown(serial, expectProfileUUID, fleet.DEPAssignProfileResponseNotAccessible, &failedAt, expectNoJobID) // no change
 	checkNoJobsPending()
 
-	// run with devices that already have valid and invalid profiles assigned, we shouldn't re-assign the valid ones.
+	// run with devices that already have valid and invalid profiles
+	// assigned, we shouldn't re-assign the valid ones.
 	devices = []godep.Device{
 		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID},     // matches existing profile
 		{SerialNumber: uuid.NewString(), Model: "MacBook Mini", OS: "osx", OpType: "modified", ProfileUUID: defaultProfileUUID}, // matches existing profile
@@ -2705,6 +2706,14 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	require.Len(t, profileAssignmentReqs[0].Devices, 2)
 	require.ElementsMatch(t, []string{devices[2].SerialNumber, devices[3].SerialNumber}, profileAssignmentReqs[0].Devices)
 	checkHostDEPAssignProfileResponses(profileAssignmentReqs[0].Devices, profileAssignmentReqs[0].ProfileUUID, fleet.DEPAssignProfileResponseSuccess)
+
+	// run with only a device that already has the right profile, no errors and no assignments
+	devices = []godep.Device{
+		{SerialNumber: uuid.NewString(), Model: "MacBook Pro", OS: "osx", OpType: "added", ProfileUUID: defaultProfileUUID}, // matches existing profile
+	}
+	profileAssignmentReqs = []profileAssignmentReq{}
+	s.runDEPSchedule()
+	require.Empty(t, profileAssignmentReqs)
 }
 
 func loadEnrollmentProfileDEPToken(t *testing.T, ds *mysql.Datastore) string {
