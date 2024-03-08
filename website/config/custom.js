@@ -224,7 +224,6 @@ module.exports.custom = {
     'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
     'handbook/company': 'mikermcneil',
     'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
-    'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
     'handbook/digital-experience': ['sampfluger88','mikermcneil'],
     'handbook/business-operations': ['sampfluger88','mikermcneil'],
     'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
