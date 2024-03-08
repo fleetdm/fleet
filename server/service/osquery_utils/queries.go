@@ -353,10 +353,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
-}
-
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	logger = log.With(logger,
 		"component", "service",
@@ -365,6 +361,22 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		"platform", host.Platform,
 	)
 
+	// Attempt to extract public IP from the HTTP request.
+	// NOTE: We are executing the IP extraction first to not depend on the network
+	// interface query succeeding and returning results.
+	ipStr := publicip.FromContext(ctx)
+	// First set host.PublicIP to empty to not hide an infrastructure change that
+	// misses to set or sets an invalid value in the expected HTTP headers.
+	host.PublicIP = ""
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
+			host.PublicIP = ipStr
+		} else {
+			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+		}
+	}
+
 	if len(rows) != 1 {
 		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
@@ -372,20 +384,6 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-
-	// Attempt to extract public IP from the HTTP request.
-	ipStr := publicip.FromContext(ctx)
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		if isPublicIP(ip) {
-			host.PublicIP = ipStr
-		} else {
-			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
-			host.PublicIP = ""
-		}
-	} else {
-		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
-	}
 
 	return nil
 }
