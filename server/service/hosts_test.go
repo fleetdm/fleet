@@ -1660,6 +1660,21 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			},
 		},
 		{
+			name: "invalid status",
+			filters: &map[string]interface{}{
+				"status": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "empty status is invalid",
+			filters: &map[string]interface{}{
+				"status": "",
+			},
+			has400Err: true,
+		},
+
+		{
 			name: "valid team filter",
 			filters: &map[string]interface{}{
 				"team_id": 1,
@@ -1685,13 +1700,7 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			},
 			has400Err: true,
 		},
-		{
-			name: "invalid status",
-			filters: &map[string]interface{}{
-				"status": "invalid",
-			},
-			has400Err: true,
-		},
+
 		{
 			name: "invalid status type",
 			filters: &map[string]interface{}{
@@ -1713,6 +1722,13 @@ func TestBulkOperationFilterValidation(t *testing.T) {
 			name: "invalid query type",
 			filters: &map[string]interface{}{
 				"query": 1,
+			},
+			has400Err: true,
+		},
+		{
+			name: "empty query is invalid",
+			filters: &map[string]interface{}{
+				"query": "",
 			},
 			has400Err: true,
 		},

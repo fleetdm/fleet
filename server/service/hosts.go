@@ -2170,21 +2170,23 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 				return nil, nil, badRequest("team_id must be a number")
 			}
 		case "status":
-			if status, ok := v.(string); ok {
-				if fleet.HostStatus(status).IsValid() {
-					opt.StatusFilter = fleet.HostStatus(status)
-				} else {
-					return nil, nil, badRequest("status must be one of: new, online, offline, missing")
-				}
-			} else {
+			status, ok := v.(string)
+			if !ok {
 				return nil, nil, badRequest("status must be a string")
 			}
+			if !fleet.HostStatus(status).IsValid() {
+				return nil, nil, badRequest("status must be one of: new, online, offline, missing")
+			}
+			opt.StatusFilter = fleet.HostStatus(status)
 		case "query":
-			if query, ok := v.(string); ok {
-				opt.MatchQuery = query
-			} else {
+			query, ok := v.(string)
+			if !ok {
 				return nil, nil, badRequest("query must be a string")
 			}
+			if query == "" {
+				return nil, nil, badRequest("query must not be empty")
+			}
+			opt.MatchQuery = query
 
 		default:
 			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
