@@ -148,7 +148,8 @@ type TeamConfig struct {
 }
 
 type TeamWebhookSettings struct {
-	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
+	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
@@ -438,7 +439,9 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
 
 	var webhookSettings TeamSpecWebhookSettings
-	webhookSettings.HostStatusWebhook = &t.Config.WebhookSettings.HostStatusWebhook
+	if t.Config.WebhookSettings.HostStatusWebhook != nil {
+		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
 
 	return &TeamSpec{
 		Name:               t.Name,
