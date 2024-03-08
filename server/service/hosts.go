@@ -2156,14 +2156,14 @@ func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostList
 	for k, v := range *filter {
 		switch k {
 		case "label_id":
-			if l, ok := v.(int); ok {
+			if l, ok := v.(float64); ok { // json unmarshals numbers as float64
 				lid := uint(l)
 				labelID = &lid
 			} else {
 				return nil, nil, badRequest("label_id must be a number")
 			}
 		case "team_id":
-			if teamID, ok := v.(int); ok {
+			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
 				teamID := uint(teamID)
 				opt.TeamFilter = &teamID
 			} else {

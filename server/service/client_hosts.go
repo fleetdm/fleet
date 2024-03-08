@@ -103,6 +103,9 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		return err
 	}
 
+	
+	filter := make(map[string]interface{})
+
 	var teamIDPtr *uint
 	if teamID != 0 {
 		teamIDPtr = &teamID
@@ -114,20 +117,19 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		return c.authenticatedRequest(params, verb, path, &responseBody)
 	}
 
-	var labelIDPtr *uint
 	if label != "" {
-		labelIDPtr = &labelID
+		filter["label_id"] = labelID
+	}
+
+	if status != "" {
+		filter["status"] = fleet.HostStatus(status)
 	}
 
 	verb, path := "POST", "/api/latest/fleet/hosts/transfer/filter"
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{
 		TeamID: teamIDPtr,
-		Filters: &map[string]interface{}{
-			"query":    searchQuery,
-			"status":   fleet.HostStatus(status),
-			"label_id": labelIDPtr,
-		},
+		Filters: &filter,
 	}
 
 	return c.authenticatedRequest(params, verb, path, &responseBody)
