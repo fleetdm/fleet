@@ -160,3 +160,12 @@ export const renderWithSetup = (component: JSX.Element) => {
     ...render(component),
   };
 };
+
+/**
+ * Helper function to create a date string for a date in the past.
+ */
+export const daysAgo = (days: number) => {
+  const currentDate = new Date();
+  currentDate.setDate(currentDate.getDate() - days);
+  return currentDate.toISOString();
+};
