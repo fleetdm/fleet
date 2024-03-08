@@ -4,6 +4,7 @@ import { IQueryStats } from "interfaces/query_stats";
 import TableContainer from "components/TableContainer";
 import EmptyTable from "components/EmptyTable";
 import CustomLink from "components/CustomLink";
+import Card from "components/Card";
 import PATHS from "router/paths";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -13,7 +14,7 @@ import {
   generateDataSet,
 } from "./HostQueriesTableConfig";
 
-const baseClass = "host-queries";
+const baseClass = "host-queries-card";
 
 interface IHostQueriesProps {
   hostId: number;
@@ -87,8 +88,13 @@ const HostQueries = ({
   );
 
   return (
-    <div className={`section section--${baseClass}`}>
-      <p className="section__header">Queries</p>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
+      <p className="card__header">Queries</p>
       {!schedule || !schedule.length || isChromeOSHost ? (
         renderEmptyQueriesTab()
       ) : (
@@ -111,7 +117,7 @@ const HostQueries = ({
           />
         </div>
       )}
-    </div>
+    </Card>
   );
 };
 

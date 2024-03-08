@@ -26,6 +26,8 @@ spec:
         enable_end_user_authentication: false
         macos_setup_assistant:
     scripts: null
+    webhook_settings:
+      host_status_webhook: null
     name: team1
 ---
 apiVersion: v1
@@ -64,4 +66,6 @@ spec:
         enable_end_user_authentication: false
         macos_setup_assistant:
     scripts: null
+    webhook_settings:
+      host_status_webhook: null
     name: team2

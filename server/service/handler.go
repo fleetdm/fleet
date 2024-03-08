@@ -466,7 +466,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	ue.GET("/api/_version_/fleet/status/live_query", statusLiveQueryEndpoint, nil)
 
 	ue.POST("/api/_version_/fleet/scripts/run", runScriptEndpoint, runScriptRequest{})
-	ue.POST("/api/_version_/fleet/scripts/run/sync", runScriptSyncEndpoint, runScriptRequest{})
+	ue.POST("/api/_version_/fleet/scripts/run/sync", runScriptSyncEndpoint, runScriptSyncRequest{})
 	ue.GET("/api/_version_/fleet/scripts/results/{execution_id}", getScriptResultEndpoint, getScriptResultRequest{})
 	ue.POST("/api/_version_/fleet/scripts", createScriptEndpoint, createScriptRequest{})
 	ue.GET("/api/_version_/fleet/scripts", listScriptsEndpoint, listScriptsRequest{})

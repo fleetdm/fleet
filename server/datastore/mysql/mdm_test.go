@@ -3267,4 +3267,11 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
+
+	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
+	require.Error(t, err)
+
+	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], nil)
 }

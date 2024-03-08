@@ -1030,22 +1030,38 @@ const ManageHostsPage = ({
     setSelectedHostIds(hostIds);
   };
 
+  // Bulk transfer is hidden for defined unsupportedFilters
   const onTransferHostSubmit = async (transferTeam: ITeam) => {
     setIsUpdatingHosts(true);
 
     const teamId = typeof transferTeam.id === "number" ? transferTeam.id : null;
-    let action = hostsAPI.transferToTeam(teamId, selectedHostIds);
 
-    if (isAllMatchingHostsSelected) {
-      const labelId = selectedLabel?.id;
-
-      action = hostsAPI.transferToTeamByFilter({
-        teamId,
-        query: searchQuery,
-        status,
-        labelId,
-      });
-    }
+    const action = isAllMatchingHostsSelected
+      ? hostsAPI.transferToTeamByFilter({
+          teamId,
+          query: searchQuery,
+          status,
+          labelId: selectedLabel?.id,
+          currentTeam: teamIdForApi,
+          policyId,
+          policyResponse,
+          softwareId,
+          softwareTitleId,
+          softwareVersionId,
+          osName,
+          osVersionId,
+          osVersion,
+          macSettingsStatus,
+          bootstrapPackageStatus,
+          mdmId,
+          mdmEnrollmentStatus,
+          munkiIssueId,
+          lowDiskSpaceHosts,
+          osSettings: osSettingsStatus,
+          diskEncryptionStatus,
+          vulnerability,
+        })
+      : hostsAPI.transferToTeam(teamId, selectedHostIds);
 
     try {
       await action;
@@ -1068,11 +1084,11 @@ const ManageHostsPage = ({
     }
   };
 
+  // Bulk delete is hidden for defined unsupportedFilters
   const onDeleteHostSubmit = async () => {
     setIsUpdatingHosts(true);
 
     const teamId = isAnyTeamSelected ? currentTeamId ?? null : null;
-    const labelId = selectedLabel?.id;
 
     try {
       await (isAllMatchingHostsSelected
@@ -1080,7 +1096,24 @@ const ManageHostsPage = ({
             teamId,
             query: searchQuery,
             status,
-            labelId,
+            labelId: selectedLabel?.id,
+            policyId,
+            policyResponse,
+            softwareId,
+            softwareTitleId,
+            softwareVersionId,
+            osName,
+            osVersionId,
+            osVersion,
+            macSettingsStatus,
+            bootstrapPackageStatus,
+            mdmId,
+            mdmEnrollmentStatus,
+            munkiIssueId,
+            lowDiskSpaceHosts,
+            osSettings: osSettingsStatus,
+            diskEncryptionStatus,
+            vulnerability,
           })
         : hostsAPI.destroyBulk(selectedHostIds));
 
@@ -1470,6 +1503,27 @@ const ManageHostsPage = ({
       return emptyHosts;
     };
 
+    // Shortterm fix for #17257
+    const unsupportedFilter = !!(
+      policyId ||
+      policyResponse ||
+      softwareId ||
+      softwareTitleId ||
+      softwareVersionId ||
+      osName ||
+      osVersionId ||
+      osVersion ||
+      macSettingsStatus ||
+      bootstrapPackageStatus ||
+      mdmId ||
+      mdmEnrollmentStatus ||
+      munkiIssueId ||
+      lowDiskSpaceHosts ||
+      osSettingsStatus ||
+      diskEncryptionStatus ||
+      vulnerability
+    );
+
     return (
       <TableContainer
         resultsTitle="hosts"
@@ -1501,7 +1555,7 @@ const ManageHostsPage = ({
           onActionButtonClick: onDeleteHostsClick,
         }}
         secondarySelectActions={secondarySelectActions}
-        showMarkAllPages
+        showMarkAllPages={!unsupportedFilter} // Shortterm fix for #17257
         isAllPagesSelected={isAllMatchingHostsSelected}
         searchable
         renderCount={renderHostCount}

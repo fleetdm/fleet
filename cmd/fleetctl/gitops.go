@@ -56,7 +56,14 @@ func gitopsCommand() *cli.Command {
 			logf := func(format string, a ...interface{}) {
 				_, _ = fmt.Fprintf(c.App.Writer, format, a...)
 			}
-			err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun)
+			appConfig, err := fleetClient.GetAppConfig()
+			if err != nil {
+				return err
+			}
+			if appConfig.License == nil {
+				return errors.New("no license struct found in app config")
+			}
+			err = fleetClient.DoGitOps(c.Context, config, baseDir, logf, flDryRun, appConfig)
 			if err != nil {
 				return err
 			}

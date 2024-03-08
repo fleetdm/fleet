@@ -97,7 +97,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+	defer func() {
+		// We do not want to use the outer `ctx` because we want to make sure
+		// to cleanup the campaign.
+		ctx := context.WithoutCancel(ctx)
+		if err := svc.CompleteCampaign(ctx, campaign); err != nil {
+			level.Error(logger).Log("msg", "complete campaign (async)", "err", err)
+		}
+	}()
 
 	status := campaignStatus{
 		Status: campaignStatusPending,

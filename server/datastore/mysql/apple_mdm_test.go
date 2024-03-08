@@ -1769,9 +1769,11 @@ func testAggregateMacOSSettingsStatusWithFileVault(t *testing.T, ds *Datastore) 
 	res, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, res)
-	require.Equal(t, uint(len(hosts)), res.Pending) // still pending because disk encryption key decryptable is not set
+	// hosts still pending because disk encryption key decryptable is not set
+	require.Equal(t, uint(len(hosts)-1), res.Pending)
 	require.Equal(t, uint(0), res.Failed)
-	require.Equal(t, uint(0), res.Verifying)
+	// one host is verifying because the disk is encrypted and we're verifying the key
+	require.Equal(t, uint(1), res.Verifying)
 	require.Equal(t, uint(0), res.Verified)
 
 	err = ds.SetHostsDiskEncryptionKeyStatus(ctx, []uint{hosts[0].ID}, false, time.Now().Add(1*time.Hour))
@@ -2434,7 +2436,13 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	// verifying status
 	verifyingHost := hosts[0]
-	upsertHostCPs([]*fleet.Host{verifyingHost}, []*fleet.MDMAppleConfigProfile{noTeamFVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerifying, ctx, ds, t)
+	upsertHostCPs(
+		[]*fleet.Host{verifyingHost},
+		[]*fleet.MDMAppleConfigProfile{noTeamFVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerifying,
+		ctx, ds, t,
+	)
 	oneMinuteAfterThreshold := time.Now().Add(+1 * time.Minute)
 	createDiskEncryptionRecord(ctx, ds, t, verifyingHost.ID, "key-1", true, oneMinuteAfterThreshold)
 
@@ -2643,7 +2651,13 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 	require.Equal(t, uint(0), allProfilesSummary.Verified)
 
 	// verified status
-	upsertHostCPs([]*fleet.Host{verifyingTeam1Host}, []*fleet.MDMAppleConfigProfile{team1FVProfile}, fleet.MDMOperationTypeInstall, &fleet.MDMDeliveryVerified, ctx, ds, t)
+	upsertHostCPs(
+		[]*fleet.Host{verifyingTeam1Host},
+		[]*fleet.MDMAppleConfigProfile{team1FVProfile},
+		fleet.MDMOperationTypeInstall,
+		&fleet.MDMDeliveryVerified,
+		ctx, ds, t,
+	)
 	fvProfileSummary, err = ds.GetMDMAppleFileVaultSummary(ctx, &tm.ID)
 	require.NoError(t, err)
 	require.NotNil(t, fvProfileSummary)

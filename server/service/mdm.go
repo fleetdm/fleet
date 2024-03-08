@@ -1695,7 +1695,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
-			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}
 	}
 

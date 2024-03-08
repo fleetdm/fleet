@@ -23,6 +23,16 @@ const teamName = "Team Test"
 func TestBasicGlobalGitOps(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
@@ -122,6 +132,16 @@ func TestBasicTeamGitOps(t *testing.T) {
 	const secret = "TestSecret"
 
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
+	ds.BatchSetMDMProfilesFunc = func(
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+	) error {
+		return nil
+	}
+	ds.BulkSetPendingMDMHostProfilesFunc = func(
+		ctx context.Context, hostIDs []uint, teamIDs []uint, profileUUIDs []string, hostUUIDs []string,
+	) error {
+		return nil
+	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
 	}
@@ -514,4 +534,45 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedScripts, 1)
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
+	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+
+	// Now clear the settings
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
+	require.NoError(t, err)
+	secret := "TestSecret"
+	t.Setenv("TEST_SECRET", secret)
+
+	_, err = tmpFile.WriteString(
+		`
+controls:
+queries:
+policies:
+agent_options:
+name: ${TEST_TEAM_NAME}
+team_settings:
+  secrets: [{"secret":"${TEST_SECRET}"}]
+`,
+	)
+	require.NoError(t, err)
+
+	// Dry run
+	savedTeam = nil
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name(), "--dry-run"})
+	assert.Nil(t, savedTeam)
+
+	// Real run
+	_ = runAppForTest(t, []string{"gitops", "-f", tmpFile.Name()})
+	require.NotNil(t, savedTeam)
+	assert.Equal(t, teamName, savedTeam.Name)
+	require.Len(t, enrolledSecrets, 1)
+	assert.Equal(t, secret, enrolledSecrets[0].Secret)
+	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
+	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
+	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.MinimumVersion.Value)
+	assert.Empty(t, savedTeam.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+	assert.False(t, savedTeam.Config.MDM.EnableDiskEncryption)
 }

@@ -144,9 +144,9 @@ func TestHostDetailsMDMAppleDiskEncryption(t *testing.T) {
 				Status:        &fleet.MDMDeliveryVerifying,
 				OperationType: fleet.MDMOperationTypeInstall,
 			},
-			fleet.DiskEncryptionEnforcing,
+			fleet.DiskEncryptionVerifying,
 			"",
-			&fleet.MDMDeliveryPending,
+			&fleet.MDMDeliveryVerifying,
 		},
 		{
 			"installed profile, not decryptable",

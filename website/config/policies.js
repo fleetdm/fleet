@@ -60,4 +60,5 @@ module.exports.policies = {
   'view-integrations': true,
   'try-fleet/view-explore-data': true,
   'try-fleet/view-query-report': true,
+  'deliver-talk-to-us-form-submission': true,
 };

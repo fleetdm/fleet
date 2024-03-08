@@ -92,7 +92,7 @@ interface ISoftwarePageProps {
     query: {
       team_id?: string;
       vulnerable?: string;
-      exploited?: string;
+      exploit?: string;
       page?: string;
       query?: string;
       order_key?: string;
@@ -135,7 +135,7 @@ const SoftwarePage = ({ children, router, location }: ISoftwarePageProps) => {
   const showVulnerableSoftware =
     queryParams !== undefined && queryParams.vulnerable === "true";
   const showExploitedVulnerabilitiesOnly =
-    queryParams !== undefined && queryParams.exploited === "true";
+    queryParams !== undefined && queryParams.exploit === "true";
 
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false

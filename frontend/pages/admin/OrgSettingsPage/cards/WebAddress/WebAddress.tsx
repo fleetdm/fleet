@@ -65,7 +65,11 @@ const WebAddress = ({
         <form onSubmit={onFormSubmit} autoComplete="off">
           <InputField
             label="Fleet app URL"
-            helpText="Include base path only (eg. no <code>/latest</code>)"
+            helpText={
+              <>
+                Include base path only (eg. no <code>/latest</code>)
+              </>
+            }
             onChange={handleInputChange}
             name="serverURL"
             value={serverURL}

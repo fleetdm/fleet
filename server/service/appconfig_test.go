@@ -84,7 +84,7 @@ func TestAppConfigAuth(t *testing.T) {
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			false,
-			true,
+			false,
 		},
 		{
 			"team admin",
@@ -521,7 +521,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		{
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			true,
+			false,
 		},
 		{
 			"team admin",
@@ -810,10 +810,9 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -840,11 +839,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			findTeam:    true,
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam:   "foobar",
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -856,11 +854,10 @@ func TestMDMAppleConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{AppleBMDefaultTeam: "bar"},
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
-				AppleBMDefaultTeam:   "foobar",
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
+				AppleBMDefaultTeam: "foobar",
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -882,7 +879,6 @@ func TestMDMAppleConfig(t *testing.T) {
 				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
 				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:        fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				EnableDiskEncryption:  optjson.Bool{Set: true, Valid: false},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -904,10 +900,9 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
-				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
-				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
-				EnableDiskEncryption: optjson.Bool{Set: true, Valid: false},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
 					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
 				},
@@ -955,6 +950,21 @@ func TestMDMAppleConfig(t *testing.T) {
 				Metadata:  "not-empty",
 			}}},
 			expectedError: "idp_name required",
+		}, {
+			name:        "disableDiskEncryption",
+			licenseTier: "premium",
+			newMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.SetBool(false),
+			},
+			expectedMDM: fleet.MDM{
+				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
+				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
+				WindowsSettings: fleet.WindowsSettings{
+					CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
+				},
+			},
 		},
 	}
 
