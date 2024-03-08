@@ -6,7 +6,11 @@ import { NotificationContext } from "context/notification";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS,
+} from "utilities/constants";
 
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
@@ -17,10 +21,6 @@ import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
-import {
-  numberOfDays,
-  percentageOfHosts,
-} from "pages/admin/OrgSettingsPage/cards/constants";
 
 import validURL from "components/forms/validators/valid_url";
 
@@ -290,7 +290,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook %"
-              options={percentageOfHosts}
+              options={WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
               onChange={onInputChange}
               name="teamHostStatusWebhookHostPercentage"
               value={formData.teamHostStatusWebhookHostPercentage}
@@ -308,7 +308,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook window"
-              options={numberOfDays}
+              options={WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS}
               onChange={onInputChange}
               name="teamHostStatusWebhookWindow"
               value={formData.teamHostStatusWebhookWindow}

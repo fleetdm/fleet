@@ -1,5 +1,10 @@
 import React, { useState, useEffect } from "react";
 
+import {
+  WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS,
+} from "utilities/constants";
+
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
 import Button from "components/buttons/Button";
@@ -15,8 +20,6 @@ import {
   IAppConfigFormProps,
   IFormField,
   IAppConfigFormErrors,
-  percentageOfHosts,
-  numberOfDays,
 } from "../constants";
 
 const baseClass = "app-config-form";
@@ -154,7 +157,7 @@ const GlobalHostStatusWebhook = ({
           />
           <Dropdown
             label="Percentage of hosts"
-            options={percentageOfHosts}
+            options={WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
             onChange={handleInputChange}
             name="hostStatusWebhookHostPercentage"
             value={hostStatusWebhookHostPercentage}
@@ -173,7 +176,7 @@ const GlobalHostStatusWebhook = ({
           />
           <Dropdown
             label="Number of days"
-            options={numberOfDays}
+            options={WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS}
             onChange={handleInputChange}
             name="hostStatusWebhookDaysCount"
             value={hostStatusWebhookDaysCount}
