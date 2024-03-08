@@ -3,7 +3,7 @@
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 96px auto $pad-large; // 96px to top of div
+    margin: 96px auto; // 96px to top of div
     max-width: 450px; // standard empty state width
     gap: $pad-medium; // 16px between image, text, and buttons
   }
@@ -18,13 +18,6 @@
       text-align: center;
       font-size: $small;
       font-weight: $bold;
-      margin: 0;
-    }
-
-    p {
-      text-align: center;
-      color: $core-fleet-blue;
-      font-size: $x-small;
       margin: 0;
     }
 
@@ -44,6 +37,15 @@
     }
   }
 
+  &__info,
+  &__additional-info {
+    line-height: 1.5;
+    text-align: center;
+    color: $core-fleet-blue;
+    font-size: $x-small;
+    margin: 0;
+  }
+
   &__cta-buttons {
     display: flex;
     justify-content: center;
@@ -57,7 +59,6 @@
     &__container {
       align-self: center;
       justify-content: center;
-      margin: 0;
       margin-bottom: 20px;
       min-height: 155px;
       max-width: none;

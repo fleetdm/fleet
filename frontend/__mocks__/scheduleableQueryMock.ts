@@ -20,6 +20,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
   author_name: "Test User",
   author_email: "test@example.com",
   observer_can_run: false,
+  discard_data: false,
   packs: [],
   stats: {
     system_time_p50: 28.1053,
@@ -28,6 +29,7 @@ const DEFAULT_SCHEDULABLE_QUERY_MOCK: ISchedulableQuery = {
     user_time_p95: 251.4615,
     total_executions: 5746,
   },
+  editingExistingQuery: false,
 };
 
 const createMockSchedulableQuery = (

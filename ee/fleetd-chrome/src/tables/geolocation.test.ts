@@ -54,6 +54,7 @@ describe("geolocation", () => {
           region: "British Columbia",
         },
       ],
+      warnings: null,
     });
   });
 
@@ -71,12 +72,13 @@ describe("geolocation", () => {
     expect(rows).toEqual({
       data: [
         {
-          ip: null,
+          ip: "",
           city: "Vancouver",
-          country: null,
-          region: null,
+          country: "",
+          region: "",
         },
       ],
+      warnings: null,
     });
   });
 

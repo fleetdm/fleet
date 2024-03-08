@@ -49,6 +49,7 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeMDMUnenrolled{},
 
 	ActivityTypeEditedMacOSMinVersion{},
+	ActivityTypeEditedWindowsUpdates{},
 
 	ActivityTypeReadHostDiskEncryptionKey{},
 
@@ -72,6 +73,17 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeDisabledWindowsMDM{},
 
 	ActivityTypeRanScript{},
+	ActivityTypeAddedScript{},
+	ActivityTypeDeletedScript{},
+	ActivityTypeEditedScript{},
+
+	ActivityTypeCreatedWindowsProfile{},
+	ActivityTypeDeletedWindowsProfile{},
+	ActivityTypeEditedWindowsProfile{},
+
+	ActivityTypeLockedHost{},
+	ActivityTypeUnlockedHost{},
+	ActivityTypeWipedHost{},
 }
 
 type ActivityDetails interface {
@@ -79,6 +91,13 @@ type ActivityDetails interface {
 	ActivityName() string
 	// Documentation is used by "go generate" to generate markdown docs.
 	Documentation() (activity string, details string, detailsExample string)
+}
+
+// ActivityHosts is the optional additional interface that can be implemented
+// by activities that are related to hosts.
+type ActivityHosts interface {
+	ActivityDetails
+	HostIDs() []uint
 }
 
 type ActivityTypeCreatedPack struct {
@@ -450,9 +469,10 @@ func (a ActivityTypeEditedAgentOptions) Documentation() (activity string, detail
 }
 
 type ActivityTypeLiveQuery struct {
-	TargetsCount uint    `json:"targets_count"`
-	QuerySQL     string  `json:"query_sql"`
-	QueryName    *string `json:"query_name,omitempty"`
+	TargetsCount uint             `json:"targets_count"`
+	QuerySQL     string           `json:"query_sql"`
+	QueryName    *string          `json:"query_name,omitempty"`
+	Stats        *AggregatedStats `json:"stats,omitempty"`
 }
 
 func (a ActivityTypeLiveQuery) ActivityName() string {
@@ -484,11 +504,21 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 
 type Activity struct {
 	CreateTimestamp
-	ID            uint             `json:"id" db:"id"`
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
-	ActorEmail    *string          `json:"actor_email,omitempty" db:"email"`
+	ActorEmail    *string          `json:"actor_email,omitempty" db:"user_email"`
 	Type          string           `json:"type" db:"activity_type"`
 	Details       *json.RawMessage `json:"details" db:"details"`
 	Streamed      *bool            `json:"-" db:"streamed"`
@@ -762,6 +792,31 @@ func (a ActivityTypeEditedMacOSMinVersion) Documentation() (activity string, det
 }`
 }
 
+type ActivityTypeEditedWindowsUpdates struct {
+	TeamID          *uint   `json:"team_id"`
+	TeamName        *string `json:"team_name"`
+	DeadlineDays    *int    `json:"deadline_days"`
+	GracePeriodDays *int    `json:"grace_period_days"`
+}
+
+func (a ActivityTypeEditedWindowsUpdates) ActivityName() string {
+	return "edited_windows_updates"
+}
+
+func (a ActivityTypeEditedWindowsUpdates) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when the Windows OS updates deadline or grace period is modified.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the Windows OS updates settings applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "deadline_days": The number of days before updates are installed, ` + "`null`" + ` if the requirement was removed.
+- "grace_period_days": The number of days after the deadline before the host is forced to restart, ` + "`null`" + ` if the requirement was removed.`, `{
+  "team_id": 3,
+  "team_name": "Workstations",
+  "deadline_days": 5,
+  "grace_period_days": 2
+}`
+}
+
 type ActivityTypeReadHostDiskEncryptionKey struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1021,7 +1076,7 @@ func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
+	return `Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1032,7 +1087,7 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.`,
+	return `Generated when a user turns off MDM features for all Windows hosts.`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1040,11 +1095,16 @@ type ActivityTypeRanScript struct {
 	HostID            uint   `json:"host_id"`
 	HostDisplayName   string `json:"host_display_name"`
 	ScriptExecutionID string `json:"script_execution_id"`
+	ScriptName        string `json:"script_name"`
 	Async             bool   `json:"async"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
 	return "ran_script"
+}
+
+func (a ActivityTypeRanScript) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -1053,11 +1113,207 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
+}`
+}
+
+type ActivityTypeAddedScript struct {
+	ScriptName string  `json:"script_name"`
+	TeamID     *uint   `json:"team_id"`
+	TeamName   *string `json:"team_name"`
+}
+
+func (a ActivityTypeAddedScript) ActivityName() string {
+	return "added_script"
+}
+
+func (a ActivityTypeAddedScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a script is added to a team (or no team).`,
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedScript struct {
+	ScriptName string  `json:"script_name"`
+	TeamID     *uint   `json:"team_id"`
+	TeamName   *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedScript) ActivityName() string {
+	return "deleted_script"
+}
+
+func (a ActivityTypeDeletedScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a script is deleted from a team (or no team).`,
+		`This activity contains the following fields:
+- "script_name": Name of the script.
+- "team_id": The ID of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the script applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "script_name": "set-timezones.sh",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedScript struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedScript) ActivityName() string {
+	return "edited_script"
+}
+
+func (a ActivityTypeEditedScript) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the scripts of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the scripts apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the scripts apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeCreatedWindowsProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedWindowsProfile) ActivityName() string {
+	return "created_windows_profile"
+}
+
+func (a ActivityTypeCreatedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user adds a new Windows profile to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the profile.
+- "team_id": The ID of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the profile applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedWindowsProfile struct {
+	ProfileName string  `json:"profile_name"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedWindowsProfile) ActivityName() string {
+	return "deleted_windows_profile"
+}
+
+func (a ActivityTypeDeletedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user deletes a Windows profile from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the deleted profile.
+- "team_id": The ID of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.
+- "team_name": The name of the team that the profile applied to, ` + "`null`" + ` if it applied to devices that are not in a team.`, `{
+  "profile_name": "Custom settings 1",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeEditedWindowsProfile struct {
+	TeamID   *uint   `json:"team_id"`
+	TeamName *string `json:"team_name"`
+}
+
+func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
+	return "edited_windows_profile"
+}
+
+func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeLockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeLockedHost) ActivityName() string {
+	return "locked_host"
+}
+
+func (a ActivityTypeLockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeLockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to lock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeUnlockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeUnlockedHost) ActivityName() string {
+	return "unlocked_host"
+}
+
+func (a ActivityTypeUnlockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeUnlockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to unlock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}`
+}
+
+type ActivityTypeWipedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipedHost) ActivityName() string {
+	return "wiped_host"
+}
+
+func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to wipe a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }`
 }
 

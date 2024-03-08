@@ -86,6 +86,8 @@ func TestGenerateMDMApple(t *testing.T) {
 			"--apns-key", apnsKeyPath,
 			"--scep-cert", scepCertPath,
 			"--scep-key", scepKeyPath,
+			"--debug",
+			"--context", "default",
 		})
 
 		require.Contains(t, out, fmt.Sprintf("Generated your APNs key at %s", apnsKeyPath))

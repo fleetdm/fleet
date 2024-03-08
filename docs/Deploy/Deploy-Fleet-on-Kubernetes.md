@@ -8,82 +8,11 @@ There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies(MySQL and Redis), we will set up a `deployment.yml` file with the following specifications:
-
-```yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: fleet-deployment
-  labels:
-    app: fleet
-spec:
-  replicas: 3
-  selector:
-    matchLabels:
-      app: fleet
-  template:
-    metadata:
-      labels:
-        app: fleet
-    spec:
-      containers:
-      - name: fleet
-        image: fleetdm/fleet:4.32.0
-        env:
-          # if running Fleet behind external ingress controller that terminates TLS
-          - name: FLEET_SERVER_TLS
-            value: FALSE
-          - name: FLEET_VULNERABILITIES_DATABASES_PATH
-            value: /tmp/vuln
-          - name: FLEET_MYSQL_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_address
-          - name: FLEET_MYSQL_DATABASE
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_database
-          - name: FLEET_MYSQL_PASSWORD
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_password
-          - name: FLEET_MYSQL_USERNAME
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: mysql_username
-          - name: FLEET_REDIS_ADDRESS
-            valueFrom:
-              secretKeyRef:
-                name: fleet_secrets
-                key: redis_address
-        volumeMounts:
-          - name: tmp
-            mountPath: /tmp # /tmp might not work on all cloud providers by default
-        resources:
-          requests:
-            memory: "64Mi"
-            cpu: "250m"
-          limits:
-            memory: "2048Mi" # vulnerability processing
-            cpu: "500m"
-        ports:
-        - containerPort: 3000
-      volumes:
-        - name: tmp
-          emptyDir:
-
-```
-Notice we are using secrets to pass in values for Fleet's dependencies' environment variables.
+To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml).
 
 Let's tell Kubernetes to create the cluster by running the below command.
 
-`kubectl apply -f ./deployment.yml`
-
+`kubectl apply -f ./fleet-deployment.yml`
 
 ### Initializing Helm
 
@@ -92,6 +21,8 @@ If you have not used Helm before, you must run the following to initialize your 
 ```sh
 helm init
 ```
+
+> Note: The helm init command has been removed in Helm v3. It performed two primary functions. First, it installed Tiller which is no longer needed. Second, it set up directories and repositories where Helm configuration lived. This is now automated in Helm v3; if the directory is not present it will be created.
 
 ### Deploying Fleet with Helm
 
@@ -117,16 +48,24 @@ For the sake of this tutorial, we will again use Helm, this time to install MySQ
 
 The MySQL that we will use for this tutorial is not replicated and it is not Highly Available. If you're deploying Fleet on a Kubernetes managed by a cloud provider (GCP, Azure, AWS, etc), I suggest using their MySQL product if possible as running HA MySQL in Kubernetes can be difficult. To make this tutorial cloud provider agnostic however, we will use a non-replicated instance of MySQL.
 
-To install MySQL from Helm, run the following command. Note that there are some options that are specified. These options basically just enumerate that:
+To install MySQL from Helm, run the following command. Note that there are some options that need to be defined:
 
 - There should be a `fleet` database created
 - The default user's username should be `fleet`
 
+Helm v2
 ```sh
 helm install \
   --name fleet-database \
   --set mysqlUser=fleet,mysqlDatabase=fleet \
-  stable/mysql
+  oci://registry-1.docker.io/bitnamicharts/mysql
+```
+
+Helm v3
+```sh
+helm install fleet-database \
+  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
 This helm package will create a Kubernetes `Service` which exposes the MySQL server to the rest of the cluster on the following DNS address:
@@ -144,23 +83,31 @@ Note: this step is not neccessary when using the Fleet Helm Chart as it handles 
 The last step is to run the Fleet database migrations on your new MySQL server. To do this, run the following:
 
 ```sh
-kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
 ```
 
 In Kubernetes, you can only run a job once. If you'd like to run it again (i.e.: you'd like to run the migrations again using the same file), you must delete the job before re-creating it. To delete the job and re-run it, you can run the following commands:
 
 ```sh
-kubectl delete -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
-kubectl create -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-migrations.yml
+kubectl delete -f ./docs/Deploy/kubernetes/fleet-migrations.yml
+kubectl create -f ./docs/Deploy/kubernetes/fleet-migrations.yml
 ```
 
 #### Redis
 
+Helm v2
 ```sh
 helm install \
   --name fleet-cache \
   --set persistence.enabled=false \
-  stable/redis
+  oci://registry-1.docker.io/bitnamicharts/redis
+```
+
+Helm v3
+```sh
+helm install fleet-cache \
+  --set persistence.enabled=false \
+  oci://registry-1.docker.io/bitnamicharts/redis
 ```
 
 This helm package will create a Kubernetes `Service` which exposes the Redis server to the rest of the cluster on the following DNS address:
@@ -211,7 +158,7 @@ kubectl create secret tls fleet-tls --key=./tls.key --cert=./tls.crt
 First we must deploy the instances of the Fleet webserver. The Fleet webserver is described using a Kubernetes deployment object. To create this deployment, run the following:
 
 ```sh
-kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-deployment.yml
+kubectl apply -f ./docs/Deploy/fleet-deployment.yml
 ```
 
 You should be able to get an instance of the webserver running via `kubectl get pods` and you should see the following logs:
@@ -227,7 +174,7 @@ ts=2017-11-16T02:48:38.441148166Z transport=https address=0.0.0.0:443 msg=listen
 Now that the Fleet server is running on our cluster, we have to expose the Fleet webservers to the internet via a load balancer. To create a Kubernetes `Service` of type `LoadBalancer`, run the following:
 
 ```sh
-kubectl apply -f ./docs/Using-Fleet/configuration-files/kubernetes/fleet-service.yml
+kubectl apply -f ./docs/Deploy/fleet-service.yml
 ```
 
 #### Configure DNS

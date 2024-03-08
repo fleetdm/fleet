@@ -6,6 +6,7 @@ import ReactTooltip from "react-tooltip";
 import { useDebouncedCallback } from "use-debounce";
 import { size } from "lodash";
 import classnames from "classnames";
+import { COLORS } from "styles/var/colors";
 
 import { addGravatarUrlToResource } from "utilities/helpers";
 import { AppContext } from "context/app";
@@ -114,9 +115,10 @@ const PolicyForm = ({
     isGlobalObserver,
     isGlobalAdmin,
     isGlobalMaintainer,
+    isObserverPlus,
     isOnGlobalTeam,
     isPremiumTier,
-    isSandboxMode,
+    config,
   } = useContext(AppContext);
 
   const debounceSQL = useDebouncedCallback((sql: string) => {
@@ -152,6 +154,8 @@ const PolicyForm = ({
     !policyIdForEdit &&
     DEFAULT_POLICIES.find((p) => p.name === lastEditedQueryName);
 
+  const disabledLiveQuery = config?.server_settings.live_query_disabled;
+
   useEffect(() => {
     if (isNewTemplatePolicy) {
       setCompatiblePlatforms(lastEditedQueryBody);
@@ -179,6 +183,7 @@ const PolicyForm = ({
   const onLoad = (editor: IAceEditor) => {
     editor.setOptions({
       enableLinking: true,
+      enableMultiselect: false, // Disables command + click creating multiple cursors
     });
 
     // @ts-expect-error
@@ -298,46 +303,71 @@ const PolicyForm = ({
     );
   };
 
-  const policyNameClasses = classnames("policy-name-wrapper", {
+  const editName = () => {
+    if (!isEditingName) {
+      setIsEditingName(true);
+    }
+  };
+
+  const editDescription = () => {
+    if (!isEditingDescription) {
+      setIsEditingDescription(true);
+    }
+  };
+
+  const editResolution = () => {
+    if (!isEditingResolution) {
+      setIsEditingResolution(true);
+    }
+  };
+
+  const policyNameWrapperClasses = classnames("policy-name-wrapper", {
     [`${baseClass}--editing`]: isEditingName,
   });
 
-  const policyDescriptionClasses = classnames("policy-description-wrapper", {
-    [`${baseClass}--editing`]: isEditingDescription,
-  });
+  const policyDescriptionWrapperClasses = classnames(
+    "policy-description-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
-  const policyResolutionClasses = classnames("policy-resolution-wrapper", {
-    [`${baseClass}--editing`]: isEditingResolution,
-  });
+  const policyResolutionWrapperClasses = classnames(
+    "policy-resolution-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingResolution,
+    }
+  );
 
   const renderName = () => {
     if (isEditMode) {
       return (
         <>
-          <div className={policyNameClasses}>
+          <div
+            className={policyNameWrapperClasses}
+            onFocus={() => setIsEditingName(true)}
+            onBlur={() => setIsEditingName(false)}
+            onClick={editName}
+          >
             <AutoSizeInputField
               name="policy-name"
               placeholder="Add name here"
               value={lastEditedQueryName}
               hasError={errors && errors.name}
-              inputClassName={`${baseClass}__policy-name`}
-              maxLength="160"
+              inputClassName={`${baseClass}__policy-name ${
+                !lastEditedQueryName ? "no-value" : ""
+              }
+              `}
+              maxLength={160}
               onChange={setLastEditedQueryName}
-              onFocus={() => setIsEditingName(true)}
-              onBlur={() => setIsEditingName(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingName}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingName(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingName ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingName ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
         </>
       );
@@ -356,29 +386,29 @@ const PolicyForm = ({
     if (isEditMode) {
       return (
         <>
-          <div className={policyDescriptionClasses}>
+          <div
+            className={policyDescriptionWrapperClasses}
+            onFocus={() => setIsEditingDescription(true)}
+            onBlur={() => setIsEditingDescription(false)}
+            onClick={editDescription}
+          >
             <AutoSizeInputField
               name="policy-description"
               placeholder="Add description here."
               value={lastEditedQueryDescription}
-              inputClassName={`${baseClass}__policy-description`}
-              maxLength="250"
+              inputClassName={`${baseClass}__policy-description ${
+                !lastEditedQueryDescription ? "no-value" : ""
+              }`}
+              maxLength={250}
               onChange={setLastEditedQueryDescription}
-              onFocus={() => setIsEditingDescription(true)}
-              onBlur={() => setIsEditingDescription(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingDescription}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingDescription(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
         </>
       );
@@ -390,35 +420,33 @@ const PolicyForm = ({
   const renderResolution = () => {
     if (isEditMode) {
       return (
-        <>
-          <p className="resolve-title">
-            <strong>Resolve:</strong>
-          </p>
-          <div className={policyResolutionClasses}>
+        <div className={`form-field ${baseClass}__policy-resolve`}>
+          <div className="form-field__label">Resolve:</div>
+          <div
+            className={policyResolutionWrapperClasses}
+            onFocus={() => setIsEditingResolution(true)}
+            onBlur={() => setIsEditingResolution(false)}
+            onClick={editResolution}
+          >
             <AutoSizeInputField
               name="policy-resolution"
               placeholder="Add resolution here."
               value={lastEditedQueryResolution}
-              inputClassName={`${baseClass}__policy-resolution`}
-              maxLength="500"
+              inputClassName={`${baseClass}__policy-resolution ${
+                !lastEditedQueryResolution ? "no-value" : ""
+              }`}
+              maxLength={500}
               onChange={setLastEditedQueryResolution}
-              onFocus={() => setIsEditingResolution(true)}
-              onBlur={() => setIsEditingResolution(false)}
               onKeyPress={onInputKeypress}
               isFocused={isEditingResolution}
             />
-            <Button
-              variant="text-icon"
-              className="edit-link"
-              onClick={() => setIsEditingResolution(true)}
-            >
-              <Icon
-                name="pencil"
-                className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
-              />
-            </Button>
+            <Icon
+              name="pencil"
+              className={`edit-icon ${isEditingResolution ? "hide" : ""}`}
+              size="small-medium"
+            />
           </div>
-        </>
+        </div>
       );
     }
 
@@ -439,12 +467,6 @@ const PolicyForm = ({
   const renderCriticalPolicy = () => {
     return (
       <div className="critical-checkbox-wrapper">
-        {isSandboxMode && (
-          <PremiumFeatureIconWithTooltip
-            tooltipDelayHide={500}
-            tooltipPositionOverrides={{ leftAdj: 84, topAdj: -4 }}
-          />
-        )}
         <Checkbox
           name="critical-policy"
           className="critical-policy"
@@ -454,9 +476,11 @@ const PolicyForm = ({
         >
           <TooltipWrapper
             tipContent={
-              "<p>If automations are turned on, this<br/> information is included.</p>"
+              <p>
+                If automations are turned on, this
+                <br /> information is included.
+              </p>
             }
-            isDelayed
           >
             Critical:
           </TooltipWrapper>
@@ -465,7 +489,8 @@ const PolicyForm = ({
     );
   };
 
-  // Observers and observer+ of existing query, team role viewing inherited policy
+  // Non-editable form used for Team Observers and Observer+ of their team policy and inherited policies
+  // And Global Observers and Observer+ of all policies
   const renderNonEditableForm = (
     <form className={`${baseClass}__wrapper`}>
       <div className={`${baseClass}__title-bar`}>
@@ -475,6 +500,12 @@ const PolicyForm = ({
           </h1>
           <p className={`${baseClass}__policy-description no-hover`}>
             {lastEditedQueryDescription}
+          </p>
+          <p className="resolve-title">
+            <strong>Resolve:</strong>
+          </p>
+          <p className={`${baseClass}__policy-resolution no-hover`}>
+            {lastEditedQueryResolution}
           </p>
         </div>
         <div className="author">{renderAuthor()}</div>
@@ -490,12 +521,24 @@ const PolicyForm = ({
         <FleetAce
           value={lastEditedQueryBody}
           name="query editor"
-          wrapperClassName={`${baseClass}__text-editor-wrapper`}
+          wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
           wrapEnabled
           readOnly
         />
       )}
       {renderLiveQueryWarning()}
+      {isObserverPlus && ( // Observer+ can run existing policies
+        <div className="button-wrap">
+          <Button
+            className={`${baseClass}__run`}
+            variant="blue-green"
+            onClick={goToSelectTargets}
+            disabled={isEditMode && !isAnyPlatformSelected}
+          >
+            Run
+          </Button>
+        </div>
+      )}
     </form>
   );
 
@@ -525,7 +568,7 @@ const PolicyForm = ({
             labelActionComponent={renderLabelComponent()}
             name="query editor"
             onLoad={onLoad}
-            wrapperClassName={`${baseClass}__text-editor-wrapper`}
+            wrapperClassName={`${baseClass}__text-editor-wrapper form-field`}
             onChange={onChangePolicy}
             handleSubmit={promptSavePolicy}
             wrapEnabled
@@ -537,13 +580,13 @@ const PolicyForm = ({
           {(isEditMode || defaultPolicy) && platformSelector.render()}
           {isEditMode && isPremiumTier && renderCriticalPolicy()}
           {renderLiveQueryWarning()}
-          <div className={`${baseClass}__button-wrap`}>
+          <div className="button-wrap">
             {hasSavePermissions && (
               <>
                 <span
                   className={`${baseClass}__button-wrap--tooltip`}
                   data-tip
-                  data-for={`${baseClass}__button-wrap--tooltip`}
+                  data-for="save-policy-button"
                   data-tip-disable={!isEditMode || isAnyPlatformSelected}
                 >
                   <Button
@@ -560,8 +603,8 @@ const PolicyForm = ({
                   className={`${baseClass}__button-wrap--tooltip`}
                   place="bottom"
                   effect="solid"
-                  id={`${baseClass}__button-wrap--tooltip`}
-                  backgroundColor="#3e4771"
+                  id="save-policy-button"
+                  backgroundColor={COLORS["tooltip-bg"]}
                 >
                   Select the platform(s) this
                   <br />
@@ -574,14 +617,18 @@ const PolicyForm = ({
             <span
               className={`${baseClass}__button-wrap--tooltip`}
               data-tip
-              data-for={`${baseClass}__button-wrap--tooltip`}
-              data-tip-disable={!isEditMode || isAnyPlatformSelected}
+              data-for="run-policy-button"
+              data-tip-disable={
+                (!isEditMode || isAnyPlatformSelected) && !disabledLiveQuery
+              }
             >
               <Button
                 className={`${baseClass}__run`}
                 variant="blue-green"
                 onClick={goToSelectTargets}
-                disabled={isEditMode && !isAnyPlatformSelected}
+                disabled={
+                  (isEditMode && !isAnyPlatformSelected) || disabledLiveQuery
+                }
               >
                 Run
               </Button>
@@ -590,14 +637,19 @@ const PolicyForm = ({
               className={`${baseClass}__button-wrap--tooltip`}
               place="bottom"
               effect="solid"
-              id={`${baseClass}__button-wrap--tooltip`}
-              backgroundColor="#3e4771"
+              id="run-policy-button"
+              backgroundColor={COLORS["tooltip-bg"]}
+              data-html
             >
-              Select the platform(s) this
-              <br />
-              policy will be checked on
-              <br />
-              to save or run the policy.
+              {disabledLiveQuery ? (
+                <>Live queries are disabled in organization settings</>
+              ) : (
+                <>
+                  Select the platform(s) this <br />
+                  policy will be checked on <br />
+                  to save or run the policy.
+                </>
+              )}
             </ReactTooltip>
           </div>
         </form>

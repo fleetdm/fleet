@@ -6,7 +6,8 @@ import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
 import CustomLink from "components/CustomLink";
-import FileUploader from "pages/ManageControlsPage/components/FileUploader";
+import FileUploader from "components/FileUploader";
+
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
 const baseClass = "bootstrap-package-uploader";
@@ -60,14 +61,14 @@ const BootstrapPackageUploader = ({
         (ex. Munki, Chef, or Puppet) on hosts that automatically enroll to
         Fleet.{" "}
         <CustomLink
-          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup#bootstrap-package"
+          url="https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#bootstrap-package"
           text="Learn more"
           newTab
         />
       </p>
       <FileUploader
         message="Package (.pkg)"
-        icon="file-pkg"
+        graphicName="file-pkg"
         accept=".pkg"
         onFileUpload={onUploadFile}
         isLoading={showLoading}

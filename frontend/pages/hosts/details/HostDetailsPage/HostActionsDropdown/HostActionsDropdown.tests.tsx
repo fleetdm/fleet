@@ -1,8 +1,11 @@
 import React from "react";
 import { noop } from "lodash";
 import { screen } from "@testing-library/react";
-
 import { createCustomRenderer } from "test/test-utils";
+
+import createMockUser from "__mocks__/userMock";
+import createMockTeam from "__mocks__/teamMock";
+
 import HostActionsDropdown from "./HostActionsDropdown";
 
 describe("Host Actions Dropdown", () => {
@@ -13,15 +16,18 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus={null}
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -36,15 +42,18 @@ describe("Host Actions Dropdown", () => {
           app: {
             isPremiumTier: true,
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus={null}
+          hostMdmEnrollmentStatus={null}
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -59,16 +68,19 @@ describe("Host Actions Dropdown", () => {
       context: {
         app: {
           isPremiumTier: true,
+          currentUser: createMockUser(),
         },
       },
     });
 
     const { user } = render(
       <HostActionsDropdown
+        hostTeamId={null}
         onSelect={noop}
         hostStatus="online"
-        hostMdmEnrollemntStatus={null}
+        hostMdmEnrollmentStatus={null}
         doesStoreEncryptionKey
+        hostMdmDeviceStatus="unlocked"
       />
     );
 
@@ -82,18 +94,22 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
+            isMacMdmEnabledAndConfigured: true,
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -106,18 +122,22 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
+            isMacMdmEnabledAndConfigured: true,
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -130,18 +150,23 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
-            isTeamAdmin: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "admin" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -150,22 +175,27 @@ describe("Host Actions Dropdown", () => {
       expect(screen.getByText("Turn off MDM")).toBeInTheDocument();
     });
 
-    it("renders the action when the host is enrolled in mdm and the user is a team maintainer", async () => {
+    it("renders the action when the host is enrolled in mdm and the user is at least a team maintainer", async () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -178,18 +208,21 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            isMacMdmEnabledAndConfigured: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -202,18 +235,22 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isMdmEnabledAndConfigured: true,
-            isTeamMaintainer: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user, debug } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="offline"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
           mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -225,6 +262,34 @@ describe("Host Actions Dropdown", () => {
         "is-disabled"
       );
     });
+
+    it("does not render the action when the host platform is not darwin", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          onSelect={noop}
+          hostTeamId={1}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="windows"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Turn off MDM")).not.toBeInTheDocument();
+    });
   });
 
   describe("Delete action", () => {
@@ -233,15 +298,18 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isGlobalAdmin: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -255,15 +323,18 @@ describe("Host Actions Dropdown", () => {
         context: {
           app: {
             isGlobalMaintainer: true,
+            currentUser: createMockUser(),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={null}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -276,16 +347,20 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isTeamAdmin: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "admin" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
@@ -298,22 +373,354 @@ describe("Host Actions Dropdown", () => {
       const render = createCustomRenderer({
         context: {
           app: {
-            isTeamMaintainer: true,
+            currentUser: createMockUser({
+              teams: [createMockTeam({ id: 1, role: "maintainer" })],
+            }),
           },
         },
       });
 
       const { user } = render(
         <HostActionsDropdown
+          hostTeamId={1}
           onSelect={noop}
           hostStatus="online"
-          hostMdmEnrollemntStatus="On (automatic)"
+          hostMdmEnrollmentStatus="On (automatic)"
+          hostMdmDeviceStatus="unlocked"
         />
       );
 
       await user.click(screen.getByText("Actions"));
 
       expect(screen.getByText("Delete")).toBeInTheDocument();
+    });
+  });
+
+  describe("Lock action", () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is unlocked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Lock")).toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in mdm", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="Off"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in a Fleet MDM solution", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Lock")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Unlock action", () => {
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is locked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).toBeInTheDocument();
+    });
+
+    it("renders when the host is enrolled in mdm and the mdm is enabled and host is unlocking", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocking"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Unlock")).toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in mdm", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="Off"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
+
+    it("does not render when the host is not enrolled in a Fleet MDM solution", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Non Fleet MDM"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
+
+    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: false,
+            isWindowsMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="locked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Unlock")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Wipe action", () => {
+    it("renders only when the host is unlocked", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.getByText("Wipe")).toBeInTheDocument();
+    });
+
+    it("does not renders when a windows host but does not have Fleet windows mdm enabled and configured", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: true,
+            isWindowsMdmEnabledAndConfigured: false,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="windows"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
+    });
+
+    it("does not renders when a mac host but does not have Fleet mac mdm enabled and configured", async () => {
+      const render = createCustomRenderer({
+        context: {
+          app: {
+            isPremiumTier: true,
+            isMacMdmEnabledAndConfigured: false,
+            isWindowsMdmEnabledAndConfigured: true,
+            isGlobalAdmin: true,
+            currentUser: createMockUser(),
+          },
+        },
+      });
+
+      const { user } = render(
+        <HostActionsDropdown
+          hostTeamId={null}
+          onSelect={noop}
+          hostStatus="online"
+          hostMdmEnrollmentStatus="On (automatic)"
+          mdmName="Fleet"
+          hostPlatform="darwin"
+          hostMdmDeviceStatus="unlocked"
+        />
+      );
+
+      await user.click(screen.getByText("Actions"));
+
+      expect(screen.queryByText("Wipe")).not.toBeInTheDocument();
     });
   });
 });

@@ -13,6 +13,7 @@ import CustomLink from "components/CustomLink";
 import Checkbox from "components/forms/fields/Checkbox";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage";
 import Spinner from "components/Spinner";
+import SectionHeader from "components/SectionHeader";
 
 import DiskEncryptionTable from "./components/DiskEncryptionTable";
 
@@ -31,7 +32,7 @@ const DiskEncryption = ({
 
   const defaultShowDiskEncryption = currentTeamId
     ? false
-    : config?.mdm.macos_settings.enable_disk_encryption ?? false;
+    : config?.mdm.enable_disk_encryption ?? false;
 
   const [isLoadingTeam, setIsLoadingTeam] = useState(true);
 
@@ -67,8 +68,7 @@ const DiskEncryption = ({
       enabled: currentTeamId !== 0,
       select: (res) => res.team,
       onSuccess: (res) => {
-        const enableDiskEncryption =
-          res.mdm?.macos_settings.enable_disk_encryption ?? false;
+        const enableDiskEncryption = res.mdm?.enable_disk_encryption ?? false;
         setDiskEncryptionEnabled(enableDiskEncryption);
         setShowAggregate(enableDiskEncryption);
         setIsLoadingTeam(false);
@@ -100,9 +100,18 @@ const DiskEncryption = ({
     setIsLoadingTeam(false);
   }
 
+  const createDescriptionText = () => {
+    // table is showing disk encryption status.
+    if (showAggregate) {
+      return "If turned on, hosts' disk encryption keys will be stored in Fleet. ";
+    }
+
+    return `Also known as “FileVault” on macOS and “BitLocker” on Windows. If turned on, hosts' disk encryption keys will be stored in Fleet. `;
+  };
+
   return (
     <div className={baseClass}>
-      <h2>Disk encryption</h2>
+      <SectionHeader title="Disk encryption" />
       {!isPremiumTier ? (
         <PremiumFeatureMessage
           className={`${baseClass}__premium-feature-message`}
@@ -121,11 +130,10 @@ const DiskEncryption = ({
                 value={diskEncryptionEnabled}
                 className={`${baseClass}__checkbox`}
               >
-                On
+                Turn on disk encryption
               </Checkbox>
               <p>
-                Apple calls this “FileVault.” If turned on, hosts&apos; disk
-                encryption keys will be stored in Fleet.{" "}
+                {createDescriptionText()}
                 <CustomLink
                   text="Learn more"
                   url="https://fleetdm.com/docs/using-fleet/mdm-disk-encryption"

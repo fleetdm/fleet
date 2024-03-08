@@ -14,9 +14,7 @@ describe("system_info", () => {
       ];
 
       for (let [hostname, hwSerial, expected] of testCases) {
-        expect(sut.getComputerName(hostname, hwSerial)).toEqual({
-          data: expected,
-        });
+        expect(sut.getComputerName(hostname, hwSerial)).toEqual(expected);
       }
     });
   });

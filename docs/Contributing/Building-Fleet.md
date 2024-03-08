@@ -35,6 +35,10 @@ Install dependencies:
 ```sh
 sudo apt-get install -y git golang make nodejs npm
 sudo npm install -g yarn
+# Install nvm to manage node versions (apt very out of date) https://github.com/nvm-sh/nvm#install--update-script
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.5/install.sh | bash
+# refresh your session before continuing
+nvm install v19.7.0
 ```
 
 #### Windows
@@ -81,6 +85,16 @@ To do this, run the following from the root of the repository:
 
 ```sh
 make deps
+```
+
+Note: If you are using python >= `3.12`, you may have to install `distutils` using pip.
+
+```sh
+pip install setuptools
+```
+or 
+```sh
+pip3 install setuptools
 ```
 
 When pulling changes, it may be necessary to re-run `make deps` if a new Go or JavaScript dependency was added.

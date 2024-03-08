@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"errors"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -27,7 +27,7 @@ func TestEarlySessionCheck(t *testing.T) {
   default:
     tls-skip-verify: true
     token: phIEGWGzKxXui1uZYFBXFwZ1Wv1iMxl79gbqMbOmMxgyZP2O5jga5qyhvEjzlGsdM7ax93iDqjnVSu9Fi8q1/w==`
-	err := ioutil.WriteFile(configPath, []byte(config), configFilePerms)
+	err := os.WriteFile(configPath, []byte(config), configFilePerms)
 	require.NoError(t, err)
 
 	_, err = runAppNoChecks([]string{"get", "queries", "--config", configPath})

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
@@ -99,7 +98,7 @@ func TestLogin(t *testing.T) {
 		require.Nil(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode, strconv.Itoa(tt.status))
 
-		_, err = ioutil.ReadAll(resp.Body)
+		_, err = io.ReadAll(resp.Body)
 		assert.Nil(t, err)
 
 		// ensure that our user's session was deleted from the store
@@ -179,7 +178,11 @@ func setupAuthTest(t *testing.T) (fleet.Datastore, map[string]fleet.User, *httpt
 }
 
 func getTestAdminToken(t *testing.T, server *httptest.Server) string {
-	testUser := testUsers["admin1"]
+	return getTestUserToken(t, server, "admin1")
+}
+
+func getTestUserToken(t *testing.T, server *httptest.Server, testUserId string) string {
+	testUser := testUsers[testUserId]
 
 	params := loginRequest{
 		Email:    testUser.Email,

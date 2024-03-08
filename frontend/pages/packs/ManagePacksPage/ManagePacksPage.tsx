@@ -3,7 +3,7 @@ import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 
 import { IPack, IStoredPacksResponse } from "interfaces/pack";
-import { IError } from "interfaces/errors";
+import { IFleetApiError } from "interfaces/errors";
 import { AppContext } from "context/app";
 import { NotificationContext } from "context/notification";
 import packsAPI from "services/entities/packs";
@@ -29,7 +29,7 @@ const renderTable = (
   onDisablePackClick: (selectedTablePackIds: number[]) => void,
   onCreatePackClick: React.MouseEventHandler<HTMLButtonElement>,
   packs: IPack[] | undefined,
-  packsError: IError | null,
+  packsError: IFleetApiError | null,
   isLoadingPacks: boolean
 ): JSX.Element => {
   if (packsError) {
@@ -65,7 +65,7 @@ const ManagePacksPage = ({ router }: IManagePacksPageProps): JSX.Element => {
     error: packsError,
     isFetching: isLoadingPacks,
     refetch: refetchPacks,
-  } = useQuery<IStoredPacksResponse, IError, IPack[]>(
+  } = useQuery<IStoredPacksResponse, IFleetApiError, IPack[]>(
     "packs",
     () => packsAPI.loadAll(),
     {

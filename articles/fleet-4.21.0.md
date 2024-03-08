@@ -46,7 +46,7 @@ You'll see how many hosts, assigned to a team, have passed or failed global poli
 
 * Added a '/api/v1/fleet/device/{token}/desktop' API route that returns only the number of failing policies for a specific host.
 * Added support for [kubequery](https://github.com/Uptycs/kubequery).
-* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-installers).
+* Added support for an `AC_TEAM_ID` environment variable when creating [signed installers for macOS hosts](https://fleetdm.com/docs/using-fleet/adding-hosts#signing-fleetd-installers).
 * Made cards on the Home page clickable.
 * Added es_process_file_events, password_policy, and windows_update_history to osquery tables.
 * Added activity items to capture when, and by who, agent options are edited.

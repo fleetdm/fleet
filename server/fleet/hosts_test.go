@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/WatchBeam/clock"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -239,4 +240,54 @@ func TestIsDEPCapable(t *testing.T) {
 	} {
 		require.Equal(t, tc.expected, tc.hostMDM.IsDEPCapable())
 	}
+}
+
+func TestIsEligibleForBitLockerEncryption(t *testing.T) {
+	require.False(t, (&Host{}).IsEligibleForBitLockerEncryption())
+
+	hostThatNeedsEnforcement := Host{
+		Platform:      "windows",
+		OsqueryHostID: ptr.String("test"),
+		MDMInfo: &HostMDM{
+			Name:             WellKnownMDMFleet,
+			Enrolled:         true,
+			IsServer:         false,
+			InstalledFromDep: true,
+		},
+		MDM: MDMHostData{
+			EncryptionKeyAvailable: false,
+		},
+		DiskEncryptionEnabled: ptr.Bool(false),
+	}
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+
+	// macOS hosts are not elegible
+	hostThatNeedsEnforcement.Platform = "darwin"
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcement.Platform = "windows"
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+
+	// hosts with disk encryption already enabled are elegible only if we
+	// can't decrypt the key
+	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(true)
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = true
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+
+	hostThatNeedsEnforcement.DiskEncryptionEnabled = ptr.Bool(false)
+	hostThatNeedsEnforcement.MDM.EncryptionKeyAvailable = false
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+
+	// hosts without MDMinfo are not elegible
+	oldMDMInfo := hostThatNeedsEnforcement.MDMInfo
+	hostThatNeedsEnforcement.MDMInfo = nil
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcement.MDMInfo = oldMDMInfo
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+
+	// hosts that are not enrolled in MDM are not elegible
+	hostThatNeedsEnforcement.MDMInfo.Enrolled = false
+	require.False(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
+	hostThatNeedsEnforcement.MDMInfo.Enrolled = true
+	require.True(t, hostThatNeedsEnforcement.IsEligibleForBitLockerEncryption())
 }

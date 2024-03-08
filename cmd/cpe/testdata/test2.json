@@ -1,0 +1,60 @@
+{
+  "resultsPerPage": 2,
+  "startIndex": 1110000,
+  "totalResults": 2,
+  "format": "NVD_CPE",
+  "version": "2.0",
+  "timestamp": "2023-11-07T21:11:14.883",
+  "products": [
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:denkgroot:spina:2.3.5:*:*:*:*:*:*:*",
+        "cpeNameId": "6F467674-732A-4EAB-9728-C3D5CE9950A9",
+        "lastModified": "2023-07-05T16:44:44.687",
+        "created": "2023-07-05T13:53:03.087",
+        "titles": [
+          {
+            "title": "Denkgroot Spina 2.3.5",
+            "lang": "en"
+          }
+        ],
+        "refs": [
+          {
+            "ref": "https:\/\/huntr.dev\/bounties\/18a74a9d-4a2d-4bf8-ae62-56a909427070\/",
+            "type": "Advisory"
+          },
+          {
+            "ref": "https:\/\/github.com\/SpinaCMS\/Spina\/releases",
+            "type": "Change Log"
+          }
+        ]
+      }
+    },
+    {
+      "cpe": {
+        "deprecated": false,
+        "cpeName": "cpe:2.3:a:denkgroot:spina:2.3.4:*:*:*:*:*:*:*",
+        "cpeNameId": "048B1A11-455D-4EB5-8198-29FD8DBDEC4D",
+        "lastModified": "2023-07-05T16:44:44.687",
+        "created": "2023-07-05T13:53:03.087",
+        "titles": [
+          {
+            "title": "Denkgroot Spina 2.3.4",
+            "lang": "en"
+          }
+        ],
+        "refs": [
+          {
+            "ref": "https:\/\/huntr.dev\/bounties\/18a74a9d-4a2d-4bf8-ae62-56a909427070\/",
+            "type": "Advisory"
+          },
+          {
+            "ref": "https:\/\/github.com\/SpinaCMS\/Spina\/releases",
+            "type": "Change Log"
+          }
+        ]
+      }
+    }
+  ]
+}

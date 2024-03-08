@@ -4,7 +4,7 @@ terraform {
 
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
-  version = "3.18.1"
+  version = "5.1.2"
 
   name = var.vpc.name
   cidr = var.vpc.cidr
@@ -46,6 +46,7 @@ module "byo-vpc" {
   })
   redis_config = merge(var.redis_config, {
     subnets                       = module.vpc.elasticache_subnets
+    allowed_cidrs                 = module.vpc.private_subnets_cidr_blocks
     elasticache_subnet_group_name = module.vpc.elasticache_subnet_group_name
     availability_zones            = var.vpc.azs
   })

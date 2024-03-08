@@ -2,6 +2,7 @@ import React from "react";
 import ReactTooltip from "react-tooltip";
 
 import Icon from "components/Icon";
+import { COLORS } from "styles/var/colors";
 
 interface ILiveQueryIssueCellProps<T> {
   displayName: string;
@@ -30,7 +31,7 @@ const LiveQueryIssueCell = ({
         data-tip-disable={false}
       >
         <Icon
-          name="issue"
+          name="error-outline"
           size="small"
           color={status === "offline" ? "status-error" : "status-warning"}
         />
@@ -38,7 +39,7 @@ const LiveQueryIssueCell = ({
       <ReactTooltip
         place="top"
         effect="solid"
-        backgroundColor="#3e4771"
+        backgroundColor={COLORS["tooltip-bg"]}
         id={`host-issue__${rowId.toString()}`}
         data-html
       >

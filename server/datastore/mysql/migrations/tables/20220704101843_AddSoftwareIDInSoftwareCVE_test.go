@@ -13,7 +13,7 @@ func TestUp_20220704101843(t *testing.T) {
 	VALUES (1, 'zchunk-libs', '1.2.1', 'rpm_packages', '', 'Fedora Project','x86_64');`)
 	require.NoError(t, err)
 
-	_, err = db.Exec(`INSERT INTO software_cpe (id, software_id, created_at, updated_at, cpe) 
+	_, err = db.Exec(`INSERT INTO software_cpe (id, software_id, created_at, updated_at, cpe)
 	VALUES (2, 1, '2022-06-19 18:01:14', '2022-06-19 18:01:14', 'none:1704');`)
 	require.NoError(t, err)
 

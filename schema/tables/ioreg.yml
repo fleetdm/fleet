@@ -1,0 +1,51 @@
+name: ioreg
+description: Get values from macOS ioreg command. Columns are input options for the command. They match the ioreg command line tool.
+evented: false
+notes: This table is not a core osquery table. It is included as part of fleetd, the osquery manager from Fleet. Code based on work by [Kolide](https://github.com/kolide/launcher).
+platforms:
+  - darwin
+columns:
+  - name: c
+    description: List properties of objects with the given class.
+    required: false
+    type: text
+  - name: d
+    description: Limit tree to the given depth.
+    required: false
+    type: text
+  - name: k
+    description: List properties of objects with the given key.
+    required: false
+    type: text
+  - name: "n"
+    description: List properties of objects with the given name.
+    required: false
+    type: text
+  - name: p
+    description: Traverse registry over the given plane (IOService is default).
+    required: false
+    type: text
+  - name: r
+    description: Show subtrees rooted by the given criteria.
+    required: false
+    type: text
+  - name: key
+    description: A specific item that describes the returned value.
+    type: text
+    required: false
+  - name: value
+    description: The value for the specified key.
+    type: text
+    required: false
+  - name: fullkey
+    description: The expanded name of the specific item that describes the value.
+    type: text
+    required: false
+  - name: parent
+    description: The key's parent.
+    type: text
+    required: false
+  - name: query
+    description: The query is printed in this column.
+    type: text
+    required: false

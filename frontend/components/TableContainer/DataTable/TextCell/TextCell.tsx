@@ -1,14 +1,15 @@
 import { uniqueId } from "lodash";
 import React from "react";
 import ReactTooltip from "react-tooltip";
+import { COLORS } from "styles/var/colors";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
 
 interface ITextCellProps {
-  value?: string | number | boolean | { timeString: string };
-  formatter?: (val: any) => JSX.Element | string; // string, number, or null
+  value?: string | number | boolean | { timeString: string } | null;
+  formatter?: (val: any) => React.ReactNode; // string, number, or null
   greyed?: boolean;
   classes?: string;
-  emptyCellTooltipText?: JSX.Element | string;
+  emptyCellTooltipText?: React.ReactNode;
 }
 
 const TextCell = ({
@@ -38,7 +39,7 @@ const TextCell = ({
           <ReactTooltip
             place="top"
             effect="solid"
-            backgroundColor="#3e4771"
+            backgroundColor={COLORS["tooltip-bg"]}
             id={tooltipId}
           >
             {emptyCellTooltipText}

@@ -4,14 +4,22 @@
 
 Fleet Device Management Inc is an [open-core company](https://fleetdm.com/handbook/company/why-this-way#why-open-source) that sells subscriptions that offer [more features and support](https://fleetdm.com/pricing) for Fleet and osquery, the leading open-source systems management platform and security agent. Today, Fleet enrolls millions of laptops and servers, and it is especially popular with [enterprise IT and security teams](https://www.linuxfoundation.org/press/press-release/the-linux-foundation-announces-intent-to-form-new-foundation-to-support-osquery-community).
 
-<!-- With great power comes great openness.  With agents come agency. -->
+Fleet is dedicated to a comprehensive strategy against [whatever this is](https://chat.openai.com/share/e44ba6f3-b3ed-488a-a15e-a5a723f20c98): 
 
-We are dedicated to clearing the thicket:
-- 🔌 making security and IT interoperable and easy to automate
-- 🚪 an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure
-- 🪟 clarity and trust through open-source software
+- 🔌 making security and IT interoperable and easy to automate with open standards and data.
+- 🚪 creating an inviting (outsider-friendly) way to manage computers, CVEs, and infrastructure.
+- 🪟 building clarity and trust through open-source software.
 
 This is the guiding purpose behind Fleet's [product strategy](https://fleetdm.com/handbook/company/communications#strategy), [operating principles](#why-this-way), and [brand](https://fleetdm.com/logos).
+
+<!--
+With great power
+comes great openness
+With agents comes agency
+Lighter than air
+Light in every corner
+Open by design
+-->
 
 ## Culture
 
@@ -21,22 +29,17 @@ Fleet Device Management Inc. is an all-remote company with 40+ team members spre
 ### Open source
 Fleet is open by design.  The majority of the code, documentation, and content we create at Fleet is public and [source-available](https://fleetdm.com/handbook/company/why-this-way#why-open-source).  The Fleet handbook is the central guide for how we run the company, and even it is open to the world.  We [strive to be open](https://fleetdm.com/handbook/company#openness) and transparent in the way we run the business, as much as [confidentiality](https://fleetdm.com/handbook/company#levels-of-confidentiality) agreements (and time) allow. We perform better with an audience, and our audience performs better with us.
 
-### Every day
-When something is written down in the handbook, we actually mean it.  This helps us know what to expect from one another.  You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
-
-
-## Why this way?
+### Why this way?
 At Fleet, we write things down.  Even when we might be wrong.  This helps us move quickly, provides clarity, and enables asynchronous work.  The "Why this way?" page in the handbook discusses some of our most important decisions about the best way to work and the reasoning for them.  For example: _"Why open source?"_, _"Why do we use a wireframe-first approach?"_, _"Why direct responsibility?_, and _"Why handbook-first strategy?"_  You can read more about these principles and suggest improvements in ["📖Company/Why this way?"](https://fleetdm.com/handbook/company/why-this-way)
+
+> You can read more about what it's like to work at Fleet in ["📖Company/Communications"](https://fleetdm.com/handbook/company/communications).
 
 
 ## Open positions
 
-Fleet is currently hiring for the following positions:
-
 
 <open-positions :open-positions="openPositions"></open-positions>
 
-> **🛸 Join us!**  Interested in joining the team at Fleet, or know someone who might be?  Click one of the positions to read the job description and apply.  Or [copy a direct link to this page](https://fleetdm.com/handbook/company#open-positions) to share a short summary about the company, including our vision, values, history, and all currently open positions.  Thank you for the help!
 
 ### Is it any good?
 
@@ -70,9 +73,9 @@ Empathy leads to smarter decisions.  Take an interest in what people are going t
 ### 🟠 Ownership
 It takes a fully-activated mind to achieve ambitious goals, and remote work requires self-discipline.  Think like an owner of the company.
 
-- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way).
+- **Be reliable.**  Reply quickly to email, Slack, and GitHub.  Prepare for meetings.  Arrive [on time](https://fleetdm.com/handbook/company/communications#meetings).  Use handbooked [processes](https://about.gitlab.com/handbook/leadership/#process-gets-a-bad-rep) and [decisions](https://fleetdm.com/handbook/company/why-this-way#why-this-way).
 - **Finish what you start.** Follow through on commitments.  Take responsibility for mistakes.  There's no time for finger-pointing.  [Just fix it](https://about.gitlab.com/handbook/values/#bias-for-action).
-- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/business-operations#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
+- **No one is coming.** Take care of [things that need doing](https://fleetdm.com/handbook/company/communications#spending-company-money), or loop in [the right people](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) fast. It's up to you.  <!-- take initiative -->
 - **Think long term.** Contribute to [the big picture](https://fleetdm.com/handbook/company#purpose), beyond your department's goals. Reduce maintenance.  Beware the thicket.  <!-- Think [7 years ahead](https://fleetdm.com/handbook/company#strategy). -->
 
 ### 🟢 Results
@@ -81,7 +84,7 @@ We work to get results. How we work determines what we get.  Aim to deliver resu
 - **Iterate.** [Look for ways](https://youtu.be/BW6TWwNZzIQ) to make [smaller changes](https://about.gitlab.com/handbook/product/product-principles/#the-minimal-viable-change-mvc), more often.  Always publish. <!-- Resist [gold plating](https://en.wikipedia.org/wiki/Gold_plating_(project_management)). -->
 - **Start quickly.** Be 70% sure.  Resist [bike-shedding](https://en.wikipedia.org/wiki/Law_of_triviality).  Between overthinking and rushing, there is a [golden mean](https://en.wikipedia.org/wiki/Golden_mean_%28philosophy%29). <!-- [Satisfice](https://longform.asmartbear.com/maximizing) before optimizing. -->
 - **Keep it simple.** [Spend less](https://fleetdm.com/handbook/company/why-this-way#why-spend-less). Avoid preemptive structure.  Choose ["boring solutions"](https://about.gitlab.com/blog/2020/08/18/boring-solutions-faster-iteration/). Reuse systems. Avoid adding steps, especially handoffs. <!-- Be efficient. Avoid creating multiple ways to do the same thing.  Practicality over sophistication. -->
-- **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/business-operations#taking-time-off) to recharge. <!-- Practice self-care. -->
+- **Be realistic.** Focus on one or two tasks at a time.  When you can't take on [more work](http://www.paulgraham.com/hwh.html), clarify your boundaries.  Schedule [time off](https://fleetdm.com/handbook/company/communications#paid-time-off) to recharge. <!-- Practice self-care. -->
 
 ### 🔵 Objectivity
 To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wiki/Intellectual_honesty).
@@ -93,13 +96,19 @@ To reach our goals, we need to [see reality clearly](https://en.wikipedia.org/wi
 - **Think for yourself.** Remember how often [conventional wisdom](http://www.paulgraham.com/think.html) isn't.  <!-- Use first principles thinking](https://en.wikipedia.org/wiki/Ab_initio#Science_and_engineering) -->
 
 ### 🟣 Openness
-Take the time to make [yourself](https://fleetdm.com/handbook/business-operations#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
+Take the time to make [yourself](https://fleetdm.com/handbook/company/communications#meetings) and [your work](https://fleetdm.com/handbook/company/why-this-way#why-make-work-visible) visible.  This also takes courage.
 
 - **Write it down.** Let people [find](https://about.gitlab.com/handbook/values/#findability) and [reproduce](https://about.gitlab.com/handbook/values/#reproducibility) your [decisions](https://fleetdm.com/handbook/company/why-this-way#why-handbook-first-strategy).  Remove outdated content so your writing is trustworthy, and [write simply](http://www.paulgraham.com/simply.html) so it is outsider friendly.
 - **Have short toes.** Everyone can contribute.  Get comfortable with [others contributing to your work](https://about.gitlab.com/handbook/values/#short-toes).
-- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/business-operations#levels-of-confidentiality) carefully.
-- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way).   <!-- Commit to candor.  Speak your mind. -->
+- **Public by default.** Everything we do is [public by default](https://fleetdm.com/handbook/company/why-this-way#why-open-source). Redact [non-public info](https://fleetdm.com/handbook/company/communications#levels-of-confidentiality) carefully.
+- **Speak freely.** Interrupt and be interrupted.  Give pointed and respectful feedback, even [when you disagree](https://fleetdm.com/handbook/company/why-this-way#why-this-way). 
 
+<!--
+### 🪩 Dumb luck
+
+Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behold, the sixth value: dumb luck.
+
+-->
 
 ## History
 
@@ -113,31 +122,32 @@ A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security
 When Kolide's attention shifted away from Fleet, and towards their separate, user-focused SaaS offering, the Fleet community took over maintenance of the open source project. After his time at Kolide, Zach continued as lead maintainer of Fleet.  He spent 2019 consulting and working with the growing open source community to support and extend the capabilities of the Fleet platform.
 
 ### 2020: Fleet was incorporated
-Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/ceo), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
+Zach partnered with our [CEO, Mike McNeil](https://fleetdm.com/handbook/company/leadership#ceo-flaws), to found a new, independent company: Fleet Device Management Inc.  In November 2020, we [announced](https://medium.com/fleetdm/a-new-fleet-d4096c7de978) the transition and kicked off the logistics of moving the GitHub repository.
 
 ### 2022: Millions of hosts
 Fleet raised its Series A funding round.  The world now has at least 1.65 million computers and virtual hosts enrolled in Fleet, including enterprises, governments, startups, families, and hobbyist racks all over the world.
 
+### 2024: Your last MDM migration
+Fleet announces [support for Windows and Linux devices](https://fleetdm.com/announcements/fleet-introduces-windows-mdm), enabling IT departments to consolidate tools and implement “zero trust” faster using a modern Mac-first MDM. Removing the need for proprietary alternatives like Jamf Pro, Jamf Protect, Microsoft Intune, Ivanti MobileIron, and Broadcom's recently acquired Workspace ONE (originally known as "Airwatch"). 
 
 > Still curious? Check out this [visualization of the Fleet repo over the years](https://www.linkedin.com/feed/update/urn:li:activity:7045068060168220672/) or listen to this [conversation between Zach and Mike Arpaia about the origin story of osquery](https://fleetdm.com/podcasts/the-future-of-device-management-ep1).
 
 ## Org chart
 To provide clarity about decision-making, [responsibility](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility), and resources, everyone at Fleet has a manager, and [every manager](https://fleetdm.com/handbook/company#management) has direct reports.  Fleet's organizational chart is accessible company-wide as a sub-tab in ["🧑‍🚀 Fleeties" (private google doc)](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).  On the other sub-tabs, you can also check out a world map of where everyone is located, hiring stats, and fun facts about each team member.
 
-### Product groups
-Above and beyond the organizational chart, Fleet organizes cross-functional groups focused on particular business goals.  This helps product development teams move more quickly by eliminating roundtrips spent waiting for feedback and answers from people in other departments. Product groups include a designer, a product quality lead, developers, a product manager, and an engineering manager.  For more information, check out the ["Product groups"](./development-groups.md) page.
-
-### Management
-To understand the expectations of Fleet's leadership, read 📖[handbook/company/leadership](https://fleetdm.com/handbook/company/leadership).
-
-### CEO
-Get to know Fleet's CEO and tips for collaborating with him in 📖[handbook/ceo](https://fleetdm.com/handbook/ceo).
+- 🔦 [Business Operations](https://fleetdm.com/handbook/business-operations): The Business Operations department is directly responsible for these traditional functions: People, Finance, tax, compliance, Legal, and IT.
+- 🏹 [Customer Success](https://fleetdm.com/handbook/customer-success): The customer success department is directly responsible for ensuring that customers and community members of Fleet achieve their desired outcomes with Fleet products and services.
+- 🐋 [Sales](https://fleetdm.com/handbook/sales): The Sales department is directly responsible for attaining the revenue goals of Fleet and helping customers deliver on their objectives.
+- 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
+- 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
+- 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
+- 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience): The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture and overall brand experience, including fleetdm.com, the handbook, issue templates, UI style guides, consistent brandfronts, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including
 [Sid](https://about.gitlab.com/blog/2022/10/14/one-third-of-what-we-learned-about-ipos-in-taking-gitlab-public/) [Sijbrandij](https://about.gitlab.com/handbook/ceo/#sijbrandij-pronunciation-hint) _(GitLab)_, [Dylan Field](https://en.wikipedia.org/wiki/Dylan_Field) _(Figma)_, [Mike Arpaia](https://www.youtube.com/watch?v=zfCak2UIOD8) _(osquery)_, and [other smart people who are eager to help](https://docs.google.com/spreadsheets/d/15knBE2-PrQ1Ad-QcIk0mxCN-xFsATKK9hcifqrm0qFQ/edit).  If you have a question for one of them, Fleet's CEO is happy to introduce you.  ([Just ask](https://fleetdm.com/handbook/company/ceo).)
 
-
+<!--
 #### Stubs
 The following stubs are included only to make links backward compatible.
 
@@ -152,7 +162,7 @@ Please see [📖handbook/company/communications#email-relays](https://fleetdm.co
 ##### Tools we use
 
 Please see [📖Business Operations#tools-we-use](https://fleetdm.com/handbook/business-operations#tools-we-use).
-
+-->
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🔭 Company">

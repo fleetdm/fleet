@@ -1,6 +1,6 @@
-import { flatMap, map } from "lodash";
+import { flatMap } from "lodash";
 
-import { IOsQueryTable, IQueryTableColumn } from "interfaces/osquery_table";
+import { IOsQueryTable } from "interfaces/osquery_table";
 
 import osqueryFleetTablesJSON from "../../schema/osquery_fleet_schema.json";
 
@@ -11,6 +11,11 @@ const queryTable = osqueryFleetTablesJSON as IOsQueryTable[];
 export const osqueryTables = queryTable.sort((a, b) => {
   return a.name >= b.name ? 1 : -1;
 });
+
+// Note: Hiding tables where key hidden is set to true
+export const osqueryTablesAvailable = osqueryTables.filter(
+  (table) => !table.hidden
+);
 
 // Note: Hiding tables where key hidden is set to true
 export const osqueryTableNames = flatMap(osqueryTables, (table) => {

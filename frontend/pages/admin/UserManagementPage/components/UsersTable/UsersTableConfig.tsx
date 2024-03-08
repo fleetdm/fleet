@@ -11,6 +11,7 @@ import { IUser, UserRole } from "interfaces/user";
 import { IDropdownOption } from "interfaces/dropdownOption";
 import { generateRole, generateTeam, greyCell } from "utilities/helpers";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
+import { COLORS } from "styles/var/colors";
 import DropdownCell from "../../../../../components/TableContainer/DataTable/DropdownCell";
 
 interface IHeaderProps {
@@ -98,7 +99,7 @@ const generateTableHeaders = (
                     type="dark"
                     effect="solid"
                     id={`api-only-tooltip-${cellProps.row.original.id}`}
-                    backgroundColor="#3e4771"
+                    backgroundColor={COLORS["tooltip-bg"]}
                     clickable
                     delayHide={200} // need delay set to hover using clickable
                   >
@@ -131,12 +132,16 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "GitOps") {
           return (
             <TooltipWrapper
-              position="top"
-              tipContent={`
-            The GitOps role is only available on the command-line<br/>
-            when creating an API-only user. This user has no<br/>
-            access to the UI.
-          `}
+              position="top-start"
+              tipContent={
+                <>
+                  The GitOps role is only available on the command-line
+                  <br />
+                  when creating an API-only user. This user has no
+                  <br />
+                  access to the UI.
+                </>
+              }
             >
               GitOps
             </TooltipWrapper>
@@ -145,12 +150,16 @@ const generateTableHeaders = (
         if (cellProps.cell.value === "Observer+") {
           return (
             <TooltipWrapper
-              position="top"
-              tipContent={`
-            Users with the Observer+ role have access to all of<br/>
-            the same functions as an Observer, with the added<br/>
-            ability to run any live query against all hosts. 
-          `}
+              position="top-start"
+              tipContent={
+                <>
+                  Users with the Observer+ role have access to all of
+                  <br />
+                  the same functions as an Observer, with the added
+                  <br />
+                  ability to run any live query against all hosts.
+                </>
+              }
             >
               {cellProps.cell.value}
             </TooltipWrapper>
@@ -197,7 +206,7 @@ const generateTableHeaders = (
           onChange={(value: string) =>
             actionSelectHandler(value, cellProps.row.original)
           }
-          placeholder={"Actions"}
+          placeholder="Actions"
         />
       ),
     },

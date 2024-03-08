@@ -35,11 +35,16 @@ const PreviewDataModal = ({
   };
 
   return (
-    <Modal title={"Example data"} onExit={onCancel} className={baseClass}>
+    <Modal title="Example data" onExit={onCancel} className={baseClass}>
       <div className={`${baseClass}__preview-modal`}>
         <p>
           <TooltipWrapper
-            tipContent={`The &quot;snapshot&quot; key includes the query&apos;s results. These will be unique to your query.`}
+            tipContent={
+              <>
+                The &quot;snapshot&quot; key includes the query&apos;s results.
+                These will be unique to your query.
+              </>
+            }
           >
             The data sent to your configured log destination will look similar
             to the following JSON:

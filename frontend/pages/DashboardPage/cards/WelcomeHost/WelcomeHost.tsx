@@ -241,9 +241,8 @@ const WelcomeHost = ({
                     />
                     <span className="info">{p.name}</span>
                     <Icon
-                      name="chevron"
+                      name="chevron-right"
                       color="core-fleet-blue"
-                      direction="right"
                       className="policy-arrow"
                     />
                   </div>

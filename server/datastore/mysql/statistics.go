@@ -10,9 +10,9 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/version"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
-	"github.com/kolide/kit/version"
 )
 
 type statistics struct {
@@ -81,9 +81,13 @@ func (ds *Datastore) ShouldSendStatistics(ctx context.Context, frequency time.Du
 		stats.NumPolicies = amountPolicies
 		stats.NumLabels = amountLabels
 		stats.SoftwareInventoryEnabled = appConfig.Features.EnableSoftwareInventory
-		stats.VulnDetectionEnabled = appConfig.VulnerabilitySettings.DatabasesPath != ""
+		stats.VulnDetectionEnabled = config.Vulnerabilities.DatabasesPath != "" || appConfig.VulnerabilitySettings.DatabasesPath != ""
 		stats.SystemUsersEnabled = appConfig.Features.EnableHostUsers
 		stats.HostsStatusWebHookEnabled = appConfig.WebhookSettings.HostStatusWebhook.Enable
+		stats.MDMMacOsEnabled = appConfig.MDM.EnabledAndConfigured
+		stats.HostExpiryEnabled = appConfig.HostExpirySettings.HostExpiryEnabled
+		stats.MDMWindowsEnabled = appConfig.MDM.WindowsEnabledAndConfigured
+		stats.LiveQueryDisabled = appConfig.ServerSettings.LiveQueryDisabled
 		stats.NumWeeklyActiveUsers = amountWeeklyUsers
 		stats.NumWeeklyPolicyViolationDaysActual = amountPolicyViolationDaysActual
 		stats.NumWeeklyPolicyViolationDaysPossible = amountPolicyViolationDaysPossible

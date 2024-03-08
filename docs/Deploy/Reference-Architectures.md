@@ -18,8 +18,7 @@ possible to dynamically scale read replicas to increase performance and [enable 
 It is also possible to use [Aurora Global](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/aurora-global-database.html) to
 span multiple regions for more advanced configurations(_not included in the [reference terraform](https://github.com/fleetdm/fleet/tree/main/infrastructure/dogfood/terraform/aws)_).
 
-In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`
-there can be benefits to read performance.
+In some cases adding a read replica can increase database performance for specific access patterns. In scenarios when automating the API or with `fleetctl`, there can be benefits to read performance.
 
 **Note:Fleet servers need to talk to a writer in the same datacenter. Cross region replication can be used for failover but writes need to be local.**
 
@@ -189,7 +188,7 @@ GCP reference architecture can be found in [the Fleet repository](https://github
 
 ### Azure
 
-Coming soon. Get (commmunity support)[https://chat.osquery.io/c/fleet].
+Coming soon. Get [commmunity support](https://chat.osquery.io/c/fleet).
 
 ### Render
 

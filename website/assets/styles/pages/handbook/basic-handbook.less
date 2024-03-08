@@ -251,9 +251,45 @@
       }
     }
     ol {
-      padding-left: 16px;
-      li {
-        padding-bottom: 16px;
+      counter-reset: custom-counter;
+      list-style-type: none;
+      padding-inline-start: 0px;
+      padding: 0;
+      margin-top: 16px;
+      margin-bottom: 20px;
+      ul > li {
+        text-indent: 0px;
+        margin-left: 0px;
+      }
+      > li {
+        counter-increment: custom-counter;
+        margin-left: 36px;
+        text-indent: -36px;
+        padding-left: 0px;
+        margin-bottom: 16px;
+        code:not(.nohighlight):not(.mermaid) {
+          display: inline;
+        }
+        p {
+          display: inline;
+          margin-bottom: 0px;
+        }
+        blockquote {
+          text-indent: 0px;
+        }
+      }
+      > li::before {
+        content: counter(custom-counter);
+        background-color: #E2E4EA;
+        width: 24px;
+        font-size: 13px;
+        display: inline-block;
+        border-radius: 50%;
+        margin-right: 10px;
+        padding: 2px 4px;
+        text-align: center;
+        line-height: 20px;
+        text-indent: 0px;
       }
     }
     img {
@@ -433,6 +469,40 @@
     }
   }
 
+  // For deloitte quote on open poisiton pages.
+
+  [purpose='open-position-quote-card'] {
+    margin-top: 36px;
+    padding: 40px 60px;
+    border-radius: 16px;
+    background-color: #FFF;
+    border: 1px solid @core-vibrant-blue-15;
+    box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.10);
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    img {
+      height: 36px;
+      width: auto;
+      padding: 0;
+      margin-right: 40px;
+    }
+    [purpose='quote-text'] {
+      font-size: 18px;
+      line-height: 27px;
+    }
+    [purpose='quote-attribution'] {
+      p {
+        font-size: 14px;
+        line-height: 21px;
+        margin-bottom: 0px;
+      }
+    }
+  }
+
+
+
   @media (min-width: 1199px) {
 
     [purpose='right-sidebar'] {
@@ -531,6 +601,16 @@
 
   // for even smaller screens (>576px)
   @media (max-width: 767px) {
+    [purpose='open-position-quote-card'] {
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: start;
+      padding: 75px 40px;
+      img {
+        margin-right: 0px;
+        margin-bottom: 40px;
+      }
+    }
     [purpose='search'] {
       padding-bottom: 0px;
     }

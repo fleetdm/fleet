@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -57,7 +56,7 @@ func debugCommand() *cli.Command {
 }
 
 func writeFile(filename string, bytes []byte, mode os.FileMode) error {
-	if err := ioutil.WriteFile(filename, bytes, mode); err != nil {
+	if err := os.WriteFile(filename, bytes, mode); err != nil {
 		return err
 	}
 

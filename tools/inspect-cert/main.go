@@ -6,8 +6,8 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
+	"os"
 	"time"
 
 	"github.com/davecgh/go-spew/spew"
@@ -65,7 +65,7 @@ func validate(certFile, keyFile string) {
 }
 
 func inspect(certFile string) {
-	b, err := ioutil.ReadFile(certFile)
+	b, err := os.ReadFile(certFile)
 	if err != nil {
 		log.Fatal(err)
 	}

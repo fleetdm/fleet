@@ -1,68 +1,105 @@
 # Leadership
 
-## Vision for dept handbook pages
-The idea here is to get this vision implemented on a single departmental handbook page first, starting with handbook/company/ceo.  It's hard to know what the philosophy should be until we can see it.  So we need to shorten the feedback loop so we can see it change live in one place.  That way we can iterate in one place instead of having things go a bunch of different directions, and adding in all the complexity of extra redirects to keep track of and all that stuff.  Then once we've got that looking good and have iterated a bit, we'll spread it out.
+This page covers the things managers and other leaders at Fleet need to know about running a great company.
 
-Another thing is that we need to get a better intuitive understanding of who these pages are designed to serve.  So in order to put ourselves in their shoes (get behind their eyeballs), we need something to look at.  So doing a particular page first provides us with that canvas.
 
-From Mike - 2023-08-21
+## CEO flaws
+[Openness](https://fleetdm.com/handbook/company#values) is important, and so I want to live that by sharing the flaws I know I have. I’m fully responsible for improving the things below, listing them is no excuse. 
+
+These flaws are listed here publicly for two reasons. The first is so that people know it is _not just them_, but actually _my fault_. The second is so I can improve and be held accountable.
+
+1. I have a bad habit of not wanting to impose.
+  - But this can result in me [over-specifying solutions for problems](https://docs.google.com/document/d/1PUkMIBIStDe87drezqKURYz_ZAmMzQPg_PilmWORmsM/edit), instead of presenting the whole problem and putting someone in charge of it.
+  - You can say: "Mike, what was the original problem?  If I'm not the right person to run with solving it, I understand, but could you let me know some time candidly why I'm not?"
+2. I can get nervous and rush things.
+  - I can speak quickly.  It is ok to say “Mike, hold on a second.”
+  - I can be quick to criticize before I appreciate, especially if something looks almost done.
+  - I appreciate it when fleeties ask “What do you think of my work?” It reminds me I'm speaking in front of the sculptor, not just alone with the statue.
+  - I can hurry to decisions when I think something is time-sensitive or nearly ready to ship.  It is ok to say “I’m looking for early feedback" vs. “I’m not yet 70% sure I’m 100% done with this."
+3. I often need to talk to think.
+  - It is ok to set a boundary and let me marinade.  You might say: "Hold up.  What is our goal?"
+  - I get grumpy when I am tired and I worry that I'll forget to follow up about things.  So I try to say them all.
+  - I can talk too much.  On video calls, and especially during a screenshare session, I sometimes will keep talking longer than I otherwise would.  If you get lost, or overwhelmed, you can interrupt me or send a chat: "Hold up, I'm feeling out of phase from this conversation."
+
+
+<!--  Cutting back on some content just to make this more readable.  Prioritizing the ones that matter the most. -mike feb 2024.
+
+- I can be inconsistent about how certain I sound about the same topics at different times.  Even when I am probably still certain.  That's because I try to question blind certainty, even my own. The problem is, I don't always remember why I first became certain about every topic.  It is okay to stop and share what you observe: "You seem less sure about this.  What's up?"  If I am waffling, it can be helpful to say "Did we write down a decision on that?  I'll make a GitHub issue." ([Luke](https://fleetdm.com/handbook/engineering#team) is good at this.)
+- I sometimes will keep talking longer than I otherwise would (ESPECIALLY OVER ZOOM AND ESPECIALLY WHILE SCREENSHARING) when it is harder to see faces and pick up on subtle cues. This is exacerbated by me being afraid I’ll forget to come back to the topic, and feeling like I have to get to address it immediately or it will be lost. When you think I am riffing 🎸 /monologuing 🗣️ on a tangential topic that isn’t on the agenda, it's always ok to interrupt and tell me to my face, or send me a direct message.
+-->
+
+
+> If you notice one of these flaws, and especially if you deliver feedback about it and don't feel heard, or you feel hurt, or you feel like I didn't "get it", please send me a link to this section of the handbook, or just interrupt me and give me [feedback in the moment](https://fleetdm.com/handbook/company/communications#performance-feedback).  I will be extremely grateful, and value your bravery in pursuit of what's in the best interest of the company.  (And if I don't, keep trying.  I'll come crawling back.  Promise.)
+
+
+## Contact the CEO
+**Still want to contact the CEO?** You can send `@mikermcneil` a DM in Fleet Slack, at-mention our CEO in the [#help-leadership channel](https://fleetdm.slack.com/archives/C02HWSTJ17Z), or [schedule time with the CEO](https://fleetdm.com/handbook/company/communications#schedule-time-with-the-ceo).
+
+
+## CEO responsibilities
+Ultimately, the CEO is responsible for the success or failure of the company. The CEO is the [directly responsible individual (DRI)](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) for pricing, tiers, the business model, signatures on all documents, product marketing (brandfronts, pitchfronts, featurefronts, ICPs, personas, and targeting).
+
+
+
+
+
+> **Note:** When the CEO is out of office, CEO responsibilities are either paused, delegated, or coordinated through the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team) so they can be handled promptly.  (It depends on the responsibility and the situation.)
+
+
+## Outline of departmental page structure
+
+Departmental pages are for reference, not philosophy.  For philosophy, use "Communications" (for all fleeties), "Leadership" (for managers), "Product groups" (for core product and website contributors), and "Why this way?" (for key decisions).
+
+Departmental pages exist to outline people, responsibilities, recurring rituals, and intake.  They always follow the structure below.
+
+Changes to departmental pages can be merged when the change results in a page consistent with this structure.
+
+> Please see https://fleetdm.com/handbook/digital-experience for an example of what this structure should look like in practice.
 
 <blockquote purpose="large-quote">
 Biggest learning is that we federated carte blanche edit permissions a bit too early back in 2021, and it’s resulted in the need for a lot of cleanup as different people have had their hands in the content prior to introducing a framework for organizing that content.  
 
-  For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
-It meant that until recently, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re probably down to only 25% now, and falling!)
-Joanne and team did some planning during the bizops offsite, and Sam and I took that and applied it to the ceo and bizops handbook pages yesterday.
+For reference, Sid at Gitlab didn’t delegate ownership over pages away from a single individual (him) until they were close to 100 employees, whereas at Fleet we did it in the 15 employee stage, and are dealing with the consequences.
+It meant that until late 2023, about 1/3 of the Fleet handbook was completely wrong, duplicated, or out of date.  (We’re now close to 100% accurate.)
 
-We’re going to do the same thing gradually for marketing, then sales, then engineering, then product.
-Content related to onboarding and policies like vacation is now in: https://fleetdm.com/handbook/company#every-day
-
-The audience for the “Communications” page is every fleetie.
+The audience for the “Communications” page is every Fleetie.
 
 The audience for the “Leadership” page is every manager.
 
-The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first)
+The audience for individual department pages are the people working with and within that department (in that order, with “Contact us” and other generally useful information and intake channels listed first).
 This pass through the handbook has also eliminated several pages in favor of getting more onto single pages.  This is because there is still a lot of duplication, and it’s easier to deal with when everything is on a single page.
 
-Dear onboardees: could you update broken links in the onboarding issue template as you find them? Everything should still redirect correctly, or provide a path to get to the right place through “Stubs”, but it’s helpful to have the links point directly to the right place.
-If you have any questions or feedback, please contact us: https://fleetdm.com/handbook/ceo#contact-us
+
+If you have any questions or feedback, please make a pull request.
 </blockquote>
 
+
+Departmental page structure:
 - `# Name of department`
-  - "This handbook page details processes specific to working [with](#contact-us) and [within](#responsibilities) this department." 
-    
-  - `## What we do`
-    - Outline the specific responsibilities of the department.  
+  - "This handbook page details processes specific to working `[with](#contact-us)` and `[within](#responsibilities)` this department." 
 
   - `## Team`
-    - Table that displays each position and the team member(s) that fill that position, linking the Fleetie's LinkedIn to their name and GitHub to GiHub user name. See [handbook/ceo#team](https://fleetdm.com/handbook/ceo#team) for example.
-
+    - Table that displays each position and the team member(s) that fill that position, linking each Fleetie's LinkedIn to their name and GitHub to GitHub user name. See [handbook/digital-experience#team](https://fleetdm.com/handbook/digital-experience#team) for example.
 
   - `## Contact us`
-    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day."
-      - "Please use issue comments and GitHub mentions to communicate follow-ups or answer questions related to your request."
+    - "To make a request of this department, `[create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23{DEPARTMENTAL-GITHUB-LABEL}&projects=&template=custom-request.md&title=Request%3A+_______________________)` and a team member will get back to you within one business day (If urgent, mention a `[team member](#team)` in `[#g-DEPARTMENTAL-SLACK-CHANNEL]({DEPARTMENTAL-SLACK-CHANNEL-LINK})`)."
+      - "Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request."
       - "Any Fleet team member can `[view the kanban board](https://app.zenhub.com/workspaces/{DEPARTMENTAL-KANBAN-BOARD-LINK}/board?sprints=none)` for this department, including pending tasks and the status of new requests."
-    - Other common issue links or call to action (e.g.)
-    - "If urgent, or if you need help submiting your request, mention a `[team member](#team)` in the [#g-`DEPARTMENT`]`(DEPARTMENTAL-SLACK-CHANNEL-LINK)` Slack channel."
-      - More specific Slack info if needed.
-
-  - `## Some philosophical topic`
-    -e.g. "CEO flaws"
 
 - `## Responsibilities`
-  - consisting of sub-headings written in imparative mood:
-  - e.g. `### Process CEO inbox`
+  - The "Responsibilities" section consists of a flat list of H3 sub-headings written in the imperative mood (e.g. "Process CEO inbox") and designed to be the internal "How-to" of each department.  
+
 
 - `## Rituals`
 
 
-### Key reviews
-Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by timebound goals.
+## Key reviews
+Every release cycle, each department leader discusses their [key performance indicators (KPIs)](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) (confidential) with the CEO.  KPIs are numbers measuring results and everyday excellence, usually accompanied by time-bound goals.
 
-In this meeting, the department leader discusses actual week-over-week progress towards the goals for a particular quarter with the CEO.
+In this meeting, the department leader discusses actual week-over-week progress toward the goals for a particular quarter with the CEO.
 
 - Key reviews are scheduled during the e-group time slot every three weeks and are not moved or rescheduled.  If a department leader is not available to lead a particular key review, another team member from their department will join the meeting and discuss their department's key performance indicators (KPIs).
-- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, get [input from the CEO](https://fleetdm.com/handbook/ceo#contact-us).
+- Use this meeting to add, remove, or change the definitions or ownership of KPIs.  Otherwise, KPI definitions do not change, even if those definitions have problems.  For help with KPIs, contact the [Digital Experience department](https://fleetdm.com/handbook/digital-experience#contact-us).
 
 
 
@@ -92,9 +129,7 @@ Consultants:
 
 Consultants [track time using the company's tools](#tracking-hours) and sign [Fleet's consulting agreement](#sending-a-consulting-agreement).
 
-To hire a consultant, [submit a custom request](https://fleetdm.com/handbook/business-operations#intake) to the business operations team.
-
-> TODO: replace this w/  issue template (see also commented-out notes in hiring.md for some other steps)
+To hire a consultant, [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the business operations team.
 
 #### Who ISN'T a consultant?
 
@@ -114,30 +149,22 @@ Consultants aren't required to do any of those things.
 
 #### Sending a consulting agreement
 
-To hire a non-US consultant, please [submit a custom request](https://fleetdm.com/handbook/business-operations#intake).
+To send a consulting agreement, you will need to [submit a new consultant onboarding request](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=new-consultant-onboarding.md&title=New+US%2Finternational+consultant) to the business operations team. They will then peform the steps needed to bring aboard a new consultant.
 
-To hire a US-based consultant, send them an agreement using the "Contractor agreement (US)" template in [DocuSign](https://www.docusign.com/).
-(This template is located in the "¶¶ Classified templates" folder, which is only accessible via certain Docusign accounts in 1Password.)
+You will be asked to provide the following details:
+- Consultant's name (or business name)
+- Consultant's email
+- Term of service (default is 1 month, 10hrs/week)
+- Who will be managing the output (approving hours) for the consultant
+- Consultant's fee (always ask for their hourly rate)
+- Any specific tools the consultant will need
 
-> _**Note:** The Docusign template labeled "Contractor agreement (US)" is actually used for both consultants and [core team members in the US who are classified as 1099 contractors or billed corp-to-corp as vendors](#hiring-a-new-team-member).  You may also sometimes hear this referred to as Fleet's "Consulting agreement". Same thing._
+If the consultant is international, you will also provide:
+- Country of residence
+- Consultant's date of birth
 
-To send a US consulting agreement, you'll need the new consultant's name, the term of the service, a summary of the services provided, and the consultant's fee. 
 
-There are some defaults that we use for these agreements:
-   - Term: Default to one month unless otherwise discussed.
-   - Services rendered: Copy and paste from the [language in this doc](https://docs.google.com/document/d/1b5SGgYEHqDmq5QF8p29WWN3it3XJh3xRT3zG0RdXARo/edit)
-   - Work will commence and complete by dates: Start date and end of term date
-   - Fee: Get from the consultant.
-   - Hours: Default to 10 hr/week.
-   - All US consultants track their hours weekly in Gusto.
-
-Then hit send!  After all of the signatures are there in Docusign, automation will trigger that uploads the completed document to the appropriate Google Drive folder, and that makes a Slack message appear in the `#help-classified` channel.
-
-Finally, create a [custom request](https://fleetdm.com/handbook/business-operations#intake) titled "New US consultant: _____________" and request that this new consultant be registered with Fleet.  (Business Operations will receive this request and take care of next steps, which include things like providing a place for the company to report their hours weekly in the KPIs sheet, and providing access to Slack and any relevant company tools.)
-
-#### Updating a consultant's fee
- - Direct message Mike McNeil with hourly rate change information.
- - After CEO approval, Mike McNeil will issue a new contractor agreement with the updated fee via DocuSign.
+> To update a consultant's fee, [submit an issue to BizOps](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&title=Update%20consultant%20fee) with the consultant's name and new hourly rate.
 
 ### Advisor
 
@@ -226,7 +253,7 @@ When review is requested on a proposal to open a new position, the 🐈‍⬛ CE
      - _Salary:_ Enter the salary: If the role has variable compensation, use the role's OTE (on-target earning estimate) as the budgeted salary amount, and leave a note in the "Notes (¶¶)" cell clarifying the role's bonus or commission structure.
      - _Equity:_ Enter the equity as a number of shares, watching the percentage that is automatically calculated in the next cell.  Keep guessing different numbers of shares until you get the derived percentage looking like what you want to see.
 4. **Decide**: Decide whether to approve this role or to consider it a different time.  If approving, then:
-   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager.
+   - _Create Slack channel:_ Create a private "#hiring-xxxxxx-YYYY" Slack channel (where "xxxxxx" is the job title and YYYY is the current year) for discussion and invite the hiring manager and Head of Business Operations.
    - _Publish opening:_ Approve and merge the pull request.  The job posting will go live within ≤10 minutes.
    - _Track as approved in "Fleeties":_ In the "Fleeties" spreadsheet, find the row for the new position and update the "Job description" column and replace the URL of the pull request that originally proposed this new position with the URL of the GitHub merge commit when that PR was merged.
    - _Reply to requestor:_ Post a comment on the pull request, being sure to include a direct link to their live job description on fleetdm.com.  (This is the URL where candidates can go to read about the job and apply.  For example: `fleetdm.com/handbook/company/product-designer`):
@@ -260,13 +287,17 @@ Fleet maintains a list of companies with whom Fleet has do-not-solicit terms tha
 Fleet is unable to hire team members in some countries. See [this internal document](https://docs.google.com/document/d/1jHHJqShIyvlVwzx1C-FB9GC74Di_Rfdgmhpai1SPC0g/edit) for the list.
 
 #### Interviewing
+> TODO: Rewrite this section for the hiring manager as our audience.
+
 We're glad you're interested in joining the team! 
 Here are some of the things you can anticipate throughout this process:
   - We will reply by email within one business day from the time when the application arrives.
   - You may receive a rejection email (Bummer, consider applying again in the future).
   - You may receive an invitation to "book with us."
-If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps. 
+If you've been invited to "book with us," you'll have a Zoom meeting with the hiring team to discuss the next steps.
 
+Department specific interviewing instructions:
+- [Engineering](https://fleetdm.com/handbook/engineering#interview-a-developer-candidate)
 
 #### Hiring a new team member
 This section is about the hiring process a new core team member, or fleetie.
@@ -274,17 +305,15 @@ This section is about the hiring process a new core team member, or fleetie.
 > **_Note:_** _Employment classification isn't what makes someone a fleetie.  Some Fleet team members are contractors and others are employees.  The distinction between "contractor" and "employee" varies in different geographies, and the appropriate employment classification and agreement for any given team member and the place where they work is determined by Head of Business Operations during the process of making an offer._
 
 Here are the steps hiring managers follow to get an offer out to a candidate:
-1. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
+1. **Call references:** Before proceeding, make sure you have 2-5+ references. Ask the candidate for at least 2-5+ references and contact each reference in parallel using the instructions in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
+2. **Add to team database:** Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) doc to accurately reflect the candidate's:
    - Start date
      > _**Tip:** No need to check with the candidate if you haven't already.  Just guess.  First Mondays tend to make good start dates.  When hiring an international employee, Pilot.co recommends starting the hiring process a month before the new employee's start date._
    - First and last name
    - Preferred pronoun _("them", "her", or "him")_
    - LinkedIn URL _(If the fleetie does not have a LinkedIn account, enter `N/A`)_
    - Location of candidate
-   - GitHub username _(Every candidate must have a GitHub account in "Fleeties" before the company makes them an offer.  If the the candidate does not have a GitHub account, ask them to create one, and make sure it's tracked in "Fleeties".)_
-     > _**Tip:** A revealing live interview question can be to ask a candidate to quickly share their screen, sign up for GitHub, and then hit the "Edit" button on one of the pages in [the Fleet handbook](https://fleetdm.com/handbook) to make their first pull request.  This should not take more than 5 minutes._
-2. **Call references:** Ask the candidate for at least 2+ references and contact each reference in parallel using the instructions and tips in [Fleet's reference check template](https://docs.google.com/document/d/1LMOUkLJlAohuFykdgxTPL0RjAQxWkypzEYP_AT-bUAw/edit?usp=sharing).  Be respectful and keep these calls very short.
-3. **Schedule CEO interview:** [Book a quick chat](https://fleetdm.com/handbook/ceo#contact-us) so our CEO can get to know the future Fleetie.  (Please take care of all of the previous steps first.)
+3. **Schedule CEO interview:** [Book a quick chat](https://fleetdm.com/handbook/digital-experience#contact-us) so our CEO can get to know the future Fleetie.  (Please take care of all of the previous steps first.)
 4. **Confirm intent to offer:** Compile feedback about the candidate into a single document and share that document (the "interview packet") with the Head of Business Operations via Google Drive.  _This will be interpreted as a signal that you are ready for them to make an offer to this candidate._
    - _Compile feedback into a single doc:_ Include feedback from interviews, reference checks, and challenge submissions.  Include any other notes you can think of offhand, and embed links to any supporting documents that were impactful in your final decision-making, such as portfolios or challenge submissions.
    - _Share_ this single document with the Head of Business Operations via email.
@@ -302,7 +331,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
 2. **Prepare offer:** 🔦 Head of Business Operations [copies "Offer email (template)"](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/copy) and renames to e.g. "Offer email for Jane Doe".  Edit the candidate's copy of the offer email template doc and fill in the missing information:
    - _Benefits:_ If candidate will work outside the US, [change the "Benefits" bullet](https://docs.google.com/document/d/1zpNN2LWzAj-dVBC8iOg9jLurNlSe7XWKU69j7ntWtbY/edit) to reflect what will be included through Fleet's international payroll provider, depending on the candidate's location.
    - _Equity:_ Highlight the number of shares with a link to the candidate's custom "exit scenarios" spreadsheet.
-   - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/company/ceo#team).
+   - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
    - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
@@ -345,10 +374,8 @@ Once the new team member replies and accepts their offer in writing, 🔦 Head o
      ```
 2. **Ask hiring manager to send rejections:** Post to the `hiring-xxxxx-yyyy` Slack channel to let folks know the offer was accepted, and at-mention the _hiring manager_ to ask them to communicate with [all other interviewees](https://fleetdm.com/handbook/company#empathy) who are still in the running and [let them know that we chose a different person](https://fleetdm.com/handbook/business-operations#candidate-correspondence-email-templates).
    >_**Note:** Send rejection emails quickly, within 1 business day.  It only gets harder if you wait._
-3. **Remove open position:** Take down the newly-filled position from the fleetdm.com website by making the following two changes:  (please only submit [one, single pull request that changes both of these files](https://www.loom.com/share/75da64632a93415cbe0e7752107c1af2):
-   - Edit the [list of open positions](https://fleetdm.com/handbook/company#open-positions) to remove the newly-filled position from the list.
-   - Remove the [job description file](https://github.com/fleetdm/fleet/tree/main/handbook/company) that corresponds with the newly-filled position.  (This is a Markdown file named after the role, with a filename ending in `.md`.)
-5. **Close Slack channel:** Then archive and close the channel.
+3. **Remove open position:** The hiring manager removes the newly-filled position from the fleetdm.com website by [making a pull request](https://fleetdm.com/handbook/company/communications#making-a-pull-request) to delete it from the [open-positions.yml](https://github.com/fleetdm/fleet/blob/main/handbook/company/open-positions.yml) file.
+4. **Close Slack channel:** Then archive and close the channel.
 
 Now what happens?  🔦 Business Operations will then follow the steps in the "Hiring" issue, which includes reaching out to the new team member within 1 business day from a separate email thread to get additional information as needed, prepare their agreement, add them to the company's payroll system, and get their new laptop and hardware security keys ordered so that everything is ready for them to start on their first day.
 
@@ -378,7 +405,12 @@ From time to time, someone's job title changes.  To do this, Business Operations
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
 
+## Performance feedback
+When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
 
+1. Deliver negative feedback privately whenever possible, and be constructive not punitive. Celebrate positive feedback publicly.
+2. Performance mangement is a part of every 1:1 document. Start each 1:1 by delivering performance feedback.
+3. When you meet with your manager for your 1:1, periodically provide an update on how each of your direct reports is doing at the top of your own "Performance management" section in your 1:1 agenda doc.  
 
 <meta name="maintainedBy" value="mikermcneil">
 <meta name="title" value="🛠️ Leadership">

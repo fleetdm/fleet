@@ -1,0 +1,2 @@
+For fleetctl gitops, when MDM configs are not explicitly defined in gitops yml file, they are now set to default values.
+- GitOps user can now read fleet config, which is needed to determine if Fleet Premium is being used.

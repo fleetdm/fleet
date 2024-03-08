@@ -1,1 +1,0 @@
-* Added a mechanism to retry a Fleet Desktop token when the Fleet server response indicates it has expired or is invalid.

@@ -4,7 +4,7 @@ import { capitalize } from "lodash";
 import { IMunkiIssuesAggregate } from "interfaces/macadmins";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import TruncatedTextCell from "components/TableContainer/DataTable/TruncatedTextCell";
+import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import ViewAllHostsLink from "components/ViewAllHostsLink";
 
@@ -41,9 +41,9 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: (): JSX.Element => {
       const titleWithToolTip = (
         <TooltipWrapper
-          tipContent={`
-            Issues reported the last time Munki ran on each host.
-          `}
+          tipContent={
+            <>Issues reported the last time Munki ran on each host.</>
+          }
         >
           Issue
         </TooltipWrapper>
@@ -53,7 +53,7 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     disableSortBy: true,
     accessor: "name",
     Cell: (cellProps: ICellProps) => (
-      <TruncatedTextCell value={cellProps.cell.value} />
+      <TooltipTruncatedTextCell value={cellProps.cell.value} />
     ),
   },
   {
@@ -70,7 +70,7 @@ const generateMunkiIssuesTableHeaders = (teamId?: number): IDataColumn[] => [
     Header: (headerProps: IHeaderProps): JSX.Element => {
       return (
         <HeaderCell
-          value={"Hosts"}
+          value="Hosts"
           isSortedDesc={headerProps.column.isSortedDesc}
         />
       );

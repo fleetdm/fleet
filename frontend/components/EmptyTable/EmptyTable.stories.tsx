@@ -22,7 +22,7 @@ export const Basic: Story = {
   args: {
     header: "No Data",
     info: "There is no data to display.",
-    iconName: "alert",
+    graphicName: "empty-queries",
   },
 };
 

@@ -1,5 +1,5 @@
 /* eslint-disable  @typescript-eslint/explicit-module-boundary-types */
-import { IDeviceUserResponse, IHostDevice } from "interfaces/host";
+import { IDeviceUserResponse } from "interfaces/host";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 

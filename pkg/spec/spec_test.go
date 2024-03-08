@@ -69,3 +69,45 @@ func TestGroupFromBytesWithWin10CISQueries(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, g.Policies)
 }
+
+func TestGroupFromBytesMissingFields(t *testing.T) {
+	tests := []struct {
+		name string
+		in   []byte
+		want string
+	}{
+		{
+			"missing spec",
+			[]byte(`
+---
+apiVersion: v1
+kind: team
+			`),
+			`Missing required fields ("spec") on provided "team" configuration.`,
+		},
+		{
+			"missing spec and kind",
+			[]byte(`
+---
+apiVersion: v1
+			`),
+			`Missing required fields ("spec", "kind") on provided configuration`,
+		},
+		{
+			"missing spec and empty string kind",
+			[]byte(`
+---
+apiVersion: v1
+kind: ""
+			`),
+			`Missing required fields ("spec", "kind") on provided configuration`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := GroupFromBytes(tt.in)
+			require.ErrorContains(t, err, tt.want)
+		})
+	}
+}

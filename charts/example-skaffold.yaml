@@ -1,0 +1,35 @@
+apiVersion:  skaffold/v2beta28
+kind: Config
+deploy:
+  helm:
+    releases:
+    - name: fleet
+      imageStrategy:
+        helm: {}
+      chartPath: ./fleet
+      valuesFiles:
+      - ./fleet/values.yaml
+      recreatePods: false
+      setValues:
+        image.pullPolicy: Never
+        imageTag: main
+        replicas: 1
+        hostName: fleet.example.com
+        database.secretName: fleet-mysql
+        database.address: fleet-mysql:3306
+        cache.secretName: fleet-redis
+        cache.address: fleet-redis-master:6379
+        ingress.enabled: true
+        ingress.hosts[0].host: fleet.example.com
+        ingress.tls[0].secretName: fleet-web-tls
+        ingress.tls[0].hosts: ["fleet.example.com"]
+        fleet.tls.enabled: false
+        mysql.enabled: true
+        mysql.auth.username: fleet
+        mysql.auth.database: fleet
+        mysql.primary.livenessProbe.enabled: false
+        mysql.primary.readinessProbe.enabled: false
+        mysql.primary.startupProbe.enabled: false
+        redis.enabled: true
+        redis.architecture: standalone
+        redis.auth.enabled: false

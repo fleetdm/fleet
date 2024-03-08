@@ -15,6 +15,7 @@ import (
 	"log"
 	"math/rand"
 	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"strconv"
 	"strings"
@@ -29,7 +30,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
-	"github.com/valyala/fasthttp"
 )
 
 var (
@@ -58,7 +58,7 @@ func loadMacOSVulnerableSoftware() {
 	for _, line := range lines {
 		parts := bytes.Split(line, []byte("##"))
 		if len(parts) < 2 {
-			fmt.Println("skipping", string(line))
+			log.Println("skipping", string(line))
 			continue
 		}
 		macosVulnerableSoftware = append(macosVulnerableSoftware, fleet.Software{
@@ -67,7 +67,7 @@ func loadMacOSVulnerableSoftware() {
 			Source:  "apps",
 		})
 	}
-	log.Printf("Loaded %d vulnerable macOS software\n", len(macosVulnerableSoftware))
+	log.Printf("Loaded %d vulnerable macOS software", len(macosVulnerableSoftware))
 }
 
 func loadSoftwareItems(fs embed.FS, path string) []map[string]string {
@@ -106,15 +106,24 @@ func init() {
 }
 
 type Stats struct {
-	errors              int
-	osqueryEnrollments  int
-	orbitEnrollments    int
-	mdmEnrollments      int
-	distributedWrites   int
-	mdmCommandsReceived int
-	orbitErrors         int
-	mdmErrors           int
-	desktopErrors       int
+	startTime              time.Time
+	errors                 int
+	osqueryEnrollments     int
+	orbitEnrollments       int
+	mdmEnrollments         int
+	distributedWrites      int
+	mdmCommandsReceived    int
+	distributedReads       int
+	configRequests         int
+	configErrors           int
+	resultLogRequests      int
+	orbitErrors            int
+	mdmErrors              int
+	desktopErrors          int
+	distributedReadErrors  int
+	distributedWriteErrors int
+	resultLogErrors        int
+	bufferedLogs           int
 
 	l sync.Mutex
 }
@@ -155,6 +164,30 @@ func (s *Stats) IncrementMDMCommandsReceived() {
 	s.mdmCommandsReceived++
 }
 
+func (s *Stats) IncrementDistributedReads() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.distributedReads++
+}
+
+func (s *Stats) IncrementConfigRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configRequests++
+}
+
+func (s *Stats) IncrementConfigErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.configErrors++
+}
+
+func (s *Stats) IncrementResultLogRequests() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.resultLogRequests++
+}
+
 func (s *Stats) IncrementOrbitErrors() {
 	s.l.Lock()
 	defer s.l.Unlock()
@@ -173,22 +206,57 @@ func (s *Stats) IncrementDesktopErrors() {
 	s.desktopErrors++
 }
 
+func (s *Stats) IncrementDistributedReadErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.distributedReadErrors++
+}
+
+func (s *Stats) IncrementDistributedWriteErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.distributedWriteErrors++
+}
+
+func (s *Stats) IncrementResultLogErrors() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.resultLogErrors++
+}
+
+func (s *Stats) UpdateBufferedLogs(v int) {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.bufferedLogs += v
+	if s.bufferedLogs < 0 {
+		s.bufferedLogs = 0
+	}
+}
+
 func (s *Stats) Log() {
 	s.l.Lock()
 	defer s.l.Unlock()
 
-	fmt.Printf(
-		"%s :: error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/writes: %d, mdm commands received: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d\n",
-		time.Now().Format("2006-01-02T15:04:05Z"),
+	log.Printf(
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
+		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
 		s.orbitEnrollments,
 		s.mdmEnrollments,
+		s.distributedReads,
 		s.distributedWrites,
+		s.configRequests,
+		s.resultLogRequests,
 		s.mdmCommandsReceived,
+		s.configErrors,
+		s.distributedReadErrors,
+		s.distributedWriteErrors,
+		s.resultLogErrors,
 		s.orbitErrors,
 		s.desktopErrors,
 		s.mdmErrors,
+		s.bufferedLogs,
 	)
 }
 
@@ -216,12 +284,12 @@ func (n *nodeKeyManager) LoadKeys() {
 
 	data, err := os.ReadFile(n.filepath)
 	if err != nil {
-		fmt.Println("WARNING (ignore if creating a new node key file): error loading nodekey file:", err)
+		log.Println("WARNING (ignore if creating a new node key file): error loading nodekey file:", err)
 		return
 	}
 	n.nodekeys = strings.Split(string(data), "\n")
 	n.nodekeys = n.nodekeys[:len(n.nodekeys)-1] // remove last empty node key due to new line.
-	fmt.Printf("loaded %d node keys\n", len(n.nodekeys))
+	log.Printf("loaded %d node keys", len(n.nodekeys))
 }
 
 func (n *nodeKeyManager) Get(i int) string {
@@ -245,12 +313,12 @@ func (n *nodeKeyManager) Add(nodekey string) {
 
 	f, err := os.OpenFile(n.filepath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0o600)
 	if err != nil {
-		fmt.Println("error opening nodekey file:", err.Error())
+		log.Printf("error opening nodekey file: %s", err.Error())
 		return
 	}
 	defer f.Close()
 	if _, err := f.WriteString(nodekey + "\n"); err != nil {
-		fmt.Println("error writing nodekey file:", err)
+		log.Printf("error writing nodekey file: %s", err)
 	}
 }
 
@@ -265,7 +333,6 @@ type agent struct {
 	liveQueryNoResultsProb float64
 	strings                map[string]string
 	serverAddress          string
-	fastClient             fasthttp.Client
 	stats                  *Stats
 	nodeKeyManager         *nodeKeyManager
 	nodeKey                string
@@ -278,16 +345,17 @@ type agent struct {
 	deviceAuthToken *string
 	orbitNodeKey    *string
 
-	scheduledQueries []string
-
 	// mdmClient simulates a device running the MDM protocol (client side).
-	mdmClient *mdmtest.TestMDMClient
+	mdmClient *mdmtest.TestAppleMDMClient
 	// isEnrolledToMDM is true when the mdmDevice has enrolled.
 	isEnrolledToMDM bool
 	// isEnrolledToMDMMu protects isEnrolledToMDM.
 	isEnrolledToMDMMu sync.Mutex
 
-	disableScriptExec bool
+	disableScriptExec   bool
+	disableFleetDesktop bool
+	loggerTLSMaxLines   int
+
 	// atomic boolean is set to true when executing scripts, so that only a
 	// single goroutine at a time can execute scripts.
 	scriptExecRunning atomic.Bool
@@ -300,9 +368,21 @@ type agent struct {
 	UUID                  string
 	SerialNumber          string
 	ConfigInterval        time.Duration
+	LogInterval           time.Duration
 	QueryInterval         time.Duration
 	MDMCheckInInterval    time.Duration
 	DiskEncryptionEnabled bool
+
+	scheduledQueriesMu sync.Mutex // protects the below members
+	scheduledQueries   []string
+	scheduledQueryData []scheduledQuery
+	// bufferedResults contains result logs that are buffered when
+	// /api/v1/osquery/log requests to the Fleet server fail.
+	//
+	// NOTE: We use a map instead of a slice to prevent the data structure to
+	// increase indefinitely (we sacrifice accuracy of logs but that's
+	// a-ok for osquery-perf and load testing).
+	bufferedResults map[resultLog]int
 }
 
 type entityCount struct {
@@ -325,7 +405,7 @@ func newAgent(
 	agentIndex int,
 	serverAddress, enrollSecret string,
 	templates *template.Template,
-	configInterval, queryInterval, mdmCheckInInterval time.Duration,
+	configInterval, logInterval, queryInterval, mdmCheckInInterval time.Duration,
 	softwareCount softwareEntityCount,
 	userCount entityCount,
 	policyPassProb float64,
@@ -337,23 +417,21 @@ func newAgent(
 	liveQueryFailProb float64,
 	liveQueryNoResultsProb float64,
 	disableScriptExec bool,
+	disableFleetDesktop bool,
+	loggerTLSMaxLines int,
 ) *agent {
 	var deviceAuthToken *string
 	if rand.Float64() <= orbitProb {
 		deviceAuthToken = ptr.String(uuid.NewString())
-	}
-	// #nosec (osquery-perf is only used for testing)
-	tlsConfig := &tls.Config{
-		InsecureSkipVerify: true,
 	}
 	serialNumber := mdmtest.RandSerialNumber()
 	if rand.Float64() <= emptySerialProb {
 		serialNumber = ""
 	}
 	uuid := strings.ToUpper(uuid.New().String())
-	var mdmClient *mdmtest.TestMDMClient
+	var mdmClient *mdmtest.TestAppleMDMClient
 	if rand.Float64() <= mdmProb {
-		mdmClient = mdmtest.NewTestMDMClientDirect(mdmtest.EnrollInfo{
+		mdmClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
 			SCEPChallenge: mdmSCEPChallenge,
 			SCEPURL:       serverAddress + apple_mdm.SCEPPath,
 			MDMURL:        serverAddress + apple_mdm.MDMPath,
@@ -373,22 +451,23 @@ func newAgent(
 		munkiIssueCount:        munkiIssueCount,
 		liveQueryFailProb:      liveQueryFailProb,
 		liveQueryNoResultsProb: liveQueryNoResultsProb,
-		fastClient: fasthttp.Client{
-			TLSConfig: tlsConfig,
-		},
-		templates:       templates,
-		deviceAuthToken: deviceAuthToken,
-		os:              strings.TrimRight(templates.Name(), ".tmpl"),
+		templates:              templates,
+		deviceAuthToken:        deviceAuthToken,
+		os:                     strings.TrimRight(templates.Name(), ".tmpl"),
 
 		EnrollSecret:       enrollSecret,
 		ConfigInterval:     configInterval,
+		LogInterval:        logInterval,
 		QueryInterval:      queryInterval,
 		MDMCheckInInterval: mdmCheckInInterval,
 		UUID:               uuid,
 		SerialNumber:       serialNumber,
 
-		mdmClient:         mdmClient,
-		disableScriptExec: disableScriptExec,
+		mdmClient:           mdmClient,
+		disableScriptExec:   disableScriptExec,
+		disableFleetDesktop: disableFleetDesktop,
+		loggerTLSMaxLines:   loggerTLSMaxLines,
+		bufferedResults:     make(map[resultLog]int),
 	}
 }
 
@@ -398,6 +477,18 @@ type enrollResponse struct {
 
 type distributedReadResponse struct {
 	Queries map[string]string `json:"queries"`
+}
+
+type scheduledQuery struct {
+	Query            string  `json:"query"`
+	Name             string  `json:"name"`
+	ScheduleInterval float64 `json:"interval"`
+	Platform         string  `json:"platform"`
+	Version          string  `json:"version"`
+	Snapshot         bool    `json:"snapshot"`
+	nextRun          float64
+	numRows          uint
+	packName         string
 }
 
 func (a *agent) isOrbit() bool {
@@ -415,13 +506,12 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		return
 	}
 
-	a.config()
+	_ = a.config()
+
 	resp, err := a.DistributedRead()
-	if err != nil {
-		log.Println(err)
-	} else {
+	if err == nil {
 		if len(resp.Queries) > 0 {
-			a.DistributedWrite(resp.Queries)
+			_ = a.DistributedWrite(resp.Queries)
 		}
 	}
 
@@ -431,7 +521,7 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 
 	if a.mdmClient != nil {
 		if err := a.mdmClient.Enroll(); err != nil {
-			log.Printf("MDM enroll failed: %s\n", err)
+			log.Printf("MDM enroll failed: %s", err)
 			a.stats.IncrementMDMErrors()
 			return
 		}
@@ -440,19 +530,136 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runMDMLoop()
 	}
 
-	configTicker := time.Tick(a.ConfigInterval)
-	liveQueryTicker := time.Tick(a.QueryInterval)
-	for {
-		select {
-		case <-configTicker:
-			a.config()
-		case <-liveQueryTicker:
-			resp, err := a.DistributedRead()
-			if err != nil {
-				log.Println(err)
-			} else if len(resp.Queries) > 0 {
-				a.DistributedWrite(resp.Queries)
+	//
+	// osquery runs three separate independent threads,
+	//	- a thread for getting, running and submitting results for distributed queries (distributed).
+	// 	- a thread for getting configuration from a remote server (config).
+	//	- a thread for submitting log results (logger).
+	//
+	// Thus we try to simulate that as much as we can.
+
+	// (1) distributed thread:
+	go func() {
+		liveQueryTicker := time.NewTicker(a.QueryInterval)
+		defer liveQueryTicker.Stop()
+
+		for range liveQueryTicker.C {
+			if resp, err := a.DistributedRead(); err == nil && len(resp.Queries) > 0 {
+				_ = a.DistributedWrite(resp.Queries)
 			}
+		}
+	}()
+
+	// (2) config thread:
+	go func() {
+		configTicker := time.NewTicker(a.ConfigInterval)
+		defer configTicker.Stop()
+
+		for range configTicker.C {
+			_ = a.config()
+		}
+	}()
+
+	// (3) logger thread:
+	logTicker := time.NewTicker(a.LogInterval)
+	defer logTicker.Stop()
+	for range logTicker.C {
+		// check if we have any scheduled queries that should be returning results
+		var results []resultLog
+		now := time.Now().Unix()
+		a.scheduledQueriesMu.Lock()
+		prevCount := a.countBuffered()
+		for i, query := range a.scheduledQueryData {
+			if query.nextRun == 0 || now >= int64(query.nextRun) {
+				results = append(results, resultLog{
+					packName:  query.packName,
+					queryName: query.Name,
+					numRows:   int(query.numRows),
+				})
+				a.scheduledQueryData[i].nextRun = float64(now + int64(query.ScheduleInterval))
+			}
+		}
+		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
+			a.addToBuffer(results)
+		}
+		a.sendLogsBatch()
+		newBufferedCount := a.countBuffered() - prevCount
+		a.stats.UpdateBufferedLogs(newBufferedCount)
+		a.scheduledQueriesMu.Unlock()
+	}
+}
+
+func (a *agent) countBuffered() int {
+	var total int
+	for _, count := range a.bufferedResults {
+		total += count
+	}
+	return total
+}
+
+func (a *agent) addToBuffer(results []resultLog) {
+	for _, result := range results {
+		a.bufferedResults[result] += 1
+	}
+}
+
+// getBatch returns a random set of logs from the buffered logs.
+// NOTE: We sacrifice some accuracy in the name of CPU and memory efficiency.
+func (a *agent) getBatch(batchSize int) []resultLog {
+	results := make([]resultLog, 0, batchSize)
+	for result, count := range a.bufferedResults {
+		left := batchSize - len(results)
+		if left <= 0 {
+			return results
+		}
+		if count > left {
+			count = left
+		}
+		for i := 0; i < count; i++ {
+			results = append(results, result)
+		}
+	}
+	return results
+}
+
+type resultLog struct {
+	packName  string
+	queryName string
+	numRows   int
+}
+
+func (r resultLog) emit() []byte {
+	return scheduledQueryResults(r.packName, r.queryName, r.numRows)
+}
+
+// sendLogsBatch sends up to loggerTLSMaxLines logs and updates the buffer.
+func (a *agent) sendLogsBatch() {
+	if len(a.bufferedResults) == 0 {
+		return
+	}
+
+	batchSize := a.loggerTLSMaxLines
+	if count := a.countBuffered(); count < batchSize {
+		batchSize = count
+	}
+	batch := a.getBatch(batchSize)
+	if err := a.submitLogs(batch); err != nil {
+		return
+	}
+	a.removeBuffered(batchSize)
+}
+
+// removeBuffered removes a random set of logs from the buffered logs.
+// NOTE: We sacrifice some accuracy in the name of CPU and memory efficiency.
+func (a *agent) removeBuffered(batchSize int) {
+	for b := batchSize; b > 0; {
+		for result, count := range a.bufferedResults {
+			if count > b {
+				a.bufferedResults[result] -= b
+				return
+			}
+			delete(a.bufferedResults, result)
+			b -= count
 		}
 	}
 }
@@ -470,6 +677,7 @@ func (a *agent) runOrbitLoop() {
 			HardwareSerial: a.SerialNumber,
 			Hostname:       a.CachedString("hostname"),
 		},
+		nil,
 	)
 	if err != nil {
 		log.Println("creating orbit client: ", err)
@@ -479,28 +687,30 @@ func (a *agent) runOrbitLoop() {
 
 	deviceClient, err := service.NewDeviceClient(a.serverAddress, true, "", nil, "")
 	if err != nil {
-		log.Println("creating device client: ", err)
+		log.Fatal("creating device client: ", err)
 	}
 
 	// orbit does a config check when it starts
 	if _, err := orbitClient.GetConfig(); err != nil {
 		a.stats.IncrementOrbitErrors()
-		log.Println("orbitClient.GetConfig: ", err)
 	}
 
-	tokenRotationEnabled := orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
-		orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation)
+	tokenRotationEnabled := false
+	if !a.disableFleetDesktop {
+		tokenRotationEnabled = orbitClient.GetServerCapabilities().Has(fleet.CapabilityOrbitEndpoints) &&
+			orbitClient.GetServerCapabilities().Has(fleet.CapabilityTokenRotation)
 
-	// it also writes and checks the device token
-	if tokenRotationEnabled {
-		if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
-			a.stats.IncrementOrbitErrors()
-			log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
-		}
+		// it also writes and checks the device token
+		if tokenRotationEnabled {
+			if err := orbitClient.SetOrUpdateDeviceToken(*a.deviceAuthToken); err != nil {
+				a.stats.IncrementOrbitErrors()
+				log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+			}
 
-		if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
-			a.stats.IncrementOrbitErrors()
-			log.Println("deviceClient.CheckToken: ", err)
+			if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
+				a.stats.IncrementOrbitErrors()
+				log.Println("deviceClient.CheckToken: ", err)
+			}
 		}
 	}
 
@@ -527,8 +737,10 @@ func (a *agent) runOrbitLoop() {
 		}
 	}
 
-	// fleet desktop performs a burst of check token requests when it's initialized
-	checkToken()
+	// Fleet Desktop performs a burst of check token requests when it's initialized
+	if !a.disableFleetDesktop {
+		checkToken()
+	}
 
 	// orbit makes a call to check the config and update the CLI flags every 30
 	// seconds
@@ -550,7 +762,7 @@ func (a *agent) runOrbitLoop() {
 			cfg, err := orbitClient.GetConfig()
 			if err != nil {
 				a.stats.IncrementOrbitErrors()
-				log.Println("orbitClient.GetConfig: ", err)
+				continue
 			}
 			if len(cfg.Notifications.PendingScriptExecutionIDs) > 0 {
 				// there are pending scripts to execute on this host, start a goroutine
@@ -558,18 +770,20 @@ func (a *agent) runOrbitLoop() {
 				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
 			}
 		case <-orbitTokenRemoteCheckTicker:
-			if tokenRotationEnabled {
+			if !a.disableFleetDesktop && tokenRotationEnabled {
 				if err := deviceClient.CheckToken(*a.deviceAuthToken); err != nil {
 					a.stats.IncrementOrbitErrors()
 					log.Println("deviceClient.CheckToken: ", err)
+					continue
 				}
 			}
 		case <-orbitTokenRotationTicker:
-			if tokenRotationEnabled {
+			if !a.disableFleetDesktop && tokenRotationEnabled {
 				newToken := ptr.String(uuid.NewString())
 				if err := orbitClient.SetOrUpdateDeviceToken(*newToken); err != nil {
 					a.stats.IncrementOrbitErrors()
 					log.Println("orbitClient.SetOrUpdateDeviceToken: ", err)
+					continue
 				}
 				a.deviceAuthToken = newToken
 				// fleet desktop performs a burst of check token requests after a token is rotated
@@ -578,12 +792,15 @@ func (a *agent) runOrbitLoop() {
 		case <-capabilitiesCheckerTicker:
 			if err := orbitClient.Ping(); err != nil {
 				a.stats.IncrementOrbitErrors()
-				log.Println("orbitClient.Ping: ", err)
+				continue
 			}
 		case <-fleetDesktopPolicyTicker:
-			if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
-				a.stats.IncrementDesktopErrors()
-				log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+			if !a.disableFleetDesktop {
+				if _, err := deviceClient.DesktopSummary(*a.deviceAuthToken); err != nil {
+					a.stats.IncrementDesktopErrors()
+					log.Println("deviceClient.NumberOfFailingPolicies: ", err)
+					continue
+				}
 			}
 		}
 	}
@@ -595,7 +812,7 @@ func (a *agent) runMDMLoop() {
 	for range mdmCheckInTicker {
 		mdmCommandPayload, err := a.mdmClient.Idle()
 		if err != nil {
-			log.Printf("MDM Idle request failed: %s\n", err)
+			log.Printf("MDM Idle request failed: %s", err)
 			a.stats.IncrementMDMErrors()
 			continue
 		}
@@ -604,7 +821,7 @@ func (a *agent) runMDMLoop() {
 			a.stats.IncrementMDMCommandsReceived()
 			mdmCommandPayload, err = a.mdmClient.Acknowledge(mdmCommandPayload.CommandUUID)
 			if err != nil {
-				log.Printf("MDM Acknowledge request failed: %s\n", err)
+				log.Printf("MDM Acknowledge request failed: %s", err)
 				a.stats.IncrementMDMErrors()
 				break INNER_FOR_LOOP
 			}
@@ -619,7 +836,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 	}
 	defer a.scriptExecRunning.Store(false)
 
-	log.Printf("running scripts: %v\n", execIDs)
+	log.Printf("running scripts: %v", execIDs)
 	for _, execID := range execIDs {
 		if a.disableScriptExec {
 			// send a no-op result without executing if script exec is disabled
@@ -632,7 +849,7 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 				log.Println("save disabled host script result:", err)
 				return
 			}
-			log.Printf("did save disabled host script result: id=%s\n", execID)
+			log.Printf("did save disabled host script result: id=%s", execID)
 			continue
 		}
 
@@ -660,18 +877,24 @@ func (a *agent) execScripts(execIDs []string, orbitClient *service.OrbitClient) 
 			log.Println("save host script result:", err)
 			return
 		}
-		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d\n", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
+		log.Printf("did exec and save host script result: id=%s, output size=%d, runtime=%d, exit code=%d", execID, base64.StdEncoding.EncodedLen(n), runtime, exitCode)
 	}
 }
 
-func (a *agent) waitingDo(req *fasthttp.Request, res *fasthttp.Response) {
-	err := a.fastClient.Do(req, res)
-	for err != nil || res.StatusCode() != http.StatusOK {
-		fmt.Println(err, res.StatusCode())
+func (a *agent) waitingDo(fn func() *http.Request) *http.Response {
+	response, err := http.DefaultClient.Do(fn())
+	for err != nil || response.StatusCode != http.StatusOK {
+		if err != nil {
+			log.Printf("failed to run request: %s", err)
+		} else { // res.StatusCode() != http.StatusOK
+			response.Body.Close()
+			log.Printf("request failed: %d", response.StatusCode)
+		}
 		a.stats.IncrementErrors(1)
 		<-time.Tick(time.Duration(rand.Intn(120)+1) * time.Second)
-		err = a.fastClient.Do(req, res)
+		response, err = http.DefaultClient.Do(fn())
 	}
+	return response
 }
 
 // TODO: add support to `alreadyEnrolled` akin to the `enroll` function.  for
@@ -683,32 +906,24 @@ func (a *agent) orbitEnroll() error {
 		HardwareUUID:   a.UUID,
 		HardwareSerial: a.SerialNumber,
 	}
-
 	jsonBytes, err := json.Marshal(params)
 	if err != nil {
 		log.Println("orbit json marshall:", err)
 		return err
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(jsonBytes)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.SetRequestURI(a.serverAddress + "/api/fleet/orbit/enroll")
-	resp := fasthttp.AcquireResponse()
-
-	a.waitingDo(req, resp)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(resp)
-
-	if resp.StatusCode() != http.StatusOK {
-		log.Println("orbit enroll status:", resp.StatusCode())
-		return fmt.Errorf("status code: %d", resp.StatusCode())
-	}
+	response := a.waitingDo(func() *http.Request {
+		request, err := http.NewRequest("POST", a.serverAddress+"/api/fleet/orbit/enroll", bytes.NewReader(jsonBytes))
+		if err != nil {
+			panic(err)
+		}
+		request.Header.Add("Content-type", "application/json")
+		return request
+	})
+	defer response.Body.Close()
 
 	var parsedResp service.EnrollOrbitResponse
-	if err := json.Unmarshal(resp.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("orbit json parse:", err)
 		return err
 	}
@@ -735,26 +950,23 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 		return err
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body.Bytes())
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/enroll")
-	res := fasthttp.AcquireResponse()
+	response := a.waitingDo(func() *http.Request {
+		request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/enroll", &body)
+		if err != nil {
+			panic(err)
+		}
+		request.Header.Add("Content-type", "application/json")
+		return request
+	})
+	defer response.Body.Close()
 
-	a.waitingDo(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
-	if res.StatusCode() != http.StatusOK {
-		log.Println("enroll status:", res.StatusCode())
-		return fmt.Errorf("status code: %d", res.StatusCode())
+	if response.StatusCode != http.StatusOK {
+		log.Println("enroll status:", response.StatusCode)
+		return fmt.Errorf("status code: %d", response.StatusCode)
 	}
 
 	var parsedResp enrollResponse
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
 		log.Println("json parse:", err)
 		return err
 	}
@@ -767,25 +979,25 @@ func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	return nil
 }
 
-func (a *agent) config() {
-	body := bytes.NewBufferString(`{"node_key": "` + a.nodeKey + `"}`)
+func (a *agent) config() error {
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/config", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body.Bytes())
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/config")
-	res := fasthttp.AcquireResponse()
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("config request failed to run: %w", err)
+	}
+	defer response.Body.Close()
 
-	a.waitingDo(req, res)
+	a.stats.IncrementConfigRequests()
 
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
-
-	if res.StatusCode() != http.StatusOK {
-		log.Println("config status:", res.StatusCode())
-		return
+	statusCode := response.StatusCode
+	if statusCode != http.StatusOK {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("config request failed: %d", statusCode)
 	}
 
 	parsedResp := struct {
@@ -793,18 +1005,45 @@ func (a *agent) config() {
 			Queries map[string]interface{} `json:"queries"`
 		} `json:"packs"`
 	}{}
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
-		log.Println("json parse at config:", err)
-		return
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+		a.stats.IncrementConfigErrors()
+		return fmt.Errorf("json parse at config: %w", err)
 	}
 
 	var scheduledQueries []string
+	var scheduledQueryData []scheduledQuery
 	for packName, pack := range parsedResp.Packs {
-		for queryName := range pack.Queries {
+		for queryName, query := range pack.Queries {
 			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
+			m, ok := query.(map[string]interface{})
+			if !ok {
+				return fmt.Errorf("processing scheduled query failed: %v", query)
+			}
+
+			q := scheduledQuery{}
+			q.packName = packName
+			q.Name = queryName
+			q.numRows = 1
+			parts := strings.Split(q.Name, "_")
+			if len(parts) == 2 {
+				num, err := strconv.ParseInt(parts[1], 10, 32)
+				if err != nil {
+					num = 1
+				}
+				q.numRows = uint(num)
+			}
+			q.ScheduleInterval = m["interval"].(float64)
+			q.Query = m["query"].(string)
+			scheduledQueryData = append(scheduledQueryData, q)
 		}
 	}
+
+	a.scheduledQueriesMu.Lock()
 	a.scheduledQueries = scheduledQueries
+	a.scheduledQueryData = scheduledQueryData
+	a.scheduledQueriesMu.Unlock()
+
+	return nil
 }
 
 const stringVals = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_."
@@ -926,22 +1165,30 @@ func (a *agent) softwareMacOS() []map[string]string {
 }
 
 func (a *agent) DistributedRead() (*distributedReadResponse, error) {
-	req := fasthttp.AcquireRequest()
-	req.SetBody([]byte(`{"node_key": "` + a.nodeKey + `"}`))
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/4.6.0")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/read")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/read", bytes.NewReader([]byte(`{"node_key": "`+a.nodeKey+`"}`)))
+	if err != nil {
+		return nil, err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	a.waitingDo(req, res)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return nil, fmt.Errorf("distributed/read request failed to run: %w", err)
+	}
+	defer response.Body.Close()
 
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
+	a.stats.IncrementDistributedReads()
+
+	statusCode := response.StatusCode
+	if statusCode != http.StatusOK {
+		a.stats.IncrementDistributedReadErrors()
+		return nil, fmt.Errorf("distributed/read request failed: %d", statusCode)
+	}
 
 	var parsedResp distributedReadResponse
-	if err := json.Unmarshal(res.Body(), &parsedResp); err != nil {
-		log.Println("json parse:", err)
+	if err := json.NewDecoder(response.Body).Decode(&parsedResp); err != nil {
+		a.stats.IncrementDistributedReadErrors()
+		log.Printf("json parse: %s", err)
 		return nil, err
 	}
 
@@ -974,6 +1221,9 @@ func (a *agent) runPolicy(query string) []map[string]string {
 }
 
 func (a *agent) randomQueryStats() []map[string]string {
+	a.scheduledQueriesMu.Lock()
+	defer a.scheduledQueriesMu.Unlock()
+
 	var stats []map[string]string
 	for _, scheduledQuery := range a.scheduledQueries {
 		stats = append(stats, map[string]string{
@@ -987,7 +1237,8 @@ func (a *agent) randomQueryStats() []map[string]string {
 			"output_size":    fmt.Sprint(rand.Intn(100) + 1),
 			"system_time":    fmt.Sprint(rand.Intn(4000) + 10),
 			"user_time":      fmt.Sprint(rand.Intn(4000) + 10),
-			"wall_time":      fmt.Sprint(rand.Intn(4000) + 10),
+			"wall_time":      fmt.Sprint(rand.Intn(4) + 1),
+			"wall_time_ms":   fmt.Sprint(rand.Intn(4000) + 10),
 		})
 	}
 	return stats
@@ -1145,8 +1396,13 @@ func (a *agent) diskSpace() []map[string]string {
 	gigs := rand.Intn(100)
 	gigs++
 	pct := rand.Intn(100)
+	available := gigs * pct / 100
 	return []map[string]string{
-		{"percent_disk_space_available": strconv.Itoa(gigs), "gigs_disk_space_available": strconv.Itoa(pct)},
+		{
+			"percent_disk_space_available": strconv.Itoa(pct),
+			"gigs_disk_space_available":    strconv.Itoa(available),
+			"gigs_total_disk_space":        strconv.Itoa(gigs),
+		},
 	}
 }
 
@@ -1175,31 +1431,40 @@ func (a *agent) diskEncryptionLinux() []map[string]string {
 	}
 }
 
-func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string) {
+func (a *agent) runLiveQuery(query string) (results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats) {
 	if a.liveQueryFailProb > 0.0 && rand.Float64() <= a.liveQueryFailProb {
 		ss := fleet.OsqueryStatus(1)
-		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar")
+		return []map[string]string{}, &ss, ptr.String("live query failed with error foobar"), nil
 	}
 	ss := fleet.OsqueryStatus(0)
 	if a.liveQueryNoResultsProb > 0.0 && rand.Float64() <= a.liveQueryNoResultsProb {
-		return []map[string]string{}, &ss, nil
+		return []map[string]string{}, &ss, nil, nil
 	}
-	return []map[string]string{{
-		"admindir":   "/var/lib/dpkg",
-		"arch":       "amd64",
-		"maintainer": "foobar",
-		"name":       "netconf",
-		"priority":   "optional",
-		"revision":   "",
-		"section":    "default",
-		"size":       "112594",
-		"source":     "",
-		"status":     "install ok installed",
-		"version":    "20230224000000",
-	}}, &ss, nil
+	return []map[string]string{
+			{
+				"admindir":   "/var/lib/dpkg",
+				"arch":       "amd64",
+				"maintainer": "foobar",
+				"name":       "netconf",
+				"priority":   "optional",
+				"revision":   "",
+				"section":    "default",
+				"size":       "112594",
+				"source":     "",
+				"status":     "install ok installed",
+				"version":    "20230224000000",
+			},
+		}, &ss, nil, &fleet.Stats{
+			WallTimeMs: uint64(rand.Intn(1000) * 1000),
+			UserTime:   uint64(rand.Intn(1000)),
+			SystemTime: uint64(rand.Intn(1000)),
+			Memory:     uint64(rand.Intn(1000)),
+		}
 }
 
-func (a *agent) processQuery(name, query string) (handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string) {
+func (a *agent) processQuery(name, query string) (
+	handled bool, results []map[string]string, status *fleet.OsqueryStatus, message *string, stats *fleet.Stats,
+) {
 	const (
 		hostPolicyQueryPrefix = "fleet_policy_query_"
 		hostDetailQueryPrefix = "fleet_detail_query_"
@@ -1210,60 +1475,60 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 
 	switch {
 	case strings.HasPrefix(name, liveQueryPrefix):
-		results, status, message = a.runLiveQuery(query)
-		return true, results, status, message
+		results, status, message, stats = a.runLiveQuery(query)
+		return true, results, status, message, stats
 	case strings.HasPrefix(name, hostPolicyQueryPrefix):
-		return true, a.runPolicy(query), &statusOK, nil
+		return true, a.runPolicy(query), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
-		return true, a.randomQueryStats(), &statusOK, nil
+		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmMac()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.mdmWindows()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"munki_info":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.munkiInfo()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"google_chrome_profiles":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.googleChromeProfiles()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"battery":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.batteries()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"users":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.hostUsers()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_macos":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.softwareMacOS()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = windowsSoftware
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"software_linux":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
@@ -1272,37 +1537,37 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 				results = ubuntuSoftware
 			}
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_space_unix" || name == hostDetailQueryPrefix+"disk_space_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskSpace()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 
 	case strings.HasPrefix(name, hostDetailQueryPrefix+"disk_encryption_linux"):
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryptionLinux()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"disk_encryption_darwin" ||
 		name == hostDetailQueryPrefix+"disk_encryption_windows":
 		ss := fleet.OsqueryStatus(rand.Intn(2))
 		if ss == fleet.StatusOK {
 			results = a.diskEncryption()
 		}
-		return true, results, &ss, nil
+		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"kubequery_info" && a.os != "kubequery":
 		// Real osquery running on hosts would return no results if it was not
 		// running kubequery (due to discovery query). Returning true here so that
 		// the caller knows it is handled, will not try to return lorem-ipsum-style
 		// results.
-		return true, nil, &statusNotOK, nil
+		return true, nil, &statusNotOK, nil, nil
 	default:
 		// Look for results in the template file.
 		if t := a.templates.Lookup(name); t == nil {
-			return false, nil, nil, nil
+			return false, nil, nil, nil, nil
 		}
 		var ni bytes.Buffer
 		err := a.templates.ExecuteTemplate(&ni, name, a)
@@ -1314,19 +1579,20 @@ func (a *agent) processQuery(name, query string) (handled bool, results []map[st
 			panic(err)
 		}
 
-		return true, results, &statusOK, nil
+		return true, results, &statusOK, nil, nil
 	}
 }
 
-func (a *agent) DistributedWrite(queries map[string]string) {
+func (a *agent) DistributedWrite(queries map[string]string) error {
 	r := service.SubmitDistributedQueryResultsRequest{
 		Results:  make(fleet.OsqueryDistributedQueryResults),
 		Statuses: make(map[string]fleet.OsqueryStatus),
 		Messages: make(map[string]string),
+		Stats:    make(map[string]*fleet.Stats),
 	}
 	r.NodeKey = a.nodeKey
 	for name, query := range queries {
-		handled, results, status, message := a.processQuery(name, query)
+		handled, results, status, message, stats := a.processQuery(name, query)
 		if !handled {
 			// If osquery-perf does not handle the incoming query,
 			// always return status OK and the default query result.
@@ -1342,6 +1608,9 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 			if message != nil {
 				r.Messages[name] = *message
 			}
+			if stats != nil {
+				r.Stats[name] = stats
+			}
 		}
 	}
 	body, err := json.Marshal(r)
@@ -1349,28 +1618,150 @@ func (a *agent) DistributedWrite(queries map[string]string) {
 		panic(err)
 	}
 
-	req := fasthttp.AcquireRequest()
-	req.SetBody(body)
-	req.Header.SetMethod("POST")
-	req.Header.SetContentType("application/json")
-	req.Header.Add("User-Agent", "osquery/5.0.1")
-	req.SetRequestURI(a.serverAddress + "/api/osquery/distributed/write")
-	res := fasthttp.AcquireResponse()
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/distributed/write", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
 
-	a.waitingDo(req, res)
-
-	fasthttp.ReleaseRequest(req)
-	defer fasthttp.ReleaseResponse(res)
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("distributed/write request failed to run: %w", err)
+	}
+	defer response.Body.Close()
 
 	a.stats.IncrementDistributedWrites()
+
+	statusCode := response.StatusCode
+	if statusCode != http.StatusOK {
+		a.stats.IncrementDistributedWriteErrors()
+		return fmt.Errorf("distributed/write request failed: %d", statusCode)
+	}
+
 	// No need to read the distributed write body
+	return nil
+}
+
+func scheduledQueryResults(packName, queryName string, numResults int) []byte {
+	return []byte(`{
+  "snapshot": [` + rows(numResults) + `
+  ],
+  "action": "snapshot",
+  "name": "pack/` + packName + `/` + queryName + `",
+  "hostIdentifier": "EF9595F0-CE81-493A-9B06-D8A9D2CCB952",
+  "calendarTime": "Fri Oct  6 18:13:04 2023 UTC",
+  "unixTime": 1696615984,
+  "epoch": 0,
+  "counter": 0,
+  "numerics": false,
+  "decorations": {
+    "host_uuid": "187c4d56-8e45-1a9d-8513-ac17efd2f0fd",
+    "hostname": "osquery-perf"
+  }
+}`)
+}
+
+func (a *agent) connCheck() error {
+	request, err := http.NewRequest("GET", a.serverAddress+"/version", nil)
+	if err != nil {
+		panic(err)
+	}
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return err
+	}
+	defer response.Body.Close()
+	if response.StatusCode != http.StatusOK {
+		return errors.New(http.StatusText(response.StatusCode))
+	}
+	return nil
+}
+
+func (a *agent) submitLogs(results []resultLog) error {
+	// Connection check to prevent unnecessary JSON marshaling when the server is down.
+	if err := a.connCheck(); err != nil {
+		return fmt.Errorf("/version check failed: %w", err)
+	}
+
+	var resultLogs []byte
+	for i, result := range results {
+		if i > 0 {
+			resultLogs = append(resultLogs, ',')
+		}
+		resultLogs = append(resultLogs, result.emit()...)
+	}
+
+	body := []byte(`{"node_key": "` + a.nodeKey + `", "log_type": "result", "data": [` + string(resultLogs) + `]}`)
+	request, err := http.NewRequest("POST", a.serverAddress+"/api/osquery/log", bytes.NewReader(body))
+	if err != nil {
+		return err
+	}
+	request.Header.Add("Content-type", "application/json")
+
+	response, err := http.DefaultClient.Do(request)
+	if err != nil {
+		return fmt.Errorf("log request failed to run: %w", err)
+	}
+	defer response.Body.Close()
+
+	a.stats.IncrementResultLogRequests()
+
+	statusCode := response.StatusCode
+	if statusCode != http.StatusOK {
+		a.stats.IncrementResultLogErrors()
+		return fmt.Errorf("log request failed: %d", statusCode)
+	}
+
+	return nil
+}
+
+// rows returns a set of rows for use in tests for query results.
+func rows(num int) string {
+	b := strings.Builder{}
+	for i := 0; i < num; i++ {
+		b.WriteString(`    {
+      "build_distro": "centos7",
+      "build_platform": "linux",
+      "config_hash": "eed0d8296e5f90b790a23814a9db7a127b13498d",
+      "config_valid": "1",
+      "extensions": "active",
+      "instance_id": "e5799132-85ab-4cfa-89f3-03e0dd3c509a",
+      "pid": "3574",
+      "platform_mask": "9",
+      "start_time": "1696502961",
+      "uuid": "EF9595F0-CE81-493A-9B06-D8A9D2CCB95",
+      "version": "5.9.2",
+      "watcher": "3570"
+    }`)
+		if i != num-1 {
+			b.WriteString(",")
+		}
+	}
+
+	return b.String()
 }
 
 func main() {
+	// Start HTTP server for pprof. See https://pkg.go.dev/net/http/pprof.
+	go func() {
+		log.Println(http.ListenAndServe("localhost:6060", nil))
+	}()
+
+	// #nosec (osquery-perf is only used for testing)
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: true,
+	}
+	tr := http.DefaultTransport.(*http.Transport).Clone()
+	tr.TLSClientConfig = tlsConfig
+	http.DefaultClient.Transport = tr
+
 	validTemplateNames := map[string]bool{
-		"mac10.14.6.tmpl":   true,
-		"windows_11.tmpl":   true,
-		"ubuntu_22.04.tmpl": true,
+		"macos_13.6.2.tmpl":         true,
+		"macos_14.1.2.tmpl":         true,
+		"windows_11.tmpl":           true,
+		"windows_11_22H2_2861.tmpl": true,
+		"windows_11_22H2_3007.tmpl": true,
+		"ubuntu_22.04.tmpl":         true,
 	}
 	allowedTemplateNames := make([]string, 0, len(validTemplateNames))
 	for k := range validTemplateNames {
@@ -1378,12 +1769,15 @@ func main() {
 	}
 
 	var (
-		serverURL           = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
-		enrollSecret        = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
-		hostCount           = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
-		randSeed            = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
-		startPeriod         = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
-		configInterval      = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		serverURL      = flag.String("server_url", "https://localhost:8080", "URL (with protocol and port of osquery server)")
+		enrollSecret   = flag.String("enroll_secret", "", "Enroll secret to authenticate enrollment")
+		hostCount      = flag.Int("host_count", 10, "Number of hosts to start (default 10)")
+		randSeed       = flag.Int64("seed", time.Now().UnixNano(), "Seed for random generator (default current time)")
+		startPeriod    = flag.Duration("start_period", 10*time.Second, "Duration to spread start of hosts over")
+		configInterval = flag.Duration("config_interval", 1*time.Minute, "Interval for config requests")
+		// Flag logger_tls_period defines how often to check for sending scheduled query results.
+		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
+		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
 		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check ins")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
@@ -1393,7 +1787,7 @@ func main() {
 		commonSoftwareUninstallCount = flag.Int("common_software_uninstall_count", 1, "Number of common software to uninstall")
 		commonSoftwareUninstallProb  = flag.Float64("common_software_uninstall_prob", 0.1, "Probability of uninstalling common_software_uninstall_count unique software/s")
 
-		uniqueSoftwareCount          = flag.Int("unique_software_count", 10, "Number of uninstalls ")
+		uniqueSoftwareCount          = flag.Int("unique_software_count", 1, "Number of unique software installed on each host")
 		uniqueSoftwareUninstallCount = flag.Int("unique_software_uninstall_count", 1, "Number of unique software to uninstall")
 		uniqueSoftwareUninstallProb  = flag.Float64("unique_software_uninstall_prob", 0.1, "Probability of uninstalling unique_software_uninstall_count common software/s")
 
@@ -1407,8 +1801,8 @@ func main() {
 		munkiIssueProb              = flag.Float64("munki_issue_prob", 0.5, "Probability of a host having munki issues (note that ~50% of hosts have munki installed) [0, 1]")
 		munkiIssueCount             = flag.Int("munki_issue_count", 10, "Number of munki issues reported by hosts identified to have munki issues")
 		// E.g. when running with `-host_count=10`, you can set host count for each template the following way:
-		// `-os_templates=windows_11.tmpl:3,mac10.14.6.tmpl:4,ubuntu_22.04.tmpl:3`
-		osTemplates     = flag.String("os_templates", "mac10.14.6", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
+		// `-os_templates=windows_11.tmpl:3,macos_14.1.2.tmpl:4,ubuntu_22.04.tmpl:3`
+		osTemplates     = flag.String("os_templates", "macos_14.1.2", fmt.Sprintf("Comma separated list of host OS templates to use and optionally their host count separated by ':' (any of %v, with or without the .tmpl extension)", allowedTemplateNames))
 		emptySerialProb = flag.Float64("empty_serial_prob", 0.1, "Probability of a host having no serial number [0, 1]")
 
 		mdmProb          = flag.Float64("mdm_prob", 0.0, "Probability of a host enrolling via MDM (for macOS) [0, 1]")
@@ -1418,6 +1812,10 @@ func main() {
 		liveQueryNoResultsProb = flag.Float64("live_query_no_results_prob", 0.2, "Probability of a live query returning no results")
 
 		disableScriptExec = flag.Bool("disable_script_exec", false, "Disable script execution support")
+
+		disableFleetDesktop = flag.Bool("disable_fleet_desktop", false, "Disable Fleet Desktop")
+		// logger_tls_max_lines is simulating the osquery setting with the same name.
+		loggerTLSMaxLines = flag.Int("", 1024, "Maximum number of buffered result log lines to send on every log request")
 	)
 
 	flag.Parse()
@@ -1429,10 +1827,10 @@ func main() {
 		*orbitProb = 0
 	}
 
-	if *commonSoftwareUninstallCount >= *commonSoftwareCount {
+	if *commonSoftwareUninstallCount > *commonSoftwareCount {
 		log.Fatalf("Argument common_software_uninstall_count cannot be bigger than common_software_count")
 	}
-	if *uniqueSoftwareUninstallCount >= *uniqueSoftwareCount {
+	if *uniqueSoftwareUninstallCount > *uniqueSoftwareCount {
 		log.Fatalf("Argument unique_software_uninstall_count cannot be bigger than unique_software_count")
 	}
 
@@ -1471,7 +1869,9 @@ func main() {
 	// Spread starts over the interval to prevent thundering herd
 	sleepTime := *startPeriod / time.Duration(*hostCount)
 
-	stats := &Stats{}
+	stats := &Stats{
+		startTime: time.Now(),
+	}
 	go stats.runLoop()
 
 	nodeKeyManager := &nodeKeyManager{}
@@ -1507,6 +1907,7 @@ func main() {
 			*enrollSecret,
 			tmpl,
 			*configInterval,
+			*logInterval,
 			*queryInterval,
 			*mdmCheckInInterval,
 			softwareEntityCount{
@@ -1535,6 +1936,8 @@ func main() {
 			*liveQueryFailProb,
 			*liveQueryNoResultsProb,
 			*disableScriptExec,
+			*disableFleetDesktop,
+			*loggerTLSMaxLines,
 		)
 		a.stats = stats
 		a.nodeKeyManager = nodeKeyManager
@@ -1542,6 +1945,6 @@ func main() {
 		time.Sleep(sleepTime)
 	}
 
-	fmt.Println("Agents running. Kill with C-c.")
+	log.Println("Agents running. Kill with C-c.")
 	<-make(chan struct{})
 }

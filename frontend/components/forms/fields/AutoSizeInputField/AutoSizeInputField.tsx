@@ -12,16 +12,12 @@ interface IAutoSizeInputFieldProps {
   placeholder: string;
   value: string;
   inputClassName?: string;
-  maxLength: string;
+  maxLength: number;
   hasError?: boolean;
   isDisabled?: boolean;
   isFocused?: boolean;
-  /** The minimum number of columns the input is. This is ignored if the input
-   * has a value. Useful if you'd like to show placeholder text without the
-   * input cutting off the text. defaults to `12` */
-  minColumns?: number;
-  onFocus: () => void;
-  onBlur: () => void;
+  onFocus?: () => void;
+  onBlur?: () => void;
   onChange: (newSelectedValue: string) => void;
   onKeyPress: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
 }
@@ -37,9 +33,8 @@ const AutoSizeInputField = ({
   hasError,
   isDisabled,
   isFocused,
-  minColumns = 12,
-  onFocus,
-  onBlur,
+  onFocus = () => null,
+  onBlur = () => null,
   onChange,
   onKeyPress,
 }: IAutoSizeInputFieldProps): JSX.Element => {
@@ -92,9 +87,9 @@ const AutoSizeInputField = ({
           onChange={onInputChange}
           placeholder={placeholder}
           value={inputValue}
-          maxLength={parseInt(maxLength, 10)}
+          maxLength={maxLength}
           className={inputClasses}
-          cols={value ? 1 : minColumns}
+          cols={1}
           rows={1}
           tabIndex={0}
           onFocus={onInputFocus}

@@ -25,8 +25,15 @@ const request = async ({ path, body = {} }: requestArgs): Promise<any> => {
     body: JSON.stringify(body),
   };
   console.debug("Request:", target, options);
-  const response = await fetch(target, options);
-  const response_body = await response.json();
+  let response: Response;
+  let response_body: { node_invalid: any; error: string };
+  try {
+    response = await fetch(target, options);
+    response_body = await response.json();
+  } catch (err) {
+    console.warn(`Failed to fetch ${target}: ${err}`);
+    throw new Error(`${path} request failed`);
+  }
   console.debug("Response:", response, "JSON:", response_body);
 
   if (response_body.node_invalid) {
@@ -144,7 +151,7 @@ const live_query = async () => {
       const query_result = await DATABASE.query(query_sql);
       results[query_name] = query_result.data;
       statuses[query_name] = 0;
-      if (query_result.warnings.length !== 0) {
+      if (query_result.warnings && query_result.warnings.length !== 0) {
         statuses[query_name] = 1; // Set to show warnings in errors table and campaign.ts returned host_counts to +1 failing instead of +1 successful
         messages[query_name] = query_result.warnings; // Warnings array is concatenated in Table.ts xfilter
       }
@@ -225,9 +232,13 @@ class NodeInvalidError extends Error {
 // mainLoop each time the alarm fires.
 let mainTimeout: ReturnType<typeof setTimeout>;
 const mainLoop = async () => {
-  await main();
-  clearTimeout(mainTimeout);
-  mainTimeout = setTimeout(mainLoop, 10 * 1000);
+  try {
+    await main();
+    clearTimeout(mainTimeout);
+    mainTimeout = setTimeout(mainLoop, 10 * 1000);
+  } catch (err) {
+    console.error(err);
+  }
 };
 mainLoop();
 

@@ -63,13 +63,6 @@ func (ds *Datastore) SaveAppConfig(ctx context.Context, info *fleet.AppConfig) e
 			return ctxerr.Wrap(ctx, err, "insert app_config_json")
 		}
 
-		if info.SSOSettings != nil && !info.SSOSettings.EnableSSO {
-			_, err = tx.ExecContext(ctx, `UPDATE users SET sso_enabled=false`)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "update users sso")
-			}
-		}
-
 		return nil
 	})
 }
@@ -154,6 +147,10 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
+			if isDuplicate(err) {
+				// Obfuscate the secret in the error message
+				err = alreadyExists("secret", fleet.MaskedPassword)
+			}
 			return ctxerr.Wrap(ctx, err, "insert secrets")
 		}
 	}
@@ -212,4 +209,19 @@ func (ds *Datastore) AggregateEnrollSecretPerTeam(ctx context.Context) ([]*fleet
 		return nil, ctxerr.Wrap(ctx, err, "get secrets")
 	}
 	return secrets, nil
+}
+
+func (ds *Datastore) getConfigEnableDiskEncryption(ctx context.Context, teamID *uint) (bool, error) {
+	if teamID != nil && *teamID > 0 {
+		tc, err := ds.TeamMDMConfig(ctx, *teamID)
+		if err != nil {
+			return false, err
+		}
+		return tc.EnableDiskEncryption, nil
+	}
+	ac, err := ds.AppConfig(ctx)
+	if err != nil {
+		return false, err
+	}
+	return ac.MDM.EnableDiskEncryption.Value, nil
 }

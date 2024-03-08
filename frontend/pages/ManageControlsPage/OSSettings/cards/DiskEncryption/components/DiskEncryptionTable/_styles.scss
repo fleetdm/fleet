@@ -1,30 +1,12 @@
 .disk-encryption-table {
-  padding: $pad-xxlarge;
-  border: 1px solid $ui-fleet-black-10;
-  border-radius: $border-radius;
   margin-bottom: $pad-xxlarge;
 
   .data-table-block .data-table tbody td .w250 {
     min-width: auto;
   }
 
-  &__aggregate-table-data {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
-
-  tr {
-    .view-hosts-link {
-      opacity: 0;
-      transition: 250ms;
-    }
-
-    &:hover {
-      .view-hosts-link {
-        opacity: 1;
-      }
-    }
+  .data-table-block th:nth-last-child(2) {
+    border-right: none;
   }
 
   @media (max-width: $break-md) {

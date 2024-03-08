@@ -1,6 +1,6 @@
 import React from "react";
 import { noop } from "lodash";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import Radio from "./Radio";
@@ -10,9 +10,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         checked
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
       />
     );
@@ -27,9 +27,9 @@ describe("Radio - component", () => {
 
     render(
       <Radio
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={changeHandlerSpy}
       />
     );
@@ -45,9 +45,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         checked
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
       />
     );
@@ -60,11 +60,11 @@ describe("Radio - component", () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
-        testId={"radio-input"}
+        testId="radio-input"
       />
     );
 
@@ -76,18 +76,19 @@ describe("Radio - component", () => {
     expect(radioComponent).toHaveClass("disabled");
   });
 
-  it("render a tooltip from the tooltip prop", () => {
+  it("render a tooltip from the tooltip prop", async () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
-        tooltip={"A Test Radio Tooltip"}
+        tooltip="A Test Radio Tooltip"
       />
     );
 
+    await fireEvent.mouseEnter(screen.getByText("Radio Label"));
     const tooltip = screen.getByText("A Test Radio Tooltip");
     expect(tooltip).toBeInTheDocument();
   });
@@ -96,9 +97,9 @@ describe("Radio - component", () => {
     render(
       <Radio
         disabled
-        label={"Radio Label"}
-        value={"radioValue"}
-        id={"test-radio"}
+        label="Radio Label"
+        value="radioValue"
+        id="test-radio"
         onChange={noop}
         className="radio-button"
         testId="radio-input"

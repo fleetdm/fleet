@@ -6,7 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,20 +20,19 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/tokenpki"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/service/schedule"
-	"github.com/micromdm/nanodep/tokenpki"
-	"go.mozilla.org/pkcs7"
-
-	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-kit/log"
-	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.mozilla.org/pkcs7"
 )
 
 // safeStore is a wrapper around mock.Store to allow for concurrent calling to
@@ -75,7 +74,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	requestBody := ""
 
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		requestBodyBytes, err := ioutil.ReadAll(r.Body)
+		requestBodyBytes, err := io.ReadAll(r.Body)
 		require.NoError(t, err)
 		requestBody = string(requestBodyBytes)
 	}))
@@ -129,7 +128,7 @@ func TestMaybeSendStatistics(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, recorded)
 	require.True(t, cleanedup)
-	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
+	assert.Equal(t, `{"anonymousIdentifier":"ident","fleetVersion":"1.2.3","licenseTier":"premium","organization":"Fleet","numHostsEnrolled":999,"numUsers":99,"numTeams":9,"numPolicies":0,"numLabels":3,"softwareInventoryEnabled":true,"vulnDetectionEnabled":true,"systemUsersEnabled":true,"hostsStatusWebHookEnabled":true,"mdmMacOsEnabled":false,"hostExpiryEnabled":false,"mdmWindowsEnabled":false,"liveQueryDisabled":false,"numWeeklyActiveUsers":111,"numWeeklyPolicyViolationDaysActual":0,"numWeeklyPolicyViolationDaysPossible":0,"hostsEnrolledByOperatingSystem":{"linux":[{"version":"1.2.3","numEnrolled":22}]},"hostsEnrolledByOrbitVersion":[],"hostsEnrolledByOsqueryVersion":[],"storedErrors":[],"numHostsNotResponding":0}`, requestBody)
 }
 
 func TestMaybeSendStatisticsSkipsSendingIfNotNeeded(t *testing.T) {
@@ -186,10 +185,40 @@ func TestMaybeSendStatisticsSkipsIfNotConfigured(t *testing.T) {
 		return &fleet.AppConfig{}, nil
 	}
 
-	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierFree})
 	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
 	require.NoError(t, err)
 	assert.False(t, called)
+}
+
+func TestMaybeSendStatisticsSendsIfNotConfiguredForPremium(t *testing.T) {
+	ds := new(mock.Store)
+
+	fleetConfig := config.FleetConfig{Osquery: config.OsqueryConfig{DetailUpdateInterval: 1 * time.Hour}}
+
+	called := false
+
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}))
+	defer ts.Close()
+
+	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+		return &fleet.AppConfig{}, nil
+	}
+
+	ds.ShouldSendStatisticsFunc = func(ctx context.Context, frequency time.Duration, config config.FleetConfig) (fleet.StatisticsPayload, bool, error) {
+		return fleet.StatisticsPayload{}, true, nil
+	}
+
+	ds.CleanupStatisticsFunc = func(ctx context.Context) error { return nil }
+
+	ds.RecordStatisticsSentFunc = func(ctx context.Context) error { return nil }
+
+	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
+	err := trySendStatistics(ctx, ds, fleet.StatisticsFrequency, ts.URL, fleetConfig)
+	require.NoError(t, err)
+	assert.True(t, called)
 }
 
 func TestAutomationsSchedule(t *testing.T) {
@@ -226,7 +255,7 @@ func TestAutomationsSchedule(t *testing.T) {
 
 	calledOnce := make(chan struct{})
 	calledTwice := make(chan struct{})
-	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, daysCount int) (int, int, error) {
+	ds.TotalAndUnseenHostsSinceFunc = func(ctx context.Context, teamID *uint, daysCount int) (int, []uint, error) {
 		defer func() {
 			select {
 			case <-calledOnce:
@@ -239,7 +268,7 @@ func TestAutomationsSchedule(t *testing.T) {
 				close(calledOnce)
 			}
 		}()
-		return 10, 6, nil
+		return 10, []uint{1, 2, 3, 4, 5, 6}, nil
 	}
 
 	ctx, cancelFunc := context.WithCancel(context.Background())
@@ -464,6 +493,15 @@ func TestScanVulnerabilities(t *testing.T) {
 			},
 		}, nil
 	}
+
+	ds.ListOperatingSystemsForPlatformFunc = func(ctx context.Context, platform string) ([]fleet.OperatingSystem, error) {
+		return []fleet.OperatingSystem{}, nil
+	}
+
+	ds.DeleteOutOfDateOSVulnerabilitiesFunc = func(ctx context.Context, src fleet.VulnerabilitySource, d time.Duration) error {
+		return nil
+	}
+
 	ds.ListCVEsFunc = func(ctx context.Context, maxAge time.Duration) ([]fleet.CVEMeta, error) {
 		published := time.Date(2022, time.October, 26, 14, 15, 0, 0, time.UTC)
 
@@ -1010,7 +1048,7 @@ func TestVerifyDiskEncryptionKeysJob(t *testing.T) {
 	base64EncryptedKey := base64.StdEncoding.EncodeToString(encryptedKey)
 
 	fleetCfg := config.TestConfig()
-	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken)
+	config.SetTestMDMConfig(t, &fleetCfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
 
 	now := time.Now()
 

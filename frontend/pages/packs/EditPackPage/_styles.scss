@@ -1,4 +1,5 @@
 .edit-pack-page {
+  @include page;
   @at-root .has-sidebar > &__content {
     display: flex;
     flex-direction: column;

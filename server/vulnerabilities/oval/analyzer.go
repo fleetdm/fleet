@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"os"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -133,7 +133,7 @@ func loadDef(platform Platform, vulnPath string) (oval_parsed.Result, error) {
 	if err != nil {
 		return nil, err
 	}
-	payload, err := ioutil.ReadFile(latest)
+	payload, err := os.ReadFile(latest)
 	if err != nil {
 		return nil, err
 	}

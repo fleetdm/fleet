@@ -69,10 +69,14 @@ module.exports = {
     let subscriptionForThisEvent = await Subscription.findOne({stripeSubscriptionId: subscriptionIdToFind}).populate('user');
 
     let STRIPE_EVENTS_SENT_BEFORE_A_SUBSCRIPTION_RECORD_EXISTS = [
-      'invoice.created',
-      'invoice.finalized',
-      'invoice.paid',
-      'invoice.payment_succeeded',
+      'invoice.created',// Sent when a user submits the billing form on /customers/new-license, before the user's biliing card is charged.
+      'invoice.finalized',// Sent when a user submits the billing form on /customers/new-license, before the user's biliing card is charged.
+      'invoice.paid',//Sent when a user submits the billing form on /customers/new-license, when the user's biliing card is charged.
+      'invoice.payment_succeeded',// Sent when payment for a users subscription is successful. The save-billing-info-and-subscribe action will check for this event before creating a license key.
+      'invoice.payment_failed',// Sent when a users subscritpion payment fails. This can happen before we create a license key and save the subscription in the database.
+      'invoice.payment_action_required',// Sent when a user's billing card requires additional verification from stripe.
+      'invoice.updated',// Sent before an incomplete invoice is voided. (~24 hours after a payment fails)
+      'invoice.voided',// Sent when an incomplete invoice is marked as voided. (~24 hours after a payment fails)
     ];
 
     // If this event is for a subscription that was just created, we won't have a matching Subscription record in the database. This is because we wait until the subscription's invoice is paid to create the record in our database.
@@ -91,7 +95,9 @@ module.exports = {
     }
 
     let userForThisSubscription = subscriptionForThisEvent.user;
-
+    //  ┬ ┬┌─┐┌─┐┌─┐┌┬┐┬┌┐┌┌─┐  ┬─┐┌─┐┌┐┌┌─┐┬ ┬┌─┐┬
+    //  │ │├─┘│  │ │││││││││ ┬  ├┬┘├┤ │││├┤ │││├─┤│
+    //  └─┘┴  └─┘└─┘┴ ┴┴┘└┘└─┘  ┴└─└─┘┘└┘└─┘└┴┘┴ ┴┴─┘
     // If stripe thinks this subscription renews in 7 days, we'll send the user an subscription reminder email.
     if(type === 'invoice.upcoming' && stripeEventData.billing_reason === 'upcoming') {
       // Get the subscription cost per host for the Subscription renewal notification email.
@@ -113,7 +119,9 @@ module.exports = {
           nextBillingAt: upcomingBillingAt,
         }
       });
-
+    //  ┌─┐┬ ┬┌┐ ┌─┐┌─┐┬─┐┬┌─┐┌┬┐┬┌─┐┌┐┌  ┬─┐┌─┐┌┐┌┌─┐┬ ┬┌─┐┌┬┐
+    //  └─┐│ │├┴┐└─┐│  ├┬┘│├─┘ │ ││ ││││  ├┬┘├┤ │││├┤ │││├┤  ││
+    //  └─┘└─┘└─┘└─┘└─┘┴└─┴┴   ┴ ┴└─┘┘└┘  ┴└─└─┘┘└┘└─┘└┴┘└─┘─┴┘
     } else if(type === 'invoice.paid' && stripeEventData.billing_reason === 'subscription_cycle') {
     // If the event was triggered by a user's card successfully being charged by Stripe, we'll generate a new license key, update the subscription's database record, and send the user a renewal confirmation email.
 
@@ -152,7 +160,46 @@ module.exports = {
           lastName: userForThisSubscription.lastName,
         }
       });
+    //  ┬┌┐┌┬  ┬┌─┐┬┌─┐┌─┐  ┌─┐┌─┐┬─┐  ┬ ┬┌─┐┌┬┐┌─┐┌┬┐┌─┐┌┬┐  ┌─┐┬ ┬┌┐ ┌─┐┌─┐┬─┐┬┌┬┐┌─┐┌┐┌  ┌─┐┌─┐┬┌┬┐
+    //  ││││└┐┌┘│ │││  ├┤   ├┤ │ │├┬┘  │ │├─┘ ││├─┤ │ ├┤  ││  └─┐│ │├┴┐└─┐│  ├┬┘│ │ │ ││││  ├─┘├─┤│ ││
+    //  ┴┘└┘ └┘ └─┘┴└─┘└─┘  └  └─┘┴└─  └─┘┴  ─┴┘┴ ┴ ┴ └─┘─┴┘  └─┘└─┘└─┘└─┘└─┘┴└─┴ ┴ └─┘┘└┘  ┴  ┴ ┴┴─┴┘
+    } else if (type === 'invoice.paid' && stripeEventData.billing_reason === 'subscription_update') {
+      // If the event was triggered by a customer paying an invoice that was sent to them after their subscription was updated, we'll generate a new license key with their updated informaton.
 
+      // Get the information about the paid invoice from the stripe event.
+      let itemsOnThisInvoice = stripeEventData.lines.data;
+
+      // Find the line item in the new invoice that contains the new information about this subscription.
+      let updatedSubscriptionInfo = _.find(itemsOnThisInvoice, (item)=>{
+        // Invoices for updated subscriptions list the new number of hosts with the remaining subscription period
+        // e.g., 'Remaining time on 9 × Fleet premium hosts after 17 Feb 2024'
+        return _.startsWith(item.description, 'Remaining');
+      });
+      // Convert the subscription cycle's period end timestamp from Stripe into a JS timestamp.
+      // Note: with most subscription changes, this value will be indentical to the existing license key's expiration
+      // timestamp. We do this here to handle situations where the subscription period has been adjusted in the Stripe UI.
+      let nextBillingAt = updatedSubscriptionInfo.period.end * 1000;
+
+      // Use information from the nested plan object to determine the new price of this subscription.
+      let pricePerHost = updatedSubscriptionInfo.plan.amount / 100;
+
+      // Get the updated number of hosts from the quantity of the invoice.
+      let newNumberOfHosts = updatedSubscriptionInfo.quantity;
+
+      // Generate a new license key for this subscription
+      let newLicenseKeyForThisSubscription = await sails.helpers.createLicenseKey.with({
+        numberOfHosts: newNumberOfHosts,
+        organization: subscriptionForThisEvent.user.organization,
+        expiresAt: nextBillingAt,
+      });
+
+      // Update the subscription record
+      await Subscription.updateOne({id: subscriptionForThisEvent.id}).set({
+        numberOfHosts: newNumberOfHosts,
+        subscriptionPrice: Math.floor(pricePerHost * newNumberOfHosts),
+        fleetLicenseKey: newLicenseKeyForThisSubscription,
+        nextBillingAt: nextBillingAt
+      });
     }
     // FUTURE: send emails about failed payments. (type === 'invoice.payment_failed' && stripeEventData.billing_reason === 'subscription_cycle')
 

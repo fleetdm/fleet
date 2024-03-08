@@ -1,0 +1,10 @@
+[
+  {
+    "fullkey": "app.normandy.first_run",
+    "parent": "",
+    "key": "app.normandy.first_run",
+    "value": "false",
+    "query": "app.normandy.first_run",
+    "path": "testdata/prefs.js"
+  }
+]

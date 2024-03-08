@@ -141,12 +141,12 @@ func testPacksList(t *testing.T, ds *Datastore) {
 func setupPackSpecsTest(t *testing.T, ds fleet.Datastore) []*fleet.PackSpec {
 	zwass := test.NewUser(t, ds, "Zach", "zwass@example.com", true)
 	queries := []*fleet.Query{
-		{Name: "foo", Description: "get the foos", Query: "select * from foo"},
-		{Name: "bar", Description: "do some bars", Query: "select baz from bar"},
+		{Name: "foo", Description: "get the foos", Query: "select * from foo", Logging: fleet.LoggingSnapshot},
+		{Name: "bar", Description: "do some bars", Query: "select baz from bar", Logging: fleet.LoggingSnapshot},
 	}
 	// Zach creates some queries
-	err := ds.ApplyQueries(context.Background(), zwass.ID, queries)
-	require.Nil(t, err)
+	err := ds.ApplyQueries(context.Background(), zwass.ID, queries, nil)
+	require.NoError(t, err)
 
 	labels := []*fleet.LabelSpec{
 		{
@@ -444,15 +444,15 @@ func randomPackStatsForHost(packID uint, packName string, packType string, sched
 			QueryName:          sq.QueryName,
 			Description:        sq.Description,
 			PackID:             packID,
-			AverageMemory:      rand.Intn(100),
+			AverageMemory:      uint64(rand.Intn(100)),
 			Denylisted:         false,
-			Executions:         rand.Intn(100),
+			Executions:         uint64(rand.Intn(100)),
 			Interval:           rand.Intn(100),
 			LastExecuted:       time.Now(),
-			OutputSize:         rand.Intn(1000),
-			SystemTime:         rand.Intn(1000),
-			UserTime:           rand.Intn(1000),
-			WallTime:           rand.Intn(1000),
+			OutputSize:         uint64(rand.Intn(1000)),
+			SystemTime:         uint64(rand.Intn(1000)),
+			UserTime:           uint64(rand.Intn(1000)),
+			WallTime:           uint64(rand.Intn(1000)),
 		})
 	}
 	return []fleet.PackStats{

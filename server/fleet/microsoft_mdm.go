@@ -1,15 +1,18 @@
 package fleet
 
 import (
+	"bytes"
 	"encoding/base64"
+	"encoding/json"
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"io"
+	"strconv"
 	"strings"
 	"time"
 
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
-	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 )
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -43,6 +46,9 @@ type SoapRequest struct {
 	XMLNSAC   *string       `xml:"ac,attr,omitempty"`
 	Header    RequestHeader `xml:"Header"`
 	Body      BodyRequest   `xml:"Body"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
 // GetHeaderBinarySecurityToken returns the header BinarySecurityToken if present
@@ -55,11 +61,11 @@ func (req *SoapRequest) GetHeaderBinarySecurityToken() (*HeaderBinarySecurityTok
 		return nil, errors.New("binarySecurityToken is empty")
 	}
 
-	if req.Header.Security.Security.Encoding != mdm.EnrollEncode {
+	if req.Header.Security.Security.Encoding != syncml.EnrollEncode {
 		return nil, errors.New("binarySecurityToken encoding is invalid")
 	}
 
-	if req.Header.Security.Security.Value != mdm.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != mdm.BinarySecurityAzureEnroll {
+	if req.Header.Security.Security.Value != syncml.BinarySecurityDeviceEnroll && req.Header.Security.Security.Value != syncml.BinarySecurityAzureEnroll {
 		return nil, errors.New("binarySecurityToken type is invalid")
 	}
 
@@ -141,16 +147,23 @@ func (req *SoapRequest) IsValidDiscoveryMsg() error {
 		return errors.New("invalid discover message: XMLNS")
 	}
 
-	// Ensure that only valid versions are supported
-	if req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV4 &&
-		req.Body.Discover.Request.RequestVersion != mdm.EnrollmentVersionV5 {
+	// Check if the request version is one of the defined enrollment versions
+	versionFound := false
+	for _, v := range syncml.SupportedEnrollmentVersions {
+		if req.Body.Discover.Request.RequestVersion == v {
+			versionFound = true
+			break
+		}
+	}
+
+	if !versionFound {
 		return errors.New("invalid discover message: Request.RequestVersion")
 	}
 
 	// Traverse the AuthPolicies slice and check for valid values
 	isInvalidAuth := true
 	for _, authPolicy := range req.Body.Discover.Request.AuthPolicies.AuthPolicy {
-		if authPolicy == mdm.AuthOnPremise {
+		if authPolicy == syncml.AuthOnPremise {
 			isInvalidAuth = false
 			break
 		}
@@ -210,8 +223,8 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.ValueType")
 	}
 
-	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS10 &&
-		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != mdm.EnrollReqTypePKCS7 {
+	if req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS10 &&
+		req.Body.RequestSecurityToken.BinarySecurityToken.ValueType != syncml.EnrollReqTypePKCS7 {
 		return errors.New("invalid requestsecuritytoken message: BinarySecurityToken.EncodingType not supported")
 	}
 
@@ -223,29 +236,29 @@ func (req *SoapRequest) IsValidRequestSecurityTokenMsg() error {
 		return errors.New("invalid requestsecuritytoken message: AdditionalContext.ContextItems missing")
 	}
 
-	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemEnrollmentType)
-	if err != nil || (reqEnrollType != mdm.ReqSecTokenEnrollTypeDevice && reqEnrollType != mdm.ReqSecTokenEnrollTypeFull) {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
+	reqEnrollType, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemEnrollmentType)
+	if err != nil || (reqEnrollType != syncml.ReqSecTokenEnrollTypeDevice && reqEnrollType != syncml.ReqSecTokenEnrollTypeFull) {
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemEnrollmentType, reqEnrollType, err)
 	}
 
-	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemDeviceID)
+	reqDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemDeviceID)
 	if err != nil || len(reqDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemDeviceID, reqDeviceID, err)
 	}
 
-	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemHWDevID)
+	reqHwDeviceID, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil || len(reqHwDeviceID) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemHWDevID, reqHwDeviceID, err)
 	}
 
-	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSEdition)
+	reqOSEdition, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSEdition)
 	if err != nil || len(reqOSEdition) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSEdition, reqOSEdition, err)
 	}
 
-	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(mdm.ReqSecTokenContextItemOSVersion)
+	reqOSVersion, err := req.Body.RequestSecurityToken.GetContextItem(syncml.ReqSecTokenContextItemOSVersion)
 	if err != nil || len(reqOSVersion) == 0 {
-		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", mdm.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
+		return fmt.Errorf("invalid requestsecuritytoken message %s: %s - %v", syncml.ReqSecTokenContextItemOSVersion, reqOSVersion, err)
 	}
 
 	return nil
@@ -260,12 +273,13 @@ func (req *SoapRequest) GetRequestSecurityTokenMessage() (*RequestSecurityToken,
 	return req.Body.RequestSecurityToken, nil
 }
 
-// MS-MDE2 Message request types
+// MS-MDE2 and MS-MDM Message types
 const (
 	MDEDiscovery = iota
 	MDEPolicy
 	MDEEnrollment
 	MDEFault
+	MSMDM
 )
 
 ///////////////////////////////////////////////////////////////
@@ -352,7 +366,7 @@ func (token *HeaderBinarySecurityToken) IsValidToken() error {
 		return errors.New("binary security token is empty")
 	}
 
-	if token.Value != microsoft_mdm.BinarySecurityDeviceEnroll && token.Value != microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value != syncml.BinarySecurityDeviceEnroll && token.Value != syncml.BinarySecurityAzureEnroll {
 		return errors.New("binary security token is invalid")
 	}
 
@@ -365,7 +379,7 @@ func (token *HeaderBinarySecurityToken) IsAzureJWTToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityAzureEnroll {
+	if token.Value == syncml.BinarySecurityAzureEnroll {
 		return true
 	}
 
@@ -378,7 +392,7 @@ func (token *HeaderBinarySecurityToken) IsDeviceToken() bool {
 		return false
 	}
 
-	if token.Value == microsoft_mdm.BinarySecurityDeviceEnroll {
+	if token.Value == syncml.BinarySecurityDeviceEnroll {
 		return true
 	}
 
@@ -495,8 +509,8 @@ func (msg RequestSecurityToken) GetBinarySecurityTokenData() (string, error) {
 
 // Get Binary Security Token Type
 func (msg RequestSecurityToken) GetBinarySecurityTokenType() (string, error) {
-	if msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS10 ||
-		msg.BinarySecurityToken.ValueType == mdm.EnrollReqTypePKCS7 {
+	if msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS10 ||
+		msg.BinarySecurityToken.ValueType == syncml.EnrollReqTypePKCS7 {
 		return msg.BinarySecurityToken.ValueType, nil
 	}
 
@@ -801,6 +815,8 @@ func (msg WapProvisioningDoc) GetEncodedB64Representation() (string, error) {
 /// Contains the information of the enrolled Windows host
 
 type MDMWindowsEnrolledDevice struct {
+	ID                     uint      `db:"id"`
+	HostUUID               string    `db:"host_uuid"`
 	MDMDeviceID            string    `db:"mdm_device_id"`
 	MDMHardwareID          string    `db:"mdm_hardware_id"`
 	MDMDeviceState         string    `db:"device_state"`
@@ -820,77 +836,718 @@ func (e MDMWindowsEnrolledDevice) AuthzType() string {
 }
 
 ///////////////////////////////////////////////////////////////
-/// Microsoft MS-MDM message
+// Microsoft MS-MDM message
+// MS-MDM is a client-to-server protocol that consists of a SOAP-based Web service.
+// MDM is based on the OMA-DM protocol. Messages are issued by a requester and results and status are returned by a responder as a SynCML message.
+// A SyncML message is a well-formed XML document that adheres to the document type definition (DTD), but which does not require validation.
+// The XML document is identified by a SyncML document element type that serves as a parent container for the SyncML message.
+// The SyncML message consists of a header specified by the SyncHdr  element type and a body specified by the SyncBody element type.
+// The SyncML header identifies the routing and versioning information about the SyncML message.
+// The SyncML body functions as a container for one or more SyncML commands.
+// A SyncML command is specified by individual element types that provide specific details about the command, including any data or meta-information.
+// MS-MDM uses a subset of the SyncML message definition specified in OMA-SyncMLRP spec. MDM-specific SyncML xml message format is defined in OMA-DMRP.
 
-type SyncMLMessage struct {
-	XMLinfo string       `xml:"xmlns,attr"`
-	Header  SyncMLHeader `xml:"SyncHdr"`
-	Body    SyncMLBody   `xml:"SyncBody"`
+type SyncML struct {
+	XMLName  xml.Name `xml:"SyncML"`
+	Xmlns    string   `xml:"xmlns,attr"`
+	SyncHdr  SyncHdr  `xml:"SyncHdr"`
+	SyncBody SyncBody `xml:"SyncBody"`
+
+	// Raw XML, stored alongside the decoded fields for convenience
+	Raw []byte `xml:"-"`
 }
 
-// SyncML XML Parsing Types - This needs to be improved
-type SyncMLHeader struct {
-	DTD        string `xml:"VerDTD"`
-	Version    string `xml:"VerProto"`
-	SessionID  int    `xml:"SessionID"`
-	MsgID      int    `xml:"MsgID"`
-	Target     string `xml:"Target>LocURI"`
-	Source     string `xml:"Source>LocURI"`
-	MaxMsgSize int    `xml:"Meta>A:MaxMsgSize"`
+type SyncHdr struct {
+	VerDTD    string   `xml:"VerDTD"`
+	VerProto  string   `xml:"VerProto"`
+	SessionID string   `xml:"SessionID"`
+	MsgID     string   `xml:"MsgID"`
+	Target    *LocURI  `xml:"Target,omitempty"`
+	Source    *LocURI  `xml:"Source,omitempty"`
+	Meta      *MetaHdr `xml:"Meta,omitempty"`
 }
 
-type SyncMLCommandMeta struct {
-	XMLinfo string `xml:"xmlns,attr"`
-	Type    string `xml:"Type"`
+type MetaHdr struct {
+	MaxMsgSize *string `xml:"MaxMsgSize,omitempty"`
 }
 
-type SyncMLCommandItem struct {
-	Meta   SyncMLCommandMeta `xml:"Meta"`
-	Source string            `xml:"Source>LocURI"`
-	Data   string            `xml:"Data"`
+// ProtoCmds contains a slice of SyncML protocol commands
+type ProtoCmds []SyncMLCmd
+
+// See supported Commands in section 2.2.7.1
+type SyncBody struct {
+	Final *string `xml:"Final,omitempty"`
+
+	// Request Protocol Commands
+	Add     ProtoCmds `xml:"Add,omitempty"`
+	Alert   ProtoCmds `xml:"Alert,omitempty"`
+	Atomic  ProtoCmds `xml:"Atomic,omitempty"`
+	Delete  ProtoCmds `xml:"Delete,omitempty"`
+	Exec    ProtoCmds `xml:"Exec,omitempty"`
+	Get     ProtoCmds `xml:"Get,omitempty"`
+	Replace ProtoCmds `xml:"Replace,omitempty"`
+
+	// Response Protocol Commands
+	Results ProtoCmds `xml:"Results,omitempty"`
+	Status  ProtoCmds `xml:"Status,omitempty"`
+
+	// Raw container
+	Raw ProtoCmds `xml:",omitempty"`
 }
 
-type SyncMLCommand struct {
-	XMLName xml.Name
-	CmdID   int                 `xml:",omitempty"`
-	MsgRef  string              `xml:",omitempty"`
-	CmdRef  string              `xml:",omitempty"`
-	Cmd     string              `xml:",omitempty"`
-	Target  string              `xml:"Target>LocURI"`
-	Source  string              `xml:"Source>LocURI"`
-	Data    string              `xml:",omitempty"`
-	Item    []SyncMLCommandItem `xml:",any"`
+// ProtoCmdState is the state of the SyncML protocol commands
+type ProtoCmdState int
+
+const (
+	Received           ProtoCmdState = iota // Protocol Command was received
+	Pending                                 // Protocol Command is on the pending queue and has not been sent yet
+	Sent                                    // Protocol Command has been sent
+	ResponseProcessing                      // Protocol Command was acknowledged and is being processed
+	ResponseAck                             // Protocol Command was acknowledged and processed
+)
+
+// Supported protocol command verbs
+const (
+	CmdAdd     = "Add"     // Protocol Command verb Add
+	CmdAlert   = "Alert"   // Protocol Command verb Alert
+	CmdAtomic  = "Atomic"  // Protocol Command verb Atomic
+	CmdDelete  = "Delete"  // Protocol Command verb Delete
+	CmdExec    = "Exec"    // Protocol Command verb Exec
+	CmdGet     = "Get"     // Protocol Command verb Get
+	CmdReplace = "Replace" // Protocol Command verb Replace
+	CmdResults = "Results" // Protocol Command verb Results
+	CmdStatus  = "Status"  // Protocol Command verb Status
+)
+
+// ProtoCmdOperation is the abstraction to represent a SyncML Protocol Command
+type ProtoCmdOperation struct {
+	Verb string    `db:"verb"`
+	Cmd  SyncMLCmd `db:"cmd"`
 }
 
-type SyncMLBody struct {
-	Item []SyncMLCommand `xml:",any"`
+// CmdID struct holds the value of a CmdID and a flag to determine whether
+// to include a comment when marshaling to XML.
+type CmdID struct {
+	Value               string
+	IncludeFleetComment bool
 }
 
-// IsValidSyncMLMsg checks for required fields in the SyncML message
-func (req *SyncMLMessage) IsValidSyncMLMsg() error {
-	if req == nil {
-		return errors.New("invalid SyncML message: nil")
+// MarshalXML implements the xml.Marshaler interface
+// It optionally adds a predefined comment before the CmdID value when marshaled to XML.
+func (c CmdID) MarshalXML(e *xml.Encoder, start xml.StartElement) error {
+	if c.IncludeFleetComment {
+		if err := e.EncodeToken(xml.Comment(" CmdID generated by Fleet ")); err != nil {
+			return err
+		}
 	}
 
-	if len(req.Header.Version) == 0 {
-		return errors.New("invalid SyncML message: Version")
+	return e.EncodeElement(c.Value, start)
+}
+
+// UnMarshalXML implements the xml.UnMarshaler interface
+// It decodes an XML element's content into the CmdID's Value field.
+func (c *CmdID) UnmarshalXML(d *xml.Decoder, start xml.StartElement) error {
+	var value string
+	if err := d.DecodeElement(&value, &start); err != nil {
+		return err
+	}
+	c.Value = value
+	return nil
+}
+
+// Protocol Command
+type SyncMLCmd struct {
+	XMLName xml.Name  `xml:",omitempty"`
+	CmdID   CmdID     `xml:"CmdID"`
+	MsgRef  *string   `xml:"MsgRef,omitempty"`
+	CmdRef  *string   `xml:"CmdRef,omitempty"`
+	Cmd     *string   `xml:"Cmd,omitempty"`
+	Data    *string   `xml:"Data,omitempty"`
+	Items   []CmdItem `xml:"Item,omitempty"`
+
+	// ReplaceCommands is a catch-all for any nested <Replace> commands,
+	// which can be found under <Atomic> elements.
+	//
+	// NOTE: in theory Atomics can have anything except Get verbs, but
+	// for the moment we're not allowing anything besides Replaces
+	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
+}
+
+// ParseWindowsMDMCommand parses the raw XML as a single Windows MDM command.
+// A single <Exec> command is accepted as input.
+func ParseWindowsMDMCommand(rawXMLCmd []byte) (*SyncMLCmd, error) {
+	// a command must have the <Exec> element as top-level
+	var cmdMsg SyncMLCmd
+	dec := xml.NewDecoder(bytes.NewReader(bytes.TrimSpace(rawXMLCmd)))
+	if err := dec.Decode(&cmdMsg); err != nil {
+		return nil, fmt.Errorf("The payload isn't valid XML: %w", err)
 	}
 
-	if len(req.Header.Target) == 0 {
-		return errors.New("invalid SyncML message: Target")
+	// check if there were multiple top-level elements provided
+	if _, err := dec.Token(); err != io.EOF {
+		return nil, errors.New("You can run only a single <Exec> command.")
 	}
 
-	if req.Header.SessionID == 0 {
-		return errors.New("invalid SyncML message: SessionID")
+	if cmdMsg.XMLName.Local != CmdExec {
+		return nil, errors.New("You can run only <Exec> command type.")
+	}
+	if len(cmdMsg.Items) != 1 {
+		return nil, errors.New("You can run only a single <Exec> command.")
+	}
+	return &cmdMsg, nil
+}
+
+// WindowsMDMRequiresPremiumCmdMessage is the error message displayed by fleetctl mdm
+// run-command when a Premium license is required. It must be kept in sync with
+// the SyncMLCmd.IsPremium implementation below so that it reflects the proper
+// command names.
+const WindowsMDMRequiresPremiumCmdMessage = "Missing or invalid license. Wipe command is available in Fleet Premium only."
+
+// IsPremium returns true if the command is available for Fleet premium only.
+// See e.g. https://learn.microsoft.com/en-us/windows/client-management/mdm/remotewipe-csp#dowipe
+// for details.
+func (cmd SyncMLCmd) IsPremium() bool {
+	// NOTE: if this implementation changes, make sure to also update the error
+	// message above - the WindowsMDMRequiresPremiumCmdMessage constant.
+	return strings.Contains(cmd.GetTargetURI(), "/Device/Vendor/MSFT/RemoteWipe/")
+}
+
+// DataType returns the SyncMLDataType corresponding to the command's format.
+// This is the inverse of the NewTypedSyncMLCmd operation (regarding the
+// format part of the command).
+func (cmd SyncMLCmd) DataType() SyncMLDataType {
+	if cmd.IsEmpty() || cmd.Items[0].Meta == nil ||
+		cmd.Items[0].Meta.Format == nil || cmd.Items[0].Meta.Format.Content == nil {
+		return SFNoFormat
 	}
 
-	if req.Header.MsgID == 0 {
-		return errors.New("invalid SyncML message: SessionID")
+	switch strings.TrimSpace(*cmd.Items[0].Meta.Format.Content) {
+	case "chr":
+		return SFText
+	case "xml":
+		return SFXml
+	case "b64":
+		return SFBase64
+	case "int":
+		return SFInteger
+	case "bool":
+		return SFBoolean
+	default:
+		return SFNoFormat
+	}
+}
+
+type CmdItem struct {
+	Source *string     `xml:"Source>LocURI,omitempty"`
+	Target *string     `xml:"Target>LocURI,omitempty"`
+	Meta   *Meta       `xml:"Meta,omitempty"`
+	Data   *RawXmlData `xml:"Data"`
+}
+
+type RawXmlData struct {
+	Attrs   []xml.Attr `xml:",any,attr"`
+	Content string     `xml:",innerxml"`
+}
+
+type Meta struct {
+	Type   *MetaAttr `xml:"Type,omitempty"`
+	Format *MetaAttr `xml:"Format,omitempty"`
+}
+
+type MetaAttr struct {
+	XMLNS   string  `xml:"xmlns,attr"`
+	Content *string `xml:",chardata"`
+}
+
+type LocURI struct {
+	LocURI *string `xml:",omitempty"`
+}
+
+func (msg *SyncML) IsValidHeader() error {
+	if strings.TrimSpace(msg.Xmlns) == "" {
+		return errors.New("msg namespace")
 	}
 
-	if len(req.Body.Item) == 0 {
-		return errors.New("invalid SyncML message: Item")
+	// SyncML DTD version check
+	if msg.SyncHdr.VerDTD != syncml.SyncMLSupportedVersion {
+		return errors.New("unsupported DTD version")
+	}
+
+	// SyncML Proto version check
+	if msg.SyncHdr.VerProto != syncml.SyncMLVerProto {
+		return errors.New("unsupported proto version")
+	}
+
+	// SyncML SessionID check
+	if msg.SyncHdr.SessionID == "" {
+		return errors.New("sessionID")
+	}
+
+	// SyncML MsgID check
+	if msg.SyncHdr.MsgID == "" {
+		return errors.New("MsgID")
+	}
+
+	// Target LocURI check
+	if msg.SyncHdr.Target == nil || msg.SyncHdr.Target.LocURI == nil || strings.TrimSpace(*msg.SyncHdr.Target.LocURI) == "" {
+		return errors.New("Target.LocURI")
+	}
+
+	// Device ID check
+	if msg.SyncHdr.Source == nil || msg.SyncHdr.Source.LocURI == nil || strings.TrimSpace(*msg.SyncHdr.Source.LocURI) == "" {
+		return errors.New("Source.LocURI")
 	}
 
 	return nil
+}
+
+func (msg *SyncML) IsValidBody() error {
+	nonNilCount := 0
+
+	if len(msg.SyncBody.Add) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Alert) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Atomic) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Delete) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Exec) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Get) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Replace) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Status) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Results) > 0 {
+		nonNilCount++
+	}
+
+	if len(msg.SyncBody.Raw) > 0 {
+		nonNilCount++
+	}
+
+	if nonNilCount == 0 {
+		return errors.New("no SyncML protocol commands")
+	}
+
+	return nil
+}
+
+// IsValidMsg checks for required fields in the SyncML message
+func (msg *SyncML) IsValidMsg() error {
+	if err := msg.IsValidHeader(); err != nil {
+		return fmt.Errorf("invalid SyncML header: %s", err)
+	}
+
+	if err := msg.IsValidBody(); err != nil {
+		return fmt.Errorf("invalid SyncML body: %s", err)
+	}
+
+	return nil
+}
+
+func (msg *SyncML) IsFinal() bool {
+	if (msg.SyncBody.Final != nil) && strings.TrimSpace(*msg.SyncBody.Final) != "" {
+		return true
+	}
+
+	return false
+}
+
+func (msg *SyncML) GetMessageID() (string, error) {
+	if strings.TrimSpace(msg.SyncHdr.MsgID) != "" {
+		return msg.SyncHdr.MsgID, nil
+	}
+
+	return "", errors.New("message id is empty")
+}
+
+func (msg *SyncML) GetSessionID() (string, error) {
+	if strings.TrimSpace(msg.SyncHdr.SessionID) != "" {
+		return msg.SyncHdr.SessionID, nil
+	}
+
+	return "", errors.New("session id is empty")
+}
+
+func (msg *SyncML) GetSource() (string, error) {
+	if (msg.SyncHdr.Source != nil) &&
+		(msg.SyncHdr.Source.LocURI != nil) &&
+		strings.TrimSpace(*msg.SyncHdr.Source.LocURI) != "" {
+
+		return *msg.SyncHdr.Source.LocURI, nil
+	}
+
+	return "", errors.New("message source is empty")
+}
+
+func (msg *SyncML) GetTarget() (string, error) {
+	if (msg.SyncHdr.Target != nil) &&
+		(msg.SyncHdr.Target.LocURI != nil) &&
+		strings.TrimSpace(*msg.SyncHdr.Target.LocURI) != "" {
+
+		return *msg.SyncHdr.Target.LocURI, nil
+	}
+
+	return "", errors.New("message target is empty")
+}
+
+// GetOrderedCmds returns the commands in the order they are defined in the message.
+func (msg *SyncML) GetOrderedCmds() []ProtoCmdOperation {
+	var cmds []ProtoCmdOperation
+
+	// Helper function to add commands to the cmds slice
+	addCmds := func(cmdsList ProtoCmds, verb string) {
+		for _, cmd := range cmdsList {
+			cmds = append(cmds, ProtoCmdOperation{Verb: verb, Cmd: cmd})
+		}
+	}
+
+	// Process each command one by one
+	if msg.SyncBody.Add != nil {
+		addCmds(msg.SyncBody.Add, CmdAdd)
+	}
+	if msg.SyncBody.Alert != nil {
+		addCmds(msg.SyncBody.Alert, CmdAlert)
+	}
+	if msg.SyncBody.Atomic != nil {
+		addCmds(msg.SyncBody.Atomic, CmdAtomic)
+	}
+	if msg.SyncBody.Delete != nil {
+		addCmds(msg.SyncBody.Delete, CmdDelete)
+	}
+	if msg.SyncBody.Exec != nil {
+		addCmds(msg.SyncBody.Exec, CmdExec)
+	}
+	if msg.SyncBody.Get != nil {
+		addCmds(msg.SyncBody.Get, CmdGet)
+	}
+	if msg.SyncBody.Replace != nil {
+		addCmds(msg.SyncBody.Replace, CmdReplace)
+	}
+	if msg.SyncBody.Results != nil {
+		addCmds(msg.SyncBody.Results, CmdResults)
+	}
+	if msg.SyncBody.Status != nil {
+		addCmds(msg.SyncBody.Status, CmdStatus)
+	}
+
+	return cmds
+}
+
+type MDMCommandType int
+
+const (
+	MDMRaw MDMCommandType = iota
+	MDMAdd
+	MDMAlert
+	MDMAtomic
+	MDMDelete
+	MDMExec
+	MDMGet
+	MDMReplace
+	MDMResults
+	MDMStatus
+)
+
+type SyncMLDataType uint16
+
+const (
+	SFEmpty SyncMLDataType = iota
+	SFNoFormat
+	SFText
+	SFXml
+	SFInteger
+	SFBoolean
+	SFBase64
+)
+
+func (msg *SyncML) AppendCommand(cmdType MDMCommandType, cmd SyncMLCmd) {
+	switch cmdType {
+	case MDMRaw:
+		if msg.SyncBody.Raw == nil {
+			msg.SyncBody.Raw = []SyncMLCmd{}
+		}
+		msg.SyncBody.Raw = append(msg.SyncBody.Raw, cmd)
+	case MDMAdd:
+		if msg.SyncBody.Add == nil {
+			msg.SyncBody.Add = []SyncMLCmd{}
+		}
+		msg.SyncBody.Add = append(msg.SyncBody.Add, cmd)
+	case MDMAlert:
+		if msg.SyncBody.Alert == nil {
+			msg.SyncBody.Alert = []SyncMLCmd{}
+		}
+		msg.SyncBody.Alert = append(msg.SyncBody.Alert, cmd)
+	case MDMAtomic:
+		if msg.SyncBody.Atomic == nil {
+			msg.SyncBody.Atomic = []SyncMLCmd{}
+		}
+		msg.SyncBody.Atomic = append(msg.SyncBody.Atomic, cmd)
+	case MDMDelete:
+		if msg.SyncBody.Delete == nil {
+			msg.SyncBody.Delete = []SyncMLCmd{}
+		}
+		msg.SyncBody.Delete = append(msg.SyncBody.Delete, cmd)
+	case MDMExec:
+		if msg.SyncBody.Exec == nil {
+			msg.SyncBody.Exec = []SyncMLCmd{}
+		}
+		msg.SyncBody.Exec = append(msg.SyncBody.Exec, cmd)
+	case MDMGet:
+		if msg.SyncBody.Get == nil {
+			msg.SyncBody.Get = []SyncMLCmd{}
+		}
+		msg.SyncBody.Get = append(msg.SyncBody.Get, cmd)
+	case MDMReplace:
+		if msg.SyncBody.Replace == nil {
+			msg.SyncBody.Replace = []SyncMLCmd{}
+		}
+		msg.SyncBody.Replace = append(msg.SyncBody.Replace, cmd)
+	case MDMResults:
+		if msg.SyncBody.Results == nil {
+			msg.SyncBody.Results = []SyncMLCmd{}
+		}
+		msg.SyncBody.Results = append(msg.SyncBody.Results, cmd)
+	case MDMStatus:
+		if msg.SyncBody.Status == nil {
+			msg.SyncBody.Status = []SyncMLCmd{}
+		}
+		msg.SyncBody.Status = append(msg.SyncBody.Status, cmd)
+	}
+}
+
+// SetID sets the MsgID field in the SyncML header
+func (msg *SyncML) SetID(cmdID int) {
+	msg.SyncHdr.MsgID = strconv.Itoa(cmdID)
+}
+
+// IsValid checks for required fields in the SyncML command
+func (cmd *SyncMLCmd) IsValid() bool {
+	if len(cmd.Items) == 0 && cmd.Data == nil {
+		return false
+	}
+
+	return true
+}
+
+// IsEmpty checks if there are not items in the command
+func (cmd *SyncMLCmd) IsEmpty() bool {
+	return len(cmd.Items) == 0
+}
+
+// GetTargetURI returns the first protocol commands target URI from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetURI() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Target != nil {
+		return *cmd.Items[0].Target
+	}
+
+	return ""
+}
+
+// GetTargetData returns the first protocol commands target data from the items list
+// This is OK as the protocol commands only have one item when sent from the server
+func (cmd *SyncMLCmd) GetTargetData() string {
+	if cmd.IsEmpty() {
+		return ""
+	}
+
+	if cmd.Items[0].Data != nil {
+		return cmd.Items[0].Data.Content
+	}
+
+	return ""
+}
+
+func (cmd *SyncMLCmd) ShouldBeTracked(cmdVerb string) bool {
+	if (cmdVerb == "") || cmd.CmdRef == nil || *cmd.CmdRef == "0" {
+		return false
+	}
+
+	return true
+}
+
+// /////////////////////////////////////////////////////////////
+// MDMWindowsCommand type
+// Represents a command in the windows_mdm_commands table
+type MDMWindowsCommand struct {
+	CommandUUID  string    `db:"command_uuid"`
+	RawCommand   []byte    `db:"raw_command"`
+	TargetLocURI string    `db:"target_loc_uri"`
+	CreatedAt    time.Time `db:"created_at"`
+	UpdatedAt    time.Time `db:"updated_at"`
+}
+
+// GetEncodedBinarySecurityToken returns the base64 form of a input payload
+func GetEncodedBinarySecurityToken(typeID WindowsMDMEnrollmentType, payload string) (string, error) {
+	var pld WindowsMDMAccessTokenPayload
+	pld.Type = typeID
+
+	if typeID == WindowsMDMProgrammaticEnrollmentType {
+		pld.Payload.OrbitNodeKey = payload
+	} else if typeID == WindowsMDMAutomaticEnrollmentType {
+		pld.Payload.AuthToken = payload
+	} else {
+		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
+	}
+
+	rawBytes, err := json.Marshal(pld)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(rawBytes), nil
+}
+
+// HostMDMWindowsProfile represents the status of an MDM profile for a Windows host.
+type HostMDMWindowsProfile struct {
+	HostUUID      string             `db:"host_uuid" json:"host_uuid"`
+	CommandUUID   string             `db:"command_uuid" json:"command_uuid"`
+	ProfileUUID   string             `db:"profile_uuid" json:"profile_uuid"`
+	Name          string             `db:"name" json:"name"`
+	Status        *MDMDeliveryStatus `db:"status" json:"status"`
+	OperationType MDMOperationType   `db:"operation_type" json:"operation_type"`
+	Detail        string             `db:"detail" json:"detail"`
+}
+
+func (p HostMDMWindowsProfile) ToHostMDMProfile() HostMDMProfile {
+	return HostMDMProfile{
+		HostUUID:      p.HostUUID,
+		ProfileUUID:   p.ProfileUUID,
+		Name:          p.Name,
+		Identifier:    "",
+		Status:        p.Status,
+		OperationType: p.OperationType,
+		Detail:        p.Detail,
+		Platform:      "windows",
+	}
+}
+
+// BuildMDMWindowsProfilePayloadFromMDMResponse builds a
+// MDMWindowsProfilePayload for a command that was used to deliver a
+// configuration profile.
+//
+// Profiles are groups of `<Replace>` commands wrapped in an `<Atomic>`, both
+// the top-level atomic and each replace have different CmdID values and Status
+// responses. For example a profile might look like:
+//
+// <Atomic>
+//
+//	<CmdID>foo</CmdID>
+//	<Replace>
+//	  <CmdID>bar</CmdID>
+//	  ...
+//	</Replace>
+//	<Replace>
+//	  <CmdID>baz</CmdID>
+//	  ...
+//	</Replace>
+//
+// </Atomic>
+//
+// And the response from the MDM server will be something like:
+//
+// <SyncBody>
+// <Status>
+//
+//	<CmdID>foo</CmdID>
+//	<Cmd>Atomic</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// <Status>
+//
+//	<CmdID>bar</CmdID>
+//	<Cmd>Replace</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// <Status>
+//
+//	<CmdID>baz</CmdID>
+//	<Cmd>Replace</Cmd>
+//	<Data>200</Data>
+//	...
+//
+// </Status>
+// ...
+// </SyncBody>
+//
+// As currently specified:
+//   - The status of the resulting command should be the status of the
+//     top-level `<Atomic>` operation
+//   - The detail of the resulting command should be an aggregate of all the
+//     status responses of every nested `Replace` operation
+func BuildMDMWindowsProfilePayloadFromMDMResponse(
+	cmd MDMWindowsCommand,
+	statuses map[string]SyncMLCmd,
+	hostUUID string,
+) (*MDMWindowsProfilePayload, error) {
+	status, ok := statuses[cmd.CommandUUID]
+	if !ok {
+		return nil, fmt.Errorf("missing status for root command %s", cmd.CommandUUID)
+	}
+	commandStatus := WindowsResponseToDeliveryStatus(*status.Data)
+	var details []string
+	if status.Data != nil && commandStatus == MDMDeliveryFailed {
+		syncML := new(SyncMLCmd)
+		if err := xml.Unmarshal(cmd.RawCommand, syncML); err != nil {
+			return nil, err
+		}
+		for _, nested := range syncML.ReplaceCommands {
+			if status, ok := statuses[nested.CmdID.Value]; ok && status.Data != nil {
+				details = append(details, fmt.Sprintf("%s: status %s", nested.GetTargetURI(), *status.Data))
+			}
+		}
+	}
+	detail := strings.Join(details, ", ")
+	return &MDMWindowsProfilePayload{
+		HostUUID:      hostUUID,
+		Status:        &commandStatus,
+		OperationType: "",
+		Detail:        detail,
+		CommandUUID:   cmd.CommandUUID,
+	}, nil
+}
+
+// WindowsResponseToDeliveryStatus converts a response string from Windows MDM
+// into an MDMDeliveryStatus.
+//
+// If the response starts with "2" (any 2xx response), it returns
+// MDMDeliveryVerifying, otherwise, it returns MDMDeliveryFailed.
+func WindowsResponseToDeliveryStatus(resp string) MDMDeliveryStatus {
+	if len(resp) == 0 {
+		return MDMDeliveryPending
+	}
+
+	if strings.HasPrefix(resp, "2") {
+		return MDMDeliveryVerifying
+	}
+
+	return MDMDeliveryFailed
 }

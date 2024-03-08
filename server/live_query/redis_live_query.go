@@ -45,11 +45,14 @@
 package live_query
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/datastore/redis"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	redigo "github.com/gomodule/redigo/redis"
@@ -100,7 +103,7 @@ func extractTargetKeyName(key string) string {
 
 // RunQuery stores the live query information in ephemeral storage for the
 // duration of the query or its TTL. Note that hostIDs *must* be sorted
-// in ascending order.
+// in ascending order. The name is the campaign ID as a string.
 func (r *redisLiveQuery) RunQuery(name, sql string, hostIDs []uint) error {
 	if len(hostIDs) == 0 {
 		return errors.New("no hosts targeted")
@@ -138,7 +141,7 @@ var cleanupExpiredQueriesModulo int64 = 10
 
 func (r *redisLiveQuery) QueriesForHost(hostID uint) (map[string]string, error) {
 	// Get keys for active queries
-	names, err := r.loadActiveQueryNames()
+	names, err := r.LoadActiveQueryNames()
 	if err != nil {
 		return nil, fmt.Errorf("load active queries: %w", err)
 	}
@@ -312,7 +315,7 @@ func (r *redisLiveQuery) removeQueryNames(names ...string) error {
 	return err
 }
 
-func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
+func (r *redisLiveQuery) LoadActiveQueryNames() ([]string, error) {
 	conn := redis.ConfigureDoer(r.pool, r.pool.Get())
 	defer conn.Close()
 
@@ -321,6 +324,62 @@ func (r *redisLiveQuery) loadActiveQueryNames() ([]string, error) {
 		return nil, err
 	}
 	return names, nil
+}
+
+func (r *redisLiveQuery) CleanupInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	// the following logic is used to cleanup inactive queries:
+	// 	* the inactive campaign IDs are removed from the livequery:active set
+	//
+	// At this point, all inactive queries are already effectively deleted - the
+	// rest is just best effort cleanup to save Redis memory space, but those
+	// keys would otherwise be ignored and without effect.
+	//
+	// * remove the livequery:<ID> and sql:livequery:<ID> for every inactive
+	// 	campaign ID.
+
+	if len(inactiveCampaignIDs) == 0 {
+		return nil
+	}
+
+	if err := r.removeInactiveQueries(ctx, inactiveCampaignIDs); err != nil {
+		return err
+	}
+
+	keysToDel := make([]string, 0, len(inactiveCampaignIDs)*2)
+	for _, id := range inactiveCampaignIDs {
+		targetKey, sqlKey := generateKeys(strconv.FormatUint(uint64(id), 10))
+		keysToDel = append(keysToDel, targetKey, sqlKey)
+	}
+
+	keysBySlot := redis.SplitKeysBySlot(r.pool, keysToDel...)
+	for _, keys := range keysBySlot {
+		if err := r.removeBatchInactiveKeys(ctx, keys); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) removeBatchInactiveKeys(ctx context.Context, keys []string) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	args := redigo.Args{}.AddFlat(keys)
+	if _, err := conn.Do("DEL", args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove batch of inactive keys")
+	}
+	return nil
+}
+
+func (r *redisLiveQuery) removeInactiveQueries(ctx context.Context, inactiveCampaignIDs []uint) error {
+	conn := r.pool.Get()
+	defer conn.Close()
+
+	args := redigo.Args{}.Add(activeQueriesKey).AddFlat(inactiveCampaignIDs)
+	if _, err := conn.Do("SREM", args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "remove inactive campaign IDs")
+	}
+	return nil
 }
 
 // mapBitfield takes the given host IDs and maps them into a bitfield compatible

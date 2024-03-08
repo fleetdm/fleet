@@ -21,7 +21,11 @@ const CustomDropdownIndicator = (
 
   return (
     <components.DropdownIndicator {...props} className={baseClass}>
-      <Icon name="chevron" color={color} className={`${baseClass}__icon`} />
+      <Icon
+        name="chevron-down"
+        color={color}
+        className={`${baseClass}__icon`}
+      />
     </components.DropdownIndicator>
   );
 };

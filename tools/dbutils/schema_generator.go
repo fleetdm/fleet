@@ -5,7 +5,6 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"os/exec"
 	"time"
@@ -76,5 +75,5 @@ func main() {
 	cmd.Stdout = &stdoutBuf
 	panicif(cmd.Run())
 
-	panicif(ioutil.WriteFile(os.Args[1], stdoutBuf.Bytes(), 0o655))
+	panicif(os.WriteFile(os.Args[1], stdoutBuf.Bytes(), 0o655))
 }

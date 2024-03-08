@@ -12,7 +12,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/url"
 	"strings"
@@ -37,6 +37,22 @@ func httpSuccessStatus(statusCode int) bool {
 	return statusCode >= 200 && statusCode <= 299
 }
 
+// errWithStatus is an error with a particular status code.
+type errWithStatus struct {
+	err        string
+	statusCode int
+}
+
+// Error implements the error interface
+func (e *errWithStatus) Error() string {
+	return e.err
+}
+
+// StatusCode implements the StatusCoder interface for returning custom status codes.
+func (e *errWithStatus) StatusCode() int {
+	return e.statusCode
+}
+
 func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	jsonBytes, err := json.Marshal(v)
 	if err != nil {
@@ -58,8 +74,8 @@ func PostJSONWithTimeout(ctx context.Context, url string, v interface{}) error {
 	defer resp.Body.Close()
 
 	if !httpSuccessStatus(resp.StatusCode) {
-		body, _ := ioutil.ReadAll(resp.Body)
-		return fmt.Errorf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body))
+		body, _ := io.ReadAll(resp.Body)
+		return &errWithStatus{err: fmt.Sprintf("error posting to %s: %d. %s", MaskSecretURLParams(url), resp.StatusCode, string(body)), statusCode: resp.StatusCode}
 	}
 
 	return nil
@@ -144,4 +160,19 @@ func GetTemplate(templatePath string, templateName string) (*template.Template, 
 func Base64DecodePaddingAgnostic(s string) ([]byte, error) {
 	us := strings.TrimRight(s, string(base64.StdPadding))
 	return base64.RawStdEncoding.DecodeString(us)
+}
+
+// RemoveDuplicatesFromSlice returns a slice with all the duplicates removed from the input slice.
+func RemoveDuplicatesFromSlice[T comparable](slice []T) []T {
+	// We are using the allKeys map as a set here
+	allKeys := make(map[T]struct{}, len(slice))
+	list := make([]T, 0, len(slice))
+
+	for _, i := range slice {
+		if _, exists := allKeys[i]; !exists {
+			allKeys[i] = struct{}{}
+			list = append(list, i)
+		}
+	}
+	return list
 }

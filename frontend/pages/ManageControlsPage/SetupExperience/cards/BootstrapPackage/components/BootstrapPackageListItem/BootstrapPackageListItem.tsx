@@ -7,6 +7,7 @@ import endpoints from "utilities/endpoints";
 
 import Icon from "components/Icon";
 import Button from "components/buttons/Button";
+import Graphic from "components/Graphic";
 
 const baseClass = "bootstrap-package-list-item";
 
@@ -60,7 +61,7 @@ const BootstrapPackageListItem = ({
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__value-group ${baseClass}__list-item-data`}>
-        <Icon name="file-pkg" />
+        <Graphic name="file-pkg" />
         <div className={`${baseClass}__list-item-info`}>
           <span className={`${baseClass}__list-item-name`}>
             {bootstrapPackage.name}

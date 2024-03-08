@@ -147,6 +147,40 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 				"CVE-2013-0340": {},
 			},
 		},
+		// CVE-2022-42919 only affects Python on Linux but the NVD dataset doesn't set target_sw=linux.
+		// For instance, here's an invalid CPE sample from the NVD dataset from this vulnerability as of Oct 13th 2023:
+		// `cpe:2.3:a:python:python:3.7.3:-:*:*:*:*:*:*`.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2022-42919": {},
+			},
+			CPESpecs: []CPEMatchingRuleSpec{
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.9.0, < 3.9.16",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.10.0, < 3.10.9",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.8.3, <= 3.8.15",
+				},
+				{
+					Vendor:           "python",
+					Product:          "python",
+					TargetSW:         "linux",
+					SemVerConstraint: ">= 3.7.3, <= 3.7.15",
+				},
+			},
+		},
 	}
 
 	for i, rule := range rules {

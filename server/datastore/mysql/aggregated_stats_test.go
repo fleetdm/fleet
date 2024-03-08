@@ -15,7 +15,15 @@ import (
 )
 
 func slowStats(t *testing.T, ds *Datastore, id uint, percentile int, column string) float64 {
-	queriesSQL := fmt.Sprintf(`SELECT d.%s / d.executions FROM scheduled_query_stats d JOIN queries q ON (d.scheduled_query_id=q.id) WHERE q.id=? ORDER BY (d.%s / d.executions) ASC`, column, column)
+	queriesSQL := fmt.Sprintf(
+		`
+		SELECT SUM(d.%[1]s) / SUM(d.executions)
+		FROM scheduled_query_stats d
+			JOIN queries q ON (d.scheduled_query_id=q.id)
+		WHERE q.id=? AND d.executions > 0
+		GROUP BY d.host_id
+		ORDER BY (SUM(d.%[1]s) / SUM(d.executions))`, column,
+	)
 	rows, err := ds.writer(context.Background()).Queryx(queriesSQL, id)
 	require.NoError(t, err)
 	defer rows.Close()
@@ -56,19 +64,27 @@ func TestAggregatedStats(t *testing.T) {
 		_, err := ds.writer(context.Background()).Exec(`INSERT INTO scheduled_queries(query_id, name, query_name) VALUES (?,?,?)`, rand.Intn(queryCount)+1, fmt.Sprint(i), fmt.Sprint(i))
 		require.NoError(t, err)
 	}
-	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions) VALUES %s`
+	insertScheduledQuerySQL := `INSERT IGNORE INTO scheduled_query_stats(host_id, scheduled_query_id, system_time, user_time, executions, query_type) VALUES %s`
 	scheduledQueryStatsCount := 100 // 1000000
 	for i := 0; i < scheduledQueryStatsCount; i++ {
 		if len(args) > batchSize {
-			values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
+			values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(args)/6), ",")
 			_, err := ds.writer(context.Background()).Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
 			require.NoError(t, err)
 			args = []interface{}{}
 		}
-		args = append(args, rand.Intn(hostCount)+1, rand.Intn(queryCount)+1, rand.Intn(10000)+100, rand.Intn(10000)+100, rand.Intn(10000)+100)
+		// Occasionally set 0 executions
+		executions := rand.Intn(10000) + 100
+		if rand.Intn(100) < 5 {
+			executions = 0
+		}
+		args = append(
+			args, rand.Intn(hostCount)+1, rand.Intn(queryCount)+1, rand.Intn(10000)+100, rand.Intn(10000)+100, executions,
+			rand.Intn(2),
+		)
 	}
 	if len(args) > 0 {
-		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?),", len(args)/5), ",")
+		values := strings.TrimSuffix(strings.Repeat("(?,?,?,?,?,?),", len(args)/6), ",")
 		_, err := ds.writer(context.Background()).Exec(fmt.Sprintf(insertScheduledQuerySQL, values), args...)
 		require.NoError(t, err)
 	}
@@ -87,10 +103,10 @@ func TestAggregatedStats(t *testing.T) {
 
 	testcases := []struct {
 		table     string
-		aggregate aggregatedStatsType
+		aggregate fleet.AggregatedStatsType
 		aggFunc   func(ctx context.Context) error
 	}{
-		{"queries", aggregatedStatsTypeScheduledQuery, ds.UpdateQueryAggregatedStats},
+		{"queries", fleet.AggregatedStatsTypeScheduledQuery, ds.UpdateQueryAggregatedStats},
 	}
 	for _, tt := range testcases {
 		t.Run(tt.table, func(t *testing.T) {

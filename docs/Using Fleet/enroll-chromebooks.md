@@ -3,7 +3,7 @@ For visibility on ChromeOS hosts, Fleet provides the fleetd Chrome extension whi
 
 ## Adding ChromeOS hosts to Fleet
 
-To learn how to add ChromeOS hosts to Fleet, visit [here](https://fleetdm.com/docs/using-fleet/adding-hosts#add-chromebooks-with-the-fleetd-chrome-extension).
+To learn how to add ChromeOS hosts to Fleet, visit [here](https://fleetdm.com/docs/using-fleet/adding-hosts#enroll-chromebooks).
 
 > The fleetd Chrome browser extension is supported on ChromeOS operating systems that are managed using [Google Admin](https://admin.google.com). It is not intended for non-ChromeOS hosts with the Chrome browser installed.
 
@@ -23,7 +23,6 @@ By default, the hostname for a Chromebook host will be blank. The hostname can b
 
 ## Debugging ChromeOS
 To learn how to debug the Fleetd Chrome extension, visit [here](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Testing-and-local-development.md#fleetd-chrome-extension).
-
 <meta name="title" value="Enroll Chromebooks">
 <meta name="pageOrderInSection" value="2000">
 <meta name="navSection" value="Dig deeper">

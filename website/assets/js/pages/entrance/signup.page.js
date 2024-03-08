@@ -41,9 +41,8 @@ parasails.registerPage('signup', {
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
 
-    clickClearFormFields: async function() {
+    clickResetForm: async function() {
       this.cloudError = '';
-      this.formData = {};
       this.formErrors = {};
       this.showFullForm = true;
       await this.forceRender();

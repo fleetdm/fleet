@@ -3,7 +3,7 @@ package sso
 import (
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 
@@ -105,7 +105,7 @@ func getMetadata(metadataURL string) (*Metadata, error) {
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("SAML metadata server at %s returned %s", metadataURL, resp.Status)
 	}
-	xmlData, err := ioutil.ReadAll(resp.Body)
+	xmlData, err := io.ReadAll(resp.Body)
 
 	if err != nil {
 		return nil, err

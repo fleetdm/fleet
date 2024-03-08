@@ -7,9 +7,9 @@ import Button from "components/buttons/Button";
 
 interface DeleteProfileModalProps {
   profileName: string;
-  profileId: number;
+  profileId: string;
   onCancel: () => void;
-  onDelete: (profileId: number) => void;
+  onDelete: (profileId: string) => void;
 }
 
 const baseClass = "delete-profile-modal";
@@ -34,7 +34,7 @@ const DeleteProfileModal = ({
   return (
     <Modal
       className={baseClass}
-      title={"Delete configuration profile"}
+      title="Delete configuration profile"
       onExit={onCancel}
       onEnter={() => onDelete(profileId)}
       width="large"
@@ -43,7 +43,7 @@ const DeleteProfileModal = ({
         <p>
           This action will delete configuration profile{" "}
           <span className={`${baseClass}__profile-name`}>{profileName}</span>{" "}
-          from all macOS hosts{messageSuffix}.
+          from all hosts{messageSuffix}.
         </p>
         <div className="modal-cta-wrap">
           <Button

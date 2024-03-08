@@ -208,6 +208,12 @@ $shadow-transition-width: 10px;
       td {
         height: 40px;
         padding: 0 $pad-large;
+        max-width: 500px;
+        word-wrap: break-word;
+
+        &.linkToFilteredHosts__cell {
+          text-align: right;
+        }
 
         &.selection__cell {
           width: 0px;
@@ -248,17 +254,10 @@ $shadow-transition-width: 10px;
               white-space: nowrap; // single line
               text-overflow: ellipsis; // truncates text
               overflow: hidden;
-              &__underline {
-                width: 100%;
-
-                &::after {
-                  bottom: 9px; // compensate for padding to make larger clickable area
-                }
-              }
               // TODO – this naming is now confusing, as this .link-cell is not the outermost layer of
               // the cell – it's a NameCell
               .link-cell {
-                padding: 10px 0;
+                padding: 0;
               }
             }
 
@@ -324,7 +323,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
 
@@ -335,7 +334,7 @@ $shadow-transition-width: 10px;
           font-size: 0.6rem;
           font-weight: $bold;
           position: relative;
-          top: -2px;
+          top: -1px;
         }
       }
     }

@@ -66,7 +66,7 @@ func TestDatastoreReplica(t *testing.T) {
 		// trying to read it fails, not replicated yet
 		_, err = ds.Host(ctx, host.ID)
 		require.Error(t, err)
-		require.True(t, errors.Is(err, sql.ErrNoRows))
+		require.True(t, errors.Is(err, sql.ErrNoRows), err)
 
 		// force read from primary works
 		ctx = ctxdb.RequirePrimary(ctx, true)
@@ -363,7 +363,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 		OrderKey: "***name***",
 	}
 
-	actual := appendListOptionsToSQL(sql, &opts)
+	actual, _ := appendListOptionsToSQL(sql, &opts)
 	expected := "SELECT * FROM my_table ORDER BY `name` ASC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -371,7 +371,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.OrderDirection = fleet.OrderDescending
-	actual = appendListOptionsToSQL(sql, &opts)
+	actual, _ = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table ORDER BY `name` DESC LIMIT 1000000"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -382,7 +382,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 	}
 
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, &opts)
+	actual, _ = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -390,7 +390,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	sql = "SELECT * FROM my_table"
 	opts.Page = 2
-	actual = appendListOptionsToSQL(sql, &opts)
+	actual, _ = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 10 OFFSET 20"
 	if actual != expected {
 		t.Error("Expected", expected, "Actual", actual)
@@ -398,7 +398,7 @@ func TestAppendListOptionsToSQL(t *testing.T) {
 
 	opts = fleet.ListOptions{}
 	sql = "SELECT * FROM my_table"
-	actual = appendListOptionsToSQL(sql, &opts)
+	actual, _ = appendListOptionsToSQL(sql, &opts)
 	expected = "SELECT * FROM my_table LIMIT 1000000"
 
 	if actual != expected {
@@ -959,27 +959,6 @@ func TestCompareVersions(t *testing.T) {
 	}
 }
 
-func TestRxLooseEmail(t *testing.T) {
-	testCases := []struct {
-		str   string
-		match bool
-	}{
-		{"foo", false},
-		{"", false},
-		{"foo@example", false},
-		{"foo@example.com", true},
-		{"foo+bar@example.com", true},
-		{"foo.bar@example.com", true},
-		{"foo.bar@baz.example.com", true},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.str, func(t *testing.T) {
-			assert.Equal(t, tc.match, rxLooseEmail.MatchString(tc.str))
-		})
-	}
-}
-
 func TestDebugs(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
@@ -992,14 +971,14 @@ func TestDebugs(t *testing.T) {
 	require.Greater(t, len(processList), 0)
 }
 
-func TestANSIQuotesEnabled(t *testing.T) {
-	// Ensure sql_mode=ANSI_QUOTES is enabled for tests
+func TestWantedModesEnabled(t *testing.T) {
 	ds := CreateMySQLDS(t)
 
 	var sqlMode string
 	err := ds.writer(context.Background()).GetContext(context.Background(), &sqlMode, `SELECT @@SQL_MODE`)
 	require.NoError(t, err)
 	require.Contains(t, sqlMode, "ANSI_QUOTES")
+	require.Contains(t, sqlMode, "ONLY_FULL_GROUP_BY")
 }
 
 func Test_buildWildcardMatchPhrase(t *testing.T) {
@@ -1050,6 +1029,203 @@ func Test_buildWildcardMatchPhrase(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equalf(t, tt.want, buildWildcardMatchPhrase(tt.args.matchQuery), "buildWildcardMatchPhrase(%v)", tt.args.matchQuery)
+		})
+	}
+}
+
+func TestWhereFilterGlobalOrTeamIDByTeams(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		filter   fleet.TeamFilter
+		expected string
+	}{
+		// No teams or global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{Teams: []fleet.UserTeam{}},
+			},
+			expected: "FALSE",
+		},
+
+		// Global role
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleMaintainer)},
+			},
+			expected: "hosts.team_id = 0",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id = 0",
+		},
+
+		// Team roles
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				IncludeObserver: true,
+			},
+			expected: "hosts.team_id IN (1,2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						// Invalid role should be ignored
+						{Role: "bad", Team: fleet.Team{ID: 37}},
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+						{Role: fleet.RoleAdmin, Team: fleet.Team{ID: 3}},
+						// Invalid role should be ignored
+					},
+				},
+			},
+			expected: "hosts.team_id IN (2,3)",
+		},
+		{
+			filter: fleet.TeamFilter{
+				TeamID: ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: true,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleObserver)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User:            &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)},
+				IncludeObserver: false,
+				TeamID:          ptr.Uint(1),
+			},
+			expected: "hosts.team_id = 1",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(3),
+			},
+			expected: "FALSE",
+		},
+		{
+			filter: fleet.TeamFilter{
+				User: &fleet.User{
+					Teams: []fleet.UserTeam{
+						{Role: fleet.RoleObserver, Team: fleet.Team{ID: 1}},
+						{Role: fleet.RoleMaintainer, Team: fleet.Team{ID: 2}},
+					},
+				},
+				TeamID: ptr.Uint(2),
+			},
+			expected: "hosts.team_id = 2",
+		},
+	}
+
+	for _, tt := range testCases {
+		tt := tt
+		t.Run("", func(t *testing.T) {
+			t.Parallel()
+			ds := &Datastore{logger: log.NewNopLogger()}
+			sql := ds.whereFilterGlobalOrTeamIDByTeams(tt.filter, "hosts")
+			assert.Equal(t, tt.expected, sql)
 		})
 	}
 }

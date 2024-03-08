@@ -15,20 +15,22 @@ import (
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/pkg/file"
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	depclient "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
@@ -67,7 +69,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
@@ -78,7 +80,7 @@ func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage,
 			// Request.
 			msg := err.Error()
 			if authErr.StatusCode == http.StatusUnauthorized {
-				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-setup#apple-business-manager-abm for help."
+				msg = "The Apple Business Manager certificate or server token is invalid. Restart Fleet with a valid certificate and token. See https://fleetdm.com/docs/using-fleet/mdm-macos-setup#apple-business-manager-abm for help."
 			}
 			return nil, ctxerr.Wrap(ctx, &fleet.BadRequestError{
 				Message:     msg,
@@ -115,8 +117,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -138,8 +139,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 }
 
 func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -179,6 +179,7 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 	var contents bytes.Buffer
 	params := fileVaultProfileOptions{
 		PayloadIdentifier:    mobileconfig.FleetFileVaultPayloadIdentifier,
+		PayloadName:          mdm.FleetFileVaultProfileName,
 		Base64DerCertificate: base64.StdEncoding.EncodeToString(cert.Leaf.Raw),
 	}
 	if err := fileVaultProfileTemplate.Execute(&contents, params); err != nil {
@@ -250,7 +251,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}
 
@@ -277,12 +278,25 @@ func (svc *Service) validateMDMAppleSetupPayload(ctx context.Context, payload fl
 	if !ac.MDM.EnabledAndConfigured {
 		return &fleet.MDMNotConfiguredError{}
 	}
-	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication == true && ac.MDM.EndUserAuthentication.IsEmpty() {
-		// TODO: update this error message to include steps to resolve the issue once docs for IdP
-		// config are available
-		return fleet.NewInvalidArgumentError("enable_end_user_authentication",
-			`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+
+	if payload.EnableEndUserAuthentication != nil && *payload.EnableEndUserAuthentication {
+		if ac.MDM.EndUserAuthentication.IsEmpty() {
+			// TODO: update this error message to include steps to resolve the issue once docs for IdP
+			// config are available
+			return fleet.NewInvalidArgumentError("enable_end_user_authentication",
+				`Couldn't enable macos_setup.enable_end_user_authentication because no IdP is configured for MDM features.`)
+		}
+
+		hasCustomConfigurationWebURL, err := svc.HasCustomSetupAssistantConfigurationWebURL(ctx, payload.TeamID)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "checking setup assistant configuration web url")
+		}
+
+		if hasCustomConfigurationWebURL {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup.enable_end_user_authentication", fleet.EndUserAuthDEPWebURLConfiguredErrMsg))
+		}
 	}
+
 	return nil
 }
 
@@ -429,8 +443,8 @@ func (svc *Service) GetMDMAppleBootstrapPackageSummary(ctx context.Context, team
 	return summary, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, f io.ReadSeeker) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
@@ -456,45 +470,45 @@ func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, f io.Re
 		return ctxerr.Wrap(ctx, err, "reading EULA bytes")
 	}
 
-	eula := &fleet.MDMAppleEULA{
+	eula := &fleet.MDMEULA{
 		Name:  name,
 		Token: uuid.New().String(),
 		Bytes: bytes,
 	}
 
-	if err := svc.ds.MDMAppleInsertEULA(ctx, eula); err != nil {
+	if err := svc.ds.MDMInsertEULA(ctx, eula); err != nil {
 		return ctxerr.Wrap(ctx, err, "inserting EULA")
 	}
 
 	return nil
 }
 
-func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: this resource is authorized using the token provided in the
 	// request.
 	svc.authz.SkipAuthorization(ctx)
 
-	return svc.ds.MDMAppleGetEULABytes(ctx, token)
+	return svc.ds.MDMGetEULABytes(ctx, token)
 }
 
-func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionWrite); err != nil {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionWrite); err != nil {
 		return err
 	}
 
-	if err := svc.ds.MDMAppleDeleteEULA(ctx, token); err != nil {
+	if err := svc.ds.MDMDeleteEULA(ctx, token); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting EULA")
 	}
 
 	return nil
 }
 
-func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleEULA{}, fleet.ActionRead); err != nil {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMEULA{}, fleet.ActionRead); err != nil {
 		return nil, err
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -507,19 +521,36 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 		return nil, err
 	}
 
+	// In order to validate if a configuration_web_url can be set for this setup
+	// assistant configuration, we need to know if end user authentication is
+	// enabled (either globally or for a specific team, if provided)
+	var endUserAuthEnabled bool
+	var teamName *string
+	if asst.TeamID != nil {
+		tm, err := svc.ds.Team(ctx, *asst.TeamID)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "get team")
+		}
+		teamName = &tm.Name
+		endUserAuthEnabled = tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication
+	} else {
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "getting app config")
+		}
+		endUserAuthEnabled = appCfg.MDM.MacOSSetup.EnableEndUserAuthentication
+	}
+
 	var m map[string]any
 	if err := json.Unmarshal(asst.Profile, &m); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "json unmarshal setup assistant profile")
 	}
-
-	deniedFields := map[string]string{
-		"configuration_web_url": `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include configuration_web_url. To require end user authentication, use the macos_setup.end_user_authentication option.`,
-		"url":                   `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`,
+	if _, ok := m["configuration_web_url"]; ok && endUserAuthEnabled {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. First, disable end user authentication before adding an automatic enrollment (DEP) profile with a configuration_web_url.`))
 	}
-	for k, msg := range deniedFields {
-		if _, ok := m[k]; ok {
-			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", msg))
-		}
+
+	if _, ok := m["url"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -536,7 +567,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -545,14 +576,6 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 			return nil, ctxerr.Wrap(ctx, err, "enqueue macos setup assistant profile changed job")
 		}
 
-		var teamName *string
-		if newAsst.TeamID != nil {
-			tm, err := svc.ds.Team(ctx, *newAsst.TeamID)
-			if err != nil {
-				return nil, ctxerr.Wrap(ctx, err, "get team")
-			}
-			teamName = &tm.Name
-		}
 		if err := svc.ds.NewActivity(ctx, authz.UserFromContext(ctx), &fleet.ActivityTypeChangedMacosSetupAssistant{
 			TeamID:   newAsst.TeamID,
 			TeamName: teamName,
@@ -588,7 +611,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -695,15 +718,18 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		return "", "", "", ctxerr.Wrap(ctx, err, "validate request in session")
 	}
 
-	var ssoSettings fleet.SSOSettings
-	if appConfig.SSOSettings != nil {
-		ssoSettings = *appConfig.SSOSettings
+	settings := appConfig.MDM.EndUserAuthentication.SSOProviderSettings
+	// For now, until we get to #10999, we assume that SSO is disabled if
+	// no settings are provided.
+	if settings.IsEmpty() {
+		err := &fleet.BadRequestError{Message: "organization not configured to use sso"}
+		return "", "", "", ctxerr.Wrap(ctx, err, "get config for mdm sso callback")
 	}
 
 	err = sso.ValidateAudiences(
 		*metadata,
 		auth,
-		ssoSettings.EntityID,
+		settings.EntityID,
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
@@ -723,17 +749,27 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		svc.logger.Log("mdm-sso-callback", "IdP UserID doesn't look like an email, using raw value")
 		username = auth.UserID()
 	}
-	idpAcc := fleet.MDMIdPAccount{
-		UUID:     uuid.New().String(),
+
+	err = svc.ds.InsertMDMIdPAccount(ctx, &fleet.MDMIdPAccount{
 		Username: username,
 		Fullname: auth.UserDisplayName(),
 		Email:    auth.UserID(),
-	}
-	if err := svc.ds.InsertMDMIdPAccount(ctx, &idpAcc); err != nil {
+	})
+	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "saving account data from IdP")
 	}
 
-	eula, err := svc.ds.MDMAppleGetEULAMetadata(ctx)
+	idpAcc, err := svc.ds.GetMDMIdPAccountByEmail(
+		// use the primary db as the account might have been just
+		// inserted
+		ctxdb.RequirePrimary(ctx, true),
+		auth.UserID(),
+	)
+	if err != nil {
+		return "", "", "", ctxerr.Wrap(ctx, err, "retrieving new account data from IdP")
+	}
+
+	eula, err := svc.ds.MDMGetEULAMetadata(ctx)
 	if err != nil && !fleet.IsNotFound(err) {
 		return "", "", "", ctxerr.Wrap(ctx, err, "getting EULA metadata")
 	}
@@ -759,7 +795,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
 	return nil
@@ -778,7 +814,7 @@ func (svc *Service) MDMApplePreassignProfile(ctx context.Context, payload fleet.
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -794,7 +830,7 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 	// for the preassign and match features, we don't know yet what team(s) will
 	// be affected, so we authorize only users with write-access to the no-team
 	// config profiles and with team-write access.
-	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleConfigProfile{}, fleet.ActionWrite); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{}, fleet.ActionWrite); err != nil {
 		return ctxerr.Wrap(ctx, err)
 	}
 	if err := svc.authz.Authorize(ctx, &fleet.Team{}, fleet.ActionWrite); err != nil {
@@ -853,13 +889,13 @@ func (svc *Service) MDMAppleMatchPreassignment(ctx context.Context, externalHost
 
 	// create profiles for that team via the service call, so that uniqueness
 	// of profile identifier/name is verified, activity created, etc.
-	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false); err != nil {
+	if err := svc.BatchSetMDMAppleProfiles(ctx, &team.ID, nil, rawProfiles, false, true); err != nil {
 		return err
 	}
 
 	// assign host to that team via the service call, which will trigger
 	// deployment of the profiles.
-	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}); err != nil {
+	if err := svc.AddHostsToTeam(ctx, &team.ID, []uint{host.ID}, true); err != nil {
 		return err
 	}
 
@@ -890,12 +926,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 		}
 
 		payload.MDM = &fleet.TeamPayloadMDM{
-			MacOSSettings: &fleet.MacOSSettings{
-				// teams created by the match endpoint have disk encryption
-				// enabled by default.
-				// TODO: maybe make this configurable?
-				EnableDiskEncryption: true,
-			},
+			EnableDiskEncryption: optjson.SetBool(true),
 			MacOSSetup: &fleet.MacOSSetup{
 				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
 				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
@@ -967,4 +998,100 @@ func teamNameFromPreassignGroups(groups []string) string {
 	}
 
 	return strings.Join(groups, " - ")
+}
+
+func (svc *Service) GetMDMDiskEncryptionSummary(ctx context.Context, teamID *uint) (*fleet.MDMDiskEncryptionSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+	var macOS fleet.MDMAppleFileVaultSummary
+	if m, err := svc.ds.GetMDMAppleFileVaultSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting filevault summary")
+	} else if m != nil {
+		macOS = *m
+	}
+
+	var windows fleet.MDMWindowsBitLockerSummary
+	if w, err := svc.ds.GetMDMWindowsBitLockerSummary(ctx, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting bitlocker summary")
+	} else if w != nil {
+		windows = *w
+	}
+
+	return &fleet.MDMDiskEncryptionSummary{
+		Verified: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verified,
+			Windows: windows.Verified,
+		},
+		Verifying: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Verifying,
+			Windows: windows.Verifying,
+		},
+		ActionRequired: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.ActionRequired,
+			Windows: windows.ActionRequired,
+		},
+		Enforcing: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Enforcing,
+			Windows: windows.Enforcing,
+		},
+		Failed: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.Failed,
+			Windows: windows.Failed,
+		},
+		RemovingEnforcement: fleet.MDMPlatformsCounts{
+			MacOS:   macOS.RemovingEnforcement,
+			Windows: windows.RemovingEnforcement,
+		},
+	}, nil
+}
+
+func (svc *Service) mdmWindowsEnableOSUpdates(ctx context.Context, teamID *uint, updates fleet.WindowsUpdates) error {
+	var contents bytes.Buffer
+	params := windowsOSUpdatesProfileOptions{
+		Deadline:    updates.DeadlineDays.Value,
+		GracePeriod: updates.GracePeriodDays.Value,
+	}
+	if err := windowsOSUpdatesProfileTemplate.Execute(&contents, params); err != nil {
+		return ctxerr.Wrap(ctx, err, "enabling Windows OS updates")
+	}
+
+	err := svc.ds.SetOrUpdateMDMWindowsConfigProfile(ctx, fleet.MDMWindowsConfigProfile{
+		TeamID: teamID,
+		Name:   mdm.FleetWindowsOSUpdatesProfileName,
+		SyncML: contents.Bytes(),
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "create Windows OS updates profile")
+	}
+
+	return nil
+}
+
+func (svc *Service) mdmWindowsDisableOSUpdates(ctx context.Context, teamID *uint) error {
+	err := svc.ds.DeleteMDMWindowsConfigProfileByTeamAndName(ctx, teamID, mdm.FleetWindowsOSUpdatesProfileName)
+	return ctxerr.Wrap(ctx, err, "delete Windows OS updates profile")
+}
+
+func (svc *Service) GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMAppleManualEnrollmentProfile{}, fleet.ActionRead); err != nil {
+		return nil, err
+	}
+
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	mobileConfig, err := apple_mdm.GenerateEnrollmentProfileMobileconfig(
+		appConfig.OrgInfo.OrgName,
+		appConfig.ServerSettings.ServerURL,
+		svc.config.MDM.AppleSCEPChallenge,
+		svc.mdmPushCertTopic,
+	)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	return mobileConfig, nil
 }

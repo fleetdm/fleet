@@ -1,4 +1,8 @@
 .policy-page {
+  &__form {
+    @include flex-column-1rem-gap;
+  }
+
   &__results {
     display: flex;
     flex-grow: 1;
@@ -34,33 +38,6 @@
     }
   }
 
-  &__observer-query-details {
-    padding: 0 2rem;
-
-    h1 {
-      margin: $pad-large 0;
-      font-size: $large;
-    }
-
-    p {
-      margin-bottom: $pad-small;
-    }
-
-    .sql-button {
-      color: $core-vibrant-blue;
-      font-weight: $bold;
-      font-size: $x-small;
-    }
-  }
-
-  &__query-preview {
-    margin-top: 15px;
-
-    .fleet-ace__label {
-      display: none;
-    }
-  }
-
   .ace_content {
     min-height: 500px !important;
   }
@@ -86,7 +63,7 @@
         background-color: $core-white;
         border: none;
         box-shadow: inset 0 0 0 1px $ui-fleet-black-25;
-        border-radius: 6px;
+        border-radius: $border-radius-large;
         cursor: pointer;
         display: flex;
         align-items: center;
@@ -133,10 +110,6 @@
     display: flex;
     align-items: center;
 
-    span {
-      font-weight: $bold;
-    }
-
     .icon-tooltip {
       margin-left: $pad-small;
     }
@@ -167,19 +140,6 @@
       margin: 0;
       margin-top: $pad-medium;
       font-size: $x-small;
-    }
-  }
-  .critical-checkbox-wrapper {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    .form-field--checkbox {
-      margin-bottom: 0;
-    }
-  }
-  .targets-input {
-    .input-icon-field__icon {
-      top: 34px; // Override styling to include label header
     }
   }
 }

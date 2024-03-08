@@ -1,0 +1,10 @@
+/dev/mapper/dm-crypto-luks2 is active and is in use.
+  type:    LUKS2
+  cipher:  aes-xts-plain64
+  keysize: 512 bits
+  key location: keyring
+  device:  /dev/sdc2
+  sector size:  512
+  offset:  32768 sectors
+  size:    8355840 sectors
+  mode:    read/write

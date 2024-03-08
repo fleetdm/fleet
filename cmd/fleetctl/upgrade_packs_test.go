@@ -255,7 +255,7 @@ func TestFleetctlUpgradePacks_EmptyPacks(t *testing.T) {
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should be overwritten
-	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
 	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})
@@ -328,6 +328,7 @@ kind: query
 spec:
   automations_enabled: false
   description: (converted from pack "p1", query "q1")
+  discard_data: false
   interval: 0
   logging: snapshot
   min_osquery_version: ""
@@ -342,6 +343,7 @@ kind: query
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
+  discard_data: false
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -356,6 +358,7 @@ kind: query
 spec:
   automations_enabled: true
   description: (converted from pack "p2", query "q2")
+  discard_data: false
   interval: 90
   logging: differential
   min_osquery_version: ""
@@ -371,7 +374,7 @@ spec:
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should be overwritten
-	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
 	testUpgradePacksTimestamp = time.Date(2020, 1, 1, 0, 0, 0, 0, time.UTC)
@@ -394,7 +397,7 @@ func TestFleetctlUpgradePacks_NotAdmin(t *testing.T) {
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should NOT be overwritten
-	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
 	// first try without the required output file flag
@@ -422,7 +425,7 @@ func TestFleetctlUpgradePacks_NoPack(t *testing.T) {
 	outputFile := filepath.Join(tempDir, "output.yml")
 
 	// write some dummy data in the file, it should NOT be overwritten
-	err := os.WriteFile(outputFile, []byte("dummy"), 0644)
+	err := os.WriteFile(outputFile, []byte("dummy"), 0o644)
 	require.NoError(t, err)
 
 	got := runAppForTest(t, []string{"upgrade-packs", "-o", outputFile})

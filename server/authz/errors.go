@@ -52,8 +52,13 @@ func (e *Forbidden) Internal() string {
 
 // LogFields allows this error to be logged with subject, object, and action.
 func (e *Forbidden) LogFields() []interface{} {
+	// Only logging User's email, and not other details such as Password and Salt.
+	email := "nil"
+	if e.subject != nil {
+		email = e.subject.Email
+	}
 	return []interface{}{
-		"subject", e.subject,
+		"subject", email,
 		"object", e.object,
 		"action", e.action,
 	}

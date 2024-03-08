@@ -1,13 +1,4 @@
 .bootstrap-package {
-  > h2 {
-    margin: 0 0 $pad-large;
-    padding-bottom: $pad-small;
-    font-size: $medium;
-    font-weight: $regular;
-    color: $core-fleet-black;
-    border-bottom: solid 1px $ui-fleet-black-10;
-  }
-
   &__content {
     max-width: $break-xxl;
     margin: 0 auto;

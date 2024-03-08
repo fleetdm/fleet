@@ -72,7 +72,7 @@ data "aws_subnet" "redis" {
 
 module "redis" {
   source  = "cloudposse/elasticache-redis/aws"
-  version = "0.48.0"
+  version = "0.53.0"
 
   name                          = var.redis_config.name
   replication_group_id          = var.redis_config.replication_group_id == null ? var.redis_config.name : var.redis_config.replication_group_id
@@ -97,7 +97,7 @@ module "redis" {
     from_port   = 0
     to_port     = 65535
     protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]
+    cidr_blocks = var.redis_config.allowed_cidrs
   }]
   tags = var.redis_config.tags
 }

@@ -1,17 +1,18 @@
 import { IHost } from "interfaces/host";
-import { IHostMacMdmProfile } from "interfaces/mdm";
+import { IHostMdmProfile } from "interfaces/mdm";
 
-const DEFAULT_HOST_PROFILE_MOCK: IHostMacMdmProfile = {
-  profile_id: 1,
+const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
+  profile_uuid: "123-abc",
   name: "Test Profile",
   operation_type: "install",
+  platform: "darwin",
   status: "verified",
   detail: "This is verified",
 };
 
 export const createMockHostMacMdmProfile = (
-  overrides?: Partial<IHostMacMdmProfile>
-): IHostMacMdmProfile => {
+  overrides?: Partial<IHostMdmProfile>
+): IHostMdmProfile => {
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
 };
 
@@ -20,6 +21,7 @@ const DEFAULT_HOST_MOCK: IHost = {
   created_at: "2022-01-01T12:00:00Z",
   updated_at: "2022-01-02T12:00:00Z",
   detail_updated_at: "2022-01-02T12:00:00Z",
+  last_restarted_at: "2022-01-02T12:00:00Z",
   label_updated_at: "2022-01-02T12:00:00Z",
   policy_updated_at: "2022-01-02T12:00:00Z",
   last_enrolled_at: "2022-01-02T12:00:00Z",
@@ -53,6 +55,12 @@ const DEFAULT_HOST_MOCK: IHost = {
     enrollment_status: "Off",
     server_url: "https://www.example.com/1",
     profiles: [],
+    os_settings: {
+      disk_encryption: {
+        status: null,
+        detail: "",
+      },
+    },
     macos_settings: {
       disk_encryption: null,
       action_required: null,
@@ -62,6 +70,8 @@ const DEFAULT_HOST_MOCK: IHost = {
       details: "",
       bootstrap_package_name: "",
     },
+    device_status: "unlocked",
+    pending_action: "",
   },
   public_ip: "",
   primary_ip: "172.23.0.3",

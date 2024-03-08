@@ -23,7 +23,7 @@ Fleet allows security teams to write policies that reflect the company's access 
 
 ![Create a policy modal in Fleet](../website/assets/images/articles/create-a-new-policy-800x450@2x.jpg)
 
-For example, many organizations need to encrypt their devices’ hard disks. In Fleet, this can be accomplished with the following policy:
+For example, many organizations need to encrypt their devices’ hard disks. In Fleet, you can verify that FileVault is enabled with the following policy:
 
 ```
 SELECT 1 

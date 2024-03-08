@@ -1,4 +1,5 @@
 .status-indicator-with-icon {
+  // default layout is horizontal
   &__value {
     display: inline-flex;
     align-items: center;
@@ -7,5 +8,11 @@
     .icon {
       margin-right: $pad-xsmall;
     }
+  }
+
+  // overrides for different layout
+  &__value-vertical {
+    flex-direction: column;
+    gap: $pad-xsmall;
   }
 }

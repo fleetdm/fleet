@@ -23,7 +23,7 @@ module.exports = {
     softwareInventoryEnabled: { required: true, type: 'boolean' },
     vulnDetectionEnabled: { required: true, type: 'boolean' },
     systemUsersEnabled: { required: true, type: 'boolean' },
-    hostStatusWebhookEnabled: { required: true, type: 'boolean' },
+    hostsStatusWebHookEnabled: { required: true, type: 'boolean'},
     numWeeklyActiveUsers: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysActual: { required: true, type: 'number' },
     numWeeklyPolicyViolationDaysPossible: { required: true, type: 'number'},
@@ -33,6 +33,10 @@ module.exports = {
     storedErrors: { required: true, type: 'json' },
     numHostsNotResponding: { required: true, type: 'number', description: 'The number of hosts per deployment that have not submitted results for distibuted queries. A host is counted as not responding if Fleet hasn\'t received a distributed write to requested distibuted queries for the host during the 2-hour interval since the host was last seen. Hosts that have not been seen for 7 days or more are not counted.', },
     organization: { required: true, type: 'string' },
+    mdmMacOsEnabled: {required: true, type: 'boolean'},
+    mdmWindowsEnabled: {required: true, type: 'boolean'},
+    liveQueryDisabled: {required: true, type: 'boolean'},
+    hostExpiryEnabled: {required: true, type: 'boolean'},
 
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗

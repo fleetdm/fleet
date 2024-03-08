@@ -9,7 +9,10 @@ For update instructions, see our [upgrade guide](https://fleetdm.com/docs/deploy
 ## Highlights
 - Jira integration
 - Improved live query experience
+
+<!--  Note: For the sake of efficiency, in Nov 2023, Fleet decided for now to focus all API reference documentation efforts instead on the API docs located at https://fleetdm.com/docs/rest-api/rest-api. 
 - Postman Collection
+-->
 
 ## Jira integration
 **Available in Fleet Free & Fleet Premium**
@@ -34,12 +37,14 @@ Follow the steps below to configure Jira as a ticket destination:
 
 We added a “Show query” option to the live query results view. You can now double-check the syntax you used and compare that to your results without leaving the current view.
 
+<!-- Note: For the sake of efficiency, in Nov 2023, Fleet decided for now to focus all API reference documentation efforts instead on the API docs located at https://fleetdm.com/docs/rest-api/rest-api. 
 ## Postman Collection
 **Available in Fleet Free & Fleet Premium**
 
 ![Postman Collection](../website/assets/images/articles/fleet-4.14.0-3-1600x900@2x.png)
 
 Fleet users can easily interact with Fleet's API routes using the new Postman Collection. Build and test integrations for running live queries, carving files, managing policies, and more!
+-->
 
 ## More new features, improvements, and bug fixes
 

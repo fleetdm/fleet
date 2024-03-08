@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -157,10 +156,18 @@ func TestGetTeams(t *testing.T) {
 							Features: fleet.Features{
 								AdditionalQueries: &additionalQueries,
 							},
+							HostExpirySettings: fleet.HostExpirySettings{
+								HostExpiryEnabled: true,
+								HostExpiryWindow:  15,
+							},
 							MDM: fleet.TeamMDM{
 								MacOSUpdates: fleet.MacOSUpdates{
 									MinimumVersion: optjson.SetString("12.3.1"),
 									Deadline:       optjson.SetString("2021-12-14"),
+								},
+								WindowsUpdates: fleet.WindowsUpdates{
+									DeadlineDays:    optjson.SetInt(7),
+									GracePeriodDays: optjson.SetInt(3),
 								},
 							},
 						},
@@ -168,15 +175,15 @@ func TestGetTeams(t *testing.T) {
 				}, nil
 			}
 
-			b, err := ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
+			b, err := os.ReadFile(filepath.Join("testdata", "expectedGetTeamsText.txt"))
 			require.NoError(t, err)
 			expectedText := string(b)
 
-			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
+			b, err = os.ReadFile(filepath.Join("testdata", "expectedGetTeamsYaml.yml"))
 			require.NoError(t, err)
 			expectedYaml := string(b)
 
-			b, err = ioutil.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
+			b, err = os.ReadFile(filepath.Join("testdata", "expectedGetTeamsJson.json"))
 			require.NoError(t, err)
 			// must read each JSON value separately and compact it
 			var buf bytes.Buffer
@@ -206,8 +213,8 @@ func TestGetTeams(t *testing.T) {
 			errBuffer.Reset()
 			actualJSON, err := runWithErrWriter([]string{"get", "teams", "--json"}, &errBuffer)
 			require.NoError(t, err)
-			require.Equal(t, expectedJson, actualJSON.String())
 			require.Equal(t, errBuffer.String() == expiredBanner.String(), tt.shouldHaveExpiredBanner)
+			require.Equal(t, expectedJson, actualJSON.String())
 
 			errBuffer.Reset()
 			actualYaml, err := runWithErrWriter([]string{"get", "teams", "--yaml"}, &errBuffer)
@@ -353,6 +360,10 @@ func TestGetHosts(t *testing.T) {
 		}, nil
 	}
 
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
+		return &fleet.HostLockWipeStatus{}, nil
+	}
+
 	expectedText := `+------+------------+----------+-----------------+---------+
 | UUID |  HOSTNAME  | PLATFORM | OSQUERY VERSION | STATUS  |
 +------+------------+----------+-----------------+---------+
@@ -432,8 +443,8 @@ func TestGetHosts(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
+			expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 			require.NoError(t, err)
 			expectedResults := tt.scanner(string(expected))
 			actualResult := tt.scanner(runAppForTest(t, tt.args))
@@ -526,7 +537,7 @@ func TestGetHostsMDM(t *testing.T) {
 		},
 	}
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s - %s", tt.name, tt.goldenFile), func(t *testing.T) {
 			got, err := runAppNoChecks(tt.args)
 			if tt.wantErr != "" {
 				require.Error(t, err)
@@ -536,7 +547,7 @@ func TestGetHostsMDM(t *testing.T) {
 			}
 
 			if tt.goldenFile != "" {
-				expected, err := ioutil.ReadFile(filepath.Join("testdata", tt.goldenFile))
+				expected, err := os.ReadFile(filepath.Join("testdata", tt.goldenFile))
 				require.NoError(t, err)
 				if ext := filepath.Ext(tt.goldenFile); ext == ".json" {
 					// the output of --json is not a json array, but a list of
@@ -561,6 +572,12 @@ func TestGetConfig(t *testing.T) {
 			VulnerabilitySettings: fleet.VulnerabilitySettings{DatabasesPath: "/some/path"},
 			SMTPSettings:          &fleet.SMTPSettings{},
 			SSOSettings:           &fleet.SSOSettings{},
+			MDM: fleet.MDM{
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
+				},
+			},
 		}, nil
 	}
 
@@ -593,7 +610,161 @@ func TestGetConfig(t *testing.T) {
 	})
 }
 
-func TestGetSoftware(t *testing.T) {
+func TestGetSoftwareTitles(t *testing.T) {
+	_, ds := runServerWithMockedDS(t, &service.TestServerOpts{
+		License: &fleet.LicenseInfo{
+			Tier:       fleet.TierPremium,
+			Expiration: time.Now().Add(24 * time.Hour),
+		},
+	})
+
+	var gotTeamID *uint
+
+	ds.ListSoftwareTitlesFunc = func(ctx context.Context, opt fleet.SoftwareTitleListOptions, tmFilter fleet.TeamFilter) ([]fleet.SoftwareTitle, int, *fleet.PaginationMetadata, error) {
+		gotTeamID = opt.TeamID
+		return []fleet.SoftwareTitle{
+			{
+				Name:          "foo",
+				Source:        "chrome_extensions",
+				HostsCount:    2,
+				VersionsCount: 3,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.1",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001", "cve-123-456-002"},
+					},
+					{
+						Version:         "0.0.2",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-001"},
+					},
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: &fleet.SliceString{"cve-123-456-003"},
+					},
+				},
+			},
+			{
+				Name:          "bar",
+				Source:        "deb_packages",
+				HostsCount:    0,
+				VersionsCount: 1,
+				Versions: []fleet.SoftwareVersion{
+					{
+						Version:         "0.0.3",
+						Vulnerabilities: nil,
+					},
+				},
+			},
+		}, 0, nil, nil
+	}
+
+	expected := `+------+------------+-------------------+-------------------+-------+
+| NAME |  VERSIONS  |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+------------+-------------------+-------------------+-------+
+| foo  | 3 versions | chrome_extensions | 3 vulnerabilities |     2 |
++------+------------+-------------------+-------------------+-------+
+| bar  | 1 versions | deb_packages      | 0 vulnerabilities |     0 |
++------+------------+-------------------+-------------------+-------+
+`
+
+	expectedYaml := `---
+apiVersion: "1"
+kind: software_title
+spec:
+- hosts_count: 2
+  id: 0
+  name: foo
+  source: chrome_extensions
+  versions:
+  - id: 0
+    version: 0.0.1
+    vulnerabilities:
+    - cve-123-456-001
+    - cve-123-456-002
+  - id: 0
+    version: 0.0.2
+    vulnerabilities:
+    - cve-123-456-001
+  - id: 0
+    version: 0.0.3
+    vulnerabilities:
+    - cve-123-456-003
+  versions_count: 3
+- hosts_count: 0
+  id: 0
+  name: bar
+  source: deb_packages
+  versions:
+  - id: 0
+    version: 0.0.3
+    vulnerabilities: null
+  versions_count: 1
+`
+
+	expectedJson := `
+{
+  "kind": "software_title",
+  "apiVersion": "1",
+  "spec": [
+    {
+      "id": 0,
+      "name": "foo",
+      "source": "chrome_extensions",
+      "hosts_count": 2,
+      "versions_count": 3,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.1",
+          "vulnerabilities": [
+            "cve-123-456-001",
+            "cve-123-456-002"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.2",
+          "vulnerabilities": [
+            "cve-123-456-001"
+          ]
+        },
+        {
+          "id": 0,
+          "version": "0.0.3",
+          "vulnerabilities": [
+            "cve-123-456-003"
+          ]
+        }
+      ]
+    },
+    {
+      "id": 0,
+      "name": "bar",
+      "source": "deb_packages",
+      "hosts_count": 0,
+      "versions_count": 1,
+      "versions": [
+        {
+          "id": 0,
+          "version": "0.0.3",
+		  "vulnerabilities": null
+        }
+      ]
+    }
+  ]
+}
+`
+
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+
+	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	require.NotNil(t, gotTeamID)
+	assert.Equal(t, uint(999), *gotTeamID)
+}
+
+func TestGetSoftwareVersions(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
 	foo001 := fleet.Software{
@@ -603,28 +774,32 @@ func TestGetSoftware(t *testing.T) {
 			{CVE: "cve-333-444-555", DetailsLink: "https://nvd.nist.gov/vuln/detail/cve-333-444-555"},
 		},
 	}
-	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"}
+	foo002 := fleet.Software{Name: "foo", Version: "0.0.2", Source: "chrome_extensions", ExtensionID: "xyz", Browser: "edge"}
 	foo003 := fleet.Software{Name: "foo", Version: "0.0.3", Source: "chrome_extensions", GenerateCPE: "someothercpewithoutvulns"}
 	bar003 := fleet.Software{Name: "bar", Version: "0.0.3", Source: "deb_packages", BundleIdentifier: "bundle"}
 
 	var gotTeamID *uint
 
-	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, error) {
+	ds.ListSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) ([]fleet.Software, *fleet.PaginationMetadata, error) {
 		gotTeamID = opt.TeamID
-		return []fleet.Software{foo001, foo002, foo003, bar003}, nil
+		return []fleet.Software{foo001, foo002, foo003, bar003}, &fleet.PaginationMetadata{}, nil
 	}
 
-	expected := `+------+---------+-------------------+--------------------------+-----------+
-| NAME | VERSION |      SOURCE       |           CPE            | # OF CVES |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.1   | chrome_extensions | somecpe                  |         2 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.2   | chrome_extensions |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| foo  | 0.0.3   | chrome_extensions | someothercpewithoutvulns |         0 |
-+------+---------+-------------------+--------------------------+-----------+
-| bar  | 0.0.3   | deb_packages      |                          |         0 |
-+------+---------+-------------------+--------------------------+-----------+
+	ds.CountSoftwareFunc = func(ctx context.Context, opt fleet.SoftwareListOptions) (int, error) {
+		return 4, nil
+	}
+
+	expected := `+------+---------+-------------------+-------------------+-------+
+| NAME | VERSION |       TYPE        |  VULNERABILITIES  | HOSTS |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.1   | chrome_extensions | 2 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.2   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| foo  | 0.0.3   | chrome_extensions | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
+| bar  | 0.0.3   | deb_packages      | 0 vulnerabilities |     0 |
++------+---------+-------------------+-------------------+-------+
 `
 
 	expectedYaml := `---
@@ -635,6 +810,7 @@ spec:
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.1
   vulnerabilities:
   - cve: cve-321-432-543
@@ -646,11 +822,14 @@ spec:
   name: foo
   source: chrome_extensions
   version: 0.0.2
+  extension_id: xyz
+  browser: edge
   vulnerabilities: null
 - generated_cpe: someothercpewithoutvulns
   id: 0
   name: foo
   source: chrome_extensions
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 - bundle_identifier: bundle
@@ -658,6 +837,7 @@ spec:
   id: 0
   name: bar
   source: deb_packages
+  browser: ""
   version: 0.0.3
   vulnerabilities: null
 `
@@ -672,6 +852,7 @@ spec:
       "name": "foo",
       "version": "0.0.1",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "somecpe",
       "vulnerabilities": [
         {
@@ -689,6 +870,8 @@ spec:
       "name": "foo",
       "version": "0.0.2",
       "source": "chrome_extensions",
+      "extension_id": "xyz",
+      "browser": "edge",
       "generated_cpe": "",
       "vulnerabilities": null
     },
@@ -697,6 +880,7 @@ spec:
       "name": "foo",
       "version": "0.0.3",
       "source": "chrome_extensions",
+	  "browser": "",
       "generated_cpe": "someothercpewithoutvulns",
       "vulnerabilities": null
     },
@@ -706,6 +890,7 @@ spec:
       "version": "0.0.3",
       "bundle_identifier": "bundle",
       "source": "deb_packages",
+      "browser": "",
       "generated_cpe": "",
       "vulnerabilities": null
     }
@@ -713,11 +898,11 @@ spec:
 }
 `
 
-	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software"}))
-	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--yaml"}))
-	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--json"}))
+	assert.Equal(t, expected, runAppForTest(t, []string{"get", "software", "--versions"}))
+	assert.YAMLEq(t, expectedYaml, runAppForTest(t, []string{"get", "software", "--versions", "--yaml"}))
+	assert.JSONEq(t, expectedJson, runAppForTest(t, []string{"get", "software", "--versions", "--json"}))
 
-	runAppForTest(t, []string{"get", "software", "--json", "--team", "999"})
+	runAppForTest(t, []string{"get", "software", "--versions", "--json", "--team", "999"})
 	require.NotNil(t, gotTeamID)
 	assert.Equal(t, uint(999), *gotTeamID)
 }
@@ -1129,6 +1314,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1143,6 +1329,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1157,6 +1344,7 @@ kind: query
 spec:
   automations_enabled: true
   description: some desc 4
+  discard_data: false
   interval: 60
   logging: differential_ignore_removals
   min_osquery_version: 5.3.0
@@ -1166,9 +1354,9 @@ spec:
   query: select 4;
   team: ""
 `
-	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals"}}
+	expectedJSONGlobal := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query4","description":"some desc 4","query":"select 4;","team":"","interval":60,"observer_can_run":true,"platform":"darwin,windows","min_osquery_version":"5.3.0","automations_enabled":true,"logging":"differential_ignore_removals","discard_data":false}}
 `
 
 	expectedTeam := `+--------+-------------+-----------+--------+----------------------------+
@@ -1192,6 +1380,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 3
+  discard_data: false
   interval: 3600
   logging: snapshot
   min_osquery_version: 5.4.0
@@ -1201,7 +1390,7 @@ spec:
   query: select 3;
   team: Foobar
 `
-	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot"}}
+	expectedJSONTeam := `{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"darwin","min_osquery_version":"5.4.0","automations_enabled":false,"logging":"snapshot","discard_data":false}}
 `
 
 	assert.Equal(t, expectedGlobal, runAppForTest(t, []string{"get", "queries"}))
@@ -1234,7 +1423,7 @@ func TestGetQuery(t *testing.T) {
 		}
 		return nil, &notFoundError{}
 	}
-	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string, opts ...fleet.OptionalArg) (*fleet.Query, error) {
+	ds.QueryByNameFunc = func(ctx context.Context, teamID *uint, name string) (*fleet.Query, error) {
 		if teamID == nil {
 			if name != "globalQuery1" {
 				return nil, &notFoundError{}
@@ -1277,6 +1466,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1286,7 +1476,7 @@ spec:
   query: select 1;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"globalQuery1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "globalQuery1"}))
@@ -1299,6 +1489,7 @@ kind: query
 spec:
   automations_enabled: true
   description: some team desc
+  discard_data: false
   interval: 3600
   logging: differential
   min_osquery_version: 5.2.0
@@ -1308,7 +1499,7 @@ spec:
   query: select 2;
   team: Foobar
 `
-	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential"}}
+	expectedJson = `{"kind":"query","apiVersion":"v1","spec":{"name":"teamQuery1","description":"some team desc","query":"select 2;","team":"Foobar","interval":3600,"observer_can_run":true,"platform":"linux","min_osquery_version":"5.2.0","automations_enabled":true,"logging":"differential","discard_data":false}}
 `
 
 	assert.Equal(t, expectedYaml, runAppForTest(t, []string{"get", "query", "--team", "1", "teamQuery1"}))
@@ -1433,6 +1624,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1442,7 +1634,7 @@ spec:
   query: select 2;
   team: ""
 `
-			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+			expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 			assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1510,6 +1702,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1524,6 +1717,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 2
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1538,6 +1732,7 @@ kind: query
 spec:
   automations_enabled: false
   description: some desc 3
+  discard_data: false
   interval: 0
   logging: ""
   min_osquery_version: ""
@@ -1547,9 +1742,9 @@ spec:
   query: select 3;
   team: ""
 `
-	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
-{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":""}}
+	expectedJson := `{"kind":"query","apiVersion":"v1","spec":{"name":"query1","description":"some desc","query":"select 1;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query2","description":"some desc 2","query":"select 2;","team":"","interval":0,"observer_can_run":true,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
+{"kind":"query","apiVersion":"v1","spec":{"name":"query3","description":"some desc 3","query":"select 3;","team":"","interval":0,"observer_can_run":false,"platform":"","min_osquery_version":"","automations_enabled":false,"logging":"","discard_data":false}}
 `
 
 	assert.Equal(t, expected, runAppForTest(t, []string{"get", "queries"}))
@@ -1980,6 +2175,10 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 					MinimumVersion: optjson.SetString("12.3.1"),
 					Deadline:       optjson.SetString("2021-12-14"),
 				},
+				WindowsUpdates: fleet.WindowsUpdates{
+					DeadlineDays:    optjson.SetInt(7),
+					GracePeriodDays: optjson.SetInt(3),
+				},
 			},
 		},
 	}
@@ -2006,23 +2205,26 @@ func TestGetTeamsYAMLAndApply(t *testing.T) {
 		}
 		return nil, fmt.Errorf("team not found: %s", name)
 	}
-	ds.BatchSetMDMAppleProfilesFunc = func(ctx context.Context, teamID *uint, profiles []*fleet.MDMAppleConfigProfile) error {
+	ds.BatchSetMDMProfilesFunc = func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
 		return nil
 	}
-	ds.BulkSetPendingMDMAppleHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs, profileIDs []uint, uuids []string) error {
+	ds.BulkSetPendingMDMHostProfilesFunc = func(ctx context.Context, hostIDs, teamIDs []uint, profileUUIDs, uuids []string) error {
+		return nil
+	}
+	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error {
 		return nil
 	}
 
 	actualYaml := runAppForTest(t, []string{"get", "teams", "--yaml"})
 	yamlFilePath := writeTmpYml(t, actualYaml)
 
-	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", yamlFilePath}))
+	assert.Contains(t, runAppForTest(t, []string{"apply", "-f", yamlFilePath}), "[+] applied 2 teams\n")
 }
 
 func TestGetMDMCommandResults(t *testing.T) {
 	_, ds := runServerWithMockedDS(t)
 
-	rawXml := `<?xml version="1.0" encoding="UTF-8"?>
+	applePayloadXML := `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
@@ -2038,6 +2240,76 @@ func TestGetMDMCommandResults(t *testing.T) {
 </dict>
 </plist>`
 
+	appleResultXML := `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CommandUUID</key>
+		<string>6d7cb698-8d93-45a3-b544-71aef37d42e8</string>
+		<key>Status</key>
+		<string>Acknowledged</string>
+		<key>UDID</key>
+		<string>419D46EC-06E6-557C-AD52-601BA0667730</string>
+	</dict>
+</plist>`
+
+	winPayloadXML := `<Atomic>
+  <!-- CmdID generated by Fleet -->
+  <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>
+  <Replace>
+    <!-- CmdID generated by Fleet -->
+    <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>
+    <Item>
+      <Target>
+        <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI>
+      </Target>
+      <Meta>
+        <Format xmlns="syncml:metinf">int</Format>
+      </Meta>
+      <Data>1</Data>
+    </Item>
+  </Replace>
+</Atomic>`
+
+	winResultXML := `<SyncML xmlns="SYNCML:SYNCML1.2">
+  <SyncHdr>
+    <VerDTD>1.2</VerDTD>
+    <VerProto>DM/1.2</VerProto>
+    <SessionID>48</SessionID>
+    <MsgID>2</MsgID>
+    <Target>
+      <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI>
+    </Target>
+    <Source>
+      <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>
+    </Source>
+  </SyncHdr>
+  <SyncBody>
+    <Status>
+      <CmdID>1</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>0</CmdRef>
+      <Cmd>SyncHdr</Cmd>
+      <Data>200</Data>
+    </Status>
+    <Status>
+      <CmdID>2</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>
+      <Cmd>Atomic</Cmd>
+      <Data>200</Data>
+    </Status>
+    <Status>
+      <CmdID>3</CmdID>
+      <MsgRef>1</MsgRef>
+      <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>
+      <Cmd>Replace</Cmd>
+      <Data>200</Data>
+    </Status>
+    <Final/>
+  </SyncBody>
+</SyncML>`
+
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
 	}
@@ -2051,91 +2323,294 @@ func TestGetMDMCommandResults(t *testing.T) {
 			{ID: 2, UUID: uuids[1], Hostname: "host2"},
 		}, nil
 	}
-	ds.GetMDMAppleCommandRequestTypeFunc = func(ctx context.Context, commandUUID string) (string, error) {
-		if commandUUID == "no-such-cmd" {
-			return "", &notFoundError{}
-		}
-		return "test", nil
-	}
-	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMAppleCommandResult, error) {
+	ds.GetMDMAppleCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
 		switch commandUUID {
 		case "empty-cmd":
 			return nil, nil
 		case "fail-cmd":
 			return nil, io.EOF
 		default:
-			return []*fleet.MDMAppleCommandResult{
+			return []*fleet.MDMCommandResult{
 				{
-					DeviceID:    "device1",
+					HostUUID:    "device1",
 					CommandUUID: commandUUID,
 					Status:      "Acknowledged",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
 					RequestType: "test",
-					Result:      []byte(rawXml),
+					Payload:     []byte(applePayloadXML),
+					Result:      []byte(appleResultXML),
 				},
 				{
-					DeviceID:    "device2",
+					HostUUID:    "device2",
 					CommandUUID: commandUUID,
 					Status:      "Error",
 					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
 					RequestType: "test",
-					Result:      []byte(rawXml),
+					Payload:     []byte(applePayloadXML),
+					Result:      []byte(appleResultXML),
 				},
 			}, nil
 		}
 	}
+	ds.GetMDMWindowsCommandResultsFunc = func(ctx context.Context, commandUUID string) ([]*fleet.MDMCommandResult, error) {
+		switch commandUUID {
+		case "empty-cmd":
+			return nil, nil
+		case "fail-cmd":
+			return nil, io.EOF
+		default:
+			return []*fleet.MDMCommandResult{
+				{
+					HostUUID:    "device1",
+					CommandUUID: commandUUID,
+					Status:      "200",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					Payload:     []byte(winPayloadXML),
+					Result:      []byte(winResultXML),
+				},
+				{
+					HostUUID:    "device2",
+					CommandUUID: commandUUID,
+					Status:      "500",
+					UpdatedAt:   time.Date(2023, 4, 4, 15, 29, 0, 0, time.UTC),
+					Payload:     []byte(winPayloadXML),
+					Result:      []byte(winResultXML),
+				},
+			}, nil
+		}
+	}
+	var platform string
+	ds.GetMDMCommandPlatformFunc = func(ctx context.Context, commandUUID string) (string, error) {
+		if commandUUID == "no-such-cmd" {
+			return "", &notFoundError{}
+		}
+		return platform, nil
+	}
 
-	_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `Required flag "id" not set`)
+	t.Run("command flag required", func(t *testing.T) {
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `Required flag "id" not set`)
+	})
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `The command doesn't exist.`)
+	t.Run("command not found", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
 
-	_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
-	require.Error(t, err)
-	require.ErrorContains(t, err, `EOF`)
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "no-such-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `The command doesn't exist.`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 
-	buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+------+------+--------+----------+---------+
-| ID | TIME | TYPE | STATUS | HOSTNAME | RESULTS |
-+----+------+------+--------+----------+---------+
-`))
+	t.Run("command results error", func(t *testing.T) {
+		platform = "darwin"
+		_, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
 
-	buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
-	require.NoError(t, err)
-	require.Contains(t, buf.String(), strings.TrimSpace(`
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                      RESULTS                      |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
-|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
-|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
-|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
-|           |                      |      |              |          | <key>Command</key>     <dict>                     |
-|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
-|           |                      |      |              |          |         <key>RequestType</key>                    |
-|           |                      |      |              |          |    <string>ProfileList</string>                   |
-|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
-|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
-|           |                      |      |              |          | </plist>                                          |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?> <!DOCTYPE  |
-|           |                      |      |              |          | plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"        |
-|           |                      |      |              |          | "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
-|           |                      |      |              |          | <plist version="1.0"> <dict>                      |
-|           |                      |      |              |          | <key>Command</key>     <dict>                     |
-|           |                      |      |              |          | <key>ManagedOnly</key>         <false/>           |
-|           |                      |      |              |          |         <key>RequestType</key>                    |
-|           |                      |      |              |          |    <string>ProfileList</string>                   |
-|           |                      |      |              |          | </dict>     <key>CommandUUID</key>                |
-|           |                      |      |              |          | <string>0001_ProfileList</string> </dict>         |
-|           |                      |      |              |          | </plist>                                          |
-+-----------+----------------------+------+--------------+----------+---------------------------------------------------+
-`))
+		platform = "windows"
+		_, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "fail-cmd"})
+		require.Error(t, err)
+		require.ErrorContains(t, err, `EOF`)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("command results empty", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
++----+------+------+--------+----------+---------+---------+
+| ID | TIME | TYPE | STATUS | HOSTNAME | PAYLOAD | RESULTS |
++----+------+------+--------+----------+---------+---------+
+`)
+
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+
+		platform = "windows"
+		buf, err = runAppNoChecks([]string{"get", "mdm-command-results", "--id", "empty-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
+
+	t.Run("darwin command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+|    ID     |         TIME         | TYPE |    STATUS    | HOSTNAME |                                                PAYLOAD                                                 |                                                RESULTS                                                 |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Acknowledged | host1    | <?xml version="1.0" encoding="UTF-8"?>                                                                 | <?xml version="1.0" encoding="UTF-8"?>                                                                 |
+|           |                      |      |              |          | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0">                                                                                  | <plist version="1.0">                                                                                  |
+|           |                      |      |              |          |   <dict>                                                                                               |   <dict>                                                                                               |
+|           |                      |      |              |          |     <key>Command</key>                                                                                 |     <key>CommandUUID</key>                                                                             |
+|           |                      |      |              |          |     <dict>                                                                                             |     <string>6d7cb698-8d93-45a3-b544-71aef37d42e8</string>                                              |
+|           |                      |      |              |          |       <key>ManagedOnly</key>                                                                           |     <key>Status</key>                                                                                  |
+|           |                      |      |              |          |       <false/>                                                                                         |     <string>Acknowledged</string>                                                                      |
+|           |                      |      |              |          |       <key>RequestType</key>                                                                           |     <key>UDID</key>                                                                                    |
+|           |                      |      |              |          |       <string>ProfileList</string>                                                                     |     <string>419D46EC-06E6-557C-AD52-601BA0667730</string>                                              |
+|           |                      |      |              |          |     </dict>                                                                                            |   </dict>                                                                                              |
+|           |                      |      |              |          |     <key>CommandUUID</key>                                                                             | </plist>                                                                                               |
+|           |                      |      |              |          |     <string>0001_ProfileList</string>                                                                  |                                                                                                        |
+|           |                      |      |              |          |   </dict>                                                                                              |                                                                                                        |
+|           |                      |      |              |          | </plist>                                                                                               |                                                                                                        |
+|           |                      |      |              |          |                                                                                                        |                                                                                                        |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | test | Error        | host2    | <?xml version="1.0" encoding="UTF-8"?>                                                                 | <?xml version="1.0" encoding="UTF-8"?>                                                                 |
+|           |                      |      |              |          | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> | <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd"> |
+|           |                      |      |              |          | <plist version="1.0">                                                                                  | <plist version="1.0">                                                                                  |
+|           |                      |      |              |          |   <dict>                                                                                               |   <dict>                                                                                               |
+|           |                      |      |              |          |     <key>Command</key>                                                                                 |     <key>CommandUUID</key>                                                                             |
+|           |                      |      |              |          |     <dict>                                                                                             |     <string>6d7cb698-8d93-45a3-b544-71aef37d42e8</string>                                              |
+|           |                      |      |              |          |       <key>ManagedOnly</key>                                                                           |     <key>Status</key>                                                                                  |
+|           |                      |      |              |          |       <false/>                                                                                         |     <string>Acknowledged</string>                                                                      |
+|           |                      |      |              |          |       <key>RequestType</key>                                                                           |     <key>UDID</key>                                                                                    |
+|           |                      |      |              |          |       <string>ProfileList</string>                                                                     |     <string>419D46EC-06E6-557C-AD52-601BA0667730</string>                                              |
+|           |                      |      |              |          |     </dict>                                                                                            |   </dict>                                                                                              |
+|           |                      |      |              |          |     <key>CommandUUID</key>                                                                             | </plist>                                                                                               |
+|           |                      |      |              |          |     <string>0001_ProfileList</string>                                                                  |                                                                                                        |
+|           |                      |      |              |          |   </dict>                                                                                              |                                                                                                        |
+|           |                      |      |              |          | </plist>                                                                                               |                                                                                                        |
+|           |                      |      |              |          |                                                                                                        |                                                                                                        |
++-----------+----------------------+------+--------------+----------+--------------------------------------------------------------------------------------------------------+--------------------------------------------------------------------------------------------------------+
+`)
+
+		platform = "darwin"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.False(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		require.True(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+		ds.GetMDMAppleCommandResultsFuncInvoked = false
+	})
+
+	t.Run("windows command results", func(t *testing.T) {
+		expectedOutput := strings.TrimSpace(`+-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+|    ID     |         TIME         |      TYPE      | STATUS | HOSTNAME |                                           PAYLOAD                                           |                                      RESULTS                                       |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | InstallProfile |    200 | host1    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
+|           |                      |                |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
+|           |                      |                |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
+|           |                      |                |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
+|           |                      |                |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
+|           |                      |                |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
+|           |                      |                |        |          |     <Item>                                                                                  |     <Target>                                                                       |
+|           |                      |                |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
+|           |                      |                |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
+|           |                      |                |        |          |       </Target>                                                                             |     <Source>                                                                       |
+|           |                      |                |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
+|           |                      |                |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
+|           |                      |                |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
+|           |                      |                |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
+|           |                      |                |        |          |     </Item>                                                                                 |     <Status>                                                                       |
+|           |                      |                |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
+|           |                      |                |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Final/>                                                                       |
+|           |                      |                |        |          |                                                                                             |   </SyncBody>                                                                      |
+|           |                      |                |        |          |                                                                                             | </SyncML>                                                                          |
+|           |                      |                |        |          |                                                                                             |                                                                                    |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+| valid-cmd | 2023-04-04T15:29:00Z | InstallProfile |    500 | host2    | <Atomic>                                                                                    | <SyncML xmlns="SYNCML:SYNCML1.2">                                                  |
+|           |                      |                |        |          |   <!-- CmdID generated by Fleet -->                                                         |   <SyncHdr>                                                                        |
+|           |                      |                |        |          |   <CmdID>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdID>                                       |     <VerDTD>1.2</VerDTD>                                                           |
+|           |                      |                |        |          |   <Replace>                                                                                 |     <VerProto>DM/1.2</VerProto>                                                    |
+|           |                      |                |        |          |     <!-- CmdID generated by Fleet -->                                                       |     <SessionID>48</SessionID>                                                      |
+|           |                      |                |        |          |     <CmdID>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdID>                                     |     <MsgID>2</MsgID>                                                               |
+|           |                      |                |        |          |     <Item>                                                                                  |     <Target>                                                                       |
+|           |                      |                |        |          |       <Target>                                                                              |       <LocURI>https://roperzh-fleet.ngrok.io/api/mdm/microsoft/management</LocURI> |
+|           |                      |                |        |          |         <LocURI>./Device/Vendor/MSFT/Policy/Config/Bluetooth/AllowDiscoverableMode</LocURI> |     </Target>                                                                      |
+|           |                      |                |        |          |       </Target>                                                                             |     <Source>                                                                       |
+|           |                      |                |        |          |       <Meta>                                                                                |       <LocURI>1F28CCBDCE02AE44BD2AAC3C0B9AD4DE</LocURI>                            |
+|           |                      |                |        |          |         <Format xmlns="syncml:metinf">int</Format>                                          |     </Source>                                                                      |
+|           |                      |                |        |          |       </Meta>                                                                               |   </SyncHdr>                                                                       |
+|           |                      |                |        |          |       <Data>1</Data>                                                                        |   <SyncBody>                                                                       |
+|           |                      |                |        |          |     </Item>                                                                                 |     <Status>                                                                       |
+|           |                      |                |        |          |   </Replace>                                                                                |       <CmdID>1</CmdID>                                                             |
+|           |                      |                |        |          | </Atomic>                                                                                   |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>0</CmdRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Cmd>SyncHdr</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>2</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>90dbfca8-d4ac-40c9-bf57-ba5b8cbf1ce0</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Atomic</Cmd>                                                            |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Status>                                                                       |
+|           |                      |                |        |          |                                                                                             |       <CmdID>3</CmdID>                                                             |
+|           |                      |                |        |          |                                                                                             |       <MsgRef>1</MsgRef>                                                           |
+|           |                      |                |        |          |                                                                                             |       <CmdRef>81a141b2-5064-4dc3-a51a-128b8caa5438</CmdRef>                        |
+|           |                      |                |        |          |                                                                                             |       <Cmd>Replace</Cmd>                                                           |
+|           |                      |                |        |          |                                                                                             |       <Data>200</Data>                                                             |
+|           |                      |                |        |          |                                                                                             |     </Status>                                                                      |
+|           |                      |                |        |          |                                                                                             |     <Final/>                                                                       |
+|           |                      |                |        |          |                                                                                             |   </SyncBody>                                                                      |
+|           |                      |                |        |          |                                                                                             | </SyncML>                                                                          |
+|           |                      |                |        |          |                                                                                             |                                                                                    |
++-----------+----------------------+----------------+--------+----------+---------------------------------------------------------------------------------------------+------------------------------------------------------------------------------------+
+`)
+
+		platform = "windows"
+		buf, err := runAppNoChecks([]string{"get", "mdm-command-results", "--id", "valid-cmd"})
+		require.NoError(t, err)
+		require.Contains(t, buf.String(), expectedOutput)
+		require.True(t, ds.GetMDMCommandPlatformFuncInvoked)
+		ds.GetMDMCommandPlatformFuncInvoked = false
+		require.True(t, ds.GetMDMWindowsCommandResultsFuncInvoked)
+		ds.GetMDMWindowsCommandResultsFuncInvoked = false
+		require.False(t, ds.GetMDMAppleCommandResultsFuncInvoked)
+	})
 }
 
 func TestGetMDMCommands(t *testing.T) {
@@ -2146,13 +2621,13 @@ func TestGetMDMCommands(t *testing.T) {
 	}
 	var empty bool
 	var listErr error
-	ds.ListMDMAppleCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMAppleCommandListOptions) ([]*fleet.MDMAppleCommand, error) {
+	ds.ListMDMCommandsFunc = func(ctx context.Context, tmFilter fleet.TeamFilter, listOpts *fleet.MDMCommandListOptions) ([]*fleet.MDMCommand, error) {
 		if empty || listErr != nil {
 			return nil, listErr
 		}
-		return []*fleet.MDMAppleCommand{
+		return []*fleet.MDMCommand{
 			{
-				DeviceID:    "h1",
+				HostUUID:    "h1",
 				CommandUUID: "u1",
 				UpdatedAt:   time.Date(2023, 4, 12, 9, 5, 0, 0, time.UTC),
 				RequestType: "ProfileList",
@@ -2160,11 +2635,19 @@ func TestGetMDMCommands(t *testing.T) {
 				Hostname:    "host1",
 			},
 			{
-				DeviceID:    "h2",
+				HostUUID:    "h2",
 				CommandUUID: "u2",
 				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
-				RequestType: "ListApps",
-				Status:      "Acknowledged",
+				RequestType: "./Device/Vendor/MSFT/Reboot/RebootNow",
+				Status:      "200",
+				Hostname:    "host2",
+			},
+			// This represents a command generated by fleet as part of a Windows profile
+			{
+				HostUUID:    "h2",
+				CommandUUID: "u3",
+				UpdatedAt:   time.Date(2023, 4, 11, 9, 5, 0, 0, time.UTC),
+				Status:      "200",
 				Hostname:    "host2",
 			},
 		}, nil
@@ -2185,13 +2668,15 @@ func TestGetMDMCommands(t *testing.T) {
 	buf, err = runAppNoChecks([]string{"get", "mdm-commands"})
 	require.NoError(t, err)
 	require.Contains(t, buf.String(), strings.TrimSpace(`
-+----+----------------------+-------------+--------------+----------+
-| ID |         TIME         |    TYPE     |    STATUS    | HOSTNAME |
-+----+----------------------+-------------+--------------+----------+
-| u1 | 2023-04-12T09:05:00Z | ProfileList | Acknowledged | host1    |
-+----+----------------------+-------------+--------------+----------+
-| u2 | 2023-04-11T09:05:00Z | ListApps    | Acknowledged | host2    |
-+----+----------------------+-------------+--------------+----------+
++----+----------------------+---------------------------------------+--------------+----------+
+| ID |         TIME         |                 TYPE                  |    STATUS    | HOSTNAME |
++----+----------------------+---------------------------------------+--------------+----------+
+| u1 | 2023-04-12T09:05:00Z | ProfileList                           | Acknowledged | host1    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u2 | 2023-04-11T09:05:00Z | ./Device/Vendor/MSFT/Reboot/RebootNow |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
+| u3 | 2023-04-11T09:05:00Z | InstallProfile                        |          200 | host2    |
++----+----------------------+---------------------------------------+--------------+----------+
 `))
 }
 
@@ -2368,6 +2853,59 @@ func TestGetConfigAgentOptionsSSOAndSMTP(t *testing.T) {
 
 			ok := tc.checkOutput(runAppForTest(t, []string{"get", "config"}))
 			require.True(t, ok)
+		})
+	}
+}
+
+func TestFormatXML(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   []byte
+		want    []byte
+		wantErr bool
+	}{
+		{
+			name:    "Basic XML",
+			input:   []byte(`<root><element>content</element></root>`),
+			want:    []byte("<root>\n  <element>content</element>\n</root>\n"),
+			wantErr: false,
+		},
+		{
+			name:    "Empty XML",
+			input:   []byte(""),
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name:    "Invalid XML",
+			input:   []byte(`<root><element>content</root`),
+			want:    nil,
+			wantErr: true,
+		},
+		{
+			name:    "XML With Attributes",
+			input:   []byte(`<root attr="value"><element key="val">content</element></root>`),
+			want:    []byte("<root attr=\"value\">\n  <element key=\"val\">content</element>\n</root>\n"),
+			wantErr: false,
+		},
+		{
+			name:    "Nested XML",
+			input:   []byte(`<root><parent><child>data</child></parent></root>`),
+			want:    []byte("<root>\n  <parent>\n    <child>data</child>\n  </parent>\n</root>\n"),
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := formatXML(tt.input)
+
+			if tt.wantErr {
+				require.Error(t, err, "Expected error but got none")
+			} else {
+				require.NoError(t, err, "Unexpected error")
+				require.Equal(t, tt.want, got, "Output XML does not match expected")
+			}
 		})
 	}
 }

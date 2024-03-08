@@ -159,6 +159,13 @@ module.exports = {
           } else {
             expandedTableToPush.examples = _.clone(fleetOverridesForTable.examples);
           }
+        } else {
+          // If the override file does not contain an 'examples' value, we'll use the last example from the osquery schema (See above for more information about the reasoning behind this)
+          let examplesFromOsquerySchema = expandedTableToPush.examples;
+          if (examplesFromOsquerySchema.length > 0) {
+            // Examples are parsed as markdown, so we wrap the example in a code fence so it renders as a code block.
+            expandedTableToPush.examples = '```\n' + examplesFromOsquerySchema[examplesFromOsquerySchema.length - 1] + '\n```';
+          }
         }
         if(fleetOverridesForTable.notes !== undefined) {
           if(typeof fleetOverridesForTable.notes !== 'string') {
@@ -184,6 +191,17 @@ module.exports = {
         let mergedTableColumns = [];
         for (let osquerySchemaColumn of osquerySchemaTable.columns) { // iterate through the columns in the osquery schema table
           if(!fleetOverridesForTable.columns) { // If there are no column overrides for this table, we'll add the column unchanged.
+            if(osquerySchemaColumn.platforms !== undefined) {// If the column in the osquery schema has a platforms value, we'll normalize the names
+              let platformWithNormalizedNames = [];
+              for(let platform of osquerySchemaColumn.platforms) {
+                if(platform === 'darwin') {// darwin » macOS
+                  platformWithNormalizedNames.push('macOS');
+                } else if(platform === 'windows' || platform === 'linux') {// Note: we're ignoring all other platform values (e.g, win32 and cygwin).
+                  platformWithNormalizedNames.push(_.capitalize(platform));
+                }
+              }
+              osquerySchemaColumn.platforms = platformWithNormalizedNames;
+            }
             mergedTableColumns.push(osquerySchemaColumn);
           } else {// If the Fleet overrides JSON has column data for this table, we'll find the matching column and use the values from the Fleet overrides in the final schema.
             let columnHasFleetOverrides = _.find(fleetOverridesForTable.columns, {'name': osquerySchemaColumn.name});

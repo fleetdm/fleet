@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -314,16 +315,15 @@ func TestWindowsMDMEnrollmentPrevented(t *testing.T) {
 				require.Equal(t, baseFetcher.cfg, cfg)
 			}
 
-			started := make(chan struct{})
 			go func() {
-				close(started)
-
 				// the first call will block in enroll/unenroll func
 				cfg, err := fetcher.GetConfig()
 				assertResult(cfg, err)
 			}()
 
-			<-started
+			// wait a little bit to ensure the first `fetcher.GetConfig` call runs first.
+			time.Sleep(100 * time.Millisecond)
+
 			// this call will happen while the first call is blocked in
 			// enroll/unenrollfn, so it won't call the API (won't be able to lock the
 			// mutex). However it will still complete successfully without being
@@ -571,5 +571,242 @@ func TestRunScripts(t *testing.T) {
 		require.Contains(t, logBuf.String(), "running scripts [b] succeeded")
 		require.Contains(t, logBuf.String(), "received request to run scripts [c]")
 		require.Contains(t, logBuf.String(), "running scripts [c] succeeded")
+	})
+}
+
+type mockDiskEncryptionKeySetter struct {
+	SetOrUpdateDiskEncryptionKeyImpl    func(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
+	SetOrUpdateDiskEncryptionKeyInvoked bool
+}
+
+func (m *mockDiskEncryptionKeySetter) SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+	m.SetOrUpdateDiskEncryptionKeyInvoked = true
+	return m.SetOrUpdateDiskEncryptionKeyImpl(diskEncryptionStatus)
+}
+
+func TestBitlockerOperations(t *testing.T) {
+	var logBuf bytes.Buffer
+
+	oldLog := log.Logger
+	log.Logger = log.Output(&logBuf)
+	t.Cleanup(func() { log.Logger = oldLog })
+
+	var (
+		shouldEncrypt          = true
+		shouldFailEncryption   = false
+		shouldFailDecryption   = false
+		shouldFailServerUpdate = false
+		encryptFnCalled        = false
+		decryptFnCalled        = false
+	)
+
+	fetcher := &dummyConfigFetcher{
+		cfg: &fleet.OrbitConfig{
+			Notifications: fleet.OrbitConfigNotifications{
+				EnforceBitLockerEncryption: shouldEncrypt,
+			},
+		},
+	}
+
+	clientMock := &mockDiskEncryptionKeySetter{}
+	clientMock.SetOrUpdateDiskEncryptionKeyImpl = func(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error {
+		if shouldFailServerUpdate {
+			return errors.New("server error")
+		}
+		return nil
+	}
+
+	var enrollFetcher *windowsMDMBitlockerConfigFetcher
+	setupTest := func() {
+		enrollFetcher = &windowsMDMBitlockerConfigFetcher{
+			Fetcher:          fetcher,
+			Frequency:        time.Hour, // doesn't matter for this test
+			lastRun:          time.Now().Add(-2 * time.Hour),
+			EncryptionResult: clientMock,
+			execGetEncryptionStatusFn: func() ([]bitlocker.VolumeStatus, error) {
+				return []bitlocker.VolumeStatus{}, nil
+			},
+			execEncryptVolumeFn: func(string) (string, error) {
+				encryptFnCalled = true
+				if shouldFailEncryption {
+					return "", errors.New("error encrypting")
+				}
+
+				return "123456", nil
+			},
+			execDecryptVolumeFn: func(string) error {
+				decryptFnCalled = true
+				if shouldFailDecryption {
+					return errors.New("error decrypting")
+				}
+
+				return nil
+			},
+		}
+		shouldEncrypt = true
+		shouldFailEncryption = false
+		shouldFailDecryption = false
+		shouldFailServerUpdate = false
+		encryptFnCalled = false
+		decryptFnCalled = false
+		clientMock.SetOrUpdateDiskEncryptionKeyInvoked = false
+		logBuf.Reset()
+	}
+
+	t.Run("bitlocker encryption is performed", func(t *testing.T) {
+		setupTest()
+		shouldEncrypt = true
+		shouldFailEncryption = false
+		shouldFailDecryption = false
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+	})
+
+	t.Run("bitlocker encryption is not performed", func(t *testing.T) {
+		setupTest()
+		shouldEncrypt = false
+		shouldFailEncryption = false
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("bitlocker encryption returns an error", func(t *testing.T) {
+		setupTest()
+		shouldEncrypt = true
+		shouldFailEncryption = true
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)            // the dummy fetcher never returns an error
+		require.Equal(t, fetcher.cfg, cfg) // the bitlocker wrapper properly returns the expected config
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("encryption skipped based on various current statuses", func(t *testing.T) {
+		setupTest()
+		statusesToTest := []int32{
+			bitlocker.ConversionStatusDecryptionInProgress,
+			bitlocker.ConversionStatusDecryptionPaused,
+			bitlocker.ConversionStatusEncryptionInProgress,
+			bitlocker.ConversionStatusEncryptionPaused,
+		}
+
+		for _, status := range statusesToTest {
+			t.Run(fmt.Sprintf("status %d", status), func(t *testing.T) {
+				mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: status}
+				enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+					return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+				}
+
+				cfg, err := enrollFetcher.GetConfig()
+				require.NoError(t, err)
+				require.Equal(t, fetcher.cfg, cfg)
+				require.Contains(t, logBuf.String(), "skipping encryption as the disk is not available")
+				require.False(t, encryptFnCalled, "encryption function should not be called")
+				require.False(t, decryptFnCalled, "decryption function should not be called")
+				logBuf.Reset() // Reset the log buffer for the next iteration
+			})
+		}
+	})
+
+	t.Run("handle misreported decryption error", func(t *testing.T) {
+		setupTest()
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+		enrollFetcher.execEncryptVolumeFn = func(string) (string, error) {
+			return "", bitlocker.NewEncryptionError("", bitlocker.ErrorCodeNotDecrypted)
+		}
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "disk encryption failed due to previous unsuccessful attempt, user action required")
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("decrypts the disk if previously encrypted", func(t *testing.T) {
+		setupTest()
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
+		require.False(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.False(t, encryptFnCalled, "encryption function should not have been called")
+		require.True(t, decryptFnCalled, "decryption function should have been called")
+	})
+
+	t.Run("reports to the server if decryption fails", func(t *testing.T) {
+		setupTest()
+		shouldFailDecryption = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyEncrypted}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "disk was previously encrypted. Attempting to decrypt it")
+		require.Contains(t, logBuf.String(), "decryption failed")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.True(t, decryptFnCalled, "decryption function should have been called")
+	})
+
+	t.Run("encryption skipped if last run too recent", func(t *testing.T) {
+		setupTest()
+		enrollFetcher.lastRun = time.Now().Add(-30 * time.Minute)
+		enrollFetcher.Frequency = 1 * time.Hour
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "skipped encryption process, last run was too recent")
+		require.False(t, encryptFnCalled, "encryption function should not be called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("successful fleet server update", func(t *testing.T) {
+		setupTest()
+		shouldFailEncryption = false
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
+	})
+
+	t.Run("failed fleet server update", func(t *testing.T) {
+		setupTest()
+		shouldFailEncryption = false
+		shouldFailServerUpdate = true
+		mockStatus := &bitlocker.EncryptionStatus{ConversionStatus: bitlocker.ConversionStatusFullyDecrypted}
+		enrollFetcher.execGetEncryptionStatusFn = func() ([]bitlocker.VolumeStatus, error) {
+			return []bitlocker.VolumeStatus{{DriveVolume: "C:", Status: mockStatus}}, nil
+		}
+
+		cfg, err := enrollFetcher.GetConfig()
+		require.NoError(t, err)
+		require.Equal(t, fetcher.cfg, cfg)
+		require.Contains(t, logBuf.String(), "failed to send encryption result to Fleet Server")
+		require.True(t, clientMock.SetOrUpdateDiskEncryptionKeyInvoked)
+		require.True(t, encryptFnCalled, "encryption function should have been called")
+		require.False(t, decryptFnCalled, "decryption function should not be called")
 	})
 }

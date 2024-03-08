@@ -32,7 +32,7 @@ export const generateTableHeaders = (
           Header: "",
           Cell: (cellProps: { row: Row }): JSX.Element => (
             <div onClick={() => handleRowRemove(cellProps.row)}>
-              <Icon name="ex-circled" />
+              <Icon name="close-filled" />
             </div>
           ),
           disableHidden: true,

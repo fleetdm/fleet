@@ -8,9 +8,10 @@ import hostQueryResult from "./campaign";
 import queryStatsInterface, { IQueryStats } from "./query_stats";
 import { ILicense, IDeviceGlobalConfig } from "./config";
 import {
-  IHostMacMdmProfile,
+  IHostMdmProfile,
   MdmEnrollmentStatus,
   BootstrapPackageStatus,
+  DiskEncryptionStatus,
 } from "./mdm";
 
 export default PropTypes.shape({
@@ -18,6 +19,7 @@ export default PropTypes.shape({
   updated_at: PropTypes.string,
   id: PropTypes.number,
   detail_updated_at: PropTypes.string,
+  last_restarted_at: PropTypes.string,
   label_updated_at: PropTypes.string,
   policy_updated_at: PropTypes.string,
   last_enrolled_at: PropTypes.string,
@@ -82,6 +84,51 @@ export interface IDeviceUser {
   source: string;
 }
 
+const DEVICE_USER_SOURCE_TO_DISPLAY: { [key: string]: string } = {
+  google_chrome_profiles: "Google Chrome",
+  mdm_idp_accounts: "identity provider",
+  custom: "custom",
+} as const;
+
+const getDeviceUserSourceForDisplay = (s: string): string => {
+  return DEVICE_USER_SOURCE_TO_DISPLAY[s] || s;
+};
+
+const getDeviceUserForDisplay = (d: IDeviceUser): IDeviceUser => {
+  return { ...d, source: getDeviceUserSourceForDisplay(d.source) };
+};
+
+/*
+ * mapDeviceUsersForDisplay is a helper function that takes an array of device users and returns a
+ * new array of device users with the source field mapped to a more user-friendly value. It also
+ * ensures that the resulting array is ordered by source as follows: mdm_idp_accounts, if any,
+ * custom, if any, then any remaining elements. Note that emails are not deduped.
+ */
+export const mapDeviceUsersForDisplay = (
+  deviceMapping: IDeviceUser[]
+): IDeviceUser[] => {
+  const newDeviceMapping: IDeviceUser[] = [];
+  let idpUser: IDeviceUser | undefined;
+  let customUser: IDeviceUser | undefined;
+  deviceMapping.forEach((d) => {
+    switch (d.source) {
+      case "mdm_idp_accounts":
+        idpUser = d;
+        break;
+      case "custom":
+        customUser = d;
+        break;
+      default:
+        newDeviceMapping.push(getDeviceUserForDisplay(d));
+    }
+  });
+  // add idpUser and customUser to the front of the array, if they exist
+  customUser && newDeviceMapping.unshift(getDeviceUserForDisplay(customUser));
+  idpUser && newDeviceMapping.unshift(getDeviceUserForDisplay(idpUser));
+
+  return newDeviceMapping;
+};
+
 export interface IDeviceMappingResponse {
   device_mapping: IDeviceUser[];
 }
@@ -90,18 +137,17 @@ export interface IMunkiData {
   version: string;
 }
 
-type MacDiskEncryptionState =
-  | "applied"
-  | "action_required"
-  | "enforcing"
-  | "failed"
-  | "removing_enforcement"
-  | null;
-
 type MacDiskEncryptionActionRequired = "log_out" | "rotate_key" | null;
 
+export interface IOSSettings {
+  disk_encryption: {
+    status: DiskEncryptionStatus | null;
+    detail: string;
+  };
+}
+
 interface IMdmMacOsSettings {
-  disk_encryption: MacDiskEncryptionState | null;
+  disk_encryption: DiskEncryptionStatus | null;
   action_required: MacDiskEncryptionActionRequired | null;
 }
 
@@ -111,15 +157,22 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
+
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  dep_profile_error?: boolean;
   name?: string;
-  server_url: string | null;
   id?: number;
-  profiles: IHostMacMdmProfile[] | null;
+  server_url: string | null;
+  profiles: IHostMdmProfile[] | null;
+  os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
+  device_status: HostMdmDeviceStatus;
+  pending_action: HostMdmPendingAction;
 }
 
 export interface IMunkiIssue {
@@ -198,6 +251,7 @@ export interface IHost {
   updated_at: string;
   id: number;
   detail_updated_at: string;
+  last_restarted_at: string;
   label_updated_at: string;
   policy_updated_at: string;
   last_enrolled_at: string;
@@ -210,7 +264,7 @@ export interface IHost {
   osquery_version: string;
   os_version: string;
   build: string;
-  platform_like: string;
+  platform_like: string; // TODO: replace with more specific union type
   code_name: string;
   uptime: number;
   memory: number;

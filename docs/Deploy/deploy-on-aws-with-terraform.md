@@ -17,20 +17,16 @@ Deploying on AWS with Fleet’s reference architecture is an easy way to get a f
 
 ### Remote State
 
-Remote state can be simple (local state) or complicated (S3, state locking, etc.). To keep this guide straightforward we are
-going to leave remote state out of the equation. For more information on how to manage terraform remote state see https://developer.hashicorp.com/terraform/language/state/remote
+Remote state can be simple (local state) or complicated (S3, state locking, etc.). To keep this guide straightforward we are going to leave the remote state out of the equation. For more information on how to manage terraform remote state see https://developer.hashicorp.com/terraform/language/state/remote
 
 ### Modules
 
 [Fleet terraform](https://github.com/fleetdm/fleet/tree/main/terraform) is made up of multiple modules. These modules can be used independently, or as group to stand up an opinionated
 set of infrastructure that we have found success with.
 
-Each module defines the required resource and consumes the next nested module. The root module creates the VPC and then pulls in the `byo-vpc` module
-configuring it as necessary. The `byo-vpc` module creates the database and cache instances that get passed into the `byo-db` module. And finally the `byo-db` module
-creates the ECS cluster and load balancer to be consumed by the `byo-ecs` module.
+Each module defines the required resource and consumes the next nested module. The root module creates the VPC and then pulls in the `byo-vpc` module configuring it as necessary. The `byo-vpc` module creates the database and cache instances that get passed into the `byo-db` module. And finally the `byo-db` module creates the ECS cluster and load balancer to be consumed by the `byo-ecs` module.
 
-The modules are made to be flexible allowing you to bring your own infrastructure. For example if you already have an existing VPC
-you'd like to deploy Fleet into, you could opt to use the `byo-vpc` module, supplying the necessary configuration like subnets(database, cache, and application need to communicate) and VPC ID.
+The modules are made to be flexible allowing you to bring your own infrastructure. For example if you already have an existing VPC you'd like to deploy Fleet into, you could opt to use the `byo-vpc` module, supplying the necessary configuration like subnets (database, cache, and application needed to communicate) and VPC ID.
 
 
 #### Examples
@@ -74,8 +70,7 @@ module "fleet_vpcless" {
 }
 ```
 
-This configuration allows you to bring your own VPC, public & private subnets, and ACM certificate. All of these are required
-to configure the remainder of the infrastructure, like the Database and ECS.
+This configuration allows you to bring your own VPC, public & private subnets, and ACM certificate. All of these are required to configure the remainder of the infrastructure, like the Database and ECS.
 
 ##### Bring only Fleet
 ```hcl
@@ -84,7 +79,7 @@ module "fleet_ecs" {
   ecs_cluster = "my_ecs_cluster"
   vpc_id      = "vpc123"
   fleet_config = {
-    image = "fleetdm/fleet:latest"
+    image = "fleetdm/fleet:v4.36.0"
     database = {
       address             = "rds_cluster_endpoint"
       rr_address          = "rds_cluster_readonly_endpoint"
@@ -132,13 +127,10 @@ The infrastructure used in this deployment is available in all regions. The foll
 By default, both RDS & Elasticache are encrypted at rest and encrypted in transit. The S3 buckets are also server-side encrypted using AWS managed KMS keys.
 
 ### Networking
-For more details on the networking configuration take a look at https://github.com/terraform-aws-modules/terraform-aws-vpc. In the configuration Fleet provides
-we are creating public and private subnets in addition to separate data layer for RDS and Elasticache. The configuration also defaults
-to using a single NAT Gateway.
+For more details on the networking configuration take a look at https://github.com/terraform-aws-modules/terraform-aws-vpc. In the configuration Fleet provides, we are creating public and private subnets in addition to separate data layers for RDS and Elasticache. The configuration also defaults to use a single NAT Gateway.
 
 ### Backups
-RDS daily snapshots are enabled by default and retention is set to 30 days. A snapshot identifier can be supplied via terraform variable (`rds_initial_snapshot`)
-in order to create the database from a previous snapshot.
+RDS daily snapshots are enabled by default and retention is set to 30 days. A snapshot identifier can be supplied via terraform variable (`rds_initial_snapshot`) in order to create the database from a previous snapshot.
 
 ## Deployment
 
@@ -158,7 +150,7 @@ module "fleet" {
   source = "github.com/fleetdm/fleet//terraform?ref=main"
 
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 ```
@@ -202,7 +194,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 ```
@@ -235,7 +227,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
 
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1" # override default to deploy the image you desire
+    image = "fleetdm/fleet:v4.36.0" # override default to deploy the image you desire
   }
 }
 
@@ -307,7 +299,7 @@ module "fleet" {
   certificate_arn = module.acm.acm_certificate_arn
   
   fleet_config = {
-    image = "fleetdm/fleet:v4.31.1"
+    image = "fleetdm/fleet:v4.36.0"
     cpu = 500 # note that by default fleet runs as ECS fargate so you need to abide by limit thresholds https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html#:~:text=Amazon%20ECS.-,Task%20CPU%20and%20memory,-Amazon%20ECS%20task
     mem = 1024
     

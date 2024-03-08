@@ -41,10 +41,11 @@ func (ds *Datastore) ListScheduledQueriesInPackWithStats(ctx context.Context, id
 		LEFT JOIN aggregated_stats ag ON (ag.id = sq.id AND ag.global_stats = ? AND ag.type = ?)
 		WHERE sq.pack_id = ?
 	`
-	query = appendListOptionsToSQL(query, &opts)
+	params := []interface{}{false, fleet.AggregatedStatsTypeScheduledQuery, id}
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opts)
 	results := []*fleet.ScheduledQuery{}
 
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, false, aggregatedStatsTypeScheduledQuery, id); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, query, params...); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing scheduled queries")
 	}
 
@@ -353,7 +354,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 					stat.OutputSize,
 					stat.SystemTime,
 					stat.UserTime,
-					stat.WallTime,
+					stat.WallTimeMs,
 				)
 			} else { // stats for a 2017 pack
 				userPacksQueryCount++
@@ -370,7 +371,7 @@ func (ds *Datastore) AsyncBatchSaveHostsScheduledQueryStats(ctx context.Context,
 					stat.OutputSize,
 					stat.SystemTime,
 					stat.UserTime,
-					stat.WallTime,
+					stat.WallTimeMs,
 				)
 			}
 

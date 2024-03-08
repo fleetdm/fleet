@@ -1,16 +1,21 @@
 import React from "react";
 
 import { COLORS, Colors } from "styles/var/colors";
+import { ICON_SIZES, IconSizes } from "styles/var/icon_sizes";
 
 interface IErrorOutlineProps {
   color?: Colors;
+  size?: IconSizes;
 }
 
-const ErrorOutline = ({ color = "status-error" }: IErrorOutlineProps) => {
+const ErrorOutline = ({
+  color = "status-error",
+  size = "medium",
+}: IErrorOutlineProps) => {
   return (
     <svg
-      width="16"
-      height="16"
+      width={ICON_SIZES[size]}
+      height={ICON_SIZES[size]}
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 16 16"

@@ -40,7 +40,7 @@ func TestParser(t *testing.T) {
 	require.NoError(t, err)
 
 	// All the products we expect to see, grouped by their product name
-	expectedProducts := map[string]map[string]parsed.Product{
+	expectedProducts := map[string]parsed.Products{
 		"Windows 10": {
 			"11568": parsed.NewProductFromFullName("Windows 10 Version 1809 for 32-bit Systems"),
 			"11569": parsed.NewProductFromFullName("Windows 10 Version 1809 for x64-based Systems"),
@@ -912,7 +912,7 @@ func TestParser(t *testing.T) {
 	expectedVendorFixes := map[string]map[uint]parsed.VendorFix{
 		"Windows 10": {
 			5013941: {
-				FixedBuild: "10.0.17763.2928",
+				FixedBuilds: []string{"10.0.17763.2928"},
 				ProductIDs: map[string]bool{
 					"11568": true,
 					"11569": true,
@@ -921,7 +921,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012647),
 			},
 			5013952: {
-				FixedBuild: "10.0.14393.5125",
+				FixedBuilds: []string{"10.0.14393.5125"},
 				ProductIDs: map[string]bool{
 					"10852": true,
 					"10853": true,
@@ -929,7 +929,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012596),
 			},
 			5013942: {
-				FixedBuild: "10.0.19043.1706",
+				FixedBuilds: []string{"10.0.19043.1706", "10.0.19042.1706", "10.0.19044.1706"},
 				ProductIDs: map[string]bool{
 					"11896": true,
 					"11897": true,
@@ -944,7 +944,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012599),
 			},
 			5013963: {
-				FixedBuild: "10.0.10240.19297",
+				FixedBuilds: []string{"10.0.10240.19297"},
 				ProductIDs: map[string]bool{
 					"10729": true,
 					"10735": true,
@@ -953,7 +953,7 @@ func TestParser(t *testing.T) {
 			},
 
 			5013945: {
-				FixedBuild: "10.0.18363.2274",
+				FixedBuilds: []string{"10.0.18363.2274"},
 				ProductIDs: map[string]bool{
 					"11712": true,
 					"11713": true,
@@ -964,7 +964,7 @@ func TestParser(t *testing.T) {
 		},
 		"Windows Server 2019": {
 			5013941: {
-				FixedBuild: "10.0.17763.2928",
+				FixedBuilds: []string{"10.0.17763.2928"},
 				ProductIDs: map[string]bool{
 					"11571": true,
 					"11572": true,
@@ -975,7 +975,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2022": {
 			5013944: {
-				FixedBuild: "10.0.20348.707",
+				FixedBuilds: []string{"10.0.20348.707"},
 				ProductIDs: map[string]bool{
 					"11923": true,
 					"11924": true,
@@ -986,7 +986,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server": {
 			5013942: {
-				FixedBuild: "10.0.19042.1706",
+				FixedBuilds: []string{"10.0.19042.1706"},
 				ProductIDs: map[string]bool{
 					"11803": true,
 				},
@@ -996,7 +996,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2008": {
 			5014010: {
-				FixedBuild: "6.0.6003.21481",
+				FixedBuilds: []string{"6.0.6003.21481"},
 				ProductIDs: map[string]bool{
 					"9312":  true,
 					"10287": true,
@@ -1006,7 +1006,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012658),
 			},
 			5014006: {
-				FixedBuild: "6.0.6003.21481",
+				FixedBuilds: []string{"6.0.6003.21481"},
 				ProductIDs: map[string]bool{
 					"9312":  true,
 					"10287": true,
@@ -1018,7 +1018,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2008 R2": {
 			5014012: {
-				FixedBuild: "6.1.7601.25954",
+				FixedBuilds: []string{"6.1.7601.25954"},
 				ProductIDs: map[string]bool{
 					"10051": true,
 					"10049": true,
@@ -1026,7 +1026,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012626),
 			},
 			5013999: {
-				FixedBuild: "6.1.7601.25954",
+				FixedBuilds: []string{"6.1.7601.25954"},
 				ProductIDs: map[string]bool{
 					"10051": true,
 					"10049": true,
@@ -1036,7 +1036,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2012": {
 			5014017: {
-				FixedBuild: "6.2.9200.23714",
+				FixedBuilds: []string{"6.2.9200.23714"},
 				ProductIDs: map[string]bool{
 					"10378": true,
 					"10379": true,
@@ -1044,7 +1044,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012650),
 			},
 			5014018: {
-				FixedBuild: "6.2.9200.23714",
+				FixedBuilds: []string{"6.2.9200.23714"},
 				ProductIDs: map[string]bool{
 					"10378": true,
 					"10379": true,
@@ -1054,7 +1054,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2012 R2": {
 			5014011: {
-				FixedBuild: "6.3.9600.20371",
+				FixedBuilds: []string{"6.3.9600.20371"},
 				ProductIDs: map[string]bool{
 					"10483": true,
 					"10543": true,
@@ -1062,7 +1062,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
-				FixedBuild: "6.3.9600.20365",
+				FixedBuilds: []string{"6.3.9600.20365"},
 				ProductIDs: map[string]bool{
 					"10483": true,
 					"10543": true,
@@ -1072,7 +1072,7 @@ func TestParser(t *testing.T) {
 
 		"Windows 7": {
 			5014012: {
-				FixedBuild: "6.1.7601.25954",
+				FixedBuilds: []string{"6.1.7601.25954"},
 				ProductIDs: map[string]bool{
 					"10047": true,
 					"10048": true,
@@ -1080,7 +1080,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012626),
 			},
 			5013999: {
-				FixedBuild: "6.1.7601.25954",
+				FixedBuilds: []string{"6.1.7601.25954"},
 				ProductIDs: map[string]bool{
 					"10047": true,
 					"10048": true,
@@ -1090,7 +1090,7 @@ func TestParser(t *testing.T) {
 
 		"Windows Server 2016": {
 			5013952: {
-				FixedBuild: "10.0.14393.5125",
+				FixedBuilds: []string{"10.0.14393.5125"},
 				ProductIDs: map[string]bool{
 					"10816": true,
 					"10855": true,
@@ -1100,7 +1100,7 @@ func TestParser(t *testing.T) {
 
 		"Windows 11": {
 			5013943: {
-				FixedBuild: "10.0.22000.675",
+				FixedBuilds: []string{"10.0.22000.675"},
 				ProductIDs: map[string]bool{
 					"11926": true,
 					"11927": true,
@@ -1111,7 +1111,7 @@ func TestParser(t *testing.T) {
 
 		"Windows RT 8.1": {
 			5014025: {
-				FixedBuild: "6.3.9600.20367",
+				FixedBuilds: []string{"6.3.9600.20367"},
 				ProductIDs: map[string]bool{
 					"10484": true,
 				},
@@ -1120,7 +1120,7 @@ func TestParser(t *testing.T) {
 
 		"Windows 8.1": {
 			5014011: {
-				FixedBuild: "6.3.9600.20371",
+				FixedBuilds: []string{"6.3.9600.20371"},
 				ProductIDs: map[string]bool{
 					"10481": true,
 					"10482": true,
@@ -1128,7 +1128,7 @@ func TestParser(t *testing.T) {
 				Supersedes: ptr.Uint(5012670),
 			},
 			5014001: {
-				FixedBuild: "6.3.9600.20365",
+				FixedBuilds: []string{"6.3.9600.20365"},
 				ProductIDs: map[string]bool{
 					"10481": true,
 					"10482": true,
@@ -1154,7 +1154,7 @@ func TestParser(t *testing.T) {
 
 				for KBID, fix := range vF {
 					sut := bulletin.VendorFixes[KBID]
-					require.Equal(t, fix.FixedBuild, sut.FixedBuild, pName, KBID)
+					require.Equal(t, fix.FixedBuilds, sut.FixedBuilds, pName, KBID)
 					require.Equal(t, fix.ProductIDs, sut.ProductIDs, pName, KBID)
 					// We want to check that either both are nil or that both are not nil
 					require.False(t, (fix.Supersedes == nil || sut.Supersedes == nil) && !(fix.Supersedes == nil || sut.Supersedes == nil), pName, KBID)
@@ -1195,7 +1195,7 @@ func TestParser(t *testing.T) {
 
 		t.Run("each bulletin should have the right products", func(t *testing.T) {
 			for _, g := range bulletins {
-				require.Equal(t, g.Products, expectedProducts[g.ProductName], g.ProductName)
+				require.Equal(t, expectedProducts[g.ProductName], g.Products, g.ProductName)
 			}
 		})
 

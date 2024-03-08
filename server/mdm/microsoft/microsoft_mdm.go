@@ -1,7 +1,11 @@
 package microsoft_mdm
 
 import (
+	"crypto/x509"
+	"encoding/base64"
+
 	"github.com/fleetdm/fleet/v4/server/mdm/internal/commonmdm"
+	"go.mozilla.org/pkcs7"
 )
 
 const (
@@ -51,57 +55,6 @@ const (
 	MSManageEntryPoint = "/ManagementServer/MDM.svc"
 )
 
-// XML Namespaces and type URLs used by the Microsoft Device Enrollment v2 protocol (MS-MDE2)
-const (
-	DiscoverNS                 = "http://schemas.microsoft.com/windows/management/2012/01/enrollment"
-	PolicyNS                   = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy"
-	EnrollWSTrust              = "http://docs.oasis-open.org/ws-sx/ws-trust/200512"
-	EnrollSecExt               = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd"
-	EnrollTType                = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentToken"
-	EnrollPDoc                 = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentProvisionDoc"
-	EnrollEncode               = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-secext-1.0.xsd#base64binary"
-	EnrollReq                  = "http://schemas.microsoft.com/windows/pki/2009/01/enrollment"
-	EnrollNSS                  = "http://www.w3.org/2003/05/soap-envelope"
-	EnrollNSA                  = "http://www.w3.org/2005/08/addressing"
-	EnrollXSI                  = "http://www.w3.org/2001/XMLSchema-instance"
-	EnrollXSD                  = "http://www.w3.org/2001/XMLSchema"
-	EnrollXSU                  = "http://docs.oasis-open.org/wss/2004/01/oasis-200401-wss-wssecurity-utility-1.0.xsd"
-	ActionNsDiag               = "http://schemas.microsoft.com/2004/09/ServiceModel/Diagnostics"
-	ActionNsDiscovery          = "http://schemas.microsoft.com/windows/management/2012/01/enrollment/IDiscoveryService/DiscoverResponse"
-	ActionNsPolicy             = "http://schemas.microsoft.com/windows/pki/2009/01/enrollmentpolicy/IPolicy/GetPoliciesResponse"
-	ActionNsEnroll             = EnrollReq + "/RSTRC/wstep"
-	EnrollReqTypePKCS10        = EnrollReq + "#PKCS10"
-	EnrollReqTypePKCS7         = EnrollReq + "#PKCS7"
-	BinarySecurityDeviceEnroll = "http://schemas.microsoft.com/5.0.0.0/ConfigurationManager/Enrollment/DeviceEnrollmentUserToken"
-	BinarySecurityAzureEnroll  = "urn:ietf:params:oauth:token-type:jwt"
-)
-
-// Soap Error constants
-// Details here: https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/0a78f419-5fd7-4ddb-bc76-1c0f7e11da23
-
-const (
-	// Message format is bad
-	SoapErrorMessageFormat = "s:messageformat"
-
-	// User not recognized
-	SoapErrorAuthentication = "s:authentication"
-
-	// User not allowed to enroll
-	SoapErrorAuthorization = "s:authorization"
-
-	// Failed to get certificate
-	SoapErrorCertificateRequest = "s:certificaterequest"
-
-	// Generic failure from management server, such as a database access error
-	SoapErrorEnrollmentServer = "s:enrollmentserver"
-
-	// The server hit an unexpected issue
-	SoapErrorInternalServiceFault = "s:internalservicefault"
-
-	// Cannot parse the security header
-	SoapErrorInvalidSecurity = "a:invalidsecurity"
-)
-
 // Device Enrolled States
 
 const (
@@ -114,146 +67,6 @@ const (
 	// Device is MDM enrolled and managed
 	/* #nosec G101 -- this constant doesn't contain any credentials */
 	MDMDeviceStateManaged = "MDMDeviceEnrolledManaged"
-)
-
-// MS-MDE2 Message constants
-const (
-	// Minimum supported version
-	EnrollmentVersionV4 = "4.0"
-
-	// Maximum supported version
-	EnrollmentVersionV5 = "5.0"
-
-	// xsi:nil indicates value is not present
-	DefaultStateXSI = "true"
-
-	// Supported authentication types
-	AuthOnPremise = "OnPremise"
-
-	// SOAP Fault codes
-	SoapFaultRecv = "s:receiver"
-
-	// SOAP Fault default error locale
-	SoapFaultLocale = "en-us"
-
-	// HTTP Content Type for SOAP responses
-	SoapContentType = "application/soap+xml; charset=utf-8"
-
-	// HTTP Content Type for SyncML MDM responses
-	SyncMLContentType = "application/vnd.syncml.dm+xml"
-
-	// HTTP Content Type for Webcontainer responses
-	WebContainerContentType = "text/html; charset=UTF-8"
-
-	// Minimal Key Length for SHA1WithRSA encryption
-	PolicyMinKeyLength = "2048"
-
-	// Certificate Validity Period in seconds (365 days)
-	PolicyCertValidityPeriodInSecs = "31536000"
-
-	// Certificate Renewal Period in seconds (180 days)
-	PolicyCertRenewalPeriodInSecs = "15552000"
-
-	// Supported Enroll types gathered from MS-MDE2 Spec Section 2.2.9.3
-	// https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/f7553554-b6e1-4a0d-abd6-6a2534503af7
-
-	// Supported Enroll Type Device
-	ReqSecTokenEnrollTypeDevice = "Device"
-
-	// Supported Enroll Type Full
-	ReqSecTokenEnrollTypeFull = "Full"
-
-	// Provisioning Doc Certificate Renewal Period (365 days)
-	WstepCertRenewalPeriodInDays = "365"
-
-	// Provisioning Doc Server supports ROBO auto certificate renewal
-	// TODO: Add renewal support
-	WstepROBOSupport = "true"
-
-	// Provisioning Doc Server retry interval
-	WstepRenewRetryInterval = "4"
-
-	// The PROVIDER-ID paramer specifies the server identifier for a management server used in the current management session
-	DocProvisioningAppProviderID = "FleetDM"
-
-	// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity
-	DocProvisioningAppName = DocProvisioningAppProviderID
-
-	// The CONNRETRYFREQ parameter is used in the APPLICATION characteristic to specify a user readable application identity
-	DocProvisioningAppConnRetryFreq = "6"
-
-	// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
-	DocProvisioningAppInitialBackoffTime = "30000"
-
-	// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
-	DocProvisioningAppMaxBackoffTime = "120000"
-
-	// The DocProvisioningVersion attributes defines the version of the provisioning document format
-	DocProvisioningVersion = "1.1"
-
-	// The number of times the DM client should retry to connect to the server when the client is initially configured or enrolled to communicate with the server.
-	DmClientCSPNumberOfFirstRetries = "8"
-
-	// The waiting time (in minutes) for the initial set of retries as specified by the number of retries in NumberOfFirstRetries
-	DmClientCSPIntervalForFirstSetOfRetries = "15"
-
-	// The number of times the DM client should retry a second round of connecting to the server when the client is initially configured/enrolled to communicate with the server
-	DmClientCSPNumberOfSecondRetries = "5"
-
-	// The waiting time (in minutes) for the second set of retries as specified by the number of retries in NumberOfSecondRetries
-	DmClientCSPIntervalForSecondSetOfRetries = "3"
-
-	// The number of times the DM client should retry connecting to the server when the client is initially configured/enrolled to communicate with the server
-	DmClientCSPNumberOfRemainingScheduledRetries = "0"
-
-	// The waiting time (in minutes) for the initial set of retries as specified by the number of retries in NumberOfRemainingScheduledRetries
-	DmClientCSPIntervalForRemainingScheduledRetries = "1560"
-
-	// It allows the IT admin to require the device to start a management session on any user login, regardless of if the user has preciously logged in
-	DmClientCSPPollOnLogin = "true"
-
-	// It specifies whether the DM client should send out a request pending alert in case the device response to a DM request is too slow.
-	DmClientCSPEnableOmaDmKeepAliveMessage = "true"
-
-	// CSR issuer should be verified during enrollment
-	EnrollVerifyIssue = true
-
-	// Int type used by the DM client configuration
-	DmClientIntType = "integer"
-
-	// Bool type used by the DM client configuration
-	DmClientBoolType = "boolean"
-
-	// Additional Context items present on the RequestSecurityToken token message
-	ReqSecTokenContextItemUXInitiated          = "UXInitiated"
-	ReqSecTokenContextItemHWDevID              = "HWDevID"
-	ReqSecTokenContextItemLocale               = "Locale"
-	ReqSecTokenContextItemTargetedUserLoggedIn = "TargetedUserLoggedIn"
-	ReqSecTokenContextItemOSEdition            = "OSEdition"
-	ReqSecTokenContextItemDeviceName           = "DeviceName"
-	ReqSecTokenContextItemDeviceID             = "DeviceID"
-	ReqSecTokenContextItemEnrollmentType       = "EnrollmentType"
-	ReqSecTokenContextItemDeviceType           = "DeviceType"
-	ReqSecTokenContextItemOSVersion            = "OSVersion"
-	ReqSecTokenContextItemApplicationVersion   = "ApplicationVersion"
-	ReqSecTokenContextItemNotInOobe            = "NotInOobe"
-	ReqSecTokenContextItemRequestVersion       = "RequestVersion"
-
-	// APPRU query param expected by STS Auth endpoint
-	STSAuthAppRu = "appru"
-
-	// Login related query param expected by STS Auth endpoint
-	STSLoginHint = "login_hint"
-
-	// redirect_uri query param expected by TOS endpoint
-	TOCRedirectURI = "redirect_uri"
-
-	// client-request-id query param expected by TOS endpoint
-	TOCReqID = "client-request-id"
-
-	// Alert Command IDs
-	DeviceUnenrollmentID = "1226"
-	HostInitMessageID    = "1201"
 )
 
 func ResolveWindowsMDMDiscovery(serverURL string) (string, error) {
@@ -274,4 +87,15 @@ func ResolveWindowsMDMAuth(serverURL string) (string, error) {
 
 func ResolveWindowsMDMManagement(serverURL string) (string, error) {
 	return commonmdm.ResolveURL(serverURL, MDE2ManagementPath, false)
+}
+
+// Encrypt uses pkcs7 to encrypt a raw value using the provided certificate.
+// The returned encrypted value is base64-encoded.
+func Encrypt(rawValue string, cert *x509.Certificate) (string, error) {
+	encrypted, err := pkcs7.Encrypt([]byte(rawValue), []*x509.Certificate{cert})
+	if err != nil {
+		return "", err
+	}
+	b64Enc := base64.StdEncoding.EncodeToString(encrypted)
+	return b64Enc, nil
 }

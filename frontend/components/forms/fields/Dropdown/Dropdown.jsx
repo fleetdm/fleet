@@ -37,6 +37,11 @@ class Dropdown extends Component {
     autoFocus: PropTypes.bool,
     /** Includes styled filter icon */
     tableFilterDropdown: PropTypes.bool,
+    helpText: PropTypes.oneOfType([
+      PropTypes.string,
+      PropTypes.arrayOf(PropTypes.string),
+      PropTypes.object,
+    ]),
   };
 
   static defaultProps = {
@@ -117,7 +122,7 @@ class Dropdown extends Component {
   renderCustomDropdownArrow = () => {
     return (
       <div className={`${baseClass}__custom-arrow`}>
-        <Icon name="chevron" className={`${baseClass}__icon`} />
+        <Icon name="chevron-down" className={`${baseClass}__icon`} />
       </div>
     );
   };
@@ -163,7 +168,7 @@ class Dropdown extends Component {
     } = this.props;
 
     const formFieldProps = pick(this.props, [
-      "hint",
+      "helpText",
       "label",
       "error",
       "name",

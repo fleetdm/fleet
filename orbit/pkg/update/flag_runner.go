@@ -76,7 +76,7 @@ func (r *FlagRunner) Execute() error {
 // Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
 func (r *FlagRunner) Interrupt(err error) {
 	close(r.cancel)
-	log.Debug().Err(err).Msg("interrupt for flags updater")
+	log.Error().Err(err).Msg("interrupt for flags updater")
 }
 
 // DoFlagsUpdate checks for update of flags from Fleet
@@ -183,7 +183,7 @@ func (r *ExtensionRunner) Execute() error {
 // Interrupt is the oklog/run interrupt method that stops orbit when interrupt is received
 func (r *ExtensionRunner) Interrupt(err error) {
 	close(r.cancel)
-	log.Debug().Err(err).Msg(("interrupt extension runner"))
+	log.Error().Err(err).Msg(("interrupt extension runner"))
 }
 
 // DoExtensionConfigUpdate calls the /config API endpoint to grab extensions from Fleet

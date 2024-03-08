@@ -1,0 +1,10 @@
+[
+  {
+    "fullkey": "browser.contextual-services.contextId",
+    "parent": "",
+    "key": "browser.contextual-services.contextId",
+    "value": "{97961fa4-2a6a-470f-a916-45a3f51fc393}",
+    "query": "*",
+    "path": "testdata/prefs3.js"
+  }
+]

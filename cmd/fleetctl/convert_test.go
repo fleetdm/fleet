@@ -1,7 +1,7 @@
 package main
 
 import (
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"testing"
@@ -19,11 +19,11 @@ func TestConvertFileOutput(t *testing.T) {
 	app.Setup()
 
 	// read the expected output file
-	expected, err := ioutil.ReadFile(filepath.Join("testdata", "convert_output.yml"))
+	expected, err := os.ReadFile(filepath.Join("testdata", "convert_output.yml"))
 	require.NoError(t, err)
 
 	// setup a file for the convert command to write to
-	file, err := ioutil.TempFile(t.TempDir(), "convert_output.yml")
+	file, err := os.CreateTemp(t.TempDir(), "convert_output.yml")
 	defer file.Close()
 	require.NoError(t, err)
 
@@ -34,7 +34,7 @@ func TestConvertFileOutput(t *testing.T) {
 	require.NoError(t, err)
 
 	// convert command ran and wrote converted file to output destination
-	got, err := ioutil.ReadFile(file.Name())
+	got, err := os.ReadFile(file.Name())
 	require.NoError(t, err)
 	require.YAMLEq(t, string(expected), string(got))
 }
@@ -52,7 +52,7 @@ func TestConvertFileStdout(t *testing.T) {
 	app.Setup()
 
 	// read the expected output file
-	expected, err := ioutil.ReadFile(filepath.Join("testdata", "convert_output.yml"))
+	expected, err := os.ReadFile(filepath.Join("testdata", "convert_output.yml"))
 	require.NoError(t, err)
 
 	// get the program name
@@ -63,6 +63,6 @@ func TestConvertFileStdout(t *testing.T) {
 
 	os.Stdout = oldStdout
 	w.Close()
-	out, _ := ioutil.ReadAll(r)
+	out, _ := io.ReadAll(r)
 	require.YAMLEq(t, string(expected), string(out))
 }

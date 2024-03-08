@@ -1928,14 +1928,14 @@ spec:
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            value <= 1200 AND 
+            CAST(value AS INT) <= 1200 AND 
             username = ''
         )
       AND NOT EXISTS (
         SELECT 1 FROM managed_policies WHERE 
             domain='com.apple.screensaver' AND 
             name='idleTime' AND 
-            value > 1200
+            CAST(value AS INT) > 1200
         );  
   purpose: Informational
   tags: compliance, CIS, CIS_Level1, CIS-macos-13-2.10.1

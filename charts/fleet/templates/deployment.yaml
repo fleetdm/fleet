@@ -99,52 +99,52 @@ spec:
           ## END FLEET SECTION
           ## BEGIN MYSQL SECTION
           - name: FLEET_MYSQL_ADDRESS
-            value: "{{ .Values.mysql.address }}"
+            value: "{{ .Values.database.address }}"
           - name: FLEET_MYSQL_DATABASE
-            value: "{{ .Values.mysql.database }}"
+            value: "{{ .Values.database.database }}"
           - name: FLEET_MYSQL_USERNAME
-            value: "{{ .Values.mysql.username }}"
+            value: "{{ .Values.database.username }}"
           - name: FLEET_MYSQL_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: {{ .Values.mysql.secretName }}
-                key: {{ .Values.mysql.passwordKey }}
+                name: {{ .Values.database.secretName }}
+                key: {{ .Values.database.passwordKey }}
           - name: FLEET_MYSQL_MAX_OPEN_CONNS
-            value: "{{ .Values.mysql.maxOpenConns }}"
+            value: "{{ .Values.database.maxOpenConns }}"
           - name: FLEET_MYSQL_MAX_IDLE_CONNS
-            value: "{{ .Values.mysql.maxIdleConns }}"
+            value: "{{ .Values.database.maxIdleConns }}"
           - name: FLEET_MYSQL_CONN_MAX_LIFETIME
-            value: "{{ .Values.mysql.connMaxLifetime }}"
-          {{- if .Values.mysql.tls.enabled }}
-          {{- if .Values.mysql.tls.caCertKey }}
+            value: "{{ .Values.database.connMaxLifetime }}"
+          {{- if .Values.database.tls.enabled }}
+          {{- if .Values.database.tls.caCertKey }}
           - name: FLEET_MYSQL_TLS_CA
-            value: "/secrets/mysql/{{ .Values.mysql.tls.caCertKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.caCertKey }}"
           {{- end }}
-          {{- if .Values.mysql.tls.certKey }}
+          {{- if .Values.database.tls.certKey }}
           - name: FLEET_MYSQL_TLS_CERT
-            value: "/secrets/mysql/{{ .Values.mysql.tls.certKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.certKey }}"
           {{- end }}
-          {{- if .Values.mysql.tls.keyKey }}
+          {{- if .Values.database.tls.keyKey }}
           - name: FLEET_MYSQL_TLS_KEY
-            value: "/secrets/mysql/{{ .Values.mysql.tls.keyKey }}"
+            value: "/secrets/mysql/{{ .Values.database.tls.keyKey }}"
           {{- end }}
           - name: FLEET_MYSQL_TLS_CONFIG
-            value: "{{ .Values.mysql.tls.config }}"
+            value: "{{ .Values.database.tls.config }}"
           - name: FLEET_MYSQL_TLS_SERVER_NAME
-            value: "{{ .Values.mysql.tls.serverName }}"
+            value: "{{ .Values.database.tls.serverName }}"
           {{- end }}
           ## END MYSQL SECTION
           ## BEGIN REDIS SECTION
           - name: FLEET_REDIS_ADDRESS
-            value: "{{ .Values.redis.address }}"
+            value: "{{ .Values.cache.address }}"
           - name: FLEET_REDIS_DATABASE
-            value: "{{ .Values.redis.database }}"
-          {{- if .Values.redis.usePassword }}
+            value: "{{ .Values.cache.database }}"
+          {{- if .Values.cache.usePassword }}
           - name: FLEET_REDIS_PASSWORD
             valueFrom:
               secretKeyRef:
-                name: "{{ .Values.redis.secretName }}"
-                key: "{{ .Values.redis.passwordKey }}"
+                name: "{{ .Values.cache.secretName }}"
+                key: "{{ .Values.cache.passwordKey }}"
           {{- end }}
           ## END REDIS SECTION
           ## BEGIN OSQUERY SECTION
@@ -290,7 +290,7 @@ spec:
             {{- if .Values.fleet.tls.enabled }}
             scheme: HTTPS
             {{- end }}
-        {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
+        {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         volumeMounts:
           - name: tmp
             mountPath: /tmp
@@ -299,7 +299,7 @@ spec:
             readOnly: true
             mountPath: /secrets/tls
           {{- end }}
-          {{- if .Values.mysql.tls.enabled }}
+          {{- if .Values.database.tls.enabled }}
           - name: mysql-tls
             readOnly: true
             mountPath: /secrets/mysql
@@ -340,7 +340,7 @@ spec:
       hostNetwork: false
       hostIPC: false
       serviceAccountName: fleet
-      {{- if or (.Values.fleet.tls.enabled) (.Values.mysql.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
+      {{- if or (.Values.fleet.tls.enabled) (.Values.database.tls.enabled) (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
       volumes:
         - name: tmp
           emptyDir:
@@ -353,10 +353,10 @@ spec:
             secretName: "{{ .Values.fleet.secretName }}"
             {{- end }}
         {{- end }}
-        {{- if .Values.mysql.tls.enabled }}
+        {{- if .Values.database.tls.enabled }}
         - name: mysql-tls
           secret:
-            secretName: "{{ .Values.mysql.secretName }}"
+            secretName: "{{ .Values.database.secretName }}"
         {{- end }}
         {{- if or (eq .Values.osquery.logging.statusPlugin "filesystem") (eq .Values.osquery.logging.resultPlugin "filesystem") }}
         - name: osquery-logs

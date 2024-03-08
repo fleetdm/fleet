@@ -1,16 +1,36 @@
 ## Terraform for Loadtesting Environment
 
 The interface into this code is designed to be minimal.
-If you require changes beyond whats described here, contact @zwinnerman-fleetdm.
+If you require changes beyond whats described here, contact #g-infra.
+
+### Deployment sizing
+
+When loadtesting, it is important to size your load test for the number of hosts you plan to use.  Please see https://fleetdm.com/docs/deploy/reference-architectures for some examples.
+
+These are set via [variables](https://github.com/fleetdm/fleet/blob/main/infrastructure/loadtesting/terraform/variables.tf) and should be applied to every terraform operation.  Below is an example for a modest (~5k) number of hosts:
+
+```sh
+# When first applying.  Assuming tag exists
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small
+
+# When adding loadtest containers. 
+terraform apply -var tag=hosts-5k-test -var fleet_containers=5 -var db_instance_type=db.t4g.medium -var redis_instance_type=cache.t4g.small -var -var loadtest_containers=10 
+
+```
 
 ### Deploying your code to the loadtesting environment
 
-1. Push your branch to https://github.com/fleetdm/fleet and wait for the build to complete (https://github.com/fleetdm/fleet/actions).
+> IMPORTANT:
+> - We advice to use a separate clone of the https://github.com/fleetdm/fleet repository because `terraform` operations are lengthy. Terraform uses the local files as the configuration files.
+> - When performing a load test you target a specific branch and not `main` (referenced below as `$BRANCH_NAME`). The `main` branch changes often and it might trigger rebuilts of the images. The cloned repository that you will use to run the terraform operations doesn't need to be in `$BRANCH_NAME`, such `$BRANCH_NAME` is the Fleet version that will be deployed to the load test environment.
+> - These scripts were tested with terraform 1.5.X.
+
+1. Push your `$BRANCH_NAME` branch to https://github.com/fleetdm/fleet and trigger a manual run of the [Docker publish](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) workflow (make sure to select the branch).
 1. arm64 (M1/M2/etc) Mac Only: run `helpers/setup-darwin_arm64.sh` to build terraform plugins that lack arm64 builds in the registry.  Alternatively, you can use the amd64 terraform binary, which works with Rosetta 2.
 1. Log into AWS SSO on `loadtesting` via `aws sso login`. (If you have multiple profiles, export the `AWS_PROFILE` variable.) For configuration, see `infrastructure/sso` folder's readme in the `confidential` private repo.
 1. Initialize your terraform environment with `terraform init`.
-1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
-1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). You should always use a branch other than `main` (Branch `main` changes often and it might trigger rebuilts of the images.) Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
+1. Select a workspace for your test: `terraform workspace new WORKSPACE-NAME; terraform workspace select WORKSPACE-NAME`. Ensure your `WORKSPACE-NAME` is less than or equal to 17 characters and contains only lowercase alphanumeric characters and hyphens, as it is used to generate names for AWS resources.
+1. Apply terraform with your branch name with `terraform apply -var tag=BRANCH_NAME` and type `yes` to approve execution of the plan. This takes a while to complete (many minutes, > ~30m). Note that for a few minutes after `terraform apply`, the Fleet instances may be failing to start with a permission issue (to read a database secret), but this should resolve automatically after a bit and ECS will begin to start the Fleet instances, but they may still fail due to missing database migrations (this will show up in the instances' logs). At this point you can move on to the next step.
 1. Run database migrations (see [Running migrations](#running-migrations)). You will get 500 errors and your containers will not run if you do not do this. After running this step, you might need to wait a few minutes until the environment is up and running.
 1. Perform your tests (see [Running a loadtest](#running-a-loadtest)). Your deployment will be available at `https://WORKSPACE-NAME.loadtest.fleetdm.com`. Reach out to the infrastructure team to get the credentials to log in.
 1. For instructions on how to deploy new code changes to Fleet to the environment, see [Deploying code changes to Fleet](#deploying-code-changes-to-fleet). This is useful to test performance improvements without having to set up a new loadtest environment.
@@ -91,13 +111,30 @@ docker images | grep 'BRANCH_NAME' | awk '{print $3}'
 terraform apply -var tag=BRANCH_NAME -var loadtest_containers=XXX -target=aws_ecs_service.fleet -target=aws_ecs_task_definition.backend -target=aws_ecs_task_definition.migration -target=aws_s3_bucket_acl.osquery-results -target=aws_s3_bucket_acl.osquery-status -target=docker_registry_image.fleet
 ```
 
+### Deploying code changes to osquery-perf
+
+Following are the steps to deploy new code changes to osquery-perf (known as `loadtest` image in ECS) on a running loadtest environment.
+
+> osquery-perf simulator in ECS doesn't keep state so you cannot change existing hosts to use new osquery-perf code.
+> The following is to add new hosts with new/modified osquery-perf code. (This happens if during a load test
+> the developer realizes there's bug in osquery-perf or if it's not simulating osquery properly.)
+
+> You must push your code changes to the `$BRANCH_NAME`.
+
+1. Bring all `loadtest` containers to `0` by running terraform apply with `loadtest_containers=0`.
+1. Delete all existing hosts (by selecting all on the UI).
+1. Delete all your local `loadtest` images, the image tags are of the form: `loadtest-$BRANCH_NAME-$TAG` (these are the `loadtest` images pushed to ECR).  (Use `docker image list` to get their `IMAGE ID` and then run `docker rmi -f $ID`.)
+1. Delete local images of the form `REPOSITORY=<none>` and `TAG=<none>` that were built recently (these are the builder images). (Use `docker image list` to get their `IMAGE ID` and then run `docker rmi -f $ID`.)
+1. Log in to Amazon ECR (Elastic Container Registry) and delete the corresponding `loadtest` image.
+1. By executing the `terraform apply` with `-loadtest_containers=N` it will trigger a rebuild of the `loadtest` image.
+
 ### Troubleshooting
 
 #### Using a release tag instead of a branch
 
-Since the tag name on Dockerhub doesn't match the tag name on GitHub, this presents a special use case when wanting to deploy a release tag.  In this case, you can use the optional `-var github_branch` in order to specify the separate tag.  For example, you would use the following to deploy a loadtest of version 4.28.0:
+Since the tag name on Dockerhub doesn't match the tag name on GitHub, this presents a special use case when wanting to deploy a release tag.  In this case, you can use the optional `-var git_branch` in order to specify the separate tag.  For example, you would use the following to deploy a loadtest of version 4.28.0:
 
-`terraform apply -var tag=v4.28.0 -var github_branch=fleet-v4.28.0 -var loadtest_containers=8`
+`terraform apply -var tag=v4.28.0 -var git_branch=fleet-v4.28.0 -var loadtest_containers=8`
 
 #### General Troubleshooting
 

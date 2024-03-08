@@ -44,7 +44,6 @@ module.exports = {
     //  ╩ ╩╩ ╩╝╚╝═╩╝   ╚═╝╚═╝═╩╝╚═╝═╩╝  ╩  ╩ ╩╚═╝╚═╝╚═╝
     let HAND_CODED_HTML_PAGES = [
       '/',
-      '/fleetctl-preview',
       '/company/contact',
       '/queries',
       '/pricing',

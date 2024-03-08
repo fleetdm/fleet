@@ -6,7 +6,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"os"
 )
 
@@ -32,7 +31,7 @@ func MakeMacOSFatExecutable(outPath string, inPaths ...string) error {
 	var inputs []input
 	offset := int64(align)
 	for _, i := range inPaths {
-		data, err := ioutil.ReadFile(i)
+		data, err := os.ReadFile(i)
 		if err != nil {
 			return err
 		}

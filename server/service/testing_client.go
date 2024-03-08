@@ -25,6 +25,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/ghodss/yaml"
+	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
@@ -162,6 +163,18 @@ func (ts *withServer) commonTearDownTest(t *testing.T) {
 	// SyncHostsSoftware performs a cleanup.
 	err = ts.ds.SyncHostsSoftware(ctx, time.Now())
 	require.NoError(t, err)
+
+	// delete orphaned scripts
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM scripts`)
+		return err
+	})
+
+	// delete orphaned host_script_results
+	mysql.ExecAdhocSQL(t, ts.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(ctx, `DELETE FROM host_script_results`)
+		return err
+	})
 }
 
 func (ts *withServer) Do(verb, path string, params interface{}, expectedStatusCode int, queryParams ...string) *http.Response {
@@ -189,7 +202,12 @@ func (ts *withServer) DoRawWithHeaders(
 	for key, val := range headers {
 		req.Header.Add(key, val)
 	}
-	client := fleethttp.NewClient()
+
+	opts := []fleethttp.ClientOpt{}
+	if expectedStatusCode >= 300 && expectedStatusCode <= 399 {
+		opts = append(opts, fleethttp.WithFollowRedir(false))
+	}
+	client := fleethttp.NewClient(opts...)
 
 	if len(queryParams)%2 != 0 {
 		require.Fail(t, "need even number of params: key value")
@@ -204,7 +222,17 @@ func (ts *withServer) DoRawWithHeaders(
 
 	resp, err := client.Do(req)
 	require.NoError(t, err)
-	require.Equal(t, expectedStatusCode, resp.StatusCode)
+
+	if resp.StatusCode != expectedStatusCode {
+		defer resp.Body.Close()
+		var je jsonError
+		err := json.NewDecoder(resp.Body).Decode(&je)
+		if err != nil {
+			t.Logf("Error trying to decode response body as Fleet jsonError: %s", err)
+			require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("response: %+v", resp))
+		}
+		require.Equal(t, expectedStatusCode, resp.StatusCode, fmt.Sprintf("Fleet jsonError: %+v", je))
+	}
 
 	return resp
 }
@@ -298,6 +326,17 @@ func (ts *withServer) getConfig() *appConfigResponse {
 	return responseBody
 }
 
+func (ts *withServer) applyTeamSpec(yamlSpec []byte) {
+	var teamSpec any
+	err := yaml.Unmarshal(yamlSpec, &teamSpec)
+	require.NoError(ts.s.T(), err)
+
+	specsReq := map[string]any{
+		"specs": []any{teamSpec},
+	}
+	ts.Do("POST", "/api/latest/fleet/spec/teams", specsReq, http.StatusOK)
+}
+
 func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, string) {
 	t := ts.s.T()
 	auth, res := ts.loginSSOUser(username, password, "/api/v1/fleet/sso", http.StatusOK)
@@ -308,7 +347,7 @@ func (ts *withServer) LoginSSOUser(username, password string) (fleet.Auth, strin
 }
 
 func (ts *withServer) LoginMDMSSOUser(username, password string) *http.Response {
-	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusTemporaryRedirect)
+	_, res := ts.loginSSOUser(username, password, "/api/v1/fleet/mdm/sso", http.StatusSeeOther)
 	return res
 }
 

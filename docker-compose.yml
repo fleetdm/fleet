@@ -20,12 +20,13 @@ services:
         # Required for storage of Apple MDM installers.
         "--max_allowed_packet=536870912"
       ]
-    environment:
-      &mysql-default-environment
+    environment: &mysql-default-environment
       MYSQL_ROOT_PASSWORD: toor
       MYSQL_DATABASE: fleet
       MYSQL_USER: fleet
       MYSQL_PASSWORD: insecure
+      # This is required by Percona XtraDB server.
+      CLUSTER_NAME: fleet
     ports:
       - "3306:3306"
 
@@ -41,7 +42,7 @@ services:
         "--log_output=TABLE",
         "--log-queries-not-using-indexes",
         "--innodb-file-per-table=OFF",
-        "--table-definition-cache=2048",
+        "--table-definition-cache=8192",
         # These 3 keys run MySQL with GTID consistency enforced to avoid issues with production deployments that use it.
         "--enforce-gtid-consistency=ON",
         "--log-bin=bin.log",
@@ -76,6 +77,19 @@ services:
         "--smtp-auth-file=/auth.txt",
         "--smtp-auth-allow-insecure=true"
       ]
+
+  # SMTP server with TLS
+  smtp4dev_test:
+    image: rnwood/smtp4dev:v3
+    ports:
+      - "8028:80"
+      - "1027:25"
+    volumes:
+      - ./tools/smtp4dev:/certs
+    environment:
+      - ServerOptions__TlsMode=ImplicitTls
+      - ServerOptions__TlsCertificate=/certs/fleet.crt
+      - ServerOptions__TlsCertificatePrivateKey=/certs/fleet.key
 
   redis:
     image: redis:5
@@ -141,4 +155,5 @@ services:
 volumes:
   mysql-persistent-volume:
   data-minio:
+
 

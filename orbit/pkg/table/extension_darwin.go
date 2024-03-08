@@ -5,12 +5,16 @@ package table
 import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/authdb"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/csrutil_info"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dataflattentable"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/apfs"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/diskutil/corestorage"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/dscl"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_prk"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/filevault_status"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/find_cmd"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmware_eficheck_integrity_check"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/firmwarepasswd"
+	"github.com/fleetdm/fleet/v4/orbit/pkg/table/ioreg"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/nvram_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/pmset"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/privaterelay"
@@ -18,18 +22,20 @@ import (
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/software_update"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/sudo_info"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/table/user_login_settings"
+
 	"github.com/macadmins/osquery-extension/tables/filevaultusers"
 	"github.com/macadmins/osquery-extension/tables/macos_profiles"
 	"github.com/macadmins/osquery-extension/tables/macosrsr"
 	"github.com/macadmins/osquery-extension/tables/mdm"
 	"github.com/macadmins/osquery-extension/tables/munki"
 	"github.com/macadmins/osquery-extension/tables/unifiedlog"
+
 	"github.com/osquery/osquery-go"
 	"github.com/osquery/osquery-go/plugin/table"
 )
 
 func PlatformTables() []osquery.OsqueryPlugin {
-	return []osquery.OsqueryPlugin{
+	plugins := []osquery.OsqueryPlugin{
 		// Fleet tables
 		table.NewPlugin("icloud_private_relay", privaterelay.Columns(), privaterelay.Generate),
 		table.NewPlugin("user_login_settings", user_login_settings.Columns(), user_login_settings.Generate),
@@ -59,5 +65,19 @@ func PlatformTables() []osquery.OsqueryPlugin {
 		// osquery version 5.5.0 and up ships a unified_log table in core
 		// we are renaming the one from the macadmins extension to avoid collision
 		table.NewPlugin("macadmins_unified_log", unifiedlog.UnifiedLogColumns(), unifiedlog.UnifiedLogGenerate),
+
+		filevault_status.TablePlugin(osqueryLogger), // table name is "filevault_status"
+		ioreg.TablePlugin(osqueryLogger),            // table name is "ioreg"
+
+		// firmwarepasswd table. Only returns valid data on a Mac with an Intel processor. Background: https://support.apple.com/en-us/HT204455
+		firmwarepasswd.TablePlugin(osqueryLogger), // table name is "firmwarepasswd"
+
+		// Table for parsing Apple Property List files, which are typically stored in ~/Library/Preferences/
+		dataflattentable.TablePlugin(osqueryLogger, dataflattentable.PlistType), // table name is "parse_plist"
 	}
+
+	// append platform specific tables
+	plugins = appendTables(plugins)
+
+	return plugins
 }

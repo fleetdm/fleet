@@ -56,7 +56,7 @@ func (svc *Service) StatusLiveQuery(ctx context.Context) error {
 	}
 
 	if cfg.ServerSettings.LiveQueryDisabled {
-		return ctxerr.New(ctx, "disabled by administrator")
+		return ctxerr.Wrap(ctx, fleet.NewPermissionError("disabled by administrator"))
 	}
 
 	return svc.StatusResultStore(ctx)

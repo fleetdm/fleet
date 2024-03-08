@@ -1,0 +1,700 @@
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 1
+  logging: snapshot
+  min_osquery_version: ""
+  name: Kubernetes api resources
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_api_resources;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_cluster_role_policy_rules
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_cluster_role_policy_rules;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_cluster_role_binding_subjects
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_cluster_role_binding_subjects;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_component_statuses
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_component_statuses;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_config_maps
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_config_maps;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: 'kubernetes_cron_jobs '
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_cron_jobs;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_csi_drivers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_csi_drivers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_csi_node_drivers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_csi_node_drivers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_daemon_set_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_daemon_set_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_daemon_sets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_daemon_sets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_daemon_set_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_daemon_set_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_deployments
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_deployments;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_deployments_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_deployments_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_deployments_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_deployments_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_endpoint_subsets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_endpoint_subsets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_horizontal_pod_autoscalers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_horizontal_pod_autoscalers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_info
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_info;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_ingress_classes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_ingress_classes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_jobs
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_jobs;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_limit_ranges
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_limit_ranges;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_mutating_webhooks
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_mutating_webhooks;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_namespaces
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_namespaces;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_network_policies
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_network_policies;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_nodes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_nodes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_persistent_volume_claims
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_persistent_volume_claims;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_persistent_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_persistent_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_disruption_budgets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_disruption_budgets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pods
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pods;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_security_policies
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_security_policies;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_template_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_template_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_templates
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_templates;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_templates_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_templates_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_pod_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_pod_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_replica_set_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_replica_set_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_replica_sets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_replica_sets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_replica_set_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_replica_set_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_resource_quotas
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_resource_quotas;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_role_binding_subjects
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_role_binding_subjects;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_role_policy_rules
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_role_policy_rules;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_secrets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_secrets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_service_accounts
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_service_accounts;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_services
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_services;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_stateful_set_containers
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_stateful_set_containers;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_stateful_sets
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_stateful_sets;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_stateful_set_volumes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_stateful_set_volumes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_storage_classes
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_storage_classes;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_validating_webhooks
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_validating_webhooks;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 0
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_volume_attachments
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_volume_attachments;
+  team: Kubernetes container - minikube
+---
+apiVersion: v1
+kind: query
+spec:
+  automations_enabled: false
+  description: ""
+  interval: 3600
+  logging: snapshot
+  min_osquery_version: ""
+  name: kubernetes_ingresses
+  observer_can_run: false
+  platform: ""
+  query: SELECT * FROM kubernetes_ingresses;
+  team: Kubernetes container - minikube

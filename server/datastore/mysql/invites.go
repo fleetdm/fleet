@@ -67,7 +67,7 @@ func (ds *Datastore) ListInvites(ctx context.Context, opt fleet.ListOptions) ([]
 	invites := []*fleet.Invite{}
 	query := "SELECT * FROM invites WHERE true"
 	query, params := searchLike(query, nil, opt.MatchQuery, inviteSearchColumns...)
-	query = appendListOptionsToSQL(query, &opt)
+	query, params = appendListOptionsWithCursorToSQL(query, params, &opt)
 
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &invites, query, params...)
 	if err == sql.ErrNoRows {

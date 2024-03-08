@@ -58,7 +58,7 @@ const PacksTable = ({
   // TODO: useCallback search string
   const emptyState = () => {
     const emptyPacks: IEmptyTableProps = {
-      iconName: "empty-packs",
+      graphicName: "empty-packs",
       header: "You don't have any packs",
       info:
         "Query packs allow you to schedule recurring queries for your hosts.",
@@ -73,8 +73,8 @@ const PacksTable = ({
       ),
     };
     if (searchString) {
-      delete emptyPacks.iconName;
-      emptyPacks.header = "No packs match the current search criteria.";
+      delete emptyPacks.graphicName;
+      emptyPacks.header = "No packs match the current search criteria";
       emptyPacks.info =
         "Expecting to see packs? Try again in a few seconds as the system catches up.";
       delete emptyPacks.primaryButton;
@@ -103,12 +103,12 @@ const PacksTable = ({
   return (
     <div className={`${baseClass}`}>
       <TableContainer
-        resultsTitle={"packs"}
-        columns={tableHeaders}
+        resultsTitle="packs"
+        columnConfigs={tableHeaders}
         data={generateDataSet(filteredPacks)}
         isLoading={isLoading}
-        defaultSortHeader={"pack"}
-        defaultSortDirection={"desc"}
+        defaultSortHeader="pack"
+        defaultSortDirection="desc"
         showMarkAllPages={false}
         isAllPagesSelected={false}
         onQueryChange={onQueryChange}
@@ -125,7 +125,7 @@ const PacksTable = ({
         secondarySelectActions={secondarySelectActions}
         emptyComponent={() =>
           EmptyTable({
-            iconName: emptyState().iconName,
+            graphicName: emptyState().graphicName,
             header: emptyState().header,
             info: emptyState().info,
             primaryButton: emptyState().primaryButton,

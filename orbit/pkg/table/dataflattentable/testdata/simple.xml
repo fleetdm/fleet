@@ -1,0 +1,12 @@
+<simple>
+  <Items>
+    <item1>One</item1>
+    <item2>Two</item2>
+    <item3>Three</item3>
+  </Items>
+  <Animals>
+    <Cat/>
+    <Dog/>
+    <Mouse/>
+  </Animals>
+</simple>

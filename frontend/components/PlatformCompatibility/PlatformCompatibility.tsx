@@ -56,8 +56,12 @@ const PlatformCompatibility = ({
       <span className={baseClass}>
         <b>
           <TooltipWrapper
-            tipContent="Estimated compatiblity based on <br /> the tables used in the query."
-            isDelayed
+            tipContent={
+              <>
+                Estimated compatiblity based on <br />
+                the tables used in the query.
+              </>
+            }
           >
             Compatible with:
           </TooltipWrapper>
@@ -73,8 +77,12 @@ const PlatformCompatibility = ({
     <span className={baseClass}>
       <b>
         <TooltipWrapper
-          tipContent="Estimated compatiblity based on <br /> the tables used in the query."
-          isDelayed
+          tipContent={
+            <>
+              Estimated compatiblity based on <br /> the tables used in the
+              query.
+            </>
+          }
         >
           Compatible with:
         </TooltipWrapper>
@@ -87,11 +95,12 @@ const PlatformCompatibility = ({
             className="platform"
           >
             <Icon
-              name={isCompatible ? "check" : "ex"}
+              name={isCompatible ? "check" : "close"}
               className={
                 isCompatible ? "compatible-platform" : "incompatible-platform"
               }
               color={isCompatible ? "status-success" : "status-error"}
+              size="small"
             />
             {platform}
           </span>

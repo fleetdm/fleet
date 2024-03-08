@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/xml"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"strings"
 )
@@ -42,7 +41,7 @@ func xmlNode(name string, attrs ...*xml.Attr) *node {
 }
 
 func TransformHeat(path string) error {
-	contents, err := ioutil.ReadFile(path)
+	contents, err := os.ReadFile(path)
 	if err != nil {
 		return fmt.Errorf("read file: %w", err)
 	}
@@ -70,7 +69,7 @@ func TransformHeat(path string) error {
 		return fmt.Errorf("remove old file: %w", err)
 	}
 
-	if err := ioutil.WriteFile(path, contents, 0o600); err != nil {
+	if err := os.WriteFile(path, contents, 0o600); err != nil {
 		return fmt.Errorf("write file: %w", err)
 	}
 

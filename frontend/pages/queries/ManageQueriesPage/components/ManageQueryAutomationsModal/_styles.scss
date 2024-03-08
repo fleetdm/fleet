@@ -1,0 +1,57 @@
+.manage-query-automations-modal {
+  &__checkboxes {
+    display: flex;
+    flex-direction: column;
+    border-radius: $border-radius;
+    border: 1px solid $ui-fleet-black-10;
+  }
+
+  &__query-item {
+    width: 100%;
+    padding: 8px 12px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    &:not(:last-child) {
+      border-bottom: 1px solid $ui-fleet-black-10;
+    }
+
+    .form-field--checkbox {
+      width: auto;
+    }
+  }
+
+  &__configure {
+    color: $ui-fleet-black-75;
+  }
+
+  .info-banner {
+    &__info {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      p {
+        margin: 0;
+      }
+    }
+  }
+
+  .fleet-checkbox {
+    height: 20px;
+    display: flex;
+    align-items: center;
+
+    &__label {
+      width: 490px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  }
+
+  &__preview-data {
+    @include form-button-extra-clickable-area-compensation;
+  }
+}

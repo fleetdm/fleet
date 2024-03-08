@@ -10,9 +10,10 @@ import { useQuery } from "react-query";
 import { pick } from "lodash";
 
 import { AppContext } from "context/app";
+import { QueryContext } from "context/query";
 import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
-import { performanceIndicator } from "utilities/helpers";
+import { getPerformanceImpactDescription } from "utilities/helpers";
 import { SupportedPlatform } from "interfaces/platform";
 import { API_ALL_TEAMS_ID } from "interfaces/team";
 import {
@@ -20,8 +21,10 @@ import {
   IQueryKeyQueriesLoadAll,
   ISchedulableQuery,
 } from "interfaces/schedulable_query";
+import { DEFAULT_TARGETS_BY_TYPE } from "interfaces/target";
 import queriesAPI from "services/entities/queries";
 import PATHS from "router/paths";
+import { DEFAULT_QUERY } from "utilities/constants";
 import { checkPlatformCompatibility } from "utilities/sql_tools";
 import Button from "components/buttons/Button";
 import Spinner from "components/Spinner";
@@ -32,7 +35,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 import RevealButton from "components/buttons/RevealButton";
 import QueriesTable from "./components/QueriesTable";
 import DeleteQueryModal from "./components/DeleteQueryModal";
-import ManageAutomationsModal from "./components/ManageAutomationsModal/ManageAutomationsModal";
+import ManageQueryAutomationsModal from "./components/ManageQueryAutomationsModal/ManageQueryAutomationsModal";
 import PreviewDataModal from "./components/PreviewDataModal/PreviewDataModal";
 
 const baseClass = "manage-queries-page";
@@ -47,6 +50,9 @@ interface IManageQueriesPageProps {
       order_key?: string;
       order_direction?: "asc" | "desc";
       team_id?: string;
+      inherited_order_key?: string;
+      inherited_order_direction?: "asc" | "desc";
+      inherited_page?: string;
     };
     search: string;
   };
@@ -61,7 +67,7 @@ const getPlatforms = (queryString: string): SupportedPlatform[] => {
 const enhanceQuery = (q: ISchedulableQuery): IEnhancedQuery => {
   return {
     ...q,
-    performance: performanceIndicator(
+    performance: getPerformanceImpactDescription(
       pick(q.stats, ["user_time_p50", "system_time_p50", "total_executions"])
     ),
     platforms: getPlatforms(q.query),
@@ -73,7 +79,6 @@ const ManageQueriesPage = ({
   location,
 }: IManageQueriesPageProps): JSX.Element => {
   const queryParams = location.query;
-
   const {
     isGlobalAdmin,
     isTeamAdmin,
@@ -87,7 +92,9 @@ const ManageQueriesPage = ({
     isSandboxMode,
     config,
   } = useContext(AppContext);
-
+  const { setLastEditedQueryBody, setSelectedQueryTargetsByType } = useContext(
+    QueryContext
+  );
   const { setResetSelectedRows } = useContext(TableContext);
   const { renderFlash } = useContext(NotificationContext);
 
@@ -129,9 +136,9 @@ const ManageQueriesPage = ({
   >(
     [{ scope: "queries", teamId: teamIdForApi }],
     ({ queryKey: [{ teamId }] }) =>
-      queriesAPI.loadAll(teamId).then(({ queries }) => {
-        return queries.map(enhanceQuery);
-      }),
+      queriesAPI
+        .loadAll(teamId)
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk,
@@ -153,9 +160,9 @@ const ManageQueriesPage = ({
   >(
     [{ scope: "queries", teamId: API_ALL_TEAMS_ID }],
     ({ queryKey: [{ teamId }] }) =>
-      queriesAPI.loadAll(teamId).then(({ queries }) => {
-        return queries.map(enhanceQuery);
-      }),
+      queriesAPI
+        .loadAll(teamId)
+        .then(({ queries }) => queries.map(enhanceQuery)),
     {
       refetchOnWindowFocus: false,
       enabled: isRouteOk && isAnyTeamSelected,
@@ -178,7 +185,15 @@ const ManageQueriesPage = ({
     }
   }, [location, filteredQueriesPath, setFilteredQueriesPath]);
 
-  const onCreateQueryClick = () => router.push(PATHS.NEW_QUERY(currentTeamId));
+  // Reset selected targets when returned to this page
+  useEffect(() => {
+    setSelectedQueryTargetsByType(DEFAULT_TARGETS_BY_TYPE);
+  }, []);
+
+  const onCreateQueryClick = () => {
+    setLastEditedQueryBody(DEFAULT_QUERY.query);
+    router.push(PATHS.NEW_QUERY(currentTeamId));
+  };
 
   const toggleDeleteQueryModal = useCallback(() => {
     setShowDeleteQueryModal(!showDeleteQueryModal);
@@ -203,15 +218,9 @@ const ManageQueriesPage = ({
   };
 
   const togglePreviewDataModal = useCallback(() => {
-    // Manage automation modal must close/open every time preview data modal opens/closes
-    setShowManageAutomationsModal(!showManageAutomationsModal);
+    // ManageQueryAutomationsModal will be cosmetically hidden when the preview data modal is open
     setShowPreviewDataModal(!showPreviewDataModal);
-  }, [
-    showPreviewDataModal,
-    setShowPreviewDataModal,
-    showManageAutomationsModal,
-    setShowManageAutomationsModal,
-  ]);
+  }, [showPreviewDataModal, setShowPreviewDataModal]);
 
   const onDeleteQuerySubmit = useCallback(async () => {
     const bulk = selectedQueryIds.length > 1;
@@ -296,9 +305,13 @@ const ManageQueriesPage = ({
         showText={`Show ${inheritedQueryCount} inherited quer${
           inheritedQueryCount === 1 ? "y" : "ies"
         }`}
-        caretPosition={"before"}
-        tooltipHtml={
-          'Queries from the "All teams"<br/>schedule run on this team’s hosts.'
+        caretPosition="before"
+        tooltipContent={
+          <>
+            Queries from the &quot;All teams&quot;
+            <br />
+            schedule run on this team&apos;s hosts.
+          </>
         }
         onClick={() => {
           setShowInheritedQueries(!showInheritedQueries);
@@ -326,6 +339,7 @@ const ManageQueriesPage = ({
         router={router}
         queryParams={queryParams}
         isInherited
+        currentTeamId={currentTeamId}
       />
     );
   };
@@ -383,8 +397,6 @@ const ManageQueriesPage = ({
     [refetchAllQueries, automatedQueryIds, toggleManageAutomationsModal]
   );
 
-  // const isTableDataLoading = isFetchingFleetQueries || queriesList === null;
-
   const renderModals = () => {
     return (
       <>
@@ -396,10 +408,11 @@ const ManageQueriesPage = ({
           />
         )}
         {showManageAutomationsModal && (
-          <ManageAutomationsModal
+          <ManageQueryAutomationsModal
             isUpdatingAutomations={isUpdatingAutomations}
             handleSubmit={onSaveQueryAutomations}
             onCancel={toggleManageAutomationsModal}
+            isShowingPreviewDataModal={showPreviewDataModal}
             togglePreviewDataModal={togglePreviewDataModal}
             availableQueries={curTeamEnhancedQueries}
             automatedQueryIds={automatedQueryIds}
@@ -440,7 +453,7 @@ const ManageQueriesPage = ({
                     className={`${baseClass}__create-button`}
                     onClick={onCreateQueryClick}
                   >
-                    Add query
+                    {isObserverPlus ? "Live query" : "Add query"}
                   </Button>
                 </>
               )}
@@ -448,8 +461,9 @@ const ManageQueriesPage = ({
         </div>
         <div className={`${baseClass}__description`}>
           <p>
-            Manage and schedule queries to ask questions and collect telemetry
-            for all hosts{isAnyTeamSelected && " assigned to this team"}.
+            {isAnyTeamSelected
+              ? "Gather data about all hosts assigned to this team."
+              : "Gather data about all hosts."}
           </p>
         </div>
         {renderCurrentScopeQueriesTable()}

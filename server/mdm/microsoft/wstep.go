@@ -18,8 +18,9 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/cryptoutil"
 	"github.com/golang-jwt/jwt/v4"
-	"github.com/micromdm/nanomdm/cryptoutil"
 	"go.mozilla.org/pkcs7"
 )
 
@@ -293,7 +294,7 @@ func GetAzureAuthTokenClaims(tokenStr string) (AzureData, error) {
 }
 
 func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificate, csr *x509.CertificateRequest) (*x509.Certificate, error) {
-	certRenewalPeriodInSecsInt, err := strconv.Atoi(PolicyCertRenewalPeriodInSecs)
+	certRenewalPeriodInSecsInt, err := strconv.Atoi(syncml.PolicyCertRenewalPeriodInSecs)
 	if err != nil {
 		return nil, fmt.Errorf("invalid renewal time: %w", err)
 	}
@@ -302,7 +303,7 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 	yearDuration := 365 * 24 * time.Hour
 
 	certSubject := pkix.Name{
-		OrganizationalUnit: []string{DocProvisioningAppProviderID},
+		OrganizationalUnit: []string{syncml.DocProvisioningAppProviderID},
 		CommonName:         subject,
 	}
 
@@ -335,7 +336,7 @@ func populateClientCert(sn *big.Int, subject string, issuerCert *x509.Certificat
 // GetClientCSR returns the client certificate signing request from the BinarySecurityToken
 func GetClientCSR(binSecTokenData string, tokenType string) (*x509.CertificateRequest, error) {
 	// Checking if this is a valid enroll security token (CSR)
-	if (tokenType != EnrollReqTypePKCS10) && (tokenType != EnrollReqTypePKCS7) {
+	if (tokenType != syncml.EnrollReqTypePKCS10) && (tokenType != syncml.EnrollReqTypePKCS7) {
 		return nil, fmt.Errorf("token type is not valid for MDM enrollment: %s", tokenType)
 	}
 
@@ -347,7 +348,7 @@ func GetClientCSR(binSecTokenData string, tokenType string) (*x509.CertificateRe
 
 	// Sanity checks on binary signature token
 	// Sanity checks are done on PKCS10 for the moment
-	if tokenType == EnrollReqTypePKCS7 {
+	if tokenType == syncml.EnrollReqTypePKCS7 {
 		// Parse the CSR in PKCS7 Syntax Standard
 		pk7CSR, err := pkcs7.Parse(rawCSR)
 		if err != nil {

@@ -10,7 +10,6 @@ import CustomLabelGroupHeading from "../CustomLabelGroupHeading";
 import { PLATFORM_TYPE_ICONS } from "./constants";
 import { createDropdownOptions, IEmptyOption, IGroupOption } from "./helpers";
 import CustomDropdownIndicator from "../CustomDropdownIndicator";
-import CustomValueContainer from "../CustomValueContainer";
 
 // Extending the react-select module to add custom props we need for our custom
 // group heading. More info here:
@@ -36,7 +35,7 @@ const baseClass = "label-filter-select";
  * component. You will find focus and blur handlers in this component to help
  * solve the problem of changing focus between the select dropdown and the
  * label search input. */
-const OptionLabel = (data: ILabel | IEmptyOption) => {
+const formatOptionLabel = (data: ILabel | IEmptyOption) => {
   const isLabel = "display_text" in data;
   const isPlatform = isLabel && data.type === "platform";
 
@@ -49,7 +48,7 @@ const OptionLabel = (data: ILabel | IEmptyOption) => {
   }
 
   return (
-    <div className={"option-label"}>
+    <div className="option-label">
       {isPlatform && (
         <Icon
           name={PLATFORM_TYPE_ICONS[data.display_text]}
@@ -81,9 +80,9 @@ const LabelFilterSelect = ({
   const [labelQuery, setLabelQuery] = useState("");
 
   // we need the Select to be a controlled component to enable our label input
-  // to work correctly. shouldOpenMenu now becomes our single source of truth if
+  // to work correctly. menuIsOpen now becomes our single source of truth if
   // we want the menu to render open or closed.
-  const [shouldOpenMenu, setShouldOpenMenu] = useState(false);
+  const [menuIsOpen, setMenuIsOpen] = useState(false);
   const isLabelSearchInputFocusedRef = useRef(false);
   const selectRef = useRef<
     SelectInstance<ILabel | IEmptyOption, false, IGroupOption>
@@ -97,40 +96,46 @@ const LabelFilterSelect = ({
   const handleChange = (option: ILabel | IEmptyOption | null) => {
     if (option === null) return;
     if ("type" in option) {
-      setShouldOpenMenu(false);
+      // typeof option === "ILabel"
       setLabelQuery("");
       selectRef.current?.blur();
       onChange(option);
     }
   };
 
-  const handleLabelQueryChange = (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const toggleMenu = () => {
+    menuIsOpen && selectRef.current?.blur();
+    setMenuIsOpen(!menuIsOpen);
+  };
+  const onChangeLabelQuery = (event: React.ChangeEvent<HTMLInputElement>) => {
     // We need to stop the key presses propagation to prevent the dropdown from
     // picking up keypresses.
     event.stopPropagation();
     setLabelQuery(event.target.value);
   };
 
-  const handleBlurSelect = () => {
+  const onBlur = () => {
     if (!isLabelSearchInputFocusedRef.current) {
       isLabelSearchInputFocusedRef.current = false;
-      setShouldOpenMenu(false);
+      setMenuIsOpen(false);
     }
   };
 
-  const handleFocusSelect = () => {
-    setShouldOpenMenu(true);
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape") {
+      setMenuIsOpen(false);
+      selectRef.current?.blur();
+    } else {
+      setMenuIsOpen(true);
+    }
   };
 
-  const handleClickLabelSearchInput = () => {
+  const onClickLabelSearchInput = () => {
     isLabelSearchInputFocusedRef.current = true;
   };
 
-  const handleBlurLabelSearchInput = () => {
+  const onBlurLabelSearchInput = () => {
     isLabelSearchInputFocusedRef.current = false;
-    setShouldOpenMenu(false);
   };
 
   const getOptionLabel = (option: ILabel | IEmptyOption) => {
@@ -161,35 +166,39 @@ const LabelFilterSelect = ({
   };
 
   return (
-    <Select<ILabel | IEmptyOption, false, IGroupOption>
-      ref={selectRef}
-      name="input-filter-select"
-      options={options}
-      className={classes}
-      classNamePrefix={baseClass}
-      defaultMenuIsOpen={false}
-      placeholder={"Filter by platform or label"}
-      formatOptionLabel={OptionLabel}
-      menuIsOpen={shouldOpenMenu}
-      value={selectedLabel}
-      isSearchable={false}
-      getOptionLabel={getOptionLabel}
-      getOptionValue={getOptionValue}
-      components={{
-        GroupHeading: CustomLabelGroupHeading,
-        DropdownIndicator: CustomDropdownIndicator,
-        ValueContainer,
-      }}
-      labelQuery={labelQuery}
-      canAddNewLabels={canAddNewLabels}
-      onChange={handleChange}
-      onBlur={handleBlurSelect}
-      onFocus={handleFocusSelect}
-      onAddLabel={onAddLabel}
-      onChangeLabelQuery={handleLabelQueryChange}
-      onClickLabelSearchInput={handleClickLabelSearchInput}
-      onBlurLabelSearchInput={handleBlurLabelSearchInput}
-    />
+    <div className={classes} onClick={toggleMenu}>
+      <Select<ILabel | IEmptyOption, false, IGroupOption>
+        ref={selectRef}
+        name="input-filter-select"
+        classNamePrefix={baseClass}
+        defaultMenuIsOpen={false}
+        placeholder="Filter by platform or label"
+        value={selectedLabel}
+        isSearchable={false}
+        components={{
+          GroupHeading: CustomLabelGroupHeading,
+          DropdownIndicator: CustomDropdownIndicator,
+          ValueContainer,
+        }}
+        onChange={handleChange}
+        closeMenuOnSelect
+        {...{
+          menuIsOpen,
+          options,
+          formatOptionLabel,
+          getOptionLabel,
+          getOptionValue,
+          labelQuery,
+          canAddNewLabels,
+          onKeyDown,
+          onAddLabel,
+          onBlur,
+          onChangeLabelQuery,
+          onClickLabelSearchInput,
+          onBlurLabelSearchInput,
+        }}
+      />
+    </div>
   );
 };
 

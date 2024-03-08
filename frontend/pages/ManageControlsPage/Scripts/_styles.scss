@@ -1,0 +1,11 @@
+.scripts {
+  font-size: $x-small;
+
+  &__description {
+    margin: $pad-xxlarge 0;
+  }
+
+  &__premium-feature-message {
+    margin-top: $pad-xxxlarge;
+  }
+}

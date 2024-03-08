@@ -1,12 +1,11 @@
 import React from "react";
-import { render, screen } from "@testing-library/react";
-import { renderWithSetup } from "test/test-utils";
+import { render, screen, fireEvent } from "@testing-library/react";
 
 import RevealButton from "./RevealButton";
 
 const SHOW_TEXT = "Show advanced options";
 const HIDE_TEXT = "Hide advanced options";
-const TOOLTIP_HTML = "Customize logging type and platforms";
+const TOOLTIP_CONTENT = "Customize logging type and platforms";
 
 describe("Reveal button", () => {
   it("renders show text", async () => {
@@ -40,7 +39,7 @@ describe("Reveal button", () => {
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-down-icon");
 
     expect(icon).toBeNull();
   });
@@ -51,11 +50,11 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
+        caretPosition="before"
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-right-icon");
     expect(icon?.nextSibling).toHaveTextContent(SHOW_TEXT);
   });
 
@@ -65,28 +64,28 @@ describe("Reveal button", () => {
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"after"}
+        caretPosition="after"
       />
     );
 
-    const icon = screen.queryByTestId("chevron-icon");
+    const icon = screen.queryByTestId("chevron-down-icon");
 
     expect(icon?.previousSibling).toHaveTextContent(SHOW_TEXT);
   });
 
   it("renders tooltip on hover if provided", async () => {
-    const { user } = renderWithSetup(
+    render(
       <RevealButton
         isShowing={false}
         hideText={HIDE_TEXT}
         showText={SHOW_TEXT}
-        caretPosition={"before"}
-        tooltipHtml={TOOLTIP_HTML}
+        caretPosition="before"
+        tooltipContent={TOOLTIP_CONTENT}
       />
     );
 
-    await user.hover(screen.getByText(SHOW_TEXT));
+    await fireEvent.mouseEnter(screen.getByText(SHOW_TEXT));
 
-    expect(screen.getByText(TOOLTIP_HTML)).toBeInTheDocument();
+    expect(screen.getByText(TOOLTIP_CONTENT)).toBeInTheDocument();
   });
 });

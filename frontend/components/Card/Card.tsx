@@ -3,21 +3,44 @@ import classnames from "classnames";
 
 const baseClass = "card";
 
-type CardColors = "white" | "gray" | "purple" | "yellow";
+type BorderRadiusSize = "small" | "medium" | "large";
+type CardColor = "white" | "gray" | "purple" | "yellow";
 
 interface ICardProps {
   children?: React.ReactNode;
-  /** defaults to white */
-  color?: CardColors;
+  /** The size of the border radius. Defaults to `small` */
+  borderRadiusSize?: BorderRadiusSize;
+  /** Includes the card shadows. Defaults to `false` */
+  includeShadow?: boolean;
+  /** The color of the card. Defaults to `white` */
+  color?: CardColor;
   className?: string;
+  /** Increases to 40px padding. Defaults to `false` */
+  largePadding?: boolean;
 }
 
 /**
  * A generic card component that will be used to render content within a card with a border and
  * and selected background color.
  */
-const Card = ({ children, color = "white", className }: ICardProps) => {
-  const classNames = classnames(baseClass, `${baseClass}__${color}`, className);
+const Card = ({
+  children,
+  borderRadiusSize = "small",
+  includeShadow = false,
+  color = "white",
+  className,
+  largePadding = false,
+}: ICardProps) => {
+  const classNames = classnames(
+    baseClass,
+    `${baseClass}__${color}`,
+    `${baseClass}__radius-${borderRadiusSize}`,
+    {
+      [`${baseClass}__shadow`]: includeShadow,
+      [`${baseClass}__large-padding`]: largePadding,
+    },
+    className
+  );
 
   return <div className={classNames}>{children}</div>;
 };

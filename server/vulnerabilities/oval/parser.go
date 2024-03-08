@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 
 	oval_input "github.com/fleetdm/fleet/v4/server/vulnerabilities/oval/input"
@@ -30,7 +29,7 @@ func parseDefinitions(platform Platform, inputFile string, outputFile string) er
 		return fmt.Errorf("oval parser: %w", err)
 	}
 
-	err = ioutil.WriteFile(outputFile, payload, 0o644)
+	err = os.WriteFile(outputFile, payload, 0o644)
 	if err != nil {
 		return fmt.Errorf("oval parser: %w", err)
 	}

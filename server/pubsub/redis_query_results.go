@@ -90,8 +90,15 @@ func receiveMessages(ctx context.Context, conn *redigo.PubSubConn, outChan chan<
 	defer close(outChan)
 
 	for {
-		// Add a timeout to try to cleanup in the case the server has somehow gone completely unresponsive.
+		beforeReceive := time.Now()
+
+		// Add a timeout to try to cleanup in the case the server has somehow gone
+		// completely unresponsive.
 		msg := conn.ReceiveWithTimeout(1 * time.Hour)
+
+		if recvTime := time.Since(beforeReceive); recvTime > time.Minute {
+			level.Info(logger).Log("msg", "conn.ReceiveWithTimeout connection was blocked for significant time", "duration", recvTime, "connection", fmt.Sprintf("%p", conn))
+		}
 
 		// Pass the message back to ReadChannel.
 		if writeOrDone(ctx, outChan, msg) {
@@ -188,6 +195,7 @@ func (r *redisQueryResults) ReadChannel(ctx context.Context, query fleet.Distrib
 		wg.Wait()
 		psc.Unsubscribe(pubSubName) //nolint:errcheck
 		conn.Close()
+		level.Debug(logger).Log("msg", "proper close of Redis connection in ReadChannel", "connection", fmt.Sprintf("%p", conn))
 	}()
 
 	return outChannel, nil

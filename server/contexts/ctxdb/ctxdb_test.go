@@ -25,3 +25,22 @@ func TestIsPrimaryRequired(t *testing.T) {
 		})
 	}
 }
+
+func TestIsCachedMysqlBypassed(t *testing.T) {
+	cases := []struct {
+		desc string
+		ctx  context.Context
+		want bool
+	}{
+		{"not set", context.Background(), false},
+		{"set to true", BypassCachedMysql(context.Background(), true), true},
+		{"set to false", BypassCachedMysql(context.Background(), false), false},
+		{"set to true then false", BypassCachedMysql(BypassCachedMysql(context.Background(), true), false), false},
+	}
+	for _, c := range cases {
+		t.Run(c.desc, func(t *testing.T) {
+			got := IsCachedMysqlBypassed(c.ctx)
+			require.Equal(t, c.want, got)
+		})
+	}
+}

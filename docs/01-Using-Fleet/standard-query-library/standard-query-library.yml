@@ -61,7 +61,7 @@ spec:
   name: Get installed Linux software
   platform: linux
   description: Get all software installed on a Linux computer, including browser plugins and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
+  query: SELECT name AS name, version AS version, 'Package (APT)' AS type, 'apt_sources' AS source FROM apt_sources UNION SELECT name AS name, version AS version, 'Package (deb)' AS type, 'deb_packages' AS source FROM deb_packages UNION SELECT package AS name, version AS version, 'Package (Portage)' AS type, 'portage_packages' AS source FROM portage_packages UNION SELECT name AS name, version AS version, 'Package (RPM)' AS type, 'rpm_packages' AS source FROM rpm_packages UNION SELECT name AS name, '' AS version, 'Package (YUM)' AS type, 'yum_sources' AS source FROM yum_sources UNION SELECT name AS name, version AS version, 'Package (NPM)' AS type, 'npm_packages' AS source FROM npm_packages UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -94,7 +94,7 @@ spec:
   name: Get installed Windows software
   platform: windows
   description: Get all software installed on a Windows computer, including programs, browser plugins, and installed packages. Note that this does not include other running processes in the processes table.
-  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages UNION SELECT name AS name, version AS version, 'Package (Atom)' AS type, 'atom_packages' AS source FROM atom_packages;
+  query: SELECT name AS name, version AS version, 'Program (Windows)' AS type, 'programs' AS source FROM programs UNION SELECT name AS name, version AS version, 'Package (Python)' AS type, 'python_packages' AS source FROM python_packages UNION SELECT name AS name, version AS version, 'Browser plugin (IE)' AS type, 'ie_extensions' AS source FROM ie_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Chrome)' AS type, 'chrome_extensions' AS source FROM chrome_extensions UNION SELECT name AS name, version AS version, 'Browser plugin (Firefox)' AS type, 'firefox_addons' AS source FROM firefox_addons UNION SELECT name AS name, version AS version, 'Package (Chocolatey)' AS type, 'chocolatey_packages' AS source FROM chocolatey_packages;
   purpose: Informational
   tags: inventory, built-in
   contributors: zwass
@@ -480,7 +480,7 @@ spec:
   query: SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;
   description: Checks to make sure that the Gatekeeper feature is enabled on macOS devices. Gatekeeper tries to ensure only trusted software is run on a mac machine.
   resolution: "To enable Gatekeeper, on the failing device, run the following command in the Terminal app: /usr/sbin/spctl --master-enable."
-  tags: compliance, hardening, built-in, CIS, CIS2.5.2.1
+  tags: compliance, hardening, built-in, CIS, CIS2.5.2.1, critical
   platform: darwin
   contributors: groob
 ---
@@ -496,7 +496,7 @@ spec:
     considered unprotected. Use the additional results (percent_encrypted, conversion_status, etc.) to
     help narrow down the specific reason why Windows considers the volume unprotected."
   platform: windows
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, critical
   contributors: defensivedepth
 ---
 apiVersion: v1
@@ -506,7 +506,7 @@ spec:
   query: SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT "" AND filevault_status = 'on' LIMIT 1;
   description: Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.
   resolution: To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.
-  tags: compliance, hardening, built-in, CIS, CIS2.5.1.1
+  tags: compliance, hardening, built-in, CIS, CIS2.5.1.1, critical
   platform: darwin
   contributors: groob
 ---
@@ -518,7 +518,7 @@ spec:
   description: Checks if the root drive is encrypted. There are many ways to encrypt Linux systems. This is the default on distributions such as Ubuntu.
   resolution: "Ensure the image deployed to your Linux workstation includes full disk encryption."
   platform: linux
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, critical
   contributors: GuillaumeRoss
 ---
 apiVersion: v1
@@ -539,7 +539,7 @@ spec:
   query: SELECT 1 FROM managed_policies WHERE domain = 'com.apple.loginwindow' AND name = 'com.apple.login.mcx.DisableAutoLoginClient' AND value = 1 LIMIT 1;
   description: "Checks that a mobile device management (MDM) solution configures the Mac to prevent login in without a password."
   resolution: "Contact your IT administrator to ensure your Mac is receiving a profile that disables automatic login."
-  tags: MDM required, compliance, hardening, built-in
+  tags: MDM required, compliance, hardening, built-in, critical
   platform: darwin
   contributors: groob
 ---
@@ -626,11 +626,11 @@ spec:
 apiVersion: v1
 kind: policy
 spec:
-  name: MDM Enrolled (macOS)
+  name: MDM enrolled (macOS)
   query: SELECT 1 from mdm WHERE enrolled='true';
   description: "Required: osquery deployed with Orbit, or manual installation of macadmins/osquery-extension. Checks that a mac is enrolled to MDM. Add a AND on identity_certificate_uuid to check for a specific MDM."
   resolution: "Enroll device to MDM"
-  tags: compliance, hardening, built-in
+  tags: compliance, hardening, built-in, critical
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -715,10 +715,10 @@ apiVersion: v1
 kind: policy
 spec:
   name: Operating system up to date (macOS)
-  query: SELECT 1 FROM os_version WHERE version >= '12.5.1';
+  query: SELECT 1 FROM os_version WHERE version >= '14.1.1';
   description: "Checks that the operating system is up to date."
   resolution: "From the Apple menu () in the corner of your screen choose System Preferences. Then select Software Update and select Upgrade Now. You might be asked to restart or enter your password."
-  tags: compliance, CIS, template, CIS1.1
+  tags: compliance, CIS, template, CIS1.1, critical
   platform: darwin
   contributors: GuillaumeRoss
 ---
@@ -880,12 +880,12 @@ apiVersion: v1
 kind: policy
 spec:
   name: No 1Password emergency kit stored on desktop or in downloads (macOS)
-  query: SELECT EXISTS(SELECT 1 FROM file WHERE filename like '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/%%/Desktop/%%')) as does_1p_ek_exist;
+  query: SELECT 1 FROM file WHERE filename LIKE '%Emergency Kit%.pdf' AND (path LIKE '/Users/%%/Desktop/%%' OR path LIKE '/Users/%%/Documents/%%' OR path LIKE '/Users/%%/Downloads/%%' OR path LIKE '/Users/Shared');
   description: "Looks for PDF files with file names typically used by 1Password for emergency recovery kits."
   resolution: "Delete 1Password emergency kits from your computer, and empty the trash. 1Password emergency kits should only be printed and stored in a physically secure location."
   platform: darwin
   tags: compliance, built-in
-  contributors: GuillaumeRoss
+  contributors: nonpunctual
 ---
 apiVersion: v1
 kind: query
@@ -1021,7 +1021,7 @@ kind: query
 spec:
   name: Geolocate via ipapi.co
   platform: darwin, linux, windows
-  description: Geolocate a host using the (ipapi.co)[https://ipapi.co] in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
+  description: Geolocate a host using the [ipapi.co](https://ipapi.co) in an emergency. Requires the curl table. [Learn more](https://fleetdm.com/guides/locate-assets-with-osquery).
   query: >-
     SELECT JSON_EXTRACT(result, '$.ip') AS ip,
     JSON_EXTRACT(result, '$.city') AS city,
@@ -1045,3 +1045,36 @@ spec:
   purpose: Informational
   tags: crowdstrike, plist, network, content filter
   contributors: zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: Get a list of Visual Studio Code extensions
+  platform: darwin
+  description: Get a list of installed VS Code extensions.
+  query: |
+    SELECT  split(user_path, '/', 1) as username,
+        json_extract(value, '$.identifier.id') as id,
+        json_extract(value, '$.identifier.uuid') as uuid,
+        json_extract(value, '$.location.path') as path,
+        json_extract(value, '$.version') as version,
+        json_extract(value, '$.metadata.publisherDisplayName') as publisher_display_name
+        FROM (
+          SELECT file_lines.path as user_path, value
+          FROM file_lines, json_each(line)
+          WHERE file_lines.path LIKE '/Users/%/.vscode/extensions/extensions.json'
+        );
+  purpose: Informational
+  tags: inventory
+  contributors: lucasmrod,sharon-fdm,zwass
+---
+apiVersion: v1
+kind: query
+spec:
+  name: List osquery table names
+  platform: darwin, linux, windows
+  description: List all table names in the schema of the currently installed version of osquery
+  query: SELECT DISTINCT name FROM osquery_registry;
+  purpose: Informational
+  tags: fleet, osquery, table, schema
+  contributors: nonpunctual

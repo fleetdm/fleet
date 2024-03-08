@@ -3,10 +3,13 @@ package mysql
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -30,6 +33,7 @@ func TestAppConfig(t *testing.T) {
 		{"AggregateEnrollSecretPerTeam", testAggregateEnrollSecretPerTeam},
 		{"Defaults", testAppConfigDefaults},
 		{"Backwards Compatibility", testAppConfigBackwardsCompatibility},
+		{"GetConfigEnableDiskEncryption", testGetConfigEnableDiskEncryption},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -112,7 +116,7 @@ func testAppConfigOrgInfo(t *testing.T, ds *Datastore) {
 
 	verify, err = ds.UserByEmail(context.Background(), email)
 	assert.Nil(t, err)
-	assert.False(t, verify.SSOEnabled)
+	assert.True(t, verify.SSOEnabled) // SSO stays enabled for user even when globally disabled
 }
 
 func testAppConfigAdditionalQueries(t *testing.T, ds *Datastore) {
@@ -309,7 +313,6 @@ func testAppConfigEnrollSecretRoundtrip(t *testing.T, ds *Datastore) {
 	secrets, err = ds.GetEnrollSecrets(context.Background(), nil)
 	require.NoError(t, err)
 	require.Len(t, secrets, 2)
-
 }
 
 func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
@@ -318,8 +321,9 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
+	const secret = "one_secret"
 	expectedSecrets := []*fleet.EnrollSecret{
-		{Secret: "one_secret"},
+		{Secret: secret},
 	}
 	err = ds.ApplyEnrollSecrets(context.Background(), &team1.ID, expectedSecrets)
 	require.NoError(t, err)
@@ -327,6 +331,7 @@ func testAppConfigEnrollSecretUniqueness(t *testing.T, ds *Datastore) {
 	// Same secret at global level should not be allowed
 	err = ds.ApplyEnrollSecrets(context.Background(), nil, expectedSecrets)
 	require.Error(t, err)
+	assert.False(t, strings.Contains(err.Error(), secret), fmt.Sprintf("error should not contain secret in plaintext: %s", err.Error()))
 }
 
 func testAppConfigDefaults(t *testing.T, ds *Datastore) {
@@ -430,4 +435,49 @@ func testAggregateEnrollSecretPerTeam(t *testing.T, ds *Datastore) {
 		{TeamID: ptr.Uint(2), Secret: ""},
 		{TeamID: ptr.Uint(3), Secret: "team_3_secret_1"},
 	}, agg)
+}
+
+func testGetConfigEnableDiskEncryption(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	defer TruncateTables(t, ds)
+
+	ac, err := ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.False(t, ac.MDM.EnableDiskEncryption.Value)
+
+	enabled, err := ds.getConfigEnableDiskEncryption(ctx, nil)
+	require.NoError(t, err)
+	require.False(t, enabled)
+
+	// Enable disk encryption for no team
+	ac.MDM.EnableDiskEncryption = optjson.SetBool(true)
+	err = ds.SaveAppConfig(ctx, ac)
+	require.NoError(t, err)
+	ac, err = ds.AppConfig(ctx)
+	require.NoError(t, err)
+	require.True(t, ac.MDM.EnableDiskEncryption.Value)
+
+	enabled, err = ds.getConfigEnableDiskEncryption(ctx, nil)
+	require.NoError(t, err)
+	require.True(t, enabled)
+
+	// Create team
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	tm, err := ds.Team(ctx, team1.ID)
+	require.NoError(t, err)
+	require.NotNil(t, tm)
+	require.False(t, tm.Config.MDM.EnableDiskEncryption)
+
+	enabled, err = ds.getConfigEnableDiskEncryption(ctx, &team1.ID)
+	require.NoError(t, err)
+	require.False(t, enabled)
+
+	// Enable disk encryption for the team
+	tm.Config.MDM.EnableDiskEncryption = true
+	tm, err = ds.SaveTeam(ctx, tm)
+	require.NoError(t, err)
+	require.NotNil(t, tm)
+	require.True(t, tm.Config.MDM.EnableDiskEncryption)
 }

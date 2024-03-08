@@ -4,7 +4,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/sha512"
-	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 
@@ -19,7 +19,7 @@ func createFile(t *testing.T, name string, length int) (string, *data.TargetFile
 	require.NoError(t, err)
 	dir := t.TempDir()
 	filePath := filepath.Join(dir, name)
-	err = ioutil.WriteFile(filePath, b, constant.DefaultFileMode)
+	err = os.WriteFile(filePath, b, constant.DefaultFileMode)
 	require.NoError(t, err)
 	sha256Bytes := sha256.Sum256(b)
 	sha512Bytes := sha512.Sum512(b)

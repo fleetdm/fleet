@@ -113,12 +113,11 @@ module.exports.custom = {
     'ee/tools/puppet': 'georgekarrv',//« Puppet integration (especially useful with macOS MDM turned on) -- FYI: Originally developed by request from "customer-eponym"
 
     // ⚗️ Reference, config surface, built-in queries, API, and other documentation
-    // 'docs': '',                                      // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Using-Fleet/REST-API.md': '',              // « Covered in CODEOWNERS (2023-07-22)
     // 'docs/Contributing/API-for-contributors.md': '', // « Covered in CODEOWNERS (2023-07-22)
     // 'schema': '',                                    // « Covered in CODEOWNERS (2023-07-22)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': 'rachaelshaw', //« Built-in queries
-    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, Marcos, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
+    'ee/cis': 'sharon-fdm',//« Fleet Premium only: built-in queries  (built-in policies for CIS benchmarks)  -- FYI: On 2023-07-15, we changed this so that Sharon, Lucas, and Rachel are all maintainers, but where there is a single DRI who is automatically requested approval from.
 
     // 🫧 Articles and release notes
     'articles': 'spokanemac',
@@ -144,21 +143,15 @@ module.exports.custom = {
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
 
-    // 🦿 Repo automation and change control settings
+    // 🌐 Repo automation and change control settings
     // 'CODEOWNERS': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
     'website/config/custom.js': 'mikermcneil',
 
-    // 🦿 Handbook
-    'handbook': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/company/ceo.md': 'sampfluger88',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/business-operations': 'mikermcneil',
-    //'handbook/engineering': 'lukeheath',
-    //'handbook/product': 'zhumo',
-    //'handbook/customers': 'alexmitchelliii',
-    //'handbook/marketing': 'mikermcneil',
+    // 🌐 Handbook
+    //'handbook': 'mikermcneil', Covered in CODEOWNERS (#16972 2024-02-19)
 
-    // 🦿 GitHub issue templates
+
+    // 🌐 GitHub issue templates
     // '.github/ISSUE_TEMPLATE': 'mikermcneil',// « Covered in CODEOWNERS (2023-08-10)
 
   },
@@ -189,11 +182,11 @@ module.exports.custom = {
     // Reference, config surface, built-in queries, API, and other documentation
     'docs': ['rachaelshaw'],// (default for docs)
     'docs/01-Using-Fleet/standard-query-library/standard-query-library.yml': ['rachaelshaw'],// (standard query library)
-    'schema': ['rachaelshaw'],// (Osquery table schema)
-    'ee/cis': ['sharon-fdm', 'lucasmrod', 'marcosd4h', 'rachelElysia', 'rachaelshaw'],
+    'schema': ['eashaw'],// (Osquery table schema)
+    'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
     // Articles and release notes
-    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'zhumo', 'lukeheath'],
+    'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
     'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
     'website/assets/images/articles': ['spokanemac', 'mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil'],
 
@@ -226,22 +219,22 @@ module.exports.custom = {
     'website/config/custom.js': ['eashaw', 'mikermcneil'],// (« for changing whose changes automatically approve and unfreeze relevant PRs changing given paths)
 
     // Handbook
-    'handbook': 'mikermcneil',
-    // See https://github.com/fleetdm/fleet/pull/13195
-    //'handbook/README.md': 'mikermcneil',
-    //'handbook/company': 'mikermcneil',
-    //'handbook/company/ceo.md': ['sampfluger88'],
-    //'handbook/business-operations': ['jostableford'],
-    //'handbook/engineering': ['lukeheath'],
-    //'handbook/product': ['zhumo'],
-    //'handbook/customers': ['alexmitchelliii'],
-    //'handbook/marketing': ['mike-j-thomas'],
+    'handbook/README.md': 'mikermcneil', // See https://github.com/fleetdm/fleet/pull/13195
+    'handbook/company': 'mikermcneil',
+    'handbook/company/product-groups.md': ['lukeheath', 'sampfluger88','mikermcneil'],
+    'handbook/digital-experience': ['sampfluger88','mikermcneil'],
+    'handbook/business-operations': ['sampfluger88','mikermcneil'],
+    'handbook/engineering': ['sampfluger88','mikermcneil', 'lukeheath'],
+    'handbook/product-design': ['sampfluger88','mikermcneil'],
+    'handbook/sales': ['sampfluger88','mikermcneil'],
+    'handbook/demand': ['sampfluger88','mikermcneil'],
+    'handbook/customer-success': ['sampfluger88','mikermcneil'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
-    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala', 'zhumo','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala', 'zhumo','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential
@@ -259,7 +252,7 @@ module.exports.custom = {
     // "Secret handbook"
     // Standard operating procedures (SOP), etc that would be public handbook content except for that it's confidential.
     'README.md': ['mikermcneil'],// « about this repo
-    'cold-outbound-strategy.md': ['mikermcneil','bradmacd'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
+    'cold-outbound-strategy.md': ['mikermcneil'],// « Cold outbound strategy (see fleetdm.com/handbook/company/why-this-way for our vision of a better way to sell)
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil'],// FUTURE: Bust out individual maintainership for issue templates once relevant DRIs are GitHub, markdown, and content design-certified
@@ -272,7 +265,30 @@ module.exports.custom = {
 
   // The version of osquery to use when generating schema docs
   // (both in Fleet's query console and on fleetdm.com)
-  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.8.1',
+  versionOfOsquerySchemaToUseWhenGeneratingDocumentation: '5.11.0',
+
+
+  //  ███████╗██╗  ██╗██████╗ ██╗      ██████╗ ██████╗ ███████╗    ██████╗  █████╗ ████████╗ █████╗
+  //  ██╔════╝╚██╗██╔╝██╔══██╗██║     ██╔═══██╗██╔══██╗██╔════╝    ██╔══██╗██╔══██╗╚══██╔══╝██╔══██╗
+  //  █████╗   ╚███╔╝ ██████╔╝██║     ██║   ██║██████╔╝█████╗      ██║  ██║███████║   ██║   ███████║
+  //  ██╔══╝   ██╔██╗ ██╔═══╝ ██║     ██║   ██║██╔══██╗██╔══╝      ██║  ██║██╔══██║   ██║   ██╔══██║
+  //  ███████╗██╔╝ ██╗██║     ███████╗╚██████╔╝██║  ██║███████╗    ██████╔╝██║  ██║   ██║   ██║  ██║
+  //  ╚══════╝╚═╝  ╚═╝╚═╝     ╚══════╝ ╚═════╝ ╚═╝  ╚═╝╚══════╝    ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝
+  //
+  // Config variables in this section are used for the /try-fleet/explore-data page on fleetdm.com
+
+  // For sending requests to a Fleet instance:
+  // fleetBaseUrlForQueryReports: '…',
+  // fleetTokenForQueryReports: '…',
+
+  // The API ID of the team of hosts created for query reports.
+  // teamApidForQueryReports:
+
+  // A dictionary where each key is the name of an osquery table, and the value is the API ID of the query that selects all information from that table. e.g., {'account_policy_data': 2045, 'ad_config': 2047, …}
+  // queryIdsByTableName: {…}
+
+  // A dictionary where each key is the lowercased platform, and the value is the API ID of a host. e.g., {'macos': 92, 'windows': 94, 'linux': 93}
+  // hostIdsByHostPlatform: {…}
 
   /***************************************************************************
   *                                                                          *

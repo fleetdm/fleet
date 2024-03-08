@@ -7,6 +7,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/orbit/pkg/bitlocker"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/profiles"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -396,4 +397,254 @@ func (h *runScriptsConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 		}
 	}
 	return cfg, err
+}
+
+type DiskEncryptionKeySetter interface {
+	SetOrUpdateDiskEncryptionKey(diskEncryptionStatus fleet.OrbitHostDiskEncryptionKeyPayload) error
+}
+
+// execEncryptVolumeFunc handles the encryption of a volume identified by its
+// string identifier (e.g., "C:").
+//
+// It returns a string representing the recovery key and an error if any occurs during the process.
+type execEncryptVolumeFunc func(volumeID string) (recoveryKey string, err error)
+
+// execGetEncryptionStatusFunc retrieves the encryption status of all volumes
+// managed by Bitlocker.
+//
+// It returns a slice of bitlocker.VolumeStatus, each representing the
+// encryption status of a volume, and an error if the operation fails.
+type execGetEncryptionStatusFunc func() (status []bitlocker.VolumeStatus, err error)
+
+// execDecryptVolumeFunc handles the decryption of a volume identified by its
+// string identifier (e.g., "C:")
+//
+// It returns an error if the process fails.
+type execDecryptVolumeFunc func(volumeID string) error
+
+type windowsMDMBitlockerConfigFetcher struct {
+	// Fetcher is the OrbitConfigFetcher that will be wrapped. It is responsible
+	// for actually returning the orbit configuration or an error.
+	Fetcher OrbitConfigFetcher
+
+	// Frequency is the minimum amount of time that must pass between two
+	// executions of the windows MDM enrollment attempt.
+	Frequency time.Duration
+
+	// Bitlocker Operation Results
+	EncryptionResult DiskEncryptionKeySetter
+
+	// tracks last time a disk encryption has successfully run
+	lastRun time.Time
+
+	// ensures only one script execution runs at a time
+	mu sync.Mutex
+
+	// for tests, to be able to mock API commands. If nil, will use
+	// bitlocker.EncryptVolume
+	execEncryptVolumeFn execEncryptVolumeFunc
+
+	// for tests, to be able to mock API commands. If nil, will use
+	// bitlocker.GetEncryptionStatus
+	execGetEncryptionStatusFn execGetEncryptionStatusFunc
+
+	// for tests, to be able to mock the decryption process. If nil, will use
+	// bitlocker.DecryptVolume
+	execDecryptVolumeFn execDecryptVolumeFunc
+}
+
+func ApplyWindowsMDMBitlockerFetcherMiddleware(
+	fetcher OrbitConfigFetcher,
+	frequency time.Duration,
+	encryptionResult DiskEncryptionKeySetter,
+) OrbitConfigFetcher {
+	return &windowsMDMBitlockerConfigFetcher{
+		Fetcher:          fetcher,
+		Frequency:        frequency,
+		EncryptionResult: encryptionResult,
+	}
+}
+
+// GetConfig calls the wrapped Fetcher's GetConfig method, and if the fleet
+// server set the "EnforceBitLockerEncryption" flag to true, executes the command
+// to attempt BitlockerEncryption (or not, if the device is a Windows Server).
+func (w *windowsMDMBitlockerConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
+	cfg, err := w.Fetcher.GetConfig()
+	if err == nil && cfg.Notifications.EnforceBitLockerEncryption {
+		if w.mu.TryLock() {
+			defer w.mu.Unlock()
+
+			w.attemptBitlockerEncryption(cfg.Notifications)
+		}
+	}
+
+	return cfg, err
+}
+
+func (w *windowsMDMBitlockerConfigFetcher) attemptBitlockerEncryption(notifs fleet.OrbitConfigNotifications) {
+	if time.Since(w.lastRun) <= w.Frequency {
+		log.Debug().Msg("skipped encryption process, last run was too recent")
+		return
+	}
+
+	// Windows servers are not supported. Check and skip if that's the case.
+	if isServer, err := IsRunningOnWindowsServer(); isServer || err != nil {
+		if err != nil {
+			log.Error().Err(err).Msg("checking if the host is a Windows server")
+		} else {
+			log.Debug().Msg("device is a Windows Server, encryption is not going to be performed")
+		}
+		return
+	}
+
+	const targetVolume = "C:"
+	encryptionStatus, err := w.getEncryptionStatusForVolume(targetVolume)
+	if err != nil {
+		log.Debug().Err(err).Msgf("unable to get encryption status for target volume %s, continuing anyway", targetVolume)
+	}
+
+	// don't do anything if the disk is being encrypted/decrypted
+	if w.bitLockerActionInProgress(encryptionStatus) {
+		log.Debug().Msgf("skipping encryption as the disk is not available. Disk conversion status: %d", encryptionStatus.ConversionStatus)
+		return
+	}
+
+	// if the disk is encrypted, try to decrypt it first.
+	if encryptionStatus != nil &&
+		encryptionStatus.ConversionStatus == bitlocker.ConversionStatusFullyEncrypted {
+		log.Debug().Msg("disk was previously encrypted. Attempting to decrypt it")
+
+		if err := w.decryptVolume(targetVolume); err != nil {
+			log.Error().Err(err).Msg("decryption failed")
+
+			if serverErr := w.updateFleetServer("", err); serverErr != nil {
+				log.Error().Err(serverErr).Msg("failed to send decryption failure to Fleet Server")
+				return
+			}
+		}
+
+		// return regardless of the operation output.
+		//
+		// the decryption process takes an unknown amount of time (depending on
+		// factors outside of our control) and the next tick will be a noop if the
+		// disk is not ready to be encrypted yet (due to the
+		// w.bitLockerActionInProgress check above)
+		return
+	}
+
+	recoveryKey, encryptionErr := w.performEncryption(targetVolume)
+	// before reporting the error to the server, check if the error we've got is valid.
+	// see the description of w.isMisreportedDecryptionError and issue #15916.
+	var pErr *bitlocker.EncryptionError
+	if errors.As(encryptionErr, &pErr) && w.isMisreportedDecryptionError(pErr, encryptionStatus) {
+		log.Error().Msg("disk encryption failed due to previous unsuccessful attempt, user action required")
+		return
+	}
+
+	if serverErr := w.updateFleetServer(recoveryKey, encryptionErr); serverErr != nil {
+		log.Error().Err(serverErr).Msg("failed to send encryption result to Fleet Server")
+		return
+	}
+
+	if encryptionErr != nil {
+		log.Error().Err(err).Msg("failed to encrypt the volume")
+		return
+	}
+
+	w.lastRun = time.Now()
+}
+
+// getEncryptionStatusForVolume retrieves the encryption status for a specific volume.
+func (w *windowsMDMBitlockerConfigFetcher) getEncryptionStatusForVolume(volume string) (*bitlocker.EncryptionStatus, error) {
+	fn := w.execGetEncryptionStatusFn
+	if fn == nil {
+		fn = bitlocker.GetEncryptionStatus
+	}
+	status, err := fn()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range status {
+		if s.DriveVolume == volume {
+			return s.Status, nil
+		}
+	}
+
+	return nil, nil
+}
+
+// bitLockerActionInProgress determines an encryption/decription action is in
+// progress based on the reported status.
+func (w *windowsMDMBitlockerConfigFetcher) bitLockerActionInProgress(status *bitlocker.EncryptionStatus) bool {
+	if status == nil {
+		return false
+	}
+
+	// Check if the status matches any of the specified conditions
+	return status.ConversionStatus == bitlocker.ConversionStatusDecryptionInProgress ||
+		status.ConversionStatus == bitlocker.ConversionStatusDecryptionPaused ||
+		status.ConversionStatus == bitlocker.ConversionStatusEncryptionInProgress ||
+		status.ConversionStatus == bitlocker.ConversionStatusEncryptionPaused
+}
+
+// performEncryption executes the encryption process.
+func (w *windowsMDMBitlockerConfigFetcher) performEncryption(volume string) (string, error) {
+	fn := w.execEncryptVolumeFn
+	if fn == nil {
+		fn = bitlocker.EncryptVolume
+	}
+
+	recoveryKey, err := fn(volume)
+	if err != nil {
+		return "", err
+	}
+
+	return recoveryKey, nil
+}
+
+func (w *windowsMDMBitlockerConfigFetcher) decryptVolume(targetVolume string) error {
+	fn := w.execDecryptVolumeFn
+	if fn == nil {
+		fn = bitlocker.DecryptVolume
+	}
+
+	return fn(targetVolume)
+}
+
+// isMisreportedDecryptionError checks whether the given error is a potentially
+// misreported decryption error.
+//
+// It addresses cases where a previous encryption attempt failed due to other
+// errors but subsequent attempts to encrypt the disk could erroneously return
+// a bitlocker.FVE_E_NOT_DECRYPTED error.
+//
+// This function checks if the disk is actually fully decrypted
+// (status.ConversionStatus == bitlocker.CONVERSION_STATUS_FULLY_DECRYPTED) and
+// whether the reported error is bitlocker.FVE_E_NOT_DECRYPTED. If these
+// conditions are met, the error is not accurately reflecting the disk's actual
+// encryption state.
+//
+// For more context, see issue #15916
+func (w *windowsMDMBitlockerConfigFetcher) isMisreportedDecryptionError(err *bitlocker.EncryptionError, status *bitlocker.EncryptionStatus) bool {
+	return err.Code() == bitlocker.ErrorCodeNotDecrypted &&
+		status != nil &&
+		status.ConversionStatus == bitlocker.ConversionStatusFullyDecrypted
+}
+
+func (w *windowsMDMBitlockerConfigFetcher) updateFleetServer(key string, err error) error {
+	// Getting Bitlocker encryption operation error message if any
+	// This is going to be sent to Fleet Server
+	bitlockerError := ""
+	if err != nil {
+		bitlockerError = err.Error()
+	}
+
+	// Update Fleet Server with encryption result
+	payload := fleet.OrbitHostDiskEncryptionKeyPayload{
+		EncryptionKey: []byte(key),
+		ClientError:   bitlockerError,
+	}
+
+	return w.EncryptionResult.SetOrUpdateDiskEncryptionKey(payload)
 }

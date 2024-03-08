@@ -4,10 +4,11 @@
   justify-content: center;
   flex-grow: 1;
   padding: $pad-medium 0;
+  gap: 2.5rem;
+  align-items: center;
 
   &__logo {
     width: 120px;
-    margin: 0 auto;
   }
 
   @media all and (-ms-high-contrast: none), (-ms-high-contrast: active) {

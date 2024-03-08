@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"sort"
 	"strings"
 	"time"
@@ -21,7 +22,7 @@ const policyCols = `
 	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
 `
 
-var policySearchColumns = []string{"name"}
+var policySearchColumns = []string{"p.name"}
 
 func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {
 	if args.QueryID != nil {
@@ -33,15 +34,20 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Query = q.Query
 		args.Description = q.Description
 	}
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
 	)
 	switch {
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
@@ -52,28 +58,20 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 	return policyDB(ctx, ds.writer(ctx), uint(lastIdInt64), nil)
 }
 
-func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
-	return policyDB(ctx, ds.reader(ctx), id, nil)
+func policiesChecksumComputedColumn() string {
+	// concatenate with separator \x00
+	return ` UNHEX(
+		MD5(
+			CONCAT_WS(CHAR(0),
+				COALESCE(team_id, ''),
+				name
+			)
+		)
+	) `
 }
 
-func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
-	var policy fleet.Policy
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy,
-		fmt.Sprint(`SELECT `+policyCols+`,
-		COALESCE(u.name, '<deleted>') AS author_name,
-		COALESCE(u.email, '') AS author_email,
-		(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-		(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.name=?`), name)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "getting policy")
-	}
-	return &policy, nil
+func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
+	return policyDB(ctx, ds.reader(ctx), id, nil)
 }
 
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
@@ -87,14 +85,18 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 	var policy fleet.Policy
 	err := sqlx.GetContext(ctx, q, &policy,
 		fmt.Sprintf(`
-		SELECT `+policyCols+`,
+		SELECT %s,
 		    COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-			(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+			ps.updated_at as host_count_updated_at,
+			COALESCE(ps.passing_host_count, 0) as passing_host_count,
+			COALESCE(ps.failing_host_count, 0) as failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id=? AND %s`, teamWhere),
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+		AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
+			OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
+		WHERE p.id=? AND %s`, policyCols, teamWhere),
 		args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
@@ -108,10 +110,12 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 // SavePolicy updates some fields of the given policy on the datastore.
 //
 // Currently SavePolicy does not allow updating the team of an existing policy.
-func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
+func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
@@ -126,6 +130,9 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy) error {
 		return ctxerr.Wrap(ctx, notFound("Policy").WithID(p.ID))
 	}
 
+	if shouldRemoveAllPolicyMemberships {
+		return ds.cleanupPolicyMembershipForPolicy(ctx, p.ID)
+	}
 	return cleanupPolicyMembershipOnPolicyUpdate(ctx, ds.writer(ctx), p.ID, p.Platform)
 }
 
@@ -289,112 +296,81 @@ func (ds *Datastore) RecordPolicyQueryExecutions(ctx context.Context, host *flee
 }
 
 func (ds *Datastore) ListGlobalPolicies(ctx context.Context, opts fleet.ListOptions) ([]*fleet.Policy, error) {
-	return listPoliciesDB(ctx, ds.reader(ctx), nil, nil, opts)
+	return listPoliciesDB(ctx, ds.reader(ctx), nil, opts)
 }
 
 // returns the list of policies associated with the provided teamID, or the
 // global policies if teamID is nil. The pass/fail host counts are the totals
 // regardless of hosts' team if countsForTeamID is nil, or the totals just for
 // hosts that belong to the provided countsForTeamID if it is not nil.
-func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID, countsForTeamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
 	var args []interface{}
 
-	var initialQuery string
-
-	// Sorting by failing host counts requires an expensive join with the
-	// policy membership table and may result in long response times
-	if opts.OrderKey == "failing_host_count" {
-		if countsForTeamID != nil {
-			initialQuery = `
-				SELECT p.id
-				FROM policies p
-				LEFT JOIN (
-					SELECT pm.policy_id,
-						COUNT(*) AS failing_host_count
-					FROM policy_membership pm
-					INNER JOIN hosts h ON pm.host_id = h.id AND pm.passes = false AND h.team_id = ?
-					GROUP BY pm.policy_id
-				) AS subq ON p.id = subq.policy_id
-			`
-			args = append(args, *countsForTeamID)
-		} else {
-			initialQuery = `
-				SELECT p.id
-				FROM policies p
-				LEFT JOIN (
-					SELECT pm.policy_id,
-						COUNT(*) AS failing_host_count
-					FROM policy_membership pm
-					WHERE pm.passes = false
-					GROUP BY pm.policy_id
-				) AS subq ON p.id = subq.policy_id
-			`
-		}
-	} else {
-		initialQuery = "SELECT id FROM policies"
-	}
-
-	if teamID != nil {
-		initialQuery += " WHERE team_id = ?"
-		args = append(args, *teamID)
-	} else {
-		initialQuery += " WHERE team_id IS NULL"
-	}
-
-	initialQuery, args = searchLike(initialQuery, args, opts.MatchQuery, policySearchColumns...)
-	initialQuery = appendListOptionsToSQL(initialQuery, &opts)
-
-	var ids []uint
-	err := sqlx.SelectContext(ctx, q, &ids, initialQuery, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "retrieving policy ids")
-	}
-
-	if len(ids) == 0 {
-		return []*fleet.Policy{}, nil
-	}
-
-	args = []interface{}{} // reset args
-
-	counts := `
-	(select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	(select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
-`
-	if countsForTeamID != nil {
-		counts = `
-		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=true and h.team_id = ?) as passing_host_count,
-		(select count(*) from policy_membership pm inner join hosts h on pm.host_id = h.id where pm.policy_id=p.id and pm.passes=false and h.team_id = ?) as failing_host_count
-`
-		args = append(args, *countsForTeamID, *countsForTeamID)
-	}
-
-	query := fmt.Sprintf(`
-		SELECT `+policyCols+`,
+	query := `
+		SELECT ` + policyCols + `,
 			COALESCE(u.name, '<deleted>') AS author_name,
 			COALESCE(u.email, '') AS author_email,
-			%s
+			ps.updated_at as host_count_updated_at,
+			COALESCE(ps.passing_host_count, 0) AS passing_host_count,
+			COALESCE(ps.failing_host_count, 0) AS failing_host_count
 		FROM policies p
 		LEFT JOIN users u ON p.author_id = u.id
-		WHERE p.id IN (?)`, counts)
+		LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = 0
+	`
 
-	args = append(args, ids)
-
-	query, args, err = sqlx.In(query, args...)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by ID")
+	if teamID != nil {
+		query += " WHERE team_id = ?"
+		args = append(args, *teamID)
+	} else {
+		query += " WHERE team_id IS NULL"
 	}
 
-	// removing pagination options to avoid double pagination
-	opts.Page = 0
-	opts.PerPage = 0
-
-	query = appendListOptionsToSQL(query, &opts)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(opts.MatchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
+	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
 
 	var policies []*fleet.Policy
-	err = sqlx.SelectContext(ctx, q, &policies, query, args...)
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "listing policies")
 	}
+
+	return policies, nil
+}
+
+// getInheritedPoliciesForTeam returns the list of global policies with the
+// passing and failing host counts for the provided teamID
+func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, TeamID uint, opts fleet.ListOptions) ([]*fleet.Policy, error) {
+	var args []interface{}
+
+	query := `
+        SELECT 
+            ` + policyCols + `,
+			COALESCE(u.name, '<deleted>') AS author_name,
+			COALESCE(u.email, '') AS author_email,
+			ps.updated_at as host_count_updated_at,
+            COALESCE(ps.passing_host_count, 0) as passing_host_count,
+            COALESCE(ps.failing_host_count, 0) as failing_host_count
+        FROM policies p
+        LEFT JOIN users u ON p.author_id = u.id
+        LEFT JOIN policy_stats ps ON p.id = ps.policy_id AND ps.inherited_team_id = ?
+        WHERE p.team_id IS NULL
+    `
+
+	args = append(args, TeamID)
+
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(opts.MatchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
+	query, _ = appendListOptionsToSQL(query, &opts)
+
+	var policies []*fleet.Policy
+	err := sqlx.SelectContext(ctx, q, &policies, query, args...)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing inherited policies")
+	}
+
 	return policies, nil
 }
 
@@ -408,13 +384,15 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 	)
 
 	if teamID == nil {
-		query = `SELECT count(*) FROM policies WHERE team_id IS NULL`
+		query = `SELECT count(*) FROM policies p WHERE team_id IS NULL`
 	} else {
-		query = `SELECT count(*) FROM policies WHERE team_id = ?`
+		query = `SELECT count(*) FROM policies p WHERE team_id = ?`
 		args = append(args, *teamID)
 	}
 
-	query, args = searchLike(query, args, matchQuery, policySearchColumns...)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(matchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
 	if err != nil {
@@ -428,10 +406,14 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	sql := `SELECT ` + policyCols + `,
 	  COALESCE(u.name, '<deleted>') AS author_name,
 	  COALESCE(u.email, '') AS author_email,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=true) as passing_host_count,
-	  (select count(*) from policy_membership where policy_id=p.id and passes=false) as failing_host_count
+	  ps.updated_at as host_count_updated_at,
+	  COALESCE(ps.passing_host_count, 0) as passing_host_count,
+	  COALESCE(ps.failing_host_count, 0) as failing_host_count
 	  FROM policies p
 	  LEFT JOIN users u ON p.author_id = u.id
+	  LEFT JOIN policy_stats ps ON p.id = ps.policy_id
+	  	AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
+				OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
 	  WHERE p.id IN (?)`
 	query, args, err := sqlx.In(sql, ids)
 	if err != nil {
@@ -539,14 +521,20 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Query = q.Query
 		args.Description = q.Description
 	}
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical)
+		fmt.Sprintf(
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			policiesChecksumComputedColumn(),
+		),
+		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
+	)
 	switch {
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
@@ -558,12 +546,12 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 }
 
 func (ds *Datastore) ListTeamPolicies(ctx context.Context, teamID uint, opts fleet.ListOptions, iopts fleet.ListOptions) (teamPolicies, inheritedPolicies []*fleet.Policy, err error) {
-	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, nil, opts)
+	teamPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), &teamID, opts)
 	if err != nil {
 		return nil, nil, err
 	}
 	// get inherited (global) policies with counts of hosts for that team
-	inheritedPolicies, err = listPoliciesDB(ctx, ds.reader(ctx), nil, &teamID, iopts)
+	inheritedPolicies, err = getInheritedPoliciesForTeam(ctx, ds.reader(ctx), teamID, iopts)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -587,7 +575,8 @@ func (ds *Datastore) TeamPolicy(ctx context.Context, teamID uint, policyID uint)
 // Currently ApplyPolicySpecs does not allow updating the team of an existing policy.
 func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs []*fleet.PolicySpec) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		query := `
+		query := fmt.Sprintf(
+			`
 		INSERT INTO policies (
 			name,
 			query,
@@ -596,25 +585,22 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			resolution,
 			team_id,
 			platforms,
-			critical
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?)
+			critical,
+			checksum
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
-			name = VALUES(name),
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
 			critical = VALUES(critical)
-		`
+		`, policiesChecksumComputedColumn(),
+		)
 		for _, spec := range specs {
 
-			// Validate that the team is not being changed
-			err := validatePolicyTeamChange(ctx, ds, spec)
-			if err != nil {
-				return err
-			}
-
+			// We must normalize the name for full Unicode support (Unicode equivalence).
+			spec.Name = norm.NFC.String(spec.Name)
 			res, err := tx.ExecContext(ctx,
 				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)
@@ -634,44 +620,6 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		}
 		return nil
 	})
-}
-
-// Changing the team of a policy is not allowed, so check if the policy exists
-// and return an error if the team is changing
-func validatePolicyTeamChange(ctx context.Context, ds *Datastore, spec *fleet.PolicySpec) error {
-	policy, err := ds.PolicyByName(ctx, spec.Name)
-	if err != nil {
-		if !fleet.IsNotFound(err) {
-			return ctxerr.Wrap(ctx, err, "Error fetching policy by name")
-		}
-		// If no rows found there is no policy to validate against
-		return nil
-	}
-
-	// If the policy exists
-	if policy != nil {
-		// Check if the policy is global
-		if policy.TeamID == nil {
-			if spec.Team != "" {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("cannot change the team of an existing global policy"),
-				})
-			}
-		} else {
-			// If it's not global, fetch the team name and compare
-			team, err := ds.Team(ctx, *policy.TeamID)
-			if err != nil {
-				return ctxerr.Wrap(ctx, err, "Error fetching team by ID")
-			}
-
-			if spec.Team != team.Name {
-				return ctxerr.Wrap(ctx, &fleet.BadRequestError{
-					Message: fmt.Sprintf("cannot change the team of an existing policy"),
-				})
-			}
-		}
-	}
-	return nil
 }
 
 func amountPoliciesDB(ctx context.Context, db sqlx.QueryerContext) (int, error) {
@@ -780,6 +728,41 @@ func cleanupPolicyMembershipOnPolicyUpdate(ctx context.Context, db sqlx.ExecerCo
 	}
 	_, err := db.ExecContext(ctx, delStmt, policyID, strings.Join(expandedPlatforms, ","))
 	return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+}
+
+// cleanupPolicyMembership is similar to cleanupPolicyMembershipOnPolicyUpdate but without the platform constraints.
+// Used when we want to remove all policy membership.
+func (ds *Datastore) cleanupPolicyMembershipForPolicy(ctx context.Context, policyID uint) error {
+	// delete all policy memberships for the policy
+	delStmt := `
+		DELETE
+			pm
+		FROM
+			policy_membership pm
+		LEFT JOIN
+			hosts h
+		ON
+			pm.host_id = h.id
+		WHERE
+			pm.policy_id = ?
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, delStmt, policyID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup policy membership")
+	}
+
+	// delete all policy stats for the policy
+	// wrapping in a retry to avoid deadlocks with the cleanups_then_aggregation cron job
+	err = ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, `DELETE FROM policy_stats WHERE policy_id = ?`, policyID)
+		return err
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleanup policy stats")
+	}
+
+	return nil
 }
 
 // CleanupPolicyMembership deletes the host's membership from policies that
@@ -1110,4 +1093,63 @@ func amountPolicyViolationDaysDB(ctx context.Context, tx sqlx.QueryerContext) (i
 	}
 
 	return int(counts.FailingHostCount), int(counts.TotalHostCount), nil
+}
+
+func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
+	// NOTE these queries are duplicated in the below migration.  Updates
+	// to these queries should be reflected there as well.
+	// https://github.com/fleetdm/fleet/blob/main/server/datastore/mysql/migrations/tables/20231215122713_InsertPolicyStatsData.go#L12
+
+	// Update Counts for Inherited Global Policies for each Team
+	_, err := ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+		SELECT
+			p.id,
+			t.id AS inherited_team_id,
+			(
+				SELECT COUNT(*) 
+				FROM policy_membership pm 
+				INNER JOIN hosts h ON pm.host_id = h.id 
+				WHERE pm.policy_id = p.id AND pm.passes = true AND h.team_id = t.id
+			) AS passing_host_count,
+			(
+				SELECT COUNT(*) 
+				FROM policy_membership pm 
+				INNER JOIN hosts h ON pm.host_id = h.id 
+				WHERE pm.policy_id = p.id AND pm.passes = false AND h.team_id = t.id
+			) AS failing_host_count
+		FROM policies p
+		CROSS JOIN teams t
+		WHERE p.team_id IS NULL
+		GROUP BY p.id, t.id
+		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
+			passing_host_count = VALUES(passing_host_count),
+			failing_host_count = VALUES(failing_host_count);
+    `)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host policy counts for inherited global policies")
+	}
+
+	// Update Counts for Global and Team Policies
+	_, err = ds.writer(ctx).ExecContext(ctx, `
+		INSERT INTO policy_stats (policy_id, inherited_team_id, passing_host_count, failing_host_count)
+		SELECT
+			p.id,
+			0 AS inherited_team_id, -- using 0 to represent global scope
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 1)), 0), 
+			COALESCE(SUM(IF(pm.passes IS NULL, 0, pm.passes = 0)), 0)
+		FROM policies p
+		LEFT JOIN policy_membership pm ON p.id = pm.policy_id
+		GROUP BY p.id
+		ON DUPLICATE KEY UPDATE 
+			updated_at = NOW(),
+			passing_host_count = VALUES(passing_host_count),
+			failing_host_count = VALUES(failing_host_count);
+    `)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "update host policy counts for global and team policies")
+	}
+
+	return nil
 }

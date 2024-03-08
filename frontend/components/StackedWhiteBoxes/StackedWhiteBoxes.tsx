@@ -47,7 +47,7 @@ const StackedWhiteBoxes = ({
     return (
       <div className={`${baseClass}__back`}>
         <Link to={previousLocation} className={`${baseClass}__back-link`}>
-          <Icon name="ex" color="core-fleet-black" />
+          <Icon name="close" color="core-fleet-black" />
         </Link>
       </div>
     );

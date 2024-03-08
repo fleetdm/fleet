@@ -69,7 +69,7 @@ func (n *NudgeConfigFetcher) GetConfig() (*fleet.OrbitConfig, error) {
 	log.Debug().Msg("running nudge config fetcher middleware")
 	cfg, err := n.Fetcher.GetConfig()
 	if err != nil {
-		log.Info().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
+		log.Debug().Err(err).Msg("calling GetConfig from NudgeConfigFetcher")
 		return nil, err
 	}
 
@@ -121,7 +121,7 @@ func (n *NudgeConfigFetcher) setTargetsAndHashes() error {
 	// we don't want to keep nudge as a target if we failed to update the
 	// cached hashes in the runner.
 	if err := n.opt.UpdateRunner.StoreLocalHash("nudge"); err != nil {
-		log.Debug().Msgf("removing nudge from target options, error updating local hashes: %e", err)
+		log.Debug().Msgf("removing nudge from target options, error updating local hashes: %s", err)
 		n.opt.UpdateRunner.RemoveRunnerOptTarget("nudge")
 		n.opt.UpdateRunner.updater.RemoveTargetInfo("nudge")
 		return err

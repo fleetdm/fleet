@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -81,7 +80,7 @@ func (l *kafkaRESTProducer) Write(ctx context.Context, logs []json.RawMessage) e
 
 func checkResponse(resp *http.Response) (err error) {
 	if resp.StatusCode != http.StatusOK {
-		body, _ := ioutil.ReadAll(resp.Body)
+		body, _ := io.ReadAll(resp.Body)
 		return fmt.Errorf("Error: %d. %s", resp.StatusCode, string(body))
 	}
 

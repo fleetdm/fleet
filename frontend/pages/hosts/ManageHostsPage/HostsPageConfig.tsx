@@ -1,6 +1,7 @@
 import React from "react";
 
 import Icon from "components/Icon";
+import { HOSTS_QUERY_PARAMS } from "services/entities/hosts";
 
 export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "query",
@@ -12,13 +13,29 @@ export const MANAGE_HOSTS_PAGE_FILTER_KEYS = [
   "status",
   "mdm_id",
   "mdm_enrollment_status",
-  "os_id",
   "os_name",
   "os_version",
   "munki_issue_id",
   "low_disk_space",
-  "macos_settings_disk_encryption",
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
   "bootstrap_package",
+] as const;
+
+/*
+ * These are the URL query params that are incompatible with non-status labels on the manage hosts page.
+ * They should be stripped from the URL when a non-status label is selected.
+ */
+export const MANAGE_HOSTS_PAGE_LABEL_INCOMPATIBLE_QUERY_PARAMS = [
+  "policy_id",
+  "policy_response",
+  "software_id",
+  "software_version_id",
+  "software_title_id",
+  "bootstrap_package",
+  "macos_settings",
+  HOSTS_QUERY_PARAMS.OS_SETTINGS,
+  HOSTS_QUERY_PARAMS.DISK_ENCRYPTION,
 ] as const;
 
 // TODO: refactor to use this type as the location.query prop of the page
@@ -80,7 +97,7 @@ export const getHostSelectStatuses = (isSandboxMode = false) => {
   ];
 };
 
-export const MAC_SETTINGS_FILTER_OPTIONS = [
+export const OS_SETTINGS_FILTER_OPTIONS = [
   {
     disabled: false,
     label: "Verified",

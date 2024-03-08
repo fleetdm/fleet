@@ -4,7 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"fmt"
+	"strings"
 
+	"github.com/fleetdm/fleet/v4/pkg/scripts"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/jmoiron/sqlx"
@@ -19,22 +22,54 @@ func (ds *Datastore) NewActivity(ctx context.Context, user *fleet.User, activity
 
 	var userID *uint
 	var userName *string
+	var userEmail *string
 	if user != nil {
 		userID = &user.ID
 		userName = &user.Name
+		userEmail = &user.Email
 	}
 
-	_, err = ds.writer(ctx).ExecContext(ctx,
-		`INSERT INTO activities (user_id, user_name, activity_type, details) VALUES(?,?,?,?)`,
+	cols := []string{"user_id", "user_name", "activity_type", "details"}
+	args := []any{
 		userID,
 		userName,
 		activity.ActivityName(),
 		detailsBytes,
-	)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "new activity")
 	}
-	return nil
+	if userEmail != nil {
+		args = append(args, userEmail)
+		cols = append(cols, "user_email")
+	}
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		const insertActStmt = `INSERT INTO activities (%s) VALUES (%s)`
+		sql := fmt.Sprintf(insertActStmt, strings.Join(cols, ","), strings.Repeat("?,", len(cols)-1)+"?")
+		res, err := tx.ExecContext(ctx, sql, args...)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "new activity")
+		}
+
+		// this supposes a reasonable amount of hosts per activity, to revisit if we
+		// get in the 10K+.
+		if ah, ok := activity.(fleet.ActivityHosts); ok {
+			const insertActHostStmt = `INSERT INTO host_activities (host_id, activity_id) VALUES `
+
+			var sb strings.Builder
+			if hostIDs := ah.HostIDs(); len(hostIDs) > 0 {
+				sb.WriteString(insertActHostStmt)
+				actID, _ := res.LastInsertId()
+				for _, hid := range hostIDs {
+					sb.WriteString(fmt.Sprintf("(%d, %d),", hid, actID))
+				}
+
+				stmt := strings.TrimSuffix(sb.String(), ",")
+				if _, err := tx.ExecContext(ctx, stmt); err != nil {
+					return ctxerr.Wrap(ctx, err, "insert host activity")
+				}
+			}
+		}
+		return nil
+	})
 }
 
 // ListActivities returns a slice of activities performed across the organization
@@ -50,7 +85,8 @@ func (ds *Datastore) ListActivities(ctx context.Context, opt fleet.ListActivitie
 			a.activity_type,
 			a.details,
 			a.user_name as name,
-			a.streamed
+			a.streamed,
+			a.user_email
 		FROM activities a
 		WHERE true`
 
@@ -147,4 +183,108 @@ func (ds *Datastore) MarkActivitiesAsStreamed(ctx context.Context, activityIDs [
 		return ctxerr.Wrap(ctx, err, "exec mark activities as streamed")
 	}
 	return nil
+}
+
+func (ds *Datastore) ListHostUpcomingActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	const countStmt = `SELECT COUNT(*) FROM host_script_results WHERE host_id = ? AND exit_code IS NULL`
+	var count uint
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &count, countStmt, hostID); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "count upcoming activities")
+	}
+	if count == 0 {
+		return []*fleet.Activity{}, &fleet.PaginationMetadata{}, nil
+	}
+
+	// NOTE: Be sure to update both the count and list statements if the list query is modified
+	const listStmt = `
+		SELECT
+			hsr.execution_id as uuid,
+			u.name as name,
+			u.id as user_id,
+			u.gravatar_url as gravatar_url,
+			u.email as user_email,
+			? as activity_type,
+			hsr.created_at as created_at,
+			JSON_OBJECT(
+				'host_id', hsr.host_id,
+				'host_display_name', COALESCE(hdn.display_name, ''),
+				'script_name', COALESCE(scr.name, ''),
+				'script_execution_id', hsr.execution_id,
+				'async', NOT hsr.sync_request
+			) as details
+		FROM
+			host_script_results hsr
+		LEFT OUTER JOIN
+			users u ON u.id = hsr.user_id
+		LEFT OUTER JOIN
+			host_display_names hdn ON hdn.host_id = hsr.host_id
+		LEFT OUTER JOIN
+			scripts scr ON scr.id = hsr.script_id
+		WHERE
+			hsr.host_id = ? AND
+			hsr.exit_code IS NULL
+                        AND (
+                            hsr.sync_request = 0
+                            OR hsr.created_at >= DATE_SUB(NOW(), INTERVAL ? SECOND)
+                        )
+`
+
+	seconds := int(scripts.MaxServerWaitTime.Seconds())
+	args := []any{fleet.ActivityTypeRanScript{}.ActivityName(), hostID, seconds}
+	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+
+	var activities []*fleet.Activity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0, TotalResults: count}
+	if len(activities) > int(opt.PerPage) {
+		metaData.HasNextResults = true
+		activities = activities[:len(activities)-1]
+	}
+
+	return activities, metaData, nil
+}
+
+func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, opt fleet.ListOptions) ([]*fleet.Activity, *fleet.PaginationMetadata, error) {
+	const listStmt = `
+	SELECT
+		ha.activity_id as id,
+		a.user_email as user_email,
+		a.user_name as name,
+		a.activity_type as activity_type,
+		a.details as details,	
+		u.gravatar_url as gravatar_url,
+		a.created_at as created_at,
+		u.id as user_id
+	FROM
+		host_activities ha
+		JOIN activities a
+			ON ha.activity_id = a.id
+		LEFT OUTER JOIN
+			users u ON u.id = a.user_id
+	WHERE
+		ha.host_id = ?
+	`
+
+	args := []any{hostID}
+	stmt, args := appendListOptionsWithCursorToSQL(listStmt, args, &opt)
+
+	var activities []*fleet.Activity
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &activities, stmt, args...); err != nil {
+		return nil, nil, ctxerr.Wrap(ctx, err, "select upcoming activities")
+	}
+
+	var metaData *fleet.PaginationMetadata
+	if opt.IncludeMetadata {
+		metaData = &fleet.PaginationMetadata{HasPreviousResults: opt.Page > 0}
+		if len(activities) > int(opt.PerPage) {
+			metaData.HasNextResults = true
+			activities = activities[:len(activities)-1]
+		}
+	}
+
+	return activities, metaData, nil
 }

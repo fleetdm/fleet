@@ -3,7 +3,6 @@ package nvd
 import (
 	"compress/gzip"
 	"context"
-	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -17,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -29,7 +29,7 @@ func TestCPEFromSoftware(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -38,14 +38,18 @@ func TestCPEFromSoftware(t *testing.T) {
 	reCache := newRegexpCache()
 
 	// checking a version that exists works
-	cpe, err := CPEFromSoftware(db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor Product-1.app", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor:product-1:1.2.3:*:*:*:*:macos:*:*", cpe)
 
 	// follows many deprecations
-	cpe, err = CPEFromSoftware(db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
+	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Vendor2 Product2.app", Version: "0.3", BundleIdentifier: "vendor2", Source: "apps"}, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*", cpe)
+
+	// Does not error on Unicode Names
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Девушка Фонарём", Version: "1.2.3", BundleIdentifier: "vendor", Source: "apps"}, nil, reCache)
+	require.NoError(t, err)
 }
 
 func TestCPETranslations(t *testing.T) {
@@ -56,7 +60,7 @@ func TestCPETranslations(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -137,7 +141,7 @@ func TestCPETranslations(t *testing.T) {
 
 	for _, tc := range tt {
 		t.Run(tc.Name, func(t *testing.T) {
-			cpe, err := CPEFromSoftware(db, tc.Software, tc.Translations, reCache)
+			cpe, err := CPEFromSoftware(log.NewNopLogger(), db, tc.Software, tc.Translations, reCache)
 			require.NoError(t, err)
 			require.Equal(t, tc.Expected, cpe)
 		})
@@ -166,22 +170,22 @@ func TestSyncCPEDatabase(t *testing.T) {
 		BundleIdentifier: "com.1password.1password",
 		Source:           "apps",
 	}
-	cpe, err := CPEFromSoftware(db, software, nil, reCache)
+	cpe, err := CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
-	npmCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
+	npmCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "Adaltas Mixme 0.4.0 for Node.js", Version: "0.4.0", Source: "npm_packages"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:adaltas:mixme:0.4.0:*:*:*:*:node.js:*:*", npmCPE)
 
-	windowsCPE, err := CPEFromSoftware(db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
+	windowsCPE, err := CPEFromSoftware(log.NewNopLogger(), db, &fleet.Software{Name: "HP Storage Data Protector 8.0 for Windows 8", Version: "8.0", Source: "programs"}, nil, reCache)
 	require.NoError(t, err)
 	assert.Equal(t, "cpe:2.3:a:hp:storage_data_protector:8.0:*:*:*:*:windows:*:*", windowsCPE)
 
 	// but now we truncate to make sure searching for cpe fails
 	err = os.Truncate(dbPath, 0)
 	require.NoError(t, err)
-	_, err = CPEFromSoftware(db, software, nil, reCache)
+	_, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.Error(t, err)
 
 	// and we make the db older than the release
@@ -203,7 +207,7 @@ func TestSyncCPEDatabase(t *testing.T) {
 	require.NoError(t, err)
 	defer db.Close()
 
-	cpe, err = CPEFromSoftware(db, software, nil, reCache)
+	cpe, err = CPEFromSoftware(log.NewNopLogger(), db, software, nil, reCache)
 	require.NoError(t, err)
 	require.Equal(t, "cpe:2.3:a:1password:1password:7.2.3:*:*:*:*:macos:*:*", cpe)
 
@@ -297,8 +301,6 @@ func TestConsumeCPEBuffer(t *testing.T) {
 }
 
 func TestTranslateSoftwareToCPE(t *testing.T) {
-	nettest.Run(t)
-
 	tempDir := t.TempDir()
 
 	ds := new(mock.Store)
@@ -350,7 +352,7 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
@@ -359,6 +361,52 @@ func TestTranslateSoftwareToCPE(t *testing.T) {
 		"cpe:2.3:a:vendor2:product4:0.3:*:*:*:*:macos:*:*",
 	}, cpes)
 	assert.True(t, iterator.closed)
+}
+
+// TestTranslateSoftwareToCPEIgnoreEmptyVersion tests that TranslateSoftwareToCPE ignores
+// software that was ingested with an empty version field. The test will simulate a previous
+// version of Fleet storing an incorrect CPE for the software, to test that an upgrade
+// will clear out the invalid CPE from the DB.
+func TestTranslateSoftwareToCPEIgnoreEmptyVersion(t *testing.T) {
+	tempDir := t.TempDir()
+
+	ds := new(mock.Store)
+
+	// The incorrect CPE for the software should now be deleted because the ingested software doesn't
+	// have a version field.
+	ds.DeleteSoftwareCPEsFunc = func(ctx context.Context, cpes []fleet.SoftwareCPE) (int64, error) {
+		require.Len(t, cpes, 1)
+		require.Equal(t, cpes[0].SoftwareID, uint(1))
+		return 1, nil
+	}
+
+	ds.AllSoftwareIteratorFunc = func(ctx context.Context, q fleet.SoftwareIterQueryOptions) (fleet.SoftwareIterator, error) {
+		return &fakeSoftwareIterator{
+			softwares: []*fleet.Software{
+				{
+					ID:               1,
+					Name:             "foobar",
+					Version:          "",
+					BundleIdentifier: "vendor2",
+					Source:           "apps",
+					// Set an incorrect CPE on the DB to simulate a CPE being generated incorrectly
+					// for this software on a previous version of Fleet.
+					GenerateCPE: "cpe:2.3:a:vendor2:foobar:*:*:*:*:*:macos:*:*",
+				},
+			},
+		}, nil
+	}
+
+	items, err := cpedict.Decode(strings.NewReader(XmlCPETestDict))
+	require.NoError(t, err)
+
+	dbPath := filepath.Join(tempDir, "cpe.sqlite")
+	err = GenerateCPEDB(dbPath, items.Items)
+	require.NoError(t, err)
+
+	err = TranslateSoftwareToCPE(context.Background(), ds, tempDir, kitlog.NewNopLogger())
+	require.NoError(t, err)
+	require.True(t, ds.DeleteSoftwareCPEsFuncInvoked)
 }
 
 func TestSyncsCPEFromURL(t *testing.T) {
@@ -377,7 +425,7 @@ func TestSyncsCPEFromURL(t *testing.T) {
 	require.NoError(t, err)
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
-	stored, err := ioutil.ReadFile(dbPath)
+	stored, err := os.ReadFile(dbPath)
 	require.NoError(t, err)
 	assert.Equal(t, "Hello world!", string(stored))
 }
@@ -400,7 +448,7 @@ func TestLegacyCPEDB(t *testing.T) {
 
 	dbPath := filepath.Join(tempDir, "cpe.sqlite")
 
-	err = GenerateCPEDB(dbPath, items)
+	err = GenerateCPEDB(dbPath, items.Items)
 	require.NoError(t, err)
 
 	db, err := sqliteDB(dbPath)
@@ -604,11 +652,11 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "5.11.6 (9890)",
 				Vendor:           "",
 				BundleIdentifier: "us.zoom.xos",
-			}, cpe: "cpe:2.3:a:zoom:meetings:5.11.6.9890:*:*:*:*:macos:*:*",
+			}, cpe: "cpe:2.3:a:zoom:zoom:5.11.6.9890:*:*:*:*:macos:*:*",
 		},
 		{
 			software: fleet.Software{
-				Name:             "1Password – Password Manager",
+				Name:             "1Password - Password Manager",
 				Source:           "chrome_extensions",
 				Version:          "2.3.8",
 				Vendor:           "",
@@ -626,7 +674,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.1",
 				Vendor:           "",
@@ -635,7 +683,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 		},
 		{
 			software: fleet.Software{
-				Name:             "AdBlock — best ad blocker",
+				Name:             "AdBlock - best ad blocker",
 				Source:           "chrome_extensions",
 				Version:          "5.1.2",
 				Vendor:           "",
@@ -1081,7 +1129,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "3.12.4",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:golang:protobuf:3.12.4:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:google:protobuf:3.12.4:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1108,7 +1156,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.3.0+ubuntu2.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:debian:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:ubuntu:python-apt:2.3.0.ubuntu2.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1144,7 +1192,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "2.25.1",
 				Vendor:           "",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:jenkins:requests:2.25.1:*:*:*:*:python:*:*",
+			}, cpe: "cpe:2.3:a:python:requests:2.25.1:*:*:*:*:python:*:*",
 		},
 		{
 			software: fleet.Software{
@@ -1246,6 +1294,79 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version: "6.0.1",
 			}, cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "IntelliJ IDEA CE.app",
+				Source:           "apps",
+				Version:          "2022.3.3",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.intellij.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:intellij_idea:2022.3.3:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "User PyCharm Custom Name.app", // 2023/10/31: The actual product name must be part of the app name per our code in CPEFromSoftware
+				Source:           "apps",
+				Version:          "2019.2",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2019.2:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "PyCharm Community Edition.app",
+				Source:           "apps",
+				Version:          "2022.1",
+				Vendor:           "",
+				BundleIdentifier: "com.jetbrains.pycharm.ce",
+			},
+			cpe: "cpe:2.3:a:jetbrains:pycharm:2022.1:*:*:*:*:macos:*:*",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Google Chrome Helper.app",
+				Source:           "apps",
+				Version:          "111.0.5563.64",
+				Vendor:           "",
+				BundleIdentifier: "com.google.Chrome.helper",
+			},
+			// DO NOT MATCH with Google Chrome
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "Acrobat Uninstaller.app",
+				Source:           "apps",
+				Version:          "6.0",
+				Vendor:           "",
+				BundleIdentifier: "com.adobe.Acrobat.Uninstaller",
+			},
+			// DO NOT MATCH with Adobe Acrobat
+			cpe: "",
+		},
+		{
+			software: fleet.Software{
+				Name:             "UmbrellaMenu.app",
+				Source:           "apps",
+				Version:          "1.0",
+				Vendor:           "",
+				BundleIdentifier: "com.cisco.umbrella.menu.UmbrellaMenu",
+			},
+			// DO NOT MATCH with Cisco Umbrella
+			cpe: "",
+		},
 	}
 
 	tempDir := t.TempDir()
@@ -1268,8 +1389,26 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 
 	for _, tt := range testCases {
 		tt := tt
-		cpe, err := CPEFromSoftware(db, &tt.software, cpeTranslations, reCache)
+		cpe, err := CPEFromSoftware(log.NewNopLogger(), db, &tt.software, cpeTranslations, reCache)
 		require.NoError(t, err)
 		assert.Equal(t, tt.cpe, cpe, tt.software.Name)
+	}
+}
+
+func TestContainsNonASCII(t *testing.T) {
+	testCases := []struct {
+		input    string
+		expected bool
+	}{
+		{"hello", false},
+		{"hello world", false},
+		{"hello world!", false},
+		{"😊👍", true},
+		{"hello world! 😊👍", true},
+		{"Девушка Фонарём", true},
+	}
+
+	for _, tc := range testCases {
+		assert.Equal(t, tc.expected, containsNonASCII(tc.input))
 	}
 }

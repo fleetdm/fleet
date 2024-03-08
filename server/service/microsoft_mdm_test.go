@@ -4,12 +4,13 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"strings"
 	"testing"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/stretchr/testify/require"
 )
 
@@ -33,7 +34,7 @@ func NewSoapRequest(request []byte) (fleet.SoapRequest, error) {
 
 func TestValidSoapResponse(t *testing.T) {
 	relatesTo := "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749"
-	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New("test"))
 	sres, err := NewSoapResponse(&soapFaultMsg, relatesTo)
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
@@ -50,7 +51,7 @@ func TestInvalidSoapResponse(t *testing.T) {
 
 func TestFaultMessageSoapResponse(t *testing.T) {
 	targetErrorString := "invalid input request"
-	soapFaultMsg := NewSoapFault(mdm.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
+	soapFaultMsg := NewSoapFault(syncml.SoapErrorAuthentication, mdm_types.MDEDiscovery, errors.New(targetErrorString))
 	sres, err := NewSoapResponse(&soapFaultMsg, "urn:uuid:0d5a1441-5891-453b-becf-a2e5f6ea3749")
 	require.NoError(t, err)
 	outXML, err := xml.MarshalIndent(sres, "", "  ")
@@ -219,4 +220,205 @@ func TestProvisioningDocGeneration(t *testing.T) {
 	require.Contains(t, string(outXML), deviceIdentityFingerprint)
 	require.Contains(t, string(outXML), serverIdentityFingerprint)
 	require.Contains(t, string(outXML), microsoft_mdm.MDE2EnrollPath)
+}
+
+func TestValidSyncMLCmdStatus(t *testing.T) {
+	testMsgRef := "testmsgref"
+	testCmdRef := "testcmdref"
+	testCmdOrig := "testcmdorig"
+	testStatusCode := "teststatuscode"
+	cmdMsg := NewSyncMLCmdStatus(testMsgRef, testCmdRef, testCmdOrig, testStatusCode)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdStatus, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<MsgRef>%s</MsgRef>", testMsgRef))
+	require.Contains(t, payload, fmt.Sprintf("<CmdRef>%s</CmdRef>", testCmdRef))
+	require.Contains(t, payload, fmt.Sprintf("<Cmd>%s</Cmd>", testCmdOrig))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testStatusCode))
+}
+
+func TestValidNewSyncMLCmdGet(t *testing.T) {
+	testOmaURI := "testuri"
+	cmdMsg := newSyncMLNoFormat(fleet.CmdGet, testOmaURI)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdGet, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+}
+
+func TestValidNewSyncMLCmdBool(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdBool(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">bool</Format>")
+}
+
+func TestValidNewSyncMLCmdInt(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdInt(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">int</Format>")
+}
+
+func TestValidSyncMLCmdText(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdText(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">chr</Format>")
+}
+
+func TestValidSyncMLCmdXml(t *testing.T) {
+	testOmaURI := "testuri"
+	testData := "testdata"
+	cmdMsg := newSyncMLCmdXml(mdm_types.CmdReplace, testOmaURI, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testOmaURI))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+	require.Contains(t, payload, "<Type xmlns=\"syncml:metinf\">text/plain</Type>")
+	require.Contains(t, payload, "<Format xmlns=\"syncml:metinf\">xml</Format>")
+}
+
+func TestValidSyncMLCmdAlert(t *testing.T) {
+	testData := "1234"
+	cmdMsg := newSyncMLNoItem(fleet.CmdAlert, testData)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdAlert, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testData))
+}
+
+func TestValidSyncMLCmd(t *testing.T) {
+	testCmdSource := "testcmdsource"
+	testCmdTarget := "testcmdtarget"
+	testCmdDataType := "testcmddatatype"
+	testCmdDataFormat := "testchr"
+	testCmdDataValue := "testdata"
+	cmdMsg := NewSyncMLCmd(mdm_types.CmdReplace, testCmdSource, testCmdTarget, testCmdDataType, testCmdDataFormat, testCmdDataValue)
+	outXML, err := xml.MarshalIndent(cmdMsg, "", "  ")
+	require.NoError(t, err)
+	require.NotEmpty(t, outXML)
+	payload := string(outXML)
+	err = checkWrappedSyncMLCmd(fleet.CmdReplace, payload)
+	require.NoError(t, err)
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdSource))
+	require.Contains(t, payload, fmt.Sprintf("<LocURI>%s</LocURI>", testCmdTarget))
+	require.Contains(t, payload, fmt.Sprintf("<Data>%s</Data>", testCmdDataValue))
+	require.Contains(t, payload, fmt.Sprintf("<Type xmlns=\"syncml:metinf\">%s</Type>", testCmdDataType))
+	require.Contains(t, payload, fmt.Sprintf("<Format xmlns=\"syncml:metinf\">%s</Format>", testCmdDataFormat))
+}
+
+// checkWrappedSyncMLCmd checks that the payload is wrapped in the given tag.
+func checkWrappedSyncMLCmd(tag string, data string) error {
+	trimmedData := strings.TrimSpace(data)
+	openTag := fmt.Sprintf("<%s>", tag)
+	closeTag := fmt.Sprintf("</%s>", tag)
+	if !strings.HasPrefix(trimmedData, openTag) || !strings.HasSuffix(trimmedData, closeTag) {
+		return fmt.Errorf("payload is not wrapped in %s%s", openTag, closeTag)
+	}
+	return nil
+}
+
+func TestBuildCommandFromProfileBytes(t *testing.T) {
+	cmd, err := buildCommandFromProfileBytes([]byte("<Replace></Add>"), "")
+	require.Nil(t, cmd)
+	require.ErrorContains(t, err, "unmarshalling profile")
+
+	rawSyncML := syncMLForTest("foo/bar")
+
+	// build and generate a command
+	cmd, err = buildCommandFromProfileBytes(rawSyncML, "uuid-1")
+	require.Nil(t, err)
+	require.Equal(t, "uuid-1", cmd.CommandUUID)
+	require.Empty(t, cmd.TargetLocURI)
+
+	syncOne := new(mdm_types.SyncMLCmd)
+	err = xml.Unmarshal(cmd.RawCommand, syncOne)
+	require.NoError(t, err)
+	require.Len(t, syncOne.ReplaceCommands, 1)
+	require.NotEmpty(t, syncOne.ReplaceCommands[0].CmdID.Value)
+	// generated xml contains additional comments about CmdID
+	require.Equal(
+		t,
+		fmt.Sprintf(`<Atomic><!-- CmdID generated by Fleet --><CmdID>uuid-1</CmdID><Replace><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Replace></Atomic>`, syncOne.ReplaceCommands[0].CmdID.Value),
+		string(cmd.RawCommand),
+	)
+
+	// build and generate a second command with the same syncml
+	cmd, err = buildCommandFromProfileBytes(rawSyncML, "uuid-2")
+	require.Nil(t, err)
+	require.Equal(t, "uuid-2", cmd.CommandUUID)
+	require.Empty(t, cmd.TargetLocURI)
+	syncTwo := new(mdm_types.SyncMLCmd)
+	err = xml.Unmarshal(cmd.RawCommand, syncTwo)
+	require.NoError(t, err)
+	require.Len(t, syncTwo.ReplaceCommands, 1)
+	require.NotEmpty(t, syncTwo.ReplaceCommands[0].CmdID.Value)
+	// generated xml contains additional comments about CmdID
+	require.Equal(
+		t,
+		fmt.Sprintf(`<Atomic><!-- CmdID generated by Fleet --><CmdID>uuid-2</CmdID><Replace><!-- CmdID generated by Fleet --><CmdID>%s</CmdID><Item><Target><LocURI>foo/bar</LocURI></Target></Item></Replace></Atomic>`, syncTwo.ReplaceCommands[0].CmdID.Value),
+		string(cmd.RawCommand),
+	)
+
+	// uuids of replaces are different
+	require.NotEqual(t, syncOne.ReplaceCommands[0].CmdID.Value, syncTwo.ReplaceCommands[0].CmdID.Value)
+}
+
+func syncMLForTest(locURI string) []byte {
+	return []byte(fmt.Sprintf(`
+<Add>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+  </Item>
+</Add>
+<Replace>
+  <Item>
+    <Target>
+      <LocURI>%s</LocURI>
+    </Target>
+  </Item>
+</Replace>`, locURI, locURI))
 }

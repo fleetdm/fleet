@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -165,7 +164,7 @@ func convertCommand() *cli.Command {
 				return errors.New("-f must be specified")
 			}
 
-			b, err := ioutil.ReadFile(flFilename)
+			b, err := os.ReadFile(flFilename)
 			if err != nil {
 				return err
 			}

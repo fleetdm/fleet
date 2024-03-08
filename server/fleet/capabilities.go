@@ -53,6 +53,15 @@ func (c CapabilityMap) Has(capability Capability) bool {
 	return ok
 }
 
+// Copy copies the capabilities from another map to this map.
+func (c CapabilityMap) Copy(from CapabilityMap) {
+	mu.Lock()
+	defer mu.Unlock()
+	for capability := range from {
+		c[capability] = struct{}{}
+	}
+}
+
 // The following are the capabilities that Fleet supports. These can be used by
 // the Fleet server, Orbit or Fleet Desktop to communicate that a given feature
 // is supported.
@@ -66,12 +75,16 @@ const (
 	// periodic rotation of device tokens
 	CapabilityTokenRotation  Capability = "token_rotation"
 	CapabilityErrorReporting Capability = "error_reporting"
+	// CapabilityEndUserEmail denotes the ability of the server to support
+	// receiving the end-user email from orbit.
+	CapabilityEndUserEmail Capability = "end_user_email"
 )
 
 func GetServerOrbitCapabilities() CapabilityMap {
 	return CapabilityMap{
 		CapabilityOrbitEndpoints: {},
 		CapabilityTokenRotation:  {},
+		CapabilityEndUserEmail:   {},
 	}
 }
 

@@ -11,8 +11,8 @@ import (
 func TestFleetdProfileTemplate(t *testing.T) {
 	cases := []FleetdProfileOptions{
 		{},
-		{PayloadType: "", EnrollSecret: "", ServerURL: ""},
-		{PayloadType: "test.example", EnrollSecret: "abc", ServerURL: "https://test.example"},
+		{PayloadType: "", EnrollSecret: "", ServerURL: "", PayloadName: ""},
+		{PayloadType: "test.example", EnrollSecret: "abc", ServerURL: "https://test.example", PayloadName: "test.example"},
 	}
 
 	for _, c := range cases {
@@ -32,6 +32,7 @@ func TestFleetdProfileTemplate(t *testing.T) {
 		require.Equal(t, c.EnrollSecret, pc["EnrollSecret"])
 		require.Equal(t, c.ServerURL, pc["FleetURL"])
 		require.Equal(t, c.PayloadType, pc["PayloadType"])
+		require.Equal(t, c.PayloadName, pc["PayloadDisplayName"])
 		// script execution is always enabled
 		enableScripts, ok := pc["EnableScripts"].(bool)
 		require.True(t, ok)

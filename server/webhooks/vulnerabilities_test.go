@@ -3,7 +3,7 @@ package webhooks
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -170,7 +170,7 @@ func TestTriggerVulnerabilitiesWebhook(t *testing.T) {
 				var requests []string
 
 				srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					b, err := ioutil.ReadAll(r.Body)
+					b, err := io.ReadAll(r.Body)
 					assert.NoError(t, err)
 					requests = append(requests, string(b))
 					_, err = w.Write(nil)

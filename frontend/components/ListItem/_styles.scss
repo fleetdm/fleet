@@ -1,0 +1,32 @@
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  &__main-content {
+    display: flex;
+    align-items: center;
+    gap: $pad-medium;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+    gap: $pad-xsmall;
+  }
+
+  &__title {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+
+  &__details {
+    font-size: $xx-small;
+  }
+
+  &__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: $pad-medium;
+  }
+}

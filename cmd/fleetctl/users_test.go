@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/csv"
-	"io/ioutil"
 	"math/big"
 	"os"
 	"strings"
@@ -111,7 +110,7 @@ func TestUserCreateForcePasswordReset(t *testing.T) {
 }
 
 func writeTmpCsv(t *testing.T, contents string) string {
-	tmpFile, err := ioutil.TempFile(t.TempDir(), "*.csv")
+	tmpFile, err := os.CreateTemp(t.TempDir(), "*.csv")
 	require.NoError(t, err)
 	_, err = tmpFile.WriteString(contents)
 	require.NoError(t, err)
@@ -126,6 +125,15 @@ func TestCreateBulkUsers(t *testing.T) {
 	}
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
 		return nil
+	}
+	ds.TeamsSummaryFunc = func(ctx context.Context) ([]*fleet.TeamSummary, error) {
+		team1 := &fleet.TeamSummary{
+			ID: 1,
+		}
+		team2 := &fleet.TeamSummary{
+			ID: 2,
+		}
+		return []*fleet.TeamSummary{team1, team2}, nil
 	}
 
 	csvFile := writeTmpCsv(t,

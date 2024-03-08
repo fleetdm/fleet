@@ -1,11 +1,15 @@
 project_name: orbit
 
+#################################################################################################
+# If this is updated make sure to update the "How to build from source" section in the README.md.
+#################################################################################################
+
 builds:
   - id: orbit-macos
     dir: ./orbit/cmd/orbit/
     binary: orbit
     env:
-      - CGO_ENABLED=0
+      - CGO_ENABLED=1
     goos:
       - darwin
     goarch:

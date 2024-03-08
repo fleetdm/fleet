@@ -1,0 +1,47 @@
+.script-list-heading {
+  font-weight: $bold;
+  display: flex;
+  justify-content: space-between;
+
+  &__heading-group {
+    flex: 1;
+  }
+
+  &__script-statuses {
+    display: flex;
+    justify-content: center;
+  }
+
+  &__actions-heading {
+    text-align: right;
+
+    span {
+      margin-right: $pad-xlarge; // align with left side of buttons below it
+    }
+  }
+
+  &__status > div {
+    display: flex;
+    align-items: center;
+    width: 100px;
+    justify-content: center;
+
+    span {
+      margin-left: 12px;
+    }
+  }
+
+  &__tooltip-text {
+    font-weight: normal;
+  }
+
+  @media (max-width: $break-md) {
+    &__script-statuses {
+      justify-content: flex-end;
+    }
+
+    &__actions-heading {
+      display: none;
+    }
+  }
+}

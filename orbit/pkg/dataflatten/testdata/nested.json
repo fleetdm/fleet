@@ -1,0 +1,15 @@
+{
+  "addons": [
+    {
+      "name": "Nested Strings",
+      "nest1": {
+        "string1": null,
+        "string2": null,
+        "string3": "string3",
+        "string4": "string4",
+        "string5": "string5",
+        "string6": "string6"
+      }
+    }
+  ]
+}

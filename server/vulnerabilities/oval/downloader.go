@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"time"
@@ -27,7 +26,7 @@ func getOvalSources(getter func(string) (io.ReadCloser, error)) (OvalSources, er
 	}
 	defer src.Close()
 
-	contents, err := ioutil.ReadAll(src)
+	contents, err := io.ReadAll(src)
 	if err != nil {
 		return nil, err
 	}

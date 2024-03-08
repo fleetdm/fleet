@@ -4,12 +4,11 @@ import { useQuery } from "react-query";
 
 import { AppContext } from "context/app";
 import SideNav from "pages/admin/components/SideNav";
-import { ProfileSummaryResponse } from "interfaces/mdm";
 import { API_NO_TEAM_ID, APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import mdmAPI from "services/entities/mdm";
 
 import OS_SETTINGS_NAV_ITEMS from "./OSSettingsNavItems";
-import AggregateMacSettingsIndicators from "./AggregateMacSettingsIndicators";
+import ProfileStatusAggregate from "./ProfileStatusAggregate";
 import TurnOnMdmMessage from "../components/TurnOnMdmMessage";
 
 const baseClass = "os-settings";
@@ -17,6 +16,7 @@ const baseClass = "os-settings";
 interface IOSSettingsProps {
   params: Params;
   router: InjectedRouter;
+  currentPage: number;
   location: {
     search: string;
   };
@@ -24,6 +24,7 @@ interface IOSSettingsProps {
 
 const OSSettings = ({
   router,
+  currentPage,
   location: { search: queryString },
   params,
 }: IOSSettingsProps) => {
@@ -40,9 +41,9 @@ const OSSettings = ({
     data: aggregateProfileStatusData,
     refetch: refetchAggregateProfileStatus,
     isLoading: isLoadingAggregateProfileStatus,
-  } = useQuery<ProfileSummaryResponse>(
+  } = useQuery(
     ["aggregateProfileStatuses", teamId],
-    () => mdmAPI.getAggregateProfileStatuses(teamId),
+    () => mdmAPI.getProfilesStatusSummary(teamId),
     {
       refetchOnWindowFocus: false,
       retry: false,
@@ -50,7 +51,10 @@ const OSSettings = ({
   );
 
   // MDM is not on so show messaging for user to enable it.
-  if (!config?.mdm.enabled_and_configured) {
+  if (
+    !config?.mdm.enabled_and_configured &&
+    !config?.mdm.windows_enabled_and_configured
+  ) {
     return <TurnOnMdmMessage router={router} />;
   }
 
@@ -65,9 +69,9 @@ const OSSettings = ({
   return (
     <div className={baseClass}>
       <p className={`${baseClass}__description`}>
-        Remotely enforce settings on macOS hosts assigned to this team.
+        Remotely enforce OS settings on hosts assigned to this team.
       </p>
-      <AggregateMacSettingsIndicators
+      <ProfileStatusAggregate
         isLoading={isLoadingAggregateProfileStatus}
         teamId={teamId}
         aggregateProfileStatusData={aggregateProfileStatusData}
@@ -84,6 +88,8 @@ const OSSettings = ({
             key={teamId}
             currentTeamId={teamId}
             onMutation={refetchAggregateProfileStatus}
+            router={router}
+            currentPage={currentPage}
           />
         }
       />

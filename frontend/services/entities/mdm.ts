@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
-import { FileVaultProfileStatus } from "interfaces/mdm";
-import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
+import {
+  DiskEncryptionStatus,
+  IMdmProfile,
+  MdmProfileStatus,
+} from "interfaces/mdm";
 import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
-
-export type IFileVaultSummaryResponse = Record<FileVaultProfileStatus, number>;
 
 export interface IEulaMetadataResponse {
   name: string;
@@ -13,7 +14,39 @@ export interface IEulaMetadataResponse {
   created_at: string;
 }
 
-export default {
+export type ProfileStatusSummaryResponse = Record<MdmProfileStatus, number>;
+
+export interface IDiskEncryptionStatusAggregate {
+  macos: number;
+  windows: number;
+}
+
+export type IDiskEncryptionSummaryResponse = Record<
+  DiskEncryptionStatus,
+  IDiskEncryptionStatusAggregate
+>;
+
+export interface IGetProfilesApiParams {
+  page?: number;
+  per_page?: number;
+  team_id?: number;
+}
+
+export interface IMdmProfilesResponse {
+  profiles: IMdmProfile[] | null;
+  meta: {
+    has_next_results: boolean;
+    has_previous_results: boolean;
+  };
+}
+
+export interface IUploadProfileApiParams {
+  file: File;
+  teamId?: number;
+  labels?: string[];
+}
+
+const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
     return sendRequest("GET", DEVICE_USER_MDM_ENROLLMENT_PROFILE(token));
@@ -41,15 +74,18 @@ export default {
     });
   },
 
-  getProfiles: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const path = `${endpoints.MDM_PROFILES}?${buildQueryStringFromParams({
-      team_id: teamId,
+  getProfiles: (
+    params: IGetProfilesApiParams
+  ): Promise<IMdmProfilesResponse> => {
+    const { MDM_PROFILES } = endpoints;
+    const path = `${MDM_PROFILES}?${buildQueryStringFromParams({
+      ...params,
     })}`;
 
     return sendRequest("GET", path);
   },
 
-  uploadProfile: (file: File, teamId?: number) => {
+  uploadProfile: ({ file, teamId, labels }: IUploadProfileApiParams) => {
     const { MDM_PROFILES } = endpoints;
 
     const formData = new FormData();
@@ -59,29 +95,28 @@ export default {
       formData.append("team_id", teamId.toString());
     }
 
+    labels?.forEach((label) => {
+      formData.append("labels", label);
+    });
+
     return sendRequest("POST", MDM_PROFILES, formData);
   },
 
-  downloadProfile: (profileId: number) => {
+  downloadProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
-    return sendRequest("GET", MDM_PROFILE(profileId));
+    const path = `${MDM_PROFILE(profileId)}?${buildQueryStringFromParams({
+      alt: "media",
+    })}`;
+    return sendRequest("GET", path);
   },
 
-  deleteProfile: (profileId: number) => {
+  deleteProfile: (profileId: string) => {
     const { MDM_PROFILE } = endpoints;
     return sendRequest("DELETE", MDM_PROFILE(profileId));
   },
 
-  getAggregateProfileStatuses: (teamId = APP_CONTEXT_NO_TEAM_ID) => {
-    const path = `${
-      endpoints.MDM_PROFILES_AGGREGATE_STATUSES
-    }?${buildQueryStringFromParams({ team_id: teamId })}`;
-
-    return sendRequest("GET", path);
-  },
-
-  getDiskEncryptionAggregate: (teamId?: number) => {
-    let { MDM_APPLE_DISK_ENCRYPTION_AGGREGATE: path } = endpoints;
+  getProfilesStatusSummary: (teamId: number) => {
+    let { MDM_PROFILES_STATUS_SUMMARY: path } = endpoints;
 
     if (teamId) {
       path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
@@ -90,6 +125,17 @@ export default {
     return sendRequest("GET", path);
   },
 
+  getDiskEncryptionSummary: (teamId?: number) => {
+    let { MDM_DISK_ENCRYPTION_SUMMARY: path } = endpoints;
+
+    if (teamId) {
+      path = `${path}?${buildQueryStringFromParams({ team_id: teamId })}`;
+    }
+    return sendRequest("GET", path);
+  },
+
+  // TODO: API INTEGRATION: change when API is implemented that works for windows
+  // disk encryption too.
   updateAppleMdmSettings: (enableDiskEncryption: boolean, teamId?: number) => {
     const {
       MDM_UPDATE_APPLE_SETTINGS: teamsEndpoint,
@@ -98,7 +144,9 @@ export default {
     if (teamId === 0) {
       return sendRequest("PATCH", noTeamsEndpoint, {
         mdm: {
+          // TODO: API INTEGRATION: remove macos_settings when API change is merged in.
           macos_settings: { enable_disk_encryption: enableDiskEncryption },
+          // enable_disk_encryption: enableDiskEncryption,
         },
       });
     }
@@ -179,3 +227,5 @@ export default {
     });
   },
 };
+
+export default mdmService;

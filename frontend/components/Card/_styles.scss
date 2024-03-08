@@ -1,8 +1,33 @@
 .card {
   border-radius: $border-radius;
   border: 1px solid $ui-fleet-black-10;
+  // TODO - update this to be 40px per style guide
   padding: $pad-large;
 
+  // radius styles
+  &__radius-small {
+    border-radius: $border-radius;
+  }
+
+  &__radius-medium {
+    border-radius: $border-radius-large;
+  }
+
+  &__radius-large {
+    border-radius: $border-radius-xxlarge;
+  }
+
+  // box shadow styles
+  &__shadow {
+    box-shadow: $box-shadow;
+  }
+
+  // 40px padding
+  &__large-padding {
+    padding: $pad-xxlarge;
+  }
+
+  // color styles
   &__white {
     background-color: $core-white;
   }

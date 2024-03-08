@@ -13,6 +13,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"text/template"
@@ -22,9 +23,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
+	kitlog "github.com/go-kit/kit/log"
+	"github.com/go-kit/log/level"
 
 	mdm_types "github.com/fleetdm/fleet/v4/server/fleet"
-	mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
 	"github.com/google/uuid"
 )
 
@@ -35,7 +39,7 @@ type SoapRequestContainer struct {
 }
 
 // MDM SOAP request decoder
-func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -46,7 +50,7 @@ func (req *SoapRequestContainer) DecodeBody(ctx context.Context, r io.Reader, u 
 	req.Params = u
 
 	// Handle empty body scenario
-	req.Data = &fleet.SoapRequest{}
+	req.Data = &fleet.SoapRequest{Raw: reqBytes}
 
 	if len(reqBytes) != 0 {
 		// Unmarshal the XML data from the request into the SoapRequest struct
@@ -77,7 +81,7 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 
 	xmlRes = append(xmlRes, '\n')
 
-	w.Header().Set("Content-Type", mdm.SoapContentType)
+	w.Header().Set("Content-Type", syncml.SoapContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(xmlRes); err != nil {
@@ -86,13 +90,14 @@ func (r SoapResponseContainer) hijackRender(ctx context.Context, w http.Response
 }
 
 type SyncMLReqMsgContainer struct {
-	Data   *fleet.SyncMLMessage
+	Data   *fleet.SyncML
 	Params url.Values
+	Certs  []*x509.Certificate
 	Err    error
 }
 
 // MDM SOAP request decoder
-func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	// Reading the request bytes
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
@@ -102,8 +107,11 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 	// Set the request parameters
 	req.Params = u
 
+	// Set the request certs
+	req.Certs = c
+
 	// Handle empty body scenario
-	req.Data = &fleet.SyncMLMessage{}
+	req.Data = &fleet.SyncML{Raw: reqBytes}
 
 	if len(reqBytes) != 0 {
 		// Unmarshal the XML data from the request into the SoapRequest struct
@@ -117,7 +125,7 @@ func (req *SyncMLReqMsgContainer) DecodeBody(ctx context.Context, r io.Reader, u
 }
 
 type SyncMLResponseMsgContainer struct {
-	Data *string
+	Data *fleet.SyncML
 	Err  error
 }
 
@@ -125,12 +133,19 @@ func (r SyncMLResponseMsgContainer) error() error { return r.Err }
 
 // hijackRender writes the response header and the RAW HTML output
 func (r SyncMLResponseMsgContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
-	resData := []byte(*r.Data + "\n")
+	xmlRes, err := xml.MarshalIndent(r.Data, "", "\t")
+	if err != nil {
+		logging.WithExtras(ctx, "error with SyncMLResponseMsgContainer", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 
-	w.Header().Set("Content-Type", mdm.SyncMLContentType)
-	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
+	xmlRes = append(xmlRes, '\n')
+
+	w.Header().Set("Content-Type", syncml.SyncMLContentType)
+	w.Header().Set("Content-Length", strconv.Itoa(len(xmlRes)))
 	w.WriteHeader(http.StatusOK)
-	if n, err := w.Write(resData); err != nil {
+	if n, err := w.Write(xmlRes); err != nil {
 		logging.WithExtras(ctx, "err", err, "written", n)
 	}
 }
@@ -142,7 +157,7 @@ type MDMWebContainer struct {
 }
 
 // MDM SOAP request decoder
-func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values) error {
+func (req *MDMWebContainer) DecodeBody(ctx context.Context, r io.Reader, u url.Values, c []*x509.Certificate) error {
 	reqBytes, err := io.ReadAll(r)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "reading Webcontainer HTML message request")
@@ -164,7 +179,7 @@ func (req MDMWebContainer) error() error { return req.Err }
 func (req MDMWebContainer) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	resData := []byte(*req.Data + "\n")
 
-	w.Header().Set("Content-Type", mdm.WebContainerContentType)
+	w.Header().Set("Content-Type", syncml.WebContainerContentType)
 	w.Header().Set("Content-Length", strconv.Itoa(len(resData)))
 	w.WriteHeader(http.StatusOK)
 	if n, err := w.Write(resData); err != nil {
@@ -207,10 +222,10 @@ func NewDiscoverResponse(authPolicy string, policyUrl string, enrollmentUrl stri
 	}
 
 	return mdm_types.DiscoverResponse{
-		XMLNS: mdm.DiscoverNS,
+		XMLNS: syncml.DiscoverNS,
 		DiscoverResult: mdm_types.DiscoverResult{
 			AuthPolicy:                 authPolicy,
-			EnrollmentVersion:          mdm.EnrollmentVersionV4,
+			EnrollmentVersion:          syncml.EnrollmentVersionV4,
 			EnrollmentPolicyServiceUrl: policyUrl,
 			EnrollmentServiceUrl:       enrollmentUrl,
 		},
@@ -224,25 +239,25 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 	}
 
 	return mdm_types.GetPoliciesResponse{
-		XMLNS: mdm.PolicyNS,
+		XMLNS: syncml.PolicyNS,
 		Response: mdm_types.Response{
 			PolicyFriendlyName: mdm_types.ContentAttr{
-				Xsi:   mdm.DefaultStateXSI,
-				XMLNS: mdm.EnrollXSI,
+				Xsi:   syncml.DefaultStateXSI,
+				XMLNS: syncml.EnrollXSI,
 			},
 			NextUpdateHours: mdm_types.ContentAttr{
-				Xsi:   mdm.DefaultStateXSI,
-				XMLNS: mdm.EnrollXSI,
+				Xsi:   syncml.DefaultStateXSI,
+				XMLNS: syncml.EnrollXSI,
 			},
 			PoliciesNotChanged: mdm_types.ContentAttr{
-				Xsi:   mdm.DefaultStateXSI,
-				XMLNS: mdm.EnrollXSI,
+				Xsi:   syncml.DefaultStateXSI,
+				XMLNS: syncml.EnrollXSI,
 			},
 			Policies: mdm_types.Policies{
 				Policy: mdm_types.GPPolicy{
 					PolicyOIDReference: "0",
 					CAs: mdm_types.GenericAttr{
-						Xsi: mdm.DefaultStateXSI,
+						Xsi: syncml.DefaultStateXSI,
 					},
 					Attributes: mdm_types.Attributes{
 						CommonName:                "FleetDMAttributes",
@@ -261,42 +276,42 @@ func NewGetPoliciesResponse(minimalKeyLength string, certificateValidityPeriodSe
 							AutoEnroll: "false",
 						},
 						SupersededPolicies: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						PrivateKeyFlags: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						SubjectNameFlags: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						EnrollmentFlags: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						GeneralFlags: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						RARequirements: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						KeyArchivalAttributes: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						Extensions: mdm_types.GenericAttr{
-							Xsi: mdm.DefaultStateXSI,
+							Xsi: syncml.DefaultStateXSI,
 						},
 						PrivateKeyAttributes: mdm_types.PrivateKeyAttributes{
 							MinimalKeyLength: minimalKeyLength,
 							KeySpec: mdm_types.GenericAttr{
-								Xsi: mdm.DefaultStateXSI,
+								Xsi: syncml.DefaultStateXSI,
 							},
 							KeyUsageProperty: mdm_types.GenericAttr{
-								Xsi: mdm.DefaultStateXSI,
+								Xsi: syncml.DefaultStateXSI,
 							},
 							Permissions: mdm_types.GenericAttr{
-								Xsi: mdm.DefaultStateXSI,
+								Xsi: syncml.DefaultStateXSI,
 							},
 							AlgorithmOIDReference: mdm_types.GenericAttr{
-								Xsi: mdm.DefaultStateXSI,
+								Xsi: syncml.DefaultStateXSI,
 							},
 							CryptoProviders: []mdm_types.ProviderAttr{
 								{Content: "Microsoft Platform Crypto Provider"},
@@ -338,25 +353,25 @@ func NewRequestSecurityTokenResponseCollection(provisionedToken string) (mdm_typ
 		return mdm_types.RequestSecurityTokenResponseCollection{}, errors.New("invalid parameters")
 	}
 
-	enrollSecExtVal := mdm.EnrollSecExt
+	enrollSecExtVal := syncml.EnrollSecExt
 	return mdm_types.RequestSecurityTokenResponseCollection{
-		XMLNS: mdm.EnrollWSTrust,
+		XMLNS: syncml.EnrollWSTrust,
 		RequestSecurityTokenResponse: mdm_types.RequestSecurityTokenResponse{
-			TokenType: mdm.EnrollTType,
+			TokenType: syncml.EnrollTType,
 			DispositionMessage: mdm_types.SecAttr{
 				Content: "",
-				XMLNS:   mdm.EnrollReq,
+				XMLNS:   syncml.EnrollReq,
 			},
 			RequestID: mdm_types.SecAttr{
 				Content: "0",
-				XMLNS:   mdm.EnrollReq,
+				XMLNS:   syncml.EnrollReq,
 			},
 			RequestedSecurityToken: mdm_types.RequestedSecurityToken{
 				BinarySecurityToken: mdm_types.BinarySecurityToken{
 					Content:      provisionedToken,
 					XMLNS:        &enrollSecExtVal,
-					ValueType:    mdm.EnrollPDoc,
-					EncodingType: mdm.EnrollEncode,
+					ValueType:    syncml.EnrollPDoc,
+					EncodingType: syncml.EnrollEncode,
 				},
 			},
 		},
@@ -368,7 +383,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 	return mdm_types.SoapFault{
 		OriginalMessageType: origMessage,
 		Code: mdm_types.Code{
-			Value: mdm.SoapFaultRecv,
+			Value: syncml.SoapFaultRecv,
 			Subcode: mdm_types.Subcode{
 				Value: errorType,
 			},
@@ -376,7 +391,7 @@ func NewSoapFault(errorType string, origMessage int, errorMessage error) mdm_typ
 		Reason: mdm_types.Reason{
 			Text: mdm_types.ReasonText{
 				Content: errorMessage.Error(),
-				Lang:    mdm.SoapFaultLocale,
+				Lang:    syncml.SoapFaultLocale,
 			},
 		},
 	}
@@ -413,16 +428,16 @@ func NewSoapResponse(payload interface{}, relatesTo string) (fleet.SoapResponse,
 	// Useful constants
 	// Some of these are string urls to be assigned to pointers - they need to have a type and cannot be const literals
 	var (
-		urlNSS                = mdm.EnrollNSS
-		urlNSA                = mdm.EnrollNSA
-		urlXSI                = mdm.EnrollXSI
-		urlXSD                = mdm.EnrollXSD
-		urlXSU                = mdm.EnrollXSU
-		urlDiag               = mdm.ActionNsDiag
-		urlDiscovery          = mdm.ActionNsDiscovery
-		urlPolicy             = mdm.ActionNsPolicy
-		urlEnroll             = mdm.ActionNsEnroll
-		urlSecExt             = mdm.EnrollSecExt
+		urlNSS                = syncml.EnrollNSS
+		urlNSA                = syncml.EnrollNSA
+		urlXSI                = syncml.EnrollXSI
+		urlXSD                = syncml.EnrollXSD
+		urlXSU                = syncml.EnrollXSU
+		urlDiag               = syncml.ActionNsDiag
+		urlDiscovery          = syncml.ActionNsDiscovery
+		urlPolicy             = syncml.ActionNsPolicy
+		urlEnroll             = syncml.ActionNsEnroll
+		urlSecExt             = syncml.EnrollSecExt
 		MUValue               = "1"
 		timestampID           = "_0"
 		secWindowStartTimeMin = -5
@@ -535,27 +550,6 @@ func NewBinarySecurityTokenPayload(encodedToken string) (fleet.WindowsMDMAccessT
 	return tokenPayload, nil
 }
 
-// GetEncodedBinarySecurityToken returns the base64 form of a input payload
-func GetEncodedBinarySecurityToken(typeID fleet.WindowsMDMEnrollmentType, payload string) (string, error) {
-	var pld fleet.WindowsMDMAccessTokenPayload
-	pld.Type = typeID
-
-	if typeID == fleet.WindowsMDMProgrammaticEnrollmentType {
-		pld.Payload.OrbitNodeKey = payload
-	} else if typeID == fleet.WindowsMDMAutomaticEnrollmentType {
-		pld.Payload.AuthToken = payload
-	} else {
-		return "", fmt.Errorf("invalid enrollment type: %v", typeID)
-	}
-
-	rawBytes, err := json.Marshal(pld)
-	if err != nil {
-		return "", err
-	}
-
-	return base64.URLEncoding.EncodeToString(rawBytes), nil
-}
-
 // newParm returns a new ProvisioningDoc Parameter
 func newParm(name, value, datatype string) mdm_types.Param {
 	return mdm_types.Param{
@@ -607,9 +601,9 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 		}),
 		newCharacteristic("WSTEP", nil, []mdm_types.Characteristic{
 			newCharacteristic("Renew", []mdm_types.Param{
-				newParm("ROBOSupport", mdm.WstepROBOSupport, "boolean"),
-				newParm("RenewPeriod", mdm.WstepCertRenewalPeriodInDays, "integer"),
-				newParm("RetryInterval", mdm.WstepRenewRetryInterval, "integer"),
+				newParm("ROBOSupport", syncml.WstepROBOSupport, "boolean"),
+				newParm("RenewPeriod", syncml.WstepCertRenewalPeriodInDays, "integer"),
+				newParm("RetryInterval", syncml.WstepRenewRetryInterval, "integer"),
 			}, nil),
 		}),
 	})
@@ -625,13 +619,13 @@ func NewCertStoreProvisioningData(enrollmentType string, identityFingerprint str
 func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic {
 	provDoc := newCharacteristic("APPLICATION", []mdm_types.Param{
 		// The PROVIDER-ID parameter specifies the server identifier for a management server used in the current management session
-		newParm("PROVIDER-ID", mdm.DocProvisioningAppProviderID, ""),
+		newParm("PROVIDER-ID", syncml.DocProvisioningAppProviderID, ""),
 
 		// The APPID parameter is used to differentiate the types of available application services and protocols.
 		newParm("APPID", "w7", ""),
 
 		// The NAME parameter is used in the APPLICATION characteristic to specify a user readable application identity.
-		newParm("NAME", mdm.DocProvisioningAppName, ""),
+		newParm("NAME", syncml.DocProvisioningAppName, ""),
 
 		// The ADDR parameter is used in the APPADDR param to get or set the address of the OMA DM server.
 		newParm("ADDR", mdmEndpoint, ""),
@@ -639,13 +633,13 @@ func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic
 		// The ROLE parameter is used in the APPLICATION characteristic to specify the security application chamber that the DM session should run with when communicating with the DM server.
 
 		// The BACKCOMPATRETRYFREQ parameter is used  to specify how many retries the DM client performs when there are Connection Manager-level or WinInet-level errors
-		newParm("CONNRETRYFREQ", mdm.DocProvisioningAppConnRetryFreq, ""),
+		newParm("CONNRETRYFREQ", syncml.DocProvisioningAppConnRetryFreq, ""),
 
 		// The INITIALBACKOFFTIME parameter is used to specify the initial wait time in milliseconds when the DM client retries for the first time
-		newParm("INITIALBACKOFFTIME", mdm.DocProvisioningAppInitialBackoffTime, ""),
+		newParm("INITIALBACKOFFTIME", syncml.DocProvisioningAppInitialBackoffTime, ""),
 
 		// The MAXBACKOFFTIME parameter is used to specify the maximum number of milliseconds to sleep after package-sending failure
-		newParm("MAXBACKOFFTIME", mdm.DocProvisioningAppMaxBackoffTime, ""),
+		newParm("MAXBACKOFFTIME", syncml.DocProvisioningAppMaxBackoffTime, ""),
 
 		// The DEFAULTENCODING parameter is used to specify whether the DM client should use WBXML or XML for the DM package when communicating with the server.
 		newParm("DEFAULTENCODING", "application/vnd.syncml.dm+xml", ""),
@@ -683,17 +677,40 @@ func NewApplicationProvisioningData(mdmEndpoint string) mdm_types.Characteristic
 func NewDMClientProvisioningData() mdm_types.Characteristic {
 	dmClient := newCharacteristic("DMClient", nil, []mdm_types.Characteristic{
 		newCharacteristic("Provider", nil, []mdm_types.Characteristic{
-			newCharacteristic(mdm.DocProvisioningAppProviderID,
+			newCharacteristic(syncml.DocProvisioningAppProviderID,
 				[]mdm_types.Param{}, []mdm_types.Characteristic{
 					newCharacteristic("Poll", []mdm_types.Param{
-						newParm("NumberOfFirstRetries", mdm.DmClientCSPNumberOfFirstRetries, mdm.DmClientIntType),
-						newParm("IntervalForFirstSetOfRetries", mdm.DmClientCSPIntervalForFirstSetOfRetries, mdm.DmClientIntType),
-						newParm("NumberOfSecondRetries", mdm.DmClientCSPNumberOfSecondRetries, mdm.DmClientIntType),
-						newParm("IntervalForSecondSetOfRetries", mdm.DmClientCSPIntervalForSecondSetOfRetries, mdm.DmClientIntType),
-						newParm("NumberOfRemainingScheduledRetries", mdm.DmClientCSPNumberOfRemainingScheduledRetries, mdm.DmClientIntType),
-						newParm("IntervalForRemainingScheduledRetries", mdm.DmClientCSPIntervalForRemainingScheduledRetries, mdm.DmClientIntType),
-						newParm("PollOnLogin", mdm.DmClientCSPPollOnLogin, mdm.DmClientBoolType),
-						newParm("AllUsersPollOnFirstLogin", mdm.DmClientCSPPollOnLogin, mdm.DmClientBoolType),
+						// AllUsersPollOnFirstLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollalluserspollonfirstlogin
+						newParm("AllUsersPollOnFirstLogin", "true", syncml.DmClientBoolType),
+
+						// PollOnLogin - enabled
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollpollonlogin
+						newParm("PollOnLogin", "true", syncml.DmClientBoolType),
+
+						// NumberOfFirstRetries - 0 (meaning repeat infinitely, Second and Remaining retries will not be used)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollnumberoffirstretries
+						//
+						// Note that the docs do mention:
+						//
+						//   The total time for first set of retries shouldn't be more than
+						//   a few hours. The server shouldn't set NumberOfFirstRetries to
+						//   be 0. RemainingScheduledRetries is used for the long run
+						//   device polling schedule.
+						//
+						// but we really want to keep polling regularly at short intervals
+						// and it seems like the way to do it (and they do support infinite
+						// retries, so...).
+						newParm("NumberOfFirstRetries", "0", syncml.DmClientIntType),
+						// IntervalForFirstSetOfRetries - 1 minute (we can't go lower than that)
+						// https://learn.microsoft.com/en-us/windows/client-management/mdm/dmclient-csp#deviceproviderprovideridpollintervalforfirstsetofretries
+						newParm("IntervalForFirstSetOfRetries", "1", syncml.DmClientIntType),
+
+						// Second and Remaining retries are disabled (0).
+						newParm("NumberOfSecondRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForSecondSetOfRetries", "0", syncml.DmClientIntType),
+						newParm("NumberOfRemainingScheduledRetries", "0", syncml.DmClientIntType),
+						newParm("IntervalForRemainingScheduledRetries", "0", syncml.DmClientIntType),
 					}, nil),
 				}),
 		}),
@@ -705,7 +722,7 @@ func NewDMClientProvisioningData() mdm_types.Characteristic {
 // NewProvisioningDoc returns a new ProvisioningDoc container
 func NewProvisioningDoc(certStoreData mdm_types.Characteristic, applicationData mdm_types.Characteristic, dmClientData mdm_types.Characteristic) mdm_types.WapProvisioningDoc {
 	return mdm_types.WapProvisioningDoc{
-		Version: mdm.DocProvisioningVersion,
+		Version: syncml.DocProvisioningVersion,
 		Characteristics: []mdm_types.Characteristic{
 			certStoreData,
 			applicationData,
@@ -721,21 +738,21 @@ func mdmMicrosoftDiscoveryEndpoint(ctx context.Context, request interface{}, svc
 
 	// Checking first if Discovery message is valid and returning error if this is not the case
 	if err := req.IsValidDiscoveryMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the DiscoveryResponse message
 	discoveryResponseMsg, err := svc.GetMDMMicrosoftDiscoveryResponse(ctx, req.Body.Discover.Request.EmailAddress)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
 	response, err := NewSoapResponse(discoveryResponseMsg, req.GetMessageID())
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEDiscovery, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -750,12 +767,12 @@ func mdmMicrosoftAuthEndpoint(ctx context.Context, request interface{}, svc flee
 	params := request.(*SoapRequestContainer).Params
 
 	// Sanity check on the expected query params
-	if !params.Has(mdm.STSAuthAppRu) || !params.Has(mdm.STSLoginHint) {
+	if !params.Has(syncml.STSAuthAppRu) || !params.Has(syncml.STSLoginHint) {
 		return getSTSAuthContent(""), errors.New("expected STS params are not present")
 	}
 
-	appru := params.Get(mdm.STSAuthAppRu)
-	loginHint := params.Get(mdm.STSLoginHint)
+	appru := params.Get(syncml.STSAuthAppRu)
+	loginHint := params.Get(syncml.STSLoginHint)
 
 	if (len(appru) == 0) || (len(loginHint) == 0) {
 		return getSTSAuthContent(""), errors.New("expected STS params are empty")
@@ -777,28 +794,28 @@ func mdmMicrosoftPolicyEndpoint(ctx context.Context, request interface{}, svc fl
 
 	// Checking first if GetPolicies message is valid and returning error if this is not the case
 	if err := req.IsValidGetPolicyMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrSecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the GetPoliciesResponse message
 	policyResponseMsg, err := svc.GetMDMWindowsPolicyResponse(ctx, hdrSecToken)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
 	response, err := NewSoapResponse(policyResponseMsg, req.GetMessageID())
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEPolicy, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -815,35 +832,35 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 
 	// Checking first if RequestSecurityToken message is valid and returning error if this is not the case
 	if err := req.IsValidRequestSecurityTokenMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the RequestSecurityToken message from the SOAP request
 	reqSecurityTokenMsg, err := req.GetRequestSecurityTokenMessage()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Binary security token should be extracted to ensure this is a valid call
 	hdrBinarySecToken, err := req.GetHeaderBinarySecurityToken()
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Getting the RequestSecurityTokenResponseCollection message
 	enrollResponseMsg, err := svc.GetMDMWindowsEnrollResponse(ctx, reqSecurityTokenMsg, hdrBinarySecToken)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
 	// Embedding the DiscoveryResponse message inside of a SoapResponse
 	response, err := NewSoapResponse(enrollResponseMsg, req.GetMessageID())
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
 		return getSoapResponseFault(req.GetMessageID(), soapFault), nil
 	}
 
@@ -860,18 +877,19 @@ func mdmMicrosoftEnrollEndpoint(ctx context.Context, request interface{}, svc fl
 // and better security authentication (done through TLS and in-message hash)
 func mdmMicrosoftManagementEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	reqSyncML := request.(*SyncMLReqMsgContainer).Data
+	reqCerts := request.(*SyncMLReqMsgContainer).Certs
 
 	// Checking first if incoming SyncML message is valid and returning error if this is not the case
-	if err := reqSyncML.IsValidSyncMLMsg(); err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEFault, err)
-		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
+	if err := reqSyncML.IsValidMsg(); err != nil {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
+		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
 	}
 
-	// Getting the RequestSecurityTokenResponseCollection message
-	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML)
+	// Getting the MS-MDM response message
+	resSyncML, err := svc.GetMDMWindowsManagementResponse(ctx, reqSyncML, reqCerts)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(strconv.Itoa(reqSyncML.Header.MsgID), soapFault), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MSMDM, err)
+		return getSoapResponseFault(reqSyncML.SyncHdr.MsgID, soapFault), nil
 	}
 
 	return SyncMLResponseMsgContainer{
@@ -885,19 +903,19 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 	params := request.(*MDMWebContainer).Params
 
 	// Sanity check on the expected query params
-	if !params.Has(mdm.TOCRedirectURI) || !params.Has(mdm.TOCReqID) {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, errors.New("invalid params"))
-		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+	if !params.Has(syncml.TOCRedirectURI) || !params.Has(syncml.TOCReqID) {
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, errors.New("invalid params"))
+		return getSoapResponseFault(syncml.SoapErrorInternalServiceFault, soapFault), nil
 	}
 
-	redirectURI := params.Get(mdm.TOCRedirectURI)
-	reqID := params.Get(mdm.TOCReqID)
+	redirectURI := params.Get(syncml.TOCRedirectURI)
+	reqID := params.Get(syncml.TOCReqID)
 
 	// Getting the TOS content message
 	resTOCData, err := svc.GetMDMWindowsTOSContent(ctx, redirectURI, reqID)
 	if err != nil {
-		soapFault := svc.GetAuthorizedSoapFault(ctx, mdm.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
-		return getSoapResponseFault(mdm.SoapErrorInternalServiceFault, soapFault), nil
+		soapFault := svc.GetAuthorizedSoapFault(ctx, syncml.SoapErrorMessageFormat, mdm_types.MDEEnrollment, err)
+		return getSoapResponseFault(syncml.SoapErrorInternalServiceFault, soapFault), nil
 	}
 
 	return MDMWebContainer{
@@ -906,15 +924,17 @@ func mdmMicrosoftTOSEndpoint(ctx context.Context, request interface{}, svc fleet
 	}, nil
 }
 
-// authBinarySecurityToken checks if the provided token is valid
-func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (string, error) {
+// authBinarySecurityToken checks if the provided token is valid. For programmatic enrollment, it
+// returns the orbit node key and host uuid. For automatic enrollment, it returns only the UPN (the
+// host uuid will be an empty string).
+func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *fleet.HeaderBinarySecurityToken) (claim string, hostUUID string, err error) {
 	if authToken == nil {
-		return "", errors.New("authToken is empty")
+		return "", "", errors.New("authToken is empty")
 	}
 
-	err := authToken.IsValidToken()
+	err = authToken.IsValidToken()
 	if err != nil {
-		return "", errors.New("authToken is not valid")
+		return "", "", errors.New("authToken is not valid")
 	}
 
 	// Tokens that were generated by enrollment client
@@ -923,30 +943,29 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 		// Getting the Binary Security Token Payload
 		binSecToken, err := NewBinarySecurityTokenPayload(authToken.Content)
 		if err != nil {
-			return "", fmt.Errorf("token creation error %v", err)
+			return "", "", fmt.Errorf("token creation error %v", err)
 		}
 
 		// Validating the Binary Security Token Payload
 		err = binSecToken.IsValidToken()
 		if err != nil {
-			return "", fmt.Errorf("invalid token data %v", err)
+			return "", "", fmt.Errorf("invalid token data %v", err)
 		}
 
 		// Validating the Binary Security Token Type used on Programmatic Enrollments
 		if binSecToken.Type == mdm_types.WindowsMDMProgrammaticEnrollmentType {
 			host, err := svc.ds.LoadHostByOrbitNodeKey(ctx, binSecToken.Payload.OrbitNodeKey)
-			// host, err := svc.ds.HostByIdentifier(ctx, binSecToken.Payload.HostUUID)
 			if err != nil {
-				return "", fmt.Errorf("host data cannot be found %v", err)
+				return "", "", fmt.Errorf("host data cannot be found %v", err)
 			}
 
 			// This ensures that only hosts that are eligible for Windows enrollment can be enrolled
 			if !host.IsEligibleForWindowsMDMEnrollment() {
-				return "", errors.New("host is not elegible for Windows MDM enrollment")
+				return "", "", errors.New("host is not elegible for Windows MDM enrollment")
 			}
 
 			// No errors, token is authorized
-			return binSecToken.Payload.OrbitNodeKey, nil
+			return binSecToken.Payload.OrbitNodeKey, host.UUID, nil
 		}
 
 		// Validating the Binary Security Token Type used on Automatic Enrollments (returned by STS Auth Endpoint)
@@ -954,11 +973,11 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 
 			upnToken, err := svc.wstepCertManager.GetSTSAuthTokenUPNClaim(binSecToken.Payload.AuthToken)
 			if err != nil {
-				return "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
+				return "", "", ctxerr.Wrap(ctx, err, "issue retrieving UPN from Auth token")
 			}
 
 			// No errors, token is authorized
-			return upnToken, nil
+			return upnToken, "", nil
 		}
 	}
 
@@ -966,16 +985,16 @@ func (svc *Service) authBinarySecurityToken(ctx context.Context, authToken *flee
 	if authToken.IsAzureJWTToken() {
 
 		// Validate the JWT Auth token by retreving its claims
-		tokenData, err := mdm.GetAzureAuthTokenClaims(authToken.Content)
+		tokenData, err := microsoft_mdm.GetAzureAuthTokenClaims(authToken.Content)
 		if err != nil {
-			return "", fmt.Errorf("binary security token claim failed: %v", err)
+			return "", "", fmt.Errorf("binary security token claim failed: %v", err)
 		}
 
 		// No errors, token is authorized
-		return tokenData.UPN, nil
+		return tokenData.UPN, "", nil
 	}
 
-	return "", errors.New("token is not authorized")
+	return "", "", errors.New("token is not authorized")
 }
 
 // GetMDMMicrosoftDiscoveryResponse returns a valid DiscoveryResponse message
@@ -990,17 +1009,17 @@ func (svc *Service) GetMDMMicrosoftDiscoveryResponse(ctx context.Context, upnEma
 	}
 
 	// Getting the DiscoveryResponse message content
-	urlPolicyEndpoint, err := mdm.ResolveWindowsMDMPolicy(appCfg.ServerSettings.ServerURL)
+	urlPolicyEndpoint, err := microsoft_mdm.ResolveWindowsMDMPolicy(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "resolve policy endpoint")
 	}
 
-	urlEnrollEndpoint, err := mdm.ResolveWindowsMDMEnroll(appCfg.ServerSettings.ServerURL)
+	urlEnrollEndpoint, err := microsoft_mdm.ResolveWindowsMDMEnroll(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "resolve enroll endpoint")
 	}
 
-	discoveryMsg, err := NewDiscoverResponse(mdm.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
+	discoveryMsg, err := NewDiscoverResponse(syncml.AuthOnPremise, urlPolicyEndpoint, urlEnrollEndpoint)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of DiscoverResponse message")
 	}
@@ -1069,7 +1088,7 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *
 	}
 
 	// Validate the binary security token
-	_, err := svc.authBinarySecurityToken(ctx, authToken)
+	_, _, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -1078,7 +1097,7 @@ func (svc *Service) GetMDMWindowsPolicyResponse(ctx context.Context, authToken *
 	svc.authz.SkipAuthorization(ctx)
 
 	// Getting the GetPoliciesResponse message content
-	policyMsg, err := NewGetPoliciesResponse(mdm.PolicyMinKeyLength, mdm.PolicyCertValidityPeriodInSecs, mdm.PolicyCertRenewalPeriodInSecs)
+	policyMsg, err := NewGetPoliciesResponse(syncml.PolicyMinKeyLength, syncml.PolicyCertValidityPeriodInSecs, syncml.PolicyCertRenewalPeriodInSecs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "creation of GetPoliciesResponse message")
 	}
@@ -1095,7 +1114,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	}
 
 	// Auth the binary security token
-	userID, err := svc.authBinarySecurityToken(ctx, authToken)
+	userID, hostUUID, err := svc.authBinarySecurityToken(ctx, authToken)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validate binary security token")
 	}
@@ -1130,7 +1149,7 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 	//
 	// This method also creates the relevant enrollment activity as it has
 	// access to the device information.
-	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, secTokenMsg)
+	err = svc.storeWindowsMDMEnrolledDevice(ctx, userID, hostUUID, secTokenMsg)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "enrolled device information cannot be stored")
 	}
@@ -1139,24 +1158,21 @@ func (svc *Service) GetMDMWindowsEnrollResponse(ctx context.Context, secTokenMsg
 }
 
 // GetMDMWindowsManagementResponse returns a valid SyncML response message
-func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+func (svc *Service) GetMDMWindowsManagementResponse(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) (*fleet.SyncML, error) {
 	if reqSyncML == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// TODO: The following logic should happen here
-	// - TLS based auth
-	// - Device auth based on Source/LocURI DeviceID information
-	//   (this should be present on Enrollment DB)
-	// - Processing of incoming protocol commands (Alerts mostly
-	// - MS-MDM session management
-	// - Inclusion of queued protocol commands should be performed here
-	// - Tracking of message acknowledgements through Message queue
+	// Checking if the incoming request is trusted
+	err := svc.isTrustedRequest(ctx, reqSyncML, reqCerts)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "management request is not trusted")
+	}
 
 	// Getting the management response message
 	resSyncMLmsg, err := svc.getManagementResponse(ctx, reqSyncML)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "device provisioning information")
+		return nil, ctxerr.Wrap(ctx, err, "management response message")
 	}
 
 	// Token is authorized
@@ -1184,148 +1200,401 @@ func (svc *Service) GetMDMWindowsTOSContent(ctx context.Context, redirectUri str
 	return htmlBuf.String(), nil
 }
 
-func (svc *Service) getManagementResponse(ctx context.Context, reqSyncML *fleet.SyncMLMessage) (*string, error) {
+// isValidUPN checks if the provided user ID is a valid UPN
+func isValidUPN(userID string) bool {
+	return upnRegex.MatchString(userID)
+}
+
+// isTrustedRequest checks if the incoming request was sent from MDM enrolled device
+func (svc *Service) isTrustedRequest(ctx context.Context, reqSyncML *fleet.SyncML, reqCerts []*x509.Certificate) error {
 	if reqSyncML == nil {
+		return fleet.NewInvalidArgumentError("syncml req message", "message is not present")
+	}
+
+	// Checking if calling request is coming from an already MDM enrolled device
+	deviceID, err := reqSyncML.GetSource()
+	if err != nil || deviceID == "" {
+		return fmt.Errorf("invalid SyncML message %w", err)
+	}
+
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil || enrolledDevice == nil {
+		return errors.New("device was not MDM enrolled")
+	}
+
+	// Check if TLS certs contains device ID on its common name
+	if len(reqCerts) > 0 {
+		for _, reqCert := range reqCerts {
+			if strings.Contains(reqCert.Subject.CommonName, deviceID) {
+				return nil
+			}
+		}
+	}
+
+	// TODO: Latest version of the MDM client stack don't populate TLS.PeerCertificates array
+	// This is a temporary workaround to allow the management request to proceed
+	// Transport-level security should be replaced for Application-level security
+	// Transport-level security is defined in the MS-MDM spec in section 1.3.1
+	// On the other hand, Application-level security is defined here
+	// https://www.openmobilealliance.org/release/DM/V1_2_1-20080617-A/OMA-TS-DM_Security-V1_2_1-20080617-A.pdf
+	// The initial values for Application-level security configuration are defined in the
+	// WAP Profile blob that is sent to the device during the enrollment process. Example below
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="CLIENT"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHSECRET" value="2jsidqgffx"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+	//	<characteristic type="APPAUTH">
+	//		<parm name="AAUTHLEVEL" value="APPSRV"/>
+	//		<parm name="AAUTHTYPE" value="DIGEST"/>
+	//		<parm name="AAUTHNAME" value="43f8bf591b8557346021"/>
+	//		<parm name="AAUTHSECRET" value="crbr3w2cab"/>
+	//		<parm name="AAUTHDATA" value="aGVsbG8gd29ybGQ="/>
+	//	</characteristic>
+
+	if len(reqCerts) == 0 {
+		return nil
+	}
+
+	return errors.New("calling device is not trusted")
+}
+
+// regex to validate UPN
+var upnRegex = regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+
+// isFleetdPresentOnDevice checks if the device requires Fleetd to be deployed
+func (svc *Service) isFleetdPresentOnDevice(ctx context.Context, deviceID string) (bool, error) {
+	// checking first if the device was enrolled through programmatic flow
+	enrolledDevice, err := svc.ds.MDMWindowsGetEnrolledDeviceWithDeviceID(ctx, deviceID)
+	if err != nil {
+		return false, ctxerr.Wrap(ctx, err, "get windows enrolled device")
+	}
+
+	// If user identity is a MS-MDM UPN it means that the device was enrolled through user-driven flow
+	// This means that fleetd might not be installed
+	if isValidUPN(enrolledDevice.MDMEnrollUserID) {
+		return false, nil
+	}
+
+	// TODO: Add check here to determine if MDM DeviceID is connected with Smbios UUID present on
+	// host table. This new check should look into command results table and extract the value of
+	// ./DevDetail/Ext/Microsoft/SMBIOSSerialNumber for the given DeviceID and use that for hosts
+	// table lookup
+	return true, nil
+}
+
+func (svc *Service) enqueueInstallFleetdCommand(ctx context.Context, deviceID string) error {
+	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting enroll secrets")
+	}
+
+	if len(secrets) == 0 {
+		level.Warn(svc.logger).Log("msg", "unable to find a global enroll secret to install fleetd")
+		return nil
+	}
+
+	appCfg, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	fleetURL := appCfg.ServerSettings.ServerURL
+	globalEnrollSecret := secrets[0].Secret
+	addCommandUUID := uuid.NewString()
+	execCommandUUID := uuid.NewString()
+
+	rawAddCmd := []byte(`
+<Add>
+	<CmdID>` + addCommandUUID + `</CmdID>
+	<Item>
+		<Target>
+			<LocURI>` + syncml.FleetdWindowsInstallerGUID + `</LocURI>
+		</Target>
+	</Item>
+</Add>`)
+
+	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
+	// installed only the first time the message is issued.
+	// FleetURL and FleetSecret properties are passed to the Fleet MSI
+	rawExecCmd := []byte(`
+<Exec>
+	<CmdID>` + execCommandUUID + `</CmdID>
+	<Item>
+		<Target>
+			<LocURI>` + syncml.FleetdWindowsInstallerGUID + `</LocURI>
+		</Target>
+		<Data>
+			<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
+			<Product Version="1.0.0.0">
+				<Download>
+					<ContentURLList>
+						<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
+					</ContentURLList>
+				</Download>
+				<Validation>
+					<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
+				</Validation>
+				<Enforcement>
+					<CommandLine>/quiet FLEET_URL="` + fleetURL + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
+					<TimeOut>10</TimeOut>
+					<RetryCount>1</RetryCount>
+					<RetryInterval>5</RetryInterval>
+				</Enforcement>
+			</Product>
+			</MsiInstallJob>
+		</Data>
+		<Meta>
+			<Type xmlns="syncml:metinf">text/plain</Type>
+			<Format xmlns="syncml:metinf">xml</Format>
+		</Meta>
+	</Item>
+</Exec>
+`)
+
+	// TODO: add ability to batch-enqueue multiple commands at the same time
+	addFleetdCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  addCommandUUID,
+		RawCommand:   rawAddCmd,
+		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, addFleetdCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert add command to install fleetd")
+	}
+
+	execFleetCmd := &fleet.MDMWindowsCommand{
+		CommandUUID:  execCommandUUID,
+		RawCommand:   rawExecCmd,
+		TargetLocURI: syncml.FleetdWindowsInstallerGUID,
+	}
+	if err := svc.ds.MDMWindowsInsertCommandForHosts(ctx, []string{deviceID}, execFleetCmd); err != nil {
+		return ctxerr.Wrap(ctx, err, "insert exec command to install fleetd")
+	}
+
+	return nil
+}
+
+// Alerts Handlers
+
+// New session Alert Handler
+// This handler will return an protocol command to install an MSI on a new session from unenrolled device
+func (svc *Service) processNewSessionAlert(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	// Checking if fleetd is present on the device
+	fleetdPresent, err := svc.isFleetdPresentOnDevice(ctx, deviceID)
+	if err != nil {
+		return err
+	}
+
+	if !fleetdPresent {
+		return svc.enqueueInstallFleetdCommand(ctx, deviceID)
+	}
+
+	return nil
+}
+
+// Generic Alert Handlers
+// This handler will check for generic alerts. Device unenrollment is handled here
+func (svc *Service) processGenericAlert(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	// Checking user-initiated unenrollment request
+	if len(cmd.Cmd.Items) > 0 {
+		for _, item := range cmd.Cmd.Items {
+
+			if item.Meta == nil || item.Meta.Type == nil || item.Meta.Type.Content == nil {
+				continue
+			}
+
+			// Checking if user-initiated unenrollment request is present
+			if *item.Meta.Type.Content == syncml.AlertUserUnenrollmentRequest {
+
+				// Deleting the device from the list of enrolled device
+				err := svc.ds.MDMWindowsDeleteEnrolledDeviceWithDeviceID(ctx, deviceID)
+				if err != nil {
+					return fmt.Errorf("unenrolling windows device: %w", err)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// processIncomingAlertsCommands will process the incoming Alerts commands.
+// These commands don't require an status response.
+func (svc *Service) processIncomingAlertsCommands(ctx context.Context, messageID string, deviceID string, cmd mdm_types.ProtoCmdOperation) error {
+	if cmd.Cmd.Data == nil {
+		return errors.New("invalid alert command")
+	}
+
+	// gathering the incoming Alert ID
+	alertID := *cmd.Cmd.Data
+
+	switch alertID {
+	case syncml.CmdAlertClientInitiatedManagement:
+		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+	case syncml.CmdAlertServerInitiatedManagement:
+		return svc.processNewSessionAlert(ctx, messageID, deviceID, cmd)
+	case syncml.CmdAlertGeneric:
+		return svc.processGenericAlert(ctx, messageID, deviceID, cmd)
+	}
+
+	return nil
+}
+
+// processIncomingMDMCmds process the incoming message from the device
+// It will return the list of operations that need to be sent to the device
+func (svc *Service) processIncomingMDMCmds(ctx context.Context, deviceID string, reqMsg *fleet.SyncML) ([]*fleet.SyncMLCmd, error) {
+	var responseCmds []*fleet.SyncMLCmd
+
+	// Get the incoming MessageID
+	reqMessageID, err := reqMsg.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("get incoming msg: %w", err)
+	}
+
+	// Acknowledge the message header
+	// msgref is always 0 for the header
+	if err = reqMsg.IsValidHeader(); err == nil {
+		ackMsg := NewSyncMLCmdStatus(reqMessageID, "0", syncml.SyncMLHdrName, syncml.CmdStatusOK)
+		responseCmds = append(responseCmds, ackMsg)
+	}
+
+	if err := svc.ds.MDMWindowsSaveResponse(ctx, deviceID, reqMsg); err != nil {
+		return nil, fmt.Errorf("store incoming msgs: %w", err)
+	}
+
+	// Iterate over the operations and process them
+	for _, protoCMD := range reqMsg.GetOrderedCmds() {
+		// Alerts, Results and Status don't require a status response
+		switch protoCMD.Verb {
+		case mdm_types.CmdAlert:
+			err := svc.processIncomingAlertsCommands(ctx, reqMessageID, deviceID, protoCMD)
+			if err != nil {
+				return nil, fmt.Errorf("process incoming command: %w", err)
+			}
+			continue
+		case mdm_types.CmdStatus, mdm_types.CmdResults:
+			continue
+		}
+
+		// CmdStatusOK is returned for the rest of the operations
+		responseCmds = append(responseCmds, NewSyncMLCmdStatus(reqMessageID, protoCMD.Cmd.CmdID.Value, protoCMD.Verb, syncml.CmdStatusOK))
+	}
+
+	return responseCmds, nil
+}
+
+// getPendingMDMCmds returns the list of pending MDM commands for the device
+func (svc *Service) getPendingMDMCmds(ctx context.Context, deviceID string) ([]*mdm_types.SyncMLCmd, error) {
+	pendingCmds, err := svc.ds.MDMWindowsGetPendingCommands(ctx, deviceID)
+	if err != nil {
+		return nil, fmt.Errorf("getting incoming cmds %w", err)
+	}
+
+	// Converting the pending commands to its target SyncML types
+	var cmds []*mdm_types.SyncMLCmd
+	for _, pendingCmd := range pendingCmds {
+		cmd := new(mdm_types.SyncMLCmd)
+		if err := xml.Unmarshal(pendingCmd.RawCommand, cmd); err != nil {
+			logging.WithErr(ctx, ctxerr.Wrap(ctx, err, "getPendingMDMCmds syncML cmd creation"))
+			continue
+		}
+		cmds = append(cmds, cmd)
+	}
+
+	return cmds, nil
+}
+
+// createResponseSyncML returns a valid SyncML message
+func (svc *Service) createResponseSyncML(ctx context.Context, req *fleet.SyncML, responseOps []*mdm_types.SyncMLCmd) (*fleet.SyncML, error) {
+	// Get the DeviceID
+	deviceID, err := req.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
+	}
+
+	// Get SessionID
+	sessionID, err := req.GetSessionID()
+	if err != nil {
+		return nil, fmt.Errorf("session ID processing error %w", err)
+	}
+
+	// Get MessageID
+	messageID, err := req.GetMessageID()
+	if err != nil {
+		return nil, fmt.Errorf("message ID processing error %w", err)
+	}
+
+	// Getting the Management endpoint URL
+	appConfig, err := svc.ds.AppConfig(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("appconfig was not available %w", err)
+	}
+
+	urlManagementEndpoint, err := microsoft_mdm.ResolveWindowsMDMManagement(appConfig.ServerSettings.ServerURL)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "resolve management endpoint")
+	}
+
+	// Create the SyncML message with the response operations
+	msg, err := createSyncMLMessage(sessionID, messageID, deviceID, urlManagementEndpoint, responseOps)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "creation of SyncML message")
+	}
+
+	return msg, nil
+}
+
+// getManagementResponse returns a valid SyncML response message
+func (svc *Service) getManagementResponse(ctx context.Context, reqMsg *fleet.SyncML) (*mdm_types.SyncML, error) {
+	if reqMsg == nil {
 		return nil, fleet.NewInvalidArgumentError("syncml req message", "message is not present")
 	}
 
-	// cmdID tracks the command sequence
-	cmdID := 0
+	// Get the DeviceID
+	deviceID, err := reqMsg.GetSource()
+	if err != nil || deviceID == "" {
+		return nil, fmt.Errorf("invalid SyncML message %w", err)
+	}
 
-	// Retrieve the MessageID from the syncml req body
-	deviceID := reqSyncML.Header.Source
-
-	// Retrieve the sessionID from the syncml req body
-	sessionID := reqSyncML.Header.SessionID
-
-	// Retrieve the msgID from the syncml req body
-	msgID := reqSyncML.Header.MsgID
-
-	// Getting the management URL message content
-	appCfg, err := svc.ds.AppConfig(ctx)
+	// Process the incoming MDM protocol commands and get the response MDM protocol commands
+	resIncomingCmds, err := svc.processIncomingMDMCmds(ctx, deviceID, reqMsg)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err)
+		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
+	// Process the pending operations and get the MDM response protocol commands
+	resPendingCmds, err := svc.getPendingMDMCmds(ctx, deviceID)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("message processing error %w", err)
 	}
 
-	// Checking the SyncML message types
-	var response string
-	if isSessionInitializationMessage(reqSyncML.Body) {
-		// Create response payload - MDM SyncML configuration profiles commands will be enforced here
-		response = `
-			<?xml version="1.0" encoding="UTF-8"?>
-			<SyncML xmlns="SYNCML:SYNCML1.2">
-				<SyncHdr>
-					<VerDTD>1.2</VerDTD>
-					<VerProto>DM/1.2</VerProto>
-					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
-					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
-					<Target>
-						<LocURI>` + deviceID + `</LocURI>
-					</Target>
-					<Source>
-						<LocURI>` + urlManagementEndpoint + `</LocURI>
-					</Source>
-				</SyncHdr>
-				<SyncBody>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>0</CmdRef>
-						<Cmd>SyncHdr</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>2</CmdRef>
-						<Cmd>Alert</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>3</CmdRef>
-						<Cmd>Alert</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>4</CmdRef>
-						<Cmd>Replace</Cmd>
-						<Data>200</Data>
-					</Status>
-					` + svc.getConfigProfilesToEnforce(ctx, &cmdID) + `
-					<Final />
-				</SyncBody>
-			</SyncML>`
-	} else {
-		// Acknowledge SyncML messages sent by host
-		response = `
-			<?xml version="1.0" encoding="UTF-8"?>
-			<SyncML xmlns="SYNCML:SYNCML1.2">
-				<SyncHdr>
-					<VerDTD>1.2</VerDTD>
-					<VerProto>DM/1.2</VerProto>
-					<SessionID>` + strconv.Itoa(sessionID) + `</SessionID>
-					<MsgID>` + strconv.Itoa(msgID) + `</MsgID>
-					<Target>
-						<LocURI>` + deviceID + `</LocURI>
-					</Target>
-					<Source>
-						<LocURI>` + urlManagementEndpoint + `</LocURI>
-					</Source>
-				</SyncHdr>
-				<SyncBody>
-					<Status>
-						<CmdID>` + getNextCmdID(&cmdID) + `</CmdID>
-						<MsgRef>` + strconv.Itoa(msgID) + `</MsgRef>
-						<CmdRef>0</CmdRef>
-						<Cmd>SyncHdr</Cmd>
-						<Data>200</Data>
-					</Status>
-					<Final />
-				</SyncBody>
-			</SyncML>`
+	// Combined cmd responses
+	resCmds := append(resIncomingCmds, resPendingCmds...)
+
+	// Create the response SyncML message
+	msg, err := svc.createResponseSyncML(ctx, reqMsg, resCmds)
+	if err != nil {
+		return nil, fmt.Errorf("message syncML creation error %w", err)
 	}
 
-	// Create a replacer to replace both "\n" and "\t"
-	replacer := strings.NewReplacer("\n", "", "\t", "")
-
-	// Use the replacer on the string representation of xmlContent
-	responseRaw := replacer.Replace(response)
-
-	return &responseRaw, nil
+	return msg, nil
 }
 
 // removeWindowsDeviceIfAlreadyMDMEnrolled removes the device if already MDM enrolled
 // HW DeviceID is used to check the list of enrolled devices
 func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) error {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
-	reqHWDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
-		return err
-	}
-
-	// Checking the storage to see if the device is already enrolled
-	device, err := svc.ds.MDMWindowsGetEnrolledDevice(ctx, reqHWDeviceID)
-	if err != nil {
-		// Device is not present
-		if fleet.IsNotFound(err) {
-			return nil
-		}
-
 		return err
 	}
 
 	// Device is already enrolled, let's remove it
-	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, device.MDMHardwareID)
+	err = svc.ds.MDMWindowsDeleteEnrolledDevice(ctx, reqHWDeviceID)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil
+		}
 		return err
 	}
 
@@ -1339,13 +1608,13 @@ func (svc *Service) removeWindowsDeviceIfAlreadyMDMEnrolled(ctx context.Context,
 // https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mde2/35e1aca6-1b8a-48ba-bbc0-23af5d46907a
 func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTokenMsg *fleet.RequestSecurityToken) (string, error) {
 	// Getting the HW DeviceID from the RequestSecurityToken msg
-	reqHWDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
+	reqHWDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return "", err
 	}
 
 	// Getting the EnrollmentType information from the RequestSecurityToken msg
-	reqEnrollType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemEnrollmentType)
+	reqEnrollType, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemEnrollmentType)
 	if err != nil {
 		return "", err
 	}
@@ -1363,7 +1632,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	}
 
 	// Getting the client CSR request from the device
-	clientCSR, err := mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
+	clientCSR, err := microsoft_mdm.GetClientCSR(binSecurityTokenData, binSecurityTokenType)
 	if err != nil {
 		return "", err
 	}
@@ -1389,7 +1658,7 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 	}
 
 	// Getting the MS-MDM management URL to provision the device
-	urlManagementEndpoint, err := mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
+	urlManagementEndpoint, err := microsoft_mdm.ResolveWindowsMDMManagement(appCfg.ServerSettings.ServerURL)
 	if err != nil {
 		return "", err
 	}
@@ -1411,49 +1680,49 @@ func (svc *Service) getDeviceProvisioningInformation(ctx context.Context, secTok
 }
 
 // storeWindowsMDMEnrolledDevice stores the device information to the list of MDM enrolled devices
-func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, secTokenMsg *fleet.RequestSecurityToken) error {
+func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID string, hostUUID string, secTokenMsg *fleet.RequestSecurityToken) error {
 	const (
 		error_tag = "windows MDM enrolled storage: "
 	)
 
 	// Getting the DeviceID context information from the RequestSecurityToken msg
-	reqDeviceID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceID)
+	reqDeviceID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceID)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
 	// Getting the HWDevID context information from the RequestSecurityToken msg
-	reqHWDevID, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemHWDevID)
+	reqHWDevID, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemHWDevID)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
 	// Getting the Enroll DeviceType context information from the RequestSecurityToken msg
-	reqDeviceType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceType)
+	reqDeviceType, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceType)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
 	// Getting the Enroll DeviceName context information from the RequestSecurityToken msg
-	reqDeviceName, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemDeviceName)
+	reqDeviceName, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemDeviceName)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
 	// Getting the Enroll RequestVersion context information from the RequestSecurityToken msg
-	reqEnrollVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemRequestVersion)
+	reqEnrollVersion, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemRequestVersion)
 	if err != nil {
 		reqEnrollVersion = "request_version_not_present"
 	}
 
 	// Getting the RequestVersion context information from the RequestSecurityToken msg
-	reqAppVersion, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemApplicationVersion)
+	reqAppVersion, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemApplicationVersion)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
 
 	// Getting the EnrollmentType information from the RequestSecurityToken msg
-	reqEnrollType, err := GetContextItem(secTokenMsg, mdm.ReqSecTokenContextItemEnrollmentType)
+	reqEnrollType, err := GetContextItem(secTokenMsg, syncml.ReqSecTokenContextItemEnrollmentType)
 	if err != nil {
 		return fmt.Errorf("%s %v", error_tag, err)
 	}
@@ -1462,7 +1731,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 	enrolledDevice := &fleet.MDMWindowsEnrolledDevice{
 		MDMDeviceID:            reqDeviceID,
 		MDMHardwareID:          reqHWDevID,
-		MDMDeviceState:         mdm.MDMDeviceStateEnrolled,
+		MDMDeviceState:         microsoft_mdm.MDMDeviceStateEnrolled,
 		MDMDeviceType:          reqDeviceType,
 		MDMDeviceName:          reqDeviceName,
 		MDMEnrollType:          reqEnrollType,
@@ -1470,6 +1739,7 @@ func (svc *Service) storeWindowsMDMEnrolledDevice(ctx context.Context, userID st
 		MDMEnrollProtoVersion:  reqEnrollVersion,
 		MDMEnrollClientVersion: reqAppVersion,
 		MDMNotInOOBE:           false,
+		HostUUID:               hostUUID,
 	}
 
 	if err := svc.ds.MDMWindowsInsertEnrolledDevice(ctx, enrolledDevice); err != nil {
@@ -1528,99 +1798,446 @@ func (svc *Service) SignMDMMicrosoftClientCSR(ctx context.Context, subject strin
 	return cert, fpHex, nil
 }
 
-func (svc *Service) getConfigProfilesToEnforce(ctx context.Context, commandID *int) string {
-	// Getting the management URL
-	appCfg, _ := svc.ds.AppConfig(ctx)
-	fleetEnrollUrl := appCfg.ServerSettings.ServerURL
+// MS-MDM Commands helpers
+// createSyncMLMessage takes input data and returns a SyncML struct
+func createSyncMLMessage(sessionID string, msgID string, deviceID string, source string, protoCommands []*mdm_types.SyncMLCmd) (*mdm_types.SyncML, error) {
+	// Sanity check on input
+	if len(sessionID) == 0 || len(msgID) == 0 || len(deviceID) == 0 || len(source) == 0 {
+		return nil, errors.New("invalid parameters")
+	}
 
-	// Getting the global enrollment secret
-	var globalEnrollSecret string
-	secrets, err := svc.ds.GetEnrollSecrets(ctx, nil)
+	if sessionID == "0" {
+		return nil, errors.New("invalid session ID")
+	}
+
+	if msgID == "0" {
+		return nil, errors.New("invalid msg ID")
+	}
+
+	if len(protoCommands) == 0 {
+		return nil, errors.New("invalid operations")
+	}
+
+	// Setting source LocURI
+	var sourceLocURI *mdm_types.LocURI
+
+	if len(source) > 0 {
+		sourceLocURI = &mdm_types.LocURI{
+			LocURI: &source,
+		}
+	}
+
+	// setting up things on the SyncML message
+	var msg mdm_types.SyncML
+	msg.Xmlns = syncml.SyncCmdNamespace
+	msg.SyncHdr = mdm_types.SyncHdr{
+		VerDTD:    syncml.SyncMLSupportedVersion,
+		VerProto:  syncml.SyncMLVerProto,
+		SessionID: sessionID,
+		MsgID:     msgID,
+		Target:    &mdm_types.LocURI{LocURI: &deviceID},
+		Source:    sourceLocURI,
+	}
+
+	// iterate over operations and append them to the SyncML message
+	for _, protoCmd := range protoCommands {
+		msg.AppendCommand(fleet.MDMRaw, *protoCmd)
+	}
+
+	// If there was no error, return the SyncML and a nil error
+	return &msg, nil
+}
+
+// newSyncMLCmdWithNoItem creates a new SyncML command
+func newSyncMLCmdWithNoItem(cmdVerb *string, cmdData *string) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: *cmdVerb},
+		Data:    cmdData,
+		Items:   nil,
+	}
+}
+
+// newSyncMLCmdWithItem creates a new SyncML command
+func newSyncMLCmdWithItem(cmdVerb *string, cmdData *string, cmdItem *mdm_types.CmdItem) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: *cmdVerb},
+		Data:    cmdData,
+		Items:   []mdm_types.CmdItem{*cmdItem},
+	}
+}
+
+// newSyncMLItem creates a new SyncML command
+func newSyncMLItem(cmdSource *string, cmdTarget *string, cmdDataType *string, cmdDataFormat *string, cmdDataValue *string) *mdm_types.CmdItem {
+	var metaFormat *mdm_types.MetaAttr
+	var metaType *mdm_types.MetaAttr
+	var meta *mdm_types.Meta
+	var data *mdm_types.RawXmlData
+
+	if cmdDataFormat != nil && len(*cmdDataFormat) > 0 {
+		metaFormat = &mdm_types.MetaAttr{
+			XMLNS:   "syncml:metinf",
+			Content: cmdDataFormat,
+		}
+	}
+
+	if cmdDataType != nil && len(*cmdDataType) > 0 {
+		metaType = &mdm_types.MetaAttr{
+			XMLNS:   "syncml:metinf",
+			Content: cmdDataType,
+		}
+	}
+
+	if metaFormat != nil || metaType != nil {
+		meta = &mdm_types.Meta{
+			Format: metaFormat,
+			Type:   metaType,
+		}
+	}
+
+	if cmdDataValue != nil {
+		data = &mdm_types.RawXmlData{
+			Content: *cmdDataValue,
+		}
+	}
+
+	return &mdm_types.CmdItem{
+		Meta:   meta,
+		Data:   data,
+		Target: cmdTarget,
+		Source: cmdSource,
+	}
+}
+
+// NewSyncMLCmd creates a new SyncML command
+func NewSyncMLCmd(cmdVerb string, cmdSource string, cmdTarget string, cmdDataType string, cmdDataFormat string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	var workCmdVerb *string
+	var workCmdSource *string
+	var workCmdTarget *string
+	var workCmdDataType *string
+	var workCmdDataFormat *string
+	var workCmdDataValue *string
+
+	if len(cmdVerb) > 0 {
+		workCmdVerb = &cmdVerb
+	}
+
+	if len(cmdSource) > 0 {
+		workCmdSource = &cmdSource
+	}
+
+	if len(cmdTarget) > 0 {
+		workCmdTarget = &cmdTarget
+	}
+
+	if len(cmdDataType) > 0 {
+		workCmdDataType = &cmdDataType
+	}
+
+	if len(cmdDataFormat) > 0 {
+		workCmdDataFormat = &cmdDataFormat
+	}
+
+	if len(cmdDataValue) > 0 {
+		workCmdDataValue = &cmdDataValue
+	}
+
+	item := newSyncMLItem(workCmdSource, workCmdTarget, workCmdDataType, workCmdDataFormat, workCmdDataValue)
+	return newSyncMLCmdWithItem(workCmdVerb, nil, item)
+}
+
+func NewTypedSyncMLCmd(dataType mdm_types.SyncMLDataType, cmdVerb string, cmdTarget string, cmdData string) (*mdm_types.SyncMLCmd, error) {
+	errInvalidParameters := errors.New("invalid parameters")
+
+	// Checking if command verb is present
+	if cmdVerb == "" {
+		return nil, errInvalidParameters
+	}
+
+	// Returning command based on input command data type
+	switch dataType {
+	case mdm_types.SFEmpty:
+		if len(cmdData) > 0 {
+			rawCmd := newSyncMLNoItem(cmdVerb, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFNoFormat:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 {
+			rawCmd := newSyncMLNoFormat(cmdVerb, cmdTarget)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFText:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdText(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFXml:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdXml(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFInteger:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdInt(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFBase64:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdBase64(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+
+	case mdm_types.SFBoolean:
+		if len(cmdData) > 0 && len(cmdTarget) > 0 && len(cmdData) > 0 {
+			rawCmd := newSyncMLCmdBool(cmdVerb, cmdTarget, cmdData)
+			return rawCmd, nil
+		}
+
+		return nil, errInvalidParameters
+	}
+
+	return nil, errInvalidParameters
+}
+
+// newSyncMLNoItem creates a new SyncML command with no item
+// This is used for commands that do not have any items such as Alerts
+func newSyncMLNoItem(cmdVerb string, cmdData string) *mdm_types.SyncMLCmd {
+	return newSyncMLCmdWithNoItem(&cmdVerb, &cmdData)
+}
+
+// newSyncMLNoFormat creates a new SyncML command with no format
+// This is used for commands that do not have any data such as Get
+func newSyncMLNoFormat(cmdVerb string, cmdTarget string) *mdm_types.SyncMLCmd {
+	item := newSyncMLItem(nil, &cmdTarget, nil, nil, nil)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdText creates a new SyncML command with text data
+func newSyncMLCmdText(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "chr"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdXml creates a new SyncML command with XML data
+func newSyncMLCmdXml(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "xml"
+	escapedXML := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &escapedXML)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdBase64 creates a new SyncML command with Base64 encoded data
+func newSyncMLCmdBase64(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdFormat := "b64"
+	escapedXML := html.EscapeString(cmdDataValue)
+	item := newSyncMLItem(nil, &cmdTarget, nil, &cmdFormat, &escapedXML)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdInt creates a new SyncML command with text data
+func newSyncMLCmdInt(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "int"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// newSyncMLCmdBool creates a new SyncML command with text data
+func newSyncMLCmdBool(cmdVerb string, cmdTarget string, cmdDataValue string) *mdm_types.SyncMLCmd {
+	cmdType := "text/plain"
+	cmdFormat := "bool"
+	item := newSyncMLItem(nil, &cmdTarget, &cmdType, &cmdFormat, &cmdDataValue)
+	return newSyncMLCmdWithItem(&cmdVerb, nil, item)
+}
+
+// NewSyncMLCmdStatus creates a new SyncML command with text data
+func NewSyncMLCmdStatus(msgRef string, cmdRef string, cmdOrig string, statusCode string) *mdm_types.SyncMLCmd {
+	return &mdm_types.SyncMLCmd{
+		XMLName: xml.Name{Local: mdm_types.CmdStatus},
+		MsgRef:  &msgRef,
+		CmdRef:  &cmdRef,
+		Cmd:     &cmdOrig,
+		Data:    &statusCode,
+		Items:   nil,
+		CmdID: mdm_types.CmdID{
+			Value: uuid.NewString(),
+		},
+	}
+}
+
+func (svc *Service) GetMDMWindowsProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
+	if err := svc.authz.Authorize(ctx, fleet.MDMConfigProfileAuthz{TeamID: teamID}, fleet.ActionRead); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+		return &fleet.MDMProfilesSummary{}, nil
+	}
+
+	ps, err := svc.ds.GetMDMWindowsProfilesSummary(ctx, teamID)
 	if err != nil {
-		return ""
+		return nil, ctxerr.Wrap(ctx, err)
 	}
 
-	for _, secret := range secrets {
-		if secret.TeamID == nil {
-			globalEnrollSecret = secret.Secret
-			break
+	return ps, nil
+}
+
+func ReconcileWindowsProfiles(ctx context.Context, ds fleet.Datastore, logger kitlog.Logger) error {
+	appConfig, err := ds.AppConfig(ctx)
+	if err != nil {
+		return fmt.Errorf("reading app config: %w", err)
+	}
+	if !appConfig.MDM.WindowsEnabledAndConfigured {
+		return nil
+	}
+
+	// retrieve the profiles to install/remove.
+	toInstall, err := ds.ListMDMWindowsProfilesToInstall(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting profiles to install")
+	}
+	toRemove, err := ds.ListMDMWindowsProfilesToRemove(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "getting profiles to remove")
+	}
+
+	// toGetContents contains the IDs of all the profiles from which we
+	// need to retrieve contents. Since the previous query returns one row
+	// per host, it would be too expensive to retrieve the profile contents
+	// there, so we make another request. Using a map to deduplicate.
+	toGetContents := make(map[string]bool)
+
+	// hostProfiles tracks each host_mdm_windows_profile we need to upsert
+	// with the new status, operation_type, etc.
+	hostProfiles := make([]*fleet.MDMWindowsBulkUpsertHostProfilePayload, 0, len(toInstall))
+
+	// install are maps from profileUUID -> command uuid and host
+	// UUIDs as the underlying MDM services are optimized to send one command to
+	// multiple hosts at the same time. Note that the same command uuid is used
+	// for all hosts in a given install/remove target operation.
+	type cmdTarget struct {
+		cmdUUID   string
+		profID    string
+		hostUUIDs []string
+	}
+	installTargets := make(map[string]*cmdTarget)
+
+	for _, p := range toInstall {
+		toGetContents[p.ProfileUUID] = true
+		target := installTargets[p.ProfileUUID]
+		if target == nil {
+			target = &cmdTarget{
+				cmdUUID: uuid.New().String(),
+				profID:  p.ProfileUUID,
+			}
+			installTargets[p.ProfileUUID] = target
+		}
+		target.hostUUIDs = append(target.hostUUIDs, p.HostUUID)
+
+		hostProfiles = append(hostProfiles, &fleet.MDMWindowsBulkUpsertHostProfilePayload{
+			ProfileUUID:   p.ProfileUUID,
+			HostUUID:      p.HostUUID,
+			ProfileName:   p.ProfileName,
+			CommandUUID:   target.cmdUUID,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Status:        &fleet.MDMDeliveryPending,
+		})
+		level.Debug(logger).Log("msg", "installing profile", "profile_uuid", p.ProfileUUID, "host_id", p.HostUUID, "name", p.ProfileName)
+	}
+
+	// Grab the contents of all the profiles we need to install
+	profileUUIDs := make([]string, 0, len(toGetContents))
+	for pid := range toGetContents {
+		profileUUIDs = append(profileUUIDs, pid)
+	}
+	profileContents, err := ds.GetMDMWindowsProfilesContents(ctx, profileUUIDs)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get profile contents")
+	}
+
+	for profUUID, target := range installTargets {
+		p, ok := profileContents[profUUID]
+		if !ok {
+			// this should never happen
+			return ctxerr.Wrapf(ctx, err, "missing profile content for profile %s", profUUID)
+		}
+
+		command, err := buildCommandFromProfileBytes(p, target.cmdUUID)
+		if err != nil {
+			level.Info(logger).Log("err", err, "profile_uuid", profUUID)
+			continue
+		}
+		if err := ds.MDMWindowsInsertCommandForHosts(ctx, target.hostUUIDs, command); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting commands for hosts")
 		}
 	}
 
-	// keeping the same GUID will prevent the MSI to be installed multiple times - it will be
-	// installed only the first time the message is issued.
-	// FleetURL and FleetSecret properties are passed to the Fleet MSI
-	// See here for more information: https://learn.microsoft.com/en-us/windows/win32/msi/command-line-options
-	installCommandPayload := `<MsiInstallJob id="{A427C0AA-E2D5-40DF-ACE8-0D726A6BE096}">
-					<Product Version="1.0.0.0">
-						<Download>
-							<ContentURLList>
-								<ContentURL>https://download.fleetdm.com/fleetd-base.msi</ContentURL>
-							</ContentURLList>
-						</Download>
-						<Validation>
-							<FileHash>9F89C57D1B34800480B38BD96186106EB6418A82B137A0D56694BF6FFA4DDF1A</FileHash>
-						</Validation>
-						<Enforcement>
-							<CommandLine>/quiet FLEET_URL="` + fleetEnrollUrl + `" FLEET_SECRET="` + globalEnrollSecret + `"</CommandLine>
-							<TimeOut>10</TimeOut>
-							<RetryCount>1</RetryCount>
-							<RetryInterval>5</RetryInterval>
-						</Enforcement>
-					</Product>
-				</MsiInstallJob>`
+	// Windows profiles are just deleted from the DB, the notion of sending
+	// a command to remove a profile doesn't exist.
+	if err := ds.BulkDeleteMDMWindowsHostsConfigProfiles(ctx, toRemove); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting profiles that didn't change")
+	}
 
-	newCmds := `<Add>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-				</Item>
-				</Add>
-				<Exec>
-				<CmdID>` + getNextCmdID(commandID) + `</CmdID>
-				<Item>
-					<Target>
-					<LocURI>./Device/Vendor/MSFT/EnterpriseDesktopAppManagement/MSI/%7BA427C0AA-E2D5-40DF-ACE8-0D726A6BE096%7D/DownloadInstall</LocURI>
-					</Target>
-					<Data>` + html.EscapeString(installCommandPayload) + `</Data>
-					<Meta>
-					<Type xmlns="syncml:metinf">text/plain</Type>
-					<Format xmlns="syncml:metinf">xml</Format>
-					</Meta>
-				</Item>
-				</Exec>`
+	// Upsert the status of the host profiles we need to track.
+	if err := ds.BulkUpsertMDMWindowsHostProfiles(ctx, hostProfiles); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host profiles")
+	}
 
-	return newCmds
+	return nil
 }
 
-// getNextCmdID returns the next command ID
-func getNextCmdID(i *int) string {
-	*i++
-	return strconv.Itoa(*i)
-}
-
-// Checks if body contains a DM device unrollment SyncML message
-func isDeviceUnenrollmentMessage(body fleet.SyncMLBody) bool {
-	for _, element := range body.Item {
-		if element.Data == mdm.DeviceUnenrollmentID {
-			return true
+// TODO(roberto): I think this should live separately in the
+// Windows equivalent of Apple's Commander struct, but I'd like
+// to keep it simpler for now until we understand more.
+func buildCommandFromProfileBytes(profileBytes []byte, commandUUID string) (*fleet.MDMWindowsCommand, error) {
+	rawCommand := []byte(fmt.Sprintf(`<Atomic>%s</Atomic>`, profileBytes))
+	cmd := new(mdm_types.SyncMLCmd)
+	if err := xml.Unmarshal(rawCommand, cmd); err != nil {
+		return nil, fmt.Errorf("unmarshalling profile: %w", err)
+	}
+	// set the CmdID for the <Atomic> command
+	cmd.CmdID = mdm_types.CmdID{
+		Value:               commandUUID,
+		IncludeFleetComment: true,
+	}
+	// generate a CmdID for any nested <Replace>
+	for i := range cmd.ReplaceCommands {
+		cmd.ReplaceCommands[i].CmdID = mdm_types.CmdID{
+			Value:               uuid.NewString(),
+			IncludeFleetComment: true,
 		}
 	}
 
-	return false
-}
-
-// Checks if body contains a DM session initialization SyncML message sent by device
-func isSessionInitializationMessage(body fleet.SyncMLBody) bool {
-	isUnenrollMessage := isDeviceUnenrollmentMessage(body)
-
-	for _, element := range body.Item {
-		if element.Data == mdm.HostInitMessageID && !isUnenrollMessage {
-			return true
-		}
+	rawCommand, err := xml.Marshal(cmd)
+	if err != nil {
+		return nil, fmt.Errorf("marshalling command: %w", err)
 	}
 
-	return false
+	command := &fleet.MDMWindowsCommand{
+		CommandUUID: commandUUID,
+		RawCommand:  rawCommand,
+		// Atomic commands don't have a Target element.
+		TargetLocURI: "",
+	}
+
+	return command, nil
 }

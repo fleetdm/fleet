@@ -12,6 +12,7 @@ const DEFAULT_QUERY_MOCK: ISchedulableQuery = {
   author_name: "Test User",
   author_email: "test@example.com",
   observer_can_run: false,
+  discard_data: false,
   interval: 300,
   packs: [],
   team_id: null,
@@ -26,6 +27,7 @@ const DEFAULT_QUERY_MOCK: ISchedulableQuery = {
     system_time_p95: 1,
     total_executions: 6,
   },
+  editingExistingQuery: false,
 };
 
 const createMockQuery = (

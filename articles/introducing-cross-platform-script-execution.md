@@ -2,7 +2,7 @@
 
 At Fleet, we strive to enhance the functionality of our platform, offering more power and flexibility to IT administrators and security teams. Today, we are thrilled to announce an addition to our toolkit - the ability to [execute a shell script](https://fleetdm.com/docs/using-fleet/scripts) via command line (CLI) and Fleet's API across macOS, Windows, and Linux.
 
-This feature, available exclusively in Fleet Premium, unlocks the potential to execute a script on a specific host, empowering professionals to remediate issues or collect logs quickly. Whether using shell scripts on Mac and Linux or PowerShell for Windows, this functionality offers a streamlined and efficient solution to tackle challenges head-on.
+This feature, available exclusively in Fleet, unlocks the potential to execute a script on a specific host, empowering professionals to remediate issues or collect logs quickly. Whether using shell scripts on Mac and Linux or PowerShell for Windows, this functionality offers a streamlined and efficient solution to tackle challenges head-on.
 
 Whether you need to address a security vulnerability, investigate an anomaly, or gather information for analysis, this new capability puts the control in your hands right where you need it. Join us as we explore this feature in detail, looking at the requirements, usage, and unique advantages it brings to your device management landscape.
 
@@ -51,9 +51,9 @@ In the ever-changing landscape of technology, the requirements and challenges co
 Thank you for your trust and partnership as we continue this exciting journey together. If you have any questions or need assistance, please do not hesitate to [reach out](https://fleetdm.com/support). Your success is our success, and we are here to support you every step of the way.
 
 
-<meta name="category" value="releases">
+<meta name="category" value="announcements">
 <meta name="authorFullName" value="JD Strong">
 <meta name="authorGitHubUsername" value="spokanemac">
-<meta name="publishedOn" value="2023-09-07">
+<meta name="publishedOn" value="2023-10-17">
 <meta name="articleTitle" value="Introducing cross-platform script execution">
 <meta name="articleImageUrl" value="../website/assets/images/articles/introducing-cross-platform-script-execution-800x450@2x.png">
