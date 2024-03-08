@@ -430,7 +430,7 @@ const allHostTableHeaders: IDataColumn[] = [
         return NotSupported;
       }
       if (cellProps.cell.value) {
-        return <TextCell value={cellProps.cell.value} />;
+        return <TooltipTruncatedTextCell value={cellProps.cell.value} />;
       }
       return <span className="text-muted">{DEFAULT_EMPTY_CELL_VALUE}</span>;
     },
