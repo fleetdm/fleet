@@ -20,7 +20,7 @@ export interface IGetVulnerabilitiesQueryKey
 }
 
 interface IGetVulnerabilityOptions {
-  cve: string;
+  vulnerability: string;
   teamId?: number;
 }
 
@@ -70,10 +70,10 @@ export const getVulnerabilities = ({
 };
 
 const getVulnerability = ({
-  cve,
+  vulnerability,
   teamId,
 }: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
-  const endpoint = endpoints.VULNERABILITY(cve);
+  const endpoint = endpoints.VULNERABILITY(vulnerability);
   const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
   return sendRequest("GET", path);
