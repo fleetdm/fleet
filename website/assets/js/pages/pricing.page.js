@@ -30,7 +30,6 @@ parasails.registerPage('pricing', {
       this.pricingMode = pricingMode;
     },
     clickOpenMobileTooltip: function(feature){
-      console.log(feature);
       this.selectedFeature = feature;
       this.modal = 'mobileTooltip';
     },
