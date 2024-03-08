@@ -82,12 +82,7 @@
     border-radius: 15px;
     width: 100%;
     box-shadow: none;
-    strong {
-      color: @core-fleet-black-75;
-      font-weight: 400;
-      font-size: 16px;
-      line-height: 20px;
-    }
+    background: #fff;
   }
   [purpose='pricing-card'] {
     width: 33%;
@@ -98,6 +93,7 @@
     text-align: left;
     box-shadow: none;
     margin-left: 16px;
+    background: #fff;
   }
   [purpose='custom-tier-card'] {
     padding: 40px;
@@ -105,6 +101,7 @@
     text-align: left;
     box-shadow: none;
     margin-left: 16px;
+    background: #fff;
     [purpose='pricing-tier-title'] {
       h2 {
         margin-bottom: 17px;
@@ -182,19 +179,10 @@
       color: #515774;
       margin-bottom: 12px;
     }
-    h4 { // "Starting at"
-      font-weight: 400;
-      font-size: 16px;
-      line-height: 20px;
-      color: #192147;
-      vertical-align: baseline;
-      margin-bottom: 0px;
-      padding-right: 4px;
-    }
     strong { // "/host/month"
-      padding-left: 4px;
-      font-size: 12px;
-      line-height: 20px;
+      padding-left: 8px;
+      font-size: 14px;
+      line-height: 150%;
       color: @core-fleet-black-75;
       font-weight: 400;
     }
@@ -266,12 +254,7 @@
   }
 
   [purpose='features-table'].hide {
-    div {
-      height: 0px;
-      opacity: 0;
-      position: relative;
-      z-index: -99;
-    }
+    display: none !important; //lesshint-disable-line importantRule
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
@@ -466,16 +449,20 @@
       padding-right: 24px;
     }
     [purpose='free-tier-card'] {
-      padding: 32px;
+      margin-bottom: 12px;
+      padding: 40px;
     }
     [purpose='pricing-card'] {
-      width: 33%;
+      width: 100%;
     }
     [purpose='premium-tier-card'] {
-      padding: 32px;
+      margin-left: 0px;
+      margin-bottom: 12px;
+      padding: 40px;
     }
     [purpose='custom-tier-card'] {
-      padding: 32px;
+      margin-left: 0px;
+      padding: 40px;
     }
   }
 
@@ -502,25 +489,6 @@
         width: 100%;
       }
     }
-    [purpose='free-tier-card'] {
-      margin-bottom: 12px;
-      padding: 40px;
-      [purpose='card-button'] {
-        margin-bottom: 8px;
-      }
-    }
-    [purpose='pricing-card'] {
-      width: 100%;
-    }
-    [purpose='premium-tier-card'] {
-      margin-left: 0px;
-      margin-bottom: 12px;
-      padding: 40px;
-    }
-    [purpose='custom-tier-card'] {
-      margin-left: 0px;
-      padding: 40px;
-    }
   }
   @media (max-width: 575px) {
     // >575px:
@@ -539,6 +507,10 @@
       justify-content: center;
     }
     [purpose='premium-tier-card'] {
+      padding: 24px;
+      justify-content: center;
+    }
+    [purpose='custom-tier-card'] {
       padding: 24px;
       justify-content: center;
     }
