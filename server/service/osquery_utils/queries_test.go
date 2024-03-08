@@ -716,6 +716,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
+			name:                 "off no rows",
+			data:                 []map[string]string{},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
 			name: "on automatic",
 			data: []map[string]string{
 				{
