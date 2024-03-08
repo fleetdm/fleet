@@ -44,11 +44,11 @@ parasails.registerComponent('modal', {
   //  ╩ ╩ ╩ ╩ ╩╩═╝
   template: `
   <transition name="modal" v-on:leave="leave" v-bind:css="false">
-    <div class="modal fade" tabindex="-1" role="dialog">
+    <div class="modal fade" tabindex="-1" role="dialog" @click="$emit('close')">
       <div class="petticoat"></div>
-      <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog">
-        <div class="modal-content" purpose="modal-content">
-          <button type="button" class="position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button" v-if="!hideCloseButton">&times;</button>
+      <div class="modal-dialog custom-width position-relative" role="document" purpose="modal-dialog" >
+        <div class="modal-content" purpose="modal-content" v-on:click.stop>
+          <button type="button" class="position-absolute" data-dismiss="modal" aria-label="Close" purpose="modal-close-button" v-if="!hideCloseButton" @click="$emit('close')">&times;</button>
           <slot></slot>
         </div><!-- /.modal-content -->
       </div><!-- /.modal-dialog -->

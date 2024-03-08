@@ -1,4 +1,4 @@
-name: "Workstations"
+name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
 team_settings:
   features:
     enable_host_users: true
