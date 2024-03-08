@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"errors"
+	"log/slog"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -181,6 +182,7 @@ func enqueueCommandDB(ctx context.Context, tx sqlx.ExtContext, ids []string, cmd
 	// implementation. Ideally we modify some of the interfaces to not
 	// duplicate the code here, but that needs more careful planning
 	// (which we lack right now)
+	slog.With("filename", "server/datastore/mysql/nanomdm_storage.go", "func", "enqueueCommandDB").Info("JVE_LOG: in storage layer for nanomdm ", "cmdUUID", cmd.CommandUUID)
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
