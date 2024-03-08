@@ -21,7 +21,7 @@ import {
 
 const baseClass = "app-config-form";
 
-const HostStatusWebhook = ({
+const GlobalHostStatusWebhook = ({
   appConfig,
   handleSubmit,
   isUpdatingSettings,
@@ -212,4 +212,4 @@ const HostStatusWebhook = ({
   );
 };
 
-export default HostStatusWebhook;
+export default GlobalHostStatusWebhook;
