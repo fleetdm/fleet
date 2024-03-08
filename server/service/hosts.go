@@ -217,13 +217,6 @@ var (
 	deleteHostsSkipAuthorization = false
 )
 
-type deleteHostsFilters struct {
-	MatchQuery string           `json:"query"`
-	Status     fleet.HostStatus `json:"status"`
-	LabelID    *uint            `json:"label_id"`
-	TeamID     *uint            `json:"team_id"`
-}
-
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}

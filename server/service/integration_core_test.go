@@ -2815,7 +2815,7 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
 	req := addHostsToTeamByFilterRequest{
-		TeamID: &tm2.ID,
+		TeamID:  &tm2.ID,
 		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
 	}
 
