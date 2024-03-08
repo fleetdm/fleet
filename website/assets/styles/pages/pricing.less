@@ -269,8 +269,13 @@
     width: 110%;
   }
 
-  [purpose='features-table'] {
-    // padding-top: 80px;
+  [purpose='features-table'].hide {
+    div {
+      height: 0px;
+      opacity: 0;
+      position: relative;
+      z-index: -99;
+    }
   }
   [purpose='mobile-feature-table-section'] {
     margin-bottom: 16px;
@@ -318,6 +323,50 @@
     height: 16px;
     width: 16px;
   }
+
+  .tooltip-inner {
+    p {
+      font-size: 12px;
+      line-height: 150%;
+      color: #FFF;
+      margin-bottom: 8px;
+    }
+    a {
+      text-decoration: underline;
+      color: #FFF;
+    }
+  }
+  [purpose='mobile-tooltip'] {
+    [purpose='modal-content'] {
+      padding: 64px 24px;
+      background-color: @core-fleet-black-75;
+      border-radius: 16px;
+      border: none;
+      [purpose='modal-close-button'] {
+        color: #FFF;
+      }
+    }
+    p {
+      font-size: 14px;
+      line-height: 150%;
+      color: #FFF;
+      margin-bottom: 0px;
+    }
+    a {
+      font-size: 14px;
+      margin-top: 16px;
+      display: inline-block;
+      text-decoration: underline;
+      color: #FFF;
+    }
+  }
+  [purpose='tooltip-icon'] {
+    margin-left: 6px;
+    height: 14px;
+    cursor: pointer;
+    margin-bottom: 2px;
+  }
+
   [purpose='table-checkmark'] {
     width: 175px;
   }
@@ -516,6 +565,11 @@
           vertical-align: middle;
         }
       }
+    }
+    .modal-dialog {
+      margin: 0.5rem auto;
+      padding-left: 24px;
+      padding-right: 24px;
     }
   }
   @media (max-width: 355px) {
