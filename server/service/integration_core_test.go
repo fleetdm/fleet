@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]interface{}{"team_id": team1.ID},
+		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &map[string]interface{}{"label_id": label.ID},
+		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &map[string]interface{}{"label_id": 1},
+		Filters: &map[string]interface{}{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
