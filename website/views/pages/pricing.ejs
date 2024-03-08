@@ -100,25 +100,34 @@
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
         <%// Mobile features tables %>
-        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTable">
-          <h4>{{category.categoryName}}</h4>
-            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                <strong class="d-block">
-                  {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                </strong>
-                <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+        <% for(let category of pricingTable) {%>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
+            <h4><%- category.categoryName %></h4>
+            <% for( let feature of category.features){ %>
+              <div purpose="mobile-features-table" class="d-flex flex-column">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
+                  <%if(feature.description && feature.documentationUrl) {%>
+                    <img class="d-inline-flex has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }else if(feature.description){ %>
+                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }%>
+                  </strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                <%if(feature.tier === 'Free') {%>
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                <% } %>
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
               </div>
-              <div class="d-flex flex-row justify-content-between align-items-center">
-                Free
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-              </div>
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                Premium
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
+            <% }%>
           </div>
+        <% }%>
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
@@ -172,25 +181,34 @@
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
         <%// Mobile features tables %>
-        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForIt">
-          <h4>{{category.categoryName}}</h4>
-            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
-                <strong>
-                  {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                  <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
-                </strong>
+        <% for(let category of pricingTableForIt) {%>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
+            <h4><%- category.categoryName %></h4>
+            <% for( let feature of category.features){ %>
+              <div purpose="mobile-features-table" class="d-flex flex-column">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
+                  <%if(feature.description && feature.documentationUrl) {%>
+                    <img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }else if(feature.description){ %>
+                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }%>
+                  </strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                <%if(feature.tier === 'Free') {%>
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                <% } %>
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
               </div>
-              <div class="d-flex flex-row justify-content-between align-items-center">
-                Free
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-              </div>
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                Premium
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
+            <% }%>
           </div>
+        <% }%>
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
@@ -243,25 +261,34 @@
           <p style="color: #515774;" class="mb-0 w-100">* Coming soon</p>
         </div>
         <%// Mobile features tables %>
-        <div purpose="mobile-feature-table-section" class="d-block d-md-none" v-for="category in pricingTableForSecurity">
-          <h4>{{category.categoryName}}</h4>
-            <div purpose="mobile-features-table" class="d-flex flex-column" v-for="feature in category.features">
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                <strong class="d-block">
-                  {{feature.name}}{{feature.comingSoon ? '*' : ''}}
-                </strong>
-                <img class="d-block" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" @click="clickOpenMobileTooltip(feature)" v-if="feature.description">
+        <% for(let category of pricingTableForSecurity) {%>
+          <div purpose="mobile-feature-table-section" class="d-block d-md-none">
+            <h4><%- category.categoryName %></h4>
+            <% for( let feature of category.features){ %>
+              <div purpose="mobile-features-table" class="d-flex flex-column">
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
+                  <%if(feature.description && feature.documentationUrl) {%>
+                    <img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }else if(feature.description){ %>
+                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
+                  <% }%>
+                  </strong>
+                </div>
+                <div class="d-flex flex-row justify-content-between align-items-center">
+                  Free
+                <%if(feature.tier === 'Free') {%>
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                <% } %>
+                </div>
+                <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
+                  Premium
+                  <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
+                </div>
               </div>
-              <div class="d-flex flex-row justify-content-between align-items-center">
-                Free
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png" v-if="feature.tier === 'Free'">
-              </div>
-              <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center">
-                Premium
-                <img class="d-block" alt="checkmark" purpose="checkmark" src="/images/icon-checkmark-green-16x16@2x.png">
-              </div>
-            </div>
+            <% }%>
           </div>
+        <% }%>
           <p style="color: #515774;" class="d-block d-md-none mb-0 w-100">* Coming soon</p>
       </div>
     </div>
@@ -279,11 +306,5 @@
       </div>
     </div>
   </div>
-  <modal purpose="mobile-tooltip" v-if="modal === 'mobileTooltip'" @close="closeModal()">
-    <div>
-      <p class="mb-0">{{selectedFeature.description}}</p>
-      <a :href="selectedFeature.documentationUrl" target="_blank" v-if="selectedFeature.documentationUrl">Learn more</a>
-    </div>
-  </modal>
 </div>
 <%- /* Expose locals as `window.SAILS_LOCALS` :: */ exposeLocalsToBrowser() %>
