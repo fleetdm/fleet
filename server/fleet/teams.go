@@ -436,6 +436,10 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+
+	var webhookSettings TeamSpecWebhookSettings
+	webhookSettings.HostStatusWebhook = &t.Config.WebhookSettings.HostStatusWebhook
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -443,5 +447,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Secrets:            secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
+		WebhookSettings:    webhookSettings,
 	}, nil
 }
