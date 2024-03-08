@@ -106,13 +106,7 @@
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
-                  <%if(feature.description && feature.documentationUrl) {%>
-                    <img class="d-inline-flex has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }else if(feature.description){ %>
-                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }%>
-                  </strong>
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
                   Free
@@ -187,13 +181,7 @@
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
-                  <%if(feature.description && feature.documentationUrl) {%>
-                    <img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }else if(feature.description){ %>
-                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }%>
-                  </strong>
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
                   Free
@@ -267,13 +255,7 @@
             <% for( let feature of category.features){ %>
               <div purpose="mobile-features-table" class="d-flex flex-column">
                 <div purpose="striped-row" class="d-flex flex-row justify-content-between align-items-center" @click="">
-                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %>
-                  <%if(feature.description && feature.documentationUrl) {%>
-                    <img class="d-inline has-link" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description +'</p><a purpose="tooltip-link" target="_blank" href="'+feature.documentationUrl+'">Learn more</a>'%>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }else if(feature.description){ %>
-                    <img class="d-inline" purpose="tooltip-icon" src="/images/icon-more-info-14x14@2x.png" alt="More info" data-toggle="mobile-tooltip" tabindex="0" data-placement="top" data-html="true" title="<p><%= feature.description %></p>"  @click="clickToggleMobileTooltip($event.target)">
-                  <% }%>
-                  </strong>
+                  <strong><%- feature.name %><%- feature.comingSoon ? '*' : '' %></strong>
                 </div>
                 <div class="d-flex flex-row justify-content-between align-items-center">
                   Free

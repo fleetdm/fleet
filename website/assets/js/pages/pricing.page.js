@@ -18,11 +18,6 @@ parasails.registerPage('pricing', {
       container: '#pricing',
       trigger: 'hover focus',
     });
-    // Tooltips for mobile users are opened by the clickToggleMobileTooltip function.
-    $('[data-toggle="mobile-tooltip"]').tooltip({
-      container: '#pricing',
-      trigger: 'manual',// This allows users to click the links inside tooltips.
-    });
   },
 
   //  ╦╔╗╔╔╦╗╔═╗╦═╗╔═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
@@ -32,8 +27,5 @@ parasails.registerPage('pricing', {
     clickChangePricingMode: async function(pricingMode){
       this.pricingMode = pricingMode;
     },
-    clickToggleMobileTooltip: function(element){
-      $(element).tooltip('toggle');
-    }
   }
 });
