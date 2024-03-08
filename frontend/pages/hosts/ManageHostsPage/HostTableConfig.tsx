@@ -17,7 +17,6 @@ import TextCell from "components/TableContainer/DataTable/TextCell/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
 import TooltipWrapper from "components/TooltipWrapper";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
-import CustomLink from "components/CustomLink";
 import NotSupported from "components/NotSupported";
 
 import {
@@ -440,43 +439,18 @@ const allHostTableHeaders: IDataColumn[] = [
     title: "Public IP address",
     Header: (cellProps: IHeaderProps) => (
       <HeaderCell
-        value={cellProps.column.title}
+        value={
+          <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
+            Public IP address
+          </TooltipWrapper>
+        }
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
     accessor: "public_ip",
     Cell: (cellProps: ICellProps) => {
-      if (cellProps.cell.value) {
-        return <TextCell value={cellProps.cell.value} />;
-      }
       return (
-        <>
-          <span
-            className="text-cell text-muted tooltip"
-            data-tip
-            data-for={`public-ip__${cellProps.row.original.id}`}
-          >
-            {DEFAULT_EMPTY_CELL_VALUE}
-          </span>
-          <ReactTooltip
-            place="top"
-            effect="solid"
-            backgroundColor={COLORS["tooltip-bg"]}
-            id={`public-ip__${cellProps.row.original.id}`}
-            data-html
-            clickable
-            delayHide={200} // need delay set to hover using clickable
-          >
-            Public IP address could not be
-            <br /> determined.{" "}
-            <CustomLink
-              url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
-              text="Learn more"
-              newTab
-              iconColor="core-fleet-white"
-            />
-          </ReactTooltip>
-        </>
+        <TextCell value={cellProps.cell.value ?? DEFAULT_EMPTY_CELL_VALUE} />
       );
     },
   },
