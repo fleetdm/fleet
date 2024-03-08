@@ -12,12 +12,7 @@
 				"host_expiry_window": 0
 			},
 			"webhook_settings": {
-				"host_status_webhook": {
-					"enable_host_status_webhook": false,
-					"destination_url": "",
-					"host_percentage": 0,
-					"days_count": 0
-				},
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
@@ -87,12 +82,7 @@
 				"host_expiry_window": 15
 			},
 			"webhook_settings": {
-				"host_status_webhook": {
-					"enable_host_status_webhook": false,
-					"destination_url": "",
-					"host_percentage": 0,
-					"days_count": 0
-				},
+				"host_status_webhook": null,
 				"failing_policies_webhook": {
 					"enable_failing_policies_webhook": false,
 					"destination_url": "",
