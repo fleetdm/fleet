@@ -50,10 +50,10 @@ team_role(subject, team_id) = role {
 # Global config
 ##
 
-# Global admin, maintainer, observer_plus and observer can read global config.
+# Global admin, gitops, maintainer, observer_plus and observer can read global config.
 allow {
   object.type == "app_config"
-  subject.global_role == [admin, maintainer, observer_plus, observer][_]
+  subject.global_role == [admin, gitops, maintainer, observer_plus, observer][_]
   action == read
 }
 

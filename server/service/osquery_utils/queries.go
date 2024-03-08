@@ -353,10 +353,6 @@ FROM logical_drives WHERE file_system = 'NTFS' LIMIT 1;`,
 	},
 }
 
-func isPublicIP(ip net.IP) bool {
-	return !ip.IsLoopback() && !ip.IsLinkLocalUnicast() && !ip.IsLinkLocalMulticast() && !ip.IsPrivate()
-}
-
 func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 	logger = log.With(logger,
 		"component", "service",
@@ -365,6 +361,22 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 		"platform", host.Platform,
 	)
 
+	// Attempt to extract public IP from the HTTP request.
+	// NOTE: We are executing the IP extraction first to not depend on the network
+	// interface query succeeding and returning results.
+	ipStr := publicip.FromContext(ctx)
+	// First set host.PublicIP to empty to not hide an infrastructure change that
+	// misses to set or sets an invalid value in the expected HTTP headers.
+	host.PublicIP = ""
+	if ipStr != "" {
+		ip := net.ParseIP(ipStr)
+		if ip != nil {
+			host.PublicIP = ipStr
+		} else {
+			logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
+		}
+	}
+
 	if len(rows) != 1 {
 		logger.Log("err", fmt.Sprintf("detail_query_network_interface expected single result, got %d", len(rows)))
 		return nil
@@ -372,20 +384,6 @@ func ingestNetworkInterface(ctx context.Context, logger log.Logger, host *fleet.
 
 	host.PrimaryIP = rows[0]["address"]
 	host.PrimaryMac = rows[0]["mac"]
-
-	// Attempt to extract public IP from the HTTP request.
-	ipStr := publicip.FromContext(ctx)
-	ip := net.ParseIP(ipStr)
-	if ip != nil {
-		if isPublicIP(ip) {
-			host.PublicIP = ipStr
-		} else {
-			level.Debug(logger).Log("err", "IP is not public, ignoring", "ip", ipStr)
-			host.PublicIP = ""
-		}
-	} else {
-		logger.Log("err", fmt.Sprintf("expected an IP address, got %s", ipStr))
-	}
 
 	return nil
 }
@@ -455,7 +453,17 @@ var extraDetailQueries = map[string]DetailQuery{
 		// the `mdm_bridge` table is used, the `mdmlocalmanagement.dll`
 		// registers an MDM with ProviderID = `Local_Management`
 		//
-		// For more information, refer to issue #15362
+		// Entries also need to be filtered by their enrollment status, described [here][1]
+		//
+		//   Member        Value  Description
+		//   unknown       0      Device enrollment state is unknown
+		//   enrolled      1      Device is Enrolled.
+		//   pendingReset  2      Enrolled but it's enrolled via enrollment profile and the enrolled profile is different from the assigned profile.
+		//   failed        3      Not enrolled and there is enrollment failure record.
+		//   notContacted  4      Device is imported but not enrolled.
+		//   blocked       5      Device is enrolled as userless, but is blocked from moving to user enrollment because the app failed to install.
+		//
+		// [1]: https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate
 		Query: `
                     WITH registry_keys AS (
                         SELECT *
@@ -467,7 +475,8 @@ var extraDetailQueries = map[string]DetailQuery{
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
                             MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -484,6 +493,10 @@ var extraDetailQueries = map[string]DetailQuery{
                         i.installation_type
                     FROM installation_info i
                     LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+		    -- coalesce to 'unknown' and keep that state in the list
+		    -- in order to account for hosts that might not have this
+		    -- key, and servers
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2')
                     LIMIT 1;
 		`,
 		DirectIngestFunc: directIngestMDMWindows,

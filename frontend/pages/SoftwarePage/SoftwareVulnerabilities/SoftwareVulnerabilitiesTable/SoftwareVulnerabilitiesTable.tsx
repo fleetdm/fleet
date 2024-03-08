@@ -172,7 +172,7 @@ const SoftwareVulnerabilitiesTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsByVulnerabilityParams = {
-      cve: row.original.cve,
+      vulnerability: row.original.cve,
       team_id: teamId,
     };
 

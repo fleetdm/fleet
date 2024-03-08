@@ -208,16 +208,10 @@ const HostsFilterBlock = ({
   const renderVulnerabilityFilterBlock = () => {
     if (!vulnerability) return null;
 
-    // TODO: Move formatOperatingSystemDisplayName into utils file
-    const label = formatOperatingSystemDisplayName(vulnerability);
-    const TooltipDescription = (
-      <span>Hosts affected by the specified CVE.</span>
-    );
-
     return (
       <FilterPill
-        label={label}
-        tooltipDescription={TooltipDescription}
+        label={vulnerability}
+        tooltipDescription={<span>Hosts affected by the specified CVE.</span>}
         onClear={() => handleClearFilter(["vulnerability"])}
       />
     );
@@ -479,7 +473,8 @@ const HostsFilterBlock = ({
     munkiIssueId ||
     osSettingsStatus ||
     diskEncryptionStatus ||
-    bootstrapPackageStatus
+    bootstrapPackageStatus ||
+    vulnerability
   ) {
     const renderFilterPill = () => {
       switch (true) {

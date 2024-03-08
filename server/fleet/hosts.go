@@ -39,15 +39,6 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
-func (s HostStatus) IsValid() bool {
-	switch s {
-	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
-		return true
-	default:
-		return false
-	}
-}
-
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
@@ -58,15 +49,6 @@ const (
 	MDMEnrollStatusUnenrolled = MDMEnrollStatus("unenrolled")
 	MDMEnrollStatusEnrolled   = MDMEnrollStatus("enrolled") // combination of "manual" and "automatic"
 )
-
-func (s MDMEnrollStatus) IsValid() bool {
-	switch s {
-	case MDMEnrollStatusManual, MDMEnrollStatusAutomatic, MDMEnrollStatusPending, MDMEnrollStatusUnenrolled, MDMEnrollStatusEnrolled:
-		return true
-	default:
-		return false
-	}
-}
 
 // OSSettingsStatus defines the possible statuses of the host's OS settings, which is derived from the
 // status of MDM configuration profiles and non-profile settings applied the host.
@@ -137,15 +119,12 @@ type HostListOptions struct {
 	// populated.
 	AdditionalFilters []string
 	// StatusFilter selects the online status of the hosts.
-	StatusFilter HostStatus `json:"status"`
+	StatusFilter HostStatus
 	// TeamFilter selects the hosts for specified team
-	TeamFilter *uint `json:"team_id"`
+	TeamFilter *uint
 
-	PolicyIDFilter              *uint   `json:"policy_id"`
-	PolicyResponseFilterRequest *string `json:"policy_response"`
-	PolicyResponseFilter        *bool
-
-	LabelID *uint `json:"label_id"`
+	PolicyIDFilter       *uint
+	PolicyResponseFilter *bool
 
 	// Deprecated: SoftwareIDFilter is deprecated as of Fleet 4.42. It is
 	// maintained for backwards compatibility. Use SoftwareVersionIDFilter
@@ -153,16 +132,16 @@ type HostListOptions struct {
 	SoftwareIDFilter *uint
 	// SoftwareVersionIDFilter filters the hosts by the software version ID that
 	// they use. This identifies a specific version of a "software title".
-	SoftwareVersionIDFilter *uint `json:"software_version_id"`
+	SoftwareVersionIDFilter *uint
 	// SoftwareTitleIDFilter filers the hosts by the software title ID that they
 	// use. This identifies a "software title" independent of the specific
 	// version.
-	SoftwareTitleIDFilter *uint `json:"software_title_id"`
+	SoftwareTitleIDFilter *uint
 
 	OSIDFilter        *uint
-	OSNameFilter      *string `json:"os_name"`
-	OSVersionFilter   *string `json:"os_version"`
-	OSVersionIDFilter *uint   `json:"os_version_id"`
+	OSNameFilter      *string
+	OSVersionFilter   *string
+	OSVersionIDFilter *uint
 
 	DisableFailingPolicies bool
 
@@ -176,29 +155,29 @@ type HostListOptions struct {
 
 	// OSSettingsFilter filters the hosts by the status of MDM configuration profiles and
 	// non-profile settings applied to the hosts.
-	OSSettingsFilter OSSettingsStatus `json:"os_settings"`
+	OSSettingsFilter OSSettingsStatus
 	// OSSettingsDiskEncryptionFilter filters the hosts by the status of the disk encryption
 	// OS setting.
-	OSSettingsDiskEncryptionFilter DiskEncryptionStatus `json:"os_settings_disk_encryption"`
+	OSSettingsDiskEncryptionFilter DiskEncryptionStatus
 
 	// MDMBootstrapPackageFilter filters the hosts by the status of the MDM bootstrap package.
-	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus `json:"bootstrap_package"`
+	MDMBootstrapPackageFilter *MDMBootstrapPackageStatus
 
 	// MDMIDFilter filters the hosts by MDM ID.
-	MDMIDFilter *uint `json:"mdm_id"`
+	MDMIDFilter *uint
 	// MDMNameFilter filters the hosts by MDM solution name (e.g. one of the
 	// fleet.WellKnownMDM... constants).
-	MDMNameFilter *string `json:"mdm_name"`
+	MDMNameFilter *string
 	// MDMEnrollmentStatusFilter filters the host by their MDM enrollment status.
-	MDMEnrollmentStatusFilter MDMEnrollStatus `json:"mdm_enrollment_status"`
+	MDMEnrollmentStatusFilter MDMEnrollStatus
 	// MunkiIssueIDFilter filters the hosts by munki issue ID.
-	MunkiIssueIDFilter *uint `json:"munki_issue_id"`
+	MunkiIssueIDFilter *uint
 
 	// LowDiskSpaceFilter filters the hosts by low disk space (defined as a host
 	// with less than N gigs of disk space available). Note that this is a Fleet
 	// Premium feature, Fleet Free ignores the setting (it forces it to nil to
 	// disable it).
-	LowDiskSpaceFilter *int `json:"low_disk_space"`
+	LowDiskSpaceFilter *int
 
 	// PopulateSoftware adds the `Software` field to all Hosts returned.
 	PopulateSoftware bool
@@ -207,7 +186,7 @@ type HostListOptions struct {
 	PopulatePolicies bool
 
 	// VulnerabilityFilter filters the hosts by the presence of a vulnerability (CVE)
-	VulnerabilityFilter *string `json:"vulnerability"`
+	VulnerabilityFilter *string
 }
 
 // TODO(Sarah): Are we missing any filters here? Should all MDM filters be included?
