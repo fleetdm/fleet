@@ -478,6 +478,11 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 		return nil, ctxerr.Wrap(ctx, err, "no host received")
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
 	platforms := make(map[string]bool)
 	for _, h := range hosts {
 		if !h.MDMInfo.IsFleetEnrolled() {
@@ -529,7 +534,8 @@ func (svc *Service) RunMDMCommand(ctx context.Context, rawBase64Cmd string, host
 	case "windows":
 		return svc.enqueueMicrosoftMDMCommand(ctx, rawXMLCmd, hostUUIDs)
 	default:
-		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs)
+		uid := vc.UserID()
+		return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, hostUUIDs, &uid, false)
 	}
 }
 
@@ -538,7 +544,7 @@ var appleMDMPremiumCommands = map[string]bool{
 	"DeviceLock":  true,
 }
 
-func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string) (result *fleet.CommandEnqueueResult, err error) {
+func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string, userID *uint, fleetInitiated bool) (result *fleet.CommandEnqueueResult, err error) {
 	cmd, err := nanomdm.DecodeCommand(rawXMLCmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
@@ -555,7 +561,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		}
 	}
 
-	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd)); err != nil {
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd), userID, fleetInitiated); err != nil {
 		// if at least one UUID enqueued properly, return success, otherwise return
 		// error
 		var apnsErr *apple_mdm.APNSDeliveryError

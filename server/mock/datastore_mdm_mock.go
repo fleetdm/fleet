@@ -40,7 +40,7 @@ type RetrievePushCertFunc func(ctx context.Context, topic string) (cert *tls.Cer
 
 type StorePushCertFunc func(ctx context.Context, pemCert []byte, pemKey []byte) error
 
-type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error)
+type EnqueueCommandFunc func(ctx context.Context, id []string, cmd *mdm.Command, userID *uint, fleetInitiated bool) (map[string]error, error)
 
 type HasCertHashFunc func(r *mdm.Request, hash string) (bool, error)
 
@@ -219,11 +219,11 @@ func (fs *MDMAppleStore) StorePushCert(ctx context.Context, pemCert []byte, pemK
 	return fs.StorePushCertFunc(ctx, pemCert, pemKey)
 }
 
-func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+func (fs *MDMAppleStore) EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command, userID *uint, fleetInitiated bool) (map[string]error, error) {
 	fs.mu.Lock()
 	fs.EnqueueCommandFuncInvoked = true
 	fs.mu.Unlock()
-	return fs.EnqueueCommandFunc(ctx, id, cmd)
+	return fs.EnqueueCommandFunc(ctx, id, cmd, userID, fleetInitiated)
 }
 
 func (fs *MDMAppleStore) HasCertHash(r *mdm.Request, hash string) (bool, error) {

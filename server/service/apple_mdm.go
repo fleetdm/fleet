@@ -1015,6 +1015,11 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		return nil, newNotFoundError()
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
 	// using a padding agnostic decoder because we released this using
 	// base64.RawStdEncoding, but it was causing problems as many standard
 	// libraries default to padded strings. We're now supporting both for
@@ -1026,7 +1031,8 @@ func (svc *Service) EnqueueMDMAppleCommand(
 		return nil, ctxerr.Wrap(ctx, err, "decode base64 command")
 	}
 
-	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs)
+	userID := vc.UserID()
+	return svc.enqueueAppleMDMCommand(ctx, rawXMLCmd, deviceIDs, &userID, false)
 }
 
 type mdmAppleEnrollRequest struct {
@@ -2225,7 +2231,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
-
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2686,7 +2691,7 @@ func ReconcileAppleProfiles(
 		var err error
 		switch op {
 		case fleet.MDMOperationTypeInstall:
-			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID)
+			err = commander.InstallProfile(ctx, target.hostUUIDs, profileContents[profUUID], target.cmdUUID, target.profIdent)
 		case fleet.MDMOperationTypeRemove:
 			err = commander.RemoveProfile(ctx, target.hostUUIDs, target.profIdent, target.cmdUUID)
 		}
@@ -2909,7 +2914,7 @@ func RenewSCEPCertificates(
 			assoc.RenewCommandUUID = cmdUUID
 		}
 
-		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID); err != nil {
+		if err := commander.InstallProfile(ctx, uuids, profile, cmdUUID, ""); err != nil { // TODO(JVE): fix me (if necessary)!
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithoutRefs)
 		}
 
@@ -2935,7 +2940,7 @@ func RenewSCEPCertificates(
 			return ctxerr.Wrap(ctx, err, "generating enrollment profile for hosts with enroll reference")
 		}
 		cmdUUID := uuid.NewString()
-		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID); err != nil {
+		if err := commander.InstallProfile(ctx, []string{assoc.HostUUID}, profile, cmdUUID, ""); err != nil { // TODO(JVE): fix me (if necessary)!
 			return ctxerr.Wrapf(ctx, err, "sending InstallProfile command for hosts %s", assocsWithRefs)
 		}
 

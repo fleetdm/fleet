@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -42,7 +43,7 @@ func NewMDMAppleCommander(mdmStorage fleet.MDMAppleStore, mdmPushService nanomdm
 
 // InstallProfile sends the homonymous MDM command to the given hosts, it also
 // takes care of the base64 encoding of the provided profile bytes.
-func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error {
+func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, profIdent string) error {
 	base64Profile := base64.StdEncoding.EncodeToString(profile)
 	raw := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -59,8 +60,31 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 	</dict>
 </dict>
 </plist>`, uuid, base64Profile)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	// then we didn't find a related activity, so this is a fleet initiated profile install
+	userID, fleetInitiated, err := svc.getProfileCreator(ctx, profIdent)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "commander install profile get user id")
+	}
+
+	slog.With("filename", "server/mdm/apple/commander.go", "func", "InstallProfile").Info("JVE_LOG: creating command for profile install", "userID", userID)
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw, userID, fleetInitiated)
 	return ctxerr.Wrap(ctx, err, "commander install profile")
+}
+
+func (svc *MDMAppleCommander) getProfileCreator(ctx context.Context, profIdent string) (*uint, bool, error) {
+	var userID *uint
+	var fleetInitiated bool
+	uid, err := svc.storage.GetProfileUserID(ctx, profIdent)
+	if err != nil {
+		return nil, false, err
+	}
+
+	userID = &uid
+	if uid == 0 {
+		fleetInitiated = true
+		userID = nil
+	}
+	return userID, fleetInitiated, nil
 }
 
 // InstallProfile sends the homonymous MDM command to the given hosts.
@@ -80,7 +104,11 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
-	err := svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	userID, fleetInitiated, err := svc.getProfileCreator(ctx, profileIdentifier)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "commander remove profile get user id")
+	}
+	err = svc.EnqueueCommand(ctx, hostUUIDs, raw, userID, fleetInitiated)
 	return ctxerr.Wrap(ctx, err, "commander remove profile")
 }
 
@@ -171,7 +199,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplication(ctx context.Context, 
     <string>%s</string>
   </dict>
 </plist>`, manifestURL, uuid)
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw, nil, true) // TODO(JVE): verify that this is only called when installing fleetd
 }
 
 type installEnterpriseApplicationPayload struct {
@@ -198,7 +226,7 @@ func (svc *MDMAppleCommander) InstallEnterpriseApplicationWithEmbeddedManifest(
 		return fmt.Errorf("marshal command payload plist: %w", err)
 	}
 
-	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw))
+	return svc.EnqueueCommand(ctx, hostUUIDs, string(raw), nil, false) // TODO(JVE): fix me!
 }
 
 func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUIDs []string, uuid, fullName, userName string) error {
@@ -223,7 +251,7 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
   </dict>
 </plist>`, fullName, userName, uuid)
 
-	return svc.EnqueueCommand(ctx, hostUUIDs, raw)
+	return svc.EnqueueCommand(ctx, hostUUIDs, raw, nil, true) // TODO(JVE): fix me!
 }
 
 // EnqueueCommand takes care of enqueuing the commands and sending push
@@ -232,13 +260,15 @@ func (svc *MDMAppleCommander) AccountConfiguration(ctx context.Context, hostUUID
 // Always sending the push notification when a command is enqueued was decided
 // internally, leaving making pushes optional as an optimization to be tackled
 // later.
-func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string) error {
+func (svc *MDMAppleCommander) EnqueueCommand(ctx context.Context, hostUUIDs []string, rawCommand string, userID *uint, fleetInitiated bool) error {
 	cmd, err := mdm.DecodeCommand([]byte(rawCommand))
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "decoding command")
 	}
 
-	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd); err != nil {
+	slog.With("filename", "server/mdm/apple/commander.go", "func", "EnqueueCommand").Info("JVE_LOG: enqueue cmd in commander ", "cmdUUID", cmd.CommandUUID)
+
+	if _, err := svc.storage.EnqueueCommand(ctx, hostUUIDs, cmd, userID, fleetInitiated); err != nil {
 		return ctxerr.Wrap(ctx, err, "enqueuing command")
 	}
 

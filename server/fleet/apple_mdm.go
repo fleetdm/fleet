@@ -16,7 +16,7 @@ import (
 )
 
 type MDMAppleCommandIssuer interface {
-	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
+	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string, profIdent string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) error
 	EraseDevice(ctx context.Context, host *Host, uuid string) error

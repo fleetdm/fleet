@@ -5,19 +5,20 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
-func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) error {
+func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command, userID *uint, fleetInitiated bool) error {
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO nano_commands (command_uuid, request_type, command) VALUES (?, ?, ?);`,
-		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, user_id, fleet_initiated) VALUES (?, ?, ?, ?, ?);`,
+		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw, userID, fleetInitiated,
 	)
 	if err != nil {
 		return err
@@ -33,18 +34,39 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command) er
 	return err
 }
 
-func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command) (map[string]error, error) {
+func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command, userID *uint, fleetIntitiated bool) (map[string]error, error) {
+	var x uint
+	if userID == nil {
+		userID = &x
+	}
+	slog.With("filename", "server/mdm/nanomdm/storage/mysql/queue.go", "func", "EnqueueCommand").Info("JVE_LOG: or are we here instead ", "cmdUUID", cmd.CommandUUID, "userID", *userID, "fi", fleetIntitiated)
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err = enqueue(ctx, tx, ids, cmd); err != nil {
+	if err = enqueue(ctx, tx, ids, cmd, userID, fleetIntitiated); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return nil, fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
 		}
 		return nil, err
 	}
 	return nil, tx.Commit()
+}
+
+func (m *MySQLStorage) GetProfileUserID(ctx context.Context, ident string) (uint, error) {
+	stmt := `SELECT user_id FROM activities WHERE activity_type = "created_macos_profile" AND JSON_EXTRACT(details, "$.profile_identifier") = ?`
+	var userID uint
+	err := m.db.QueryRowContext(
+		ctx, stmt,
+		ident,
+	).Scan(&userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, nil
+	}
+	if err != nil {
+		return 0, err
+	}
+	return userID, nil
 }
 
 func (m *MySQLStorage) deleteCommand(ctx context.Context, tx *sql.Tx, id, uuid string) error {
