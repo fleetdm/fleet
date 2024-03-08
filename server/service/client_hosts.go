@@ -103,7 +103,6 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 		return err
 	}
 
-	
 	filter := make(map[string]interface{})
 
 	var teamIDPtr *uint
@@ -128,7 +127,7 @@ func (c *Client) TransferHosts(hosts []string, label string, status, searchQuery
 	verb, path := "POST", "/api/latest/fleet/hosts/transfer/filter"
 	var responseBody addHostsToTeamByFilterResponse
 	params := addHostsToTeamByFilterRequest{
-		TeamID: teamIDPtr,
+		TeamID:  teamIDPtr,
 		Filters: &filter,
 	}
 
