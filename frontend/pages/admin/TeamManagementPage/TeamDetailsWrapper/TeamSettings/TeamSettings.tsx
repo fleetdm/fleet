@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useMemo, useState } from "react";
 
 import { useQuery } from "react-query";
 
@@ -19,6 +19,8 @@ import { ITeamSubnavProps } from "interfaces/team_subnav";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+
+import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
@@ -140,6 +142,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   } = appConfig ?? { host_expiry_settings: {} };
 
   const {
+    data: teamConfig,
     isLoading: isLoadingTeamConfig,
     refetch: refetchTeamConfig,
     error: errorLoadTeamConfig,
@@ -172,6 +175,30 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         });
       },
     }
+  );
+
+  const percentageHostsOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+        formData.teamHostStatusWebhookHostPercentage,
+        (val) => `${val}%`
+      ),
+    // depend on teamConfig so that options are recomputed when teamConfig loads
+    // omit formData dependency so options only computed on teamConfig load, not on user interaction
+    [teamConfig]
+  );
+
+  const windowOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+        formData.teamHostStatusWebhookWindow,
+        (val) => `${val} day${val !== 1 ? "s" : ""}`
+      ),
+    // depend on teamConfig so that options are recomputed when teamConfig loads
+    // omit formData dependency so options only computed on teamConfig load, not on user interaction
+    [teamConfig]
   );
 
   const onInputChange = useCallback(
@@ -290,7 +317,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook %"
-              options={HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
+              options={percentageHostsOptions}
               onChange={onInputChange}
               name="teamHostStatusWebhookHostPercentage"
               value={formData.teamHostStatusWebhookHostPercentage}
@@ -308,7 +335,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook window"
-              options={HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS}
+              options={windowOptions}
               onChange={onInputChange}
               name="teamHostStatusWebhookWindow"
               value={formData.teamHostStatusWebhookWindow}

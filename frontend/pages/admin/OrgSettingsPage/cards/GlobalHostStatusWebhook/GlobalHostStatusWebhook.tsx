@@ -116,7 +116,7 @@ const GlobalHostStatusWebhook = ({
         hostStatusWebhookHostPercentage,
         (val) => `${val}%`
       ),
-    // intentionally omit formData so options only computed initially
+    // intentionally omit dependency so options only computed initially
     []
   );
 
@@ -127,7 +127,7 @@ const GlobalHostStatusWebhook = ({
         hostStatusWebhookWindow,
         (val) => `${val} day${val !== 1 ? "s" : ""}`
       ),
-    // intentionally omit formData so options only computed initially
+    // intentionally omit dependency so options only computed initially
     []
   );
   return (
