@@ -1,9 +1,11 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 
 import {
   WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
-  WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS,
+  HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
 } from "utilities/constants";
+
+import { getCustomDropdownOptions } from "utilities/helpers";
 
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
 
@@ -24,6 +26,13 @@ import {
 
 const baseClass = "app-config-form";
 
+export type IGlobalHostStatusWebhookFormData = {
+  enableHostStatusWebhook: boolean;
+  hostStatusWebhookDestinationUrl: string;
+  hostStatusWebhookHostPercentage: number;
+  hostStatusWebhookWindow: number;
+};
+
 const GlobalHostStatusWebhook = ({
   appConfig,
   handleSubmit,
@@ -33,24 +42,23 @@ const GlobalHostStatusWebhook = ({
     showHostStatusWebhookPreviewModal,
     setShowHostStatusWebhookPreviewModal,
   ] = useState(false);
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState<IGlobalHostStatusWebhookFormData>({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
         .enable_host_status_webhook || false,
     hostStatusWebhookDestinationUrl:
       appConfig.webhook_settings.host_status_webhook.destination_url || "",
     hostStatusWebhookHostPercentage:
-      appConfig.webhook_settings.host_status_webhook.host_percentage ||
-      undefined,
-    hostStatusWebhookDaysCount:
-      appConfig.webhook_settings.host_status_webhook.days_count || undefined,
+      appConfig.webhook_settings.host_status_webhook.host_percentage || 1,
+    hostStatusWebhookWindow:
+      appConfig.webhook_settings.host_status_webhook.days_count || 1,
   });
 
   const {
     enableHostStatusWebhook,
     hostStatusWebhookDestinationUrl,
     hostStatusWebhookHostPercentage,
-    hostStatusWebhookDaysCount,
+    hostStatusWebhookWindow,
   } = formData;
 
   const [formErrors, setFormErrors] = useState<IAppConfigFormErrors>({});
@@ -68,14 +76,6 @@ const GlobalHostStatusWebhook = ({
         errors.destination_url = "Destination URL must be present";
       } else if (!validUrl({ url: hostStatusWebhookDestinationUrl })) {
         errors.server_url = `${hostStatusWebhookDestinationUrl} is not a valid URL`;
-      }
-
-      if (!hostStatusWebhookDaysCount) {
-        errors.days_count = "Number of days must be present";
-      }
-
-      if (!hostStatusWebhookDaysCount) {
-        errors.host_percentage = "Percentage of hosts must be present";
       }
     }
 
@@ -101,7 +101,7 @@ const GlobalHostStatusWebhook = ({
           enable_host_status_webhook: enableHostStatusWebhook,
           destination_url: hostStatusWebhookDestinationUrl,
           host_percentage: hostStatusWebhookHostPercentage,
-          days_count: hostStatusWebhookDaysCount,
+          days_count: hostStatusWebhookWindow,
         },
       },
     };
@@ -109,6 +109,16 @@ const GlobalHostStatusWebhook = ({
     handleSubmit(formDataToSubmit);
   };
 
+  const percentageHostsOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+        hostStatusWebhookHostPercentage,
+        (val) => `${val}%`
+      ),
+    // intentionally omit formData so options only computed initially
+    []
+  );
   return (
     <div className={baseClass}>
       <div className={`${baseClass}__section`}>
@@ -139,62 +149,66 @@ const GlobalHostStatusWebhook = ({
               Preview request
             </Button>
           </div>
-          <InputField
-            placeholder="https://server.com/example"
-            label="Destination URL"
-            onChange={handleInputChange}
-            name="hostStatusWebhookDestinationUrl"
-            value={hostStatusWebhookDestinationUrl}
-            parseTarget
-            onBlur={validateForm}
-            error={formErrors.destination_url}
-            tooltip={
-              <>
-                Provide a URL to deliver <br />
-                the webhook request to.
-              </>
-            }
-          />
-          <Dropdown
-            label="Percentage of hosts"
-            options={WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
-            onChange={handleInputChange}
-            name="hostStatusWebhookHostPercentage"
-            value={hostStatusWebhookHostPercentage}
-            parseTarget
-            searchable={false}
-            onBlur={validateForm}
-            tooltip={
-              <>
-                Select the minimum percentage of hosts that
-                <br />
-                must fail to check into Fleet in order to trigger
-                <br />
-                the webhook request.
-              </>
-            }
-          />
-          <Dropdown
-            label="Number of days"
-            options={WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS}
-            onChange={handleInputChange}
-            name="hostStatusWebhookDaysCount"
-            value={hostStatusWebhookDaysCount}
-            parseTarget
-            searchable={false}
-            onBlur={validateForm}
-            tooltip={
-              <>
-                Select the minimum number of days that the
-                <br />
-                configured <b>Percentage of hosts</b> must fail to
-                <br />
-                check into Fleet in order to trigger the
-                <br />
-                webhook request.
-              </>
-            }
-          />
+          {enableHostStatusWebhook && (
+            <>
+              <InputField
+                placeholder="https://server.com/example"
+                label="Destination URL"
+                onChange={handleInputChange}
+                name="hostStatusWebhookDestinationUrl"
+                value={hostStatusWebhookDestinationUrl}
+                parseTarget
+                onBlur={validateForm}
+                error={formErrors.destination_url}
+                tooltip={
+                  <>
+                    Provide a URL to deliver <br />
+                    the webhook request to.
+                  </>
+                }
+              />
+              <Dropdown
+                label="Percentage of hosts"
+                options={percentageHostsOptions}
+                onChange={handleInputChange}
+                name="hostStatusWebhookHostPercentage"
+                value={hostStatusWebhookHostPercentage}
+                parseTarget
+                searchable={false}
+                onBlur={validateForm}
+                tooltip={
+                  <>
+                    Select the minimum percentage of hosts that
+                    <br />
+                    must fail to check into Fleet in order to trigger
+                    <br />
+                    the webhook request.
+                  </>
+                }
+              />
+              <Dropdown
+                label="Number of days"
+                options={HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS}
+                onChange={handleInputChange}
+                name="hostStatusWebhookDaysCount"
+                value={hostStatusWebhookWindow}
+                parseTarget
+                searchable={false}
+                onBlur={validateForm}
+                tooltip={
+                  <>
+                    Select the minimum number of days that the
+                    <br />
+                    configured <b>Percentage of hosts</b> must fail to
+                    <br />
+                    check into Fleet in order to trigger the
+                    <br />
+                    webhook request.
+                  </>
+                }
+              />
+            </>
+          )}
           <Button
             type="submit"
             variant="brand"
