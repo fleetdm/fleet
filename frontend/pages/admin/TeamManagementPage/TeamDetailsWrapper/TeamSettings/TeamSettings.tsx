@@ -8,7 +8,7 @@ import useTeamIdParam from "hooks/useTeamIdParam";
 
 import {
   DEFAULT_USE_QUERY_OPTIONS,
-  WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
   HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 
@@ -290,7 +290,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook %"
-              options={WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
+              options={HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS}
               onChange={onInputChange}
               name="teamHostStatusWebhookHostPercentage"
               value={formData.teamHostStatusWebhookHostPercentage}

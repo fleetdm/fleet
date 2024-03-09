@@ -37,7 +37,7 @@ export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
 ];
-export const WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
+export const HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { label: "1%", value: 1 },
   { label: "5%", value: 5 },
   { label: "10%", value: 10 },

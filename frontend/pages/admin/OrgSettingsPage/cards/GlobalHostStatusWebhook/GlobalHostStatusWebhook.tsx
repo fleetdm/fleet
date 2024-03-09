@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 
 import {
-  WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
   HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
 } from "utilities/constants";
 
@@ -112,9 +112,20 @@ const GlobalHostStatusWebhook = ({
   const percentageHostsOptions = useMemo(
     () =>
       getCustomDropdownOptions(
-        WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+        HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
         hostStatusWebhookHostPercentage,
         (val) => `${val}%`
+      ),
+    // intentionally omit formData so options only computed initially
+    []
+  );
+
+  const windowOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+        hostStatusWebhookWindow,
+        (val) => `${val} day${val !== 1 ? "s" : ""}`
       ),
     // intentionally omit formData so options only computed initially
     []
@@ -188,9 +199,9 @@ const GlobalHostStatusWebhook = ({
               />
               <Dropdown
                 label="Number of days"
-                options={HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS}
+                options={windowOptions}
                 onChange={handleInputChange}
-                name="hostStatusWebhookDaysCount"
+                name="hostStatusWebhookWindow"
                 value={hostStatusWebhookWindow}
                 parseTarget
                 searchable={false}
