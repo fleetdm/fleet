@@ -44,7 +44,7 @@ export const WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { label: "25%", value: 25 },
 ];
 
-export const WEBHOOK_NUMBER_OF_DAYS_DROPDOWN_OPTIONS: IDropdownOption[] = [
+export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { label: "1 day", value: 1 },
   { label: "3 days", value: 3 },
   { label: "7 days", value: 7 },
