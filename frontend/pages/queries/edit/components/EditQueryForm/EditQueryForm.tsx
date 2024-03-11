@@ -4,6 +4,7 @@ import React, {
   useEffect,
   KeyboardEvent,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { pull, size } from "lodash";
@@ -17,6 +18,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   addGravatarUrlToResource,
+  getCustomDropdownOptions,
   secondsToDhms,
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
@@ -89,22 +91,6 @@ const validateQuerySQL = (query: string) => {
 
   const valid = !size(errors);
   return { valid, errors };
-};
-
-// Includes a custom frequency set through fleetctl at top of frequency dropdown
-const customFrequencyOptions = (frequency: number) => {
-  if (
-    !FREQUENCY_DROPDOWN_OPTIONS.some((option) => option.value === frequency)
-  ) {
-    return [
-      {
-        value: frequency,
-        label: `Every ${secondsToDhms(frequency)}`,
-      },
-      ...FREQUENCY_DROPDOWN_OPTIONS,
-    ];
-  }
-  return FREQUENCY_DROPDOWN_OPTIONS;
 };
 
 const EditQueryForm = ({
@@ -180,10 +166,6 @@ const EditQueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-  const [frequencyOptions, setFrequencyOptions] = useState(
-    FREQUENCY_DROPDOWN_OPTIONS
-  );
-  const [isInitialFrequency, setIsInitialFrequency] = useState(true);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
@@ -205,13 +187,6 @@ const EditQueryForm = ({
     }
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
-
-  // Creates custom frequency options when initializing and not when toggling
-  useEffect(() => {
-    if (isInitialFrequency) {
-      setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
-    }
-  }, [lastEditedQueryFrequency, isInitialFrequency]);
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
@@ -252,11 +227,22 @@ const EditQueryForm = ({
       setIsEditingDescription(false);
     }
   };
+  const frequencyOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        FREQUENCY_DROPDOWN_OPTIONS,
+        lastEditedQueryFrequency,
+        // it's safe to assume that frequency is a number
+        (frequency) => `Every ${secondsToDhms(frequency as number)}`
+      ),
+    // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
+    // options are maintained even if the user changes the frequency in the UI
+    []
+  );
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
-      setIsInitialFrequency(false);
     },
     [setLastEditedQueryFrequency]
   );

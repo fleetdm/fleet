@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useState } from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 
 import { useQuery } from "react-query";
 
@@ -6,21 +6,24 @@ import { NotificationContext } from "context/notification";
 
 import useTeamIdParam from "hooks/useTeamIdParam";
 
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import {
+  DEFAULT_USE_QUERY_OPTIONS,
+  HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+  HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+} from "utilities/constants";
 
 import { IApiError } from "interfaces/errors";
 import { IConfig } from "interfaces/config";
 import { ITeamConfig } from "interfaces/team";
 import { ITeamSubnavProps } from "interfaces/team_subnav";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
+import { getCustomDropdownOptions } from "utilities/helpers";
+
 import HostStatusWebhookPreviewModal from "pages/admin/components/HostStatusWebhookPreviewModal";
-import {
-  numberOfDays,
-  percentageOfHosts,
-} from "pages/admin/OrgSettingsPage/cards/constants";
 
 import validURL from "components/forms/validators/valid_url";
 
@@ -95,6 +98,15 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
     teamHostStatusWebhookHostPercentage: 1,
     teamHostStatusWebhookWindow: 1,
   });
+  // stateful approach required since initial options come from team config api response
+  const [isInitialTeamConfig, setIsInitialTeamConfig] = useState(true);
+  const [
+    percentageHostsDropdownOptions,
+    setPercentageHostsDropdownOptions,
+  ] = useState<IDropdownOption[]>([]);
+  const [windowDropdownOptions, setWindowDropdownOptions] = useState<
+    IDropdownOption[]
+  >([]);
   const [updatingTeamSettings, setUpdatingTeamSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
     {}
@@ -140,6 +152,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
   } = appConfig ?? { host_expiry_settings: {} };
 
   const {
+    data: teamConfig,
     isLoading: isLoadingTeamConfig,
     refetch: refetchTeamConfig,
     error: errorLoadTeamConfig,
@@ -150,29 +163,49 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       ...DEFAULT_USE_QUERY_OPTIONS,
       enabled: isRouteOk && !!teamIdForApi,
       select: (data) => data.team,
-      onSuccess: (teamConfig) => {
+      onSuccess: (tC) => {
         setFormData({
           // host expiry settings
           teamHostExpiryEnabled:
-            teamConfig?.host_expiry_settings?.host_expiry_enabled ?? false,
+            tC?.host_expiry_settings?.host_expiry_enabled ?? false,
           teamHostExpiryWindow:
-            teamConfig?.host_expiry_settings?.host_expiry_window ?? "",
+            tC?.host_expiry_settings?.host_expiry_window ?? "",
           // host status webhook settings
           teamHostStatusWebhookEnabled:
-            teamConfig?.webhook_settings?.host_status_webhook
+            tC?.webhook_settings?.host_status_webhook
               ?.enable_host_status_webhook ?? false,
           teamHostStatusWebhookDestinationUrl:
-            teamConfig?.webhook_settings?.host_status_webhook
-              ?.destination_url ?? "",
+            tC?.webhook_settings?.host_status_webhook?.destination_url ?? "",
           teamHostStatusWebhookHostPercentage:
-            teamConfig?.webhook_settings?.host_status_webhook
-              ?.host_percentage ?? 1,
+            tC?.webhook_settings?.host_status_webhook?.host_percentage ?? 1,
           teamHostStatusWebhookWindow:
-            teamConfig?.webhook_settings?.host_status_webhook?.days_count ?? 1,
+            tC?.webhook_settings?.host_status_webhook?.days_count ?? 1,
         });
       },
     }
   );
+
+  useEffect(() => {
+    if (isInitialTeamConfig) {
+      setPercentageHostsDropdownOptions(
+        getCustomDropdownOptions(
+          HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
+          teamConfig?.webhook_settings.host_status_webhook.host_percentage ?? 1,
+          (val) => `${val}%`
+        )
+      );
+
+      setWindowDropdownOptions(
+        getCustomDropdownOptions(
+          HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
+          teamConfig?.webhook_settings.host_status_webhook.days_count ?? 1,
+          (val) => `${val} day${val !== 1 ? "s" : ""}`
+        )
+      );
+    }
+    // no need for isInitialTeamConfig dependence, since this effect should only run on initial
+    // config load
+  }, [teamConfig]);
 
   const onInputChange = useCallback(
     (newVal: { name: FormNames; value: string | number | boolean }) => {
@@ -224,6 +257,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
         .then(() => {
           renderFlash("success", "Successfully updated settings.");
           refetchTeamConfig();
+          setIsInitialTeamConfig(false);
         })
         .catch((errorResponse: { data: IApiError }) => {
           renderFlash(
@@ -290,7 +324,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook %"
-              options={percentageOfHosts}
+              options={percentageHostsDropdownOptions}
               onChange={onInputChange}
               name="teamHostStatusWebhookHostPercentage"
               value={formData.teamHostStatusWebhookHostPercentage}
@@ -308,7 +342,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
             />
             <Dropdown
               label="Host status webhook window"
-              options={numberOfDays}
+              options={windowDropdownOptions}
               onChange={onInputChange}
               name="teamHostStatusWebhookWindow"
               value={formData.teamHostStatusWebhookWindow}

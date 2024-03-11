@@ -2937,6 +2937,10 @@ WHERE
 const depCooldownPeriod = 1 * time.Hour // TODO: Make this a test config option?
 
 func (ds *Datastore) ScreenDEPAssignProfileSerialsForCooldown(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error) {
+	if len(serials) == 0 {
+		return skipSerials, assignSerials, nil
+	}
+
 	stmt := `
 SELECT
 	CASE WHEN assign_profile_response = ? AND (response_updated_at > DATE_SUB(NOW(), INTERVAL ? SECOND) OR retry_job_id != 0) THEN

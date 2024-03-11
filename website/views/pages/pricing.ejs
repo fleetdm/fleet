@@ -8,37 +8,58 @@
       </div>
       <div purpose="pricing-tiers" class="d-flex flex-column flex-lg-row justify-content-center">
         <%// Fleet Free tier card %>
-        <div purpose="free-tier-card" class="card d-flex flex-column">
+        <div purpose="pricing-card">
+        <div purpose="free-tier-card" class="card d-flex flex-column h-100  justify-content-between">
           <div purpose="pricing-tier-title">
-            <div class="d-flex flex-row justify-content-center">
-              <div class="d-flex flex-column justify-content-center">
+            <div class="d-flex flex-row justify-content-start">
+              <div class="d-flex flex-column justify-content-between">
                 <h2>Free</h2>
                 <h3>Unlimited hosts</h3>
-                <div class="d-flex flex-row align-items-center">
+                <div purpose="tier-price" class="d-flex flex-row align-items-center">
                   <h1><span purpose="price-dollar-sign">$</span>0</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                 </div>
               </div>
             </div>
           </div>
-          <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto" target="_blank" href="https://github.com/fleetdm/fleet">View source code</a>
+          <div purpose="button-container" class="d-flex flex-row align-items-center">
+            <a purpose="animated-arrow-button-red" href="/docs">
+              Read the docs
+            </a>
+          </div>
+        </div>
         </div>
         <%// Fleet Premium tier card %>
-        <div purpose="premium-card" class="d-flex flex-column justify-content-center">
-          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column">
+        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
+          <div purpose="premium-tier-card" class="card d-flex h-100 flex-column justify-content-between">
             <div purpose="pricing-tier-title">
               <div class="d-flex flex-column justify-content-between">
-                <div class="d-flex flex-column justify-content-center">
+                <div class="d-flex flex-column justify-content-start">
                   <h2>Premium</h2>
                   <h3>Unlimited baselines</h3>
-                  <div class="d-flex flex-row align-items-center justify-content-center">
-                    <h4>From </h4><h1 class="mb-2"><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
+                  <div purpose="tier-price" class="d-flex flex-row align-items-center justify-content-start">
+                    <h1><span purpose="price-dollar-sign">$</span>7.00</h1><strong>/ host <br purpose="premium-price-linebreak">/ month</strong>
                   </div>
                 </div>
               </div>
             </div>
             <div>
               <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/customers/register">Get started</a>
-              <p purpose="contact-sales-link">Have a large deployment? <a href="/contact">Talk to us</a>.</p>
+            </div>
+          </div>
+        </div>
+        <%//  Custom tier card %>
+        <div purpose="pricing-card" class="d-flex flex-column justify-content-center">
+          <div purpose="custom-tier-card" class="card d-flex h-100 flex-column justify-content-between">
+            <div purpose="pricing-tier-title">
+              <div class="d-flex flex-column justify-content-between">
+                <div class="d-flex flex-column justify-content-center">
+                  <h2>Custom</h2>
+                  <h3>For teams with extremely large deployments.</h3>
+                </div>
+              </div>
+            </div>
+            <div>
+              <a purpose="card-button" class="btn btn-block btn-lg btn-primary mx-auto mb-0" href="/contact">Talk to us</a>
             </div>
           </div>
         </div>

@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
+		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
+		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1120,7 +1120,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{},
+		Filters: &map[string]interface{}{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
+		Filters: &map[string]interface{}{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -2814,8 +2814,11 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
-	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
-	req.Filters.MatchQuery = hosts[2].Hostname
+	req := addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
+	}
+
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
