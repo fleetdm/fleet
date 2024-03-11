@@ -1317,9 +1317,10 @@ const ManageHostsPage = ({
       mdmEnrollmentStatus,
       munkiIssueId,
       lowDiskSpaceHosts,
-      os_version_id: osVersionId,
-      os_name: osName,
-      os_version: osVersion,
+      osName,
+      osVersionId,
+      osVersion,
+      bootstrapPackageStatus,
       vulnerability,
       visibleColumns,
     };
