@@ -489,6 +489,7 @@
     - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
     - description: (Torq) Build custom workflows that trigger in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
+  buzzwords: [Vanta,Puppet,Custom IdP]
 - industryName: Public issue tracker (GitHub)
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
