@@ -461,7 +461,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
-  'GET /upgrade': '/pricing',
+
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -512,6 +512,7 @@ module.exports.routes = {
   'GET /learn-more-about/custom-os-settings': '/docs/using-fleet/mdm-custom-os-settings',
   'GET /learn-more-about/enrolling-hosts': '/docs/using-fleet/adding-hosts',
   'GET /learn-more-about/setup-assistant': '/docs/using-fleet/mdm-macos-setup-experience#macos-setup-assistant',
+  'GET /upgrade': '/pricing',// Linked to by the PremiumFeatureMessage and PremiumFeatureIconWithTooltip components in the Fleet UI.
 
   // Sitemap
   // =============================================================================================================
