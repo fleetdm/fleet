@@ -732,7 +732,8 @@ func TestHostAuth(t *testing.T) {
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), nil)
+			emptyFilter := make(map[string]interface{})
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &emptyFilter)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.RefetchHost(ctx, 1)
@@ -868,10 +869,10 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
-	expectedLabel := ptr.Uint(2)
+	expectedLabel := float64(2)
 
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-		assert.Equal(t, *expectedLabel, lid)
+		assert.Equal(t, uint(expectedLabel), lid)
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &fleet.Host{ID: id})
