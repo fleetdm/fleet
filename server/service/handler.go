@@ -603,7 +603,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: GET /mdm/apple is now deprecated, replaced by the
 	// GET /apns endpoint.
 	mdmAppleMW.GET("/api/_version_/fleet/mdm/apple", getAppleMDMEndpoint, nil)
-	mdmAppleMW.GET("/api/_version_/fleet/apns", getAppleMDMEndpoint, nil) // TODO(mna): to be confirmed: https://github.com/fleetdm/fleet/pull/16728/files#r1488694302
+	mdmAppleMW.GET("/api/_version_/fleet/apns", getAppleMDMEndpoint, nil)
 
 	// EULA routes
 
@@ -698,7 +698,7 @@ func attachFleetAPIRoutes(r *mux.Router, svc fleet.Service, config config.FleetC
 	// Deprecated: GET /mdm/apple_bm is now deprecated, replaced by the
 	// GET /abm endpoint.
 	ue.GET("/api/_version_/fleet/mdm/apple_bm", getAppleBMEndpoint, nil)
-	ue.GET("/api/_version_/fleet/abm", getAppleBMEndpoint, nil) // TODO(mna): to be confirmed: https://github.com/fleetdm/fleet/pull/16728/files#r1488694787
+	ue.GET("/api/_version_/fleet/abm", getAppleBMEndpoint, nil)
 
 	// Deprecated: POST /mdm/apple/profiles/batch is now deprecated, replaced by the
 	// platform-agnostic POST /mdm/profiles/batch. It is still supported
