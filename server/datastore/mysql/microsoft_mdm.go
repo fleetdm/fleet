@@ -666,6 +666,7 @@ SELECT
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
 		WHEN (%s) THEN '%s'
+		ELSE ''
 	END AS status,
 	COALESCE(client_error, '') as detail
 FROM
@@ -694,6 +695,12 @@ WHERE
 		}
 		// At this point we know disk encryption is enabled so if there are no rows for the
 		// host then we treat it as enforcing and log for potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+		dest.Status = fleet.DiskEncryptionEnforcing
+	}
+
+	if dest.Status == "" {
+		// If we have no status, we treat it as enforcing since we know disk encryption is enabled and log for potential debugging
 		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
 		dest.Status = fleet.DiskEncryptionEnforcing
 	}
