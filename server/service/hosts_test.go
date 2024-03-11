@@ -723,16 +723,17 @@ func TestHostAuth(t *testing.T) {
 			err = svc.DeleteHost(ctx, 2)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{1}, nil, nil)
+			err = svc.DeleteHosts(ctx, []uint{1}, nil)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.DeleteHosts(ctx, []uint{2}, &fleet.HostListOptions{}, nil)
+			err = svc.DeleteHosts(ctx, []uint{2}, nil)
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 
 			err = svc.AddHostsToTeam(ctx, ptr.Uint(1), []uint{1}, false)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
-			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), fleet.HostListOptions{}, nil)
+			emptyFilter := make(map[string]interface{})
+			err = svc.AddHostsToTeamByFilter(ctx, ptr.Uint(1), &emptyFilter)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
 
 			err = svc.RefetchHost(ctx, 1)
@@ -855,7 +856,9 @@ func TestAddHostsToTeamByFilter(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, nil))
+	emptyRequest := &map[string]interface{}{}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, emptyRequest))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -866,10 +869,10 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 
 	expectedHostIDs := []uint{6}
 	expectedTeam := ptr.Uint(1)
-	expectedLabel := ptr.Uint(2)
+	expectedLabel := float64(2)
 
 	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
-		assert.Equal(t, *expectedLabel, lid)
+		assert.Equal(t, uint(expectedLabel), lid)
 		var hosts []*fleet.Host
 		for _, id := range expectedHostIDs {
 			hosts = append(hosts, &fleet.Host{ID: id})
@@ -893,7 +896,9 @@ func TestAddHostsToTeamByFilterLabel(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, fleet.HostListOptions{}, expectedLabel))
+	filter := &map[string]interface{}{"label_id": expectedLabel}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), expectedTeam, filter))
 	assert.True(t, ds.ListHostsInLabelFuncInvoked)
 	assert.True(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -912,7 +917,9 @@ func TestAddHostsToTeamByFilterEmptyHosts(t *testing.T) {
 		return nil
 	}
 
-	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, fleet.HostListOptions{}, nil))
+	emptyFilter := &map[string]interface{}{}
+
+	require.NoError(t, svc.AddHostsToTeamByFilter(test.UserContext(ctx, test.UserAdmin), nil, emptyFilter))
 	assert.True(t, ds.ListHostsFuncInvoked)
 	assert.False(t, ds.AddHostsToTeamFuncInvoked)
 }
@@ -1625,6 +1632,162 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 			checkAuthErr(t, tt.shouldFailGlobalWrite, err)
 			err = svc.WipeHost(ctx, teamHostID)
 			checkAuthErr(t, tt.shouldFailTeamWrite, err)
+		})
+	}
+}
+
+func TestBulkOperationFilterValidation(t *testing.T) {
+	ds := new(mock.Store)
+	svc, ctx := newTestService(t, ds, nil, nil)
+	viewerCtx := test.UserContext(ctx, test.UserAdmin)
+
+	ds.ListHostsFunc = func(ctx context.Context, filter fleet.TeamFilter, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+
+	ds.ListHostsInLabelFunc = func(ctx context.Context, filter fleet.TeamFilter, lid uint, opt fleet.HostListOptions) ([]*fleet.Host, error) {
+		return []*fleet.Host{}, nil
+	}
+
+	tc := []struct {
+		name      string
+		filters   *map[string]interface{}
+		has400Err bool
+	}{
+		{
+			name: "valid status filter",
+			filters: &map[string]interface{}{
+				"status": "new",
+			},
+		},
+		{
+			name: "invalid status",
+			filters: &map[string]interface{}{
+				"status": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "empty status is invalid",
+			filters: &map[string]interface{}{
+				"status": "",
+			},
+			has400Err: true,
+		},
+
+		{
+			name: "valid team filter",
+			filters: &map[string]interface{}{
+				"team_id": float64(1), // json unmarshals to float64
+			},
+		},
+		{
+			name: "invalid team_id type",
+			filters: &map[string]interface{}{
+				"team_id": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "valid label_id filter",
+			filters: &map[string]interface{}{
+				"label_id": float64(1),
+			},
+		},
+		{
+			name: "invalid label_id type",
+			filters: &map[string]interface{}{
+				"label_id": "invalid",
+			},
+			has400Err: true,
+		},
+
+		{
+			name: "invalid status type",
+			filters: &map[string]interface{}{
+				"status": float64(1),
+			},
+			has400Err: true,
+		},
+		{
+			name:    "empty filter",
+			filters: &map[string]interface{}{},
+		},
+		{
+			name: "valid query filter",
+			filters: &map[string]interface{}{
+				"query": "test",
+			},
+		},
+		{
+			name: "invalid query type",
+			filters: &map[string]interface{}{
+				"query": float64(1),
+			},
+			has400Err: true,
+		},
+		{
+			name: "empty query is invalid",
+			filters: &map[string]interface{}{
+				"query": "",
+			},
+			has400Err: true,
+		},
+		{
+			name: "multiple valid filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"team_id": float64(1),
+				"query":   "test",
+			},
+		},
+		{
+			name: "mixed valid and invalid filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"team_id": "invalid",
+			},
+			has400Err: true,
+		},
+		{
+			name: "mixed invalid filters and valid filters (different order)",
+			filters: &map[string]interface{}{
+				"status":  "invalid",
+				"team_id": 1,
+			},
+			has400Err: true,
+		},
+		{
+			name: "mixed valid and unknown filters",
+			filters: &map[string]interface{}{
+				"status":  "new",
+				"unknown": "filter",
+			},
+			has400Err: true,
+		},
+		{
+			name: "unknown filter",
+			filters: &map[string]interface{}{
+				"unknown": "filter",
+			},
+			has400Err: true,
+		},
+	}
+
+	checkErr := func(t *testing.T, err error, has400Err bool) {
+		if has400Err {
+			require.Error(t, err)
+			var be *fleet.BadRequestError
+			require.ErrorAs(t, err, &be)
+		} else {
+			require.NoError(t, err)
+		}
+	}
+
+	for _, tt := range tc {
+		t.Run(tt.name, func(t *testing.T) {
+			checkErr(t, svc.AddHostsToTeamByFilter(viewerCtx, nil, tt.filters), tt.has400Err)
+			checkErr(t, svc.DeleteHosts(viewerCtx, nil, tt.filters), tt.has400Err)
 		})
 	}
 }
