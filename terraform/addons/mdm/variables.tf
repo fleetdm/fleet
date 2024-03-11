@@ -16,6 +16,11 @@ variable "dep_secret_name" {
   type     = string
 }
 
+variable "public_domain_name" {
+  nullable = false
+  type     = string
+}
+
 variable "enable_windows_mdm" {
   default  = false
   nullable = false
