@@ -407,7 +407,7 @@ For a better understanding bewtween manager and new Fleeties, Fleet opts to do r
 
 To do this, your manager will follow these steps:
 
-1: Create a goole doc template simular to [this](https://docs.google.com/document/d/1BFlWgHlW_kO_ymrvaA9TixST2hoqN4oHiM7DXI1oH-8/copy)
+1. Create a google doc template simular to [this](https://docs.google.com/document/d/1BFlWgHlW_kO_ymrvaA9TixST2hoqN4oHiM7DXI1oH-8/copy)
 2. During the meeting, your mananger will fill in the google doc with key points or notes as to what is being discussed or what needs to be worked on.
 3. Once the meeting is complete you will have a copy of said google doc to refer to.
 
