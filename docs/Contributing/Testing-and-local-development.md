@@ -78,6 +78,8 @@ Make sure it is available in your `PATH`. To execute the basic unit and integrat
 REDIS_TEST=1 MYSQL_TEST=1 make test
 ```
 
+The integration tests in the `server/service` package can generate a lot of logs mixed with the test results output. To make it easier to identify a failing test in this package, you can set the `FLEET_INTEGRATION_TESTS_DISABLE_LOG=1` environment variable so that logging is disabled.
+
 Note that on a Linux system, the Redis tests will include running in cluster mode, so the docker Redis Cluster setup must be running. This implies starting the docker dependencies as follows:
 
 ```sh
