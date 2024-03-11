@@ -104,11 +104,13 @@ export interface IExportHostsOptions {
   lowDiskSpaceHosts?: number;
   osId?: number;
   osName?: string;
+  osVersionId?: number;
   osVersion?: string;
   vulnerability?: string;
   device_mapping?: boolean;
   columns?: string;
   visibleColumns?: string;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
 }
@@ -253,10 +255,14 @@ export default {
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
     const macSettingsStatus = options?.macSettingsStatus;
+    const osName = options?.osName;
+    const osVersionId = options?.osVersionId;
+    const osVersion = options?.osVersion;
     const status = options?.status;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
     const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
     const visibleColumns = options?.visibleColumns;
     const label = getLabelParam(selectedLabels);
     const munkiIssueId = options?.munkiIssueId;
@@ -288,8 +294,12 @@ export default {
         softwareId,
         softwareTitleId,
         softwareVersionId,
+        osName,
+        osVersionId,
+        osVersion,
         lowDiskSpaceHosts,
         osSettings,
+        bootstrapPackageStatus,
         diskEncryptionStatus,
         vulnerability,
       }),
