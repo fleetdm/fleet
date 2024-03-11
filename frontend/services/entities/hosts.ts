@@ -48,72 +48,48 @@ export const HOSTS_QUERY_PARAMS = {
   DISK_ENCRYPTION: "os_settings_disk_encryption",
 } as const;
 
-export interface ILoadHostsQueryKey extends ILoadHostsOptions {
+export interface ILoadHostsQueryKey extends IPaginateHostOptions {
   scope: "hosts";
 }
 
 export type MacSettingsStatusQueryParam = "latest" | "pending" | "failing";
 
-export interface ILoadHostsOptions {
-  page?: number;
-  perPage?: number;
-  selectedLabels?: string[];
+/** For organization purposes, order matches rest-api.md > List hosts parameters
+and all code added should follow suit */
+export interface IBaseHostsOptions {
+  status?: HostStatus;
   globalFilter?: string;
-  sortBy?: ISortOption[];
   teamId?: number;
   policyId?: number;
   policyResponse?: string;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
   softwareId?: number;
   softwareTitleId?: number;
   softwareVersionId?: number;
-  status?: HostStatus;
-  mdmId?: number;
-  mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: number;
-  osVersionId?: number;
+  selectedLabels?: string[];
   osName?: string;
+  osVersionId?: number;
   osVersion?: string;
   vulnerability?: string;
+  deviceMapping?: boolean;
+  mdmId?: number;
+  mdmEnrollmentStatus?: string;
+  macSettingsStatus?: MacSettingsStatusQueryParam;
   munkiIssueId?: number;
-  device_mapping?: boolean;
-  columns?: string;
-  visibleColumns?: string;
+  lowDiskSpaceHosts?: number;
+  bootstrapPackageStatus?: BootstrapPackageStatus;
   osSettings?: MdmProfileStatus;
   diskEncryptionStatus?: DiskEncryptionStatus;
-  bootstrapPackageStatus?: BootstrapPackageStatus;
 }
 
-export interface IExportHostsOptions {
-  sortBy: ISortOption[];
+export interface IPaginateHostOptions extends IBaseHostsOptions {
+  visibleColumns?: string;
   page?: number;
   perPage?: number;
-  selectedLabels?: string[];
-  globalFilter?: string;
-  teamId?: number;
-  policyId?: number;
-  policyResponse?: string;
-  macSettingsStatus?: MacSettingsStatusQueryParam;
-  softwareId?: number;
-  softwareTitleId?: number;
-  softwareVersionId?: number;
-  status?: HostStatus;
-  mdmId?: number;
-  munkiIssueId?: number;
-  mdmEnrollmentStatus?: string;
-  lowDiskSpaceHosts?: number;
-  osId?: number;
-  osName?: string;
-  osVersion?: string;
-  vulnerability?: string;
-  device_mapping?: boolean;
-  columns?: string;
-  visibleColumns?: string;
-  osSettings?: MdmProfileStatus;
-  diskEncryptionStatus?: DiskEncryptionStatus;
+  sortBy: ISortOption[];
 }
 
 export interface IActionByFilter {
+  // Order matches rest-api.md > List hosts parameters
   teamId: number | null;
   query: string;
   status: string;
@@ -242,9 +218,11 @@ export default {
       },
     });
   },
-  exportHosts: (options: IExportHostsOptions) => {
+  exportHosts: (options: IPaginateHostOptions) => {
+    // Order matches rest-api.md > List hosts parameters
+    const visibleColumns = options?.visibleColumns;
     const sortBy = options.sortBy;
-    const selectedLabels = options?.selectedLabels || [];
+    const status = options?.status;
     const globalFilter = options?.globalFilter || "";
     const teamId = options?.teamId;
     const policyId = options?.policyId;
@@ -252,17 +230,19 @@ export default {
     const softwareId = options?.softwareId;
     const softwareTitleId = options?.softwareTitleId;
     const softwareVersionId = options?.softwareVersionId;
-    const macSettingsStatus = options?.macSettingsStatus;
-    const status = options?.status;
+    const label = getLabelParam(options?.selectedLabels || []);
+    const osName = options?.osName;
+    const osVersionId = options?.osVersionId;
+    const osVersion = options?.osVersion;
+    const vulnerability = options?.vulnerability;
     const mdmId = options?.mdmId;
     const mdmEnrollmentStatus = options?.mdmEnrollmentStatus;
-    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
-    const visibleColumns = options?.visibleColumns;
-    const label = getLabelParam(selectedLabels);
+    const macSettingsStatus = options?.macSettingsStatus;
     const munkiIssueId = options?.munkiIssueId;
+    const lowDiskSpaceHosts = options?.lowDiskSpaceHosts;
+    const bootstrapPackageStatus = options?.bootstrapPackageStatus;
     const osSettings = options?.osSettings;
     const diskEncryptionStatus = options?.diskEncryptionStatus;
-    const vulnerability = options?.vulnerability;
 
     if (!sortBy.length) {
       throw Error("sortBy is a required field.");
@@ -279,19 +259,24 @@ export default {
         osSettings,
       }),
       ...reconcileMutuallyExclusiveHostParams({
-        label,
+        // Order matches rest-api.md > List hosts parameters
         policyId,
         policyResponse,
-        mdmId,
-        mdmEnrollmentStatus,
-        munkiIssueId,
         softwareId,
         softwareTitleId,
         softwareVersionId,
-        lowDiskSpaceHosts,
-        osSettings,
-        diskEncryptionStatus,
+        label,
+        osName,
+        osVersionId,
+        osVersion,
         vulnerability,
+        mdmId,
+        mdmEnrollmentStatus,
+        munkiIssueId,
+        lowDiskSpaceHosts,
+        bootstrapPackageStatus,
+        diskEncryptionStatus,
+        osSettings,
       }),
       status,
       label_id: label,
@@ -300,38 +285,40 @@ export default {
     };
 
     const queryString = buildQueryStringFromParams(queryParams);
+
     const endpoint = endpoints.HOSTS_REPORT;
     const path = `${endpoint}?${queryString}`;
 
     return sendRequest("GET", path);
   },
   loadHosts: ({
+    // Order matches rest-api.md > List hosts parameters
     page = 0,
     perPage = 100,
+    sortBy,
+    status,
     globalFilter,
     teamId,
     policyId,
     policyResponse = "passing",
-    macSettingsStatus,
     softwareId,
     softwareTitleId,
     softwareVersionId,
-    status,
-    mdmId,
-    mdmEnrollmentStatus,
-    munkiIssueId,
-    lowDiskSpaceHosts,
-    osVersionId,
+    selectedLabels,
     osName,
+    osVersionId,
     osVersion,
     vulnerability,
-    device_mapping,
-    selectedLabels,
-    sortBy,
+    deviceMapping,
+    mdmId,
+    mdmEnrollmentStatus,
+    macSettingsStatus,
+    munkiIssueId,
+    lowDiskSpaceHosts,
+    bootstrapPackageStatus,
     osSettings,
     diskEncryptionStatus,
-    bootstrapPackageStatus,
-  }: ILoadHostsOptions): Promise<ILoadHostsResponse> => {
+  }: IPaginateHostOptions): Promise<ILoadHostsResponse> => {
     const label = getLabel(selectedLabels);
     const sortParams = getSortParams(sortBy);
 
@@ -339,7 +326,7 @@ export default {
       page,
       per_page: perPage,
       query: globalFilter,
-      device_mapping,
+      device_mapping: deviceMapping,
       order_key: sortParams.order_key,
       order_direction: sortParams.order_direction,
       status,
