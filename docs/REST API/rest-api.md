@@ -1082,6 +1082,9 @@ Modifies the Fleet's configuration with the supplied information.
 | email                             | string  | body  | _integrations.zendesk[] settings_. The Zendesk user email to use for this Zendesk integration. |
 | api_token                         | string  | body  | _integrations.zendesk[] settings_. The Zendesk API token to use for this Zendesk integration. |
 | group_id                          | integer | body  | _integrations.zendesk[] settings_. The Zendesk group id to use for this integration. Zendesk tickets will be created in this group. |
+| email                             | string  | body  | _integrations.google_calendar[] settings_. The email address for the Google Workspace service account to be used for this calendar integration. |
+| domain                            | string  | body  | _integrations.google_calendar[] settings_. The domain for the Google Workspace service account to be used for this calendar integration. |
+| private_key                       | string  | body  | _integrations.google_calendar[] settings_. The private key for the Google Workspace service account to be used for this calendar integration. |
 | apple_bm_default_team             | string  | body  | _mdm settings_. The default team to use with Apple Business Manager. **Requires Fleet Premium license** |
 | windows_enabled_and_configured    | boolean | body  | _mdm settings_. Enables Windows MDM support. |
 | minimum_version                   | string  | body  | _mdm.macos_updates settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will be nudged until their macOS is at or above this version. **Requires Fleet Premium license** |
