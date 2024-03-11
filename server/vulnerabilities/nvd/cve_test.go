@@ -750,3 +750,70 @@ func loadDict(t *testing.T, path string) cvefeed.Dictionary {
 	}
 	return dict
 }
+
+func TestExpandCPEAliases(t *testing.T) {
+	firefox := &wfn.Attributes{
+		Vendor:  "mozilla",
+		Product: "firefox",
+		Version: "93.0.100",
+	}
+	chromePlugin := &wfn.Attributes{
+		Vendor:   "google",
+		Product:  "plugin foobar",
+		Version:  "93.0.100",
+		TargetSW: "chrome",
+	}
+
+	vsCodeExtension := &wfn.Attributes{
+		Vendor:   "Microsoft",
+		Product:  "foo.extension",
+		Version:  "2024.2.1",
+		TargetSW: "visual_studio_code",
+	}
+	vsCodeExtensionAlias := *vsCodeExtension
+	vsCodeExtensionAlias.TargetSW = "visual_studio"
+
+	pythonCodeExtension := &wfn.Attributes{
+		Vendor:   "microsoft",
+		Product:  "python_extension",
+		Version:  "2024.2.1",
+		TargetSW: "visual_studio_code",
+	}
+	pythonCodeExtensionAlias1 := *pythonCodeExtension
+	pythonCodeExtensionAlias1.TargetSW = "visual_studio"
+	pythonCodeExtensionAlias2 := *pythonCodeExtension
+	pythonCodeExtensionAlias2.Product = "visual_studio_code"
+	pythonCodeExtensionAlias2.TargetSW = "python"
+
+	for _, tc := range []struct {
+		name            string
+		cpeItem         *wfn.Attributes
+		expectedAliases []*wfn.Attributes
+	}{
+		{
+			name:            "no expansion without target_sw",
+			cpeItem:         firefox,
+			expectedAliases: []*wfn.Attributes{firefox},
+		},
+		{
+			name:            "no expansion with target_sw",
+			cpeItem:         chromePlugin,
+			expectedAliases: []*wfn.Attributes{chromePlugin},
+		},
+		{
+			name:            "visual studio code extension",
+			cpeItem:         vsCodeExtension,
+			expectedAliases: []*wfn.Attributes{vsCodeExtension, &vsCodeExtensionAlias},
+		},
+		{
+			name:            "python visual studio code extension",
+			cpeItem:         pythonCodeExtension,
+			expectedAliases: []*wfn.Attributes{pythonCodeExtension, &pythonCodeExtensionAlias1, &pythonCodeExtensionAlias2},
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			aliases := expandCPEAliases(tc.cpeItem)
+			require.Equal(t, tc.expectedAliases, aliases)
+		})
+	}
+}

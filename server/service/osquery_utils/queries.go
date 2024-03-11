@@ -796,12 +796,11 @@ FROM homebrew_packages;
 	DirectIngestFunc: directIngestSoftware,
 }
 
-// softwareExtra collects software on a separate query for two reasons:
-//   - It might use tables that are not present in older versions of osquery
-//     (e.g. vscode_extensions is not available in osquery < 5.11.0).
+// softwareVSCodeExtensions collects VSCode extensions on a separate query for two reasons:
+//   - vscode_extensions is not available in osquery < 5.11.0.
 //   - Avoid growing the main `software_{macos|windows|linux}` queries
 //     (having big queries can cause performance issues or be denylisted).
-var softwareExtra = DetailQuery{
+var softwareVSCodeExtensions = DetailQuery{
 	Query: withCachedUsers(`WITH cached_users AS (%s)
 SELECT
   name,
@@ -1860,7 +1859,7 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
-		generatedMap["software_extra"] = softwareExtra
+		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 	}
 
 	if features != nil && features.EnableHostUsers {

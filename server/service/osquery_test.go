@@ -1003,12 +1003,13 @@ func verifyDiscovery(t *testing.T, queries, discovery map[string]string) {
 	assert.Equal(t, len(queries), len(discovery))
 	// discoveryUsed holds the queries where we know use the distributed discovery feature.
 	discoveryUsed := map[string]struct{}{
-		hostDetailQueryPrefix + "google_chrome_profiles": {},
-		hostDetailQueryPrefix + "mdm":                    {},
-		hostDetailQueryPrefix + "munki_info":             {},
-		hostDetailQueryPrefix + "windows_update_history": {},
-		hostDetailQueryPrefix + "kubequery_info":         {},
-		hostDetailQueryPrefix + "orbit_info":             {},
+		hostDetailQueryPrefix + "google_chrome_profiles":     {},
+		hostDetailQueryPrefix + "mdm":                        {},
+		hostDetailQueryPrefix + "munki_info":                 {},
+		hostDetailQueryPrefix + "windows_update_history":     {},
+		hostDetailQueryPrefix + "kubequery_info":             {},
+		hostDetailQueryPrefix + "orbit_info":                 {},
+		hostDetailQueryPrefix + "software_vscode_extensions": {},
 	}
 	for name := range queries {
 		require.NotEmpty(t, discovery[name])
@@ -1701,8 +1702,9 @@ func TestDetailQueries(t *testing.T) {
 	// queries)
 	queries, discovery, acc, err := svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 for software inventory, +1 for fleet_no_policies_wildcard
-	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+1+1, len(queries)) {
+	// +2 for software inventory (+1 for the main software query +1 software_vscode_extensions)
+	// +1 for fleet_no_policies_wildcard
+	if expected := expectedDetailQueriesForPlatform(host.Platform); !assert.Equal(t, len(expected)+2+1, len(queries)) {
 		// this is just to print the diff between the expected and actual query
 		// keys when the count assertion fails, to help debugging - they are not
 		// expected to match.
@@ -1966,8 +1968,9 @@ func TestDetailQueries(t *testing.T) {
 
 	queries, discovery, acc, err = svc.GetDistributedQueries(ctx)
 	require.NoError(t, err)
-	// +1 software inventory, +1 fleet_no_policies_wildcard query
-	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+1+1, len(queries), distQueriesMapKeys(queries))
+	// +2 software inventory (+1 main software query and +1 software extra query )
+	// +1 fleet_no_policies_wildcard query
+	require.Equal(t, len(expectedDetailQueriesForPlatform(host.Platform))+2+1, len(queries), distQueriesMapKeys(queries))
 	verifyDiscovery(t, queries, discovery)
 	assert.Zero(t, acc)
 }
@@ -3571,9 +3574,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software query works and there are vs code extensions in extra",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
-				hostDetailQueryPrefix + "software_macos":     fleet.StatusOK,
-				hostDetailQueryPrefix + "software_extra":     fleet.StatusOK,
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
@@ -3583,7 +3586,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					foobarApp,
 					zoobarApp,
 				},
-				hostDetailQueryPrefix + "software_extra": []map[string]string{
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
 				},
@@ -3605,9 +3608,9 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software query and extra works and there are no vscode extensions",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
-				hostDetailQueryPrefix + "software_macos":     fleet.StatusOK,
-				hostDetailQueryPrefix + "software_extra":     fleet.StatusOK,
+				hostDetailQueryPrefix + "other_detail_query":         fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
@@ -3617,7 +3620,7 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 					foobarApp,
 					zoobarApp,
 				},
-				hostDetailQueryPrefix + "software_extra": []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
 			resultsOut: fleet.OsqueryDistributedQueryResults{
@@ -3661,10 +3664,10 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software doesn't return status or results but the software extra does",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_extra": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_extra": []map[string]string{
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
 				},
@@ -3676,15 +3679,15 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software query works, but vscode_extensions table doesn't exist",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos": fleet.StatusOK,
-				hostDetailQueryPrefix + "software_extra": fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_macos":             fleet.StatusOK,
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{
 					foobarApp,
 					zoobarApp,
 				},
-				hostDetailQueryPrefix + "software_extra": []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
 			resultsOut: fleet.OsqueryDistributedQueryResults{
@@ -3698,12 +3701,12 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software query fails, vscode_extensions table returns results",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos": fleet.OsqueryStatus(1),
-				hostDetailQueryPrefix + "software_extra": fleet.StatusOK,
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.StatusOK,
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
-				hostDetailQueryPrefix + "software_extra": []map[string]string{
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{
 					foobarVSCodeExtension,
 					zoobarVSCodeExtension,
 				},
@@ -3717,16 +3720,34 @@ func TestPreProcessSoftwareResults(t *testing.T) {
 			name: "software query fails, software extra query also fails",
 
 			statusesIn: map[string]fleet.OsqueryStatus{
-				hostDetailQueryPrefix + "software_macos": fleet.OsqueryStatus(1),
-				hostDetailQueryPrefix + "software_extra": fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_macos":             fleet.OsqueryStatus(1),
+				hostDetailQueryPrefix + "software_vscode_extensions": fleet.OsqueryStatus(1),
 			},
 			resultsIn: fleet.OsqueryDistributedQueryResults{
-				hostDetailQueryPrefix + "software_macos": []map[string]string{},
-				hostDetailQueryPrefix + "software_extra": []map[string]string{},
+				hostDetailQueryPrefix + "software_macos":             []map[string]string{},
+				hostDetailQueryPrefix + "software_vscode_extensions": []map[string]string{},
 			},
 
 			resultsOut: fleet.OsqueryDistributedQueryResults{
 				hostDetailQueryPrefix + "software_macos": []map[string]string{},
+			},
+		},
+		{
+			name: "software inventory turned off",
+
+			statusesIn: map[string]fleet.OsqueryStatus{
+				hostDetailQueryPrefix + "other_detail_query": fleet.StatusOK,
+			},
+			resultsIn: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
+			},
+
+			resultsOut: fleet.OsqueryDistributedQueryResults{
+				hostDetailQueryPrefix + "other_detail_query": []map[string]string{
+					someRow,
+				},
 			},
 		},
 	} {

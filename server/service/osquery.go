@@ -1094,7 +1094,7 @@ func (svc *Service) SubmitDistributedQueryResults(
 }
 
 // preProcessSoftwareResults will run pre-processing on the responses of the software queries.
-// It will move the results from the `software_extra` query into the main software query results
+// It will move the results from the software_vscode_extensions query into the main software query results
 // (software_{macos|linux|windows}). We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
@@ -1104,9 +1104,19 @@ func preProcessSoftwareResults(
 	messages *map[string]string,
 	logger log.Logger,
 ) {
-	softwareExtraQuery := hostDetailQueryPrefix + "software_extra"
+	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+}
 
-	// We always remove the software_extra query and its results
+func preProcessSoftwareExtraResults(
+	softwareExtraQuery string,
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	// We always remove the extra query and its results
 	// in case the main or extra software query failed to execute.
 	defer delete(*results, softwareExtraQuery)
 
@@ -1116,22 +1126,22 @@ func preProcessSoftwareResults(
 	}
 	failed := status != fleet.StatusOK
 	if failed {
-		// software_extra query executed but with errors, so we return without changing anything.
+		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
-			"query", "software_extra",
+			"query", "software_vscode_extensions",
 			"message", (*messages)[softwareExtraQuery],
 			"hostID", hostID,
 		)
 		return
 	}
 
-	// Extract the results of the software_extra query.
+	// Extract the results of the extra query.
 	softwareExtraRows, _ := (*results)[softwareExtraQuery]
 	if len(softwareExtraRows) == 0 {
 		return
 	}
 
-	// Append the results of the software_extra query to the main query.
+	// Append the results of the extra query to the main query.
 	for _, query := range []string{
 		// Only one of these execute in each host.
 		hostDetailQueryPrefix + "software_macos",
