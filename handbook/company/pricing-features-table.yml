@@ -831,6 +831,9 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  waysToUse:
+    - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
 - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
   tier: Free
   usualDepartment: Security
