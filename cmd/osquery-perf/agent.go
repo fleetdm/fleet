@@ -113,6 +113,7 @@ type Stats struct {
 	osqueryEnrollments     int
 	orbitEnrollments       int
 	mdmEnrollments         int
+	mdmSessions            int
 	distributedWrites      int
 	mdmCommandsReceived    int
 	distributedReads       int
@@ -152,6 +153,12 @@ func (s *Stats) IncrementMDMEnrollments() {
 	s.l.Lock()
 	defer s.l.Unlock()
 	s.mdmEnrollments++
+}
+
+func (s *Stats) IncrementMDMSessions() {
+	s.l.Lock()
+	defer s.l.Unlock()
+	s.mdmSessions++
 }
 
 func (s *Stats) IncrementDistributedWrites() {
@@ -240,7 +247,7 @@ func (s *Stats) Log() {
 	defer s.l.Unlock()
 
 	log.Printf(
-		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
+		"uptime: %s, error rate: %.2f, osquery enrolls: %d, orbit enrolls: %d, mdm enrolls: %d, distributed/reads: %d, distributed/writes: %d, config requests: %d, result log requests: %d, mdm sessions initiated: %d, mdm commands received: %d, config errors: %d, distributed/read errors: %d, distributed/write errors: %d, log result errors: %d, orbit errors: %d, desktop errors: %d, mdm errors: %d, buffered logs: %d",
 		time.Since(s.startTime).Round(time.Second),
 		float64(s.errors)/float64(s.osqueryEnrollments),
 		s.osqueryEnrollments,
@@ -250,6 +257,7 @@ func (s *Stats) Log() {
 		s.distributedWrites,
 		s.configRequests,
 		s.resultLogRequests,
+		s.mdmSessions,
 		s.mdmCommandsReceived,
 		s.configErrors,
 		s.distributedReadErrors,
@@ -876,6 +884,8 @@ func (a *agent) runMacosMDMLoop() {
 			a.stats.IncrementMDMErrors()
 			continue
 		}
+		a.stats.IncrementMDMSessions()
+
 	INNER_FOR_LOOP:
 		for mdmCommandPayload != nil {
 			a.stats.IncrementMDMCommandsReceived()
@@ -899,6 +909,7 @@ func (a *agent) runWindowsMDMLoop() {
 			a.stats.IncrementMDMErrors()
 			continue
 		}
+		a.stats.IncrementMDMSessions()
 
 		// send a successful ack for each command
 		msgID, err := a.winMDMClient.GetCurrentMsgID()
@@ -1567,15 +1578,19 @@ func (a *agent) processQuery(name, query string) (
 	case name == hostDetailQueryPrefix+"scheduled_query_stats":
 		return true, a.randomQueryStats(), &statusOK, nil, nil
 	case name == hostDetailQueryPrefix+"mdm":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
-		if ss == fleet.StatusOK {
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmMac()
+		} else {
+			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"mdm_windows":
-		ss := fleet.OsqueryStatus(rand.Intn(2))
-		if ss == fleet.StatusOK {
+		ss := statusOK
+		if rand.Intn(10) > 0 { // 90% success
 			results = a.mdmWindows()
+		} else {
+			ss = statusNotOK
 		}
 		return true, results, &ss, nil, nil
 	case name == hostDetailQueryPrefix+"munki_info":
