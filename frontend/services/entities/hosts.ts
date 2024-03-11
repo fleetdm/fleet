@@ -218,7 +218,7 @@ export default {
     const { HOSTS_DELETE } = endpoints;
     return sendRequest("POST", HOSTS_DELETE, {
       filters: {
-        query,
+        query: query || undefined, // Critical: Prevents empty string passed to API
         status,
         label_id: labelId,
         team_id: teamId,
@@ -441,7 +441,7 @@ export default {
     return sendRequest("POST", HOSTS_TRANSFER_BY_FILTER, {
       team_id: teamId,
       filters: {
-        query,
+        query: query || undefined, // Critical: Prevents empty string passed to API
         status,
         label_id: labelId,
         team_id: currentTeam,
