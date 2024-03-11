@@ -1,3 +1,11 @@
+# This example doesn't cover using a remote backend for storing the current
+# terraform state in S3 with a lock in DynamoDB (ideal for AWS) or other 
+# methods. If using automation to apply the configuration or if multiple people
+# will be managing these resources, this is recommended.
+#
+# See https://developer.hashicorp.com/terraform/language/settings/backends/s3
+# for reference.
+
 terraform {
   required_providers {
     aws = {
@@ -62,11 +70,7 @@ module "fleet" {
     # 4GB Required for vulnerability scanning.  512MB works without.
     mem = 4096
     cpu = 512
-    extra_environment_variables = merge(
-      # Uncomment if enabling mdm module below.
-      # module.mdm.extra_environment_variables,
-      local.fleet_environment_variables
-    )
+    extra_environment_variables = local.fleet_environment_variables
     # Uncomment if enabling mdm module below.
     # extra_secrets = module.mdm.extra_secrets
     # extra_execution_iam_policies = module.mdm.extra_execution_iam_policies
@@ -131,6 +135,47 @@ module "firehose-logging" {
   }
 }
 
+## MDM
+
+# MDM Secrets must be populated with JSON data including the payload from the certs, keys, challenge, etc.
+# These can be populated via terraform with a secret-version, or manually after terraform is applied.
+# Note: Services will not start if the mdm module is enabled and the secrets are applied but not populated.
+
+
+## MDM Secret payload
+
+# See https://github.com/fleetdm/fleet/blob/2a15df3b8c617506bfb9ef991cdbbb081750d1f8/terraform/addons/mdm/README.md#abm
+# Per that document, both Windows and Mac will use the same SCEP secret under the hood.
+
+
+# module "mdm" {
+#   source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=mdm-module-naming"
+#   # Set apn_secret_name = null if not using mac mdm
+#   apn_secret_name    = "fleet-apn"
+#   scep_secret_name   = "$fleet-scep"
+#   # Set abm_secret_name = null if customer is not using dep
+#   abm_secret_name    = "fleet-dep"
+#   enable_apple_mdm   = true
+#   enable_windows_mdm = true
+# }
+
+# If you want to supply the MDM secrets via terraform, I recommend that you do not store the secrets in the clear
+# on the device that applies the terraform.  For the example here, terraform will create a KMS key, which will then
+# be used to encrypt the secrets. The included mdm-secrets.tf file will then use the KMS key to dercrypt the secrets
+# on the filesystem to generate the 
+
+# resource "aws_kms_key" "fleet_data_key" {
+#   description = "key used to encrypt sensitive data stored in terraform"
+# }
+#
+# resource "aws_kms_alias" "alias" {
+#   name          = "alias/fleet-terraform-encrypted"
+#   target_key_id = aws_kms_key.fleet_data_key.id
+# }
+#
+# output "kms_key_id" {
+#   value = aws_kms_key.fleet_data_key.id
+# }
 
 module "acm" {
   source  = "terraform-aws-modules/acm/aws"
@@ -160,7 +205,6 @@ resource "aws_route53_record" "main" {
     evaluate_target_health = true
   }
 }
-
 
 # Ensure that these records are added to the parent DNS zone
 # Delete this output if you switched the route53 zone above to a data source.
