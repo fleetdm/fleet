@@ -1094,8 +1094,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 }
 
 // preProcessSoftwareResults will run pre-processing on the responses of the software queries.
-// It will move the results from the software_vscode_extensions query into the main software query results
-// (software_{macos|linux|windows}). We do this to not grow the main software queries and to ingest
+// It will move the results from the software extra queries (e.g. software_vscode_extensions)
+// into the main software query results (software_{macos|linux|windows}).
+// We do this to not grow the main software queries and to ingest
 // all software together (one direct ingest function for all software).
 func preProcessSoftwareResults(
 	hostID uint,
@@ -1122,13 +1123,13 @@ func preProcessSoftwareExtraResults(
 
 	status, ok := (*statuses)[softwareExtraQuery]
 	if !ok {
-		return // query did not execute, e.g. vscode_extensions table does not exist.
+		return // query did not execute, e.g. the table does not exist.
 	}
 	failed := status != fleet.StatusOK
 	if failed {
 		// extra query executed but with errors, so we return without changing anything.
 		level.Error(logger).Log(
-			"query", "software_vscode_extensions",
+			"query", softwareExtraQuery,
 			"message", (*messages)[softwareExtraQuery],
 			"hostID", hostID,
 		)
