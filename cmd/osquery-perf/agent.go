@@ -1384,7 +1384,7 @@ func (a *agent) mdmWindows() []map[string]string {
 	if !a.mdmEnrolled() {
 		return []map[string]string{
 			// empty service url means not enrolled
-			{"is_federated": "0", "discovery_service_url": "", "provider_id": "", "installation_type": "client"},
+			{"is_federated": "0", "discovery_service_url": "", "provider_id": "", "installation_type": "Client"},
 		}
 	}
 	return []map[string]string{
@@ -1392,7 +1392,7 @@ func (a *agent) mdmWindows() []map[string]string {
 			"is_federated":          "0",
 			"discovery_service_url": a.serverAddress,
 			"provider_id":           fleet.WellKnownMDMFleet,
-			"installation_type":     "client",
+			"installation_type":     "Client",
 		},
 	}
 }

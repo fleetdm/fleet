@@ -174,7 +174,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	"os_version_windows": {
 		Query: `
 		SELECT os.name, r.data as display_version, k.version
-		FROM 
+		FROM
 			registry r,
 			os_version os,
 			kernel_info k
@@ -1565,6 +1565,7 @@ func deduceMDMNameWindows(data map[string]string) string {
 }
 
 func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.Host, ds fleet.Datastore, rows []map[string]string) error {
+	fmt.Println(">>>> received MDM windows info", len(rows))
 	if len(rows) == 0 {
 		// no mdm information in the registry
 		return ds.SetOrUpdateMDMData(ctx, host.ID, false, false, "", false, "", "")
@@ -1591,6 +1592,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	}
 	isServer := strings.Contains(strings.ToLower(data["installation_type"]), "server")
 
+	fmt.Println(">>>> MDM windows info", host.ID, isServer, enrolled, serverURL, automatic, deduceMDMNameWindows(data))
 	return ds.SetOrUpdateMDMData(ctx,
 		host.ID,
 		isServer,
