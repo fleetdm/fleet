@@ -8,6 +8,7 @@ import (
 	"embed"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/xml"
 	"errors"
 	"flag"
 	"fmt"
@@ -27,6 +28,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/google/uuid"
@@ -466,7 +468,8 @@ func newAgent(
 			// creating the Windows MDM client requires the orbit node key, but we
 			// only get it after orbit enrollment. So here we just set the value to a
 			// placeholder (non-nil) client, the actual usable client will be created
-			// after orbit enrollment.
+			// after orbit enrollment, and after receiving the enrollment
+			// notification.
 			winMDMClient = new(mdmtest.TestWindowsMDMClient)
 		}
 	}
@@ -558,6 +561,8 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		go a.runOrbitLoop()
 	}
 
+	// NOTE: the windows MDM client enrollment is only done after receiving a
+	// notification via the config in the runOrbitLoop.
 	if a.macMDMClient != nil {
 		if err := a.macMDMClient.Enroll(); err != nil {
 			log.Printf("macOS MDM enroll failed: %s", err)
@@ -567,15 +572,6 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		a.setMDMEnrolled()
 		a.stats.IncrementMDMEnrollments()
 		go a.runMacosMDMLoop()
-	} else if a.winMDMClient != nil {
-		if err := a.winMDMClient.Enroll(); err != nil {
-			log.Printf("Windows MDM enroll failed: %s", err)
-			a.stats.IncrementMDMErrors()
-			return
-		}
-		a.setMDMEnrolled()
-		a.stats.IncrementMDMEnrollments()
-		go a.runWindowsMDMLoop()
 	}
 
 	//
@@ -804,6 +800,9 @@ func (a *agent) runOrbitLoop() {
 	// fleet desktop polls for policy compliance every 5 minutes
 	fleetDesktopPolicyTicker := time.Tick(5 * time.Minute)
 
+	const windowsMDMEnrollmentAttemptFrequency = time.Hour
+	var lastEnrollAttempt time.Time
+
 	for {
 		select {
 		case <-orbitConfigTicker:
@@ -816,6 +815,17 @@ func (a *agent) runOrbitLoop() {
 				// there are pending scripts to execute on this host, start a goroutine
 				// that will simulate executing them.
 				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
+			}
+			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment && !a.mdmEnrolled() && time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
+				lastEnrollAttempt = time.Now()
+				if err := a.winMDMClient.Enroll(); err != nil {
+					log.Printf("Windows MDM enroll failed: %s", err)
+					a.stats.IncrementMDMErrors()
+				} else {
+					a.setMDMEnrolled()
+					a.stats.IncrementMDMEnrollments()
+					go a.runWindowsMDMLoop()
+				}
 			}
 		case <-orbitTokenRemoteCheckTicker:
 			if !a.disableFleetDesktop && tokenRotationEnabled {
@@ -887,8 +897,34 @@ func (a *agent) runWindowsMDMLoop() {
 			a.stats.IncrementMDMErrors()
 			continue
 		}
-		// TODO(mna): send responses for each command (probably ack with success?)
-		_ = cmds
+
+		// send a successful ack for each command
+		msgID, err := a.winMDMClient.GetCurrentMsgID()
+		if err != nil {
+			log.Printf("MDM get current MsgID failed: %s", err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
+
+		for _, c := range cmds {
+			a.stats.IncrementMDMCommandsReceived()
+
+			status := syncml.CmdStatusOK
+			a.winMDMClient.AppendResponse(fleet.SyncMLCmd{
+				XMLName: xml.Name{Local: fleet.CmdStatus},
+				MsgRef:  &msgID,
+				CmdRef:  &c.Cmd.CmdID.Value,
+				Cmd:     ptr.String(c.Verb),
+				Data:    &status,
+				Items:   nil,
+				CmdID:   fleet.CmdID{Value: uuid.NewString()},
+			})
+		}
+		if _, err := a.winMDMClient.SendResponse(); err != nil {
+			log.Printf("MDM send response request failed: %s", err)
+			a.stats.IncrementMDMErrors()
+			continue
+		}
 	}
 }
 
