@@ -442,7 +442,6 @@ func newAgent(
 	// "darwin".
 	agentOS := strings.TrimRight(templates.Name(), ".tmpl")
 	agentOS, _, _ = strings.Cut(agentOS, "_")
-	fmt.Println(">>> agent os: ", agentOS)
 
 	var (
 		macMDMClient *mdmtest.TestAppleMDMClient
@@ -816,7 +815,10 @@ func (a *agent) runOrbitLoop() {
 				// that will simulate executing them.
 				go a.execScripts(cfg.Notifications.PendingScriptExecutionIDs, orbitClient)
 			}
-			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment && !a.mdmEnrolled() && time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
+			if cfg.Notifications.NeedsProgrammaticWindowsMDMEnrollment &&
+				!a.mdmEnrolled() &&
+				a.winMDMClient != nil &&
+				time.Since(lastEnrollAttempt) > windowsMDMEnrollmentAttemptFrequency {
 				lastEnrollAttempt = time.Now()
 				if err := a.winMDMClient.Enroll(); err != nil {
 					log.Printf("Windows MDM enroll failed: %s", err)
@@ -1361,7 +1363,7 @@ func (a *agent) mdmMac() []map[string]string {
 			"enrolled":           "true",
 			"server_url":         a.macMDMClient.EnrollInfo.MDMURL,
 			"installed_from_dep": "false",
-			"payload_identifier": apple_mdm.FleetPayloadIdentifier, // TODO(mna): is it correct to provide it like this? Ensures the MDM solution is recognize as Fleet in osquery ingestion.
+			"payload_identifier": apple_mdm.FleetPayloadIdentifier,
 		},
 	}
 }
