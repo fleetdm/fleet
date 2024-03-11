@@ -396,14 +396,22 @@ Although it's sad to see someone go, Fleet understands that not everything is me
    > After finding out about the departure, the Head of Business Operations will post in #g-e to inform the E-group of the team member's departure, asking E-group members to inform any other managers on their teams.
 4. **CEO**: The CEO will make an announcement during the "🌈 Weekly Update" post on Friday in the `#general` channel on Slack. 
 
-
-## Changing someone's position
-
 From time to time, someone's job title changes.  To do this, Business Operations follows these steps:
 
 1. Change "Fleeties" to reflect the new job title, manager, and/or department.
 2. If there is a compensation change, update "Equity plan".  Use the first day of a month as the date, and enter this in the corresponding column.
 3. If applicable, schedule the change in the appropriate payroll system.  (Don't worry about updating job titles in the payroll system.)
+
+## Skip Level 1:1 
+For a better understanding bewtween manager and new Fleeties, Fleet opts to do regular 1:1 meetings via zoom and use google docs to document. That way, the communication is clear.
+
+To do this, your manager will follow these steps:
+
+1: Create a goole doc template simular to [this](https://docs.google.com/document/d/1BFlWgHlW_kO_ymrvaA9TixST2hoqN4oHiM7DXI1oH-8/copy)
+2. During the meeting, your mananger will fill in the google doc with key points or notes as to what is being discussed or what needs to be worked on.
+3. Once the meeting is complete you will have a copy of said google doc to refer to.
+
+There will aslo be an opportunity to provide performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness)
 
 ## Performance feedback
 When it comes to performance feedback, [speak freely](https://fleetdm.com/handbook/company#openness), sooner, and provide an explicit example of the behavior you observed and the impact it had.
