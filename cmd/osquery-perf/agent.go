@@ -455,7 +455,7 @@ func newAgent(
 		macMDMClient *mdmtest.TestAppleMDMClient
 		winMDMClient *mdmtest.TestWindowsMDMClient
 	)
-	if rand.Float64() <= mdmProb {
+	if rand.Float64() < mdmProb {
 		switch agentOS {
 		case "macos":
 			macMDMClient = mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
