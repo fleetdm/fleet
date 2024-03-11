@@ -6782,6 +6782,74 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestChangePassword() {
+	t := s.T()
+
+	endpoint := "/api/latest/fleet/change_password"
+	// also the default password for the default logged in admin user
+	startPwd := test.GoodPassword
+
+	testCases := []struct {
+		oldPw          string
+		newPw          string
+		expectedStatus int
+	}{
+		// valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
+		{startPwd, "password123$", http.StatusOK},
+		{"password123$", "Password$321", http.StatusOK},
+
+		// invalid changes
+		// empty old
+		{"", "PassworD$321", http.StatusUnprocessableEntity},
+		// empty new
+		{"password123$", "", http.StatusUnprocessableEntity},
+		// too short
+		{"password123$", "Password$21", http.StatusUnprocessableEntity},
+		// too long
+		{"password123$", "Password$321Password$321Password$321Password$321Password$321", http.StatusUnprocessableEntity},
+		// no numbers
+		{"password123$", "Password$!@#", http.StatusUnprocessableEntity},
+		// no symbols
+		{"password123$", "Password4321", http.StatusUnprocessableEntity},
+		// new pw is same as old
+		{"password123$", "password123$", http.StatusUnprocessableEntity},
+		// wrong old pw
+		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+	}
+
+	runTestCases := func(name string) {
+		for _, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				var changePwResp changePasswordResponse
+				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+			})
+		}
+	}
+
+	runTestCases("test change passwords as admin")
+
+	// create a new user
+	testUserEmail := "changepwd@example.com"
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:                     ptr.String("Test Change Password"),
+		Email:                    ptr.String(testUserEmail),
+		Password:                 ptr.String(startPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	// schedule cleanup with admin user's token before changing it
+	oldToken := s.token
+	t.Cleanup(func() { s.token = oldToken })
+
+	// login and run the change password tests as the user
+	s.token = s.getTestToken(testUserEmail, startPwd)
+	runTestCases("test change passwords as user")
+}
+
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 

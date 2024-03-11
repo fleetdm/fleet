@@ -8,7 +8,7 @@ There are 2 primary ways to deploy the Fleet server to a Kubernetes cluster. The
 
 We will assume you have `kubectl` and MySQL and Redis are all set up and running. Optionally you have minikube to test your deployment locally on your machine.
 
-To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/Deploy-Fleet-on-Kubernetes.md).
+To deploy the Fleet server and connect to its dependencies (MySQL and Redis), we will use [Fleet's best practice `fleet-deployment.yml` file](https://github.com/fleetdm/fleet/blob/main/docs/Deploy/kubernetes/fleet-deployment.yml).
 
 Let's tell Kubernetes to create the cluster by running the below command.
 
