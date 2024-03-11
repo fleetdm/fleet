@@ -1320,6 +1320,7 @@ const ManageHostsPage = ({
       osName,
       osVersionId,
       osVersion,
+      osSettings: osSettingsStatus,
       bootstrapPackageStatus,
       vulnerability,
       visibleColumns,
