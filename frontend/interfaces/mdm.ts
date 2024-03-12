@@ -153,6 +153,11 @@ export enum BootstrapPackageStatus {
   FAILED = "failed",
 }
 
+type IMacOSCommandResultStatus = "pending" | "failed" | "acknowledged";
+
+// We use "string" here the status can be any status code if its not "pending"
+type IWindowsCommandResultStatus = "pending" | string;
+
 export interface IMdmCommandResult {
   host_uuid: string;
   command_uuid: string;

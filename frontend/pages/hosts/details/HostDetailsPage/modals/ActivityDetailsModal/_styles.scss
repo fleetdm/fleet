@@ -1,6 +1,15 @@
 .activity-details-modal {
 
+  &__modal-content {
+    display: grid;
+    gap: $pad-xlarge;
+  }
+
   &__error-message {
     margin-top: $pad-xxxlarge;
+  }
+
+  &__payload-textarea {
+    margin-top: $pad-medium;
   }
 }
