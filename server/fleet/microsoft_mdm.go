@@ -972,7 +972,7 @@ type SyncMLCmd struct {
 	// for the moment we're not allowing anything besides Replaces and Adds
 	ReplaceCommands []SyncMLCmd `xml:"Replace,omitempty"`
 
-	// AddCommands is a catch-all for any nested <Replace> commands,
+	// AddCommands is a catch-all for any nested <Add> commands,
 	// which can be found under <Atomic> elements.
 	AddCommands []SyncMLCmd `xml:"Add,omitempty"`
 }
