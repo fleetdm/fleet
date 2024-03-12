@@ -19,17 +19,17 @@ sequenceDiagram
     windows->>+server: POST /api/mdm/microsoft/discovery
     server-->>-windows: EnrollmentServiceURL, EnrollmentPolicyServiceUrl
 
-    windows->>+server: POST /api/mdm/microsoft/policy<br/>DeviceEnrollmentUserToken
+    windows->>+server: POST /api/mdm/microsoft/policy<br/>DeviceEnrollmentUserToken (node key)
     server-->>-windows: Policy Schema, Certificate requirements
     activate windows
     note left of windows: Generate keypair
     deactivate windows
-    windows->>+server: POST /api/mdm/microsoft/enroll<br/>Self-signed CSR & cert values
+    windows->>+server: POST /api/mdm/microsoft/enroll<br/>Self-signed CSR & cert values, DeviceID<br/>DeviceEnrollmentUserToken (node key)
     note right of server: Creates certificate signed by WSTEP ident key
     server-->>-windows: Signed certificate, management endpoint, enrollment parameters
 
     loop SYNCML MDM Protocol (mTLS)
-        windows->>+server: POST /api/mdm/microsoft/management
+        windows->>+server: POST /api/mdm/microsoft/management<br/>DeviceID
         server-->>-windows: Response
     end
 ```
