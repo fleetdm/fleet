@@ -220,7 +220,7 @@ var (
 type deleteHostsRequest struct {
 	IDs []uint `json:"ids"`
 	// Using a pointer to help determine whether an empty filter was passed, like: "filters":{}
-	Filters *fleet.HostListOptions `json:"filters"`
+	Filters *map[string]interface{} `json:"filters"`
 }
 
 type deleteHostsResponse struct {
@@ -236,18 +236,13 @@ func (r deleteHostsResponse) Status() int { return r.StatusCode }
 func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*deleteHostsRequest)
 
-	var labelID *uint
-	if req.Filters != nil {
-		labelID = req.Filters.LabelID
-	}
-
 	// Since bulk deletes can take a long time, after DeleteHostsTimeout, we will return a 202 (Accepted) status code
 	// and allow the delete operation to proceed.
 	var err error
 	deleteDone := make(chan bool, 1)
 	ctx = context.WithoutCancel(ctx) // to make sure DB operations don't get killed after we return a 202
 	go func() {
-		err = svc.DeleteHosts(ctx, req.IDs, req.Filters, labelID)
+		err = svc.DeleteHosts(ctx, req.IDs, req.Filters)
 		if err != nil {
 			// logging the error for future debug in case we already sent http.StatusAccepted
 			logging.WithErr(ctx, err)
@@ -269,13 +264,12 @@ func deleteHostsEndpoint(ctx context.Context, request interface{}, svc fleet.Ser
 	}
 }
 
-func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, opts *fleet.HostListOptions, lid *uint) error {
-	var err error
-	if err = svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+func (svc *Service) DeleteHosts(ctx context.Context, ids []uint, filter *map[string]interface{}) error {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
 		return err
 	}
 
-	opts, err = validateAndPopulateHostListOptionsFilters(ctx, opts)
+	opts, lid, err := hostListOptionsFromFilters(filter)
 	if err != nil {
 		return err
 	}
@@ -854,8 +848,8 @@ func (svc *Service) createTransferredHostsActivity(ctx context.Context, teamID *
 ////////////////////////////////////////////////////////////////////////////////
 
 type addHostsToTeamByFilterRequest struct {
-	TeamID  *uint                  `json:"team_id"`
-	Filters *fleet.HostListOptions `json:"filters"`
+	TeamID  *uint                   `json:"team_id"`
+	Filters *map[string]interface{} `json:"filters"`
 }
 
 type addHostsToTeamByFilterResponse struct {
@@ -866,8 +860,7 @@ func (r addHostsToTeamByFilterResponse) error() error { return r.Err }
 
 func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*addHostsToTeamByFilterRequest)
-
-	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters, req.Filters.LabelID)
+	err := svc.AddHostsToTeamByFilter(ctx, req.TeamID, req.Filters)
 	if err != nil {
 		return addHostsToTeamByFilterResponse{Err: err}, nil
 	}
@@ -875,7 +868,7 @@ func addHostsToTeamByFilterEndpoint(ctx context.Context, request interface{}, sv
 	return addHostsToTeamByFilterResponse{}, err
 }
 
-func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt *fleet.HostListOptions, lid *uint) error {
+func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filters *map[string]interface{}) error {
 	// This is currently treated as a "team write". If we ever give users
 	// besides global admins permissions to modify team hosts, we will need to
 	// check that the user has permissions for both the source and destination
@@ -884,13 +877,13 @@ func (svc *Service) AddHostsToTeamByFilter(ctx context.Context, teamID *uint, op
 		return err
 	}
 
-	if opt == nil {
-		return &fleet.BadRequestError{Message: "filters must be specified"}
-	}
-
-	opt, err := validateAndPopulateHostListOptionsFilters(ctx, opt)
+	opt, lid, err := hostListOptionsFromFilters(filters)
 	if err != nil {
 		return err
+	}
+
+	if opt == nil {
+		return &fleet.BadRequestError{Message: "filters must be specified"}
 	}
 
 	hostIDs, hostNames, err := svc.hostIDsAndNamesFromFilters(ctx, *opt, lid)
@@ -2151,62 +2144,54 @@ func (svc *Service) HostLiteByID(ctx context.Context, id uint) (*fleet.HostLite,
 	return host, nil
 }
 
-func validateAndPopulateHostListOptionsFilters(ctx context.Context, opt *fleet.HostListOptions) (*fleet.HostListOptions, error) {
-	if opt == nil {
-		return nil, nil
+func hostListOptionsFromFilters(filter *map[string]interface{}) (*fleet.HostListOptions, *uint, error) {
+	var labelID *uint
+
+	if filter == nil {
+		return nil, nil, nil
 	}
 
-	if opt.StatusFilter != "" && !opt.StatusFilter.IsValid() {
-		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid status %s", opt.StatusFilter)))
-	}
+	opt := fleet.HostListOptions{}
 
-	if opt.PolicyResponseFilterRequest != nil && opt.PolicyIDFilter == nil {
-		return opt, ctxerr.Wrap(ctx, badRequest("Policy ID must be provided when filtering by policy response"))
-	}
+	for k, v := range *filter {
+		switch k {
+		case "label_id":
+			if l, ok := v.(float64); ok { // json unmarshals numbers as float64
+				lid := uint(l)
+				labelID = &lid
+			} else {
+				return nil, nil, badRequest("label_id must be a number")
+			}
+		case "team_id":
+			if teamID, ok := v.(float64); ok { // json unmarshals numbers as float64
+				teamID := uint(teamID)
+				opt.TeamFilter = &teamID
+			} else {
+				return nil, nil, badRequest("team_id must be a number")
+			}
+		case "status":
+			status, ok := v.(string)
+			if !ok {
+				return nil, nil, badRequest("status must be a string")
+			}
+			if !fleet.HostStatus(status).IsValid() {
+				return nil, nil, badRequest("status must be one of: new, online, offline, missing")
+			}
+			opt.StatusFilter = fleet.HostStatus(status)
+		case "query":
+			query, ok := v.(string)
+			if !ok {
+				return nil, nil, badRequest("query must be a string")
+			}
+			if query == "" {
+				return nil, nil, badRequest("query must not be empty")
+			}
+			opt.MatchQuery = query
 
-	if opt.PolicyResponseFilterRequest != nil {
-		if *opt.PolicyResponseFilterRequest == "passing" {
-			opt.PolicyResponseFilter = ptr.Bool(true)
-		} else if *opt.PolicyResponseFilterRequest == "failing" {
-			opt.PolicyResponseFilter = ptr.Bool(false)
-		} else {
-			return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid policy response filter %s", *opt.PolicyResponseFilterRequest)))
+		default:
+			return nil, nil, badRequest(fmt.Sprintf("unknown filter key: %s", k))
 		}
 	}
 
-	if opt.SoftwareTitleIDFilter != nil && opt.SoftwareVersionIDFilter != nil {
-		return opt, ctxerr.Wrap(ctx, badRequest("Software title ID and name cannot be used together"))
-	}
-
-	if opt.OSNameFilter != nil && opt.OSVersionFilter == nil {
-		return opt, ctxerr.Wrap(ctx, badRequest("OS version must be provided when filtering by OS name"))
-	}
-
-	if opt.OSNameFilter == nil && opt.OSVersionFilter != nil {
-		return opt, ctxerr.Wrap(ctx, badRequest("OS name must be provided when filtering by OS version"))
-	}
-
-	if opt.MDMEnrollmentStatusFilter != "" && !opt.MDMEnrollmentStatusFilter.IsValid() {
-		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM enrollment status %s", opt.MDMEnrollmentStatusFilter)))
-	}
-
-	if opt.OSSettingsFilter != "" && !opt.OSSettingsFilter.IsValid() {
-		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid OS settings status %s", opt.OSSettingsFilter)))
-	}
-
-	if opt.OSSettingsDiskEncryptionFilter != "" && !opt.OSSettingsDiskEncryptionFilter.IsValid() {
-		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid disk encryption status %s", opt.OSSettingsDiskEncryptionFilter)))
-	}
-
-	if opt.MDMBootstrapPackageFilter != nil && !opt.MDMBootstrapPackageFilter.IsValid() {
-		return opt, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("Invalid MDM bootstrap status %s", *opt.MDMBootstrapPackageFilter)))
-	}
-
-	if opt.LowDiskSpaceFilter != nil {
-		if *opt.LowDiskSpaceFilter > 100 || *opt.LowDiskSpaceFilter < 1 {
-			return opt, ctxerr.Wrap(ctx, badRequest("Low disk space filter must be between 1 and 100"))
-		}
-	}
-
-	return opt, nil
+	return &opt, labelID, nil
 }

@@ -970,7 +970,7 @@ type ListOptions struct {
 	// MatchQuery is the query string to match against columns of the entity
 	// (varies depending on entity, eg. hostname, IP address for hosts).
 	// Handling for this parameter must be implemented separately for each type.
-	MatchQuery string `query:"query,optional" json:"query,omitempty"`
+	MatchQuery string `query:"query,optional"`
 	// After denotes the row to start from. This is meant to be used in conjunction with OrderKey
 	// If OrderKey is "id", it'll assume After is a number and will try to convert it.
 	After string `query:"after,optional"`

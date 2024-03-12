@@ -148,7 +148,8 @@ type TeamConfig struct {
 }
 
 type TeamWebhookSettings struct {
-	HostStatusWebhook      HostStatusWebhookSettings      `json:"host_status_webhook"`
+	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
@@ -436,6 +437,12 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+
+	var webhookSettings TeamSpecWebhookSettings
+	if t.Config.WebhookSettings.HostStatusWebhook != nil {
+		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -443,5 +450,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Secrets:            secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
+		WebhookSettings:    webhookSettings,
 	}, nil
 }

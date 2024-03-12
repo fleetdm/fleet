@@ -84,7 +84,7 @@ func TestAppConfigAuth(t *testing.T) {
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			false,
-			true,
+			false,
 		},
 		{
 			"team admin",
@@ -521,7 +521,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 		{
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			true,
+			false,
 		},
 		{
 			"team admin",
