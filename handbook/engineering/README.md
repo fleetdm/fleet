@@ -37,11 +37,11 @@ To [create an engineering-initiated user story](https://fleetdm.com/handbook/eng
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
 ### Manage release branches
-Every three weeks, we release a minor version of Fleet from the `main` branch. 
+Every three weeks, release a minor version of Fleet from the `main` branch. 
 
-Every week between minor releases, we release a patch release with fixes for released bugs. 
+Every week between minor releases, release a patch release with fixes for released bugs. 
 
-When the next release is a patch, we create a patch branch off the latest tagged release of Fleet. We merge released bug fixes directly into the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, a PR is submitted to `main` containing the same fix and resolving any merge conflicts.
+When the next release is a patch, create a patch branch off the latest tagged release of Fleet. Merge released bug fixes directly into the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit a PR to `main` containing the same fix and resolve any merge conflicts.
 
 > It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
 
