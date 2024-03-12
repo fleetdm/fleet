@@ -1,5 +1,7 @@
 import Button from "components/buttons/Button";
+import RevealButton from "components/buttons/RevealButton";
 import CustomLink from "components/CustomLink";
+import SelectTargetsDropdownStories from "components/forms/fields/SelectTargetsDropdown/SelectTargetsDropdown.stories";
 import Graphic from "components/Graphic";
 import Modal from "components/Modal";
 import React from "react";
@@ -42,9 +44,51 @@ const CalendarEventsModal = ({
     );
   };
   const renderConfiguredModal = () => {
-    return <></>;
+    return;
+    <div className={`${baseClass} form`}>
+      <Slider
+        value={calEventsEnabled}
+        onChange={() => {
+          setCalEventsEnabled(!calEventsEnabled);
+          SelectTargetsDropdownStories({});
+        }}
+      />
+      <Button
+        type="button"
+        variant="text-link"
+        onClick={togglePreviewCalendarEvent}
+      >
+        Preview calendar event
+      </Button>
+      <InputField
+        placeholder="https://server.com/example"
+        label="Resolution webhook URL"
+        onChange={onInputChange}
+        name="resolutionWebhookUrl"
+        value={formData.resolutionWebhookUrl}
+        parseTarget
+        error={formErrors.resolutionWebhookUrl}
+        // TODO - update tooltip
+        tooltip={<>TBD</>}
+        helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
+      />
+      <RevealButton
+        isShowing={showExamplePayload}
+        className={`${baseClass}__show-example-payload-toggle`}
+        hideText="Hide example payload"
+        showText="Show example payload"
+        caretPosition="after"
+        onClick={() => {
+          setShowExamplePayload(!showExamplePayload);
+        }}
+      />
+      {showExamplePayload && renderExamplePayload()}
+      {renderPoliciesList()}
+    </div>;
   };
-  return (
+  return showPreviewCalendarEvent ? (
+    renderPreviewCalendarEventModal()
+  ) : (
     <Modal
       title="Calendar events"
       onExit={onExit}
