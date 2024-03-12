@@ -445,7 +445,7 @@
   #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
   #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc)
   friendlyName: Borrow off-the-shelf tactics from the community
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
@@ -470,25 +470,26 @@
     - description: (Splunk) Ingest osquery data and monitor for important changes or events.
     - description: (Tines) Build custom workflows that trigger in various situations.
     - description: (Webhooks) Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
+    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
+    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
+  buzzwords: [Snowflake,Okta,Tines,Splunk,Elastic,AWS,ActiveDirectory,Ansible,GitHub,GitLab,Chronicle,Google Cloud,Munki,Vanta,Chef,Zendesk,Jira]
   #  ╔═╗╦═╗╔═╗╔╦╗╦╦ ╦╔╦╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   #  ╠═╝╠╦╝║╣ ║║║║║ ║║║║  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
   #  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Premium integrations (Puppet, Vanta, Jira, Zendesk, etc)
+- industryName: Premium integrations (Puppet, Vanta, etc)
   friendlyName: Borrow off-the-shelf tactics from legendary brands
-  description: Plug in to cutting edge frameworks from similar organizations.
+  description: Plug Fleet into other frameworks and tools.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Premium
-  buzzwords: [Vanta,Puppet,Jira,Zendesk,Custom IdP]
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
     - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
     - description: (Torq) Build custom workflows that trigger in various situations.
-    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
+  buzzwords: [Vanta,Puppet,Custom IdP]
 - industryName: Public issue tracker (GitHub)
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Support]
