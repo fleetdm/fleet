@@ -6,13 +6,13 @@
 
 locals {
   mdm_resource_path = "${path.module}/resources"
-  scep_cert = "${mdm_resource_path}/scep.crt.encrypted"
-  scep_key  = "${mdm_resource_path}/scep.key.encrypted"
-  apns_cert = "${mdm_resource_path}/apns.crt.encrypted"
-  apns_key  = "${mdm_resource_path}/apns.key.encrypted"
-  abm_cert  = "${mdm_resource_path}/abm.crt.encrypted"
-  abm_key   = "${mdm_resource_path}/abm.key.encrypted"
-  abm_token = "${mdm_resource_path}/abm_token.p7m.encrypted"
+  scep_cert = "${local.mdm_resource_path}/scep.crt.encrypted"
+  scep_key  = "${local.mdm_resource_path}/scep.key.encrypted"
+  apns_cert = "${local.mdm_resource_path}/apns.crt.encrypted"
+  apns_key  = "${local.mdm_resource_path}/apns.key.encrypted"
+  abm_cert  = "${local.mdm_resource_path}/abm.crt.encrypted"
+  abm_key   = "${local.mdm_resource_path}/abm.key.encrypted"
+  abm_token = "${local.mdm_resource_path}/abm_token.p7m.encrypted"
 }
 
 # To ease the process of encrypting and decrypting secrets, see
