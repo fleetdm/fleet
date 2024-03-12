@@ -1,6 +1,6 @@
 # Protocol
 
-This sequence diagram outlines the MDM enrollment process.
+This sequence diagram outlines the manual MDM enrollment process.
 
 ```mermaid
 sequenceDiagram
@@ -8,13 +8,16 @@ sequenceDiagram
     participant orbit as Orbit
     participant server as fleet server
 
+    orbit->>+server: POST /api/fleet/orbit/enroll<br/>enroll_secret, hardware_uuid, etc.
+    server-->>-orbit: orbit_node_key
+
     loop every 30 seconds
-        orbit->>+server: POST /api/fleet/orbit/config
+        orbit->>+server: POST /api/fleet/orbit/config<br/>orbit_node_key
         server-->>-orbit: pending notifications
     end
 
-    note over orbit: receive enrollment notification
-    orbit->>windows: mdmregistration.dll<br/>RegisterDeviceWithManagement
+    note over orbit: Receive enrollment notification<br/>needs_programmatic_windows_mdm_enrollment<br/>windows_mdm_discovery_endpoint
+    orbit->>windows: mdmregistration.dll<br/>RegisterDeviceWithManagement<br/>discovery endpoint, node key
 
     windows->>+server: POST /api/mdm/microsoft/discovery
     server-->>-windows: EnrollmentServiceURL, EnrollmentPolicyServiceUrl
