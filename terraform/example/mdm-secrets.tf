@@ -76,7 +76,7 @@ locals {
 #   secret {
 #     name    = "FLEET_MDM_APPLE_APNS_CERT_BYTES"
 #     key_id  = aws_kms_key.fleet_data_key.id
-#     payload = file(local/apns_cert)
+#     payload = file(local.apns_cert)
 #   }
 # }
 # 
