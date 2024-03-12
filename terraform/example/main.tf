@@ -196,6 +196,7 @@ resource "aws_route53_zone" "main" {
 }
 
 resource "aws_route53_record" "main" {
+  # If you change the route53_zone to a data source this also needs to become "data.aws_route53_zone.main.id"
   zone_id = aws_route53_zone.main.id
   name    = local.domain_name
   type    = "A"
