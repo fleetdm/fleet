@@ -1,3 +1,8 @@
+import { stat } from "fs";
+import { update } from "lodash";
+import { hostname } from "os";
+import { stringToClipboard } from "utilities/copy_text";
+
 export interface IMdmApple {
   common_name: string;
   serial_number: string;
@@ -146,4 +151,15 @@ export enum BootstrapPackageStatus {
   INSTALLED = "installed",
   PENDING = "pending",
   FAILED = "failed",
+}
+
+export interface IMdmCommandResult {
+  host_uuid: string;
+  command_uuid: string;
+  status: string;
+  updated_at: string;
+  request_type: string;
+  hostname: string;
+  payload: string;
+  result: string;
 }

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
   DiskEncryptionStatus,
+  IMdmCommandResult,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -44,6 +45,10 @@ export interface IUploadProfileApiParams {
   file: File;
   teamId?: number;
   labels?: string[];
+}
+
+export interface IMdmCommandReultResponse {
+  results: IMdmCommandResult[];
 }
 
 const mdmService = {
@@ -225,6 +230,14 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  getCommandResult: (uuid: string): Promise<IMdmCommandReultResponse> => {
+    const { MDM_COMMAND_RESULTS } = endpoints;
+    const path = `${MDM_COMMAND_RESULTS}?${buildQueryStringFromParams({
+      command_uuid: uuid,
+    })}`;
+    return sendRequest("GET", path);
   },
 };
 
