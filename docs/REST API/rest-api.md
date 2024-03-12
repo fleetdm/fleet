@@ -8315,6 +8315,13 @@ _Available in Fleet Premium_
         "host_batch_size": 0
       }
     },
+    "integrations": {
+      "google_calendar": {
+        "enable_calendar_events": true,
+        "email": "name@example.com",
+        "policy_ids": [1, 2, 3]
+      }
+    },
     "mdm": {
       "macos_updates": {
         "minimum_version": "12.3.1",
