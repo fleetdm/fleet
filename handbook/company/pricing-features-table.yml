@@ -478,7 +478,7 @@
   #  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
 - industryName: Premium integrations (Puppet, Vanta, etc)
   friendlyName: Borrow off-the-shelf tactics from legendary brands
-  description: Plug in to cutting edge frameworks from similar organizations.
+  description: Plug Fleet into other frameworks and tools.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
