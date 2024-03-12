@@ -980,7 +980,14 @@ None.
     }
   },
   "integrations": {
-    "jira": null
+    "jira": null,
+    "google_calendar": [
+      {
+        "email": "name@example.com",
+        "domain": "example.com",
+        "private_key": "abc123"
+      }
+    ]
   },
   "logging": {
     "debug": false,
