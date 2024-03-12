@@ -29,9 +29,9 @@ locals {
 
   # Bucket names need to be unique across AWS.  Change this to a friendly
   # name to make finding carves in s3 easier later.
-  osquery_carve_bucket_name = "fleet-osquery-carve"
-  osquery_carve_results_name = "fleet-osquery-results"
-  osquery_carve_status_name = "fleet-osquery-status"
+  osquery_carve_bucket_name   = "fleet-osquery-carve"
+  osquery_results_bucket_name = "fleet-osquery-results"
+  osquery_status_bucket_name  = "fleet-osquery-status"
 
   # Extra ENV Vars for Fleet customization can be set here.
   fleet_environment_variables = {
