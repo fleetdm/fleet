@@ -43,6 +43,7 @@ export default {
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
   HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
   HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
+  HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
 
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
@@ -152,6 +153,11 @@ export default {
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
+
+  // Vulnerabilities endpoints
+  VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
+  VULNERABILITY: (cve: string) =>
+    `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
 
   // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,

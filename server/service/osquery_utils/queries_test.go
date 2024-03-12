@@ -19,13 +19,14 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -684,6 +685,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		wantInstalledFromDep bool
 		wantIsServer         bool
 		wantServerURL        string
+		wantMDMSolName       string
 	}{
 		{
 			name: "off empty server URL",
@@ -708,6 +710,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 					"installation_type": "Client",
 				},
 			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name:                 "off no rows",
+			data:                 []map[string]string{},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
 			wantIsServer:         false,
@@ -772,6 +782,106 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantIsServer:         true,
 			wantServerURL:        "https://example.com",
 		},
+
+		// Test that names are being calculated correctly
+
+		{
+			name: "on manual jumpcloud",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://jumpcloud.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://jumpcloud.com",
+			wantMDMSolName:       fleet.WellKnownMDMJumpCloud,
+		},
+		{
+			name: "on manual airwatch",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://airwatch.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://airwatch.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual awmdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://awmdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://awmdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual microsoft",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://microsoft.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://microsoft.com",
+			wantMDMSolName:       fleet.WellKnownMDMIntune,
+		},
+		{
+			name: "on manual fleetdm cloud hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://fleetdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
+
+		{
+			name: "on manual fleetdm self hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://myinstall.local",
+					"is_federated":          "0",
+					"provider_id":           "Fleet",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://myinstall.local",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
 	}
 
 	for _, c := range cases {
@@ -781,6 +891,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
@@ -1772,6 +1883,39 @@ func TestShouldRemoveSoftware(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
+	}
+}
+
+func TestIngestNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	// NOTE: It was decided that we should allow ingesting private IPs on the PublicIP field,
+	// see https://github.com/fleetdm/fleet/issues/11102.
+	for _, tc := range []struct {
+		name  string
+		ip    string
+		valid bool
+	}{
+		{"public IPv6", "598b:6910:e935:63ff:54db:1753:9c01:4c84", true},
+		{"private IPv6", "fd42:fdaa:1234:5678::1a2b", true},
+		{"public IPv4", "190.18.97.12", true},
+		{"private IPv4", "127.0.0.1", true},
+		{"IP could not be determined", "", true},
+		{"invalid value ends up in the context", "invalid-ip", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			require.NoError(t, err)
+			if tc.valid {
+				require.Equal(t, tc.ip, h.PublicIP)
+			} else {
+				require.Empty(t, h.PublicIP)
+			}
 		})
 	}
 }

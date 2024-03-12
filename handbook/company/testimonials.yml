@@ -150,3 +150,11 @@
   quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
   quoteAuthorJobTitle: Partner - Cyber and Strategic Risk
   productCategories: [Vulnerability management, Endpoint operations]
+-
+  quote: This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
+  quoteImageFilename: logo-flock-safety-907x132@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrerictan/
+  quoteAuthorName: Eric Tan
+  quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
+  quoteAuthorJobTitle: CIO & Chief Security Officer at Flock Safety
+  productCategories: [Device management, Endpoint operations]

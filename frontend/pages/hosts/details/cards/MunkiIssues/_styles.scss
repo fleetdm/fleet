@@ -1,4 +1,4 @@
-.section--munki-issues {
+.munki-issues-card {
   .data-table-block {
     .issue_tooltip,
     .time_tooltip {
@@ -13,13 +13,6 @@
 
         .time__header {
           width: $col-md;
-        }
-      }
-
-      tbody {
-        .name__cell {
-          white-space: nowrap;
-          text-overflow: ellipsis;
         }
       }
     }

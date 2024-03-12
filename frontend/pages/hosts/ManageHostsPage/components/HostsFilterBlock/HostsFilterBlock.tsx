@@ -61,6 +61,7 @@ interface IHostsFilterBlockProps {
     osVersionId?: string;
     osName?: string;
     osVersion?: string;
+    vulnerability?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: { name: string; version?: string } | null;
@@ -104,6 +105,7 @@ const HostsFilterBlock = ({
     osVersionId,
     osName,
     osVersion,
+    vulnerability,
     munkiIssueId,
     munkiIssueDetails,
     policyResponse,
@@ -199,6 +201,18 @@ const HostsFilterBlock = ({
         onClear={() =>
           handleClearFilter(["os_version_id", "os_name", "os_version"])
         }
+      />
+    );
+  };
+
+  const renderVulnerabilityFilterBlock = () => {
+    if (!vulnerability) return null;
+
+    return (
+      <FilterPill
+        label={vulnerability}
+        tooltipDescription={<span>Hosts affected by the specified CVE.</span>}
+        onClear={() => handleClearFilter(["vulnerability"])}
       />
     );
   };
@@ -459,7 +473,8 @@ const HostsFilterBlock = ({
     munkiIssueId ||
     osSettingsStatus ||
     diskEncryptionStatus ||
-    bootstrapPackageStatus
+    bootstrapPackageStatus ||
+    vulnerability
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -498,6 +513,8 @@ const HostsFilterBlock = ({
           return renderMDMEnrollmentFilterBlock();
         case !!osVersionId || (!!osName && !!osVersion):
           return renderOSFilterBlock();
+        case !!vulnerability:
+          return renderVulnerabilityFilterBlock();
         case !!munkiIssueId:
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:

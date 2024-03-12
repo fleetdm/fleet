@@ -44,7 +44,7 @@ const UpcomingActivity = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           <span className={`${baseClass}__details-topline`}>
             <b>{activity.actor_full_name}</b>
             <>

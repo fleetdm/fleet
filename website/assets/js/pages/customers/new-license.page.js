@@ -73,7 +73,7 @@ parasails.registerPage('new-license', {
       this.showQuotedPrice = true;
       this.quotedPrice = quote.quotedPrice;
       this.numberOfHostsQuoted = quote.numberOfHosts;
-      if(quote.numberOfHosts <= 999) {
+      if(quote.numberOfHosts <= 700) {
         this.formData.quoteId = quote.id;
         this.showBillingForm = true;
       }
@@ -83,7 +83,7 @@ parasails.registerPage('new-license', {
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
-      window.location = 'https://calendly.com/fleetdm/demo?utm_source=self+service+100';
+      window.location = `https://calendly.com/fleetdm/talk-to-us?email=${encodeURIComponent(this.me.emailAddress)}&name=${encodeURIComponent(this.me.firstName+' '+this.me.lastName)}`;
     },
 
     clickResetForm: async function() {

@@ -47,7 +47,7 @@ const RenameTeamModal = ({
   };
 
   return (
-    <Modal title={"Rename team"} onExit={onCancel} className={baseClass}>
+    <Modal title="Rename team" onExit={onCancel} className={baseClass}>
       <form
         className={`${baseClass}__form`}
         onSubmit={onFormSubmit}

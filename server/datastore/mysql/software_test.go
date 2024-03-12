@@ -3,6 +3,7 @@ package mysql
 import (
 	"context"
 	"crypto/md5" // nolint:gosec (only used for tests)
+	"database/sql"
 	"encoding/hex"
 	"fmt"
 	"math/rand"
@@ -101,7 +102,7 @@ func testSoftwareSaveHost(t *testing.T, ds *Datastore) {
 	host1Software := getHostSoftware(host1)
 	test.ElementsMatchSkipIDAndHostCount(t, software1, host1Software)
 
-	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, false, nil)
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, soft1ByID)
 	assert.Equal(t, host1Software[0], *soft1ByID)
@@ -292,7 +293,7 @@ func testSoftwareLoadVulnerabilities(t *testing.T, ds *Datastore) {
 	}
 	require.NoError(t, ds.LoadHostSoftware(context.Background(), host, false))
 
-	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, false, nil)
+	softByID, err := ds.SoftwareByID(context.Background(), host.HostSoftware.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.NotNil(t, softByID)
 	require.Len(t, softByID.Vulnerabilities, 2)
@@ -1050,6 +1051,10 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 	want = []fleet.Software{}
 	cmpNameVersionCount(want, team1Counts)
 	checkTableTotalCount(3)
+	require.NoError(t, ds.LoadHostSoftware(context.Background(), host1, false))
+	nilSoftware, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
+	assert.Nil(t, nilSoftware)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
 
 	// after a call to Calculate, the global counts are updated and the team counts appear
 	require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
@@ -1072,6 +1077,11 @@ func testSoftwareSyncHostsSoftware(t *testing.T, ds *Datastore) {
 
 	// composite pk (software_id, team_id), so we expect more rows
 	checkTableTotalCount(8)
+
+	soft1ByID, err := ds.SoftwareByID(context.Background(), host1.HostSoftware.Software[0].ID, &team1.ID, false, nil)
+	require.NoError(t, err)
+	software1[0].ID = host1.HostSoftware.Software[0].ID
+	assert.Equal(t, software1[0], *soft1ByID)
 
 	team2Opts := fleet.SoftwareListOptions{WithHostCounts: true, TeamID: ptr.Uint(team2.ID), ListOptions: fleet.ListOptions{OrderKey: "hosts_count", OrderDirection: fleet.OrderDescending}}
 	team2Counts := listSoftwareCheckCount(t, ds, 2, 2, team2Opts, false)
@@ -2000,7 +2010,7 @@ func testSoftwareByIDNoDuplicatedVulns(t *testing.T, ds *Datastore) {
 		}
 
 		for _, s := range hostA.Software {
-			result, err := ds.SoftwareByID(ctx, s.ID, true, nil)
+			result, err := ds.SoftwareByID(ctx, s.ID, nil, true, nil)
 			require.NoError(t, err)
 			require.Len(t, result.Vulnerabilities, 1)
 		}
@@ -2011,6 +2021,9 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 	t.Run("software.vulnerabilities includes the published date", func(t *testing.T) {
 		ctx := context.Background()
 		host := test.NewHost(t, ds, "hostA", "", "hostAkey", "hostAuuid", time.Now())
+		team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+		require.NoError(t, err)
+		require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host.ID}))
 		now := time.Now().UTC().Truncate(time.Second)
 
 		testCases := []struct {
@@ -2036,9 +2049,10 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 				Source:  "apps",
 			})
 		}
-		_, err := ds.UpdateHostSoftware(ctx, host.ID, software)
+		_, err = ds.UpdateHostSoftware(ctx, host.ID, software)
 		require.NoError(t, err)
 		require.NoError(t, ds.LoadHostSoftware(ctx, host, false))
+		require.NoError(t, ds.SyncHostsSoftware(ctx, time.Now()))
 
 		// Add vulnerabilities and CVEMeta
 		var meta []fleet.CVEMeta
@@ -2088,47 +2102,49 @@ func testSoftwareByIDIncludesCVEPublishedDate(t *testing.T, ds *Datastore) {
 			}
 			require.NotEqual(t, -1, idx, "software not found")
 
-			// Test that scores are not included if includeCVEScores = false
-			withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, false, nil)
-			require.NoError(t, err)
-			if tC.hasVuln {
-				require.Len(t, withoutScores.Vulnerabilities, 1)
-				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+			for _, teamID := range []*uint{nil, &team1.ID} {
+				// Test that scores are not included if includeCVEScores = false
+				withoutScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, false, nil)
+				require.NoError(t, err)
+				if tC.hasVuln {
+					require.Len(t, withoutScores.Vulnerabilities, 1)
+					require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
 
-				require.Nil(t, withoutScores.Vulnerabilities[0].CVSSScore)
-				require.Nil(t, withoutScores.Vulnerabilities[0].EPSSProbability)
-				require.Nil(t, withoutScores.Vulnerabilities[0].CISAKnownExploit)
-			} else {
-				require.Empty(t, withoutScores.Vulnerabilities)
-			}
-
-			withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, true, nil)
-			require.NoError(t, err)
-			if tC.hasVuln {
-				require.Len(t, withScores.Vulnerabilities, 1)
-				require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
-
-				if tC.hasMeta {
-					require.NotNil(t, withScores.Vulnerabilities[0].CVSSScore)
-					require.NotNil(t, *withScores.Vulnerabilities[0].CVSSScore)
-					require.Equal(t, **withScores.Vulnerabilities[0].CVSSScore, 5.4)
-
-					require.NotNil(t, withScores.Vulnerabilities[0].EPSSProbability)
-					require.NotNil(t, *withScores.Vulnerabilities[0].EPSSProbability)
-					require.Equal(t, **withScores.Vulnerabilities[0].EPSSProbability, 0.5)
-
-					require.NotNil(t, withScores.Vulnerabilities[0].CISAKnownExploit)
-					require.NotNil(t, *withScores.Vulnerabilities[0].CISAKnownExploit)
-					require.Equal(t, **withScores.Vulnerabilities[0].CISAKnownExploit, true)
-
-					if tC.hasPublishedDate {
-						require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
-						require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
-						require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
-					}
+					require.Nil(t, withoutScores.Vulnerabilities[0].CVSSScore)
+					require.Nil(t, withoutScores.Vulnerabilities[0].EPSSProbability)
+					require.Nil(t, withoutScores.Vulnerabilities[0].CISAKnownExploit)
+				} else {
+					require.Empty(t, withoutScores.Vulnerabilities)
 				}
-			} else {
-				require.Empty(t, withoutScores.Vulnerabilities)
+
+				withScores, err := ds.SoftwareByID(ctx, host.Software[idx].ID, teamID, true, nil)
+				require.NoError(t, err)
+				if tC.hasVuln {
+					require.Len(t, withScores.Vulnerabilities, 1)
+					require.Equal(t, fmt.Sprintf("cve-%s", tC.name), withoutScores.Vulnerabilities[0].CVE)
+
+					if tC.hasMeta {
+						require.NotNil(t, withScores.Vulnerabilities[0].CVSSScore)
+						require.NotNil(t, *withScores.Vulnerabilities[0].CVSSScore)
+						require.Equal(t, **withScores.Vulnerabilities[0].CVSSScore, 5.4)
+
+						require.NotNil(t, withScores.Vulnerabilities[0].EPSSProbability)
+						require.NotNil(t, *withScores.Vulnerabilities[0].EPSSProbability)
+						require.Equal(t, **withScores.Vulnerabilities[0].EPSSProbability, 0.5)
+
+						require.NotNil(t, withScores.Vulnerabilities[0].CISAKnownExploit)
+						require.NotNil(t, *withScores.Vulnerabilities[0].CISAKnownExploit)
+						require.Equal(t, **withScores.Vulnerabilities[0].CISAKnownExploit, true)
+
+						if tC.hasPublishedDate {
+							require.NotNil(t, withScores.Vulnerabilities[0].CVEPublished)
+							require.NotNil(t, *withScores.Vulnerabilities[0].CVEPublished)
+							require.Equal(t, (**withScores.Vulnerabilities[0].CVEPublished), now)
+						}
+					}
+				} else {
+					require.Empty(t, withoutScores.Vulnerabilities)
+				}
 			}
 		}
 	})
@@ -2301,7 +2317,7 @@ func testDeleteOutOfDateVulnerabilities(t *testing.T, ds *Datastore) {
 	err = ds.DeleteOutOfDateVulnerabilities(ctx, fleet.NVDSource, 2*time.Hour)
 	require.NoError(t, err)
 
-	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, false, nil)
+	storedSoftware, err := ds.SoftwareByID(ctx, host.Software[0].ID, nil, false, nil)
 	require.NoError(t, err)
 	require.Equal(t, 1, len(storedSoftware.Vulnerabilities))
 	require.Equal(t, "CVE-2023-001", storedSoftware.Vulnerabilities[0].CVE)
@@ -2352,7 +2368,7 @@ func testDeleteSoftwareCPEs(t *testing.T, ds *Datastore) {
 		require.NoError(t, err)
 		test.ElementsMatchSkipID(t, cpes[1:], storedCPEs)
 
-		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, false, nil)
+		storedSoftware, err := ds.SoftwareByID(ctx, cpes[0].SoftwareID, nil, false, nil)
 		require.NoError(t, err)
 		require.Empty(t, storedSoftware.GenerateCPE)
 	})
@@ -2876,6 +2892,7 @@ func testUpdateHostSoftwareDeadlock(t *testing.T, ds *Datastore) {
 	err := g.Wait()
 	require.NoError(t, err)
 }
+
 func testVerifySoftwareChecksum(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	host := test.NewHost(t, ds, "host1", "", "host1key", "host1uuid", time.Now())

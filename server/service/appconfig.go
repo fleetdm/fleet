@@ -326,6 +326,24 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 		err = fleet.NewUserMessageError(err, http.StatusBadRequest)
 		return nil, ctxerr.Wrap(ctx, err)
 	}
+
+	// EnableDiskEncryption is an optjson.Bool field in order to support the
+	// legacy field under "mdm.macos_settings". If the field provided to the
+	// PATCH endpoint is set but invalid (that is, "enable_disk_encryption":
+	// null) and no legacy field overwrites it, leave it unchanged (as if not
+	// provided).
+
+	// TODO: move this logic to the AppConfig unmarshaller? we need to do
+	// this because we unmarshal twice into appConfig:
+	//
+	// 1. To get the JSON value from the database
+	// 2. To update fields with the incoming values
+	if newAppConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
+	} else if appConfig.MDM.EnableDiskEncryption.Set && !appConfig.MDM.EnableDiskEncryption.Valid {
+		appConfig.MDM.EnableDiskEncryption = oldAppConfig.MDM.EnableDiskEncryption
+	}
+
 	var legacyUsedWarning error
 	if legacyKeys := appConfig.DidUnmarshalLegacySettings(); len(legacyKeys) > 0 {
 		// this "warning" is returned only in dry-run mode, and if no other errors
@@ -365,15 +383,6 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	// If the license is Premium, we should always send usage statisics.
 	if license.IsPremium() {
 		appConfig.ServerSettings.EnableAnalytics = true
-	}
-
-	// TODO: move this logic to the AppConfig unmarshaller? we need to do
-	// this because we unmarshal twice into appConfig:
-	//
-	// 1. To get the JSON value from the database
-	// 2. To update fields with the incoming values
-	if newAppConfig.MDM.EnableDiskEncryption.Valid {
-		appConfig.MDM.EnableDiskEncryption = newAppConfig.MDM.EnableDiskEncryption
 	}
 
 	fleet.ValidateEnabledVulnerabilitiesIntegrations(appConfig.WebhookSettings.VulnerabilitiesWebhook, appConfig.Integrations, invalid)

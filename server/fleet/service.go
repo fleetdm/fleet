@@ -350,8 +350,8 @@ type Service interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
-	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
-	DeleteHosts(ctx context.Context, ids []uint, opt *HostListOptions, lid *uint) error
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
+	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]interface{}) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
@@ -596,14 +596,28 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
-	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
-	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities
+
+	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// ListVulnerability returns a vulnerability based on the provided CVE.
+	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*VulnerabilityWithMetadata, error)
+	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
+	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
+	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
+	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
+	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -909,6 +923,11 @@ type Service interface {
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
 
+	// GetScriptIDByName returns the ID of a script matching the provided name and team. If no team
+	// is provided, it will return the ID of the script with the provided name that is not
+	// associated with any team.
+	GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error)
+
 	// GetHostScript returns information about a host script execution.
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
 
@@ -942,4 +961,5 @@ type Service interface {
 	// Script-based methods (at least for some platforms, MDM-based for others)
 	LockHost(ctx context.Context, hostID uint) error
 	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	WipeHost(ctx context.Context, hostID uint) error
 }

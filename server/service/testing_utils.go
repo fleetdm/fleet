@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mail"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	microsoft_mdm "github.com/fleetdm/fleet/v4/server/mdm/microsoft"
+	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
 	nanomdm_push "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -35,7 +36,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
-	nanodep_storage "github.com/micromdm/nanodep/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/throttled/throttled/v2"
@@ -55,11 +55,11 @@ func newTestServiceWithConfig(t *testing.T, ds fleet.Datastore, fleetConfig conf
 	logger := kitlog.NewNopLogger()
 
 	var (
-		failingPolicySet  fleet.FailingPolicySet     = NewMemFailingPolicySet()
-		enrollHostLimiter fleet.EnrollHostLimiter    = nopEnrollHostLimiter{}
-		depStorage        nanodep_storage.AllStorage = &nanodep_mock.Storage{}
-		mailer            fleet.MailService          = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
-		c                 clock.Clock                = clock.C
+		failingPolicySet  fleet.FailingPolicySet        = NewMemFailingPolicySet()
+		enrollHostLimiter fleet.EnrollHostLimiter       = nopEnrollHostLimiter{}
+		depStorage        nanodep_storage.AllDEPStorage = &nanodep_mock.Storage{}
+		mailer            fleet.MailService             = &mockMailService{SendEmailFn: func(e fleet.Email) error { return nil }}
+		c                 clock.Clock                   = clock.C
 
 		is          fleet.InstallerStore
 		mdmStorage  fleet.MDMAppleStore
@@ -280,7 +280,7 @@ type TestServerOpts struct {
 	Is                  fleet.InstallerStore
 	FleetConfig         *config.FleetConfig
 	MDMStorage          fleet.MDMAppleStore
-	DEPStorage          nanodep_storage.AllStorage
+	DEPStorage          nanodep_storage.AllDEPStorage
 	SCEPStorage         scep_depot.Depot
 	MDMPusher           nanomdm_push.Pusher
 	HTTPServerConfig    *http.Server
