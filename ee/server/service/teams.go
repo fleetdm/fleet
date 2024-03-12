@@ -887,10 +887,10 @@ func (svc *Service) createTeamFromSpec(
 		hostExpirySettings = *spec.HostExpirySettings
 	}
 
-	hostStatusWebhook := fleet.HostStatusWebhookSettings{}
+	var hostStatusWebhook *fleet.HostStatusWebhookSettings
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
-		hostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -1066,7 +1066,7 @@ func (svc *Service) editTeamFromSpec(
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
-		team.Config.WebhookSettings.HostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)

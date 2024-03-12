@@ -448,7 +448,7 @@
   #  ╔═╗╦═╗╔═╗╔═╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   #  ╠╣ ╠╦╝║╣ ║╣   ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
   #  ╚  ╩╚═╚═╝╚═╝  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, etc)
+- industryName: Free integrations (Tines, Snowflake, Terraform, Chronicle, Jira, Zendesk, etc)
   friendlyName: Borrow off-the-shelf tactics from the community
   documentationUrl: https://fleetdm.com/integrations
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -474,26 +474,27 @@
     - description: (Splunk) Ingest osquery data and monitor for important changes or events.
     - description: (Tines) Build custom workflows that trigger in various situations.
     - description: (Webhooks) Configure automations that send webhooks to specific URLs when Fleet detects changes to host, policy, and CVE statuses.
+    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
+    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
+  buzzwords: [Snowflake,Okta,Tines,Splunk,Elastic,AWS,ActiveDirectory,Ansible,GitHub,GitLab,Chronicle,Google Cloud,Munki,Vanta,Chef,Zendesk,Jira]
   #  ╔═╗╦═╗╔═╗╔╦╗╦╦ ╦╔╦╗  ╦╔╗╔╔╦╗╔═╗╔═╗╦═╗╔═╗╔╦╗╦╔═╗╔╗╔╔═╗
   #  ╠═╝╠╦╝║╣ ║║║║║ ║║║║  ║║║║ ║ ║╣ ║ ╦╠╦╝╠═╣ ║ ║║ ║║║║╚═╗
   #  ╩  ╩╚═╚═╝╩ ╩╩╚═╝╩ ╩  ╩╝╚╝ ╩ ╚═╝╚═╝╩╚═╩ ╩ ╩ ╩╚═╝╝╚╝╚═╝
-- industryName: Premium integrations (Puppet, Vanta, Jira, Zendesk, etc)
+- industryName: Premium integrations (Puppet, Vanta, etc)
   friendlyName: Borrow off-the-shelf tactics from legendary brands
   documentationUrl: https://fleetdm.com/integrations
-  description: Plug in to cutting edge frameworks from similar organizations.
+  description: Plug Fleet into other frameworks and tools.
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
   moreInfoUrl: https://fleetdm.com/integrations
   tier: Premium
-  buzzwords: [Vanta,Puppet,Jira,Zendesk,Custom IdP]
   waysToUse:
     - description: (Vanta) Trigger a workflow based on a failing policy.
     - description: (Puppet) Easily issue MDM commands, standardize data across operating systems, and map macOS+Windows settings to computers with the Puppet module.
-    - description: (Jira) Automatically create Jira tickets in various situations, including exporting vulnerabilities to Jira and syncing tickets.
     - description: (Torq) Build custom workflows that trigger in various situations.
-    - description: (Zendesk) Automatically create Zendesk tickets in various situations.
     - description: (Custom IdP) Manage access to Fleet single sign-on (SSO) through any IdP (using SAML).
+  buzzwords: [Vanta,Puppet,Custom IdP]
 - industryName: Public issue tracker (GitHub)
   documentationUrl: https://fleetdm.com/support
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -516,6 +517,7 @@
   tier: Premium
 - industryName: Self-managed
   friendlyName: Host it yourself
+  description: Deploy Fleet anywhere and host it yourself, even in airgapped environments.
   pricingTableCategories: [Deployment]
   documentationUrl: https://fleetdm.com/docs/deploy/introduction
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -528,7 +530,7 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
 - industryName: Managed Cloud
-  documentationUrl: ""
+  description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
@@ -861,6 +863,9 @@
   pricingTableCategories: [Endpoint operations]
   usualDepartment: IT
   tier: Premium
+  waysToUse:
+    - description: Block access to corporate apps if your end users are failing a specific number of critical policies.
+      moreInfoUrl: https://github.com/fleetdm/fleet/issues/16206
 - industryName: Flexible log destinations (AWS Kinesis, Lambda, GCP, Kafka)
   documentationUrl: https://fleetdm.com/docs/using-fleet/log-destinations#log-destinations
   tier: Free

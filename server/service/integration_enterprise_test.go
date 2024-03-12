@@ -1317,7 +1317,7 @@ func (s *integrationEnterpriseTestSuite) TestExternalIntegrationsTeamConfig() {
 			Enable:         true,
 			DestinationURL: "http://example.com",
 		},
-		HostStatusWebhook: fleet.HostStatusWebhookSettings{
+		HostStatusWebhook: &fleet.HostStatusWebhookSettings{
 			Enable:         true,
 			DestinationURL: "http://example.com/host_status_webhook",
 		},

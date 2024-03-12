@@ -527,6 +527,10 @@ func (d *DEPService) processDeviceResponse(ctx context.Context, depClient *godep
 			serials = append(serials, device.SerialNumber)
 		}
 
+		if len(serials) == 0 {
+			continue
+		}
+
 		logger := kitlog.With(d.logger, "profile_uuid", profUUID)
 		level.Info(logger).Log("msg", "calling DEP client to assign profile", "profile_uuid", profUUID)
 
