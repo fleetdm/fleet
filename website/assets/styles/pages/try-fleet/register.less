@@ -26,33 +26,30 @@
   input::placeholder {
     color: #8B8FA2;
   }
+  .selectbox {
+    position: relative;
+  }
+  .selectbox::after {
+    content: url('/images/chevron-12x8@2x.png');
+    right: 14px;
+    transform: scale(0.5);
+    top: 14px;
+    position: absolute;
+    pointer-events: none;
+  }
+  .selectbox select {
+    color: #8B8FA2;
+    border-radius: 6px;
+    height: 48px;
+    appearance: none;
+    -webkit-appearance: none;
+  }
   [purpose='legal-text'] {
     font-size: 12px;
     font-style: normal;
     font-weight: 400;
     line-height: 18px;
     text-align: center;
-  }
-  [purpose='sandbox-mdm-note'] {
-    padding: 16px 24px;
-    background: #F1F0FF;
-    border: 1px solid #B4B2FE;
-    box-shadow: 0px 3px 4px rgba(25, 33, 71, 0.22);
-    border-radius: 8px;
-    margin-bottom: 24px;
-    p {
-      line-height: 17px;
-      font-weight: 700;
-      color: #515774;
-    }
-    a {
-      font-weight: 400;
-      text-decoration: none;
-    }
-  }
-  [purpose='sandbox-image'] {
-    width: 300px;
-    margin-right: 65px;
   }
   [purpose='error-message'] {
     font-size: 16px;
@@ -105,10 +102,5 @@
   }
   @media (max-width: 768px) {
     padding-top: 0px;
-    [purpose='sandbox-image'] {
-      margin-right: 0px;
-      margin-bottom: 16px;
-      width: 250px;
-    }
   }
 }

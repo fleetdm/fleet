@@ -24,7 +24,7 @@
             <div class="invalid-feedback mt-2" v-if="formErrors.organization === 'required'">Please enter the name of your organization.</div>
           </div>
           <div class="form-group mb-3">
-            <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Email address">
+            <input id="emailAddress" type="text" class="form-control d-flex w-100" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" placeholder="Work email address">
             <div class="invalid-feedback mt-2">This doesn’t appear to be a valid email address</div>
           </div>
           <div class="form-group mb-3">
@@ -40,9 +40,11 @@
             <a class="mx-auto font-weight-bold d-flex align-items-center py-3" href="/try-fleet/login">Sign in with existing account <img alt="A blue arrow pointing right" style="height: 10px; margin-left: 6px;" src="/images/arrow-right-blue-18x10@2x.png"></a>
             <ajax-button style="height: 53px;" purpose="submit-button" spinner="true" type="submit" :syncing="syncing" class="btn btn-block btn-lg btn-primary">Try again</ajax-button>
           </div>
-          <cloud-error purpose="cloud-error" v-else-if="cloudError === 'requestToProvisionerTimedOut'">
-            <p purpose="error-message">Fleet Sandbox is experiencing unusually high activity. Please refresh the page in 13 seconds and try signing up again.</p>
-          </cloud-error>
+          <div class="d-flex flex-column" v-else-if="cloudError === 'invalidEmailDomain'">
+            <cloud-error>
+              <p>Please enter a valid work email address</p>
+            </cloud-error>
+          </div>
           <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         </ajax-form>
       </div>
