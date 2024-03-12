@@ -120,7 +120,6 @@ const TargetPillSelector = ({
     >
       <Icon name={isSelected ? "check" : "plus"} />
       <span className="selector-name">{displayText()}</span>
-      {/* <span className="selector-count">{entity.count}</span> */}
     </button>
   );
 };
@@ -395,8 +394,9 @@ const SelectTargets = ({
 
     return (
       <>
-        <b>{total.toLocaleString()}</b>&nbsp;host{total > 1 ? `s` : ``}{" "}
-        targeted&nbsp; ({onlinePercentage()}
+        <b>{total.toLocaleString()}</b>&nbsp;host
+        {total > 1 || total === 0 ? `s` : ``} targeted&nbsp; (
+        {onlinePercentage()}
         %&nbsp;
         <TooltipWrapper
           tipContent={
@@ -442,7 +442,11 @@ const SelectTargets = ({
           renderTargetEntityList("", labels.allHosts)}
         {!!labels?.platforms?.length &&
           renderTargetEntityList("Platforms", labels.platforms)}
-        {!!teams?.length && renderTargetEntityList("Teams", teams)}
+        {!!teams?.length &&
+          renderTargetEntityList("Teams", [
+            { id: 0, name: "No team" },
+            ...teams,
+          ])}
         {!!labels?.other?.length &&
           renderTargetEntityList("Labels", labels.other)}
       </div>

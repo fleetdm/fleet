@@ -83,6 +83,7 @@ var ActivityDetailsList = []ActivityDetails{
 
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
+	ActivityTypeWipedHost{},
 }
 
 type ActivityDetails interface {
@@ -1234,6 +1235,20 @@ type ActivityTypeEditedWindowsProfile struct {
 	TeamName *string `json:"team_name"`
 }
 
+func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
+	return "edited_windows_profile"
+}
+
+func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+		`This activity contains the following fields:
+- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
+- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 type ActivityTypeLockedHost struct {
 	HostID          uint   `json:"host_id"`
 	HostDisplayName string `json:"host_display_name"`
@@ -1283,17 +1298,22 @@ func (a ActivityTypeUnlockedHost) Documentation() (activity, details, detailsExa
 }`
 }
 
-func (a ActivityTypeEditedWindowsProfile) ActivityName() string {
-	return "edited_windows_profile"
+type ActivityTypeWipedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
 }
 
-func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, detailsExample string) {
-	return `Generated when a user edits the Windows profiles of a team (or no team) via the fleetctl CLI.`,
+func (a ActivityTypeWipedHost) ActivityName() string {
+	return "wiped_host"
+}
+
+func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to wipe a host.`,
 		`This activity contains the following fields:
-- "team_id": The ID of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.
-- "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
-  "team_id": 123,
-  "team_name": "Workstations"
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }`
 }
 

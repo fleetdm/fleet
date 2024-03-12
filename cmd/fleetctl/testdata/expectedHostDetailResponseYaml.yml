@@ -32,6 +32,7 @@ spec:
   last_restarted_at: "0001-01-01T00:00:00Z"
   logger_tls_period: 0
   mdm:
+    dep_profile_error: false
     device_status: unlocked
     encryption_key_available: false
     enrollment_status: null

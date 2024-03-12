@@ -17,6 +17,10 @@ const DEFAULT_VULNERABILITY: IVulnerability = {
   cve_description:
     "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.", // Available in Fleet Premium
   resolved_in_version: "", // Available in Fleet Premium
+};
+
+const DEFAULT_VULNERABILITY_DETAILS: IVulnerabilityResponse = {
+  vulnerability: DEFAULT_VULNERABILITY,
   os_versions: [
     {
       os_version_id: 1,
@@ -130,9 +134,9 @@ const DEFAULT_VULNERABILITIES_RESPONSE: IVulnerabilitiesResponse = {
 };
 
 export const createMockVulnerabilityResponse = (
-  overrides?: Partial<IVulnerability>
+  overrides?: Partial<IVulnerabilityResponse>
 ): IVulnerabilityResponse => {
-  return { vulnerability: { ...DEFAULT_VULNERABILITY, ...overrides } };
+  return { ...DEFAULT_VULNERABILITY_DETAILS, ...overrides };
 };
 
 // eslint-disable-next-line import/prefer-default-export

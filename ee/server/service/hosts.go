@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	_ "embed"
+	"errors"
 	"fmt"
 	"net/http"
 	"time"
@@ -55,21 +56,22 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO(mna): error messages are subtly different in the figma for CLI and
-	// UI, they should be the same as they come from the same place (the API).
-	// I used the CLI messages for the implementation.
-
 	// locking validations are based on the platform of the host
 	switch host.FleetPlatform() {
 	case "darwin":
 		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
-			err := fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
 			return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
 		}
 
 		// on macOS, the lock command requires the host to be MDM-enrolled in Fleet
 		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
 		if err != nil {
+			if fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't lock the host because it doesn't have MDM turned on."))
+			}
 			return ctxerr.Wrap(ctx, err, "get host MDM information")
 		}
 		if !hostMDM.IsFleetEnrolled() {
@@ -79,7 +81,9 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 	case "windows", "linux":
 		if host.FleetPlatform() == "windows" {
 			if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-				err := fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+				if errors.Is(err, fleet.ErrMDMNotConfigured) {
+					err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+				}
 				return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 			}
 		}
@@ -94,13 +98,12 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		}
 
 	default:
-		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
 	// if there's a lock, unlock or wipe action pending, do not accept the lock
 	// request.
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -111,6 +114,8 @@ func (svc *Service) LockHost(ctx context.Context, hostID uint) error {
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be locked again until unlock is complete."))
 	case lockWipe.IsPendingWipe():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process lock requests once host is wiped."))
+	case lockWipe.IsWiped():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process lock requests once host is wiped."))
 	case lockWipe.IsLocked():
 		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already locked.").WithStatus(http.StatusConflict))
 	}
@@ -148,7 +153,9 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		// be enabled
 		if host.FleetPlatform() == "windows" {
 			if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
-				err := fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+				if errors.Is(err, fleet.ErrMDMNotConfigured) {
+					err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+				}
 				return "", ctxerr.Wrap(ctx, err, "check windows MDM enabled")
 			}
 		}
@@ -161,11 +168,10 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		}
 
 	default:
-		// TODO(mna): should we allow/treat ChromeOS as Linux for this purpose?
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
 	}
 
-	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host.ID, host.FleetPlatform())
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
 	if err != nil {
 		return "", ctxerr.Wrap(ctx, err, "get host lock/wipe status")
 	}
@@ -182,12 +188,105 @@ func (svc *Service) UnlockHost(ctx context.Context, hostID uint) (string, error)
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. The host will unlock when it comes online."))
 	case lockWipe.IsPendingWipe():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. Cannot process unlock requests once host is wiped."))
+	case lockWipe.IsWiped():
+		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is wiped. Cannot process unlock requests once host is wiped."))
 	case lockWipe.IsUnlocked():
 		return "", ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already unlocked.").WithStatus(http.StatusConflict))
 	}
 
 	// all good, go ahead with queuing the unlock request.
 	return svc.enqueueUnlockHostRequest(ctx, host, lockWipe)
+}
+
+func (svc *Service) WipeHost(ctx context.Context, hostID uint) error {
+	// First ensure the user has access to list hosts, then check the specific
+	// host once team_id is loaded.
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+		return err
+	}
+	host, err := svc.ds.HostLite(ctx, hostID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lite")
+	}
+
+	// Authorize again with team loaded now that we have the host's team_id.
+	// Authorize as "execute mdm_command", which is the correct access
+	// requirement and is what happens for macOS platforms.
+	if err := svc.authz.Authorize(ctx, fleet.MDMCommandAuthz{TeamID: host.TeamID}, fleet.ActionWrite); err != nil {
+		return err
+	}
+
+	// wipe validations are based on the platform of the host, Windows and macOS
+	// require MDM to be enabled and the host to be MDM-enrolled in Fleet. Linux
+	// uses scripts, not MDM.
+	var requireMDM bool
+	switch host.FleetPlatform() {
+	case "darwin":
+		if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+		}
+		requireMDM = true
+
+	case "windows":
+		if err := svc.VerifyMDMWindowsConfigured(ctx); err != nil {
+			if errors.Is(err, fleet.ErrMDMNotConfigured) {
+				err = fleet.NewInvalidArgumentError("host_id", fleet.WindowsMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+			}
+			return ctxerr.Wrap(ctx, err, "check windows MDM enabled")
+		}
+		requireMDM = true
+
+	case "linux":
+		// on linux, a script is used to wipe the host so scripts must be enabled
+		appCfg, err := svc.ds.AppConfig(ctx)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "get app config")
+		}
+		if appCfg.ServerSettings.ScriptsDisabled {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe host because running scripts is disabled in organization settings."))
+		}
+
+	default:
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", fmt.Sprintf("Unsupported host platform: %s", host.Platform)))
+	}
+
+	if requireMDM {
+		// the wipe command requires the host to be MDM-enrolled in Fleet
+		hostMDM, err := svc.ds.GetHostMDM(ctx, host.ID)
+		if err != nil {
+			if fleet.IsNotFound(err) {
+				return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
+			}
+			return ctxerr.Wrap(ctx, err, "get host MDM information")
+		}
+		if !hostMDM.IsFleetEnrolled() {
+			return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Can't wipe the host because it doesn't have MDM turned on."))
+		}
+	}
+
+	// validations based on host's actions status (pending lock, unlock, wipe)
+	lockWipe, err := svc.ds.GetHostLockWipeStatus(ctx, host)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get host lock/wipe status")
+	}
+	switch {
+	case lockWipe.IsPendingLock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending lock request. Host cannot be wiped until lock is complete."))
+	case lockWipe.IsPendingUnlock():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending unlock request. Host cannot be wiped until unlock is complete."))
+	case lockWipe.IsPendingWipe():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host has pending wipe request. The host will be wiped when it comes online."))
+	case lockWipe.IsLocked():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is locked. Host cannot be wiped until it is unlocked."))
+	case lockWipe.IsWiped():
+		return ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("host_id", "Host is already wiped.").WithStatus(http.StatusConflict))
+	}
+
+	// all good, go ahead with queuing the wipe request.
+	return svc.enqueueWipeHostRequest(ctx, host, lockWipe)
 }
 
 func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host, lockStatus *fleet.HostLockWipeStatus) error {
@@ -232,7 +331,7 @@ func (svc *Service) enqueueLockHostRequest(ctx context.Context, host *fleet.Host
 		ScriptContents: string(script),
 		UserID:         &vc.User.ID,
 		SyncRequest:    false,
-	}); err != nil {
+	}, host.FleetPlatform()); err != nil {
 		return err
 	}
 
@@ -260,7 +359,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	if lockStatus.HostFleetPlatform == "darwin" {
 		// record the unlock request if it was not already recorded
 		if lockStatus.UnlockRequestedAt.IsZero() {
-			if err := svc.ds.UnlockHostManually(ctx, host.ID, time.Now().UTC()); err != nil {
+			if err := svc.ds.UnlockHostManually(ctx, host.ID, host.FleetPlatform(), time.Now().UTC()); err != nil {
 				return "", err
 			}
 		}
@@ -281,7 +380,7 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 			ScriptContents: string(script),
 			UserID:         &vc.User.ID,
 			SyncRequest:    false,
-		}); err != nil {
+		}, host.FleetPlatform()); err != nil {
 			return "", err
 		}
 	}
@@ -301,6 +400,59 @@ func (svc *Service) enqueueUnlockHostRequest(ctx context.Context, host *fleet.Ho
 	return unlockPIN, nil
 }
 
+func (svc *Service) enqueueWipeHostRequest(ctx context.Context, host *fleet.Host, wipeStatus *fleet.HostLockWipeStatus) error {
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return fleet.ErrNoContext
+	}
+
+	switch wipeStatus.HostFleetPlatform {
+	case "darwin":
+		wipeCommandUUID := uuid.NewString()
+		if err := svc.mdmAppleCommander.EraseDevice(ctx, host, wipeCommandUUID); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for darwin")
+		}
+
+	case "windows":
+		wipeCmdUUID := uuid.NewString()
+		wipeCmd := &fleet.MDMWindowsCommand{
+			CommandUUID:  wipeCmdUUID,
+			RawCommand:   []byte(fmt.Sprintf(windowsWipeCommand, wipeCmdUUID)),
+			TargetLocURI: "./Device/Vendor/MSFT/RemoteWipe/doWipeProtected",
+		}
+		if err := svc.ds.WipeHostViaWindowsMDM(ctx, host, wipeCmd); err != nil {
+			return ctxerr.Wrap(ctx, err, "enqueuing wipe request for windows")
+		}
+
+	case "linux":
+		// TODO(mna): svc.RunHostScript should be refactored so that we can reuse the
+		// part starting with the validation of the script (just in case), the checks
+		// that we don't enqueue over the limit, etc. for any other important
+		// validation we may add over there and that we bypass here by enqueueing the
+		// script directly in the datastore layer.
+		if err := svc.ds.WipeHostViaScript(ctx, &fleet.HostScriptRequestPayload{
+			HostID:         host.ID,
+			ScriptContents: string(linuxWipeScript),
+			UserID:         &vc.User.ID,
+			SyncRequest:    false,
+		}, host.FleetPlatform()); err != nil {
+			return err
+		}
+	}
+
+	if err := svc.ds.NewActivity(
+		ctx,
+		vc.User,
+		fleet.ActivityTypeWipedHost{
+			HostID:          host.ID,
+			HostDisplayName: host.DisplayName(),
+		},
+	); err != nil {
+		return ctxerr.Wrap(ctx, err, "create activity for wipe host request")
+	}
+	return nil
+}
+
 // TODO(mna): ideally we'd embed the scripts from the scripts/mdm/windows/..
 // and scripts/mdm/linux/.. directories where they currently exist, but this is
 // not possible (not a Go package) and I don't know if those script locations
@@ -316,4 +468,21 @@ var (
 	linuxLockScript []byte
 	//go:embed embedded_scripts/linux_unlock.sh
 	linuxUnlockScript []byte
+	//go:embed embedded_scripts/linux_wipe.sh
+	linuxWipeScript []byte
+
+	windowsWipeCommand = `
+		<Exec>
+			<CmdID>%s</CmdID>
+			<Item>
+				<Target>
+					<LocURI>./Device/Vendor/MSFT/RemoteWipe/doWipeProtected</LocURI>
+				</Target>
+				<Meta>
+					<Format xmlns="syncml:metinf">chr</Format>
+					<Type>text/plain</Type>
+				</Meta>
+				<Data></Data>
+			</Item>
+		</Exec>`
 )

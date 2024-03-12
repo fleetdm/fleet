@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
+		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
+		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1120,7 +1120,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{},
+		Filters: &map[string]interface{}{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
+		Filters: &map[string]interface{}{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -1495,12 +1495,16 @@ func (s *integrationTestSuite) TestListHosts() {
 	user1 := test.NewUser(t, s.ds, "Alice", "alice@example.com", true)
 	q := test.NewQuery(t, s.ds, nil, "query1", "select 1", 0, true)
 	defer cleanupQuery(s, q.ID)
-	p, err := s.ds.NewGlobalPolicy(context.Background(), &user1.ID, fleet.PolicyPayload{
-		QueryID: &q.ID,
-	})
+	globalPolicy0, err := s.ds.NewGlobalPolicy(
+		context.Background(), &user1.ID, fleet.PolicyPayload{
+			QueryID: &q.ID,
+		})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{p.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(
+		t,
+		s.ds.RecordPolicyQueryExecutions(context.Background(), host2, map[uint]*bool{globalPolicy0.ID: ptr.Bool(false)}, time.Now(), false),
+	)
 
 	resp = listHostsResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "software_id", fmt.Sprint(fooV1ID))
@@ -1720,13 +1724,54 @@ func (s *integrationTestSuite) TestListHosts() {
 			require.Nil(t, h.Software[0].Vulnerabilities[0].Description)
 			require.Nil(t, h.Software[0].Vulnerabilities[0].ResolvedInVersion)
 		}
+		assert.Nil(t, h.Policies)
 	}
 
 	resp = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false")
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_software", "false", "populate_policies", "false")
 	require.Len(t, resp.Hosts, 4)
 	for _, h := range resp.Hosts {
 		require.Empty(t, h.Software)
+		assert.Nil(t, h.Policies)
+	}
+
+	// Populate policies for hosts. One policy was created earlier.
+	ctx := context.Background()
+	globalPolicy1, err := s.ds.NewGlobalPolicy(
+		ctx, &test.UserAdmin.ID, fleet.PolicyPayload{
+			Name:  "foobar0",
+			Query: "SELECT 0;",
+		},
+	)
+	require.NoError(t, err)
+
+	for _, host := range hosts {
+		// All hosts pass the globalPolicy1
+		err := s.ds.RecordPolicyQueryExecutions(
+			context.Background(), host, map[uint]*bool{globalPolicy1.ID: ptr.Bool(true)}, time.Now(), false,
+		)
+		require.NoError(t, err)
+	}
+
+	resp = listHostsResponse{}
+	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &resp, "populate_policies", "true")
+	require.Len(t, resp.Hosts, len(hosts)+1) // +1 for the pending MDM host
+	for _, h := range resp.Hosts {
+		if h.ID == hosts[0].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		} else if h.ID == hosts[2].ID {
+			policies := *h.Policies
+			require.Len(t, policies, 2)
+			assert.Equal(t, globalPolicy0.Name, policies[0].Name)
+			assert.Equal(t, "fail", policies[0].Response)
+			assert.Equal(t, globalPolicy1.Name, policies[1].Name)
+			assert.Equal(t, "pass", policies[1].Response)
+		}
 	}
 }
 
@@ -2769,8 +2814,11 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
-	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
-	req.Filters.MatchQuery = hosts[2].Hostname
+	req := addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
+	}
+
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
@@ -5350,9 +5398,10 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 		"team_id", "1",
 	)
 
-	// lock/unlock a host
+	// lock/unlock/wipe a host
 	s.Do("POST", "/api/v1/fleet/hosts/123/lock", nil, http.StatusPaymentRequired)
 	s.Do("POST", "/api/v1/fleet/hosts/123/unlock", nil, http.StatusPaymentRequired)
+	s.Do("POST", "/api/v1/fleet/hosts/123/wipe", nil, http.StatusPaymentRequired)
 }
 
 func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
@@ -5363,10 +5412,10 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 
 	// run a script
 	var runResp runScriptResponse
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// run a script sync
-	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1}, http.StatusNotFound, &runResp)
+	s.DoJSON("POST", "/api/latest/fleet/scripts/run/sync", fleet.HostScriptRequestPayload{HostID: 1, ScriptContents: "echo foo"}, http.StatusNotFound, &runResp)
 
 	// get script result
 	var scriptResultResp getScriptResultResponse
@@ -5376,6 +5425,16 @@ func (s *integrationTestSuite) TestScriptsEndpointsWithoutLicense() {
 	body, headers := generateNewScriptMultipartRequest(t,
 		"myscript.sh", []byte(`echo "hello"`), s.token, nil)
 	s.DoRawWithHeaders("POST", "/api/latest/fleet/scripts", body.Bytes(), http.StatusOK, headers)
+
+	// run a saved script by name without team id (should fail host not found)
+	res := s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh"}, http.StatusNotFound)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Host was not found in the datastore")
+
+	// run a saved script by name with team id (should fail with license error)
+	res = s.Do("POST", "/api/latest/fleet/scripts/run/sync", runScriptSyncRequest{ScriptName: "myscript.sh", TeamID: 1}, http.StatusPaymentRequired)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Requires Fleet Premium license")
 
 	// delete a saved script
 	var delScriptResp deleteScriptResponse
@@ -6369,6 +6428,16 @@ func (s *integrationTestSuite) TestCountTargets() {
 	require.Equal(t, uint(1), countResp.TargetsOnline)
 	require.Equal(t, uint(0), countResp.TargetsOffline)
 
+	// 'No team' selected
+	countResp = countTargetsResponse{}
+	s.DoJSON(
+		"POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{TeamIDs: []uint{0}}},
+		http.StatusOK, &countResp,
+	)
+	assert.Equal(t, uint(2), countResp.TargetsCount)
+	assert.Equal(t, uint(0), countResp.TargetsOnline)
+	assert.Equal(t, uint(2), countResp.TargetsOffline)
+
 	// host id selected
 	countResp = countTargetsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/targets/count", countTargetsRequest{Selected: fleet.HostTargets{HostIDs: []uint{hosts[1].ID}}}, http.StatusOK, &countResp)
@@ -6716,6 +6785,74 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestChangePassword() {
+	t := s.T()
+
+	endpoint := "/api/latest/fleet/change_password"
+	// also the default password for the default logged in admin user
+	startPwd := test.GoodPassword
+
+	testCases := []struct {
+		oldPw          string
+		newPw          string
+		expectedStatus int
+	}{
+		// valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
+		{startPwd, "password123$", http.StatusOK},
+		{"password123$", "Password$321", http.StatusOK},
+
+		// invalid changes
+		// empty old
+		{"", "PassworD$321", http.StatusUnprocessableEntity},
+		// empty new
+		{"password123$", "", http.StatusUnprocessableEntity},
+		// too short
+		{"password123$", "Password$21", http.StatusUnprocessableEntity},
+		// too long
+		{"password123$", "Password$321Password$321Password$321Password$321Password$321", http.StatusUnprocessableEntity},
+		// no numbers
+		{"password123$", "Password$!@#", http.StatusUnprocessableEntity},
+		// no symbols
+		{"password123$", "Password4321", http.StatusUnprocessableEntity},
+		// new pw is same as old
+		{"password123$", "password123$", http.StatusUnprocessableEntity},
+		// wrong old pw
+		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+	}
+
+	runTestCases := func(name string) {
+		for _, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				var changePwResp changePasswordResponse
+				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+			})
+		}
+	}
+
+	runTestCases("test change passwords as admin")
+
+	// create a new user
+	testUserEmail := "changepwd@example.com"
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:                     ptr.String("Test Change Password"),
+		Email:                    ptr.String(testUserEmail),
+		Password:                 ptr.String(startPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	// schedule cleanup with admin user's token before changing it
+	oldToken := s.token
+	t.Cleanup(func() { s.token = oldToken })
+
+	// login and run the change password tests as the user
+	s.token = s.getTestToken(testUserEmail, startPwd)
+	runTestCases("test change passwords as user")
+}
+
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
@@ -7047,7 +7184,7 @@ func (s *integrationTestSuite) TestHostsReportDownload() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows[0], 50)         // total number of cols
+	assert.Len(t, rows[0], 51)         // total number of cols
 
 	const (
 		idCol        = 3
@@ -9149,7 +9286,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows1, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows1[0], 50)         // total number of cols
+	assert.Len(t, rows1[0], 51)         // total number of cols
 
 	var (
 		idIdx     int
@@ -9176,7 +9313,7 @@ func (s *integrationTestSuite) TestHostsReportWithPolicyResults() {
 	res.Body.Close()
 	require.NoError(t, err)
 	require.Len(t, rows2, len(hosts)+1) // all hosts + header row
-	assert.Len(t, rows2[0], 50)         // total number of cols
+	assert.Len(t, rows2[0], 51)         // total number of cols
 
 	// Check that all hosts have 0 issues and that they match the previous call to `/hosts/report`.
 	for i := 1; i < len(hosts)+1; i++ {

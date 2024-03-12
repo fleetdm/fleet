@@ -2,10 +2,9 @@ import React from "react";
 
 import { IMdmSolution } from "interfaces/mdm";
 
-import { greyCell } from "utilities/helpers";
-import HeaderCell from "components/TableContainer/DataTable/HeaderCell";
 import TextCell from "components/TableContainer/DataTable/TextCell";
-import ViewAllHostsLink from "components/ViewAllHostsLink";
+import InternalLinkCell from "../../../../components/TableContainer/DataTable/InternalLinkCell";
+import { IMdmSolutionTableData } from "./MDM";
 
 // NOTE: cellProps come from react-table
 // more info here https://react-table.tanstack.com/docs/api/useTable#cell-properties
@@ -30,12 +29,6 @@ interface IHeaderProps {
   };
 }
 
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
 interface IDataColumn {
   title: string;
   Header: ((props: IHeaderProps) => JSX.Element) | string;
@@ -46,79 +39,32 @@ interface IDataColumn {
   disableSortBy?: boolean;
 }
 
-export const generateSolutionsTableHeaders = (
-  teamId?: number
-): IDataColumn[] => [
+export const generateSolutionsTableHeaders = (): IDataColumn[] => [
   {
     title: "Name",
     Header: "Name",
     disableSortBy: true,
-    accessor: "name",
+    accessor: "displayName",
     Cell: (cellProps: ICellProps) => (
-      <TextCell
-        greyed={greyCell(cellProps.cell.value)}
-        value={cellProps.cell.value}
-      />
+      <InternalLinkCell value={cellProps.cell.value} />
     ),
-  },
-  {
-    title: "Server URL",
-    Header: "Server URL",
-    disableSortBy: true,
-    accessor: "server_url",
-    Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
   {
     title: "Hosts",
-    Header: (cellProps: IHeaderProps) => (
-      <HeaderCell
-        value={cellProps.column.title}
-        isSortedDesc={cellProps.column.isSortedDesc}
-      />
-    ),
+    Header: "Hosts",
+    disableSortBy: true,
     accessor: "hosts_count",
     Cell: (cellProps: ICellProps) => <TextCell value={cellProps.cell.value} />,
   },
-  {
-    title: "",
-    Header: "",
-    disableSortBy: true,
-    disableGlobalFilter: true,
-    accessor: "linkToFilteredHosts",
-    Cell: (cellProps: IStringCellProps) => {
-      return (
-        <ViewAllHostsLink
-          queryParams={{ mdm_id: cellProps.row.original.id, team_id: teamId }}
-          className="mdm-solution-link"
-          platformLabelId={cellProps.row.original.selectedPlatformLabelId}
-        />
-      );
-    },
-    disableHidden: true,
-  },
 ];
 
-const enhanceSolutionsData = (
-  solutions: IMdmSolution[],
-  selectedPlatformLabelId?: number
-): IMdmSolution[] => {
-  return Object.values(solutions).map((solution) => {
+export const generateSolutionsDataSet = (
+  solutions: IMdmSolutionTableData[]
+): IMdmSolutionTableData[] => {
+  return solutions.map((solution) => {
     return {
-      id: solution.id,
-      name: solution.name || "Unknown",
-      server_url: solution.server_url,
-      hosts_count: solution.hosts_count,
-      selectedPlatformLabelId,
+      ...solution,
+      displayName: solution.name || "Unknown",
     };
   });
-};
-
-export const generateSolutionsDataSet = (
-  solutions: IMdmSolution[] | null,
-  selectedPlatformLabelId?: number
-): IMdmSolution[] => {
-  if (!solutions) {
-    return [];
-  }
-  return [...enhanceSolutionsData(solutions, selectedPlatformLabelId)];
 };

@@ -86,24 +86,19 @@ Every quarter, payroll and tax filings are due for each state. Gusto can handle 
 Every Friday at 1:00pm CT, we gather hours worked for anyone who gets paid hourly by Fleet. This includes core team members and consultants, regardless of employment classification, and regardless whether inside or outside of the United States.
 
 Here's how:
-- For every hourly core team member in Gusto or Pilot.co, look up their manager ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
-- If any direct report is hourly in Pilot.co and does not submit their hours until the end of the month, still list them, but explain.  (See example below.)
-- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure or manager. Instead, send their hours worked to the CEO, no matter who the consultant is.
+- For every hourly core team member in Gusto or Plane.com, find the DRI by looking up ([who they report to](https://fleetdm.com/handbook/company#org-chart)).
+- If any direct report is hourly in Plane.com and does not submit their hours until the end of the month, still list them, but explain. 
+- [Consultants](https://fleetdm.com/handbook/business-operations#hiring) don't have a formal reporting structure. They submit their hours through Gusto (US consultants) or Plane.com (international consultants), which require approval from a DRI. You can find the DRI by looking at the Business Operations [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0)
 
-Then, send **the CEO** and **each manager** a direct message in Slack by copying and pasting the following template:
+Then, send the DRI a direct message in Slack with a screenshot of the HRIS portal, showing hours logged since last Saturday at midnight and tasks undertaken during those hours (if provided). Ensure the screenshot does not contain any compensation information.
 
-> Here are the hours worked by your direct reports since last Saturday at midnight (YYYY-MM-DD):
-> - 🧑‍🚀 Alice Bobberson: 21.25
-> - 🧑‍🚀 Charles David: 3.5
-> - 🧑‍🚀 Philippe Timebender: (hours not available until they invoice at the end of the month)
->
-> And here are the hours worked by consultants:
-> - 💁 Bombalurina: 0
-> - 💁 Jennyanydots: 0
-> - 💁 Skimbleshanks: 19
-> - 💁 Griza Bella: 0
 > 
 > More info: https://fleetdm.com/handbook/business-operations#inform-managers-about-hours-worked
+
+### Change the DRI of a consultant
+
+1. In the [KPIs](https://docs.google.com/spreadsheets/d/1Hso0LxqwrRVINCyW_n436bNHmoqhoLhC8bcbvLPOs9A/edit#gid=0) sheet, find the consultant's column.
+2. Change the DRI documented there to the new DRI who will receive information about the consultant's hours.
 
 
 ### Run US contractor payroll
@@ -147,6 +142,25 @@ When a Fleetie, consultant or advisor requests an update to their personnel deta
 - If required, BizOps also makes changes to other core systems (e.g: creating a new email alias in google workspace; updating details in Carta; etc).
 - The change is now actioned, notify the team member and close the issue.
 
+
+### Change a Fleetie's job title
+When BizOps receives notification of a Fleetie's job title changing, follow these steps to ensure accurate recording of the change across our systems.
+- Update the ["🧑‍🚀 Fleeties"](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0) spreadsheet:
+  - Search the spreadsheet for the Fleetie in need of a job title change.
+  - Input the new job title in the Fleetie's row in the "Job title" cell.
+  - Navigate to the "Org chart" tab of the spreadsheet, and verify that the Fleetie's title appears correctly in the org chart.
+- Update the relevant HRIS system.
+  - For updating Gusto (US-based Fleeties):
+    - Login to Gusto and navigate to "People > Team members".
+    - Find the Fleetie and select them to see their profile page.
+    - Under the "Compensation" heading, select edit and update the "Job title" and input the specific date the change happened. Save the changes.
+  - For updating Plane (non-US Fleeties):
+    - Login to Plane and navigate to "People > Team".
+    - Find the Fleetie and select them to see their profile page.
+    - Use the "Help" function, or email support@plane.com to notify Plane of the need to change the job title for the Fleetie. Include the Fleetie's name, current title, new title, and effective date.
+    - Take any relevant steps as directed by Plane in order to make the required changes to the Fleetie's profile.
+
+
 ### Change a Fleetie's manager
 When BizOps receives notification of a Fleetie's manager changing, follow these steps to ensure correct recording in our systems.
 - Update the [Fleeties](https://docs.google.com/spreadsheets/d/1OSLn-ZCbGSjPusHPiR5dwQhheH1K8-xqyZdsOe9y7qc/edit#gid=0).
@@ -156,6 +170,7 @@ When BizOps receives notification of a Fleetie's manager changing, follow these 
   - Verify that in the new manager's row, the "# direct reports" cell reflect the correct number.
   - Navigate to the "Org chart" tab in the spreadsheet, and verify that the Fleetie now appears in the correct place in the org chart.
 > **Note:** The Fleeties spreadsheet is the source of truth for this information, and any other systems reflecting reporting lines should be disregarded.
+ 
 
 
 ### Prepare salary benchmarking information

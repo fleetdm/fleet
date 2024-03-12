@@ -961,8 +961,8 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusBadRequest, &createResp)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create with new query for specific hosts
 	req = createDistributedQueryCampaignRequest{
@@ -975,8 +975,23 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	camp1 := *createResp.Campaign
 	assert.Equal(t, uint(2), createResp.Campaign.Metrics.TotalHosts)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
+
+	// create with new query for 'No team'
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT 2.5",
+		Selected: fleet.HostTargets{
+			TeamIDs: []uint{0},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
+	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
+	camp1 = *createResp.Campaign
+	assert.Equal(t, uint(len(s.hosts)), createResp.Campaign.Metrics.TotalHosts)
+
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create by host name
 	req2 := createDistributedQueryCampaignByNamesRequest{
@@ -989,8 +1004,8 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create by unknown host name - it ignores the unknown names. Must have at least 1 valid host
 	req2 = createDistributedQueryCampaignByNamesRequest{
