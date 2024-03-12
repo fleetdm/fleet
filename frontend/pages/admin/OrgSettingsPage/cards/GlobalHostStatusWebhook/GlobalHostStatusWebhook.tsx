@@ -45,13 +45,13 @@ const GlobalHostStatusWebhook = ({
   const [formData, setFormData] = useState<IGlobalHostStatusWebhookFormData>({
     enableHostStatusWebhook:
       appConfig.webhook_settings.host_status_webhook
-        .enable_host_status_webhook || false,
+        ?.enable_host_status_webhook || false,
     hostStatusWebhookDestinationUrl:
-      appConfig.webhook_settings.host_status_webhook.destination_url || "",
+      appConfig.webhook_settings.host_status_webhook?.destination_url || "",
     hostStatusWebhookHostPercentage:
-      appConfig.webhook_settings.host_status_webhook.host_percentage || 1,
+      appConfig.webhook_settings.host_status_webhook?.host_percentage || 1,
     hostStatusWebhookWindow:
-      appConfig.webhook_settings.host_status_webhook.days_count || 1,
+      appConfig.webhook_settings.host_status_webhook?.days_count || 1,
   });
 
   const {

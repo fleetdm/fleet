@@ -139,6 +139,8 @@ module.exports.custom = {
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
 
+    '/handbook/company/testimonials.yml': 'mike-j-thomas',
+
     // 🫧 Other brandfronts
     'README.md': 'mikermcneil',// « GitHub brandfront
     'tools/fleetctl-npm/README.md': 'mikermcneil',// « NPM brandfront (npmjs.com/package/fleetctl)
@@ -229,6 +231,8 @@ module.exports.custom = {
     'handbook/sales': ['sampfluger88','mikermcneil'],
     'handbook/demand': ['sampfluger88','mikermcneil'],
     'handbook/customer-success': ['sampfluger88','mikermcneil'],
+
+    '/handbook/company/testimonials.yml': ['eashaw', 'mike-j-thomas', 'sampfluger88'],
 
     // GitHub issue templates
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'hollidayn'],
