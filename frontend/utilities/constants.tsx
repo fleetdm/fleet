@@ -306,12 +306,7 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (manual)": (
     <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
-  Off: (
-    <span>
-      Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS
-      update encouragement.
-    </span>
-  ),
+  Off: undefined, // no tooltip specified
   Pending: (
     <span>
       Hosts ordered via Apple Business Manager <br /> (ABM). These will
