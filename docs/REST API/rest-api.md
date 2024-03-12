@@ -1274,6 +1274,13 @@ Note that when making changes to the `integrations` object, all integrations mus
         "project_key": "jira_project",
         "enable_software_vulnerabilities": false
       }
+    ],
+    "google_calendar": [
+      {
+        "email": "name@example.com",
+        "domain": "example.com",
+        "private_key": "abc123"
+      }
     ]
   },
   "logging": {
