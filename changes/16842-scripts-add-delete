@@ -1,2 +1,0 @@
-- Adds backend functionality to work with the new way of storing script contents
-- Updates the script character limit from 10,000 to 500,000
