@@ -734,7 +734,7 @@
   productCategories: [Endpoint operations]
   pricingTableCategories: [Endpoint operations]
   tier: Free
-- industryName: Programmable audit log of system activity (queries, user activities, etc)
+- industryName: Audit log of Fleet activity (queries, scripts, logins, etc)
   documentationUrl: https://fleetdm.com/docs/rest-api/rest-api#list-activities
   productCategories: [Endpoint operations, Device management]
   pricingTableCategories: [Endpoint operations, Device management]
