@@ -232,6 +232,7 @@
     margin-bottom: 0px;
     color: #FFF;
   }
+
   [purpose='chat-button'], [purpose='card-button'] {
     position: relative;
   }
@@ -399,12 +400,13 @@
       color: #192147;
       margin-bottom: 24px;
     }
-    a {
-      font-size: 16px;
-      line-height: 24px;
+    p {
+      margin-bottom: 24px;
     }
     a:not(.btn) {
-      color: @core-fleet-black;
+      font-size: 16px;
+      line-height: 24px;
+      color: @core-fleet-black-75;
       text-decoration: underline;
     }
   }
@@ -416,15 +418,24 @@
       padding-left: 8px;
     }
   }
-
+  [purpose='chat-button'] {
+    height: 54px;
+    line-height: 16px;
+    font-size: 16px;
+  }
   [purpose='cta-button'] {
+    margin: 0;
     color: #192147;
+    max-width: 250px;
+    line-height: 16px;
+    font-size: 16px;
     .btn-animated-arrow-red();
     &::before {
-      left: 84%;
+      left: 80%;
+      top: 10px;
     }
     &:hover::before {
-      left: 87%;
+      left: 83%;
     }
   }
   [purpose='pricing-table-category']:not(:first-of-type) {
@@ -543,16 +554,13 @@
         }
       }
     }
+    [purpose='chat-button'] {
+      margin-bottom: 16px;
+    }
     .modal-dialog {
       margin: 0.5rem auto;
       padding-left: 24px;
       padding-right: 24px;
-    }
-  }
-  @media (max-width: 355px) {
-    // At < 355 px width we add a linebreak to the Premium price per host.
-    [purpose='premium-price-linebreak'] {
-      display: block;
     }
   }
 
