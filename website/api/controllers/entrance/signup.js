@@ -95,7 +95,7 @@ the account verification message.)`,
     },
 
     invalidEmailDomain: {
-      description: 'This email address is on a denylist of domains and was not delivered.',
+      description: 'This email address is on a denylist of domains and cannot be used to signup for a fleetdm.com account.',
       responseType: 'badRequest'
     },
 
@@ -110,7 +110,7 @@ the account verification message.)`,
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
-    // Check the
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the bannedEmailDomainsForSignup array.
     let emailDomain = newEmailAddress.split('@')[1];
     let bannedEmailDomainsForSignup = [
       'gmail.com',
@@ -125,7 +125,7 @@ the account verification message.)`,
       'yandex.ru',
       'ymail.com',
     ];
-    if(_.includes(bannedEmailDomainsForSignup, emailDomain.toLowerCase())){
+    if(_.includes(bannedEmailDomainsForSignup, emailDomain)){
       throw 'invalidEmailDomain';
     }
 
