@@ -45,6 +45,11 @@ The DRI for publishing a release is responsible for creating the next patch bran
 
 > It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
 
+### Fix a bug
+If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`.
+
+If the bug is labeled `~released bug`, branch off and put your PR into the upcoming patch branch `patch-fleet-v4.x.x`. If you are unsure which branch to use, confirm with your manager. 
+
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
 
