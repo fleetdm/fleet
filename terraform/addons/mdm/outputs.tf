@@ -10,8 +10,8 @@ output "extra_secrets" {
     FLEET_MDM_APPLE_BM_CERT_BYTES         = "${aws_secretsmanager_secret.abm[0].arn}:FLEET_MDM_APPLE_BM_CERT_BYTES::"
     FLEET_MDM_APPLE_BM_KEY_BYTES          = "${aws_secretsmanager_secret.abm[0].arn}:FLEET_MDM_APPLE_BM_KEY_BYTES::"
     }, var.enable_windows_mdm == false ? {} : {
-    FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES = "${aws_secretsmanager_secret.scep.arn}:crt::"
-    FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES  = "${aws_secretsmanager_secret.scep.arn}:key::"
+    FLEET_MDM_WINDOWS_WSTEP_IDENTITY_CERT_BYTES = "${aws_secretsmanager_secret.scep.arn}:FLEET_MDM_APPLE_SCEP_CERT_BYTES::"
+    FLEET_MDM_WINDOWS_WSTEP_IDENTITY_KEY_BYTES  = "${aws_secretsmanager_secret.scep.arn}:FLEET_MDM_APPLE_SCEP_KEY_BYTES::"
   })
 }
 
