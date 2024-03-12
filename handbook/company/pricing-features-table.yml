@@ -517,7 +517,7 @@
   tier: Free
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
-- industryName: Managed Cloud
+- industryName: Managed Cloud (700+ hosts)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]
   tier: Premium
