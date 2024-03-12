@@ -152,7 +152,7 @@ module "firehose-logging" {
 #   source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=mdm-module-naming"
 #   # Set apn_secret_name = null if not using mac mdm
 #   apn_secret_name    = "fleet-apn"
-#   scep_secret_name   = "$fleet-scep"
+#   scep_secret_name   = "fleet-scep"
 #   # Set abm_secret_name = null if customer is not using dep
 #   abm_secret_name    = "fleet-dep"
 #   enable_apple_mdm   = true
@@ -182,6 +182,7 @@ module "acm" {
   version = "4.3.1"
 
   domain_name = local.domain_name
+  # If you change the route53 zone to a data source this needs to become "data.aws_route53_zone.main.id"
   zone_id     = aws_route53_zone.main.id
 
   wait_for_validation = true
