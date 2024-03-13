@@ -16,7 +16,14 @@ import (
 	"time"
 )
 
-const eventTitle = "💻🚫Downtime"
+const (
+	eventTitle = "💻🚫Downtime"
+)
+
+var calendarScopes = []string{
+	"https://www.googleapis.com/auth/calendar.events",
+	"https://www.googleapis.com/auth/calendar.settings.readonly",
+}
 
 // GoogleCalendar is an implementation of the Calendar interface that uses the
 // Google Calendar API to manage events.
@@ -46,10 +53,8 @@ type GoogleCalendarLowLevelAPI struct {
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) Connect(ctx context.Context, email, privateKey, subject string) error {
 	// Create a new calendar service
 	conf := &jwt.Config{
-		Email: email,
-		Scopes: []string{
-			"https://www.googleapis.com/auth/calendar.events", "https://www.googleapis.com/auth/calendar.settings.readonly",
-		},
+		Email:      email,
+		Scopes:     calendarScopes,
 		PrivateKey: []byte(privateKey),
 		TokenURL:   google.JWTTokenURL,
 		Subject:    subject,
@@ -79,7 +84,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return lowLevelAPI.service.Events.Delete("primary", id).Do()
 }
 
-func NewCalendar(config GoogleCalendarConfig) (*GoogleCalendar, error) {
+func NewCalendar(config *GoogleCalendarConfig) (*GoogleCalendar, error) {
 	if config.API == nil {
 		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
 		config.API = lowLevelAPI
@@ -92,7 +97,7 @@ func NewCalendar(config GoogleCalendarConfig) (*GoogleCalendar, error) {
 	}
 
 	gCal := &GoogleCalendar{
-		config: &config,
+		config: config,
 	}
 
 	return gCal, nil
