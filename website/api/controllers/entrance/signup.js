@@ -66,6 +66,7 @@ the account verification message.)`,
     primaryBuyingSituation: {
       type: 'string',
       description: 'What the user will be using Fleet for.',
+      required: true,
       isIn: [
         'endpoint-ops-security',
         'endpoint-ops-it',

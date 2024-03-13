@@ -3,7 +3,7 @@
   <div style="max-width: 560px;" class="container-fluid pb-5 px-lg-0 px-3" v-if="!showSuccessMessage">
     <div purpose="page-heading">
       <h1>Welcome to Fleet Premium</h1>
-      <p class="pb-2">We just need a few details in order to get you a self-hosted Fleet Premium license key.</p>
+      <p class="pb-2">We just need a few details in order to get started.</p>
     </div>
     <div purpose="customer-portal-form" class="card card-body">
       <ajax-form action="createQuote" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="quoteFormRules" @submitted="submittedQuoteForm($event)">
