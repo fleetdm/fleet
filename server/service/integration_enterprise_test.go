@@ -93,14 +93,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
-	// Create policy for calendar integration
-	policy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{Name: "TestSpecPolicy", Query: "SELECT 1"})
-	require.NoError(t, err)
-	defer func() {
-		_, err := s.ds.DeleteGlobalPolicies(context.Background(), []uint{policy.ID})
-		require.NoError(t, err)
-	}()
-
 	// Create global calendar integration
 	calendarEmail := "service@example.com"
 	calendarWebhookUrl := "https://example.com/webhook"

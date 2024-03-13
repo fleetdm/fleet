@@ -111,9 +111,6 @@ func (z TeamZendeskIntegration) UniqueKey() string {
 	return z.URL + "\n" + strconv.FormatInt(z.GroupID, 10)
 }
 
-type GoogleCalendarWebhookSettings struct {
-	DestinationURL string `json:"destination_url"`
-}
 type TeamGoogleCalendarIntegration struct {
 	Email      string       `json:"email"`
 	Enable     bool         `json:"enable_calendar_events"`

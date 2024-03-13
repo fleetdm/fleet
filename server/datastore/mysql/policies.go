@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"golang.org/x/text/unicode/norm"
 	"sort"
@@ -461,6 +462,9 @@ func (ds *Datastore) PoliciesByName(ctx context.Context, names []string, teamID 
 		query, args...,
 	)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(fmt.Sprintf("%v", names)))
+		}
 		return nil, ctxerr.Wrap(ctx, err, "getting policies by name")
 	}
 
