@@ -82,6 +82,28 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
+	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
+	// existing ones, "reselect" to reload existing ones after insert, and "labels"
+	// to simulate an error in batch setting the profile label associations.
+	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
+	// sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
+	testBatchSetMDMAppleProfilesErr string
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
+	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
+	// load existing ones, "reselect" to reload existing ones after insert, and
+	// "labels" to simulate an error in batch setting the profile label
+	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
+	// fail the sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
+	testBatchSetMDMWindowsProfilesErr string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -225,8 +247,13 @@ func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) 
 		return nil
 	}
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 5 * time.Second
+	expBo := backoff.NewExponentialBackOff()
+	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
+	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
+	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
+	// 'Context cancelled' errors when the server drops long-lasting connections.
+	expBo.MaxElapsedTime = 1 * time.Minute
+	bo := backoff.WithMaxRetries(expBo, 5)
 	return backoff.Retry(operation, bo)
 }
 
@@ -333,8 +360,13 @@ func (ds *Datastore) writeChanLoop() {
 		case *fleet.Host:
 			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
-			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := ds.writer(item.ctx).ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			err := ds.withRetryTxx(
+				item.ctx, func(tx sqlx.ExtContext) error {
+					query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+					_, err := tx.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+					return err
+				},
+			)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}

@@ -1,1 +1,0 @@
-- Fixed UI alignment bug where long URLs were not being truncated in the hosts table UI.

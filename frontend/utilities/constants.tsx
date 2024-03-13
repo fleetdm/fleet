@@ -3,6 +3,7 @@ import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -24,7 +25,7 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
-export const FREQUENCY_DROPDOWN_OPTIONS = [
+export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 0, label: "Never" },
   { value: 300, label: "Every 5 minutes" },
   { value: 600, label: "Every 10 minutes" },
@@ -35,6 +36,19 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 43200, label: "Every 12 hours" },
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
+];
+export const HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1%", value: 1 },
+  { label: "5%", value: 5 },
+  { label: "10%", value: 10 },
+  { label: "25%", value: 25 },
+];
+
+export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1 day", value: 1 },
+  { label: "3 days", value: 3 },
+  { label: "7 days", value: 7 },
+  { label: "14 days", value: 14 },
 ];
 
 export const GITHUB_NEW_ISSUE_LINK =

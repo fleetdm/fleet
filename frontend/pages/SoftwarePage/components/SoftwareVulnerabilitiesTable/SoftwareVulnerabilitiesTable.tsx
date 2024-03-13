@@ -109,7 +109,7 @@ const SoftwareVulnerabilitiesTable = ({
         isLoading={isLoading}
         isClientSidePagination
         pageSize={20}
-        resultsTitle="vulnerabilities"
+        resultsTitle="items"
         showMarkAllPages={false}
         disableMultiRowSelect
         onSelectSingleRow={handleRowSelect}
