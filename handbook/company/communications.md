@@ -19,7 +19,7 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Best practices for using Fleet | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ | 
 | What goes in a release | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
 | Engineering output and architecture | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
-| Structure and intentionallity of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
+| Structure and intentionality of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
 | Design and content of the [Docs](https://fleetdm.com/docs/get-started/why-fleet) | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
 
 
