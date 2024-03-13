@@ -79,11 +79,18 @@ const Calendars = (): JSX.Element => {
     // TODO: add validations
 
     // Formatting of API not UI
-    const formDataToSubmit = {
-      email: formData.email,
-      domain: formData.domain,
-      private_key: formData.privateKey,
-    };
+    const formDataToSubmit =
+      formData.email === "" &&
+      formData.domain === "" &&
+      formData.privateKey === ""
+        ? null // Send null if no keys are set
+        : [
+            {
+              email: formData.email,
+              domain: formData.domain,
+              private_key: formData.privateKey,
+            },
+          ];
 
     // Updates integrations.google_calendar only
     const destination = {
@@ -116,67 +123,71 @@ const Calendars = (): JSX.Element => {
 
   const renderForm = () => {
     return isPremiumTier ? (
-      <form onSubmit={onFormSubmit} autoComplete="off">
+      <>
+        {" "}
         <SectionHeader title="Calendars" />
-        <p className={`${baseClass}__page-description`}>
-          Connect Fleet to your Google Workspace service account to create
-          calendar events for end users if their host fails policies.{" "}
-          <CustomLink url="TODO" text="Learn more" newTab />
-        </p>
-        <InputField
-          label="Email"
-          onChange={handleInputChange}
-          name="email"
-          value={email}
-          parseTarget
-          onBlur={validateForm}
-          tooltip={
-            <>
-              The email address for this Google
-              <br /> Workspace service account.
-            </>
-          }
-          placeholder="name@example.com"
-        />
-        <InputField
-          label="Domain"
-          onChange={handleInputChange}
-          name="domain"
-          value={domain}
-          parseTarget
-          onBlur={validateForm}
-          tooltip={
-            <>
-              The Google Workspace domain this <br /> service account is
-              associated with.
-            </>
-          }
-          placeholder="example.com"
-        />
-        <InputField
-          label="Private key"
-          onChange={handleInputChange}
-          name="privateKey"
-          value={privateKey}
-          parseTarget
-          onBlur={validateForm}
-          tooltip={
-            <>
-              The private key for this Google <br /> Workspace service account.
-            </>
-          }
-          placeholder="•••••••••••••••••••••••••••••"
-        />
-        <Button
-          type="submit"
-          variant="brand"
-          disabled={Object.keys(formErrors).length > 0}
-          className="save-loading button-wrap"
-          isLoading={isUpdatingSettings}
-        >
-          Save
-        </Button>
-      </form>
+        <form onSubmit={onFormSubmit} autoComplete="off">
+          <p className={`${baseClass}__page-description`}>
+            Connect Fleet to your Google Workspace service account to create
+            calendar events for end users if their host fails policies.{" "}
+            <CustomLink url="TODO" text="Learn more" newTab />
+          </p>
+          <InputField
+            label="Email"
+            onChange={handleInputChange}
+            name="email"
+            value={email}
+            parseTarget
+            onBlur={validateForm}
+            tooltip={
+              <>
+                The email address for this Google
+                <br /> Workspace service account.
+              </>
+            }
+            placeholder="name@example.com"
+          />
+          <InputField
+            label="Domain"
+            onChange={handleInputChange}
+            name="domain"
+            value={domain}
+            parseTarget
+            onBlur={validateForm}
+            tooltip={
+              <>
+                The Google Workspace domain this <br /> service account is
+                associated with.
+              </>
+            }
+            placeholder="example.com"
+          />
+          <InputField
+            label="Private key"
+            onChange={handleInputChange}
+            name="privateKey"
+            value={privateKey}
+            parseTarget
+            onBlur={validateForm}
+            tooltip={
+              <>
+                The private key for this Google <br /> Workspace service
+                account.
+              </>
+            }
+            placeholder="•••••••••••••••••••••••••••••"
+          />
+          <Button
+            type="submit"
+            variant="brand"
+            disabled={Object.keys(formErrors).length > 0}
+            className="save-loading button-wrap"
+            isLoading={isUpdatingSettings}
+          >
+            Save
+          </Button>
+        </form>
+      </>
     ) : (
       // TODO: align icon
       <p>
