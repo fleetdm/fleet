@@ -1,5 +1,11 @@
 # Fleet Terraform Module Example
-This code provides some example usage of the Fleet Terraform module, including how some addons can be used to extend functionality.
+This code provides some example usage of the Fleet Terraform module, including how some addons can be used to extend functionality.  Prior to applying, edit the locals in `main.tf` to match the settings you want for your Fleet instance including:
+
+ - domain name
+ - route53 zone name (may match the domain name)
+ - license key (if premium)
+ - uncommenting the mdm module if mdm is desired
+ - any extra settings to be passed to Fleet via ENV var.
 
 Due to Terraform issues, this code requires 3 applies "from scratch":
 1. `terraform apply -target module.fleet.module.vpc`
@@ -59,7 +65,7 @@ This will encrypt all of the mdm secrets and add the .encrypted extension to the
 | Name | Type |
 |------|------|
 | [aws_route53_record.main](https://registry.terraform.io/providers/hashicorp/aws/5.36.0/docs/resources/route53_record) | resource |
-| [aws_route53_zone.main](https://registry.terraform.io/providers/hashicorp/aws/5.36.0/docs/data-sources/route53_zone) | data source |
+| [aws_route53_zone.main](https://registry.terraform.io/providers/hashicorp/aws/5.36.0/docs/resources/route53_zone) | resource |
 
 ## Inputs
 
@@ -67,4 +73,6 @@ No inputs.
 
 ## Outputs
 
-No outputs.
+| Name | Description |
+|------|-------------|
+| <a name="output_route53_name_servers"></a> [route53\_name\_servers](#output\_route53\_name\_servers) | Ensure that these records are added to the parent DNS zone Delete this output if you switched the route53 zone above to a data source. |
