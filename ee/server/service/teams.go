@@ -1199,6 +1199,7 @@ func (svc *Service) validateTeamCalendarIntegrations(
 			}
 		}
 	}
+	return nil
 }
 
 func (svc *Service) applyTeamMacOSSettings(ctx context.Context, spec *fleet.TeamSpec, applyUpon *fleet.MacOSSettings) error {

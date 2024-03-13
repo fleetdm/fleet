@@ -139,7 +139,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
 	require.Len(t, applyResp.TeamIDsByName, 1)
 
-	team, err = s.ds.TeamByName(context.Background(), teamName)
+	team, err := s.ds.TeamByName(context.Background(), teamName)
 	require.NoError(t, err)
 	require.Equal(t, applyResp.TeamIDsByName[teamName], team.ID)
 	assert.Len(t, team.Secrets, 1)
