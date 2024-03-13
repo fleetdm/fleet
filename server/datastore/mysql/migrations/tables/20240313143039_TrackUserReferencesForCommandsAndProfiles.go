@@ -53,7 +53,7 @@ func Up_20240313143039(tx *sql.Tx) error {
 	for _, t := range tables {
 		_, err := tx.Exec(fmt.Sprintf(`
 			ALTER TABLE`+" `%s` "+`
-			-- user_id references the user that created the entity.
+			-- user_persistent_info_id references the user that created the entity.
 			-- it's NULL for rows created prior to this migration,
 			-- and also for entities that don't have an user
 			-- associated with it (eg: Fleet initiated actions)
@@ -63,7 +63,7 @@ func Up_20240313143039(tx *sql.Tx) error {
 			ADD COLUMN fleet_owned tinyint(1) DEFAULT NULL
 			`, t))
 		if err != nil {
-			return fmt.Errorf("failed to add user_id and fleet_owned to %s: %w", t, err)
+			return fmt.Errorf("failed to add user_persistent_info_id and fleet_owned to %s: %w", t, err)
 		}
 
 		_, err = tx.Exec(fmt.Sprintf(`
@@ -72,7 +72,7 @@ func Up_20240313143039(tx *sql.Tx) error {
 			FOREIGN KEY (user_persistent_info_id) REFERENCES user_persistent_info(id)
 			ON DELETE RESTRICT`, t, t))
 		if err != nil {
-			return fmt.Errorf("failed to add user_id foreign key to %s: %w", t, err)
+			return fmt.Errorf("failed to add user_persistent_info_id foreign key to %s: %w", t, err)
 		}
 	}
 
