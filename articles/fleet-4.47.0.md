@@ -36,7 +36,7 @@ Fleet enhances the scope of remote script execution capabilities by extending su
 ### Improved Windows configuration profiles
 
 
-Fleet now supports the `<Add>` element in Windows configuration profiles, addressing a specific need for IT administrators managing Windows devices. This development allows for more nuanced control over Windows OS settings, including adding new configurations such as Wi-Fi profiles, a functionality particularly useful in scenarios where the <Replace> element is ineffective. This enhancement simplifies the management of Windows devices, providing administrators with the flexibility to enforce policies and settings essential for maintaining device security and operational efficiency. Fleet seeks to empower IT professionals, ensuring administrators have the tools to tailor their environments according to specific requirements and best practices.
+Fleet now supports the `<Add>` element in Windows configuration profiles, addressing a specific need for IT administrators managing Windows devices. This development allows for more nuanced control over Windows OS settings, including adding new configurations such as Wi-Fi profiles, a functionality particularly useful in scenarios where the `<Replace>` element is ineffective. This enhancement simplifies the management of Windows devices, providing administrators with the flexibility to enforce policies and settings essential for maintaining device security and operational efficiency. Fleet seeks to empower IT professionals, ensuring administrators have the tools to tailor their environments according to specific requirements and best practices.
 
 
 ### Per team host status webhook
