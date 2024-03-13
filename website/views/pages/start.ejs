@@ -1,7 +1,23 @@
 <div id="start" v-cloak>
+  <div class="d-flex container" purpose="page-container">
+    <div class="text-center mx-auto">
+      <h1>Welcome to Fleet</h1>
+      <p>We just need a few details in order to get started.</p>
+    </div>
+    <div purpose="start-cards">
+      <a purpose="card" href="/try-fleet">
+        <img src="/images/start-try-fleet-64x64@2x.png">
+        <h2>Try Fleet</h2>
+        <p>Run a local demo of Fleet</p>
+      </a>
+      <a purpose="card" href="/new-license" class="mr-sm-0">
+        <img src="/images/start-purchase-license-64x64@2x.png">
+        <h2>Get a license</h2>
+        <p>Purchase a Fleet Premium license</p>
+      </a>
 
-  <h1>TODO: Implement this page.</h1>
-  <p>(See also <em>assets/styles/pages/start.less</em>, <em>assets/js/pages/start.page.js</em>, and <em>api/controllers/view-start.js</em>.)</p>
+    </div>
 
+  </div>
 </div>
 <%- /* Expose server-rendered data as window.SAILS_LOCALS :: */ exposeLocalsToBrowser() %>
