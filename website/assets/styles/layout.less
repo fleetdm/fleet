@@ -421,6 +421,16 @@ body.detected-mobile {
   // devices (like the iPad) as well as handset devices (like the iPhone).
   // …
 }
+@media (min-width: 1201px) {
+  [purpose='reduced-nav-footer'] {
+    position: absolute;
+    bottom: 0px;
+    width: 100%;
+    height: 148px;
+    padding: 64px;
+  }
+
+}
 @media (max-width: 992px) {
   .homepage-cta-banner+.homepage-header-top {
     top: 72px;
@@ -432,7 +442,6 @@ body.detected-mobile {
     padding: 64px 40px;
     height: 460px;
   }
-
   [purpose='footer-socials'] {
     margin-bottom: 32px;
   }
@@ -441,6 +450,9 @@ body.detected-mobile {
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
     padding-bottom: 701px;
+  }
+  [purpose='reduced-nav-footer'] {
+    height: 120px;
   }
   [purpose='footer-nav-column']:not(:last-of-type) {
     margin-bottom: 64px;
@@ -464,7 +476,7 @@ body.detected-mobile {
     padding-bottom: 97px;
   }
   [purpose='reduced-nav-footer'] {
-    height: 97px;
+    height: 154px;
   }
   [purpose='page-footer'] {
     height: 925px;
@@ -477,6 +489,9 @@ body.detected-mobile {
     margin-bottom: 40px;
   }
   [purpose='license-information'] {
+    margin-bottom: 32px;
+  }
+  [purpose='copyright-and-legal-link'] {
     margin-bottom: 32px;
   }
   // For hiding the hubspot chat widget on mobile devices.
