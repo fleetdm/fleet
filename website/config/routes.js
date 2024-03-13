@@ -241,7 +241,6 @@ module.exports.routes = {
     }
   },
 
-
   'GET /connect-vanta': {
     action: 'view-connect-vanta',
   },
@@ -256,14 +255,6 @@ module.exports.routes = {
       pageTitleForMeta: 'Device management (MDM) | Fleet',
       pageDescriptionForMeta: 'Configure your devices with sensible defaults, or customize MDM features exactly how you want. Manage your IT infrastructure in any browser or use git to make changes as code.',
       currentSection: 'platform',
-    }
-  },
-
-  'GET /upgrade': {
-    action: 'view-upgrade',
-    locals: {
-      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet',
-      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
     }
   },
 
@@ -469,7 +460,7 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
-
+  'GET /upgrade': '/pricing',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
