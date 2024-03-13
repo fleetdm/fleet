@@ -32,6 +32,8 @@ module.exports.routes = {
   'GET /try-fleet': {
     action: 'view-fleetctl-preview',
     locals: {
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'fleetctl preview | Fleet',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
