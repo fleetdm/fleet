@@ -288,6 +288,8 @@ module.exports.routes = {
   'GET /start': {
     action: 'view-start',
     locals: {
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'Get started | Fleet',
       pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo yourself or purchase a premium license key.',
     }
