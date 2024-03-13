@@ -16,8 +16,8 @@ func Up_20240313085226(tx *sql.Tx) error {
 	CREATE TABLE IF NOT EXISTS calendar_events (
 		id INT(10) UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
   		email VARCHAR(255) NOT NULL,
-		start_time TIMESTAMP NOT NULL,
-		end_time TIMESTAMP NOT NULL,
+		start_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+		end_time TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 		event JSON NOT NULL,
 
 		created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -38,7 +38,7 @@ func Up_20240313085226(tx *sql.Tx) error {
 		updated_at TIMESTAMP NOT NULL NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 		UNIQUE KEY idx_one_calendar_event_per_host (host_id),
-		FOREIGN KEY (calendar_event_id) REFERENCES calendar_events(id) ON DELETE CASCADE,
+		FOREIGN KEY (calendar_event_id) REFERENCES calendar_events(id) ON DELETE CASCADE
 	);
 `); err != nil {
 		return fmt.Errorf("create host_calendar_events table: %w", err)
