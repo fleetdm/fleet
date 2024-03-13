@@ -1,0 +1,1 @@
+* Migrate MDM-related endpoints to new paths, deprecating (but still supporting indefinitely) the old endpoints.
