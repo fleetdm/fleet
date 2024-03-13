@@ -96,7 +96,8 @@ const OtherWorkflowsModal = ({
     webhook_settings: { failing_policies_webhook: webhook },
   } = automationsConfig;
 
-  const { jira, zendesk } = availableIntegrations || {};
+  const { jira, zendesk, google_calendar: googleCalendar } =
+    availableIntegrations || {};
   const allIntegrations: IIntegration[] = [];
   jira && allIntegrations.push(...jira);
   zendesk && allIntegrations.push(...zendesk);
@@ -256,6 +257,7 @@ const OtherWorkflowsModal = ({
       integrations: {
         jira: newJira,
         zendesk: newZendesk,
+        google_calendar: googleCalendar,
       },
     });
 

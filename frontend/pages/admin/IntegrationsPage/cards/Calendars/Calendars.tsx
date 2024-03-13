@@ -56,13 +56,15 @@ const Calendars = (): JSX.Element => {
 
   const validateForm = () => {
     const errors: ICalendarsFormErrors = {};
-    if (!email) {
+
+    // Must set all keys or no keys at all
+    if (!email && (!!domain || !!privateKey)) {
       errors.email = "Email must be present";
     }
-    if (!domain) {
+    if (!domain && (!!email || !!privateKey)) {
       errors.email = "Domain must be present";
     }
-    if (!privateKey) {
+    if (!privateKey && (!!email || !!domain)) {
       errors.privateKey = "Private key must be present";
     }
 
@@ -99,7 +101,7 @@ const Calendars = (): JSX.Element => {
         );
         refetchConfig();
       })
-      .catch( data: IApiError ) => {
+      .catch(() => {
         renderFlash(
           "error",
           <>
@@ -127,6 +129,7 @@ const Calendars = (): JSX.Element => {
           name="email"
           value={email}
           parseTarget
+          onBlur={validateForm}
           tooltip={
             <>
               The email address for this Google
@@ -141,6 +144,7 @@ const Calendars = (): JSX.Element => {
           name="domain"
           value={domain}
           parseTarget
+          onBlur={validateForm}
           tooltip={
             <>
               The Google Workspace domain this <br /> service account is
@@ -152,9 +156,10 @@ const Calendars = (): JSX.Element => {
         <InputField
           label="Private key"
           onChange={handleInputChange}
-          name="private key"
+          name="privateKey"
           value={privateKey}
           parseTarget
+          onBlur={validateForm}
           tooltip={
             <>
               The private key for this Google <br /> Workspace service account.
@@ -180,9 +185,11 @@ const Calendars = (): JSX.Element => {
       </p>
     );
   };
+
   return (
     <div className={`${baseClass}`}>
-      {isLoadingAppConfig ? <Spinner includeContainer={false} /> : renderForm()}
+      {isLoadingAppConfig && <Spinner includeContainer={false} />}
+      {renderForm()}
     </div>
   );
 };
