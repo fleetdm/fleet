@@ -8,6 +8,8 @@ import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
 
+import useCheckboxListStateManagement from "hooks/useCheckboxListStateManagement";
+
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
 import Slider from "components/forms/fields/Slider";
@@ -37,12 +39,6 @@ interface IManagePolicyAutomationsModalProps {
   togglePreviewPayloadModal: () => void;
 }
 
-interface ICheckedPolicy {
-  name?: string;
-  id: number;
-  isChecked: boolean;
-}
-
 const findEnabledIntegration = ({ jira, zendesk }: IIntegrations) => {
   return (
     jira?.find((j) => j.enable_failing_policies) ||
@@ -56,31 +52,6 @@ const getIntegrationType = (integration?: IIntegration) => {
     (!!integration?.project_key && "jira") ||
     undefined
   );
-};
-
-const useCheckboxListStateManagement = (
-  allPolicies: IPolicy[],
-  automatedPolicies: number[] | undefined
-) => {
-  const [policyItems, setPolicyItems] = useState<ICheckedPolicy[]>(() => {
-    return allPolicies.map(({ name, id }) => ({
-      name,
-      id,
-      isChecked: !!automatedPolicies?.includes(id),
-    }));
-  });
-
-  const updatePolicyItems = (policyId: number) => {
-    setPolicyItems((prevItems) =>
-      prevItems.map((policy) =>
-        policy.id !== policyId
-          ? policy
-          : { ...policy, isChecked: !policy.isChecked }
-      )
-    );
-  };
-
-  return { policyItems, updatePolicyItems };
 };
 
 const baseClass = "manage-policy-automations-modal";
