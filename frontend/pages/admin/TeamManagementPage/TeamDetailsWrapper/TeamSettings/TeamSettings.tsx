@@ -190,7 +190,8 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       setPercentageHostsDropdownOptions(
         getCustomDropdownOptions(
           HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS,
-          teamConfig?.webhook_settings.host_status_webhook.host_percentage ?? 1,
+          teamConfig?.webhook_settings?.host_status_webhook?.host_percentage ??
+            1,
           (val) => `${val}%`
         )
       );
@@ -198,7 +199,7 @@ const TeamSettings = ({ location, router }: ITeamSubnavProps) => {
       setWindowDropdownOptions(
         getCustomDropdownOptions(
           HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS,
-          teamConfig?.webhook_settings.host_status_webhook.days_count ?? 1,
+          teamConfig?.webhook_settings?.host_status_webhook?.days_count ?? 1,
           (val) => `${val} day${val !== 1 ? "s" : ""}`
         )
       );

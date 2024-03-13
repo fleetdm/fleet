@@ -1,3 +1,53 @@
+## Fleet 4.47.0 (Mar 11, 2024)
+
+### Endpoint operations
+- Implemented UI for team-specific host status webhooks.
+- Added Unicode and emoji support for policy and team names.
+- Allowed gitops user to access specific endpoints.
+- Enabled setting host status webhook at the team level via REST API and fleetctl.
+- GET /hosts API endpoint now populates policies with `populate_policies=true` query parameter.
+- Supported custom options set via CLI in the UI for host status webhook settings.
+- Surfaced VS code extensions in the software inventory.
+- Added a "No team" team option when running live queries from the UI.
+- Fixed tranferring hosts between teams across multiple pages.
+- Fixed policy deletion not updating policy count.
+- Fixed RuntimeError in fleetd-chrome and buggy filters for exporting hosts.
+
+### Device management (MDM)
+- Added wipe command to fleetctl and the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint.
+- Updated `fleetctl run-script` to include new flags and `POST /scripts/run/sync` API to receive new parameters.
+- Enabled usage of `<Add>` nodes in Windows MDM profiles.
+- Added backend functionality for the new way of storing script contents and updated the script character limit.
+- Updated the database schema to support the increase in script size.
+- Prevented running cleanup tasks and re-enqueuing commands for hosts on SCEP renewals.
+- Improved osquery queries for MDM detection.
+- Prevented redundant ADE profile assignment.
+- Updated fleetctl gitops, default MDM configs were set to default values when not defined.
+- Displayed disk encryption status in macOS as "verifying."
+- Allowed GitOps user to access MDM hosts and profiles endpoints.
+- Added UI for wiping a host with Fleet MDM.
+- Rolled up MDM solutions by name on the dashboard MDM card.
+- Added functionality to surface MDM devices where DEP assignment failed.
+- Fixed MDM profile installation error visibility.
+- Fixed Windows MDM profile command "Type" column display.
+- Fixed an issue with macOS ADE enrollments getting a "method not allowed" error.
+- Fixed Munki issues truncated tooltip bug.
+- Fixed a bug causing Windows hosts to appear when filtering by bootstrap package status.
+
+### Vulnerability management
+- Reduced vulnerability processing time by optimizing the vulnerability dictionary grouping.
+- Fixed an issue with `mdm.enable_disk_encryption` JSON null values causing issues.
+- Fixed vulnerability processing for non-ASCII software names.
+
+### Bug fixes and improvements
+- Upgraded Golang version to 1.21.7.
+- Updated page descriptions and fixed alignment of critical policy checkboxes.
+- Adjusted font size for tooltips in the settings page to follow design guidelines.
+- Fixed a bug where the "Done" button on the add hosts modal could be covered.
+- Fixed UI styling and alignment issues across various pages and modals.
+- Fixed the position of live query/policy host search icon and UI loading states.
+- Fixed issues with how errors were captured in Sentry for improved precision and coverage.
+
 ## Fleet 4.46.2 (Mar 4, 2024)
 
 ### Bug fixes

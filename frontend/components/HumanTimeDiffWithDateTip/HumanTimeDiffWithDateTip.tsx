@@ -3,11 +3,12 @@ import React from "react";
 import { uniqueId } from "lodash";
 import { humanLastSeen, internationalTimeFormat } from "utilities/helpers";
 import { INITIAL_FLEET_DATE } from "utilities/constants";
-import ReactTooltip from "react-tooltip";
+import ReactTooltip, { Place } from "react-tooltip";
 
 interface IHumanTimeDiffWithDateTip {
   timeString: string;
   cutoffBeforeFleetLaunch?: boolean;
+  tooltipPosition?: Place;
 }
 
 /** Returns "Unavailable" if date is empty string or "Unavailable"
@@ -17,6 +18,7 @@ interface IHumanTimeDiffWithDateTip {
 export const HumanTimeDiffWithDateTip = ({
   timeString,
   cutoffBeforeFleetLaunch = false,
+  tooltipPosition = "top",
 }: IHumanTimeDiffWithDateTip): JSX.Element => {
   const id = uniqueId();
 
@@ -38,7 +40,7 @@ export const HumanTimeDiffWithDateTip = ({
         </span>
         <ReactTooltip
           className="date-tooltip-text"
-          place="top"
+          place={tooltipPosition}
           type="dark"
           effect="solid"
           id={`tooltip-${id}`}

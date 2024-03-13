@@ -144,7 +144,7 @@ analyze-go:
 	go test -tags full,fts5,netgo -race -cover ./...
 
 test-js:
-	npm test
+	yarn test
 
 test: lint test-go test-js
 

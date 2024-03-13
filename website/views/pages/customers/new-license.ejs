@@ -78,7 +78,7 @@
         <cloud-error purpose="cloud-error" v-else-if="cloudError === 'cardVerificationRequired'">
           <p>The billing card provided could not be used without additional verification. Please use another card or <a href="/contact" target="_blank">contact support</a> to complete your order.</p>
         </cloud-error>
-        <ajax-button style="height: 40px;" purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4">Get license key</ajax-button>
+        <ajax-button purpose="submit-button" spinner="true" :syncing="syncing" class="btn btn-block btn-lg btn-primary mt-4">Get license key</ajax-button>
       </ajax-form>
       <cloud-error purpose="cloud-error" v-else-if="cloudError">
         <p class="mb-3 text-bold text-strong">An error has occurred while processing your request.</p>
