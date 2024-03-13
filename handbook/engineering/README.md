@@ -41,7 +41,7 @@ Every three weeks, release a minor version of Fleet from the `main` branch.
 
 Every week between minor releases, release a patch release with fixes for released bugs. 
 
-The DRI for publishing a release is responsible for creating the next patch branch. Create a patch branch off the latest tagged release of Fleet. Merge released bug fixes directly into the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit a PR to `main` containing the same fix and resolve any merge conflicts.
+The DRI for publishing a release is responsible for creating the next patch branch. Create a patch branch off the latest tagged release of Fleet. Submit PRs for released bug fixes directly to the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit another PR to `main` containing the same fix and resolve any merge conflicts.
 
 > It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
 
