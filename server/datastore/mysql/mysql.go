@@ -225,8 +225,13 @@ func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) 
 		return nil
 	}
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 5 * time.Second
+	expBo := backoff.NewExponentialBackOff()
+	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
+	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
+	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
+	// 'Context cancelled' errors when the server drops long-lasting connections.
+	expBo.MaxElapsedTime = 1 * time.Minute
+	bo := backoff.WithMaxRetries(expBo, 5)
 	return backoff.Retry(operation, bo)
 }
 
@@ -333,8 +338,13 @@ func (ds *Datastore) writeChanLoop() {
 		case *fleet.Host:
 			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
-			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := ds.writer(item.ctx).ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			err := ds.withRetryTxx(
+				item.ctx, func(tx sqlx.ExtContext) error {
+					query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+					_, err := tx.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+					return err
+				},
+			)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
@@ -857,6 +867,14 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
+	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
+}
+
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+	filter fleet.TeamFilter, globalSqlFilter string, teamIDSqlFilter string,
+) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
@@ -865,9 +883,9 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	defaultAllowClause := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	defaultAllowClause := globalSqlFilter
 	if filter.TeamID != nil {
-		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", filterTableAlias, *filter.TeamID)
+		defaultAllowClause = fmt.Sprintf("%s = %d", teamIDSqlFilter, *filter.TeamID)
 	}
 
 	if filter.User.GlobalRole != nil {
@@ -912,7 +930,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	return fmt.Sprintf("%s.team_id IN (%s)", filterTableAlias, strings.Join(idStrs, ","))
+	return fmt.Sprintf("%s IN (%s)", teamIDSqlFilter, strings.Join(idStrs, ","))
 }
 
 // whereFilterTeams returns the appropriate condition to use in the WHERE

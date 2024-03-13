@@ -3406,14 +3406,15 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	require.Equal(t, *vulnMeta[0].CISAKnownExploit, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CISAKnownExploit)
 	require.Equal(t, *vulnMeta[0].Published, **osVersionsResp.OSVersions[0].Vulnerabilities[0].CVEPublished)
 	require.Equal(t, vulnMeta[0].Description, **osVersionsResp.OSVersions[0].Vulnerabilities[0].Description)
+	expectedOSVersion := osVersionsResp.OSVersions[0]
 
 	var osVersionResp getOSVersionResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
-	require.Equal(t, &osVersionsResp.OSVersions[0], osVersionResp.OSVersion)
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
 
 	// OS versions with invalid team
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
 		"99999",
 	)
 
@@ -3428,19 +3429,73 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 	)
 	osVersionResp = getOSVersionResponse{}
 	s.DoJSON(
-		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusNotFound, &osVersionResp, "team_id",
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp, "team_id",
 		fmt.Sprintf("%d", tr.Team.ID),
 	)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// return empty json if UpdateOSVersions cron hasn't run yet for new team
-	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
+	team0, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "new team"})
 	require.NoError(t, err)
-	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team.ID, []uint{hosts[0].ID}))
-	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team.ID))
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team0.ID, []uint{hosts[0].ID}))
+	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "team_id", fmt.Sprintf("%d", team0.ID))
 	require.Len(t, osVersionsResp.OSVersions, 0)
 
 	// return err if team_id is invalid
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusBadRequest, &osVersionsResp, "team_id", "invalid")
+
+	// Create another team and a team user
+	team1, err := s.ds.NewTeam(
+		context.Background(), &fleet.Team{
+			ID:          42,
+			Name:        "team1-os_version",
+			Description: "desc team1",
+		},
+	)
+	require.NoError(t, err)
+	// Create a new admin for team1.
+	password := test.GoodPassword
+	email := "admin-team1-os_version@example.com"
+	u := &fleet.User{
+		Name:       "admin team1",
+		Email:      email,
+		GlobalRole: nil,
+		Teams: []fleet.UserTeam{
+			{
+				Team: *team1,
+				Role: fleet.RoleAdmin,
+			},
+		},
+	}
+	require.NoError(t, u.SetPassword(password, 10, 10))
+	_, err = s.ds.NewUser(context.Background(), u)
+	require.NoError(t, err)
+
+	s.setTokenForTest(t, email, test.GoodPassword)
+
+	// generate aggregated stats
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	// team1 user does not have access to team0 host
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp)
+	assert.Empty(t, osVersionsResp.OSVersions)
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
+
+	// Move host from team0 to team1
+	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
+	require.NoError(t, s.ds.UpdateOSVersions(context.Background()))
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions"), nil, http.StatusOK, &osVersionsResp)
+	require.Len(t, osVersionsResp.OSVersions, 1)
+	assert.Equal(t, expectedOSVersion, osVersionsResp.OSVersions[0])
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusOK, &osVersionResp)
+	require.Equal(t, &expectedOSVersion, osVersionResp.OSVersion)
+
+	// Team user is forbidden to access invalid team
+	s.DoJSON(
+		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
+		"99999",
+	)
+
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
