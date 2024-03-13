@@ -1,9 +1,7 @@
 import React from "react";
 
-import ReactTooltip from "react-tooltip";
 import { HumanTimeDiffWithFleetLaunchCutoff } from "components/HumanTimeDiffWithDateTip";
 import TooltipWrapper from "components/TooltipWrapper";
-import CustomLink from "components/CustomLink";
 import Card from "components/Card";
 
 import {
@@ -16,7 +14,6 @@ import {
   DEFAULT_EMPTY_CELL_VALUE,
   MDM_STATUS_TOOLTIP,
 } from "utilities/constants";
-import { COLORS } from "styles/var/colors";
 import DataSet from "components/DataSet";
 
 const getDeviceUserTipContent = (deviceMapping: IDeviceUser[]) => {
@@ -49,47 +46,19 @@ const About = ({
   munki,
   mdm,
 }: IAboutProps): JSX.Element => {
-  const renderPublicIp = () => {
-    if (aboutData.public_ip !== DEFAULT_EMPTY_CELL_VALUE) {
-      return aboutData.public_ip;
-    }
-    return (
-      <>
-        <span
-          className="text-cell text-muted tooltip"
-          data-tip
-          data-for="public-ip-tooltip"
-        >
-          {aboutData.public_ip}
-        </span>
-        <ReactTooltip
-          place="bottom"
-          effect="solid"
-          backgroundColor={COLORS["tooltip-bg"]}
-          id="public-ip-tooltip"
-          data-html
-          clickable
-          delayHide={200} // need delay set to hover using clickable
-        >
-          Public IP address could not be
-          <br /> determined.{" "}
-          <CustomLink
-            url="https://fleetdm.com/docs/deploying/configuration#public-i-ps-of-devices"
-            text="Learn more"
-            newTab
-            iconColor="core-fleet-white"
-          />
-        </ReactTooltip>
-      </>
-    );
-  };
-
   const renderSerialAndIPs = () => {
     return (
       <>
         <DataSet title="Serial number" value={aboutData.hardware_serial} />
         <DataSet title="Private IP address" value={aboutData.primary_ip} />
-        <DataSet title="Public IP address" value={renderPublicIp()} />
+        <DataSet
+          title={
+            <TooltipWrapper tipContent="The IP address the host uses to connect to Fleet.">
+              Public IP address
+            </TooltipWrapper>
+          }
+          value={aboutData.public_ip}
+        />
       </>
     );
   };

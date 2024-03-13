@@ -411,7 +411,7 @@ spec:
 			DestinationURL: "https://example.com",
 			Enable:         true,
 			HostPercentage: 25,
-		}, teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
+		}, *teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
 	)
 	assert.Equal(t, fleet.FailingPoliciesWebhookSettings{}, teamsByName["team1"].Config.WebhookSettings.FailingPoliciesWebhook)
 	// enroll secret not cleared since not provided
@@ -437,7 +437,7 @@ spec:
 			DestinationURL: "https://example.com",
 			Enable:         true,
 			HostPercentage: 25,
-		}, teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
+		}, *teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
 	)
 }
 

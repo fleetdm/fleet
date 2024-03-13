@@ -624,7 +624,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        {host_display_name}.{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"

@@ -163,7 +163,6 @@ func TestNewCSRRequest(t *testing.T) {
 	} {
 		test := test
 		t.Run(test.testName, func(t *testing.T) {
-			t.Parallel()
 			key, err := newRSAKey(2048)
 			if err != nil {
 				t.Fatal(err)

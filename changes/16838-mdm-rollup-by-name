@@ -1,2 +1,0 @@
-- Adds another keyword for recognizing VMware WorkspaceONE as an MDM solution
-- Removes `provider_id` as a possible source for deducing Windows MDM solution names.
