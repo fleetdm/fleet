@@ -38,6 +38,7 @@ func TestPolicies(t *testing.T) {
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"PoliciesByID", testPoliciesByID},
+		{"PoliciesByName", testPoliciesByName},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
 		{"Save", testPoliciesSave},
@@ -1112,6 +1113,47 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 	var nfe fleet.NotFoundError
 	require.ErrorAs(t, err, &nfe)
+}
+
+func testPoliciesByName(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
+	policyName1 := "policy1"
+	policyName2 := "policy2"
+	_ = newTestPolicy(t, ds, user1, policyName1, "darwin", nil)
+	_ = newTestPolicy(t, ds, user1, policyName2, "darwin", nil)
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
+	require.NoError(t, err)
+
+	// No names provided
+	_, err = ds.PoliciesByName(context.Background(), []string{}, team1.ID)
+	require.Error(t, err)
+
+	// Policies don't belong to a team
+	_, err = ds.PoliciesByName(context.Background(), []string{policyName1, policyName2}, team1.ID)
+	require.Error(t, err)
+	var nfe fleet.NotFoundError
+	require.ErrorAs(t, err, &nfe)
+
+	policy1 := newTestPolicy(t, ds, user1, policyName1, "darwin", &team1.ID)
+	policy2 := newTestPolicy(t, ds, user1, policyName2, "darwin", &team1.ID)
+
+	policiesByName, err := ds.PoliciesByName(context.Background(), []string{policyName1, policyName2}, team1.ID)
+	require.NoError(t, err)
+	require.Len(t, policiesByName, 2)
+	assert.Equal(t, policiesByName[policyName1].ID, policy1.ID)
+	assert.Equal(t, policiesByName[policyName2].ID, policy2.ID)
+	assert.Equal(t, policiesByName[policyName1].Name, policy1.Name)
+	assert.Equal(t, policiesByName[policyName2].Name, policy2.Name)
+
+	// Policy does not exist
+	_, err = ds.PoliciesByName(context.Background(), []string{"doesn't exist"}, team1.ID)
+	assert.ErrorAs(t, err, &nfe)
+
+	// One exists and one doesn't
+	_, err = ds.PoliciesByName(context.Background(), []string{policyName1, "doesn't exist"}, team1.ID)
+	assert.ErrorAs(t, err, &nfe)
+
 }
 
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
