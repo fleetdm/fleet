@@ -10,7 +10,7 @@ import Modal from "components/Modal";
 import Spinner from "components/Spinner";
 import Button from "components/buttons/Button";
 import Textarea from "components/Textarea";
-import { IconNames } from "components/icons";
+import Icon from "components/Icon";
 
 const baseClass = "activity-details-modal";
 
@@ -40,7 +40,9 @@ const CommandResult = ({ result, hostname, status }: ICommandResultProps) => {
     <div className={`${baseClass}__command-result`}>
       <div>{status}</div>
       <p>The result from {hostname}:</p>
-      <Textarea className={`${baseClass}__result-textarea`}>{result}</Textarea>
+      <Textarea className={`${baseClass}__result-textarea`}>
+        {atob(result)}
+      </Textarea>
     </div>
   );
 };
@@ -54,42 +56,40 @@ const CommandResultMessage = ({
   requestType,
   status,
 }: ICommandResultMessageProps) => {
-  let statusIcon: "success-outline" | "error-outline" | "pending-outline";
-  let message: string;
+  let statusIcon: "success-outline" | "error-outline" | "pending-outline" =
+    "pending-outline";
+  let message = "";
+
+  const is200 = status.startsWith("2");
+  const is400 = status.startsWith("4");
+  const is500 = status.startsWith("5");
+  const isSuccessful = is200 || status === "acknowledged";
+  const isPending = status === "pending";
+  const isFailed = is400 || is500 || status === "failed";
 
   if (requestType === "diskEncryption") {
     statusIcon = "error-outline";
     message = "Disk encryption failed.";
-  }
-
-  if (
-    status !== "pending" &&
-    status !== "failed" &&
-    status !== "acknowledged"
-  ) {
-    if (status === "200") {
-      statusIcon = "success-outline";
-      message = "The host acknowledged the MDM command";
-    } else {
-      statusIcon = "error-outline";
-    }
-  } else if (status === "pending") {
+  } else if (isSuccessful) {
+    statusIcon = "success-outline";
+    message = "The host acknowledged the MDM command.";
+  } else if (isPending) {
     statusIcon = "pending-outline";
     message =
       "The host will receive the MDM command when the host comes online.";
-  } else if (status === "acknowledged") {
-    statusIcon = "success-outline";
-    message = "The host acknowledged the MDM command.";
-  } else {
+  } else if (isFailed) {
     statusIcon = "error-outline";
     message = "Failed.";
   }
 
+  if (is200 || is400 || is500) {
+    message = `${message} (Status Code: ${status})`;
+  }
+
   return (
     <div className={`${baseClass}__command-result-message`}>
-      <p>
-        {requestType} {status}
-      </p>
+      <Icon name={statusIcon} />
+      <p>{message}</p>
     </div>
   );
 };
@@ -116,9 +116,9 @@ const ActivityDetailsModal = ({
   const renderContent = () => {
     let content = <></>;
 
-    if (false) {
+    if (isLoading) {
       content = <Spinner />;
-    } else if (false) {
+    } else if (isError) {
       content = (
         <DataError
           className={`${baseClass}__error-message`}
