@@ -187,7 +187,7 @@ const SoftwareVulnerabilitiesTable = ({
     const count = data?.count;
     if (!data?.vulnerabilities || !count) return "";
 
-    return count === 1 ? `${count} vulnerability` : `${count} vulnerabilities`;
+    return count === 1 ? `${count} item` : `${count} items`;
   };
 
   const getLastUpdatedText = () => {
@@ -195,7 +195,7 @@ const SoftwareVulnerabilitiesTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"vulnerabilities"}
+        whatToRetrieve="vulnerabilities"
       />
     );
   };
