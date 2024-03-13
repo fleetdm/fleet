@@ -873,7 +873,7 @@
   pricingTableCategories: [Endpoint operations]
   buzzwords: [Real-time export,Ship logs]
   waysToUse:
-    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-01-26) #Customer-blanco
+    - description: Choose different file sizes for automated query results and agent logs. Coming soon (2024-04-22) #Customer-blanco
       moreInfoUrl: https://github.com/fleetdm/fleet/issues/11999
 - industryName: File carving (AWS S3)
   documentationUrl: https://fleetdm.com/docs/configuration/fleet-server-configuration#s-3-file-carving-backend
