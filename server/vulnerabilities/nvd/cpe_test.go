@@ -823,7 +823,7 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 				Version:          "105.0.1343.50",
 				Vendor:           "Microsoft Corporation",
 				BundleIdentifier: "",
-			}, cpe: "cpe:2.3:a:microsoft:edge:105.0.1343.50:*:*:*:*:windows:*:*",
+			}, cpe: "cpe:2.3:a:microsoft:edge_chromium:105.0.1343.50:*:*:*:*:windows:*:*",
 		},
 		{
 			software: fleet.Software{
