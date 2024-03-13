@@ -44,7 +44,7 @@
           <div class="form-group">
             <label for="primaryBuyingSituation">What will you be using Fleet for? *</label>
             <div class="selectbox">
-            <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation">
+            <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation" @input="typeClearOneFormError('primaryBuyingSituation')">
               <option disabled hidden value="undefined">Choose an option</option>
               <option value="endpoint-ops-security">Endpoint operations for security engineers</option>
               <option value="endpoint-ops-it">Endpoint operations for IT admins</option>
