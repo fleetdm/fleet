@@ -144,12 +144,12 @@ module "firehose-logging" {
 
 ## MDM Secret payload
 
-# See https://github.com/fleetdm/fleet/blob/2a15df3b8c617506bfb9ef991cdbbb081750d1f8/terraform/addons/mdm/README.md#abm
+# See https://github.com/fleetdm/fleet/blob/tf-mod-addon-mdm-v2.0.0/terraform/addons/mdm/README.md#abm
 # Per that document, both Windows and Mac will use the same SCEP secret under the hood.
 
 
 # module "mdm" {
-#   source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=mdm-module-naming"
+#   source             = "github.com/fleetdm/fleet//terraform/addons/mdm?ref=tf-mod-addon-mdm-v2.0.0"
 #   # Set apn_secret_name = null if not using mac mdm
 #   apn_secret_name    = "fleet-apn"
 #   scep_secret_name   = "fleet-scep"
