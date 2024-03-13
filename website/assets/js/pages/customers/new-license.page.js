@@ -81,6 +81,12 @@ parasails.registerPage('new-license', {
       await this.forceRender();
     },
 
+    clickClearOneFormError: async function(field) {
+      if(this.formErrors[field]){
+        this.formErrors = _.omit(this.formErrors, field);
+      }
+    },
+
     clickScheduleDemo: async function() {
       this.syncing = true;
       // Note: we keep loading spinner present indefinitely so that it is apparent that a new page is loading
