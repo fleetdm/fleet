@@ -489,6 +489,9 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				Zendesk: []*fleet.ZendeskIntegration{
 					{APIToken: "zendesktoken"},
 				},
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+					{PrivateKey: "google-calendar-private-key"},
+				},
 			},
 		}, nil
 	}
@@ -566,6 +569,7 @@ func TestAppConfigSecretsObfuscated(t *testing.T) {
 				require.Equal(t, ac.SMTPSettings.SMTPPassword, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Jira[0].APIToken, fleet.MaskedPassword)
 				require.Equal(t, ac.Integrations.Zendesk[0].APIToken, fleet.MaskedPassword)
+				require.Equal(t, ac.Integrations.GoogleCalendar[0].PrivateKey, fleet.MaskedPassword)
 			}
 		})
 	}

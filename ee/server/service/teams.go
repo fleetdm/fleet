@@ -6,6 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
+	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1068,6 +1070,15 @@ func (svc *Service) editTeamFromSpec(
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
 		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
+
+	if spec.Integrations.GoogleCalendar != nil {
+		err = svc.validateTeamCalendarIntegrations(ctx, team, spec.Integrations.GoogleCalendar, appCfg, invalid)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
+		}
+		team.Config.Integrations.GoogleCalendar = spec.Integrations.GoogleCalendar
+	}
+
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
 	}
@@ -1124,11 +1135,70 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if didUpdateMacOSEndUserAuth {
-		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
+		if err := svc.updateMacOSSetupEnableEndUserAuth(
+			ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name,
+		); err != nil {
 			return err
 		}
 	}
 
+	return nil
+}
+
+func (svc *Service) validateTeamCalendarIntegrations(
+	ctx context.Context, team *fleet.Team, calendarIntegration *fleet.TeamGoogleCalendarIntegration,
+	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
+) error {
+	if !calendarIntegration.Enable {
+		return nil
+	}
+	// Validate email
+	emailValid := false
+	calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
+	for _, globalCals := range appCfg.Integrations.GoogleCalendar {
+		if globalCals.Email == calendarIntegration.Email {
+			emailValid = true
+			break
+		}
+	}
+	if !emailValid {
+		invalid.Append("integrations.google_calendar.email", "email must match a global Google Calendar integration email")
+	}
+	// Validate URL
+	if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {
+		invalid.Append("integrations.google_calendar.webhook_url", err.Error())
+	} else if u.Scheme != "https" && u.Scheme != "http" {
+		invalid.Append("integrations.google_calendar.webhook_url", "webhook_url must be https or http")
+	}
+	// Validate policy ids
+	if len(calendarIntegration.Policies) == 0 {
+		invalid.Append("integrations.google_calendar.policies", "policies are required")
+	}
+	if len(calendarIntegration.Policies) > 0 {
+		for _, policy := range calendarIntegration.Policies {
+			policy.Name = strings.TrimSpace(policy.Name)
+		}
+		calendarIntegration.Policies = server.RemoveDuplicatesFromSlice(calendarIntegration.Policies)
+		policyNames := make([]string, 0, len(calendarIntegration.Policies))
+		for _, policy := range calendarIntegration.Policies {
+			policyNames = append(policyNames, policy.Name)
+		}
+		// Policies must be team policies. Global policies are not allowed.
+		policyMap, err := svc.ds.PoliciesByName(ctx, policyNames, team.ID)
+		if err != nil {
+			level.Error(svc.logger).Log("msg", "error getting policies by name", "names", policyNames, "err", err)
+			if fleet.IsNotFound(err) {
+				invalid.Append("integrations.google_calendar.policies[].name", "name is invalid")
+			} else {
+				return err
+			}
+		} else {
+			// PoliciesByName guarantees that all policies are present
+			for _, policy := range calendarIntegration.Policies {
+				policy.ID = policyMap[policy.Name].ID
+			}
+		}
+	}
 	return nil
 }
 
