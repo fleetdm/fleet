@@ -1587,17 +1587,6 @@ ON DUPLICATE KEY UPDATE
 	return nil
 }
 
-// set this in tests to simulate an error at various stages in the
-// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
-// it will be in the insert/upsert stage, "delete" for deletion, "select" to
-// load existing ones, "reselect" to reload existing ones after insert, and
-// "labels" to simulate an error in batch setting the profile label
-// associations. "inselect", "inreselect", "indelete", etc. can also be used to
-// fail the sqlx.In before the corresponding statement.
-//
-//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
-var testBatchSetMDMWindowsProfilesErr string
-
 // batchSetMDMWindowsProfilesDB must be called from inside a transaction.
 func (ds *Datastore) batchSetMDMWindowsProfilesDB(
 	ctx context.Context,
@@ -1668,15 +1657,15 @@ ON DUPLICATE KEY UPDATE
 	if len(incomingNames) > 0 {
 		// load existing profiles that match the incoming profiles by name
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "inselect") {
+		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inselect") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "build query to load existing profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "select") {
+		if err := sqlx.SelectContext(ctx, tx, &existingProfiles, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "select") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "load existing profiles")
 		}
@@ -1698,22 +1687,22 @@ ON DUPLICATE KEY UPDATE
 	// delete the obsolete profiles (all those that are not in keepNames)
 	if len(keepNames) > 0 {
 		stmt, args, err = sqlx.In(deleteProfilesNotInList, profTeamID, keepNames)
-		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "indelete") {
+		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "indelete") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
 		}
-		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "delete") {
+		if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "delete") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "delete obsolete profiles")
 		}
 	} else {
-		if _, err := tx.ExecContext(ctx, deleteAllProfilesForTeam, profTeamID); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "delete") {
+		if _, err := tx.ExecContext(ctx, deleteAllProfilesForTeam, profTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "delete") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "delete all profiles for team")
 		}
@@ -1721,9 +1710,9 @@ ON DUPLICATE KEY UPDATE
 
 	// insert the new profiles and the ones that have changed
 	for _, p := range incomingProfs {
-		if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name, p.SyncML); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "insert") {
+		if _, err := tx.ExecContext(ctx, insertNewOrEditedProfile, profTeamID, p.Name, p.SyncML); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "insert") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrapf(ctx, err, "insert new/edited profile with name %q", p.Name)
 		}
@@ -1738,15 +1727,15 @@ ON DUPLICATE KEY UPDATE
 		var newlyInsertedProfs []*fleet.MDMWindowsConfigProfile
 		// load current profiles (again) that match the incoming profiles by name to grab their uuids
 		stmt, args, err := sqlx.In(loadExistingProfiles, profTeamID, incomingNames)
-		if err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "inreselect") {
+		if err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "inreselect") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "build query to load newly inserted profiles")
 		}
-		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "reselect") {
+		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedProfs, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "reselect") {
 			if err == nil {
-				err = errors.New(testBatchSetMDMWindowsProfilesErr)
+				err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 			}
 			return ctxerr.Wrap(ctx, err, "load newly inserted profiles")
 		}
@@ -1765,9 +1754,9 @@ ON DUPLICATE KEY UPDATE
 	}
 
 	// insert/delete the label associations
-	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "windows"); err != nil || strings.HasPrefix(testBatchSetMDMWindowsProfilesErr, "labels") {
+	if err := batchSetProfileLabelAssociationsDB(ctx, tx, incomingLabels, "windows"); err != nil || strings.HasPrefix(ds.testBatchSetMDMWindowsProfilesErr, "labels") {
 		if err == nil {
-			err = errors.New(testBatchSetMDMWindowsProfilesErr)
+			err = errors.New(ds.testBatchSetMDMWindowsProfilesErr)
 		}
 		return ctxerr.Wrap(ctx, err, "inserting windows profile label associations")
 	}
