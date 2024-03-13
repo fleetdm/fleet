@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240304143416, Down_20240304143416)
+	MigrationClient.AddMigration(Up_20240313143416, Down_20240313143416)
 }
 
-func Up_20240304143416(tx *sql.Tx) error {
+func Up_20240313143416(tx *sql.Tx) error {
 	stmt := `ALTER TABLE scripts DROP COLUMN script_contents`
 	if _, err := tx.Exec(stmt); err != nil {
 		return fmt.Errorf("remove scripts.script_contents column: %w", err)
@@ -24,6 +24,6 @@ func Up_20240304143416(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240304143416(tx *sql.Tx) error {
+func Down_20240313143416(tx *sql.Tx) error {
 	return nil
 }
