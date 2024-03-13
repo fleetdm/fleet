@@ -135,6 +135,16 @@ module.exports.custom = {
     'website/scripts': 'mikermcneil',
     'website/package.json': 'eashaw',
 
+    // 🫧 Vulnerability dashboard
+    'ee/vulnerability-dashboard': 'eashaw',// (catch-all)
+    'ee/vulnerability-dashboard/assets': 'eashaw',
+    'ee/vulnerability-dashboard/views': 'eashaw',
+    'ee/vulnerability-dashboard/api': 'mikermcneil',//« Vulnerability dashboard backend, scripts, deps
+    'ee/vulnerability-dashboard/config': 'mikermcneil',
+    'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
+    'ee/vulnerability-dashboard/scripts': 'mikermcneil',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
+
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
     // 'handbook/company/pricing-features-table.yml': '',    // « Covered in CODEOWNERS (2023-07-22)
@@ -187,6 +197,7 @@ module.exports.custom = {
     'schema': ['eashaw'],// (Osquery table schema)
     'ee/cis': ['sharon-fdm', 'lucasmrod', 'rachelElysia', 'rachaelshaw'],
 
+
     // Articles and release notes
     'CHANGELOG.md': ['zwass', 'mikermcneil', 'spokanemac', 'noahtalerman', 'lukeheath'],
     'articles': ['mike-j-thomas', 'mike-j-thomas', 'eashaw', 'zwass', 'mikermcneil', 'spokanemac'],
@@ -201,6 +212,13 @@ module.exports.custom = {
     'website/config/routes.js': ['eashaw', 'mike-j-thomas'],// (for managing website URLs)
     'website/config/policies.js': ['eashaw', 'mikermcneil'],// (for adding new pages and managing permissions)
     'website/api/controllers/imagine': ['eashaw', 'mike-j-thomas'],// landing pages
+
+    // 🫧 Vulnerability dashboard
+    'ee/vulnerability-dashboard': 'mikermcneil',// (catch-all)
+    'ee/vulnerability-dashboard/assets': 'eashaw',
+    'ee/vulnerability-dashboard/views': 'eashaw',
+    'ee/vulnerability-dashboard/config/routes.js': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'eashaw',
 
     // Other brandfronts
     'README.md': ['mikermcneil', 'mike-j-thomas', 'zwass'],//« github brandfront (github.com/fleetdm/fleet)

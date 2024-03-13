@@ -48,7 +48,7 @@ const PacksTable = ({
   }, [packs, searchString, setFilteredPacks]);
 
   const onQueryChange = useCallback(
-    (queryData) => {
+    (queryData: any) => {
       const { searchQuery } = queryData;
       setSearchString(searchQuery);
     },

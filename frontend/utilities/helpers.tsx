@@ -858,14 +858,18 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) => (
+): JSX.Element => (
   <>
     {original.slice(0, prefixLength)}...
     {original.slice(original.length - suffixLength)} <em>(truncated)</em>
   </>
 );
 
-export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+export const getUniqueColumnNamesFromRows = <
+  T extends Record<keyof T, unknown>
+>(
+  rows: T[]
+) =>
   // rows of type {col:val, col:val, ...}[]
   // cannot type more narrowly due to loose typing of websocket API and use of this function
   // by QueryResultsTableConfig, where results come from that API
@@ -873,11 +877,10 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   Array.from(
     rows.reduce(
       (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set()
+        Object.keys(row).reduce((accInner, colNameInRow) => {
+          return accInner.add(colNameInRow as keyof T);
+        }, accOuter),
+      new Set<keyof T>()
     )
   );
 
