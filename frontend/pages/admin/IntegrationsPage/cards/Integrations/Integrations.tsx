@@ -133,9 +133,17 @@ const Integrations = (): JSX.Element => {
       // Updates either integrations.jira or integrations.zendesk
       const destination = () => {
         if (integrationDestination === "jira") {
-          return { jira: integrationSubmitData, zendesk: zendeskIntegrations };
+          return {
+            jira: integrationSubmitData,
+            zendesk: zendeskIntegrations,
+            google_calendar: integrations?.google_calendar,
+          };
         }
-        return { zendesk: integrationSubmitData, jira: jiraIntegrations };
+        return {
+          zendesk: integrationSubmitData,
+          jira: jiraIntegrations,
+          google_calendar: integrations?.google_calendar,
+        };
       };
 
       setTestingConnection(true);

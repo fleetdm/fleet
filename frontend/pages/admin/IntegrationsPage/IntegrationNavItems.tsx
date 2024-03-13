@@ -4,6 +4,7 @@ import { ISideNavItem } from "../components/SideNav/SideNav";
 import Integrations from "./cards/Integrations";
 import Mdm from "./cards/MdmSettings/MdmSettings";
 import AutomaticEnrollment from "./cards/AutomaticEnrollment/AutomaticEnrollment";
+import Calendars from "./cards/Calendars/Calendars";
 
 const getFilteredIntegrationSettingsNavItems = (
   isSandboxMode = false
@@ -28,6 +29,12 @@ const getFilteredIntegrationSettingsNavItems = (
       urlSection: "automatic-enrollment",
       path: PATHS.ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT,
       Card: AutomaticEnrollment,
+    },
+    {
+      title: "Calendars",
+      urlSection: "calendars",
+      path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
+      Card: Calendars,
     },
   ].filter((navItem) => !navItem.exclude);
 };
