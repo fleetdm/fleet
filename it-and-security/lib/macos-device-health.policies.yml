@@ -17,18 +17,18 @@
   resolution: An an IT admin, deploy a macOS, login window profile with the DisableGuestAccount option set to true.
   platform: darwin
 - name: macOS - Require 10 character password
-  query: SELECT 1 WHERE 
+  query: SELECT 1 WHERE
     EXISTS (
-      SELECT 1 FROM managed_policies WHERE 
-        domain='com.apple.screensaver' AND 
-        name='askForPassword' AND 
-        CAST(value AS INT)
-    ) 
-    AND EXISTS (
-      SELECT 1 FROM managed_policies WHERE 
-        domain='com.apple.screensaver' AND 
-        name='minLength' AND 
-        CAST(value AS INT) <= 10
+      SELECT 1 FROM plist WHERE 
+        path='/Library/Preferences/com.apple.loginwindow.plist' AND 
+        key='GuestEnabled' AND 
+        value = 0
+    )
+    OR EXISTS ( 
+      SELECT 1 FROM plist WHERE 
+        path='/Library/Preferences/com.apple.MCX.plist' AND 
+        key='DisableGuestAccount' AND 
+        value = 1
     );
   critical: false
   description: This policy checks if the end user is required to enter a password, with at least 10 characters, to unlock the host.
