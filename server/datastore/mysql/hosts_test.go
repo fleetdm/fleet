@@ -2554,7 +2554,6 @@ func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
 	h, err = ds.HostLiteByID(context.Background(), 0)
 	assert.ErrorIs(t, err, sql.ErrNoRows)
 	assert.Nil(t, h)
-
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -2795,7 +2794,6 @@ func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
 	assert.Equal(t, 2, total)
 	require.Len(t, unseen, 1)
 	assert.Equal(t, host3.ID, unseen[0])
-
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
@@ -6575,6 +6573,23 @@ func testHostsDeleteHosts(t *testing.T, ds *Datastore) {
           INSERT INTO host_mdm_actions (host_id, lock_ref, wipe_ref)
           VALUES (?, uuid(), uuid())
 	`, host.ID)
+	require.NoError(t, err)
+
+	// Add a calendar event for the host.
+	_, err = ds.writer(context.Background()).Exec(`
+		          INSERT INTO calendar_events (email, start_time, end_time, event)
+		          VALUES ('foobar@example.com', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, '{}');
+			`)
+	require.NoError(t, err)
+	var calendarEventID int
+	err = ds.writer(context.Background()).Get(&calendarEventID, `
+		          SELECT id FROM calendar_events WHERE email = 'foobar@example.com';
+			`)
+	require.NoError(t, err)
+	_, err = ds.writer(context.Background()).Exec(`
+		          INSERT INTO host_calendar_events (host_id, calendar_event_id, webhook_status)
+		          VALUES (?, ?, 1);
+			`, host.ID, calendarEventID)
 	require.NoError(t, err)
 
 	// Check there's an entry for the host in all the associated tables.
