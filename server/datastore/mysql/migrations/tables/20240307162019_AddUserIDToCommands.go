@@ -29,11 +29,11 @@ func Up_20240307162019(tx *sql.Tx) error {
 			ADD COLUMN fleet_owned tinyint(1) DEFAULT NULL
 
 			-- this check is only parsed in MySQL 8+
-			CHECK (
-			  (user_id IS NOT NULL AND fleet_owned = 0) OR
-			  (user_id IS NULL AND fleet_owned = 1) OR
-			  (user_id IS NULL AND fleet_ownded IS NULL)
-			)`, t))
+		--	CHECK (
+		--	  (user_id IS NOT NULL AND fleet_owned = 0) OR
+		--	  (user_id IS NULL AND fleet_owned = 1) OR
+		--	  (user_id IS NULL AND fleet_ownded IS NULL)
+		--	)`, t))
 		if err != nil {
 			return fmt.Errorf("failed to add user_id and fleet_owned to %s: %w", t, err)
 		}

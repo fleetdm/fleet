@@ -82,6 +82,28 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
+	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
+	// existing ones, "reselect" to reload existing ones after insert, and "labels"
+	// to simulate an error in batch setting the profile label associations.
+	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
+	// sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
+	testBatchSetMDMAppleProfilesErr string
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
+	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
+	// load existing ones, "reselect" to reload existing ones after insert, and
+	// "labels" to simulate an error in batch setting the profile label
+	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
+	// fail the sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
+	testBatchSetMDMWindowsProfilesErr string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -867,6 +889,14 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 // filterTableAlias is the name/alias of the table to use in generating the
 // SQL.
 func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
+	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
+}
+
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+	filter fleet.TeamFilter, globalSqlFilter string, teamIDSqlFilter string,
+) string {
 	if filter.User == nil {
 		// This is likely unintentional, however we would like to return no
 		// results rather than panicking or returning some other error. At least
@@ -875,9 +905,9 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	defaultAllowClause := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	defaultAllowClause := globalSqlFilter
 	if filter.TeamID != nil {
-		defaultAllowClause = fmt.Sprintf("%s.team_id = %d", filterTableAlias, *filter.TeamID)
+		defaultAllowClause = fmt.Sprintf("%s = %d", teamIDSqlFilter, *filter.TeamID)
 	}
 
 	if filter.User.GlobalRole != nil {
@@ -922,7 +952,7 @@ func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, f
 		return "FALSE"
 	}
 
-	return fmt.Sprintf("%s.team_id IN (%s)", filterTableAlias, strings.Join(idStrs, ","))
+	return fmt.Sprintf("%s IN (%s)", teamIDSqlFilter, strings.Join(idStrs, ","))
 }
 
 // whereFilterTeams returns the appropriate condition to use in the WHERE
