@@ -174,7 +174,7 @@ var hostDetailQueries = map[string]DetailQuery{
 	"os_version_windows": {
 		Query: `
 		SELECT os.name, r.data as display_version, k.version
-		FROM 
+		FROM
 			registry r,
 			os_version os,
 			kernel_info k

@@ -1903,7 +1903,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMAppleSettings(ctx, fleet.MDMAppleSettingsPayload{TeamID: tt.teamID})
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return

@@ -13,17 +13,20 @@ To test these changes locally, you can:
     go run ./tools/file-server/main.go 8082 ./server/vulnerabilities/nvd/
     ```
 
-3. (re)launch your local fleet server with the following `--config`
+3. (re)launch your local fleet server with one of the following
 
+    Config method
     ```yaml
     vulnerabilities:
     cpe_translations_url: "http://localhost:8082/cpe_translations.json"
     ```
+    
+    Environment method
+    ```bash
+    FLEET_VULNERABILITIES_CPE_TRANSLATIONS_URL="http://localhost:8082/cpe_translations.json" ./build/fleet serve --dev --dev_license --logging_debug
+    ```
 
-    (You can also use the following cli argument: `--vulnerabilities_cpe_translations_url=http://localhost:8082/cpe_translations.json`.)
-
-4. trigger the vulnerabilities scan
-
+4. trigger a vulnerabilities scan
     ```bash
     fleetctl trigger --name vulnerabilities
     ```

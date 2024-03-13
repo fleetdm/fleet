@@ -349,5 +349,15 @@
       "product": ["pull_requests_and_issues"],
       "vendor": ["github"]
     }
+  },
+  {
+    "software": {
+      "name": ["Microsoft Edge"],
+      "source": ["programs", "apps"]
+    },
+    "filter": {
+      "product": ["edge_chromium"],
+      "vendor": ["microsoft"]
+    }
   }
 ]

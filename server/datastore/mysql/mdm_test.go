@@ -3063,8 +3063,8 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
 			t.Cleanup(func() {
-				testBatchSetMDMAppleProfilesErr = ""
-				testBatchSetMDMWindowsProfilesErr = ""
+				ds.testBatchSetMDMAppleProfilesErr = ""
+				ds.testBatchSetMDMWindowsProfilesErr = ""
 			})
 
 			appleProfs := []*fleet.MDMAppleConfigProfile{
@@ -3089,8 +3089,8 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 				windowsConfigProfileForTest(t, "W3", "l3", lbl),
 			}
 			// setup the expected errors
-			testBatchSetMDMAppleProfilesErr = c.appleErr
-			testBatchSetMDMWindowsProfilesErr = c.windowsErr
+			ds.testBatchSetMDMAppleProfilesErr = c.appleErr
+			ds.testBatchSetMDMWindowsProfilesErr = c.windowsErr
 
 			err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs)
 			require.ErrorContains(t, err, c.wantErr)
