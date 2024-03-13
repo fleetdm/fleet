@@ -11,14 +11,14 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 )
 
-func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command, userID *uint, fleetInitiated bool) error {
+func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command, userPeristentInfoID *uint, fleetOwned bool) error {
 	if len(ids) < 1 {
 		return errors.New("no id(s) supplied to queue command to")
 	}
 	_, err := tx.ExecContext(
 		ctx,
-		`INSERT INTO nano_commands (command_uuid, request_type, command, user_id, fleet_initiated) VALUES (?, ?, ?, ?, ?);`,
-		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw, userID, fleetInitiated,
+		`INSERT INTO nano_commands (command_uuid, request_type, command, user_persistent_info_id, fleet_owned) VALUES (?, ?, ?, ?, ?);`,
+		cmd.CommandUUID, cmd.Command.RequestType, cmd.Raw, userPeristentInfoID, fleetOwned,
 	)
 	if err != nil {
 		return err
@@ -34,17 +34,17 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command, us
 	return err
 }
 
-func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command, userID *uint, fleetIntitiated bool) (map[string]error, error) {
+func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command, userPersistentInfoID *uint, fleetOwned bool) (map[string]error, error) {
 	var x uint
-	if userID == nil {
-		userID = &x
+	if userPersistentInfoID == nil {
+		userPersistentInfoID = &x
 	}
-	slog.With("filename", "server/mdm/nanomdm/storage/mysql/queue.go", "func", "EnqueueCommand").Info("JVE_LOG: or are we here instead ", "cmdUUID", cmd.CommandUUID, "userID", *userID, "fi", fleetIntitiated)
+	slog.With("filename", "server/mdm/nanomdm/storage/mysql/queue.go", "func", "EnqueueCommand").Info("JVE_LOG: or are we here instead ", "cmdUUID", cmd.CommandUUID, "userID", *userPersistentInfoID, "fi", fleetOwned)
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
-	if err = enqueue(ctx, tx, ids, cmd, userID, fleetIntitiated); err != nil {
+	if err = enqueue(ctx, tx, ids, cmd, userPersistentInfoID, fleetOwned); err != nil {
 		if rbErr := tx.Rollback(); rbErr != nil {
 			return nil, fmt.Errorf("rollback error: %w; while trying to handle error: %v", rbErr, err)
 		}
@@ -54,7 +54,15 @@ func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *md
 }
 
 func (m *MySQLStorage) GetProfileUserID(ctx context.Context, ident string) (uint, error) {
-	stmt := `SELECT user_id FROM activities WHERE activity_type = "created_macos_profile" AND JSON_EXTRACT(details, "$.profile_identifier") = ?`
+	stmt := `
+SELECT
+	upi.user_id AS user_id
+FROM
+	user_persistent_info upi
+	JOIN mdm_apple_configuration_profiles macp ON macp.user_persistent_info_id = upi.id
+WHERE
+	macp.identifier = ?;
+	`
 	var userID uint
 	err := m.db.QueryRowContext(
 		ctx, stmt,

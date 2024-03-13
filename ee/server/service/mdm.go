@@ -191,7 +191,7 @@ func (svc *Service) MDMAppleEnableFileVaultAndEscrow(ctx context.Context, teamID
 		return ctxerr.Wrap(ctx, err, "enabling FileVault")
 	}
 
-	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	_, err = svc.ds.NewMDMAppleConfigProfile(ctx, *cp, nil) // nil because this profile is fleet-owned
 	return ctxerr.Wrap(ctx, err, "enabling FileVault")
 }
 
@@ -733,7 +733,6 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 		appConfig.ServerSettings.ServerURL,
 		appConfig.ServerSettings.ServerURL+svc.config.Server.URLPrefix+"/api/v1/fleet/mdm/sso/callback",
 	)
-
 	if err != nil {
 		return "", "", "", ctxerr.Wrap(ctx, err, "validating sso response")
 	}

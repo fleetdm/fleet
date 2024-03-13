@@ -313,6 +313,11 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 		return nil, ctxerr.Wrap(ctx, err)
 	}
 
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, fleet.ErrNoContext
+	}
+
 	// check that Apple MDM is enabled - the middleware of that endpoint checks
 	// only that any MDM is enabled, maybe it's just Windows
 	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
@@ -354,7 +359,9 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	}
 	cp.Labels = labelMap
 
-	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp)
+	userID := vc.UserID()
+
+	newCP, err := svc.ds.NewMDMAppleConfigProfile(ctx, *cp, &userID)
 	if err != nil {
 		var existsErr existsErrorInterface
 		if errors.As(err, &existsErr) {

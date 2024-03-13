@@ -55,7 +55,7 @@ type PushCertStore interface {
 
 // CommandEnqueuer is able to enqueue MDM commands.
 type CommandEnqueuer interface {
-	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command, userID *uint, fleetInitiated bool) (map[string]error, error)
+	EnqueueCommand(ctx context.Context, id []string, cmd *mdm.Command, userPersistentInfoID *uint, fleetOwned bool) (map[string]error, error)
 	GetProfileUserID(ctx context.Context, ident string) (uint, error) // TODO(JVE): is this the right place?
 }
 

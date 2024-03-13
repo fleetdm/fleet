@@ -544,7 +544,7 @@ var appleMDMPremiumCommands = map[string]bool{
 	"DeviceLock":  true,
 }
 
-func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string, userID *uint, fleetInitiated bool) (result *fleet.CommandEnqueueResult, err error) {
+func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte, deviceIDs []string, userPersistentInfoID *uint, fleetOwned bool) (result *fleet.CommandEnqueueResult, err error) {
 	cmd, err := nanomdm.DecodeCommand(rawXMLCmd)
 	if err != nil {
 		err = fleet.NewInvalidArgumentError("command", "unable to decode plist command").WithStatus(http.StatusUnsupportedMediaType)
@@ -561,7 +561,7 @@ func (svc *Service) enqueueAppleMDMCommand(ctx context.Context, rawXMLCmd []byte
 		}
 	}
 
-	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd), userID, fleetInitiated); err != nil {
+	if err := svc.mdmAppleCommander.EnqueueCommand(ctx, deviceIDs, string(rawXMLCmd), userPersistentInfoID, fleetOwned); err != nil {
 		// if at least one UUID enqueued properly, return success, otherwise return
 		// error
 		var apnsErr *apple_mdm.APNSDeliveryError
