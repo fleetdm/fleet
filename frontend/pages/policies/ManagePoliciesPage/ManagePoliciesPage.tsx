@@ -44,6 +44,7 @@ import PoliciesTable from "./components/PoliciesTable";
 import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
+import CalendarEventsModal from "./components/CalendarEventsModal";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -132,6 +133,7 @@ const ManagePolicyPage = ({
   const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
+  const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
 
   const [teamPolicies, setTeamPolicies] = useState<IPolicyStats[]>();
   const [inheritedPolicies, setInheritedPolicies] = useState<IPolicyStats[]>();
@@ -353,6 +355,13 @@ const ManagePolicyPage = ({
     }
   );
 
+  // wip.../TODO
+  // let calendarConfigured = false;
+  // const googleCalendarGlobalConfig = config?.integrations.google_calendar;
+  // if (typeof googleCalendarGlobalConfig
+  //   isGlobalCalendarConfig(googleCalendarGlobalConfig) &&
+  //   googleCalendarGlobalConfig.length > 0;
+
   const {
     data: teamConfig,
     isFetching: isFetchingTeamConfig,
@@ -485,6 +494,10 @@ const ManagePolicyPage = ({
 
   const toggleDeletePolicyModal = () =>
     setShowDeletePolicyModal(!showDeletePolicyModal);
+
+  const toggleCalendarEventsModal = () => {
+    setShowCalendarEventsModal(!showCalendarEventsModal);
+  };
 
   const toggleShowInheritedPolicies = () => {
     // URL source of truth
@@ -822,6 +835,24 @@ const ManagePolicyPage = ({
             onSubmit={onDeletePolicySubmit}
           />
         )}
+        {/* {showCalendarEventsModal && ( */}
+        <CalendarEventsModal
+          onExit={toggleCalendarEventsModal}
+          onSubmit={() => <>{/* TODO */}</>}
+          // configured={config?.integrations.google_calendar}
+          configured
+          // TODO - narrow that type!
+          // enabled={
+          //   teamConfig?.integrations.google_calendar?.enable_calendar_events
+          // }
+          enabled
+          // TODO
+          url="https://google.com"
+          // TODO
+          policies={[]}
+          enabledPolicies={[]}
+        />
+        {/* )} */}
       </div>
     </MainContent>
   );

@@ -60,7 +60,24 @@ export interface IIntegrationFormErrors {
   enableSoftwareVulnerabilities?: boolean;
 }
 
+export interface IGlobalCalendarIntegration {
+  email: string;
+  private_key: string;
+  domain: string;
+}
+
+interface ITeamCalendarServiceAccount {
+  email: string;
+  enable_calendar_events: boolean;
+  policies: { name: string; id: number }[];
+}
+
 export interface IIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
+  // global setting may have more than one, team can only have one
+  google_calendar?:
+    | IGlobalCalendarIntegration[]
+    | ITeamCalendarServiceAccount
+    | null;
 }
