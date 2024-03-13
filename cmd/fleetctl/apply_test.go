@@ -143,8 +143,19 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
+	googleCalEmail := "service-valid@example.com"
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
-		return &fleet.AppConfig{AgentOptions: &agentOpts, MDM: fleet.MDM{EnabledAndConfigured: true}}, nil
+		return &fleet.AppConfig{
+			AgentOptions: &agentOpts,
+			MDM:          fleet.MDM{EnabledAndConfigured: true},
+			Integrations: fleet.Integrations{
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
+					{
+						Email: googleCalEmail,
+					},
+				},
+			},
+		}, nil
 	}
 
 	ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
@@ -439,6 +450,109 @@ spec:
 			HostPercentage: 25,
 		}, *teamsByName["team1"].Config.WebhookSettings.HostStatusWebhook,
 	)
+
+	// Apply calendar integration
+	validPolicyID := uint(10)
+	validPolicyName := "validPolicy"
+	ds.PoliciesByNameFunc = func(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
+		var policies = make(map[string]*fleet.Policy)
+		for _, name := range names {
+			if name != validPolicyName {
+				return nil, &notFoundError{}
+			}
+			policies[name] = &fleet.Policy{
+				PolicyData: fleet.PolicyData{ID: validPolicyID, TeamID: &teamsByName["team1"].ID, Name: validPolicyName},
+			}
+		}
+		return policies, nil
+	}
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    integrations:
+      google_calendar:
+        email: `+googleCalEmail+`
+        enable_calendar_events: true
+        policies:
+          - name: `+validPolicyName+`
+        webhook_url: https://example.com/webhook
+`,
+	)
+	require.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
+	require.NotNil(t, teamsByName["team1"].Config.Integrations.GoogleCalendar)
+	assert.Equal(
+		t, fleet.TeamGoogleCalendarIntegration{
+			Email:      googleCalEmail,
+			Enable:     true,
+			Policies:   []*fleet.PolicyRef{{Name: validPolicyName, ID: validPolicyID}},
+			WebhookURL: "https://example.com/webhook",
+		}, *teamsByName["team1"].Config.Integrations.GoogleCalendar,
+	)
+
+	// Apply calendar integration -- invalid email
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    integrations:
+      google_calendar:
+        email: not_present_globally@example.com
+        enable_calendar_events: true
+        policies:
+          - name: `+validPolicyName+`
+        webhook_url: https://example.com/webhook
+`,
+	)
+
+	_, err = runAppNoChecks([]string{"apply", "-f", filename})
+	assert.ErrorContains(t, err, "email must match a global Google Calendar integration email")
+
+	// Apply calendar integration -- invalid policy name
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    integrations:
+      google_calendar:
+        email: `+googleCalEmail+`
+        enable_calendar_events: true
+        policies:
+          - name: invalidPolicy
+        webhook_url: https://example.com/webhook
+`,
+	)
+	_, err = runAppNoChecks([]string{"apply", "-f", filename})
+	assert.ErrorContains(t, err, "name is invalid")
+
+	// Apply calendar integration -- invalid webhook destination
+	filename = writeTmpYml(
+		t, `
+apiVersion: v1
+kind: team
+spec:
+  team:
+    name: team1
+    integrations:
+      google_calendar:
+        email: `+googleCalEmail+`
+        enable_calendar_events: true
+        policies:
+          - name: `+validPolicyName+`
+        webhook_url: bozo
+`,
+	)
+	_, err = runAppNoChecks([]string{"apply", "-f", filename})
+	assert.ErrorContains(t, err, "invalid URI for request")
 }
 
 func writeTmpYml(t *testing.T, contents string) string {
