@@ -1146,6 +1146,10 @@ func testPoliciesByName(t *testing.T, ds *Datastore) {
 	assert.Equal(t, policiesByName[policyName1].Name, policy1.Name)
 	assert.Equal(t, policiesByName[policyName2].Name, policy2.Name)
 
+	// Policy does not exist
+	_, err = ds.PoliciesByName(context.Background(), []string{"doesn't exist"}, team1.ID)
+	assert.ErrorAs(t, err, &nfe)
+
 	// One exists and one doesn't
 	_, err = ds.PoliciesByName(context.Background(), []string{policyName1, "doesn't exist"}, team1.ID)
 	assert.ErrorAs(t, err, &nfe)

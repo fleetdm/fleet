@@ -458,7 +458,7 @@ spec:
 		var policies = make(map[string]*fleet.Policy)
 		for _, name := range names {
 			if name != validPolicyName {
-				return nil, errors.New("policy not found")
+				return nil, &notFoundError{}
 			}
 			policies[name] = &fleet.Policy{
 				PolicyData: fleet.PolicyData{ID: validPolicyID, TeamID: &teamsByName["team1"].ID, Name: validPolicyName},
