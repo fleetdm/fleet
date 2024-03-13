@@ -39,7 +39,9 @@ const CommandResult = ({ result, hostname, status }: ICommandResultProps) => {
   return (
     <div className={`${baseClass}__command-result`}>
       <div>{status}</div>
-      <p>The result from {hostname}:</p>
+      <p>
+        The result from <b>{hostname}</b>:
+      </p>
       <Textarea className={`${baseClass}__result-textarea`}>
         {atob(result)}
       </Textarea>
@@ -126,6 +128,7 @@ const ActivityDetailsModal = ({
         />
       );
     } else if (data) {
+      console.log(data);
       content = (
         <>
           <CommandPayload payload={data.payload} />
