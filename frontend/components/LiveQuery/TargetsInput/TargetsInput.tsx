@@ -20,7 +20,7 @@ interface ITargetsInputProps {
   targetedHosts: IHost[];
   setSearchText: (value: string) => void;
   handleRowSelect: (value: Row) => void;
-  handleRowRemove: (value: Row) => void;
+  handleRowRemove: (value: Row<IHost>) => void;
 }
 
 const baseClass = "targets-input";
