@@ -9,6 +9,8 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_settings:
@@ -40,6 +42,8 @@ spec:
     host_expiry_settings:
       host_expiry_enabled: false
       host_expiry_window: 0
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_settings:

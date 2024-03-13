@@ -119,7 +119,8 @@
 		},
 		"integrations": {
 			"jira": null,
-			"zendesk": null
+			"zendesk": null,
+			"google_calendar": null
 		},
 		"update_interval": {
 			"osquery_detail": "1h0m0s",
