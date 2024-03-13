@@ -7903,7 +7903,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
 
 	// invalid id
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")

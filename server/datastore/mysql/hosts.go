@@ -4464,8 +4464,10 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 	)
 }
 
-func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
-	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
+func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (
+	*fleet.OSVersion, *time.Time, error,
+) {
+	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamFilter)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil, notFound("OSVersion")
@@ -4510,7 +4512,9 @@ func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *ui
 // counts for the same macOS version on x86_64 and arm64 architectures are counted together.
 // Results can be filtered using the following optional criteria: team id, platform, or name and
 // version. Name cannot be used without version, and conversely, version cannot be used without name.
-func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (ds *Datastore) OSVersions(
+	ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string,
+) (*fleet.OSVersions, error) {
 	if name != nil && version == nil {
 		return nil, errors.New("invalid usage: cannot filter by name without version")
 	}
@@ -4518,7 +4522,7 @@ func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *str
 		return nil, errors.New("invalid usage: cannot filter by version without name")
 	}
 
-	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamID)
+	jsonValue, updatedAt, err := ds.executeOSVersionQuery(ctx, teamFilter)
 	if err != nil {
 		return nil, err
 	}
@@ -4568,30 +4572,34 @@ func (ds *Datastore) OSVersions(ctx context.Context, teamID *uint, platform *str
 	return res, nil
 }
 
-func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamID *uint) (*json.RawMessage, time.Time, error) {
+func (ds *Datastore) executeOSVersionQuery(ctx context.Context, teamFilter *fleet.TeamFilter) (
+	*json.RawMessage, time.Time, error,
+) {
 	query := `
     SELECT
         json_value,
         updated_at
     FROM aggregated_stats
-    WHERE
-        id = ? AND
-        global_stats = ? AND
-        type = ?
+    WHERE type = ?
     `
+	args := []interface{}{aggregatedStatsTypeOSVersions}
+	switch {
+	case teamFilter != nil && teamFilter.TeamID != nil:
+		query += " AND id = ? AND global_stats = ?"
+		args = append(args, *teamFilter.TeamID, false)
+	case teamFilter != nil:
+		query += " AND " + ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+			*teamFilter, "global_stats = 1 AND id = 0", "global_stats = 0 AND id",
+		)
+	default:
+		query += " AND id = ? AND global_stats = ?"
+		args = append(args, 0, true)
+	}
 	var row struct {
 		JSONValue *json.RawMessage `db:"json_value"`
 		UpdatedAt time.Time        `db:"updated_at"`
 	}
-
-	id := uint(0)
-	globalStats := true
-	if teamID != nil {
-		id = *teamID
-		globalStats = false
-	}
-
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, id, globalStats, aggregatedStatsTypeOSVersions)
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &row, query, args...)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, time.Time{}, ctxerr.Wrap(ctx, notFound("OSVersion"))

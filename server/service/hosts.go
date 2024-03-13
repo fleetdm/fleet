@@ -1816,17 +1816,33 @@ func (svc *Service) OSVersions(ctx context.Context, teamID *uint, platform *stri
 		return nil, count, nil, &fleet.BadRequestError{Message: "Invalid order key"}
 	}
 
-	osVersions, err := svc.ds.OSVersions(ctx, teamID, platform, name, version)
-	if err != nil && fleet.IsNotFound(err) {
-		// differentiate case where team was added after UpdateOSVersions last ran
-		if teamID != nil && *teamID > 0 {
-			// most of the time, team should exist so checking here saves unnecessary db calls
-			_, err := svc.ds.Team(ctx, *teamID)
-			if err != nil {
-				return nil, count, nil, err
-			}
+	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, count, nil, err
 		}
-		// if team exists but stats have not yet been gathered, return empty JSON array
+		exists, err := svc.ds.TeamExists(ctx, *teamID)
+		if err != nil {
+			return nil, count, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
+		} else if !exists {
+			return nil, count, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
+		}
+	}
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, count, nil, fleet.ErrNoContext
+	}
+	osVersions, err := svc.ds.OSVersions(
+		ctx, &fleet.TeamFilter{
+			User:            vc.User,
+			IncludeObserver: true,
+			TeamID:          teamID,
+		}, platform, name, version,
+	)
+	if err != nil && fleet.IsNotFound(err) {
+		// It is possible that os exists, but aggregation job has not run yet.
 		osVersions = &fleet.OSVersions{}
 	} else if err != nil {
 		return nil, count, nil, err
@@ -1913,15 +1929,36 @@ func (svc *Service) OSVersion(ctx context.Context, osID uint, teamID *uint, incl
 	}
 
 	if teamID != nil {
+		// This auth check ensures we return 403 if the user doesn't have access to the team
+		if err := svc.authz.Authorize(ctx, &fleet.AuthzSoftwareInventory{TeamID: teamID}, fleet.ActionRead); err != nil {
+			return nil, nil, err
+		}
 		exists, err := svc.ds.TeamExists(ctx, *teamID)
 		if err != nil {
 			return nil, nil, ctxerr.Wrap(ctx, err, "checking if team exists")
 		} else if !exists {
-			return nil, nil, authz.ForbiddenWithInternal("team does not exist", nil, nil, nil)
+			return nil, nil, fleet.NewInvalidArgumentError("team_id", fmt.Sprintf("team %d does not exist", *teamID)).
+				WithStatus(http.StatusNotFound)
 		}
 	}
-	osVersion, updateTime, err := svc.ds.OSVersion(ctx, osID, teamID)
+
+	vc, ok := viewer.FromContext(ctx)
+	if !ok {
+		return nil, nil, fleet.ErrNoContext
+	}
+	osVersion, updateTime, err := svc.ds.OSVersion(
+		ctx, osID, &fleet.TeamFilter{
+			User:            vc.User,
+			IncludeObserver: true,
+			TeamID:          teamID,
+		},
+	)
 	if err != nil {
+		if fleet.IsNotFound(err) {
+			// We return an empty result here to be consistent with the fleet/os_versions behavior.
+			// It is possible the os version exists, but the aggregation job has not run yet.
+			return nil, nil, nil
+		}
 		return nil, nil, err
 	}
 
