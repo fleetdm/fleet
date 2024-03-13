@@ -1,4 +1,4 @@
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 
 // used for babel polyfills.
 import "core-js/stable";
@@ -11,6 +11,6 @@ import "./index.scss";
 if (typeof window !== "undefined") {
   const { document } = global;
   const app = document.getElementById("app");
-
-  ReactDOM.render(routes, app);
+  const root = createRoot(app);
+  root.render(routes);
 }

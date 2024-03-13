@@ -60,7 +60,7 @@ export const generateTableHeaders = (teamId: number) => {
         />
       ),
       Cell: ({ row }: IHostCellProps): JSX.Element => {
-        const { hosts_count, name_only, version } = row.original;
+        const { hosts_count } = row.original;
         return <TextCell value={hosts_count} />;
       },
     },

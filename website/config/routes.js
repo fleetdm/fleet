@@ -20,11 +20,12 @@ module.exports.routes = {
     }
   },
 
-  'GET /company/contact': {
+  'GET /contact': {
     action: 'view-contact',
     locals: {
       pageTitleForMeta: 'Contact us | Fleet',
-      pageDescriptionForMeta: 'Get in touch with our team.'
+      pageDescriptionForMeta: 'Get in touch with our team.',
+      hideFooterLinks: true,
     }
   },
 
@@ -485,7 +486,7 @@ module.exports.routes = {
   'GET /install':                    '/fleetctl-preview',
   'GET /company':                    '/company/about',
   'GET /company/about':              '/handbook', // FUTURE: brief "about" page explaining the origins of the company
-  'GET /contact':                    '/company/contact',
+  'GET /company/contact':            '/contact',
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
@@ -584,4 +585,5 @@ module.exports.routes = {
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },
+  'POST /api/v1/deliver-talk-to-us-form-submission': { action: 'deliver-talk-to-us-form-submission' },
 };
