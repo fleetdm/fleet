@@ -1504,6 +1504,8 @@ func filterHostsByMDMBootstrapPackageStatus(sql string, opt fleet.HostListOption
 		subquery += ` AND ncr.status = 'Acknowledged'`
 	}
 
+	subquery += ` AND hh.platform = 'darwin'`
+
 	newSQL := ""
 	if opt.TeamFilter == nil {
 		// macOS setup filter is not compatible with the "all teams" option so append the "no
@@ -2829,7 +2831,6 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 	}
 
 	err = sqlx.GetContext(ctx, ds.reader(ctx), &total, totalQuery, args...)
-
 	if err != nil {
 		return 0, nil, ctxerr.Wrap(ctx, err, "getting total host counts")
 	}
@@ -2848,7 +2849,6 @@ func (ds *Datastore) TotalAndUnseenHostsSince(ctx context.Context, teamID *uint,
 	}
 
 	err = sqlx.SelectContext(ctx, ds.reader(ctx), &unseen, unseenQuery, args...)
-
 	if err != nil {
 		return total, nil, ctxerr.Wrap(ctx, err, "getting unseen host counts")
 	}
@@ -4405,57 +4405,63 @@ func (ds *Datastore) UpdateHost(ctx context.Context, host *fleet.Host) error {
 			refetch_critical_queries_until = ?
 		WHERE id = ?
 	`
-	_, err := ds.writer(ctx).ExecContext(ctx, sqlStatement,
-		host.DetailUpdatedAt,
-		host.LabelUpdatedAt,
-		host.PolicyUpdatedAt,
-		host.NodeKey,
-		host.Hostname,
-		host.UUID,
-		host.Platform,
-		host.OsqueryVersion,
-		host.OSVersion,
-		host.Uptime,
-		host.Memory,
-		host.CPUType,
-		host.CPUSubtype,
-		host.CPUBrand,
-		host.CPUPhysicalCores,
-		host.HardwareVendor,
-		host.HardwareModel,
-		host.HardwareVersion,
-		host.HardwareSerial,
-		host.ComputerName,
-		host.Build,
-		host.PlatformLike,
-		host.CodeName,
-		host.CPULogicalCores,
-		host.DistributedInterval,
-		host.ConfigTLSRefresh,
-		host.LoggerTLSPeriod,
-		host.TeamID,
-		host.PrimaryIP,
-		host.PrimaryMac,
-		host.PublicIP,
-		host.RefetchRequested,
-		host.OrbitNodeKey,
-		host.RefetchCriticalQueriesUntil,
-		host.ID,
-	)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
-	}
-	_, err = ds.writer(ctx).ExecContext(ctx, `
+	return ds.withRetryTxx(
+		ctx, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(
+				ctx, sqlStatement,
+				host.DetailUpdatedAt,
+				host.LabelUpdatedAt,
+				host.PolicyUpdatedAt,
+				host.NodeKey,
+				host.Hostname,
+				host.UUID,
+				host.Platform,
+				host.OsqueryVersion,
+				host.OSVersion,
+				host.Uptime,
+				host.Memory,
+				host.CPUType,
+				host.CPUSubtype,
+				host.CPUBrand,
+				host.CPUPhysicalCores,
+				host.HardwareVendor,
+				host.HardwareModel,
+				host.HardwareVersion,
+				host.HardwareSerial,
+				host.ComputerName,
+				host.Build,
+				host.PlatformLike,
+				host.CodeName,
+				host.CPULogicalCores,
+				host.DistributedInterval,
+				host.ConfigTLSRefresh,
+				host.LoggerTLSPeriod,
+				host.TeamID,
+				host.PrimaryIP,
+				host.PrimaryMac,
+				host.PublicIP,
+				host.RefetchRequested,
+				host.OrbitNodeKey,
+				host.RefetchCriticalQueriesUntil,
+				host.ID,
+			)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "save host with id %d", host.ID)
+			}
+			_, err = tx.ExecContext(
+				ctx, `
 			UPDATE host_display_names
 			SET display_name=?
 			WHERE host_id=?`,
-		host.DisplayName(),
-		host.ID,
+				host.DisplayName(),
+				host.ID,
+			)
+			if err != nil {
+				return ctxerr.Wrapf(ctx, err, "update host_display_names for host id %d", host.ID)
+			}
+			return nil
+		},
 	)
-	if err != nil {
-		return ctxerr.Wrapf(ctx, err, "update host_display_names for host id %d", host.ID)
-	}
-	return nil
 }
 
 func (ds *Datastore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {

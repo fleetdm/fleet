@@ -23,6 +23,7 @@ func main() {
 	app.Commands = []*cli.Command{
 		orbitCommand(),
 		desktopCommand(),
+		osquerydCommand(),
 	}
 	if err := app.Run(os.Args); err != nil {
 		fmt.Fprintf(os.Stdout, "Error: %+v\n", err)
@@ -286,4 +287,54 @@ func downloadComponents(workflowName string, headBranch string, artifactNames ma
 		}
 	}
 	return nil
+}
+
+func osquerydCommand() *cli.Command {
+	var (
+		gitBranch       string
+		outputDirectory string
+		githubUsername  string
+		githubAPIToken  string
+	)
+	return &cli.Command{
+		Name:  "osqueryd",
+		Usage: "Fetch osqueryd executables from the generate-osqueryd-targets.yml action",
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:        "git-branch",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GIT_BRANCH"},
+				Required:    true,
+				Destination: &gitBranch,
+				Usage:       "branch name used to bump the osqueryd version",
+			},
+			&cli.StringFlag{
+				Name:        "output-directory",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_OUTPUT_DIRECTORY"},
+				Required:    true,
+				Destination: &outputDirectory,
+				Usage:       "name of the output directory to create and download the osqueryd executables",
+			},
+			&cli.StringFlag{
+				Name:        "github-username",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GITHUB_USERNAME"},
+				Required:    true,
+				Destination: &githubUsername,
+				Usage:       "Github username",
+			},
+			&cli.StringFlag{
+				Name:        "github-api-token",
+				EnvVars:     []string{"DOWNLOAD_ARTIFACTS_GITHUB_API_TOKEN"},
+				Required:    true,
+				Destination: &githubAPIToken,
+				Usage:       "Github API token (https://github.com/settings/tokens)",
+			},
+		},
+		Action: func(c *cli.Context) error {
+			return downloadComponents("generate-osqueryd-targets.yml", gitBranch, map[string]string{
+				"macos":   "osqueryd.app.tar.gz",
+				"linux":   "osqueryd",
+				"windows": "osqueryd.exe",
+			}, outputDirectory, githubUsername, githubAPIToken)
+		},
+	}
 }

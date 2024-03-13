@@ -44,7 +44,6 @@ const AutoSizeInputField = ({
     [`${baseClass}--disabled`]: isDisabled,
     [`${baseClass}--error`]: hasError,
     [`${baseClass}__textarea`]: true,
-    "no-value": !inputValue,
   });
 
   const inputElement = useRef<any>(null);
@@ -90,8 +89,9 @@ const AutoSizeInputField = ({
           value={inputValue}
           maxLength={maxLength}
           className={inputClasses}
-          cols={value ? value.length : placeholder.length - 2}
+          cols={1}
           rows={1}
+          tabIndex={0}
           onFocus={onInputFocus}
           onBlur={onInputBlur}
           onKeyPress={onInputKeyPress}

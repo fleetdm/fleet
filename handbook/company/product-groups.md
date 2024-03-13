@@ -22,8 +22,8 @@ At Fleet, [anyone can contribute](https://fleetdm.com/handbook/company#openness)
 
 | Product group             | Goal _(value for customers and/or community)_                       | Capacity\* |
 |:--------------------------|:--------------------------------------------------------------------|:-----------------|
-| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 74       |
-| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 52       |
+| [Endpoint ops](#endpoint-ops-group)                     | Increase and exceed maturity in the "Endpoint operations" category.             | 130       |
+| [MDM](#mdm-group)                                       | Reach maturity in the "MDM" product category.           | 130       |
 
 \* The number of estimated story points this group can take on per-sprint under ideal circumstances, used as a baseline number for planning and prioritizing user stories for drafting. In reality, capacity will vary as engineers are on-call, out-of-office, filling in for other product groups, etc.
 
@@ -52,7 +52,7 @@ The goal of the MDM group is to increase and exceed [Fleet's product maturity go
 | Product Designer                  | [Marko Lisica](https://www.linkedin.com/in/markolisica/) _([@marko-lisica](https://github.com/marko-lisica))_
 | Engineering Manager               | [George Karr](https://www.linkedin.com/in/george-karr-4977b441/) _([@georgekarrv](https://github.com/georgekarrv))_
 | Product Manager                   | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/@noahtalerman))_
-| Quality Assurance                 | [Sabrina Coy](https://www.linkedin.com/in/bricoy/) _([@sabrinabuckets](https://github.com/sabrinabuckets))_
+| Quality Assurance                 | [Position open](https://www.fleetdm.com/jobs/)
 | Developer                         | [Gabe Hernandez](https://www.linkedin.com/in/gabriel-hernandez-gh) _([@ghernandez345](https://github.com/ghernandez345))_, [Roberto Dip](https://www.linkedin.com/in/roperzh) _([@roperzh](https://github.com/roperzh))_, Sarah Gillespie _([@gillespi314](https://github.com/gillespi314))_, [Martin Angers](https://www.linkedin.com/in/martin-angers-3210305/) _([@mna](https://github.com/mna))_, [Jahziel Villasana-Espinoza](https://www.linkedin.com/in/jahziel-v/) _([@jahzielv](https://github.com/jahzielv))_, [Dante Catalfamo](https://www.linkedin.com/in/dante-catalfamo-a6330412b/) _([@dantecatalfamo](https://github.com/dantecatalfamo))_
 
 > The [Slack channel](https://fleetdm.slack.com/archives/C03C41L5YEL), [kanban release board](https://app.zenhub.com/workspaces/-g-mdm-current-sprint-63bc507f6558550011840298/board), and [GitHub label](https://github.com/fleetdm/fleet/issues?q=is%3Aopen+is%3Aissue+label%3A%23g-mdm) for this product group is `#g-mdm`.
