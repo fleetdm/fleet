@@ -79,7 +79,8 @@
 		},
 		"integrations": {
 			"jira": null,
-			"zendesk": null
+			"zendesk": null,
+			"google_calendar": null
 		},
 		"mdm": {
 			"apple_bm_terms_expired": false,

@@ -9,6 +9,8 @@ spec:
     features:
       enable_host_users: false
       enable_software_inventory: false
+    integrations:
+      google_calendar: null
     mdm:
       enable_disk_encryption: false
       macos_settings:

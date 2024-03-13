@@ -137,6 +137,10 @@ org_settings:
   integrations:
     jira: []
     zendesk: []
+    google_calendar:
+      - email: service@example.com
+        private_key: google_calendar_private_key
+        domain: example.com
   mdm:
     apple_bm_default_team: ""
     end_user_authentication:
