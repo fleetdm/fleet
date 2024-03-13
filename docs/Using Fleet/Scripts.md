@@ -32,7 +32,7 @@ Fleet UI:
 
 3. On your target host's host details page, select the **Scripts** tab and select **Actions** to run the script.
 
-Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script]
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script)
 
 fleetctl CLI:
 

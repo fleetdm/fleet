@@ -348,7 +348,7 @@ Once the Business Operations department approves inventory to be shipped from Fl
 
 ### Prepare for the All hands
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
   - Update "End of the quarter" slides to reflect the current countdown.
   - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
   - Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'

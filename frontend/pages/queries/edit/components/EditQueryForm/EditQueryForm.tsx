@@ -4,6 +4,7 @@ import React, {
   useEffect,
   KeyboardEvent,
   useCallback,
+  useMemo,
 } from "react";
 import { InjectedRouter } from "react-router";
 import { pull, size } from "lodash";
@@ -17,6 +18,7 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 import {
   addGravatarUrlToResource,
+  getCustomDropdownOptions,
   secondsToDhms,
   TAGGED_TEMPLATES,
 } from "utilities/helpers";
@@ -89,22 +91,6 @@ const validateQuerySQL = (query: string) => {
 
   const valid = !size(errors);
   return { valid, errors };
-};
-
-// Includes a custom frequency set through fleetctl at top of frequency dropdown
-const customFrequencyOptions = (frequency: number) => {
-  if (
-    !FREQUENCY_DROPDOWN_OPTIONS.some((option) => option.value === frequency)
-  ) {
-    return [
-      {
-        value: frequency,
-        label: `Every ${secondsToDhms(frequency)}`,
-      },
-      ...FREQUENCY_DROPDOWN_OPTIONS,
-    ];
-  }
-  return FREQUENCY_DROPDOWN_OPTIONS;
 };
 
 const EditQueryForm = ({
@@ -180,10 +166,6 @@ const EditQueryForm = ({
   const [isEditingName, setIsEditingName] = useState(false);
   const [isEditingDescription, setIsEditingDescription] = useState(false);
   const [isSaveAsNewLoading, setIsSaveAsNewLoading] = useState(false);
-  const [frequencyOptions, setFrequencyOptions] = useState(
-    FREQUENCY_DROPDOWN_OPTIONS
-  );
-  const [isInitialFrequency, setIsInitialFrequency] = useState(true);
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
 
   const platformCompatibility = usePlatformCompatibility();
@@ -205,13 +187,6 @@ const EditQueryForm = ({
     }
     debounceSQL(lastEditedQueryBody);
   }, [lastEditedQueryBody, lastEditedQueryId, isStoredQueryLoading]);
-
-  // Creates custom frequency options when initializing and not when toggling
-  useEffect(() => {
-    if (isInitialFrequency) {
-      setFrequencyOptions(customFrequencyOptions(lastEditedQueryFrequency));
-    }
-  }, [lastEditedQueryFrequency, isInitialFrequency]);
 
   const toggleSaveQueryModal = () => {
     setShowSaveQueryModal(!showSaveQueryModal);
@@ -252,11 +227,22 @@ const EditQueryForm = ({
       setIsEditingDescription(false);
     }
   };
+  const frequencyOptions = useMemo(
+    () =>
+      getCustomDropdownOptions(
+        FREQUENCY_DROPDOWN_OPTIONS,
+        lastEditedQueryFrequency,
+        // it's safe to assume that frequency is a number
+        (frequency) => `Every ${secondsToDhms(frequency as number)}`
+      ),
+    // intentionally leave lastEditedQueryFrequency out of the dependencies, so that the custom
+    // options are maintained even if the user changes the frequency in the UI
+    []
+  );
 
   const onChangeSelectFrequency = useCallback(
     (value: number) => {
       setLastEditedQueryFrequency(value);
-      setIsInitialFrequency(false);
     },
     [setLastEditedQueryFrequency]
   );
@@ -475,49 +461,44 @@ const EditQueryForm = ({
       setIsEditingName(true);
     }
   };
-
   const queryNameWrapperClasses = classnames("query-name-wrapper", {
-    "query-name-wrapper__editing": isEditingName,
+    [`${baseClass}--editing`]: isEditingName,
   });
+
+  const queryDescriptionWrapperClasses = classnames(
+    "query-description-wrapper",
+    {
+      [`${baseClass}--editing`]: isEditingDescription,
+    }
+  );
 
   const renderName = () => {
     if (savedQueryMode) {
       return (
-        <div className={queryNameWrapperClasses}>
-          {isEditingName ? (
-            <>
-              <AutoSizeInputField
-                name="query-name"
-                placeholder="Add name here"
-                value={lastEditedQueryName}
-                inputClassName={`${baseClass}__query-name`}
-                maxLength={160}
-                hasError={errors && errors.name}
-                onChange={setLastEditedQueryName}
-                onKeyPress={onInputKeypress}
-                isFocused={isEditingName}
-                onBlur={() => {
-                  setIsEditingName(false);
-                }}
-              />
-              {/* yes, necessary in both places */}
-              <Icon
-                name="pencil"
-                className="edit-icon hide"
-                size="small-medium"
-              />
-            </>
-          ) : (
-            <button onClick={editName} onFocus={editName}>
-              <div className={`${baseClass}__query-name`}>
-                {lastEditedQueryName || (
-                  <div className="placeholder">Add name here</div>
-                )}
-              </div>
-              {/* yes, necessary in both places */}
-              <Icon name="pencil" className="edit-icon" size="small-medium" />
-            </button>
-          )}
+        <div
+          className={queryNameWrapperClasses}
+          onFocus={() => setIsEditingName(true)}
+          onBlur={() => setIsEditingName(false)}
+          onClick={editName}
+        >
+          <AutoSizeInputField
+            name="query-name"
+            placeholder="Add name"
+            value={lastEditedQueryName}
+            inputClassName={`${baseClass}__query-name ${
+              !lastEditedQueryName ? "no-value" : ""
+            }`}
+            maxLength={160}
+            hasError={errors && errors.name}
+            onChange={setLastEditedQueryName}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingName}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingName ? "hide" : ""}`}
+            size="small-medium"
+          />
         </div>
       );
     }
@@ -534,38 +515,29 @@ const EditQueryForm = ({
   const renderDescription = () => {
     if (savedQueryMode) {
       return (
-        <div className="query-description-wrapper">
-          {isEditingDescription ? (
-            <>
-              <AutoSizeInputField
-                name="query-description"
-                placeholder="Add description here"
-                value={lastEditedQueryDescription}
-                inputClassName={`${baseClass}__query-description`}
-                maxLength={250}
-                onChange={setLastEditedQueryDescription}
-                onKeyPress={onInputKeypress}
-                isFocused={isEditingDescription}
-                onBlur={() => setIsEditingDescription(false)}
-              />
-              {/* yes, necessary in both places */}
-              <Icon
-                name="pencil"
-                className="edit-icon hide"
-                size="small-medium"
-              />
-            </>
-          ) : (
-            <button onClick={editDescription} onFocus={editDescription}>
-              <div className={`${baseClass}__query-description`}>
-                {lastEditedQueryDescription || (
-                  <div className="placeholder">Add description here</div>
-                )}
-              </div>
-              {/* yes, necessary in both places */}
-              <Icon name="pencil" className="edit-icon" size="small-medium" />
-            </button>
-          )}
+        <div
+          className={queryDescriptionWrapperClasses}
+          onFocus={() => setIsEditingDescription(true)}
+          onBlur={() => setIsEditingDescription(false)}
+          onClick={editDescription}
+        >
+          <AutoSizeInputField
+            name="query-description"
+            placeholder="Add description"
+            value={lastEditedQueryDescription}
+            maxLength={250}
+            inputClassName={`${baseClass}__query-description ${
+              !lastEditedQueryDescription ? "no-value" : ""
+            }`}
+            onChange={setLastEditedQueryDescription}
+            onKeyPress={onInputKeypress}
+            isFocused={isEditingDescription}
+          />
+          <Icon
+            name="pencil"
+            className={`edit-icon ${isEditingDescription ? "hide" : ""}`}
+            size="small-medium"
+          />
         </div>
       );
     }

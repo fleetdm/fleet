@@ -2,7 +2,11 @@ import React, { useMemo, useState } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import { Row } from "react-table";
 
-import { IMdmStatusCardData, IMdmSolution } from "interfaces/mdm";
+import {
+  IMdmStatusCardData,
+  IMdmSolution,
+  IMdmSummaryMdmSolution,
+} from "interfaces/mdm";
 
 import TabsWrapper from "components/TabsWrapper";
 import TableContainer from "components/TableContainer";
@@ -20,18 +24,23 @@ import {
   generateStatusDataSet,
 } from "./MDMStatusTableConfig";
 
+export type IMdmSolutionTableData = Pick<
+  IMdmSummaryMdmSolution,
+  "name" | "hosts_count"
+>;
+
 interface IRowProps extends Row {
-  original: IMdmSolution;
+  original: IMdmSolutionTableData;
 }
 
 interface IMdmCardProps {
   error: Error | null;
   isFetching: boolean;
   mdmStatusData: IMdmStatusCardData[];
-  mdmSolutions: IMdmSolution[] | null;
+  mdmSolutions: IMdmSummaryMdmSolution[] | null;
   selectedPlatformLabelId?: number;
   selectedTeamId?: number;
-  onClickMdmSolution: (solution: IMdmSolution) => void;
+  onClickMdmSolution: (solution: IMdmSolutionTableData) => void;
 }
 
 const DEFAULT_SORT_DIRECTION = "desc";
@@ -65,6 +74,23 @@ const EmptyMdmSolutions = (): JSX.Element => (
   />
 );
 
+type IMdmSolutionMap = Record<string, IMdmSolutionTableData>;
+
+const reduceSolutionsToObj = (mdmSolutions: IMdmSummaryMdmSolution[]) => {
+  return mdmSolutions.reduce<IMdmSolutionMap>((acc, nextSolution) => {
+    // The solution name can be an empty string so we add a key for "Unknown"
+    // for this case.
+    const key = nextSolution.name || "Unknown";
+    if (acc[key]) {
+      acc[key].hosts_count += nextSolution.hosts_count;
+    } else {
+      acc[key] = Object.assign({ ...nextSolution });
+    }
+
+    return acc;
+  }, {});
+};
+
 const Mdm = ({
   isFetching,
   error,
@@ -85,19 +111,7 @@ const Mdm = ({
       return [];
     }
 
-    return mdmSolutions.reduce<IMdmSolution[]>((acc, nextSolution) => {
-      const existingSolution = acc.find(
-        (solution) => solution.name === nextSolution.name
-      );
-
-      if (existingSolution) {
-        existingSolution.hosts_count += nextSolution.hosts_count;
-      } else {
-        acc.push(nextSolution);
-      }
-
-      return acc;
-    }, []);
+    return Object.values(reduceSolutionsToObj(mdmSolutions));
   }, [mdmSolutions]);
 
   const solutionsTableHeaders = useMemo(
@@ -108,10 +122,7 @@ const Mdm = ({
     () => generateStatusTableHeaders(selectedTeamId),
     [selectedTeamId]
   );
-  const solutionsDataSet = generateSolutionsDataSet(
-    rolledupMdmSolutionsData,
-    selectedPlatformLabelId
-  );
+  const solutionsDataSet = generateSolutionsDataSet(rolledupMdmSolutionsData);
   const statusDataSet = generateStatusDataSet(
     mdmStatusData,
     selectedPlatformLabelId
@@ -143,6 +154,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer<IRowProps>
+                  className={`${baseClass}__mdm-solutions-table`}
                   columnConfigs={solutionsTableHeaders}
                   data={solutionsDataSet}
                   isLoading={isFetching}
@@ -163,6 +175,7 @@ const Mdm = ({
                 <TableDataError card />
               ) : (
                 <TableContainer
+                  className={`${baseClass}__mdm-status-table`}
                   columnConfigs={statusTableHeaders}
                   data={statusDataSet}
                   isLoading={isFetching}

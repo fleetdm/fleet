@@ -74,7 +74,7 @@ export interface ITeam extends ITeamSummary {
  */
 export type ITeamWebhookSettings = Pick<
   IWebhookSettings,
-  "vulnerabilities_webhook" | "failing_policies_webhook"
+  "vulnerabilities_webhook" | "failing_policies_webhook" | "host_status_webhook"
 >;
 
 /**

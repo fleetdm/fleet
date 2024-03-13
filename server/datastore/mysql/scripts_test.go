@@ -32,6 +32,7 @@ func TestScripts(t *testing.T) {
 		{"TestUnlockHostViaScript", testUnlockHostViaScript},
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
 		{"TestLockUnlockManually", testLockUnlockManually},
+		{"TestInsertScriptContents", testInsertScriptContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -1061,4 +1062,37 @@ func checkLockWipeState(t *testing.T, status *fleet.HostLockWipeStatus, unlocked
 	require.Equal(t, pendingLock, status.IsPendingLock(), "pending lock")
 	require.Equal(t, pendingUnlock, status.IsPendingUnlock(), "pending unlock")
 	require.Equal(t, pendingWipe, status.IsPendingWipe(), "pending wipe")
+}
+
+func testInsertScriptContents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+	contents := `echo foobar;`
+	res, err := insertScriptContents(ctx, contents, ds.writer(ctx))
+	require.NoError(t, err)
+	id, _ := res.LastInsertId()
+	require.Equal(t, int64(1), id)
+	expectedCS := md5ChecksumScriptContent(contents)
+
+	// insert same contents again, verify that the checksum and ID stayed the same
+	res, err = insertScriptContents(ctx, contents, ds.writer(ctx))
+	require.NoError(t, err)
+	id, _ = res.LastInsertId()
+	require.Equal(t, int64(1), id)
+
+	stmt := `SELECT id, HEX(md5_checksum) as md5_checksum FROM script_contents WHERE id = ?`
+
+	type scriptContents struct {
+		ID       uint   `db:"id"`
+		Checksum string `db:"md5_checksum"`
+	}
+	var sc []scriptContents
+	err = sqlx.SelectContext(ctx, ds.reader(ctx),
+		&sc, stmt,
+		id,
+	)
+	require.NoError(t, err)
+
+	require.Len(t, sc, 1)
+	require.Equal(t, uint(id), sc[0].ID)
+	require.Equal(t, expectedCS, sc[0].Checksum)
 }

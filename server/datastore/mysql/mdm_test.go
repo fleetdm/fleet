@@ -3063,8 +3063,8 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 	for _, c := range cases {
 		t.Run(c.windowsErr+" "+c.appleErr, func(t *testing.T) {
 			t.Cleanup(func() {
-				testBatchSetMDMAppleProfilesErr = ""
-				testBatchSetMDMWindowsProfilesErr = ""
+				ds.testBatchSetMDMAppleProfilesErr = ""
+				ds.testBatchSetMDMWindowsProfilesErr = ""
 			})
 
 			appleProfs := []*fleet.MDMAppleConfigProfile{
@@ -3089,8 +3089,8 @@ func testBatchSetMDMProfilesTransactionError(t *testing.T, ds *Datastore) {
 				windowsConfigProfileForTest(t, "W3", "l3", lbl),
 			}
 			// setup the expected errors
-			testBatchSetMDMAppleProfilesErr = c.appleErr
-			testBatchSetMDMWindowsProfilesErr = c.windowsErr
+			ds.testBatchSetMDMAppleProfilesErr = c.appleErr
+			ds.testBatchSetMDMWindowsProfilesErr = c.windowsErr
 
 			err = ds.BatchSetMDMProfiles(ctx, nil, appleProfs, winProfs)
 			require.ErrorContains(t, err, c.wantErr)
@@ -3267,4 +3267,11 @@ func testSCEPRenewalHelpers(t *testing.T, ds *Datastore) {
 
 	err = ds.SetCommandForPendingSCEPRenewal(ctx, []fleet.SCEPIdentityAssociation{{HostUUID: "foo", SHA256: "bar"}}, "bar")
 	require.ErrorContains(t, err, "this function can only be used to update existing associations")
+
+	err = ds.CleanSCEPRenewRefs(ctx, "does-not-exist")
+	require.Error(t, err)
+
+	err = ds.CleanSCEPRenewRefs(ctx, h1.UUID)
+	require.NoError(t, err)
+	checkSCEPRenew(assocs[0], nil)
 }

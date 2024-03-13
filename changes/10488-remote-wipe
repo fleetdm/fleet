@@ -1,1 +1,0 @@
-* Added the `POST /api/v1/fleet/hosts/:id/wipe` Fleet Premium API endpoint to support remote wiping a host.

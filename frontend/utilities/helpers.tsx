@@ -49,6 +49,7 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -880,6 +881,22 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
     )
   );
 
+// can allow additional dropdown value types in the future
+type DropdownOptionValue = IDropdownOption["value"];
+
+export function getCustomDropdownOptions(
+  defaultOptions: IDropdownOption[],
+  customValue: DropdownOptionValue,
+  labelFormatter: (value: DropdownOptionValue) => string
+): IDropdownOption[] {
+  return defaultOptions.some((option) => option.value === customValue)
+    ? defaultOptions
+    : [
+        { label: labelFormatter(customValue), value: customValue },
+        ...defaultOptions,
+      ];
+}
+
 export default {
   addGravatarUrlToResource,
   formatConfigDataForServer,
@@ -898,6 +915,7 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,

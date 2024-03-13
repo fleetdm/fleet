@@ -43,6 +43,13 @@ To propose an ad, or a change to an ad:
 5. Make revisions and re-attend the meeting as needed until the planned change is executed.
 7. Create a calendar reminder to check ad performance two weeks from the date changes were made.
 
+### Promote a post on LinkedIn
+
+1. Create a classic campaign under ["Experiments"](https://www.linkedin.com/campaignmanager/accounts/509911695/campaigns?campaignGroupIds=%5B678398233%5D) following the YYYY-MM-DD.buying-situation - ad description with a goal of website visits or engagement to run for two weeks.
+2. Choose the appropriate audience according to the buying situation and disable audience expansion and the LinkedIn audience network. 
+3. When creating the ad for the new campaign, select "browse existing content" and find the post under the employee tab.
+4. Launch campaign once approved.
+
 ### Settle event strategy
 The Head of Demand is the DRI for deploying Fleet's event budget, and events are settled significantly in advance to provide ample time for strategy and planning.  The Head of Business Operations is the DRI for executing Fleet events efficiently, on-brand, and on-strategy.
 

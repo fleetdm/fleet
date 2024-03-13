@@ -276,6 +276,11 @@ module.exports = {
                 // ```
                 let referencedPageSourcePath = path.resolve(path.join(topLvlRepoPath, sectionRepoPath, pageRelSourcePath), '../', oldRelPath);
                 let possibleReferencedUrlHash = oldRelPath.match(/(\.md#)([^/]*$)/) ? oldRelPath.match(/(\.md#)([^/]*$)/)[2] : false;
+                // Throw an error if any relative links containing hash links are missing the Markdown page's extension.
+                let pageContainsInvalidRelativeHashLink = oldRelPath.match(/[^(\.md)]#([^/]*$)/);
+                if(pageContainsInvalidRelativeHashLink){
+                  throw new Error(`Could not build HTML partials from Markdown. A page (${pageRelSourcePath}) contains an invalid relative Markdown link (${hrefString.replace(/^href=/, '')}). To resolve, make sure all relative links on this page that link to a specific section include the Markdown page extension (.md) and try running this script again.`);
+                }
                 let referencedPageNewUrl = 'https://fleetdm.com/' + (
                   (path.relative(topLvlRepoPath, referencedPageSourcePath).replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2').split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/'))
                   .split(/\//).map((fileOrFolderName) => encodeURIComponent(fileOrFolderName.replace(/^[0-9]+[\-]+/,''))).join('/')

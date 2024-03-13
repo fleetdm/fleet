@@ -22,6 +22,11 @@
     box-shadow: $box-shadow;
   }
 
+  // 40px padding
+  &__large-padding {
+    padding: $pad-xxlarge;
+  }
+
   // color styles
   &__white {
     background-color: $core-white;
