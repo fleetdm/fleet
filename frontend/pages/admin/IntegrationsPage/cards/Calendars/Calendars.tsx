@@ -12,25 +12,34 @@ import Button from "components/buttons/Button";
 import SectionHeader from "components/SectionHeader";
 import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
-import Icon from "components/Icon";
+import DataError from "components/DataError";
+import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 
-import { ICalendarsFormErrors, IFormField } from "./constants";
+import {
+  ICalendarsFormErrors,
+  IFormField,
+  LEARN_MORE_CALENDARS,
+} from "./constants";
 
 const baseClass = "calendars-form";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
+  const { isPremiumTier } = useContext(AppContext);
 
-  const [formData, setFormData] = useState<any>({
+  const [formData, setFormData] = useState({
     email: "",
     domain: "",
     privateKey: "",
   });
+  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
+  const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
 
   const {
     data: appConfig,
     isLoading: isLoadingAppConfig,
     refetch: refetchConfig,
+    error: errorAppConfig,
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
@@ -43,11 +52,6 @@ const Calendars = (): JSX.Element => {
   });
 
   const { email, domain, privateKey } = formData;
-
-  const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
-  const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
-
-  const { isPremiumTier } = useContext(AppContext);
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -76,9 +80,7 @@ const Calendars = (): JSX.Element => {
 
     evt.preventDefault();
 
-    // TODO: add validations
-
-    // Formatting of API not UI
+    // Format for API
     const formDataToSubmit =
       formData.email === "" &&
       formData.domain === "" &&
@@ -92,7 +94,7 @@ const Calendars = (): JSX.Element => {
             },
           ];
 
-    // Updates integrations.google_calendar only
+    // Update integrations.google_calendar only
     const destination = {
       zendesk: appConfig?.integrations.zendesk,
       jira: appConfig?.integrations.jira,
@@ -122,15 +124,14 @@ const Calendars = (): JSX.Element => {
   };
 
   const renderForm = () => {
-    return isPremiumTier ? (
+    return (
       <>
-        {" "}
         <SectionHeader title="Calendars" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__page-description`}>
             Connect Fleet to your Google Workspace service account to create
             calendar events for end users if their host fails policies.{" "}
-            <CustomLink url="TODO" text="Learn more" newTab />
+            <CustomLink url={LEARN_MORE_CALENDARS} text="Learn more" newTab />
           </p>
           <InputField
             label="Email"
@@ -146,6 +147,7 @@ const Calendars = (): JSX.Element => {
               </>
             }
             placeholder="name@example.com"
+            ignore1password
           />
           <InputField
             label="Domain"
@@ -188,21 +190,22 @@ const Calendars = (): JSX.Element => {
           </Button>
         </form>
       </>
-    ) : (
-      // TODO: align icon
-      <p>
-        <Icon name="premium-feature" /> This feature is included in Fleet
-        Premium. <CustomLink url="TODO" text="Learn more" newTab />
-      </p>
     );
   };
 
-  return (
-    <div className={`${baseClass}`}>
-      {isLoadingAppConfig && <Spinner includeContainer={false} />}
-      {renderForm()}
-    </div>
-  );
+  if (!isPremiumTier) return <PremiumFeatureMessage />;
+
+  if (isLoadingAppConfig) {
+    <div className={baseClass}>
+      <Spinner includeContainer={false} />
+    </div>;
+  }
+
+  if (errorAppConfig) {
+    return <DataError />;
+  }
+
+  return <div className={baseClass}>{renderForm()}</div>;
 };
 
 export default Calendars;

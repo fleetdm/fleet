@@ -6,9 +6,7 @@ import Mdm from "./cards/MdmSettings/MdmSettings";
 import AutomaticEnrollment from "./cards/AutomaticEnrollment/AutomaticEnrollment";
 import Calendars from "./cards/Calendars/Calendars";
 
-const getFilteredIntegrationSettingsNavItems = (
-  isSandboxMode = false
-): ISideNavItem<any>[] => {
+const getFilteredIntegrationSettingsNavItems = (): ISideNavItem<any>[] => {
   return [
     // TODO: types
     {
@@ -22,7 +20,6 @@ const getFilteredIntegrationSettingsNavItems = (
       urlSection: "mdm",
       path: PATHS.ADMIN_INTEGRATIONS_MDM,
       Card: Mdm,
-      exclude: isSandboxMode,
     },
     {
       title: "Automatic enrollment",
@@ -36,7 +33,7 @@ const getFilteredIntegrationSettingsNavItems = (
       path: PATHS.ADMIN_INTEGRATIONS_CALENDARS,
       Card: Calendars,
     },
-  ].filter((navItem) => !navItem.exclude);
+  ];
 };
 
 export default getFilteredIntegrationSettingsNavItems;

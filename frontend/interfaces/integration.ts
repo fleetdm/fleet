@@ -17,7 +17,7 @@ export interface IZendeskIntegration {
   enable_software_vulnerabilities?: boolean;
 }
 
-export interface IGoogleCalendarIntegration {
+export interface IGlobalCalendarIntegration {
   email: string;
   domain: string;
   private_key: string;
@@ -85,7 +85,7 @@ interface ITeamCalendarSettings {
 export interface IIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
-  google_calendar: IGoogleCalendarIntegration[];
+  google_calendar: IGlobalCalendarIntegration[];
 }
 
 export interface IGlobalIntegrations extends IIntegrations {

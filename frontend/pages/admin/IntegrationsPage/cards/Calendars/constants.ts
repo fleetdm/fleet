@@ -1,9 +1,9 @@
-import { IConfig } from "interfaces/config";
+export const LEARN_MORE_CALENDARS =
+  "https://www.fleetdm.com/learn-more-about/google-workspace-service-accounts";
 
-export const DEFAULT_TRANSPARENCY_URL = "https://fleetdm.com/transparency";
+export const LEARN_MORE_UPGRADE = "https://www.fleetdm.com/upgrade";
 
 export interface ICalendarsFormProps {
-  // todo
   isPremiumTier?: boolean;
   isUpdatingSettings?: boolean;
   handleSubmit: any;
