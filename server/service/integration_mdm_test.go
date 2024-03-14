@@ -12478,7 +12478,7 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	t := s.T()
 	ctx := context.Background()
 
-	// create a server host that is not enrolled in MDM
+	// create a Windows host and report it as a server
 	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
 	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", ""))
 
@@ -12491,5 +12491,5 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	var hr getHostResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
 
-	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+	require.Nil(t, hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }

@@ -700,8 +700,17 @@ WHERE
 	}
 
 	if dest.Status == "" {
-		// If we have no status, we treat it as enforcing since we know disk encryption is enabled and log for potential debugging
-		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID)
+		// FIXME: If we have no status, it is likely that the caller did not ensure that host.MDMInfo was
+		// populated and that the host was actually a Windows server, which should have been
+		// triggered an early return. The MDMInfo issue should be fixed in #17278. For now, return
+		// as if we are dealing with a Windows server and log for potential debugging.
+		if host.MDMInfo == nil {
+			level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", "nil")
+			return nil, nil
+		}
+		// This is unexpected. For now, we treat it as enforcing because we know that disk encryption is
+		// enabled and log potential debugging
+		level.Debug(ds.logger).Log("msg", "no bitlocker status found for host", "host_id", host.ID, "mdm_info", fmt.Sprintf("%+v", host.MDMInfo))
 		dest.Status = fleet.DiskEncryptionEnforcing
 	}
 
