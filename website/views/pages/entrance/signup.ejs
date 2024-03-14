@@ -1,14 +1,14 @@
 <div id="signup" v-cloak>
   <div style="max-width: 560px;" class="container-fluid pb-5 px-lg-0 px-3">
     <div purpose="page-heading">
-      <h1 class="text-center">Welcome to Premium</h1>
-      <p class="text-center pb-2">We just need a few details in order to get you a self-hosted Fleet Premium license key.</p>
+      <h1 class="text-center">Welcome to Fleet</h1>
+      <p class="text-center pb-2">We just need a few details in order to get started.</p>
     </div>
     <div purpose="customer-portal-form" class="card card-body">
       <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
         <div class="form-group">
           <label for="email-address">Email</label>
-          <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>
+          <span style="float: right" class="text-right small"><a :href="loginSlug">I have an account</a></span>
           <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
           <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
         </div>

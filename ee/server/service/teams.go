@@ -1181,11 +1181,11 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
+func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
 	var didUpdate, didUpdateMacOSDiskEncryption bool
-	if payload.EnableDiskEncryption != nil {
-		if tm.Config.MDM.EnableDiskEncryption != *payload.EnableDiskEncryption {
-			tm.Config.MDM.EnableDiskEncryption = *payload.EnableDiskEncryption
+	if enable != nil {
+		if tm.Config.MDM.EnableDiskEncryption != *enable {
+			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}

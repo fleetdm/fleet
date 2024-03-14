@@ -113,7 +113,7 @@ Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behol
 ## History
 
 ### 2014: Origins of osquery
-In 2014, our CTO Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
+In 2014, our Cofounder Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
 
 ### 2016: Origins of Fleet v1.0
 A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.

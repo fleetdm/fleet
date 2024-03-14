@@ -29,9 +29,11 @@ module.exports.routes = {
     }
   },
 
-  'GET /try-fleet/fleetctl-preview': {
+  'GET /try-fleet': {
     action: 'view-fleetctl-preview',
     locals: {
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
       pageTitleForMeta: 'fleetctl preview | Fleet',
       pageDescriptionForMeta: 'Learn about getting started with Fleet using fleetctl.'
     }
@@ -104,7 +106,7 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Learn what data osquery can see.',
     }
   },
-  'GET /customers/new-license': {
+  'GET /new-license': {
     action: 'customers/view-new-license',
     locals: {
       hideHeaderLinks: true,
@@ -113,22 +115,22 @@ module.exports.routes = {
       pageDescriptionForMeta: 'Generate your quote and start using Fleet Premium today.',
     }
   },
-  'GET /customers/register': {
+  'GET /register': {
     action: 'entrance/view-signup',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Sign up | Fleet',
-      pageDescriptionForMeta: 'Sign up for a Fleet Premium license.',
+      pageDescriptionForMeta: 'Sign up for a Fleet account.',
     }
   },
-  'GET /customers/login': {
+  'GET /login': {
     action: 'entrance/view-login',
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
       pageTitleForMeta: 'Log in | Fleet',
-      pageDescriptionForMeta: 'Log in to the Fleet customer portal.',
+      pageDescriptionForMeta: 'Log in to Fleet.',
     }
   },
   'GET /customers/dashboard': {
@@ -164,24 +166,6 @@ module.exports.routes = {
     locals: {
       pageTitleForMeta: 'State of device management | Fleet',
       pageDescriptionForMeta: 'We surveyed 200+ security practitioners to discover the state of device management in 2022. Click here to learn about their struggles and best practices.',
-    }
-  },
-
-  'GET /try-fleet/register': {
-    action: 'try-fleet/view-register',
-    locals: {
-      hideFooterLinks: true,
-      pageTitleForMeta: 'Try Fleet | Fleet',
-      pageDescriptionForMeta: 'Get up and running in minutes to try out Fleet.',
-    }
-  },
-
-  'GET /try-fleet/login': {
-    action: 'try-fleet/view-sandbox-login',
-    locals: {
-      hideFooterLinks: true,
-      pageTitleForMeta: 'Sign in | Fleet',
-      pageDescriptionForMeta: 'Log in to Fleet.',
     }
   },
 
@@ -301,6 +285,16 @@ module.exports.routes = {
     }
   },
 
+  'GET /start': {
+    action: 'view-start',
+    locals: {
+      hideHeaderLinks: true,
+      hideFooterLinks: true,
+      pageTitleForMeta: 'Start | Fleet',
+      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your premium license key.',
+    }
+  },
+
 
   //  ╦╔╦╗╔═╗╔═╗╦╔╗╔╔═╗  ┌─┬  ┌─┐┌┐┌┌┬┐┬┌┐┌┌─┐  ┌─┐┌─┐┌─┐┌─┐┌─┐─┐
   //  ║║║║╠═╣║ ╦║║║║║╣   │ │  ├─┤│││ │││││││ ┬  ├─┘├─┤│ ┬├┤ └─┐ │
@@ -353,7 +347,6 @@ module.exports.routes = {
   // ```
   // 'GET /docs/using-fleet/learn-how-to-use-fleet': '/docs/using-fleet/fleet-for-beginners',
   // ```
-  'GET /try-fleet':                  '/get-started',
   'GET /try': '/get-started',
   'GET /docs/deploying/fleet-public-load-testing': '/docs/deploying/load-testing',
   'GET /handbook/customer-experience': '/handbook/customers',
@@ -469,7 +462,11 @@ module.exports.routes = {
   'GET /docs/using-fleet/mdm-macos-updates': '/docs/using-fleet/mdm-os-updates',
   'GET /example-windows-profile': 'https://github.com/fleetdm/fleet-gitops/blob/860dcf2609e2b25a6d6becf8006a7118a19cd615/lib/windows-screenlock.xml',// « resuable link for OS settings doc page
   'GET /docs/using-fleet/mdm-custom-macos-settings': '/docs/using-fleet/mdm-custom-os-settings',
-
+  'GET /customers/login': '/login',
+  'GET /customers/register': '/register',
+  'GET /try-fleet/login': '/login',
+  'GET /try-fleet/register': '/register',
+  'GET /customers/new-license': '/new-license',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -490,22 +487,21 @@ module.exports.routes = {
   'GET /legal':                      '/legal/terms',
   'GET /terms':                      '/legal/terms',
   'GET /handbook/security/github':   '/handbook/security#git-hub-security',
-  'GET /login':                      '/customers/login',
   'GET /slack':                      'https://join.slack.com/t/osquery/shared_invite/zt-1wkw5fzba-lWEyke60sjV6C4cdinFA1w',// Note: This redirect is used on error pages and email templates in the Fleet UI.
   'GET /docs/using-fleet/updating-fleet': '/docs/deploying/upgrading-fleet',
   'GET /blog':                   '/articles',
   'GET /brand':                  '/logos',
-  'GET /get-started':            '/try-fleet/explore-data',
+  'GET /get-started':            '/try-fleet',
   'GET /g':                       (req,res)=> { let originalQueryStringWithAmp = req.url.match(/\?(.+)$/) ? '&'+req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/?meet-fleet'+originalQueryStringWithAmp); },
-  'GET /test-fleet-sandbox':     '/try-fleet/register',
+  'GET /test-fleet-sandbox':     '/register',
   'GET /unsubscribe':             (req,res)=> { let originalQueryString = req.url.match(/\?(.+)$/) ? req.url.match(/\?(.+)$/)[1] : ''; return res.redirect(301, sails.config.custom.baseUrl+'/api/v1/unsubscribe-from-all-newsletters?'+originalQueryString);},
   'GET /tables':                 '/tables/account_policy_data',
   'GET /imagine/launch-party':  'https://www.eventbrite.com/e/601763519887',
   'GET /blackhat2023':   'https://github.com/fleetdm/fleet/tree/main/tools/blackhat-mdm', // Assets from @marcosd4h & @zwass Black Hat 2023 talk
-  'GET /fleetctl-preview':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/sandbox-expired':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/sandbox':   '/try-fleet/fleetctl-preview',
-  'GET /try-fleet/waitlist':   '/try-fleet/fleetctl-preview',
+  'GET /fleetctl-preview':   '/try-fleet',
+  'GET /try-fleet/sandbox-expired':   '/try-fleet',
+  'GET /try-fleet/sandbox':   '/try-fleet',
+  'GET /try-fleet/waitlist':   '/try-fleet',
   'GET /mdm': '/device-management',// « alias for radio ad
   'GET /endpoint-operations': '/endpoint-ops',// « just in case we type it the wrong way
 

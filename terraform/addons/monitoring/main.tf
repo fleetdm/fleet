@@ -444,7 +444,7 @@ data "aws_iam_policy_document" "cron_monitoring_lambda" {
 resource "aws_cloudwatch_log_group" "cron_monitoring_lambda" {
   count             = var.cron_monitoring == null ? 0 : 1
   name              = "/aws/lambda/${var.customer_prefix}-cron-monitoring"
-  retention_in_days = 7
+  retention_in_days = var.cron_monitoring.log_retention_in_days
 
 }
 

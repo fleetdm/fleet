@@ -1,0 +1,3 @@
+- Adds a migration that removes the `script_contents` columns that aren't needed anymore due to the
+  introduction of the `script_contents` table
+- Adds a cleanup cron job that will remove unused script contents periodically

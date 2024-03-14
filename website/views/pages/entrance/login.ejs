@@ -12,7 +12,7 @@
       <ajax-form class="customers-login" action="login" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-data="formData" :form-rules="formRules" :form-errors.sync="formErrors" @submitted="submittedForm()">
         <div class="form-group">
           <label for="email">Email</label>
-          <span style="float: right" class="text-right small" v-if="showCustomerLogin"><a href="/customers/register">Create an account</a></span>
+          <span style="float: right" class="text-right small" v-if="showCustomerLogin"><a :href="registrationSlug">Create an account</a></span>
           <input type="email" class="form-control" :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" autocomplete="email" focus-first>
           <div class="invalid-feedback" v-if="formErrors.emailAddress">Please provide a valid email address.</div>
         </div>

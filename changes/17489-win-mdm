@@ -1,1 +1,0 @@
-* Improve osquery queries for MDM detection to take into account the enrollment state of the rows fetched from the registry.

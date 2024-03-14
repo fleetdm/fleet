@@ -25,6 +25,17 @@ parasails.registerPage('login', {
     // Server error state for the form
     cloudError: '',
     showCustomerLogin: true,
+
+    // For redirecting users who come to this page from a /try-fleet/explore-data/* page back to the page they were visiting before they were redirected.
+    exploreDataRedirectSlug: undefined,
+    // Used for the 'create an account' link
+    registrationSlug: '/register',
+    // Possible /try-fleet/explore-data/ redirects
+    redirectSlugsByTargetPlatform: {
+      'macos': 'macos/account_policy_data',
+      'windows': 'windows/appcompat_shims',
+      'linux': 'linux/apparmor_events',
+    },
   },
 
   //  ╦  ╦╔═╗╔═╗╔═╗╦ ╦╔═╗╦  ╔═╗
@@ -33,6 +44,18 @@ parasails.registerPage('login', {
   beforeMount: function() {
     if(window.location.search === '?admin') {
       this.showCustomerLogin = false;
+    }
+    // If the user navigated to this page from an /explore-data page, we'll keep track of the page this user came from so we can redirect them, and we'll strip all query parameters from the URL.
+    if(window.location.search) {
+      // https://caniuse.com/mdn-api_urlsearchparams_get
+      let possibleSearchParamsToFilterBy = new URLSearchParams(window.location.search);
+      let posibleRedirect = possibleSearchParamsToFilterBy.get('targetPlatform');
+      // If the provided platform matches a key in the userFriendlyPlatformNames array, we'll set this.selectedPlatform.
+      if(posibleRedirect && this.redirectSlugsByTargetPlatform[posibleRedirect] !== undefined){
+        this.registrationSlug +=`?targetPlatform=${posibleRedirect}`;
+        this.exploreDataRedirectSlug = `/try-fleet/explore-data/${this.redirectSlugsByTargetPlatform[posibleRedirect]}`;
+      }
+      window.history.replaceState({}, document.title, '/login' );
     }
   },
   mounted: async function() {
@@ -49,7 +72,12 @@ parasails.registerPage('login', {
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/customers/new-license?login';
+      if(this.exploreDataRedirectSlug){
+        window.location = this.exploreDataRedirectSlug;
+      } else {
+        window.location = '/start';
+      }
+
     },
 
   }

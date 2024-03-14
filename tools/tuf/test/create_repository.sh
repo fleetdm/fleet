@@ -73,7 +73,9 @@ for system in $SYSTEMS; do
     # compiling a macOS-arm64 binary requires CGO and a macOS computer (for
     # Apple keychain, some tables, etc), if this is the case, compile an
     # universal binary.
-    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ]; then
+    #
+    # NOTE(lucas): Cross-compiling orbit for arm64 from Intel macOS currently fails (CGO error).
+    if [ $system == "macos" ] && [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ]; then
        CGO_ENABLED=1 \
        CODESIGN_IDENTITY=$CODESIGN_IDENTITY \
        ORBIT_VERSION=42 \
