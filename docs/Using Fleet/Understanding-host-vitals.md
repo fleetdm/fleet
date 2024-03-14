@@ -178,7 +178,8 @@ WITH registry_keys AS (
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
                             MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
-                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id
+                            MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -195,6 +196,10 @@ WITH registry_keys AS (
                         i.installation_type
                     FROM installation_info i
                     LEFT JOIN enrollment_info e ON e.upn IS NOT NULL
+		    -- coalesce to 'unknown' and keep that state in the list
+		    -- in order to account for hosts that might not have this
+		    -- key, and servers
+                    WHERE COALESCE(e.state, '0') IN ('0', '1', '2')
                     LIMIT 1;
 ```
 
@@ -565,6 +570,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'apps' AS source,
+  '' AS vendor,
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
@@ -577,6 +583,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM python_packages
@@ -589,6 +596,7 @@ SELECT
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
@@ -601,6 +609,7 @@ SELECT
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
@@ -613,6 +622,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'safari_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
@@ -625,9 +635,39 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'homebrew_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages;
+```
+
+## software_vscode_extensions
+
+- Platforms: linux, ubuntu, debian, rhel, centos, sles, kali, gentoo, amzn, pop, arch, linuxmint, void, nixos, endeavouros, manjaro, opensuse-leap, opensuse-tumbleweed, darwin, windows
+
+- Discovery query:
+```sql
+SELECT 1 FROM osquery_registry WHERE active = true AND registry = 'table' AND name = 'vscode_extensions';
+```
+
+- Query:
+```sql
+WITH cached_users AS (WITH cached_groups AS (select * from groups)
+ SELECT uid, username, type, groupname, shell
+ FROM users LEFT JOIN cached_groups USING (gid)
+ WHERE type <> 'special' AND shell NOT LIKE '%/false' AND shell NOT LIKE '%/nologin' AND shell NOT LIKE '%/shutdown' AND shell NOT LIKE '%/halt' AND username NOT LIKE '%$' AND username NOT LIKE '\_%' ESCAPE '\' AND NOT (username = 'sync' AND shell ='/bin/sync' AND directory <> ''))
+SELECT
+  name,
+  version,
+  'IDE extension (VS Code)' AS type,
+  '' AS bundle_identifier,
+  uuid AS extension_id,
+  '' AS browser,
+  'vscode_extensions' AS source,
+  publisher AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN vscode_extensions USING (uid)
 ```
 
 ## software_windows

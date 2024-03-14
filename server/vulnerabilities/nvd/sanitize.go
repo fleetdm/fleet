@@ -145,6 +145,14 @@ func productVariations(s *fleet.Software) []string {
 		r = append(r, re)
 	}
 
+	// VSCode extensions have a unique s.Name of the form "<vendor>.<extension>" (aka extension ID)
+	if s.Source == "vscode_extensions" {
+		parts := strings.SplitN(s.Name, ".", 2)
+		if len(parts) == 2 && parts[1] != "" {
+			r = append(r, parts[1])
+		}
+	}
+
 	return r
 }
 
@@ -175,6 +183,14 @@ func vendorVariations(s *fleet.Software) []string {
 	for re := range rSet {
 		if re != "" {
 			r = append(r, re)
+		}
+	}
+
+	// VSCode extensions have a unique s.Name of the form "<vendor>.<extension>" (aka extension ID)
+	if s.Source == "vscode_extensions" {
+		parts := strings.SplitN(s.Name, ".", 2)
+		if len(parts) == 2 && parts[0] != "" {
+			r = append(r, parts[0])
 		}
 	}
 
@@ -211,6 +227,8 @@ func targetSW(s *fleet.Software) string {
 		return `node.js`
 	case "programs":
 		return "windows"
+	case "vscode_extensions":
+		return "visual_studio_code"
 	}
 	return "*"
 }
