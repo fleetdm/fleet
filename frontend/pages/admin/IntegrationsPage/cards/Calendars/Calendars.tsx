@@ -15,11 +15,19 @@ import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 
-import {
-  ICalendarsFormErrors,
-  IFormField,
-  LEARN_MORE_CALENDARS,
-} from "./constants";
+const LEARN_MORE_CALENDARS =
+  "https://www.fleetdm.com/learn-more-about/google-workspace-service-accounts";
+
+interface IFormField {
+  name: string;
+  value: string | boolean | number;
+}
+
+interface ICalendarsFormErrors {
+  email?: string | null;
+  domain?: string | null;
+  privateKey?: string | null;
+}
 
 const baseClass = "calendars-form";
 
