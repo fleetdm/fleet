@@ -478,6 +478,10 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 			}
 		}
 	}
+	// If google_calendar is null, we keep the existing setting. If it's not null, we update.
+	if newAppConfig.Integrations.GoogleCalendar == nil {
+		appConfig.Integrations.GoogleCalendar = oldAppConfig.Integrations.GoogleCalendar
+	}
 
 	if !license.IsPremium() {
 		// reset transparency url to empty for downgraded licenses
