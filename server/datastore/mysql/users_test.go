@@ -9,6 +9,7 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/test"
+	"github.com/jmoiron/sqlx"
 
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/ptr"
@@ -70,6 +71,8 @@ func testUsersCreate(t *testing.T, ds *Datastore) {
 		assert.Equal(t, tt.email, verify.Email)
 		assert.Equal(t, tt.sso, verify.SSOEnabled)
 		assert.Equal(t, tt.resultingPasswordReset, verify.AdminForcedPasswordReset)
+
+		assertPersistentUserInfo(t, ds, []*fleet.User{user})
 	}
 }
 
@@ -119,6 +122,7 @@ func testUsersSave(t *testing.T, ds *Datastore) {
 	testUserGlobalRole(t, ds, users)
 	testEmailAttribute(t, ds, users)
 	testPasswordAttribute(t, ds, users)
+	assertPersistentUserInfo(t, ds, users)
 }
 
 func testPasswordAttribute(t *testing.T, ds fleet.Datastore, users []*fleet.User) {
@@ -339,4 +343,30 @@ func testUsersSaveMany(t *testing.T, ds *Datastore) {
 	gotU3, err := ds.UserByID(context.Background(), u3.ID)
 	require.NoError(t, err)
 	assert.True(t, strings.HasSuffix(gotU3.Email, "fleet.com"))
+
+	assertPersistentUserInfo(t, ds, []*fleet.User{u1, u2, u3})
+}
+
+func assertPersistentUserInfo(t *testing.T, ds *Datastore, users []*fleet.User) {
+	var persistentInfo struct {
+		ID        uint   `db:"id"`
+		UserID    *uint  `db:"user_id"`
+		UserName  string `db:"user_name"`
+		UserEmail string `db:"user_email"`
+	}
+	for _, u := range users {
+		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+			return sqlx.GetContext(
+				context.Background(),
+				tx,
+				&persistentInfo,
+				`SELECT user_id, user_name, id, user_email FROM user_persistent_info WHERE user_id = ?`,
+				u.ID,
+			)
+		})
+		require.NotEmpty(t, persistentInfo.ID)
+		require.Equal(t, u.ID, *persistentInfo.UserID)
+		require.Equal(t, u.Name, persistentInfo.UserName)
+		require.Equal(t, u.Email, persistentInfo.UserEmail)
+	}
 }

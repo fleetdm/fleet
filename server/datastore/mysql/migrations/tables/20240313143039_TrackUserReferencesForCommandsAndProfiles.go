@@ -23,11 +23,15 @@ func Up_20240313143039(tx *sql.Tx) error {
 	    -- user_name mirrors the users.name value
 	    user_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
+	    -- user_email mirrors the users.email value
+	    user_email varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+
 	    -- timestamps
 	    created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	    updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
 
 	    PRIMARY KEY (id),
+	    UNIQUE INDEX idx_unique_user_id (user_id),
 	    FOREIGN KEY (user_id) REFERENCES users (id) ON DELETE SET NULL
 	  )
       `)
@@ -37,8 +41,8 @@ func Up_20240313143039(tx *sql.Tx) error {
 
 	// migrate existing data.
 	_, err = tx.Exec(`
-	  INSERT INTO user_persistent_info (user_id, user_name)
-	  SELECT id, name
+	  INSERT INTO user_persistent_info (user_id, user_name, user_email)
+	  SELECT id, name, email
 	  FROM users
 	`)
 	if err != nil {

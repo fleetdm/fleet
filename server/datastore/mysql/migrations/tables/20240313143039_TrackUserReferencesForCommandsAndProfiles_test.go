@@ -53,20 +53,21 @@ INSERT INTO
 
 	// check the newly created user_info tables
 	type userInfo struct {
-		ID       uint   `db:"id"`
-		UserID   *uint  `db:"user_id"`
-		UserName string `db:"user_name"`
+		ID        uint   `db:"id"`
+		UserID    *uint  `db:"user_id"`
+		UserName  string `db:"user_name"`
+		UserEmail string `db:"user_email"`
 	}
 	var userInfos []userInfo
 	err = db.Select(
 		&userInfos,
-		`SELECT user_id, user_name, id FROM user_persistent_info`,
+		`SELECT user_id, user_name, id, user_email FROM user_persistent_info`,
 	)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []userInfo{
-		{ID: uint(1), UserID: ptr.Uint(1), UserName: "admin"},
-		{ID: uint(2), UserID: ptr.Uint(2), UserName: "User 1"},
-		{ID: uint(3), UserID: ptr.Uint(3), UserName: "User 2"},
+		{ID: uint(1), UserID: ptr.Uint(1), UserEmail: "admin@email.com", UserName: "admin"},
+		{ID: uint(2), UserID: ptr.Uint(2), UserEmail: "user1@email.com", UserName: "User 1"},
+		{ID: uint(3), UserID: ptr.Uint(3), UserEmail: "user2@email.com", UserName: "User 2"},
 	}, userInfos)
 
 	// deleting an user doesn't delete the user info
