@@ -68,7 +68,7 @@ func NewService(
 	svc.SetEnterpriseOverrides(fleet.EnterpriseOverrides{
 		HostFeatures:                      eeservice.HostFeatures,
 		TeamByIDOrName:                    eeservice.teamByIDOrName,
-		UpdateTeamMDMAppleSettings:        eeservice.updateTeamMDMAppleSettings,
+		UpdateTeamMDMDiskEncryption:       eeservice.updateTeamMDMDiskEncryption,
 		MDMAppleEnableFileVaultAndEscrow:  eeservice.MDMAppleEnableFileVaultAndEscrow,
 		MDMAppleDisableFileVaultAndEscrow: eeservice.MDMAppleDisableFileVaultAndEscrow,
 		DeleteMDMAppleSetupAssistant:      eeservice.DeleteMDMAppleSetupAssistant,

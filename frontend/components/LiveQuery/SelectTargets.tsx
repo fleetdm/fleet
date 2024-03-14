@@ -316,8 +316,8 @@ const SelectTargets = ({
     }
   };
 
-  const handleRowRemove = (row: Row) => {
-    const removedHost = row.original as IHost;
+  const handleRowRemove = (row: Row<IHost>) => {
+    const removedHost = row.original;
     setTargetedHosts((prevHosts) =>
       prevHosts.filter((h) => h.id !== removedHost.id)
     );

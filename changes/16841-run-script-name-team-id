@@ -1,3 +1,0 @@
-- Updated `fleetctl run-script` to include new `--team` and `--script-name` flags that enable users
-  to run live script on a host using a previously saved script referenced by the script name and team ID.
-- Updated `POST /scripts/run/sync` API to receive new `script_name` and `team_id` parameters.
