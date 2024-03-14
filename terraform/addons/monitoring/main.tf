@@ -93,7 +93,7 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
 
       dimensions = {
         TargetGroup  = each.value.target_group_arn_suffix
-        LoadBalancer = each.value.alb_arn_suffix
+        LoadBalancer = each.value.arn_suffix
       }
     }
   }
