@@ -7,43 +7,59 @@
     <div purpose="customer-portal-form" class="card card-body">
       <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
         <div class="form-group">
-          <label for="email-address">Email</label>
-          <span style="float: right" class="text-right small"><a :href="loginSlug">I have an account</a></span>
+          <label for="email-address">Work email *</label>
+          <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>
           <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
           <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
         </div>
         <div v-show="formData.emailAddress || showFullForm">
           <div class="form-group">
-            <label for="password">Choose a password</label>
+            <label for="password">Choose a password *</label>
             <input class="form-control" id="password" type="password"  :class="[formErrors.password ? 'is-invalid' : '']" v-model.trim="formData.password" autocomplete="new-password" @input="typeClearOneFormError('password')">
             <div class="invalid-feedback" v-if="formErrors.password === 'minLength'">Password too short.</div>
             <div class="invalid-feedback" v-if="formErrors.password === 'required'">Please enter a password.</div>
             <p class="mt-2"> Minimum length is 8 characters</p>
           </div>
           <div class="form-group">
-            <label for="organization">Organization</label>
+            <label for="organization">Organization *</label>
             <input class="form-control" id="organization" type="text"  :class="[formErrors.organization ? 'is-invalid' : '']" v-model.trim="formData.organization" @input="typeClearOneFormError('organization')">
             <div class="invalid-feedback" v-if="formErrors.organization">Please enter the name of your organization.</div>
           </div>
           <div class="row">
             <div class="col-12 col-sm-6 pr-sm-2">
               <div class="form-group">
-                <label for="first-name">First name</label>
+                <label for="first-name">First name *</label>
                 <input class="form-control" id="first-name" type="text"  :class="[formErrors.firstName ? 'is-invalid' : '']" v-model.trim="formData.firstName" autocomplete="first-name" @input="typeClearOneFormError('firstName')">
                 <div class="invalid-feedback" v-if="formErrors.firstName">Please enter your first name.</div>
               </div>
             </div>
             <div class="col-12 col-sm-6 pl-sm-2">
               <div class="form-group">
-                <label for="last-name">Last name</label>
+                <label for="last-name">Last name *</label>
                 <input class="form-control" id="last-name" type="text"  :class="[formErrors.lastName ? 'is-invalid' : '']" v-model.trim="formData.lastName" autocomplete="last-name" @input="typeClearOneFormError('lastName')">
                 <div class="invalid-feedback" v-if="formErrors.lastName">Please enter your last name.</div>
               </div>
             </div>
           </div>
+          <div class="form-group">
+            <label for="primaryBuyingSituation">What will you be using Fleet for? *</label>
+            <div class="selectbox">
+            <select class="form-control" id="primaryBuyingSituation" name="primaryBuyingSituation" :class="[formErrors.primaryBuyingSituation ? 'is-invalid' : '']" v-model="formData.primaryBuyingSituation" @input="typeClearOneFormError('primaryBuyingSituation')">
+              <option disabled hidden value="undefined">Choose an option</option>
+              <option value="endpoint-ops-security">Endpoint operations for security engineers</option>
+              <option value="endpoint-ops-it">Endpoint operations for IT admins</option>
+              <option value="device-management">Device management</option>
+              <option value="vulnerability-management">Vulnerability management</option>
+            </select>
+            </div>
+            <div class="d-block invalid-feedback" v-if="formErrors.primaryBuyingSituation">Please select an option.</div>
+          </div>
         </div>
         <cloud-error v-if="cloudError==='emailAlreadyInUse'">
           <p>This email is already linked to a Fleet account.<br> Please <a href="/customers/login">sign in</a> with your email and password.</p>
+        </cloud-error>
+        <cloud-error v-else-if="cloudError === 'invalidEmailDomain'">
+          <p>Please enter a valid work email address</p>
         </cloud-error>
         <cloud-error purpose="cloud-error" v-else-if="cloudError"></cloud-error>
         <p class="small">By signing up you agree to our <a href="/legal/privacy">privacy policy</a> and <a href="/terms">terms of service</a>.</p>
