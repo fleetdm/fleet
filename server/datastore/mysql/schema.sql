@@ -1474,7 +1474,8 @@ SET @saved_cs_client     = @@character_set_client;
 SET character_set_client = utf8;
 /*!50001 CREATE VIEW `team_declaration_checksum_view` AS SELECT 
  1 AS `team_id`,
- 1 AS `checksum`*/;
+ 1 AS `md5_checksum`,
+ 1 AS `latest_created_timestamp`*/;
 SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
@@ -1654,7 +1655,7 @@ CREATE TABLE `wstep_serials` (
 /*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`%` SQL SECURITY DEFINER */
-/*!50001 VIEW `team_declaration_checksum_view` AS select `mdm_apple_declarations`.`team_id` AS `team_id`,md5((count(0) + group_concat(hex(`mdm_apple_declarations`.`md5_checksum`) order by `mdm_apple_declarations`.`uploaded_at` DESC separator ''))) AS `checksum` from `mdm_apple_declarations` group by `mdm_apple_declarations`.`team_id` */;
+/*!50001 VIEW `team_declaration_checksum_view` AS select `mdm_apple_declarations`.`team_id` AS `team_id`,md5((count(0) + group_concat(hex(`mdm_apple_declarations`.`md5_checksum`) order by `mdm_apple_declarations`.`uploaded_at` DESC separator ''))) AS `md5_checksum`,max(`mdm_apple_declarations`.`created_at`) AS `latest_created_timestamp` from `mdm_apple_declarations` group by `mdm_apple_declarations`.`team_id` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;

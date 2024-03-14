@@ -151,7 +151,8 @@ SELECT
     team_id,
     -- since GROUP_CONCAT can be truncated, we calculate the checksum based on
     -- the latest updated items and the total number of items
-    MD5(COUNT(*) + GROUP_CONCAT(HEX(md5_checksum) ORDER BY uploaded_at DESC SEPARATOR '')) AS checksum
+    MD5(COUNT(*) + GROUP_CONCAT(HEX(md5_checksum) ORDER BY uploaded_at DESC SEPARATOR '')) AS md5_checksum,
+    MAX(created_at) AS latest_created_timestamp
 FROM 
     mdm_apple_declarations
 GROUP BY 
