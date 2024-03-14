@@ -179,6 +179,16 @@ func TestGetRawProfilePlatform(t *testing.T) {
 			input:    []byte("<?x"),
 			expected: "",
 		},
+		{
+			name:     "DDM JSON",
+			input:    []byte(`{"foo": "bar"}`),
+			expected: "darwin",
+		},
+		{
+			name:     "DDM JSON with whitespace",
+			input:    []byte(`     {"foo": "bar"}`),
+			expected: "darwin",
+		},
 	}
 
 	for _, tt := range testCases {

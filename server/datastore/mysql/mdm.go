@@ -82,7 +82,6 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
-
 	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
@@ -1046,5 +1045,14 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 		return ctxerr.Errorf(ctx, "nano association for host.uuid %s doesn't exist", hostUUID)
 	}
 
+	return nil
+}
+
+func (ds *Datastore) BatchSetMacDDMDeclarations(ctx context.Context, declarations []any) error {
+	/* TODO(JVE): fill me in! should need to
+	- Create a new internal type for the declarations, similar to fleet.MDMAppleConfigProfile
+	- Call this method in the batch upload service method. We'll need to sort the declarations out
+	  from the profiles and call this separately.
+	*/
 	return nil
 }

@@ -1300,6 +1300,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				{Name: "N1", Contents: mobileconfigForTest("N1", "I1")},
 				{Name: "N2", Contents: mobileconfigForTest("N2", "I2")},
 				{Name: "N3", Contents: mobileconfigForTest("N3", "I3")},
+				{Name: "N4", Contents: []byte(`{"foo": "bar"}`)},
 			},
 			``,
 		},

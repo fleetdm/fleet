@@ -5,6 +5,7 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/base64"
+	"log/slog"
 
 	"go.mozilla.org/pkcs7"
 )
@@ -50,7 +51,8 @@ func GetRawProfilePlatform(profile []byte) string {
 			bytes.EqualFold(prefix, trimmedProfile[:len(prefix)])
 	}
 
-	if prefixMatches([]byte("<?xml")) {
+	if prefixMatches([]byte("<?xml")) || prefixMatches([]byte(`{"`)) {
+		slog.With("filename", "server/mdm/mdm.go", "func", "GetRawProfilePlatform").Info("JVE_LOG: got darwin profile ", "profile", trimmedProfile)
 		return "darwin"
 	}
 

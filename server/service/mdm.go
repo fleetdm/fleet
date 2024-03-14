@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -1584,6 +1585,15 @@ func getAppleProfiles(
 		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
 			continue
 		}
+
+		// Check for DDM files
+
+		if bytes.Contains(prof.Contents, []byte("{")) {
+			slog.With("filename", "server/service/mdm.go", "func", "getAppleProfiles").Info("JVE_LOG: got a JSON profile ", "profile", prof.Contents)
+			// TODO(JVE): add handling for JSON DDM declarations
+			continue
+		}
+
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
 		if err != nil {
 			return nil, ctxerr.Wrap(ctx,

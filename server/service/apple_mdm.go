@@ -2225,7 +2225,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
-
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.

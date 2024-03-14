@@ -12503,3 +12503,20 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
+
+func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
+	t := s.T()
+	ctx := context.Background()
+
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
+	require.NoError(t, err)
+
+	ddmProf := []byte(`{"foo": "bar"}`)
+
+	testProfiles := []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: ddmProf},
+	}
+
+	// add global profiles
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+}
