@@ -53,9 +53,9 @@ go.mod @fleetdm/go
 # (1 or more infra-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
-/infrastructure/ @fleetdm/infra @edwardsb
-/charts/ @fleetdm/infra @edwardsb
-/terraform/ @fleetdm/infra @edwardsb
+/infrastructure/ @rfairburn @ksatter @lukeheath
+/charts/ @rfairburn @ksatter @lukeheath
+/terraform/ @rfairburn @ksatter @lukeheath
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
@@ -77,7 +77,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🦿 Repo automation and change control settings
 ##############################################################################################
-/CODEOWNERS                 @mikermcneil  # See https://github.com/fleetdm/fleet/pull/13195
+# /CODEOWNERS                 @mikermcneil  # Covered in DRIs
 
 ##############################################################################################
 # 🦿 Handbook
@@ -89,8 +89,8 @@ go.mod @fleetdm/go
 /handbook/company/leadership.md        @mikermcneil
 /handbook/company/why-this-way.md      @mikermcneil
 /handbook/README.md                    @mikermcneil
-/handbook/company/open-positions.yml   @mikermcneil
-/handbook/company/product-groups.md    @sampfluger88 @lukeheath
+/handbook/company/open-positions.yml   @sampfluger88
+/handbook/company/product-groups.md    @mikermcneil @sampfluger88 @lukeheath
 /handbook/business-operations       @sampfluger88
 /handbook/digital-experience        @sampfluger88
 /handbook/customer-success          @sampfluger88
@@ -102,7 +102,7 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🦿 GitHub issue templates
 ##############################################################################################
-/.github/ISSUE_TEMPLATE     @sampfluger88  # See https://github.com/fleetdm/fleet/pull/16203
+/.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.

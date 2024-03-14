@@ -836,6 +836,9 @@ func newCleanupsAndAggregationSchedule(
 
 			return nil
 		}),
+		schedule.WithJob("cleanup_unused_script_contents", func(ctx context.Context) error {
+			return ds.CleanupUnusedScriptContents(ctx)
+		}),
 	)
 
 	return s, nil

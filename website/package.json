@@ -15,7 +15,8 @@
     "sails-hook-organics": "^2.2.2",
     "sails-hook-orm": "^4.0.2",
     "sails-hook-sockets": "^3.0.0",
-    "sails-postgresql": "^5.0.0"
+    "sails-postgresql": "^5.0.0",
+    "yaml": "1.10.2"
   },
   "devDependencies": {
     "eslint": "5.16.0",
@@ -23,8 +24,7 @@
     "htmlhint": "0.11.0",
     "lesshint": "6.3.6",
     "marked": "4.0.10",
-    "sails-hook-grunt": "^4.0.0",
-    "yaml": "1.10.2"
+    "sails-hook-grunt": "^4.0.0"
   },
   "scripts": {
     "custom-tests": "echo \"(No other custom tests yet.)\" && echo",
