@@ -39,6 +39,15 @@ type MDMWindowsConfigProfile struct {
 	Labels      []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
 	CreatedAt   time.Time                   `db:"created_at" json:"created_at"`
 	UploadedAt  time.Time                   `db:"uploaded_at" json:"updated_at"` // NOTE: JSON field is still `updated_at` for historical reasons, would be an API breaking change
+
+	// UserPersistentInfoID references user information about the actor
+	// that created this profile
+	UserPersistentInfoID *uint `db:"user_persistent_info_id"`
+
+	// FleetOwned indicates if the profile was crated/managed by Fleet.
+	// Profiles prior to the introduction of this field will have a nil
+	// value.
+	FleetOwned *bool `db:"fleet_owned"`
 }
 
 // ValidateUserProvided ensures that the SyncML content in the profile is valid

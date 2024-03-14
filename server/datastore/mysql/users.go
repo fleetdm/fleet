@@ -20,7 +20,7 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 		return nil, ctxerr.Wrap(ctx, err, "validate role")
 	}
 
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		sqlStatement := `
       INSERT INTO users (
       	password,
@@ -56,6 +56,11 @@ func (ds *Datastore) NewUser(ctx context.Context, user *fleet.User) (*fleet.User
 		if err := saveTeamsForUserDB(ctx, tx, user); err != nil {
 			return err
 		}
+
+		if err := savePersistentInfoForUserDB(ctx, tx, user); err != nil {
+			return ctxerr.Wrap(ctx, err, "saving persistent info for new user")
+		}
+
 		return nil
 	})
 	if err != nil {
@@ -195,6 +200,10 @@ func saveUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error
 		return err
 	}
 
+	if err := savePersistentInfoForUserDB(ctx, tx, user); err != nil {
+		return ctxerr.Wrap(ctx, err, "saving persistent info for existing user")
+	}
+
 	return nil
 }
 
@@ -269,6 +278,19 @@ func saveTeamsForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.Use
 	}
 
 	return nil
+}
+
+func savePersistentInfoForUserDB(ctx context.Context, tx sqlx.ExtContext, user *fleet.User) error {
+	stmt := `
+	  INSERT INTO user_persistent_info
+	    (user_id, user_name, user_email)
+	  VALUES
+	    (?, ?, ?)
+	  ON DUPLICATE KEY UPDATE
+	    user_name = VALUES(user_name),
+	    user_email = VALUES(user_email)`
+	_, err := tx.ExecContext(ctx, stmt, user.ID, user.Name, user.Email)
+	return ctxerr.Wrap(ctx, err, "insert persistent user info")
 }
 
 // DeleteUser deletes the associated user
