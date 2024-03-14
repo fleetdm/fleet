@@ -423,6 +423,11 @@ func TestHostDetailsOSSettings(t *testing.T) {
 		ds.GetHostMDMWindowsProfilesFunc = func(ctx context.Context, uuid string) ([]fleet.HostMDMWindowsProfile, error) {
 			return nil, nil
 		}
+		ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+			// TODO: test with various data (e.g., server status, etc.)
+			hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+			return &hmdm, nil
+		}
 	}
 
 	for _, c := range cases {
@@ -499,6 +504,11 @@ func TestHostDetailsOSSettingsWindowsOnly(t *testing.T) {
 	}
 	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
+	}
+	ds.GetHostMDMFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDM, error) {
+		// TODO: test with various data (e.g., server status, etc.)
+		hmdm := fleet.HostMDM{Enrolled: true, IsServer: false}
+		return &hmdm, nil
 	}
 
 	ctx := license.NewContext(context.Background(), &fleet.LicenseInfo{Tier: fleet.TierPremium})
@@ -1500,7 +1510,6 @@ func TestLockUnlockWipeHostAuth(t *testing.T) {
 		if hostID == teamHostID {
 			return teamHost, nil
 		}
-
 		return globalHost, nil
 	}
 	ds.GetMDMWindowsBitLockerStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostMDMDiskEncryption, error) {
