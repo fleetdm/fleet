@@ -7596,6 +7596,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
 | Name     | Type     | In    | Description                                                                                     |
 | ---      | ---      | ---   | ---                                                                                             |
 | cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters host counts and affected OS/software versions to the specified team.  |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
