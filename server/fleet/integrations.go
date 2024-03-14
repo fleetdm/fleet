@@ -112,14 +112,9 @@ func (z TeamZendeskIntegration) UniqueKey() string {
 }
 
 type TeamGoogleCalendarIntegration struct {
-	Email      string       `json:"email"`
-	Enable     bool         `json:"enable_calendar_events"`
-	Policies   []*PolicyRef `json:"policies"`
-	WebhookURL string       `json:"webhook_url"`
-}
-type PolicyRef struct {
-	Name string `json:"name"`
-	ID   uint   `json:"id"`
+	Email      string `json:"email"`
+	Enable     bool   `json:"enable_calendar_events"`
+	WebhookURL string `json:"webhook_url"`
 }
 
 // JiraIntegration configures an instance of an integration with the Jira

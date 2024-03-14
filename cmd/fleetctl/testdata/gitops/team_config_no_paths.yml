@@ -19,9 +19,6 @@ team_settings:
     google_calendar:
       email: service@example.com
       enable_calendar_events: true
-      policies:
-        - name: policy1
-        - name: policy2
       webhook_url: https://example.com/google_calendar_webhook
 agent_options:
   command_line_flags:

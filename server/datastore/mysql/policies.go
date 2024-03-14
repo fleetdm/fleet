@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"golang.org/x/text/unicode/norm"
 	"sort"
@@ -20,7 +19,7 @@ import (
 
 const policyCols = `
 	p.id, p.team_id, p.resolution, p.name, p.query, p.description,
-	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical
+	p.author_id, p.platforms, p.created_at, p.updated_at, p.critical, p.calendar_events_enabled
 `
 
 var policySearchColumns = []string{"p.name"}
@@ -116,10 +115,12 @@ func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemo
 	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, checksum = ` + policiesChecksumComputedColumn() + `
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, calendar_events_enabled = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
-	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
+	result, err := ds.writer(ctx).ExecContext(
+		ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.CalendarEventsEnabled, p.ID,
+	)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "updating policy")
 	}
@@ -445,42 +446,6 @@ func (ds *Datastore) PoliciesByID(ctx context.Context, ids []uint) (map[uint]*fl
 	return policiesByID, nil
 }
 
-func (ds *Datastore) PoliciesByName(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
-	sqlQuery := `SELECT ` + policyCols + `
-	  FROM policies p
-	  WHERE p.team_id = ? AND p.name IN (?)`
-	query, args, err := sqlx.In(sqlQuery, teamID, names)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "building query to get policies by name")
-	}
-
-	var policies []*fleet.Policy
-	err = sqlx.SelectContext(
-		ctx,
-		ds.reader(ctx),
-		&policies,
-		query, args...,
-	)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(fmt.Sprintf("%v", names)))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "getting policies by name")
-	}
-
-	policiesByName := make(map[string]*fleet.Policy, len(names))
-	for _, p := range policies {
-		policiesByName[p.Name] = p
-	}
-	for _, name := range names {
-		if policiesByName[name] == nil {
-			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
-		}
-	}
-
-	return policiesByName, nil
-}
-
 func (ds *Datastore) DeleteGlobalPolicies(ctx context.Context, ids []uint) ([]uint, error) {
 	return deletePolicyDB(ctx, ds.writer(ctx), ids, nil)
 }
@@ -562,10 +527,11 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
-			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
+			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, calendar_events_enabled, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
 		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
+		args.CalendarEventsEnabled,
 	)
 	switch {
 	case err == nil:
@@ -623,15 +589,17 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			team_id,
 			platforms,
 			critical,
+			calendar_events_enabled,
 			checksum
-		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, %s)
+		) VALUES ( ?, ?, ?, ?, ?, (SELECT IFNULL(MIN(id), NULL) FROM teams WHERE name = ?), ?, ?, ?, %s)
 		ON DUPLICATE KEY UPDATE
 			query = VALUES(query),
 			description = VALUES(description),
 			author_id = VALUES(author_id),
 			resolution = VALUES(resolution),
 			platforms = VALUES(platforms),
-			critical = VALUES(critical)
+			critical = VALUES(critical),
+			calendar_events_enabled = VALUES(calendar_events_enabled)
 		`, policiesChecksumComputedColumn(),
 		)
 		for _, spec := range specs {
@@ -640,6 +608,7 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 			spec.Name = norm.NFC.String(spec.Name)
 			res, err := tx.ExecContext(ctx,
 				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
+				spec.CalendarEventsEnabled,
 			)
 			if err != nil {
 				return ctxerr.Wrap(ctx, err, "exec ApplyPolicySpecs insert")
