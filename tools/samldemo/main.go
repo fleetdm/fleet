@@ -9,12 +9,17 @@ const addr = "localhost:9337"
 
 func main() {
 	idp := getIDP()
+	sp := getSP()
 	mux := http.NewServeMux()
 
-	// Essentially these two endpoints would be added to the Fleet server.
+	// IdP
+	// Essentially these endpoints would be added to the Fleet server.
 	mux.HandleFunc("/metadata", idp.ServeMetadata)
 	mux.HandleFunc("/sso", idp.ServeSSO)
 	mux.HandleFunc("/ssowithidentifier", idp.ServeSSOWithIdentifier)
+
+	// SP (used for MFA)
+	mux.Handle("/sso/acs", sp)
 
 	mux.Handle("/img/", http.StripPrefix("/img", http.FileServer(http.Dir("./img"))))
 
