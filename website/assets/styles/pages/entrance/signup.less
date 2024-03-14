@@ -28,6 +28,24 @@
     .card-body {
       padding: 2em;
     }
+    .selectbox {
+
+      position: relative;
+    }
+    .selectbox::after {
+      content: url('/images/chevron-12x8@2x.png');
+      right: 14px;
+      transform: scale(0.5);
+      top: 14px;
+      position: absolute;
+      pointer-events: none;
+    }
+    .selectbox select {
+      border-radius: 6px;
+      height: 48px;
+      appearance: none;
+      -webkit-appearance: none;
+    }
   }
 
   [purpose='submit-button'] {

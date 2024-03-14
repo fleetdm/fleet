@@ -114,6 +114,7 @@ const generateTableHeaders = (
     },
     {
       Header: "",
+      id: "view-all-hosts",
       disableSortBy: true,
       Cell: (cellProps: ITableStringCellProps) => {
         return (

@@ -387,8 +387,7 @@ type agent struct {
 	DiskEncryptionEnabled bool
 
 	scheduledQueriesMu sync.Mutex // protects the below members
-	scheduledQueries   []string
-	scheduledQueryData []scheduledQuery
+	scheduledQueryData map[string]scheduledQuery
 	// bufferedResults contains result logs that are buffered when
 	// /api/v1/osquery/log requests to the Fleet server fail.
 	//
@@ -528,9 +527,10 @@ type scheduledQuery struct {
 	Platform         string  `json:"platform"`
 	Version          string  `json:"version"`
 	Snapshot         bool    `json:"snapshot"`
-	nextRun          float64
-	numRows          uint
-	packName         string
+
+	lastRun  int64
+	numRows  uint
+	packName string
 }
 
 func (a *agent) isOrbit() bool {
@@ -620,14 +620,17 @@ func (a *agent) runLoop(i int, onlyAlreadyEnrolled bool) {
 		now := time.Now().Unix()
 		a.scheduledQueriesMu.Lock()
 		prevCount := a.countBuffered()
-		for i, query := range a.scheduledQueryData {
-			if query.nextRun == 0 || now >= int64(query.nextRun) {
+		for queryName, query := range a.scheduledQueryData {
+			if query.lastRun == 0 || now >= (query.lastRun+int64(query.ScheduleInterval)) {
 				results = append(results, resultLog{
 					packName:  query.packName,
 					queryName: query.Name,
 					numRows:   int(query.numRows),
 				})
-				a.scheduledQueryData[i].nextRun = float64(now + int64(query.ScheduleInterval))
+				// Update lastRun
+				v := a.scheduledQueryData[queryName]
+				v.lastRun = now
+				a.scheduledQueryData[queryName] = v
 			}
 		}
 		if prevCount+len(results) < 1_000_000 { // osquery buffered_log_max is 1M
@@ -1122,11 +1125,9 @@ func (a *agent) config() error {
 		return fmt.Errorf("json parse at config: %w", err)
 	}
 
-	var scheduledQueries []string
-	var scheduledQueryData []scheduledQuery
+	scheduledQueryData := make(map[string]scheduledQuery)
 	for packName, pack := range parsedResp.Packs {
 		for queryName, query := range pack.Queries {
-			scheduledQueries = append(scheduledQueries, packName+"_"+queryName)
 			m, ok := query.(map[string]interface{})
 			if !ok {
 				return fmt.Errorf("processing scheduled query failed: %v", query)
@@ -1146,12 +1147,17 @@ func (a *agent) config() error {
 			}
 			q.ScheduleInterval = m["interval"].(float64)
 			q.Query = m["query"].(string)
-			scheduledQueryData = append(scheduledQueryData, q)
+
+			scheduledQueryName := packName + "_" + queryName
+			if existingEntry, ok := a.scheduledQueryData[scheduledQueryName]; ok {
+				// Keep lastRun if the query is already scheduled.
+				q.lastRun = existingEntry.lastRun
+			}
+			scheduledQueryData[scheduledQueryName] = q
 		}
 	}
 
 	a.scheduledQueriesMu.Lock()
-	a.scheduledQueries = scheduledQueries
 	a.scheduledQueryData = scheduledQueryData
 	a.scheduledQueriesMu.Unlock()
 
@@ -1337,7 +1343,7 @@ func (a *agent) randomQueryStats() []map[string]string {
 	defer a.scheduledQueriesMu.Unlock()
 
 	var stats []map[string]string
-	for _, scheduledQuery := range a.scheduledQueries {
+	for scheduledQuery := range a.scheduledQueryData {
 		stats = append(stats, map[string]string{
 			"name":           scheduledQuery,
 			"delimiter":      "_",

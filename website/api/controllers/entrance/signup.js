@@ -61,6 +61,18 @@ the account verification message.)`,
       type: 'string',
       isIn: ['Buy a license', 'Try Fleet'],
       defaultsTo: 'Buy a license',
+    },
+
+    primaryBuyingSituation: {
+      type: 'string',
+      description: 'What the user will be using Fleet for.',
+      required: true,
+      isIn: [
+        'endpoint-ops-security',
+        'endpoint-ops-it',
+        'device-management',
+        'vulnerability-management'
+      ],
     }
 
   },
@@ -84,18 +96,41 @@ the account verification message.)`,
       description: 'The provided email address is already in use.',
     },
 
+    invalidEmailDomain: {
+      description: 'This email address is on a denylist of domains and cannot be used to signup for a fleetdm.com account.',
+      responseType: 'badRequest'
+    },
+
 
   },
 
-  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason}) {
+  fn: async function ({emailAddress, password, firstName, lastName, organization, signupReason, primaryBuyingSituation}) {
     // Note: in Oct. 2023, the Fleet Sandbox related code was removed from this action. For more details, see https://github.com/fleetdm/fleet/pull/14638/files
 
     var newEmailAddress = emailAddress.toLowerCase();
-
     // Checking if a user with this email address exists in our database before we send a request to the cloud provisioner.
     if(await User.findOne({emailAddress: newEmailAddress})) {
       throw 'emailAlreadyInUse';
     }
+    // Check the user's email address and return an 'invalidEmailDomain' response if the domain is in the bannedEmailDomainsForSignup array.
+    let emailDomain = newEmailAddress.split('@')[1];
+    let bannedEmailDomainsForSignup = [
+      'gmail.com',
+      'yahoo.com',
+      'yahoo.co.uk',
+      'hotmail.com',
+      'hotmail.co.uk',
+      'outlook.com',
+      'icloud.com',
+      'proton.me',
+      'live.com',
+      'yandex.ru',
+      'ymail.com',
+    ];
+    if(_.includes(bannedEmailDomainsForSignup, emailDomain)){
+      throw 'invalidEmailDomain';
+    }
+
 
     if (!sails.config.custom.enableBillingFeatures) {
       throw new Error('The Stripe configuration variables (sails.config.custom.stripePublishableKey and sails.config.custom.stripeSecret) are missing!');
@@ -137,6 +172,7 @@ the account verification message.)`,
         lastName,
         organization,
         signupReason,
+        primaryBuyingSituation,
         webhookSecret: sails.config.custom.zapierSandboxWebhookSecret,
       }
     })
