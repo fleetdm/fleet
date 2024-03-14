@@ -17,7 +17,7 @@ const OSSettingsTable = ({ tableData }: IOSSettingsTableProps) => {
         defaultSortHeader="name"
         columnConfigs={tableHeaders}
         data={tableData}
-        emptyComponent={"symbol"}
+        emptyComponent="symbol"
         isLoading={false}
         showMarkAllPages={false}
         isAllPagesSelected={false}

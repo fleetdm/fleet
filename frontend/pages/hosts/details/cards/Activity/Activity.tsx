@@ -1,9 +1,11 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 import { Tab, TabList, TabPanel, Tabs } from "react-tabs";
 
-import ScriptDetailsModal from "pages/DashboardPage/cards/ActivityFeed/components/ScriptDetailsModal";
 import { IActivityDetails } from "interfaces/activity";
-import { IActivitiesResponse } from "services/entities/activities";
+import {
+  IPastActivitiesResponse,
+  IUpcomingActivitiesResponse,
+} from "services/entities/activities";
 
 import Card from "components/Card";
 import TabsWrapper from "components/TabsWrapper";
@@ -46,9 +48,10 @@ const UpcomingTooltip = () => {
 
 interface IActivityProps {
   activeTab: "past" | "upcoming";
-  activities?: IActivitiesResponse; // TODO: type
+  activities?: IPastActivitiesResponse | IUpcomingActivitiesResponse;
   isLoading?: boolean;
   isError?: boolean;
+  upcomingCount: number;
   onChangeTab: (index: number, last: number, event: Event) => void;
   onNextPage: () => void;
   onPreviousPage: () => void;
@@ -60,6 +63,7 @@ const Activity = ({
   activities,
   isLoading,
   isError,
+  upcomingCount,
   onChangeTab,
   onNextPage,
   onPreviousPage,
@@ -67,7 +71,12 @@ const Activity = ({
 }: IActivityProps) => {
   // TODO: add count to upcoming activities tab when available via API
   return (
-    <Card borderRadiusSize="large" includeShadow className={baseClass}>
+    <Card
+      borderRadiusSize="large"
+      includeShadow
+      largePadding
+      className={baseClass}
+    >
       {isLoading && (
         <div className={`${baseClass}__loading-overlay`}>
           <Spinner />
@@ -81,11 +90,18 @@ const Activity = ({
         >
           <TabList>
             <Tab>Past</Tab>
-            <Tab>Upcoming</Tab>
+            <Tab>
+              Upcoming
+              {!!upcomingCount && (
+                <span className={`${baseClass}__upcoming-count`}>
+                  {upcomingCount}
+                </span>
+              )}
+            </Tab>
           </TabList>
           <TabPanel>
             <PastActivityFeed
-              activities={activities}
+              activities={activities as IPastActivitiesResponse | undefined}
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}
@@ -95,7 +111,7 @@ const Activity = ({
           <TabPanel>
             <UpcomingTooltip />
             <UpcomingActivityFeed
-              activities={activities}
+              activities={activities as IUpcomingActivitiesResponse | undefined}
               onDetailsClick={onShowDetails}
               isError={isError}
               onNextPage={onNextPage}

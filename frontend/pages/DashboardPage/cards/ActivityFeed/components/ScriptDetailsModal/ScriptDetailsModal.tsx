@@ -85,7 +85,7 @@ const StatusMessage = ({
         <StatusMessageError message={message} />
       );
     case -2:
-      // Expected API message: "Scripts are disabled for this host. To run scripts, deploy a Fleet installer with scripts enabled."
+      // Expected API message: "Scripts are disabled for this host. To run scripts, deploy the fleetd agent with scripts enabled."
       return <StatusMessageError message={message} />;
     case -1:
       // Expected API message: "Timeout. Fleet stopped the script after 5 minutes to protect host performance."
@@ -209,7 +209,7 @@ const ScriptDetailsModal = ({
 
   return (
     <Modal
-      title={"Script details"}
+      title="Script details"
       onExit={onCancel}
       onEnter={onCancel}
       className={baseClass}

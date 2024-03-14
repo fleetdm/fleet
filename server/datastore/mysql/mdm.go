@@ -35,11 +35,7 @@ END AS platform
 	return p, nil
 }
 
-func (ds *Datastore) ListMDMCommands(
-	ctx context.Context,
-	tmFilter fleet.TeamFilter,
-	listOpts *fleet.MDMCommandListOptions,
-) ([]*fleet.MDMCommand, error) {
+func getCombinedMDMCommandsQuery() string {
 	appleStmt := `
 SELECT
     nvq.id as host_uuid,
@@ -75,10 +71,19 @@ INNER JOIN mdm_windows_enrollments mwe ON wmcq.enrollment_id = mwe.id OR wmcr.en
 INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 `
 
-	jointStmt := fmt.Sprintf(
-		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE %s`,
-		appleStmt, windowsStmt, ds.whereFilterHostsByTeams(tmFilter, "h"),
+	return fmt.Sprintf(
+		`SELECT * FROM ((%s) UNION ALL (%s)) as combined_commands WHERE `,
+		appleStmt, windowsStmt,
 	)
+}
+
+func (ds *Datastore) ListMDMCommands(
+	ctx context.Context,
+	tmFilter fleet.TeamFilter,
+	listOpts *fleet.MDMCommandListOptions,
+) ([]*fleet.MDMCommand, error) {
+
+	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &results, jointStmt, params...); err != nil {
@@ -87,8 +92,18 @@ INNER JOIN hosts h ON h.uuid = mwe.host_uuid
 	return results, nil
 }
 
+func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, cmdUUID string) (*fleet.MDMCommand, error) {
+	stmt := getCombinedMDMCommandsQuery() + "command_uuid = ?"
+
+	var cmd fleet.MDMCommand
+	if err := sqlx.GetContext(ctx, q, &cmd, stmt, cmdUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get mdm command by UUID")
+	}
+	return &cmd, nil
+}
+
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
-	return ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
 		}
@@ -116,7 +131,7 @@ SELECT
 	identifier,
 	checksum,
 	created_at,
-	updated_at
+	uploaded_at
 FROM (
 	SELECT
 		profile_uuid,
@@ -126,7 +141,7 @@ FROM (
 		identifier,
 		checksum,
 		created_at,
-		updated_at
+		uploaded_at
 	FROM
 		mdm_apple_configuration_profiles
 	WHERE
@@ -143,7 +158,7 @@ FROM (
 		'' as identifier,
 		'' as checksum,
 		created_at,
-		updated_at
+		uploaded_at
 	FROM
 		mdm_windows_configuration_profiles
 	WHERE
@@ -589,7 +604,7 @@ func (ds *Datastore) getHostMDMWindowsProfilesExpectedForVerification(ctx contex
 SELECT
 	name,
 	syncml AS raw_profile,
-	mwcp.updated_at AS earliest_install_date,
+	min(mwcp.uploaded_at) AS earliest_install_date,
 	0 AS count_profile_labels,
 	0 AS count_host_labels
 FROM
@@ -603,11 +618,12 @@ WHERE
 			mdm_configuration_profile_labels mcpl
 		WHERE
 			mcpl.apple_profile_uuid = mwcp.profile_uuid)
+GROUP BY  name, syncml
 	UNION
 	SELECT
 		name,
 		syncml AS raw_profile,
-		mwcp.updated_at AS earliest_install_date,
+		min(mwcp.uploaded_at) AS earliest_install_date,
 		COUNT(*) AS count_profile_labels,
 		COUNT(lm.label_id) AS count_host_labels
 	FROM
@@ -618,18 +634,18 @@ WHERE
 	WHERE
 		mwcp.team_id = ?
 	GROUP BY
-		name
+		name, syncml
 	HAVING
 		count_profile_labels > 0
 		AND count_host_labels = count_profile_labels
-    
+
   `
 
 	var profiles []*fleet.ExpectedMDMProfile
 	// Note: teamID provided twice
 	err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, teamID, hostID, teamID)
 	if err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(ctx, err, "running query for windows profiles")
 	}
 
 	byName := make(map[string]*fleet.ExpectedMDMProfile, len(profiles))
@@ -652,7 +668,7 @@ FROM
 	JOIN (
 		SELECT
 			checksum,
-			min(updated_at) AS earliest_install_date
+			min(uploaded_at) AS earliest_install_date
 		FROM
 			mdm_apple_configuration_profiles
 		GROUP BY
@@ -672,13 +688,13 @@ WHERE
 		macp.identifier AS identifier,
 		COUNT(*) AS count_profile_labels,
 		COUNT(lm.label_id) AS count_host_labels,
-		earliest_install_date
+		min(earliest_install_date) AS earliest_install_date
 	FROM
 		mdm_apple_configuration_profiles macp
 		JOIN (
 			SELECT
 				checksum,
-				min(updated_at) AS earliest_install_date
+				min(uploaded_at) AS earliest_install_date
 			FROM
 				mdm_apple_configuration_profiles
 			GROUP BY
@@ -874,6 +890,160 @@ func batchSetProfileLabelAssociationsDB(
 	}
 	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
 		return ctxerr.Wrap(ctx, err, "deleting labels for profiles")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
+	// Currently, there can only be one EULA in the database, and we're
+	// hardcoding it's id to be 1 in order to enforce this restriction.
+	stmt := "SELECT name, created_at, token FROM eulas WHERE id = 1"
+	var eula fleet.MDMEULA
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA metadata")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
+	stmt := "SELECT name, bytes FROM eulas WHERE token = ?"
+	var eula fleet.MDMEULA
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &eula, stmt, token); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMEULA"))
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get EULA bytes")
+	}
+	return &eula, nil
+}
+
+func (ds *Datastore) MDMInsertEULA(ctx context.Context, eula *fleet.MDMEULA) error {
+	// We're intentionally hardcoding the id to be 1 because we only want to
+	// allow one EULA.
+	stmt := `
+          INSERT INTO eulas (id, name, bytes, token)
+	  VALUES (1, ?, ?, ?)
+	`
+
+	_, err := ds.writer(ctx).ExecContext(ctx, stmt, eula.Name, eula.Bytes, eula.Token)
+	if err != nil {
+		if isDuplicate(err) {
+			return ctxerr.Wrap(ctx, alreadyExists("MDMEULA", eula.Token))
+		}
+		return ctxerr.Wrap(ctx, err, "create EULA")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) MDMDeleteEULA(ctx context.Context, token string) error {
+	stmt := "DELETE FROM eulas WHERE token = ?"
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, token)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "delete EULA")
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMEULA"))
+	}
+	return nil
+}
+
+func (ds *Datastore) GetHostCertAssociationsToExpire(ctx context.Context, expiryDays, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+	// TODO(roberto): this is not good because we don't have any indexes on
+	// h.uuid, due to time constraints, I'm assuming that this
+	// function is called with a relatively low amount of shas
+	//
+	// Note that we use GROUP BY because we can't guarantee unique entries
+	// based on uuid in the hosts table.
+	stmt, args, err := sqlx.In(
+		`SELECT
+			h.uuid as host_uuid,
+			ncaa.sha256 as sha256,
+			COALESCE(MAX(hm.fleet_enroll_ref), '') as enroll_reference
+		 FROM
+			nano_cert_auth_associations ncaa
+			LEFT JOIN hosts h ON h.uuid = ncaa.id
+			LEFT JOIN host_mdm hm ON hm.host_id = h.id
+		 WHERE
+			cert_not_valid_after BETWEEN '0000-00-00' AND DATE_ADD(CURDATE(), INTERVAL ? DAY)
+			AND renew_command_uuid IS NULL
+		GROUP BY
+			host_uuid, ncaa.sha256, cert_not_valid_after
+		ORDER BY cert_not_valid_after ASC
+		LIMIT ?
+		`, expiryDays, limit)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "building sqlx.In query")
+	}
+
+	var uuids []fleet.SCEPIdentityAssociation
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &uuids, stmt, args...); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, ctxerr.Wrap(ctx, err, "get identity certs close to expiry")
+	}
+	return uuids, nil
+}
+
+func (ds *Datastore) SetCommandForPendingSCEPRenewal(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+	if len(assocs) == 0 {
+		return nil
+	}
+
+	var sb strings.Builder
+	args := make([]any, len(assocs)*3)
+	for i, assoc := range assocs {
+		sb.WriteString("(?, ?, ?),")
+		args[i*3] = assoc.HostUUID
+		args[i*3+1] = assoc.SHA256
+		args[i*3+2] = cmdUUID
+	}
+
+	stmt := fmt.Sprintf(`
+		INSERT INTO nano_cert_auth_associations (id, sha256, renew_command_uuid) VALUES %s
+		ON DUPLICATE KEY UPDATE
+			renew_command_uuid = VALUES(renew_command_uuid)
+	`, strings.TrimSuffix(sb.String(), ","))
+
+	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt, args...)
+		if err != nil {
+			return fmt.Errorf("failed to update cert associations: %w", err)
+		}
+
+		// NOTE: we can't use insertOnDuplicateDidInsert because the
+		// LastInsertId check only works tables that have an
+		// auto-incrementing primary key. See notes in that function
+		// and insertOnDuplicateDidUpdate to understand the mechanism.
+		affected, _ := res.RowsAffected()
+		if affected == 1 {
+			return errors.New("this function can only be used to update existing associations")
+		}
+
+		return nil
+	})
+}
+
+func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) error {
+	stmt := `
+	UPDATE nano_cert_auth_associations
+	SET renew_command_uuid = NULL
+	WHERE id = ?`
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning SCEP renew references")
+	}
+
+	if rows, _ := res.RowsAffected(); rows == 0 {
+		return ctxerr.Errorf(ctx, "nano association for host.uuid %s doesn't exist", hostUUID)
 	}
 
 	return nil

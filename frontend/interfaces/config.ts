@@ -214,7 +214,7 @@ export interface IConfig {
 
 export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
-  host_status_webhook: IWebhookHostStatus;
+  host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
 }
 

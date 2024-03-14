@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"fmt"
-	"math"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -98,7 +97,14 @@ func (svc Service) StreamCampaignResults(ctx context.Context, conn *websocket.Co
 	// Setting the status to completed stops the query from being sent to
 	// targets. If this fails, there is a background job that will clean up
 	// this campaign.
-	defer svc.CompleteCampaign(ctx, campaign) //nolint:errcheck
+	defer func() {
+		// We do not want to use the outer `ctx` because we want to make sure
+		// to cleanup the campaign.
+		ctx := context.WithoutCancel(ctx)
+		if err := svc.CompleteCampaign(ctx, campaign); err != nil {
+			level.Error(logger).Log("msg", "complete campaign (async)", "err", err)
+		}
+	}()
 
 	status := campaignStatus{
 		Status: campaignStatusPending,
@@ -323,8 +329,6 @@ func (svc Service) updateStats(
 		// Update stats
 		for _, gatheredStats := range tracker.stats {
 			stats, ok := statsMap[gatheredStats.hostID]
-			// We round here to get more accurate wall time
-			wallTime := uint64(math.Floor(float64(gatheredStats.WallTimeMs)/1000 + 0.5))
 			if !ok {
 				newStats := fleet.LiveQueryStats{
 					HostID:        gatheredStats.hostID,
@@ -332,7 +336,7 @@ func (svc Service) updateStats(
 					AverageMemory: gatheredStats.Memory,
 					SystemTime:    gatheredStats.SystemTime,
 					UserTime:      gatheredStats.UserTime,
-					WallTime:      wallTime,
+					WallTime:      gatheredStats.WallTimeMs,
 					OutputSize:    gatheredStats.outputSize,
 				}
 				currentStats = append(currentStats, &newStats)
@@ -342,7 +346,7 @@ func (svc Service) updateStats(
 				stats.Executions = stats.Executions + 1
 				stats.SystemTime = stats.SystemTime + gatheredStats.SystemTime
 				stats.UserTime = stats.UserTime + gatheredStats.UserTime
-				stats.WallTime = stats.WallTime + wallTime
+				stats.WallTime = stats.WallTime + gatheredStats.WallTimeMs
 				stats.OutputSize = stats.OutputSize + gatheredStats.outputSize
 			}
 		}

@@ -68,7 +68,8 @@ variable "cron_monitoring" {
     subnet_ids                 = list(string)
     rds_security_group_id      = string
     delay_tolerance            = string
-    run_interval               = string    
+    run_interval               = string
+    log_retention_in_days      = optional(number, 7)
   })
   default = null
 }

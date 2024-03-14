@@ -7,13 +7,17 @@ import { AppContext } from "context/app";
 // @ts-ignore
 import Dropdown from "components/forms/fields/Dropdown";
 import { generateHostActionOptions } from "./helpers";
+import { HostMdmDeviceStatusUIState } from "../../helpers";
 
 const baseClass = "host-actions-dropdown";
 
 interface IHostActionsDropdownProps {
   hostTeamId: number | null;
   hostStatus: string;
-  hostMdmEnrollemntStatus: MdmEnrollmentStatus | null;
+  hostMdmEnrollmentStatus: MdmEnrollmentStatus | null;
+  /** This represents the mdm managed host device status (e.g. unlocked, locked,
+   * unlocking, locking, ...etc) */
+  hostMdmDeviceStatus: HostMdmDeviceStatusUIState;
   doesStoreEncryptionKey?: boolean;
   mdmName?: string;
   hostPlatform?: string;
@@ -23,7 +27,8 @@ interface IHostActionsDropdownProps {
 const HostActionsDropdown = ({
   hostTeamId,
   hostStatus,
-  hostMdmEnrollemntStatus,
+  hostMdmEnrollmentStatus,
+  hostMdmDeviceStatus,
   doesStoreEncryptionKey,
   mdmName,
   hostPlatform = "",
@@ -33,7 +38,8 @@ const HostActionsDropdown = ({
     isPremiumTier = false,
     isGlobalAdmin = false,
     isGlobalMaintainer = false,
-    isMdmEnabledAndConfigured = false,
+    isMacMdmEnabledAndConfigured = false,
+    isWindowsMdmEnabledAndConfigured = false,
     isSandboxMode = false,
     currentUser,
   } = useContext(AppContext);
@@ -59,12 +65,14 @@ const HostActionsDropdown = ({
     isTeamObserver,
     isHostOnline: hostStatus === "online",
     isEnrolledInMdm: ["On (automatic)", "On (manual)"].includes(
-      hostMdmEnrollemntStatus ?? ""
+      hostMdmEnrollmentStatus ?? ""
     ),
     isFleetMdm: mdmName === "Fleet",
-    isMdmEnabledAndConfigured,
+    isMacMdmEnabledAndConfigured,
+    isWindowsMdmEnabledAndConfigured,
     doesStoreEncryptionKey: doesStoreEncryptionKey ?? false,
     isSandboxMode,
+    hostMdmDeviceStatus,
   });
 
   // No options to render. Exit early
@@ -75,7 +83,7 @@ const HostActionsDropdown = ({
       <Dropdown
         className={`${baseClass}__host-actions-dropdown`}
         onChange={onSelect}
-        placeholder={"Actions"}
+        placeholder="Actions"
         searchable={false}
         options={options}
       />

@@ -68,38 +68,49 @@
   }
 
   [purpose='hero-logos'] {
-    margin-top: 32px;
-    margin-bottom: 120px;
-    max-width: 1080px;
-    [purpose='snowflake-logo'] {
-      height: 28px;
-    }
-    [purpose='wayfair-logo'] {
-      height: 24px;
-    }
-    [purpose='uber-logo'] {
-      height: 24px;
-    }
-    [purpose='fastly-logo'] {
-      height: 30px;
-    }
-    [purpose='atlassian-logo'] {
-      height: 18px;
-    }
-    [purpose='gusto-logo'] {
-      height: 24px;
-    }
-    [purpose='segment-logo'] {
-      height: 24px;
-    }
-  }
-  [purpose='logo-column'] {
+    margin-bottom: 80px;
+    max-width: 1200px;
+    padding-left: 60px;
+    padding-right: 60px;
+    overflow-x: hidden;
     width: 100%;
+  }
+  [purpose='logo-carousel'] {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    div {
+      white-space: nowrap;
+      animation: scroll-horizontal 80s linear infinite;
+    }
     img {
-      margin-right: auto;
-      margin-left: auto;
+      vertical-align: middle;
+      height: 32px;
+      margin-right: 64px;
+    }
+    [purpose='fade-left'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      left: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, #FFF 0%, rgba(255, 255, 255, 0.00) 100%);
+    }
+    [purpose='fade-right'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      right: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
     }
   }
+
 
   [purpose='homepage-content'] {
     max-width: 1200px;
@@ -149,13 +160,17 @@
       align-items: center;
       justify-content: center;
       margin-bottom: 0px;
+      img {
+        height: 48px;
+        width: auto;
+      }
     }
     &:hover {
       box-shadow: 0px 4px 16px 0px #E2E4EA;
     }
     &:first-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-nick-fohs-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-nick-fohs-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -164,7 +179,7 @@
     }
     &:last-of-type {
       [purpose='testimonial-video'] {
-        background: url('/images/video-testimonial-austin-anderson-160x120@2x.png');
+        background: url('/images/video-testimonial-thumbnail-austin-anderson-160x120@2x.png');
         background-position: center;
         background-size: cover;
       }
@@ -224,45 +239,90 @@
     h2 {
       font-weight: 800;
       font-size: 32px;
-      line-height: 48px;
       margin-bottom: 24px;
     }
     p {
       font-weight: 400;
       font-size: 16px;
-      line-height: 24px;
     }
   }
 
   [purpose='platform-block'] {
     margin-bottom: 120px;
-    h3 {
-      font-weight: 800;
-      font-size: 24px;
-      line-height: 32px;
-    }
-    p {
-      margin-bottom: 40px;
-      color: #515774;
-      font-size: 16px;
-      line-height: 24px;
-    }
     max-width: 1080px;
   }
-  [purpose='category-image'] {
-    margin-left: 60px;
-    padding-right: 40px;
+  [purpose='platform-block'].visible {
+    animation: fadeIn 0.3s forwards;
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  [purpose='category-text-block'] {
+    max-width: 468px;
+    h4 {
+      font-size: 16px;
+    }
+    h3 {
+      font-size: 32px;
+      margin-bottom: 32px;
+    }
+    p {
+      margin-bottom: 32px;
+    }
+    [purpose='category-button'] {
+      width: min-content;
+      height: 48px;
+      display: flex;
+      flex-direction: row;
+      justify-content: center;
+      align-items: center;
+      text-decoration: none;
+      font-size: 16px;
+      font-style: normal;
+      font-weight: 700;
+      line-height: 21px;
+      color: #FFF;
+      padding: 16px 32px;
+    }
+  }
+  [purpose='endpoint-ops-image'] {
+    max-width: 380px;
     img {
+      display: flex;
       width: 380px;
-      height: auto;
+      height: 380px;
+      padding: 20px;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
+    }
+  }
+  [purpose='device-management-image'] {
+    max-width: 380px;
+    img {
+      display: flex;
+      width: 380px;
+      height: 380px;
+      padding: 50px 10px;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
     }
   }
   [purpose='vuln-management-image'] {
-    margin-left: 60px;
-    padding-right: 40px;
+    max-width: 380px;
     img {
-      width: 360px;
-      height: auto;
+      display: flex;
+      width: 380px;
+      height: 380px;
+      padding: 20px 36px 20px 35px;
+      justify-content: center;
+      align-items: center;
+      flex-shrink: 0;
     }
   }
   [purpose='category-button'] {
@@ -285,10 +345,7 @@
       white-space: nowrap;
     }
   }
-  [purpose='category-text-block'] {
-    max-width: 428px;
-    padding-left: 40px;
-  }
+
 
   [purpose='bottom-gradient'] {
     background: linear-gradient(180deg, #FFFFFF 0%, #E9F4F4 100%);
@@ -332,7 +389,7 @@
     }
   }
   [purpose='animated-arrow-button-red'], [purpose='animated-arrow-button-red-no-transform'] {
-    display: inline;
+    display: flex;
     padding-right: 34px;
     cursor: pointer;
     position: relative;
@@ -462,7 +519,6 @@
     padding: 0px 0px 0px 80px;
     align-items: center;
     justify-content: space-between;
-    gap: 24px;
     align-self: stretch;
     border-radius: 24px;
     border: 2px solid #E2E4EA;
@@ -478,6 +534,7 @@
       }
     }
     [purpose='endpoints-images'] {
+      margin-left: 24px;
       overflow: hidden;
       max-width: 410px;
       width: 50%;
@@ -491,7 +548,15 @@
           margin-left: 40px;
         }
       }
+      [purpose='endpoint-empty-image-box'] {
+        background: rgba(0, 0, 0, 0.01);
+        border: 1px dashed #C5C7D1;
+      }
       [purpose='endpoint-image-box'] {
+        background: #FFF;
+        border: 1px solid #C5C7D1;
+      }
+      [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
         display: flex;
         width: 80px;
         height: 80px;
@@ -501,12 +566,6 @@
         align-items: center;
         flex-shrink: 0;
         border-radius: 12px;
-        border: 1px dashed #C5C7D1;
-        background: rgba(0, 0, 0, 0.01);
-        &:has(img) {
-          border: 1px solid #C5C7D1;
-          background: #FFF;
-        }
         margin-left: 8px;
         margin-right: 8px;
         img {
@@ -556,53 +615,6 @@
     }
   }
 
-  //  ██╗  ██╗██╗
-  //  ╚██╗██╔╝██║
-  //   ╚███╔╝ ██║
-  //   ██╔██╗ ██║
-  //  ██╔╝ ██╗███████╗
-  //  ╚═╝  ╚═╝╚══════╝
-  //
-  @media (max-width: 1400px) {
-
-    [purpose='hero-logos'] {
-      margin-bottom: 120px;
-      [purpose='snowflake-logo'] {
-        height: 28px;
-      }
-      [purpose='wayfair-logo'] {
-        height: 24px;
-      }
-      [purpose='uber-logo'] {
-        height: 24px;
-      }
-      [purpose='fastly-logo'] {
-        height: 30px;
-      }
-      [purpose='atlassian-logo'] {
-        height: 18px;
-      }
-      [purpose='gusto-logo'] {
-        height: 24px;
-      }
-      [purpose='segment-logo'] {
-        height: 24px;
-      }
-    }
-
-    [purpose='logo-column'] {
-      width: 100%;
-      img {
-        margin-right: auto;
-        margin-left: auto;
-      }
-    }
-
-    [purpose='category-text-block'] {
-      max-width: 468px;
-      padding-right: 0px;
-    }
-  }
   //  ██╗      ██████╗
   //  ██║     ██╔════╝
   //  ██║     ██║  ███╗
@@ -685,52 +697,8 @@
       padding-left: 60px;
     }
     [purpose='hero-logos'] {
-      max-width: 688px;
       padding-left: 40px;
       padding-right: 40px;
-      img {
-        display: inline;
-      }
-      [purpose='snowflake-logo'] {
-        height: 22px;
-        margin-left: 0px;
-        margin-right: 20px;
-      }
-      [purpose='wayfair-logo'] {
-        height: 22px;
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-      [purpose='uber-logo'] {
-        height: 22px;
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-      [purpose='atlassian-logo'] {
-        height: 16px;
-        margin-left: 0px;
-        margin-right: 20px;
-      }
-      [purpose='segment-logo'] {
-        height: 24px;
-        margin-left: 20px;
-        margin-right: 0px;
-      }
-      [purpose='fastly-logo'] {
-        margin-left: 20px;
-        margin-right: 0px;
-      }
-      [purpose='gusto-logo'] {
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-    }
-    [purpose='logo-column'] {
-      margin-bottom: 32px;
-      img {
-        margin-right: 0;
-        margin-left: 0;
-      }
     }
     [purpose='page-section'] {
       margin-bottom: 120px;
@@ -773,32 +741,27 @@
       }
     }
     [purpose='category-text-block'] {
-      width: 100%;
-      max-width: 100%;
-      margin-right: 0px;
-      margin-bottom: 40px;
-      padding-left: 0px;
-      text-align: center;
+      max-width: 410px;
     }
-    [purpose='category-image'] {
-      width: 100%;
-      height: auto;
-      margin-left: 0px;
-      padding-right: 0px;
+    [purpose='endpoint-ops-image'] {
+      margin-right: 24px;
       img {
-        margin-left: auto;
-        margin-right: auto;
+        height: auto;
+        width: 100%;
+      }
+    }
+    [purpose='device-management-image'] {
+      margin-left: 24px;
+      img {
+        height: auto;
+        width: 100%;
       }
     }
     [purpose='vuln-management-image'] {
-      width: 100%;
-      height: auto;
-      margin-left: 0px;
-      padding-right: 0px;
-      padding-left: 75px;
+      margin-left: 24px;
       img {
-        margin-left: auto;
-        margin-right: auto;
+        height: auto;
+        width: 100%;
       }
     }
     [purpose='category-button'] {
@@ -841,6 +804,7 @@
       }
     }
 
+
     [purpose='endpoints-banner'] {
       max-height: 282px;
       padding-left: 40px;
@@ -854,7 +818,7 @@
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -936,8 +900,7 @@
       }
     }
     [purpose='hero-logos'] {
-      margin-top: 32px;
-      margin-bottom: 120px;
+      margin-bottom: 64px;
     }
     [purpose='page-section'] {
       margin-bottom: 80px;
@@ -973,21 +936,39 @@
         width: 100%;
       }
     }
-    [purpose='platform-left-text-block'] {
-      max-width: 100%;
-      margin-right: 0px;
-      margin-bottom: 80px;
+    [purpose='category-text-block'] {
+      max-width: 480px;
+      [purpose='category-button'] {
+        width: 100%;
+      }
     }
-    [purpose='platform-right-text-block'] {
-      max-width: 100%;
-      margin-left: 0px;
-      margin-bottom: 80px;
+    [purpose='endpoint-ops-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
+        height: auto;
+      }
     }
-    [purpose='platform-small-text-block'] {
-      max-width: 100%;
-      min-width: unset;
-      margin-right: 0px;
-      margin-bottom: 80px;
+    [purpose='device-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
+        height: auto;
+      }
+    }
+    [purpose='vuln-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      padding-left: 30px;
+      img {
+        width: 100%;
+        height: auto;
+      }
     }
     [purpose='platform-image'] {
       width: 100%;
@@ -1036,7 +1017,7 @@
         padding-left: 40px;
         padding-right: 40px;
         margin-top: 0px;
-        margin-bottom: auto;
+        margin-bottom: 40px;
       }
       [purpose='endpoints-images'] {
         width: 110%;
@@ -1044,8 +1025,10 @@
         align-items: center;
         display: flex;
         flex-direction: column;
+        margin-left: 0px;
         [purpose='endpoint-images-row'] {
-          [purpose='endpoint-image-box'] {
+          min-height: 80px;
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             display: flex;
             width: 80px;
             height: 80px;
@@ -1172,7 +1155,9 @@
         margin-left: 0px;
       }
     }
-
+    [purpose='platform-block'] {
+      margin-bottom: 100px;
+    }
     [purpose='testimonials'] {
       margin-bottom: 40px;
     }
@@ -1187,30 +1172,39 @@
         width: 100%;
         height: 228px;
         margin-bottom: 24px;
+        img {
+          height: 90px;
+          width: auto;
+        }
       }
     }
-    [purpose='category-switch'] {
-      margin-top: 40px;
+    [purpose='category-text-block'] {
+      max-width: 100%;
     }
-
-    [purpose='category-image'] {
-      width: 100%;
-      height: auto;
+    [purpose='vuln-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
       img {
-        max-height: 236px;
-        max-width: 100%;
-        width: auto;
+        width: 100%;
         height: auto;
       }
     }
-    [purpose='vuln-management-image'] {
-      width: 100%;
-      height: auto;
-      padding-left: 48px;
+    [purpose='endpoint-ops-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
       img {
-        max-height: 236px;
-        max-width: 100%;
-        width: auto;
+        width: 100%;
+        height: auto;
+      }
+    }
+    [purpose='device-management-image'] {
+      margin-right: auto;
+      margin-left: auto;
+      margin-bottom: 20px;
+      img {
+        width: 100%;
         height: auto;
       }
     }
@@ -1280,11 +1274,12 @@
     }
 
     [purpose='hero-logos'] {
-      max-width: 335px;
       padding-left: 20px;
       padding-right: 20px;
+    }
+    [purpose='logo-carousel'] {
       img {
-        display: inline;
+        margin-right: 48px;
       }
     }
     [purpose='video-modal'] {
@@ -1300,8 +1295,9 @@
     [purpose='endpoints-banner'] {
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 60px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 60px;
             height: 60px;
             padding: 12px 7.5px 5.25px 7.5px;
@@ -1388,11 +1384,18 @@
         display: inline;
       }
     }
+    [purpose='platform-block'] {
+      margin-bottom: 80px;
+    }
     [purpose='endpoints-banner'] {
+      [purpose='endpoint-banner-text'] {
+        margin-bottom: 32px;
+      }
       [purpose='endpoints-images'] {
         [purpose='endpoint-images-row'] {
+          min-height: 54.427px;
           margin-bottom: 12px;
-          [purpose='endpoint-image-box'] {
+          [purpose='endpoint-image-box'], [purpose='endpoint-empty-image-box'] {
             width: 54.427px;
             height: 54.427px;
             padding: 10.885px 6.803px 4.762px 6.803px;
@@ -1424,5 +1427,14 @@
 
   }
 
+
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(50%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
 
 }

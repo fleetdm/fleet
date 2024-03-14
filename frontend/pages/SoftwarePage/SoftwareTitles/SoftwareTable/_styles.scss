@@ -41,7 +41,7 @@
       flex-direction: column-reverse; // Search bar on top
       margin-bottom: $pad-medium;
 
-      @media (min-width: $break-md) {
+      @media (min-width: $table-controls-break) {
         flex-direction: row;
       }
     }
@@ -64,7 +64,7 @@
         width: 100%;
       }
 
-      @media (min-width: $break-md) {
+      @media (min-width: $table-controls-break) {
         width: auto;
 
         .input-icon-field__input {
@@ -120,7 +120,6 @@
               // ellipsis for software name
               .software-name {
                 overflow: hidden;
-                text-wrap: nowrap;
                 text-overflow: ellipsis;
               }
             }

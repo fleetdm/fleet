@@ -1,14 +1,20 @@
 import { ISoftwareVulnerability } from "./software";
 
 export interface IOperatingSystemVersion {
+  os_version_id: number;
   name: string;
   name_only: string;
   version: string;
   platform: string;
   hosts_count: number;
-  generated_cpe: string;
+  generated_cpes?: string[];
   vulnerabilities: ISoftwareVulnerability[];
 }
+
+export type IVulnerabilityOSVersion = Omit<
+  IOperatingSystemVersion,
+  "vulnerabilities"
+> & { resolved_in_version: string };
 
 export const OS_VENDOR_BY_PLATFORM: Record<string, string> = {
   darwin: "Apple",

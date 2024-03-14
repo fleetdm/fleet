@@ -18,7 +18,8 @@ func (ds *Datastore) ListOSVulnerabilitiesByOS(ctx context.Context, osID uint) (
 		SELECT
 			operating_system_id,
 			cve,
-			resolved_in_version
+			resolved_in_version,
+			source
 		FROM operating_system_vulnerabilities
 		WHERE operating_system_id = ?
 	`

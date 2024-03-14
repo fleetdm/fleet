@@ -1,0 +1,23 @@
+---
+version: "2"
+services:
+  mysql:
+    image: ${NANODEP_MYSQL_IMAGE:-mysql:8.0.19}
+    platform: ${NANODEP_MYSQL_PLATFORM:-linux/x86_64}
+    command:
+      [
+        "mysqld",
+        "--datadir=/tmp/mysqldata",
+        "--log-bin=bin.log",
+        "--server-id=master-01"
+      ]
+    environment:
+      MYSQL_ROOT_PASSWORD: toor
+      MYSQL_DATABASE: nanodep
+      MYSQL_USER: nanodep
+      MYSQL_PASSWORD: insecure
+    tmpfs:
+      - /var/lib/mysql:rw,noexec,nosuid
+      - /tmpfs
+    ports:
+      - "4242:3306"

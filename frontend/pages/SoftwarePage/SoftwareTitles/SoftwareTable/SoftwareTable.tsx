@@ -1,3 +1,8 @@
+/**
+software/titles Software tab > Table
+software/versions Software tab > Table (version toggle on)
+*/
+
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -176,7 +181,7 @@ const SoftwareTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
+        whatToRetrieve="software"
       />
     );
   };
@@ -190,9 +195,9 @@ const SoftwareTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          teamId,
-          orderDirection,
-          orderKey,
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
           vulnerable: showVulnerableSoftware.toString(),
           page: 0, // resets page index
         },
@@ -207,9 +212,9 @@ const SoftwareTable = ({
         routeTemplate: "",
         queryParams: {
           query,
-          teamId,
-          orderDirection,
-          orderKey,
+          team_id: teamId,
+          order_direction: orderDirection,
+          order_key: orderKey,
           vulnerable: isFilterVulnerable,
           page: 0, // resets page index
         },
@@ -292,7 +297,7 @@ const SoftwareTable = ({
         columnConfigs={softwareTableHeaders}
         data={tableData ?? []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}

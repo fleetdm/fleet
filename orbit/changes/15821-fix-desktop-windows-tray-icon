@@ -1,2 +1,0 @@
-* Fixed bug on Windows where Fleet Desktop tray icon was not showing in the task bar.
-* Fixed bug on Windows where Orbit was not bringing the Fleet Desktop process up (when it was detected as not running).

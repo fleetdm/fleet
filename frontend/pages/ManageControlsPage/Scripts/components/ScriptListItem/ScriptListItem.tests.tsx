@@ -17,7 +17,7 @@ describe("ScriptListItem", () => {
     };
     render(<ScriptListItem {...{ script, onDelete }} />);
 
-    expect(screen.getByText(/macOS/)).toBeInTheDocument();
+    expect(screen.getByText(/macOS & Linux/)).toBeInTheDocument();
     expect(screen.queryByTestId("file-sh-graphic")).toBeInTheDocument();
   });
 

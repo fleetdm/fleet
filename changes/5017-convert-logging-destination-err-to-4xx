@@ -1,1 +1,0 @@
-When writing to logging destination fails, fleet server now issues a 4xx error instead of 500.

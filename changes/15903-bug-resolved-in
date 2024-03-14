@@ -1,2 +1,0 @@
-- fixed issue where the incorrect `resolved_in_version` for a vulnerability was sometimes reported
-  when there were multiple product matches with different version ranges

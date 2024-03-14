@@ -408,12 +408,15 @@ type mdmMigrationHandler struct {
 }
 
 func (m *mdmMigrationHandler) NotifyRemote() error {
-	log.Debug().Msg("sending request to trigger mdm migration webhook")
+	log.Info().Msg("sending request to trigger mdm migration webhook")
+
+	// TODO: Revisit if/when we should hide the migration menu item depending on the
+	// result of the client request.
 	if err := m.client.MigrateMDM(m.tokenReader.GetCached()); err != nil {
 		log.Error().Err(err).Msg("triggering migration webhook")
 		return fmt.Errorf("on migration start: %w", err)
 	}
-	log.Debug().Msg("successfully sent request to trigger mdm migration webhook")
+	log.Info().Msg("successfully sent request to trigger mdm migration webhook")
 	return nil
 }
 

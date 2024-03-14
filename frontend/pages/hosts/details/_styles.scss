@@ -1,5 +1,9 @@
 .host-details,
 .device-user {
+  .react-tabs__tab-panel--selected {
+    margin-top: $pad-medium;
+  }
+
   display: flex;
   flex-direction: column;
   gap: $pad-medium;
@@ -10,64 +14,11 @@
     display: flex;
     flex-direction: column;
   }
-  .section {
+  .card {
     &__header {
       font-size: $medium;
       font-weight: $bold;
-      margin: 0 0 $pad-large 0;
-    }
-
-    .info-flex {
-      display: flex;
-      flex-wrap: wrap;
-
-      .info-flex__item--title {
-        margin-bottom: 2.5rem;
-      }
-
-      &__item {
-        font-size: $x-small;
-        display: flex;
-        flex-direction: column;
-        white-space: nowrap;
-
-        &--title {
-          margin-right: $pad-xxlarge;
-
-          .info-flex__data {
-            display: flex;
-            gap: $pad-xsmall;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-
-            img {
-              width: 16px;
-              height: 16px;
-              vertical-align: sub;
-            }
-
-            .icon {
-              width: 16px;
-              height: 16px;
-              align-self: center;
-            }
-
-            &__text {
-              padding-left: $pad-xsmall;
-            }
-          }
-        }
-      }
-
-      &__header {
-        color: $core-fleet-black;
-        font-weight: $bold;
-      }
-
-      &__no-team {
-        color: $ui-fleet-black-50;
-      }
+      margin: 0 0 $pad-medium 0;
     }
 
     .info-grid {
@@ -91,21 +42,8 @@
         display: flex;
         flex-direction: column;
         white-space: nowrap;
-
-        &--title {
-          margin-right: $pad-xxlarge;
-
-          .info__data {
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-          }
-        }
       }
-      &__header {
-        color: $core-fleet-black;
-        font-weight: $bold;
-      }
+
       &__data {
         .device-mapping {
           &__source {
@@ -166,62 +104,8 @@
       font-size: $large;
       font-weight: $bold;
     }
-
-    .last-fetched {
-      font-size: $xx-small;
-      color: $core-fleet-black;
-      margin: 0;
-      padding-left: $pad-small;
-    }
-
-    .refetch {
-      display: flex;
-      margin-right: $pad-small;
-
-      .refetch-btn {
-        font-size: $x-small;
-        height: 38px;
-        margin-left: $pad-small;
-
-        &:hover {
-          svg {
-            path {
-              fill: $core-vibrant-blue-over;
-            }
-          }
-        }
-      }
-
-      .refetch-offline {
-        opacity: 25%;
-      }
-
-      .refetch-spinner {
-        color: $core-vibrant-blue;
-        cursor: default;
-        font-size: $x-small;
-        height: 38px;
-        opacity: 50%;
-        filter: saturate(100%);
-        margin-left: $pad-small;
-
-        .icon {
-          animation: spin 2s linear infinite;
-        }
-
-        @keyframes spin {
-          0% {
-            transform: rotate(0deg);
-            transform-origin: center center;
-          }
-          100% {
-            transform: rotate(360deg);
-            transform-origin: center center;
-          }
-        }
-      }
-    }
   }
+
   &__tabs-wrapper {
     background-color: $ui-off-white;
     width: 100%;
@@ -240,10 +124,6 @@
 
     .focus-visible {
       background-color: $ui-vibrant-blue-10;
-    }
-
-    .section {
-      margin-top: $pad-medium;
     }
   }
 
@@ -314,6 +194,6 @@
 
 // we dont need the margin on the host details page as we are not using grid css
 // for the spacing.
-.host-details__tabs-wrapper .section {
+.host-details__tabs-wrapper .card {
   margin-top: 0;
 }

@@ -34,7 +34,7 @@ func TestListOperatingSystems(t *testing.T) {
 		osByID[os.ID] = os
 	}
 	for _, os := range osByID {
-		require.Equal(t, os, seedByID[os.ID])
+		require.Equal(t, seedByID[os.ID], os)
 	}
 }
 
@@ -87,9 +87,25 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, list, 1)
 	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
 	storedOS, err := getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
+
+	// insert a host with a different architecture os
+	testHostID2 := uint(43)
+	testOSarm := testOS
+	testOSarm.Arch = "arm64"
+	err = ds.UpdateHostOperatingSystem(ctx, testHostID2, testOSarm)
+	require.NoError(t, err)
+	list, err = ds.ListOperatingSystems(ctx)
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	// os version id is the same for both architectures
+	require.Equal(t, true, isSameOS(t, testOS, list[0]))
+	require.Equal(t, uint(1), list[0].OSVersionID)
+	require.Equal(t, true, isSameOS(t, testOSarm, list[1]))
+	require.Equal(t, uint(1), list[1].OSVersionID)
 
 	// new version creates a new os record
 	testNewVersion := testOS
@@ -98,18 +114,19 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
+	require.Equal(t, uint(2), list[2].OSVersionID) // new version has new os version id
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testNewVersion, *storedOS))
 
 	// new host with existing os
-	testNewHostID := uint(43)
+	testNewHostID := uint(44)
 	err = ds.UpdateHostOperatingSystem(ctx, testNewHostID, testOS)
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
@@ -119,7 +136,7 @@ func TestUpdateHostOperatingSystem(t *testing.T) {
 	require.NoError(t, err)
 	list, err = ds.ListOperatingSystems(ctx)
 	require.NoError(t, err)
-	require.Len(t, list, 2)
+	require.Len(t, list, 3)
 	storedOS, err = getHostOperatingSystemDB(ctx, ds.writer(ctx), testNewHostID)
 	require.NoError(t, err)
 	require.Equal(t, true, isSameOS(t, testOS, *storedOS))
@@ -408,6 +425,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			KernelVersion:  "10.0.22000.795",
 			Platform:       "windows",
 			DisplayVersion: "21H2",
+			OSVersionID:    1,
 		},
 		{
 			Name:          "macOS",
@@ -415,6 +433,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "21.4.0",
 			Platform:      "darwin",
+			OSVersionID:   2,
 		},
 		{
 			Name:          "Ubuntu",
@@ -422,6 +441,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "ubuntu",
+			OSVersionID:   3,
 		},
 		{
 			Name:          "Debian GNU/Linux",
@@ -429,6 +449,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "debian",
+			OSVersionID:   4,
 		},
 		{
 			Name:          "CentOS Linux",
@@ -436,6 +457,7 @@ func seedOperatingSystems(t *testing.T, ds *Datastore) map[uint]fleet.OperatingS
 			Arch:          "x86_64",
 			KernelVersion: "5.10.76-linuxkit",
 			Platform:      "rhel",
+			OSVersionID:   5,
 		},
 	}
 	storedById := make(map[uint]fleet.OperatingSystem)

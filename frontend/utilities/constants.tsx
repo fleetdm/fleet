@@ -3,6 +3,7 @@ import { OsqueryPlatform } from "interfaces/platform";
 import paths from "router/paths";
 import { ISchedulableQuery } from "interfaces/schedulable_query";
 import React from "react";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 const { origin } = global.window.location;
 export const BASE_URL = `${origin}${URL_PREFIX}/api`;
@@ -24,7 +25,7 @@ export const DEFAULT_GRAVATAR_LINK_FALLBACK =
 export const DEFAULT_GRAVATAR_LINK_DARK_FALLBACK =
   "/assets/images/icon-avatar-default-dark-24x24%402x.png";
 
-export const FREQUENCY_DROPDOWN_OPTIONS = [
+export const FREQUENCY_DROPDOWN_OPTIONS: IDropdownOption[] = [
   { value: 0, label: "Never" },
   { value: 300, label: "Every 5 minutes" },
   { value: 600, label: "Every 10 minutes" },
@@ -35,6 +36,19 @@ export const FREQUENCY_DROPDOWN_OPTIONS = [
   { value: 43200, label: "Every 12 hours" },
   { value: 86400, label: "Every day" },
   { value: 604800, label: "Every week" },
+];
+export const HOST_STATUS_WEBHOOK_HOST_PERCENTAGE_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1%", value: 1 },
+  { label: "5%", value: 5 },
+  { label: "10%", value: 10 },
+  { label: "25%", value: 25 },
+];
+
+export const HOST_STATUS_WEBHOOK_WINDOW_DROPDOWN_OPTIONS: IDropdownOption[] = [
+  { label: "1 day", value: 1 },
+  { label: "3 days", value: 3 },
+  { label: "7 days", value: 7 },
+  { label: "14 days", value: 14 },
 ];
 
 export const GITHUB_NEW_ISSUE_LINK =
@@ -234,12 +248,13 @@ export const SCHEDULE_PLATFORM_DROPDOWN_OPTIONS: IPlatformDropdownOptions[] = [
   { label: "Linux", value: "linux" },
 ];
 
+// Builtin label names returned from API
 export const PLATFORM_NAME_TO_LABEL_NAME = {
   all: "",
   darwin: "macOS",
   windows: "MS Windows",
   linux: "All Linux",
-  chrome: "ChromeOS",
+  chrome: "chrome",
 };
 
 export const HOSTS_SEARCH_BOX_PLACEHOLDER =
@@ -264,6 +279,21 @@ export const VULNERABLE_DROPDOWN_OPTIONS = [
   },
 ];
 
+export const EXPLOITED_VULNERABILITIES_DROPDOWN_OPTIONS = [
+  {
+    disabled: false,
+    label: "All vulnerabilities",
+    value: false,
+    helpText: "All vulnerabilities detected on your hosts.",
+  },
+  {
+    disabled: false,
+    label: "Exploited vulnerabilities",
+    value: true,
+    helpText: "Vulnerabilities that have been actively exploited in the wild.",
+  },
+];
+
 // Keys from API
 export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (automatic)": (
@@ -276,12 +306,7 @@ export const MDM_STATUS_TOOLTIP: Record<string, string | React.ReactNode> = {
   "On (manual)": (
     <span>MDM was turned on manually. End users can turn MDM off.</span>
   ),
-  Off: (
-    <span>
-      Hosts with MDM off don&apos;t receive macOS <br /> settings and macOS
-      update encouragement.
-    </span>
-  ),
+  Off: undefined, // no tooltip specified
   Pending: (
     <span>
       Hosts ordered via Apple Business Manager <br /> (ABM). These will
@@ -306,3 +331,46 @@ export const EMPTY_AGENT_OPTIONS = {
 export const DEFAULT_EMPTY_CELL_VALUE = "---";
 
 export const DOCUMENT_TITLE_SUFFIX = "Fleet";
+
+export const HOST_SUMMARY_DATA = [
+  "id",
+  "status",
+  "issues",
+  "memory",
+  "cpu_type",
+  "platform",
+  "os_version",
+  "osquery_version",
+  "enroll_secret_name",
+  "detail_updated_at",
+  "percent_disk_space_available",
+  "gigs_disk_space_available",
+  "team_name",
+  "disk_encryption_enabled",
+  "display_name", // Not rendered on my device page
+];
+
+export const HOST_ABOUT_DATA = [
+  "seen_time",
+  "uptime",
+  "last_enrolled_at",
+  "hardware_model",
+  "hardware_serial",
+  "primary_ip",
+  "public_ip",
+  "geolocation",
+  "batteries",
+  "detail_updated_at",
+  "last_restarted_at",
+];
+
+export const HOST_OSQUERY_DATA = [
+  "config_tls_refresh",
+  "logger_tls_period",
+  "distributed_interval",
+];
+
+export const DEFAULT_USE_QUERY_OPTIONS = {
+  retry: 3,
+  refetchOnWindowFocus: false,
+};

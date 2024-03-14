@@ -15,6 +15,8 @@ interface ICardProps {
   /** The color of the card. Defaults to `white` */
   color?: CardColor;
   className?: string;
+  /** Increases to 40px padding. Defaults to `false` */
+  largePadding?: boolean;
 }
 
 /**
@@ -27,12 +29,16 @@ const Card = ({
   includeShadow = false,
   color = "white",
   className,
+  largePadding = false,
 }: ICardProps) => {
   const classNames = classnames(
     baseClass,
     `${baseClass}__${color}`,
     `${baseClass}__radius-${borderRadiusSize}`,
-    { [`${baseClass}__shadow`]: includeShadow },
+    {
+      [`${baseClass}__shadow`]: includeShadow,
+      [`${baseClass}__large-padding`]: largePadding,
+    },
     className
   );
 

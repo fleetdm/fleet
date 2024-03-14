@@ -30,6 +30,8 @@ export default {
   GLOBAL_ENROLL_SECRETS: `/${API_VERSION}/fleet/spec/enroll_secret`,
   GLOBAL_POLICIES: `/${API_VERSION}/fleet/policies`,
   GLOBAL_SCHEDULE: `/${API_VERSION}/fleet/schedule`,
+
+  // Host endpoints
   HOST_SUMMARY: `/${API_VERSION}/fleet/host_summary`,
   HOST_QUERY_REPORT: (hostId: number, queryId: number) =>
     `/${API_VERSION}/fleet/hosts/${hostId}/queries/${queryId}`,
@@ -39,6 +41,10 @@ export default {
   HOSTS_REPORT: `/${API_VERSION}/fleet/hosts/report`,
   HOSTS_TRANSFER: `/${API_VERSION}/fleet/hosts/transfer`,
   HOSTS_TRANSFER_BY_FILTER: `/${API_VERSION}/fleet/hosts/transfer/filter`,
+  HOST_LOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/lock`,
+  HOST_UNLOCK: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/unlock`,
+  HOST_WIPE: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/wipe`,
+
   INVITES: `/${API_VERSION}/fleet/invites`,
   LABELS: `/${API_VERSION}/fleet/labels`,
   LABEL_HOSTS: (id: number): string => {
@@ -74,14 +80,13 @@ export default {
     return `/api/mdm/apple/enroll?${query}`;
   },
   MDM_BOOTSTRAP_PACKAGE_METADATA: (teamId: number) =>
-    `/${API_VERSION}/fleet/mdm/apple/bootstrap/${teamId}/metadata`,
-  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/apple/bootstrap`,
-  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/apple/bootstrap/summary`,
+    `/${API_VERSION}/fleet/mdm/bootstrap/${teamId}/metadata`,
+  MDM_BOOTSTRAP_PACKAGE: `/${API_VERSION}/fleet/mdm/bootstrap`,
+  MDM_BOOTSTRAP_PACKAGE_SUMMARY: `/${API_VERSION}/fleet/mdm/bootstrap/summary`,
   MDM_SETUP: `/${API_VERSION}/fleet/mdm/apple/setup`,
-  MDM_EULA: (token: string) =>
-    `/${API_VERSION}/fleet/mdm/apple/setup/eula/${token}`,
-  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/apple/setup/eula`,
-  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/apple/setup/eula/metadata`,
+  MDM_EULA: (token: string) => `/${API_VERSION}/fleet/mdm/setup/eula/${token}`,
+  MDM_EULA_UPLOAD: `/${API_VERSION}/fleet/mdm/setup/eula`,
+  MDM_EULA_METADATA: `/${API_VERSION}/fleet/mdm/setup/eula/metadata`,
   HOST_MDM: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/mdm`,
   HOST_MDM_UNENROLL: (id: number) =>
     `/${API_VERSION}/fleet/mdm/hosts/${id}/unenroll`,
@@ -133,7 +138,7 @@ export default {
   TEAMS_ENROLL_SECRETS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/secrets`;
   },
-  TEAMS_MEMBERS: (teamId: number): string => {
+  TEAM_USERS: (teamId: number): string => {
     return `/${API_VERSION}/fleet/teams/${teamId}/users`;
   },
   TEAMS_TRANSFER_HOSTS: (teamId: number): string => {
@@ -148,6 +153,11 @@ export default {
   USERS: `/${API_VERSION}/fleet/users`,
   USERS_ADMIN: `/${API_VERSION}/fleet/users/admin`,
   VERSION: `/${API_VERSION}/fleet/version`,
+
+  // Vulnerabilities endpoints
+  VULNERABILITIES: `/${API_VERSION}/fleet/vulnerabilities`,
+  VULNERABILITY: (cve: string) =>
+    `/${API_VERSION}/fleet/vulnerabilities/${cve}`,
 
   // Script endpoints
   HOST_SCRIPTS: (id: number) => `/${API_VERSION}/fleet/hosts/${id}/scripts`,

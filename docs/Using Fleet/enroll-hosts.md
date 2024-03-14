@@ -130,6 +130,7 @@ How to unenroll a host from Fleet:
 - [Specifying update channels](#specifying-update-channels)
 - [Testing osquery queries locally](#testing-osquery-queries-locally)
 - [Finding fleetd logs](#finding-fleetd-logs)
+- [Using system keystore for enroll secret](#using-system-keystore-for-enroll-secret)
 - [Generating Windows installers using local WiX toolset](#generating-windows-installers-using-local-wix-toolset)
 - [Experimental features](#experimental-features)
 
@@ -294,11 +295,19 @@ If the `logger_path` agent configuration is set to `filesystem`, fleetd will sen
   - macOS: /opt/orbit/osquery_log
   - Linux: /opt/orbit/osquery_log
 
+### Using system keystore for enroll secret
+
+On macOS and Windows, fleetd will add the enroll secret to the system keystore (Keychain on macOS, Credential Manager on Windows) on launch. Subsequent launches will retrieve the enroll secret from the keystore.
+
+System keystore access can be disabled via `--disable-keystore` flag for the `fleetctl package` command. On macOS, subsequent installations of fleetd must be signed by the same organization as the original installation to access the enroll secret in the keychain.
+
+>**Note:** The keychain is not used on macOS when the enroll secret is provided via MDM profile. Keychain support when passing the enroll secret via MDM profile is coming soon.
+
 ### Generating Windows installers using local WiX toolset
 
 `Applies only to Fleet Premium`
 
-When creating a fleetd installer for Windows hosts (**.msi**) on a Windows machine, you can tell `fleetctl package` to
+When creating a fleetd installer for Windows hosts (**.msi**) on a Windows or macOS machine, you can tell `fleetctl package` to
 use local installations of the 3 WiX v3 binaries used by this command (`heat.exe`, `candle.exe`, and
 `light.exe`) instead of those in a pre-configured container, which is the default behavior. To do
 so:
@@ -311,6 +320,8 @@ so:
       fleetctl package --type msi --fleet-url=[YOUR FLEET URL] --enroll-secret=[YOUR ENROLLMENT SECRET] --local-wix-dir "\Users\me\AppData\Local\Temp\wix311-binaries"
      ```
      If the provided path doesn't contain all 3 binaries, the command will fail.
+
+>**Note:** Creating a fleetd agent for Windows (.msi) on macOS also requires Wine. To install Wine see the script [here](https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh).
 
 ### Experimental features
 
