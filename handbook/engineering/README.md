@@ -341,43 +341,42 @@ Please see [handbook/engineering#notify-community-members-about-a-critical-bug](
 Please see [handbook/engineering#run-fleet-locally-for-qa-purposes](https://fleetdm.com/handbook/engineering#run-fleet-localy-for-qa-purposes)
 
 ##### Scrum at Fleet
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
+Please see [handbook/company/product-groups#scrum-at-fleet](https://fleetdm.com/handbook/company/product-groups#scrum-at-fleet)
 
 ##### Scrum items
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#scrum-items)
+Please see [handbook/company/product-groups#scrum-items)](https://fleetdm.com/handbook/company/product-groups#scrum-items)
 
 ##### Sprint ceremonies
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
+Please see [handbook/company/product-groups#sprint-ceremonies](https://fleetdm.com/handbook/company/product-groups#sprint-ceremonies)
 
 ##### Meetings
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#meetings)
+Please see [handbook/company/product-groups#meetings](https://fleetdm.com/handbook/company/product-groups#meetings)
 
 ##### Principles
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#principles)
+Please see [handbook/company/product-groups#principles](https://fleetdm.com/handbook/company/product-groups#principles)
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
+Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **below**
 ##### Eng Together
 ##### Participants
 ##### Agenda
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
+Please see [handbook/company/product-groups#eng-together](https://fleetdm.com/handbook/company/product-groups#eng-together) for **above**
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### User story discovery
 ##### Participants
 ##### Agenda
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **below**
 ##### Group weeklies
 ##### Participants
 ##### Sample agenda (Frontend weekly)
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
+Please see [handbook/company/product-groups#group-weeklies](https://fleetdm.com/handbook/company/product-groups#group-weeklies) for **above**
 
 ##### Engineering-initiated stories
-Please see [handbook/company/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/company/engineering#create-an-engineering-initiated-story)
-
 ##### Creating an engineering-initiated story
-Please see [handbook/engineering#create-an-engineering-initiated-user-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-user-story)
+
+Please see [handbook/engineering#create-an-engineering-initiated-story](https://fleetdm.com/handbook/engineering#create-an-engineering-initiated-story) for **above**
 
 Please see [handbook/engineering#accept-new-apple-developer-account-terms](https://fleetdm.com/handbook/engineering#accept-new-apple-developer-account-terms) for **below**
 ##### Accounts  
