@@ -8,7 +8,7 @@
       <ajax-form action="signup" class="self-service-register" :syncing.sync="syncing" :cloud-error.sync="cloudError" :form-errors.sync="formErrors" :form-data="formData" :form-rules="formRules" @submitted="submittedSignUpForm()">
         <div class="form-group">
           <label for="email-address">Work email *</label>
-          <span style="float: right" class="text-right small"><a href="/customers/login">I have an account</a></span>
+          <span style="float: right" class="text-right small"><a href="/login">I have an account</a></span>
           <input class="form-control" id="email-address"  :class="[formErrors.emailAddress ? 'is-invalid' : '']" v-model.trim="formData.emailAddress" @input="typeClearOneFormError('emailAddress')">
           <div class="invalid-feedback" v-if="formErrors.emailAddress" focus-first>This doesn’t appear to be a valid email address</div>
         </div>
@@ -56,7 +56,7 @@
           </div>
         </div>
         <cloud-error v-if="cloudError==='emailAlreadyInUse'">
-          <p>This email is already linked to a Fleet account.<br> Please <a href="/customers/login">sign in</a> with your email and password.</p>
+          <p>This email is already linked to a Fleet account.<br> Please <a href="/login">sign in</a> with your email and password.</p>
         </cloud-error>
         <cloud-error v-else-if="cloudError === 'invalidEmailDomain'">
           <p>Please enter a valid work email address</p>
