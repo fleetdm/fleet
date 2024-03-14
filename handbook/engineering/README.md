@@ -32,7 +32,13 @@ Engineering-initiated stories are types of user stories created by engineers to 
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
 
-To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=story,~engineering-initiated&projects=&template=story.md&title=), add the `~engineering-initiated` label, assign it to yourself, and bring to your EM to be considered for future prioritization into a sprint. The engineering output and architecture DRI is responsible for prioritizing engineering-initiated stories.
+To [create an engineering-initiated user story](https://fleetdm.com/handbook/engineering#creating-an-engineering-initiated-story), follow the [user story drafting process](https://fleetdm.com/handbook/company/development-groups#drafting). Once your user story is created using the [new story template](https://github.com/fleetdm/fleet/issues/new?assignees=lukeheath&labels=story,~engineering-initiated&projects=&template=story.md&title=), make sure the `~engineering-initiated` label is added and the engineering output and architecture DRI (@lukeheath) is assigned. 
+
+What happens next? The engineering output and architecture DRI reviews engineering-initiated stories weekly. 
+
+If there are product changes (i.e. interface, documentation, or dependency changes), the story is added to the "New requests" column on the drafting board.
+
+If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on drafting board so that it can be estimated.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
 
