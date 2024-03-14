@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240313143039, Down_20240313143039)
+	MigrationClient.AddMigration(Up_20240314101544, Down_20240314101544)
 }
 
-func Up_20240313143039(tx *sql.Tx) error {
+func Up_20240314101544(tx *sql.Tx) error {
 	// create a new table to store user information that's persisted after
 	// users are deleted.
 	_, err := tx.Exec(`
@@ -83,6 +83,6 @@ func Up_20240313143039(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240313143039(tx *sql.Tx) error {
+func Down_20240314101544(tx *sql.Tx) error {
 	return nil
 }

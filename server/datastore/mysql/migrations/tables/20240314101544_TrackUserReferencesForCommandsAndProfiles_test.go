@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestUp_20240313143039(t *testing.T) {
+func TestUp_20240314101544(t *testing.T) {
 	db := applyUpToPrev(t)
 
 	dataStmts := `
@@ -152,5 +152,4 @@ INSERT INTO
 		_, err = db.Exec(fmt.Sprintf("UPDATE %s SET user_persistent_info_id = 9", table))
 		require.ErrorContains(t, err, "foreign key constraint fails")
 	}
-
 }
