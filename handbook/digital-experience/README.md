@@ -71,7 +71,7 @@ We use Cloudflare to manage the DNS records of fleetdm.com and our other domains
 2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
 3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
 
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Eric Shaw](https://fleetdm.com/handbook/digital-experience#team) in Slack for an invitation.
+> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) [Luke Heath](https://fleetdm.com/handbook/engineering#team) in Slack for an invitation.
 
 
 ### Check production dependencies of fleetdm.com
