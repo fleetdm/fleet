@@ -20,6 +20,7 @@ import {
   IPoliciesCountResponse,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -34,6 +35,8 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import { ITableQueryData } from "components/TableContainer/TableContainer";
 import Button from "components/buttons/Button";
+// @ts-ignore
+import Dropdown from "components/forms/fields/Dropdown";
 import RevealButton from "components/buttons/RevealButton";
 import Spinner from "components/Spinner";
 import TeamsDropdown from "components/TeamsDropdown";
@@ -499,6 +502,18 @@ const ManagePolicyPage = ({
     setShowCalendarEventsModal(!showCalendarEventsModal);
   };
 
+  const onSelectAutomationOption = (option: string) => {
+    switch (option) {
+      case "calendar_events":
+        toggleCalendarEventsModal();
+        break;
+      case "other_workflows":
+        toggleManageAutomationsModal();
+        break;
+      default:
+    }
+  };
+
   const toggleShowInheritedPolicies = () => {
     // URL source of truth
     const locationPath = getNextLocationPath({
@@ -700,6 +715,21 @@ const ManagePolicyPage = ({
     );
   };
 
+  const automationsDropdownOptions: IDropdownOption[] = [
+    {
+      label: "Calendar events",
+      value: "calendar_events",
+      // TODO - disable and different tooltips for each of below scenarios
+      disabled: !isPremiumTier || teamIdForApi === -1, // TODO - how does this interact with below setting?
+      premiumOnly: true,
+    },
+    {
+      label: "Other workflows",
+      value: "other_workflows",
+      disabled: false, // TODO - how does this interact with below setting?
+      premiumOnly: false,
+    },
+  ];
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -727,18 +757,26 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations && automationsConfig && (
-                <Button
-                  onClick={toggleManageAutomationsModal}
-                  className={`${baseClass}__manage-automations button`}
-                  variant="inverse"
-                  disabled={
-                    isAnyTeamSelected
-                      ? isFetchingTeamPolicies
-                      : isFetchingGlobalPolicies
-                  }
-                >
-                  <span>Manage automations</span>
-                </Button>
+                <Dropdown
+                  className={`${baseClass}__manage-automations-dropdown`}
+                  onChange={onSelectAutomationOption}
+                  placeholder="Manage automations"
+                  searchable={false}
+                  options={automationsDropdownOptions}
+                />
+
+                // <Button
+                //   onClick={toggleManageAutomationsModal}
+                //   className={`${baseClass}__manage-automations button`}
+                //   variant="inverse"
+                //   disabled={
+                //     isAnyTeamSelected
+                //       ? isFetchingTeamPolicies
+                //       : isFetchingGlobalPolicies
+                //   }
+                // >
+                //   <span>Manage automations</span>
+                // </Button>
               )}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
@@ -852,9 +890,11 @@ const ManagePolicyPage = ({
             // }
             url="https://google.com"
             policies={teamPolicies || []}
-            enabledPolicies={
-              teamConfig?.integrations.google_calendar?.policies || []
-            }
+            // TODO - may need to update per updated policy structure
+            // enabledPolicies={
+            //   teamConfig?.integrations.google_calendar?.policies || []
+            // }
+            enabledPolicies={[]}
           />
         )}
       </div>

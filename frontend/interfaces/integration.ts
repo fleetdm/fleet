@@ -69,7 +69,8 @@ export interface IGlobalCalendarIntegration {
 interface ITeamCalendarSettings {
   resolution_webhook_url: string;
   enable_calendar_events: boolean;
-  policies: number[];
+  // name required to set - id is returned in response
+  policies: { name: string; id?: number }[];
 }
 
 export interface IIntegrations {
