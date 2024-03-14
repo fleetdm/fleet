@@ -1888,6 +1888,7 @@ the `software` table.
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -2120,6 +2121,7 @@ Response payload with the `munki_issue_id` filter provided:
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -3480,7 +3482,7 @@ Retrieves the aggregated host OS versions information.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters to only include OS versions for hosts on the specified team. If not provided, OS versions for all hosts are included. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
@@ -3684,6 +3686,7 @@ requested by a web browser.
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
@@ -7882,6 +7885,7 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7934,6 +7938,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7976,6 +7981,126 @@ Returns information about the specified software version.
   }
 }
 ```
+
+## Vulnerabilities
+
+
+- [List vulnerabilities](#list-vulnerabilities)
+- [Get vulnerability](#get-vulnerability)
+
+### List vulnerabilities
+
+Retrieves a list of all CVEs affecting software and/or OS versions.
+
+`GET /api/v1/fleet/vulnerabilities`
+
+#### Parameters
+
+| Name                | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters only include vulnerabilities affecting the specified team.  |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query | string | query | Search query keywords. Searchable fields include `cve`. |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-30190",
+      "created_at": "2022-06-01T00:15:00Z",
+      "hosts_count": 1234,
+      "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+      "cvss_score": 7.8,// Available in Fleet Premium
+      "epss_probability": 0.9729,// Available in Fleet Premium
+      "cisa_known_exploit": false,// Available in Fleet Premium
+      "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    }
+  ],
+  "count": 123,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+
+### Get vulnerability
+
+Retrieve details about a vulnerability and its affected software and OS versions.
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                     |
+| ---      | ---      | ---   | ---                                                                                             |
+| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
+
+#### Example
+
+`GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vulnerability": {
+  "cve": "CVE-2022-30190",
+  "created_at": "2022-06-01T00:15:00Z",
+  "hosts_count": 1234,
+  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+  "cvss_score": 7.8,// Available in Fleet Premium
+  "epss_probability": 0.9729,// Available in Fleet Premium
+  "cisa_known_exploit": false,// Available in Fleet Premium
+  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+  "os_versions" : [
+    {
+      "os_version_id": 6,
+      "hosts_count": 200,
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
+      "version": "14.1.2",
+      "platform": "darwin",
+      "resolved_in_version": "14.2",
+      "generated_cpes": [
+        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+      ]
+    }
+  ],
+  "software": [
+    {
+      "id": 2363,
+      "name": "Docker Desktop",
+      "version": "4.9.1",
+      "source": "programs",
+      "browser": "",
+      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+      "hosts_count": 50,
+      "resolved_in_version": "5.0.0"
+    }
+  ]
+}
+```
+
 
 ---
 
