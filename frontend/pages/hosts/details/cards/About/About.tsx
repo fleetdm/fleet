@@ -83,11 +83,15 @@ const About = ({
         <DataSet
           title="MDM status"
           value={
-            <TooltipWrapper
-              tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
-            >
-              {mdm.enrollment_status}
-            </TooltipWrapper>
+            !MDM_STATUS_TOOLTIP[mdm.enrollment_status] ? (
+              mdm.enrollment_status
+            ) : (
+              <TooltipWrapper
+                tipContent={MDM_STATUS_TOOLTIP[mdm.enrollment_status]}
+              >
+                {mdm.enrollment_status}
+              </TooltipWrapper>
+            )
           }
         />
         <DataSet

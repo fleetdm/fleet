@@ -334,7 +334,7 @@ After receiving the interview packet, the Head of Business Operations uses the f
    - _Hand off:_ Share the offer email doc with the [Apprentice to the CEO](https://fleetdm.com/handbook/digital-experience#team).
 3. **Draft email:** 🦿 Apprentice to the CEO drafts the offer email in the CEO's inbox, reviews one more time, and then brings it to their next daily meeting for CEO's approval:
    - To: The candidate's personal email address _(use the email from the CEO interview calendar event)_
-   - Cc: Zach Wasserman and Head of Business Operations _(neither participate in the email thread until after the offer is accepted)_
+   - Cc: Head of Business Operations _(BizOps will participate in the email thread after the offer is accepted)_
    - Subject: "Full time?"
    - Body: _Copy the offer email verbatim from the Google doc into Gmail as the body of the message, formatting and all, then:_
      - _Check all links in offer letter for accuracy (e.g. LinkedIn profile of hiring manager, etc.)_

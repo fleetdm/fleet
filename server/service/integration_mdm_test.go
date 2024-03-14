@@ -12483,3 +12483,23 @@ func (s *integrationMDMTestSuite) TestMDMDiskEncryptionIssue16636() {
 	assert.False(t, acResp.MDM.EnableDiskEncryption.Value)
 	s.assertConfigProfilesByIdentifier(nil, mobileconfig.FleetFileVaultPayloadIdentifier, false)
 }
+
+func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
+	t := s.T()
+	ctx := context.Background()
+
+	// create a server host that is not enrolled in MDM
+	host := createOrbitEnrolledHost(t, "windows", "server-host", s.ds)
+	require.NoError(t, s.ds.SetOrUpdateMDMData(ctx, host.ID, true, false, "", false, "", ""))
+
+	acResp := appConfigResponse{}
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
+		"mdm": { "enable_disk_encryption": true }
+  }`), http.StatusOK, &acResp)
+	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
+
+	var hr getHostResponse
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
+
+	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+}
