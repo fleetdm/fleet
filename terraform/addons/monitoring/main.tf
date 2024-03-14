@@ -36,9 +36,14 @@ resource "aws_db_event_subscription" "default" {
 
 }
 
+locals {
+  alb_map = {for k, v in var.albs: k => v}
+}
+
+
 // ECS Alarms
 resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
-  for_each            = toset(var.albs)
+  for_each            = local.alb_map
   alarm_name          = "backend-healthyhosts-${var.customer_prefix}-${each.value.name}"
   comparison_operator = "LessThanThreshold"
   evaluation_periods  = "1"
@@ -59,7 +64,7 @@ resource "aws_cloudwatch_metric_alarm" "alb_healthyhosts" {
 
 // alarm for target response time (anomaly detection)
 resource "aws_cloudwatch_metric_alarm" "target_response_time" {
-  for_each                  = toset(var.albs)
+  for_each                  = local.alb_map
   alarm_name                = "backend-target-response-time-${var.customer_prefix}-${each.value.name}"
   comparison_operator       = "GreaterThanUpperThreshold"
   evaluation_periods        = "2"
