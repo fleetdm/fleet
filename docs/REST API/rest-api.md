@@ -1901,6 +1901,7 @@ the `software` table.
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -1920,7 +1921,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
 ##### Request query parameters
 
@@ -2051,6 +2052,18 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
             }
           ],
           "installed_paths": ["/usr/lib/some-path-1"]
+        }
+      ],
+      "policies": [
+        {
+          "id": 1,
+          "name": "Gatekeeper enabled",
+          "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+          "description": "Checks if gatekeeper is enabled on macOS devices",
+          "resolution": "Fix with these steps...",
+          "platform": "darwin",
+          "response": "fail",
+          "critical": false
         }
       ]
     }
