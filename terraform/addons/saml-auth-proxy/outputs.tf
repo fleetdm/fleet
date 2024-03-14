@@ -8,8 +8,8 @@ output "name" {
   value = "${var.customer_prefix}-saml-auth-proxy"
 }
 
-output "lb_target_group_arn" {
-  value = module.saml_auth_proxy_alb.target_group_arns[0]
+output "lb" {
+  value = module.saml_auth_proxy_alb
 }
 
 output "secretsmanager_secret_id" {
