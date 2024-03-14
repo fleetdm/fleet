@@ -3452,7 +3452,7 @@ Retrieves the aggregated host OS versions information.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
@@ -7436,6 +7436,7 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7488,6 +7489,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7596,7 +7598,7 @@ Retrieve details about a vulnerability and its affected software and OS versions
 | Name     | Type     | In    | Description                                                                                     |
 | ---      | ---      | ---   | ---                                                                                             |
 | cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters host counts and affected OS/software versions to the specified team.  |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 `GET /api/v1/fleet/vulnerabilities/:cve`
 
