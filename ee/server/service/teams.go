@@ -209,6 +209,15 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 
 		team.Config.Integrations.Jira = payload.Integrations.Jira
 		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+		// Only update the google calendar integration if it's not nil
+		if payload.Integrations.GoogleCalendar != nil {
+			invalid := &fleet.InvalidArgumentError{}
+			_ = svc.validateTeamCalendarIntegrations(ctx, team, payload.Integrations.GoogleCalendar, appCfg, invalid)
+			if invalid.HasErrors() {
+				return nil, ctxerr.Wrap(ctx, invalid)
+			}
+			team.Config.Integrations.GoogleCalendar = payload.Integrations.GoogleCalendar
+		}
 	}
 
 	if payload.WebhookSettings != nil || payload.Integrations != nil {
