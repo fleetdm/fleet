@@ -10,7 +10,7 @@
   description: This policy checks if Firewall is enabled.
   resolution: An an IT admin, deploy a macOS, Firewall profile with the EnableFirewall option set to true.
   platform: darwin
-- name: macOS - Guest user account is disabled by profile
+- name: macOS - Disable guest account
   query: SELECT 1 FROM managed_policies WHERE domain='com.apple.loginwindow' AND username = '' AND name='DisableGuestAccount' AND CAST(value AS INT) = 1;
   critical: false
   description: This policy checks if the guest account is disabled.
