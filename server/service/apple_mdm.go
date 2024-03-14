@@ -2396,24 +2396,33 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 		return nil, ctxerr.Wrap(r.Context, err, "command service")
 	}
 
+	h, err := svc.ds.GetHostCommandActivityData(r.Context, cmdResult.CommandUUID)
+	if err != nil {
+		return nil, err
+	}
 	switch requestType {
 	case "InstallProfile":
-		return nil, apple_mdm.HandleHostMDMProfileInstallResult(
+		if err := apple_mdm.HandleHostMDMProfileInstallResult(
 			r.Context,
 			svc.ds,
 			cmdResult.UDID,
 			cmdResult.CommandUUID,
 			mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
 			apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
-		)
+		); err != nil {
+			return nil, err
+		}
 	case "RemoveProfile":
-		return nil, svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
+
+		if err := svc.ds.UpdateOrDeleteHostMDMAppleProfile(r.Context, &fleet.HostMDMAppleProfile{
 			CommandUUID:   cmdResult.CommandUUID,
 			HostUUID:      cmdResult.UDID,
 			Status:        mdmAppleDeliveryStatusFromCommandStatus(cmdResult.Status),
 			Detail:        apple_mdm.FmtErrorChain(cmdResult.ErrorChain),
 			OperationType: fleet.MDMOperationTypeRemove,
-		})
+		}); err != nil {
+			return nil, err
+		}
 	case "DeviceLock", "EraseDevice":
 		// call into our datastore to update host_mdm_actions if the status is terminal
 		if cmdResult.Status == fleet.MDMAppleStatusAcknowledged ||
@@ -2422,6 +2431,21 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType, cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
 	}
+
+	// TODO(JVE): include email here once updated to latest DB changes
+	// TODO(JVE): logic for determining what kind of activity this is (command, profile, remove,
+	// install, etc)
+	err = svc.ds.NewActivity(r.Context, &fleet.User{Name: h.UserName, ID: h.UserID}, fleet.ActivityTypeHostMDMProfileCreated{
+		HostID:          h.HostID,
+		HostDisplayName: h.HostDisplayName,
+		ProfileName:     h.ProfileName,
+		Status:          h.Status,
+		CommandUUID:     h.CommandUUID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
 	return nil, nil
 }
 

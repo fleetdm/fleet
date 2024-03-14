@@ -35,11 +35,7 @@ func enqueue(ctx context.Context, tx *sql.Tx, ids []string, cmd *mdm.Command, us
 }
 
 func (m *MySQLStorage) EnqueueCommand(ctx context.Context, ids []string, cmd *mdm.Command, userPersistentInfoID *uint, fleetOwned bool) (map[string]error, error) {
-	var x uint
-	if userPersistentInfoID == nil {
-		userPersistentInfoID = &x
-	}
-	slog.With("filename", "server/mdm/nanomdm/storage/mysql/queue.go", "func", "EnqueueCommand").Info("JVE_LOG: or are we here instead ", "cmdUUID", cmd.CommandUUID, "userID", *userPersistentInfoID, "fi", fleetOwned)
+	slog.With("filename", "server/mdm/nanomdm/storage/mysql/queue.go", "func", "EnqueueCommand").Info("JVE_LOG: or are we here instead ", "cmdUUID", cmd.CommandUUID, "userID", userPersistentInfoID, "fi", fleetOwned)
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err

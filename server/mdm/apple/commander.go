@@ -72,6 +72,8 @@ func (svc *MDMAppleCommander) InstallProfile(ctx context.Context, hostUUIDs []st
 }
 
 func (svc *MDMAppleCommander) getProfileCreator(ctx context.Context, profIdent string) (*uint, bool, error) {
+	// TODO: should this be moved into the datastore layer? it would simplify the interface changes
+	// (would only need the *uint for the userID)
 	var userID *uint
 	var fleetInitiated bool
 	uid, err := svc.storage.GetProfileUserID(ctx, profIdent)
@@ -104,6 +106,8 @@ func (svc *MDMAppleCommander) RemoveProfile(ctx context.Context, hostUUIDs []str
 	</dict>
 </dict>
 </plist>`, uuid, profileIdentifier)
+	// TODO(JVE): apparently we have removed the profile from macp by now. How do we get the
+	// association correctly?
 	userID, fleetOwned, err := svc.getProfileCreator(ctx, profileIdentifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "commander remove profile get user id")

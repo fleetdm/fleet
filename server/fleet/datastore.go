@@ -561,6 +561,7 @@ type Datastore interface {
 	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 	IsExecutionPendingForHost(ctx context.Context, hostID uint, scriptID uint) ([]*uint, error)
+	GetHostCommandActivityData(ctx context.Context, commandUUID string) (*HostCommandActivtyData, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// StatisticsStore

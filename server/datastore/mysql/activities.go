@@ -288,3 +288,35 @@ func (ds *Datastore) ListHostPastActivities(ctx context.Context, hostID uint, op
 
 	return activities, metaData, nil
 }
+
+func (ds *Datastore) GetHostCommandActivityData(ctx context.Context, commandUUID string) (*fleet.HostCommandActivtyData, error) {
+	var h []fleet.HostCommandActivtyData
+	// TODO: once updated with latest DB changes, pull the email here as well
+	stmt := `
+SELECT
+	upi.user_name as user_name,
+	upi.user_id as user_id,
+	h.id as host_id,
+	h.computer_name as host_display_name,
+	hmap.profile_name as profile_name,
+	hmap.command_uuid as command_uuid,
+	macp.fleet_owned as fleet_initiated_activity,
+	hmap.status as status
+FROM
+	host_mdm_apple_profiles hmap
+	JOIN mdm_apple_configuration_profiles macp ON macp.profile_uuid = hmap.profile_uuid
+	JOIN user_persistent_info upi ON upi.id = macp.user_persistent_info_id
+	JOIN hosts h ON hmap.host_uuid = h.uuid
+WHERE
+	hmap.command_uuid = ?
+	`
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &h, stmt, commandUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting host command activity data")
+	}
+
+	if len(h) == 0 {
+		return nil, notFound("host command activity data")
+	}
+
+	return &h[0], nil
+} // TODO(JVE): fill this in! need to get the data related to the command, user, and host for insertion into the activties table

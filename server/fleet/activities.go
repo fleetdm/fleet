@@ -1395,3 +1395,36 @@ func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User,
 	}
 	return nil
 }
+
+type ActivityTypeHostMDMProfileCreated struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	ProfileName     string `json:"profile_name"`
+	CommandUUID     string `json:"command_uuid"`
+	Status          string `json:"status"`
+}
+
+// ActivityName is the name/type of the activity.
+func (a ActivityTypeHostMDMProfileCreated) ActivityName() string {
+	return "created_macos_profile_host"
+}
+
+// Documentation is used by "go generate" to generate markdown docs.
+func (a ActivityTypeHostMDMProfileCreated) Documentation() (activity string, details string, detailsExample string) {
+	panic("not implemented") // TODO: Implement
+}
+
+func (a ActivityTypeHostMDMProfileCreated) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+type HostCommandActivtyData struct {
+	UserName        string `db:"user_name"`
+	UserID          uint   `db:"user_id"`
+	HostID          uint   `db:"host_id"`
+	HostDisplayName string `db:"host_display_name"`
+	ProfileName     string `db:"profile_name"`
+	CommandUUID     string `db:"command_uuid"`
+	FleetInitiated  bool   `db:"fleet_initiated_activity"`
+	Status          string `db:"status"`
+}
