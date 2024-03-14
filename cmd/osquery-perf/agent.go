@@ -1048,6 +1048,7 @@ func (a *agent) orbitEnroll() error {
 	return nil
 }
 
+// This is an osquery enroll as opposed to an orbit enroll
 func (a *agent) enroll(i int, onlyAlreadyEnrolled bool) error {
 	a.nodeKey = a.nodeKeyManager.Get(i)
 	if a.nodeKey != "" {
@@ -1136,6 +1137,9 @@ func (a *agent) config() error {
 			q := scheduledQuery{}
 			q.packName = packName
 			q.Name = queryName
+
+			// This allows us to set the number of rows returned by the query
+			// by appending a number to the query name, e.g. "queryName_10"
 			q.numRows = 1
 			parts := strings.Split(q.Name, "_")
 			if len(parts) == 2 {
@@ -1145,6 +1149,7 @@ func (a *agent) config() error {
 				}
 				q.numRows = uint(num)
 			}
+
 			q.ScheduleInterval = m["interval"].(float64)
 			q.Query = m["query"].(string)
 
@@ -1330,6 +1335,21 @@ func (a *agent) genLastOpenedAt(count *int) *time.Time {
 }
 
 func (a *agent) runPolicy(query string) []map[string]string {
+	// Used to control the pass or fail of a policy
+	// in the UI by setting the query to "select 1"(pass)
+	// or "select 0"(fail)
+	query = strings.TrimRight(query, ";")
+	query = strings.ToLower(query)
+
+	switch query {
+	case "select 1":
+		return []map[string]string{
+			{"1": "1"},
+		}
+	case "select 0":
+		return []map[string]string{}
+	}
+
 	if rand.Float64() <= a.policyPassProb {
 		return []map[string]string{
 			{"1": "1"},
@@ -1884,7 +1904,7 @@ func main() {
 		// Flag logger_tls_period defines how often to check for sending scheduled query results.
 		// osquery-perf will send log requests with results only if there are scheduled queries configured AND it's their time to run.
 		logInterval         = flag.Duration("logger_tls_period", 10*time.Second, "Interval for scheduled queries log requests")
-		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for live query requests")
+		queryInterval       = flag.Duration("query_interval", 10*time.Second, "Interval for distributed query requests")
 		mdmCheckInInterval  = flag.Duration("mdm_check_in_interval", 10*time.Second, "Interval for performing MDM check-ins (applies to both macOS and Windows)")
 		onlyAlreadyEnrolled = flag.Bool("only_already_enrolled", false, "Only start agents that are already enrolled")
 		nodeKeyFile         = flag.String("node_key_file", "", "File with node keys to use")
