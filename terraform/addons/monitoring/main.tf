@@ -96,12 +96,13 @@ resource "aws_cloudwatch_metric_alarm" "target_response_time" {
 
 locals {
   http_5xx_alert_names = ["HTTPCode_ELB_5XX_Count", "HTTPCode_Target_5XX_Count"]
-  http_5xx_alerts      = flatten([for alert in local.http_5xx_alert_names : [for alb in var.albs : merge(alb, { "alert" : alert })]])
+  http_5xx_alerts_list = flatten([for alert in local.http_5xx_alert_names : [for alb in var.albs : merge(alb, { "alert" : alert })]])
+  http_5xx_alerts      = {for k, v in local.http_5xx_alerts_list : k => v} 
 }
 
 
 resource "aws_cloudwatch_metric_alarm" "lb" {
-  for_each            = toset(local.http_5xx_alerts)
+  for_each            = local.http_5xx_alerts
   alarm_name          = "${var.customer_prefix}-lb-${each.value.name}-${each.value.alert}"
   comparison_operator = "GreaterThanThreshold"
   evaluation_periods  = "1"
