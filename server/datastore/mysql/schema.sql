@@ -647,15 +647,23 @@ CREATE TABLE `mdm_apple_configuration_profiles` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `mdm_apple_declaration_references` (
+CREATE TABLE `mdm_apple_declaration_activation_references` (
   `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `reference` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`declaration_uuid`,`reference`),
   KEY `reference` (`reference`),
-  CONSTRAINT `mdm_apple_declaration_references_ibfk_1` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON UPDATE CASCADE,
-  CONSTRAINT `mdm_apple_declaration_references_ibfk_2` FOREIGN KEY (`reference`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON UPDATE CASCADE
+  CONSTRAINT `mdm_apple_declaration_activation_references_ibfk_1` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON UPDATE CASCADE,
+  CONSTRAINT `mdm_apple_declaration_activation_references_ibfk_2` FOREIGN KEY (`reference`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `mdm_apple_declaration_types` (
+  `declaration_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`declaration_type`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+INSERT INTO `mdm_apple_declaration_types` VALUES ('com.apple.activation'),('com.apple.configuration');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_apple_declarations` (
@@ -663,13 +671,16 @@ CREATE TABLE `mdm_apple_declarations` (
   `team_id` int(10) unsigned NOT NULL DEFAULT '0',
   `identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `declaration_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
   `declaration` json NOT NULL,
   `md5_checksum` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`declaration_uuid`),
   UNIQUE KEY `idx_mdm_apple_declaration_team_identifier` (`team_id`,`identifier`),
-  UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`)
+  UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`),
+  KEY `mdm_apple_declaration_declaration_type` (`declaration_type`),
+  CONSTRAINT `mdm_apple_declaration_declaration_type` FOREIGN KEY (`declaration_type`) REFERENCES `mdm_apple_declaration_types` (`declaration_type`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
