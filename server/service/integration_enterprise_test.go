@@ -1029,6 +1029,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
 
+	// Modify team's calendar config
+	modifyCalendar := fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
+				Email: "calendar@example.com",
+			},
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusOK, &tmResp)
+	assert.Equal(t, modifyCalendar.Integrations.GoogleCalendar, tmResp.Team.Config.Integrations.GoogleCalendar)
+
+	// Illegal team calendar config
+	modifyCalendar.Integrations.GoogleCalendar.Enable = true
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusUnprocessableEntity, &tmResp)
+
 	// list team users
 	var usersResp listUsersResponse
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/teams/%d/users", tm1ID), nil, http.StatusOK, &usersResp)
