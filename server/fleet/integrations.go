@@ -375,7 +375,7 @@ func ValidateEnabledHostStatusIntegrations(webhook HostStatusWebhookSettings, in
 
 func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, invalid *InvalidArgumentError) {
 	if len(intgs) > 1 {
-		invalid.Append("integrations.google_calendar", "only one Google Calendar integration is allowed at this time")
+		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
 		intg.Email = strings.TrimSpace(intg.Email)
