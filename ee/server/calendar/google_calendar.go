@@ -84,44 +84,33 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return lowLevelAPI.service.Events.Delete("primary", id).Do()
 }
 
-func NewCalendar(config *GoogleCalendarConfig) (*GoogleCalendar, error) {
-	if config.API == nil {
-		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
-		config.API = lowLevelAPI
+func (c *GoogleCalendar) Connect(config any) (Calendar, error) {
+	gConfig, ok := config.(*GoogleCalendarConfig)
+	if !ok {
+		return nil, errors.New("invalid Google calendar config")
 	}
-	err := config.API.Connect(
-		config.Context, config.IntegrationConfig.Email, config.IntegrationConfig.PrivateKey, config.UserEmail,
+	if gConfig.API == nil {
+		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
+		gConfig.API = lowLevelAPI
+	}
+	err := gConfig.API.Connect(
+		gConfig.Context, gConfig.IntegrationConfig.Email, gConfig.IntegrationConfig.PrivateKey, gConfig.UserEmail,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(config.Context, err, "creating Google calendar service")
+		return nil, ctxerr.Wrap(gConfig.Context, err, "creating Google calendar service")
 	}
 
 	gCal := &GoogleCalendar{
-		config: config,
+		config: gConfig,
 	}
 
 	return gCal, nil
 }
 
-func getTimezone(gCal *GoogleCalendar) error {
-	config := gCal.config
-	setting, err := config.API.GetSetting("timezone")
-	if err != nil {
-		return ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func() string) (*fleet.CalendarEvent, bool, error) {
+	if c.config == nil {
+		return nil, false, errors.New("the Google calendar is not connected. Please call Connect first")
 	}
-
-	loc, err := time.LoadLocation(setting.Value)
-	if err != nil {
-		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", setting.Value, "err", err)
-		loc, _ = time.LoadLocation("America/New_York")
-	}
-	_, timezoneOffset := time.Now().In(loc).Zone()
-	gCal.timezoneOffset = &timezoneOffset
-	return nil
-}
-
-func (c *GoogleCalendar) GetEvent(event *fleet.CalendarEvent) (*fleet.CalendarEvent, bool, error) {
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return nil, false, err
@@ -147,7 +136,7 @@ func (c *GoogleCalendar) GetEvent(event *fleet.CalendarEvent) (*fleet.CalendarEv
 		)
 	}
 
-	// TODO: If event has been deleted or moved to the past, create a new event on the next day.
+	// TODO: If event has been deleted or moved to the past, create a new event on the next business day.
 
 	fleetEvent, err := c.googleEventToFleetEvent(startTime, endTime, gEvent)
 	if err != nil {
@@ -172,6 +161,9 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.CalendarEvent, error) {
+	if c.config == nil {
+		return nil, errors.New("the Google calendar is not connected. Please call Connect first")
+	}
 	if c.timezoneOffset == nil {
 		err := getTimezone(c)
 		if err != nil {
@@ -179,7 +171,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 		}
 	}
 	// TODO: Get all events between 9 and 5
-	// TODO: Test with event that starts earlier and ends later.
+	// TODO: Test with event that starts earlier than 9.
 	// TODO: Figure out if we are in the middle of the day already.
 	startTime := time.Date(dayOfEvent.Year(), dayOfEvent.Month(), dayOfEvent.Day(), 9, 0, 0, 0, time.FixedZone("", *c.timezoneOffset))
 	endTime := time.Date(dayOfEvent.Year(), dayOfEvent.Month(), dayOfEvent.Day(), 9, 30, 0, 0, time.FixedZone("", *c.timezoneOffset))
@@ -202,6 +194,24 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 	return fleetEvent, nil
 }
 
+func getTimezone(gCal *GoogleCalendar) error {
+	config := gCal.config
+	setting, err := config.API.GetSetting("timezone")
+	if err != nil {
+		return ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
+	}
+
+	loc, err := time.LoadLocation(setting.Value)
+	if err != nil {
+		// Could not load location, use EST
+		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", setting.Value, "err", err)
+		loc, _ = time.LoadLocation("America/New_York")
+	}
+	_, timezoneOffset := time.Now().In(loc).Zone()
+	gCal.timezoneOffset = &timezoneOffset
+	return nil
+}
+
 func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event) (
 	*fleet.CalendarEvent, error,
 ) {
@@ -222,6 +232,9 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 }
 
 func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
+	if c.config == nil {
+		return errors.New("the Google calendar is not connected. Please call Connect first")
+	}
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return err
