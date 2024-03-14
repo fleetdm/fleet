@@ -290,8 +290,8 @@ module.exports.routes = {
     locals: {
       hideHeaderLinks: true,
       hideFooterLinks: true,
-      pageTitleForMeta: 'Get started | Fleet',
-      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo yourself or purchase a premium license key.',
+      pageTitleForMeta: 'Start | Fleet',
+      pageDescriptionForMeta: 'Get Started with Fleet. Spin up a local demo or get your premium license key.',
     }
   },
 
