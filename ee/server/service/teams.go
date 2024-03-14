@@ -197,19 +197,21 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// the team integrations must reference an existing global config integration.
-		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		// integrations must be unique
-		if err := payload.Integrations.Validate(); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		team.Config.Integrations.Jira = payload.Integrations.Jira
-		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
-		// Only update the google calendar integration if it's not nil
+			team.Config.Integrations.Jira = payload.Integrations.Jira
+			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+		}
+		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
 			_ = svc.validateTeamCalendarIntegrations(ctx, team, payload.Integrations.GoogleCalendar, appCfg, invalid)
