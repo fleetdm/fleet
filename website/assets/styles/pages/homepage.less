@@ -68,38 +68,49 @@
   }
 
   [purpose='hero-logos'] {
-    margin-top: 32px;
-    margin-bottom: 120px;
-    max-width: 1080px;
-    [purpose='snowflake-logo'] {
-      height: 28px;
-    }
-    [purpose='wayfair-logo'] {
-      height: 24px;
-    }
-    [purpose='uber-logo'] {
-      height: 24px;
-    }
-    [purpose='fastly-logo'] {
-      height: 30px;
-    }
-    [purpose='atlassian-logo'] {
-      height: 18px;
-    }
-    [purpose='gusto-logo'] {
-      height: 24px;
-    }
-    [purpose='segment-logo'] {
-      height: 24px;
-    }
-  }
-  [purpose='logo-column'] {
+    margin-bottom: 80px;
+    max-width: 1200px;
+    padding-left: 60px;
+    padding-right: 60px;
+    overflow-x: hidden;
     width: 100%;
+  }
+  [purpose='logo-carousel'] {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    div {
+      white-space: nowrap;
+      animation: scroll-horizontal 80s linear infinite;
+    }
     img {
-      margin-right: auto;
-      margin-left: auto;
+      vertical-align: middle;
+      height: 32px;
+      margin-right: 64px;
+    }
+    [purpose='fade-left'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      left: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, #FFF 0%, rgba(255, 255, 255, 0.00) 100%);
+    }
+    [purpose='fade-right'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      right: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
     }
   }
+
 
   [purpose='homepage-content'] {
     max-width: 1200px;
@@ -604,48 +615,6 @@
     }
   }
 
-  //  ██╗  ██╗██╗
-  //  ╚██╗██╔╝██║
-  //   ╚███╔╝ ██║
-  //   ██╔██╗ ██║
-  //  ██╔╝ ██╗███████╗
-  //  ╚═╝  ╚═╝╚══════╝
-  //
-  @media (max-width: 1400px) {
-
-    [purpose='hero-logos'] {
-      margin-bottom: 120px;
-      [purpose='snowflake-logo'] {
-        height: 28px;
-      }
-      [purpose='wayfair-logo'] {
-        height: 24px;
-      }
-      [purpose='uber-logo'] {
-        height: 24px;
-      }
-      [purpose='fastly-logo'] {
-        height: 30px;
-      }
-      [purpose='atlassian-logo'] {
-        height: 18px;
-      }
-      [purpose='gusto-logo'] {
-        height: 24px;
-      }
-      [purpose='segment-logo'] {
-        height: 24px;
-      }
-    }
-
-    [purpose='logo-column'] {
-      width: 100%;
-      img {
-        margin-right: auto;
-        margin-left: auto;
-      }
-    }
-  }
   //  ██╗      ██████╗
   //  ██║     ██╔════╝
   //  ██║     ██║  ███╗
@@ -728,52 +697,8 @@
       padding-left: 60px;
     }
     [purpose='hero-logos'] {
-      max-width: 688px;
       padding-left: 40px;
       padding-right: 40px;
-      img {
-        display: inline;
-      }
-      [purpose='snowflake-logo'] {
-        height: 22px;
-        margin-left: 0px;
-        margin-right: 20px;
-      }
-      [purpose='wayfair-logo'] {
-        height: 22px;
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-      [purpose='uber-logo'] {
-        height: 22px;
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-      [purpose='atlassian-logo'] {
-        height: 16px;
-        margin-left: 0px;
-        margin-right: 20px;
-      }
-      [purpose='segment-logo'] {
-        height: 24px;
-        margin-left: 20px;
-        margin-right: 0px;
-      }
-      [purpose='fastly-logo'] {
-        margin-left: 20px;
-        margin-right: 0px;
-      }
-      [purpose='gusto-logo'] {
-        margin-left: 20px;
-        margin-right: 20px;
-      }
-    }
-    [purpose='logo-column'] {
-      margin-bottom: 32px;
-      img {
-        margin-right: 0;
-        margin-left: 0;
-      }
     }
     [purpose='page-section'] {
       margin-bottom: 120px;
@@ -975,8 +900,7 @@
       }
     }
     [purpose='hero-logos'] {
-      margin-top: 32px;
-      margin-bottom: 120px;
+      margin-bottom: 64px;
     }
     [purpose='page-section'] {
       margin-bottom: 80px;
@@ -1350,11 +1274,12 @@
     }
 
     [purpose='hero-logos'] {
-      max-width: 335px;
       padding-left: 20px;
       padding-right: 20px;
+    }
+    [purpose='logo-carousel'] {
       img {
-        display: inline;
+        margin-right: 48px;
       }
     }
     [purpose='video-modal'] {
@@ -1502,5 +1427,14 @@
 
   }
 
+
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(50%);
+    }
+    100% {
+      transform: translateX(-50%);
+    }
+  }
 
 }
