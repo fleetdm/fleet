@@ -22,7 +22,7 @@ interface ICalendarEventsModal {
   enabled: boolean;
   url: string;
   policies: IPolicy[];
-  enabledPolicies: { name: string; id: number }[];
+  enabledPolicies: number[];
 }
 
 interface IFormPolicy {
@@ -58,9 +58,7 @@ const CalendarEventsModal = ({
     policies: policies.map((policy) => ({
       name: policy.name,
       id: policy.id,
-      checked: enabledPolicies.some(
-        (enabledPolicy) => enabledPolicy.id === policy.id
-      ),
+      checked: enabledPolicies.includes(policy.id),
     })),
   });
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(

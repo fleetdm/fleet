@@ -62,22 +62,25 @@ export interface IIntegrationFormErrors {
 
 export interface IGlobalCalendarIntegration {
   email: string;
-  private_key: string;
   domain: string;
+  private_key: string;
 }
 
-interface ITeamCalendarServiceAccount {
-  email: string;
+interface ITeamCalendarSettings {
+  resolution_webhook_url: string;
   enable_calendar_events: boolean;
-  policies: { name: string; id: number }[];
+  policies: number[];
 }
 
 export interface IIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
-  // global setting may have more than one, team can only have one
-  google_calendar?:
-    | IGlobalCalendarIntegration[]
-    | ITeamCalendarServiceAccount
-    | null;
+}
+
+export interface IGlobalIntegrations extends IIntegrations {
+  google_calendar: IGlobalCalendarIntegration[] | null;
+}
+
+export interface ITeamIntegrations extends IIntegrations {
+  google_calendar: ITeamCalendarSettings | null;
 }

@@ -835,24 +835,28 @@ const ManagePolicyPage = ({
             onSubmit={onDeletePolicySubmit}
           />
         )}
-        {/* {showCalendarEventsModal && ( */}
-        <CalendarEventsModal
-          onExit={toggleCalendarEventsModal}
-          onSubmit={() => <>{/* TODO */}</>}
-          // configured={config?.integrations.google_calendar}
-          configured
-          // TODO - narrow that type!
-          // enabled={
-          //   teamConfig?.integrations.google_calendar?.enable_calendar_events
-          // }
-          enabled
-          // TODO
-          url="https://google.com"
-          // TODO
-          policies={[]}
-          enabledPolicies={[]}
-        />
-        {/* )} */}
+        {showCalendarEventsModal && (
+          <CalendarEventsModal
+            onExit={toggleCalendarEventsModal}
+            onSubmit={() => <>{/* TODO */}</>}
+            // TODO - remove dummy prop values
+            // configured={config?.integrations.google_calendar}
+            configured
+            // enabled={
+            //   teamConfig?.integrations.google_calendar?.enable_calendar_events
+            // }
+            enabled
+            // url={
+            //   teamConfig?.integrations.google_calendar?.resolution_webhook_url ||
+            //   ""
+            // }
+            url="https://google.com"
+            policies={teamPolicies || []}
+            enabledPolicies={
+              teamConfig?.integrations.google_calendar?.policies || []
+            }
+          />
+        )}
       </div>
     </MainContent>
   );
