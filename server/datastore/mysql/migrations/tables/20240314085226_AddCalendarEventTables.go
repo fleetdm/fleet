@@ -6,10 +6,10 @@ import (
 )
 
 func init() {
-	MigrationClient.AddMigration(Up_20240313085226, Down_20240313085226)
+	MigrationClient.AddMigration(Up_20240314085226, Down_20240314085226)
 }
 
-func Up_20240313085226(tx *sql.Tx) error {
+func Up_20240314085226(tx *sql.Tx) error {
 	// TODO(lucas): Check if we need more indexes.
 
 	if _, err := tx.Exec(`
@@ -47,6 +47,6 @@ func Up_20240313085226(tx *sql.Tx) error {
 	return nil
 }
 
-func Down_20240313085226(tx *sql.Tx) error {
+func Down_20240314085226(tx *sql.Tx) error {
 	return nil
 }
