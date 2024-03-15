@@ -53,9 +53,9 @@ go.mod @fleetdm/go
 # (1 or more infra-literate engineers is required to review changes.)
 # FUTURE: Look for a way to not have this notify every single person in this "github team".
 ##############################################################################################
-/infrastructure/ @rfairburn @ksatter @lukeheath
-/charts/ @rfairburn @ksatter @lukeheath
-/terraform/ @rfairburn @ksatter @lukeheath
+/infrastructure/ @rfairburn @ksatter @lukeheath @edwardsb
+/charts/ @rfairburn @ksatter @lukeheath @edwardsb
+/terraform/ @rfairburn @ksatter @lukeheath @edwardsb
 
 ##############################################################################################
 # ⚗️ Reference, config surface, built-in queries, API, and other documentation.
