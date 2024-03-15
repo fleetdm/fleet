@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
@@ -30,7 +31,16 @@ var calendarScopes = []string{
 	"https://www.googleapis.com/auth/calendar.settings.readonly",
 }
 
-// GoogleCalendar is an implementation of the Calendar interface that uses the
+type GoogleCalendarConfig struct {
+	Context           context.Context
+	IntegrationConfig *fleet.GoogleCalendarIntegration
+	UserEmail         string
+	Logger            log.Logger
+	// Should be nil for production
+	API GoogleCalendarAPI
+}
+
+// GoogleCalendar is an implementation of the UserCalendar interface that uses the
 // Google Calendar API to manage events.
 type GoogleCalendar struct {
 	config         *GoogleCalendarConfig
@@ -38,7 +48,7 @@ type GoogleCalendar struct {
 }
 
 type GoogleCalendarAPI interface {
-	Connect(ctx context.Context, email, privateKey, subject string) error
+	Connect(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error
 	GetSetting(name string) (*calendar.Setting, error)
 	ListEvents(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEvent(event *calendar.Event) (*calendar.Event, error)
@@ -56,14 +66,16 @@ type GoogleCalendarLowLevelAPI struct {
 }
 
 // Connect creates a new Google Calendar service using the provided credentials.
-func (lowLevelAPI *GoogleCalendarLowLevelAPI) Connect(ctx context.Context, email, privateKey, subject string) error {
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) Connect(
+	ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string,
+) error {
 	// Create a new calendar service
 	conf := &jwt.Config{
-		Email:      email,
+		Email:      serviceAccountEmail,
 		Scopes:     calendarScopes,
 		PrivateKey: []byte(privateKey),
 		TokenURL:   google.JWTTokenURL,
-		Subject:    subject,
+		Subject:    userToImpersonateEmail,
 	}
 	client := conf.Client(ctx)
 	service, err := calendar.NewService(ctx, option.WithHTTPClient(client))
@@ -95,7 +107,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return lowLevelAPI.service.Events.Delete(calendarID, id).Do()
 }
 
-func (c *GoogleCalendar) Connect(config any) (fleet.Calendar, error) {
+func (c *GoogleCalendar) Connect(config any) (fleet.UserCalendar, error) {
 	gConfig, ok := config.(*GoogleCalendarConfig)
 	if !ok {
 		return nil, errors.New("invalid Google calendar config")
