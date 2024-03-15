@@ -5875,11 +5875,12 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		cmd, err := d.device.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
+			var fullCmd *micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+
 			// if the command is to install the bootstrap package
-			if cmd.Command.RequestType == "InstallEnterpriseApplication" {
-				var fullCmd *micromdm.CommandPayload
-				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
-				manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.Manifest; manifest != nil {
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
 				require.NotNil(t, manifest)
 				require.Equal(t, "software-package", (*manifest).ManifestItems[0].Assets[0].Kind)
 				wantURL, err := bp.URL(s.server.URL)
@@ -11575,11 +11576,12 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
-			if cmd.Command.RequestType == "InstallEnterpriseApplication" {
-				var fullCmd *micromdm.CommandPayload
-				require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			var fullCmd *micromdm.CommandPayload
+			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 				foundInstallFleetdCommand = true
-				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
+				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
+				require.Contains(t, manifest, apple_mdm.FleetdPublicManifestURL)
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
