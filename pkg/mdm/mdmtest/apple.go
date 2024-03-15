@@ -531,6 +531,7 @@ func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal command payload: %w", err)
 	}
+	p.Raw = cmd.Raw
 	return &p, nil
 }
 
