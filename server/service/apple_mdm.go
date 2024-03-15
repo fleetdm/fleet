@@ -2353,8 +2353,26 @@ func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
-func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
-	return nil, nil
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(r *mdm.Request, cmd *mdm.DeclarativeManagement) ([]byte, error) {
+	switch cmd.Endpoint {
+	case "tokens":
+		return nil, nil
+	case "declaration-items":
+		return nil, nil
+	case "status":
+		return nil, nil
+	default:
+		parts := strings.Split(cmd.Endpoint, "/")
+		if len(parts) != 3 {
+			return nil, ctxerr.New(r.Context, "unrecognized DDM endpoint")
+		}
+
+		declarationType := parts[1]
+		declarationIdentifier := parts[2]
+		fmt.Println(declarationType, declarationIdentifier)
+
+		return nil, nil
+	}
 }
 
 // CommandAndReportResults handles MDM [Commands and Queries][1].
