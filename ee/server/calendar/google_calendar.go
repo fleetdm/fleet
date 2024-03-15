@@ -107,7 +107,7 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return lowLevelAPI.service.Events.Delete(calendarID, id).Do()
 }
 
-func (c *GoogleCalendar) Connect(config any) (fleet.UserCalendar, error) {
+func (c *GoogleCalendar) Configure(config any) (fleet.UserCalendar, error) {
 	gConfig, ok := config.(*GoogleCalendarConfig)
 	if !ok {
 		return nil, errors.New("invalid Google calendar config")
@@ -132,7 +132,7 @@ func (c *GoogleCalendar) Connect(config any) (fleet.UserCalendar, error) {
 
 func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func() string) (*fleet.CalendarEvent, bool, error) {
 	if c.config == nil {
-		return nil, false, errors.New("the Google calendar is not connected. Please call Connect first")
+		return nil, false, errors.New("the Google calendar is not connected. Please call Configure first")
 	}
 	if event.EndTime.Before(time.Now()) {
 		return nil, false, ctxerr.Errorf(c.config.Context, "cannot get and update an event that has already ended: %s", event.EndTime)
@@ -219,7 +219,7 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.CalendarEvent, error) {
 	if c.config == nil {
-		return nil, errors.New("the Google calendar is not connected. Please call Connect first")
+		return nil, errors.New("the Google calendar is not connected. Please call Configure first")
 	}
 	if c.timezoneOffset == nil {
 		err := getTimezone(c)
@@ -391,7 +391,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 
 func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
 	if c.config == nil {
-		return errors.New("the Google calendar is not connected. Please call Connect first")
+		return errors.New("the Google calendar is not connected. Please call Configure first")
 	}
 	details, err := c.unmarshalDetails(event)
 	if err != nil {

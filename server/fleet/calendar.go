@@ -11,8 +11,8 @@ func (e DayEndedError) Error() string {
 }
 
 type UserCalendar interface {
-	// Connect to calendar. This method must be called first. Currently, config must be a *GoogleCalendarConfig
-	Connect(config any) (UserCalendar, error)
+	// Configure calendar. This method must be called first. Currently, config must be a *GoogleCalendarConfig
+	Configure(config any) (UserCalendar, error)
 	// GetAndUpdateEvent retrieves the event from the calendar.
 	// If the event has been modified, it returns the updated event.
 	// If the event has been deleted, it schedules a new event with given body callback and returns the new event.
