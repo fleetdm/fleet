@@ -880,7 +880,6 @@ func (c *Client) DoGitOps(
 	}
 	var mdmAppConfig map[string]interface{}
 	var team map[string]interface{}
-	var teamCalendarIntegration map[string]interface{}
 	if config.TeamName == nil {
 		group.AppConfig = config.OrgSettings
 		group.EnrollSecret = &fleet.EnrollSecretSpec{Secrets: config.OrgSettings["secrets"].([]*fleet.EnrollSecret)}
@@ -968,20 +967,14 @@ func (c *Client) DoGitOps(
 		if !ok {
 			return errors.New("team_settings.integrations config is not a map")
 		}
-		if calendar, ok := integrations.(map[string]interface{})["google_calendar"]; ok {
-			if calendar == nil {
-				calendar = map[string]interface{}{}
-				integrations.(map[string]interface{})["google_calendar"] = calendar
-			}
-			teamCalendarIntegration, ok = calendar.(map[string]interface{})
+		if googleCal, ok := integrations.(map[string]interface{})["google_calendar"]; !ok || googleCal == nil {
+			integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
+		} else {
+			_, ok = googleCal.(map[string]interface{})
 			if !ok {
 				return errors.New("team_settings.integrations.google_calendar config is not a map")
 			}
 		}
-		// We clear the calendar integration and re-apply it after updating policies.
-		// This is needed because the calendar integration may be referencing policies that need to be
-		// created/updated.
-		integrations.(map[string]interface{})["google_calendar"] = map[string]interface{}{}
 
 		team["mdm"] = map[string]interface{}{}
 		mdmAppConfig = team["mdm"].(map[string]interface{})
@@ -1085,23 +1078,6 @@ func (c *Client) DoGitOps(
 	err = c.doGitOpsPolicies(config, logFn, dryRun)
 	if err != nil {
 		return err
-	}
-
-	// Apply calendar integration
-	if len(teamCalendarIntegration) > 0 {
-		group = spec.Group{}
-		team = make(map[string]interface{})
-		team["name"] = *config.TeamName
-		team["integrations"] = map[string]interface{}{"google_calendar": teamCalendarIntegration}
-		rawTeam, err := json.Marshal(team)
-		if err != nil {
-			return fmt.Errorf("error marshalling team spec: %w", err)
-		}
-		group.Teams = []json.RawMessage{rawTeam}
-		_, err = c.ApplyGroup(ctx, &group, baseDir, logf, fleet.ApplySpecOptions{DryRun: dryRun})
-		if err != nil {
-			return err
-		}
 	}
 
 	err = c.doGitOpsQueries(config, logFn, dryRun)
