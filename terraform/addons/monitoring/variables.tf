@@ -8,29 +8,16 @@ variable "fleet_ecs_service_name" {
   default = null
 }
 
-variable "fleet_min_containers" {
-  type    = number
-  default = 1
-}
-
-variable "alb_name" {
-  type    = string
-  default = null
-}
-
-variable "alb_target_group_name" {
-  type    = string
-  default = null
-}
-
-variable "alb_target_group_arn_suffix" {
-  type    = string
-  default = null
-}
-
-variable "alb_arn_suffix" {
-  type    = string
-  default = null
+variable "albs" {
+  type = list(object({
+    name                    = string
+    arn_suffix              = string
+    target_group_name       = string
+    target_group_arn_suffix = string
+    min_containers          = optional(string, 1)
+    ecs_service_name        = string
+  }))
+  default = []
 }
 
 variable "default_sns_topic_arns" {

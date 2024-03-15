@@ -952,6 +952,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
+	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, svc.logger)
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -1089,6 +1091,74 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+// preProcessSoftwareResults will run pre-processing on the responses of the software queries.
+// It will move the results from the software extra queries (e.g. software_vscode_extensions)
+// into the main software query results (software_{macos|linux|windows}).
+// We do this to not grow the main software queries and to ingest
+// all software together (one direct ingest function for all software).
+func preProcessSoftwareResults(
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+}
+
+func preProcessSoftwareExtraResults(
+	softwareExtraQuery string,
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	// We always remove the extra query and its results
+	// in case the main or extra software query failed to execute.
+	defer delete(*results, softwareExtraQuery)
+
+	status, ok := (*statuses)[softwareExtraQuery]
+	if !ok {
+		return // query did not execute, e.g. the table does not exist.
+	}
+	failed := status != fleet.StatusOK
+	if failed {
+		// extra query executed but with errors, so we return without changing anything.
+		level.Error(logger).Log(
+			"query", softwareExtraQuery,
+			"message", (*messages)[softwareExtraQuery],
+			"hostID", hostID,
+		)
+		return
+	}
+
+	// Extract the results of the extra query.
+	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	if len(softwareExtraRows) == 0 {
+		return
+	}
+
+	// Append the results of the extra query to the main query.
+	for _, query := range []string{
+		// Only one of these execute in each host.
+		hostDetailQueryPrefix + "software_macos",
+		hostDetailQueryPrefix + "software_windows",
+		hostDetailQueryPrefix + "software_linux",
+	} {
+		if _, ok := (*results)[query]; !ok {
+			continue
+		}
+		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+			// Do not append results if the main query failed to run.
+			continue
+		}
+		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		return
+	}
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
