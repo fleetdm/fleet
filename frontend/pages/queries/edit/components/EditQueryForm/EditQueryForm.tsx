@@ -637,13 +637,24 @@ const EditQueryForm = ({
     "differential",
     "differential_ignore_removals",
   ].includes(lastEditedQueryLoggingType);
+  // TODO: Account for equivalent platforms "linux,darwin" = "darwin,linux"
+  // TODO: Find out if "linux, darwin" is equivalent to "linux,darwin" and both work in backend
+  const changedPlatforms =
+    storedQuery && lastEditedQueryPlatforms !== storedQuery.platform;
+  const changedMinOsqueryVersion =
+    storedQuery &&
+    lastEditedQueryMinOsqueryVersion !== storedQuery.min_osquery_version;
 
   const enabledDiscardData =
     storedQuery && lastEditedQueryDiscardData && !storedQuery.discard_data;
 
   const confirmChanges =
     currentlySavingQueryResults &&
-    (changedSQL || changedLoggingToDifferential || enabledDiscardData);
+    (changedSQL ||
+      changedLoggingToDifferential ||
+      enabledDiscardData ||
+      changedPlatforms ||
+      changedMinOsqueryVersion);
 
   const showChangedSQLCopy =
     changedSQL && !changedLoggingToDifferential && !enabledDiscardData;
