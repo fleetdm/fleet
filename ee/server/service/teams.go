@@ -887,10 +887,10 @@ func (svc *Service) createTeamFromSpec(
 		hostExpirySettings = *spec.HostExpirySettings
 	}
 
-	hostStatusWebhook := fleet.HostStatusWebhookSettings{}
+	var hostStatusWebhook *fleet.HostStatusWebhookSettings
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
-		hostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+		hostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 	if invalid.HasErrors() {
 		return nil, ctxerr.Wrap(ctx, invalid)
@@ -1066,7 +1066,7 @@ func (svc *Service) editTeamFromSpec(
 	// If host status webhook is not provided, do not change it
 	if spec.WebhookSettings.HostStatusWebhook != nil {
 		fleet.ValidateEnabledHostStatusIntegrations(*spec.WebhookSettings.HostStatusWebhook, invalid)
-		team.Config.WebhookSettings.HostStatusWebhook = *spec.WebhookSettings.HostStatusWebhook
+		team.Config.WebhookSettings.HostStatusWebhook = spec.WebhookSettings.HostStatusWebhook
 	}
 	if invalid.HasErrors() {
 		return ctxerr.Wrap(ctx, invalid)
@@ -1181,11 +1181,11 @@ func unmarshalWithGlobalDefaults(b *json.RawMessage) (fleet.Features, error) {
 	return *defaults, nil
 }
 
-func (svc *Service) updateTeamMDMAppleSettings(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSettingsPayload) error {
+func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.Team, enable *bool) error {
 	var didUpdate, didUpdateMacOSDiskEncryption bool
-	if payload.EnableDiskEncryption != nil {
-		if tm.Config.MDM.EnableDiskEncryption != *payload.EnableDiskEncryption {
-			tm.Config.MDM.EnableDiskEncryption = *payload.EnableDiskEncryption
+	if enable != nil {
+		if tm.Config.MDM.EnableDiskEncryption != *enable {
+			tm.Config.MDM.EnableDiskEncryption = *enable
 			didUpdate = true
 			didUpdateMacOSDiskEncryption = true
 		}

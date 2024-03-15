@@ -86,10 +86,7 @@ const defaultTableHeaders: IDataColumn[] = [
     ),
     disableSortBy: true,
     accessor: "macosHosts",
-    Cell: ({
-      cell: { value: aggregateCount },
-      row: { original },
-    }: ICellProps) => {
+    Cell: ({ cell: { value: aggregateCount } }: ICellProps) => {
       return (
         <div className="disk-encryption-table__aggregate-table-data">
           <TextCell value={aggregateCount} formatter={(val) => <>{val}</>} />
@@ -190,8 +187,6 @@ const STATUS_CELL_VALUES: Record<DiskEncryptionStatus, IStatusCellValue> = {
       "These hosts will receive the MDM command to turn off disk encryption when the hosts come online.",
   },
 };
-
-type StatusEntry = [DiskEncryptionStatus, IDiskEncryptionStatusAggregate];
 
 // Order of the status column. We want the order to always be the same.
 const STATUS_ORDER = [

@@ -244,13 +244,13 @@ type GetMunkiIssueFunc func(ctx context.Context, munkiIssueID uint) (*fleet.Munk
 
 type GetMDMSolutionFunc func(ctx context.Context, mdmID uint) (*fleet.MDMSolution, error)
 
-type OSVersionsFunc func(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error)
+type OSVersionsFunc func(ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string) (*fleet.OSVersions, error)
 
 type OSVersionsByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableOS, time.Time, error)
 
 type SoftwareByCVEFunc func(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableSoftware, time.Time, error)
 
-type OSVersionFunc func(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error)
+type OSVersionFunc func(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (*fleet.OSVersion, *time.Time, error)
 
 type UpdateOSVersionsFunc func(ctx context.Context) error
 
@@ -849,6 +849,8 @@ type UnlockHostViaScriptFunc func(ctx context.Context, request *fleet.HostScript
 type UnlockHostManuallyFunc func(ctx context.Context, hostID uint, hostFleetPlatform string, ts time.Time) error
 
 type CleanMacOSMDMLockFunc func(ctx context.Context, hostUUID string) error
+
+type CleanupUnusedScriptContentsFunc func(ctx context.Context) error
 
 type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error
 
@@ -2105,6 +2107,9 @@ type DataStore struct {
 	CleanMacOSMDMLockFunc        CleanMacOSMDMLockFunc
 	CleanMacOSMDMLockFuncInvoked bool
 
+	CleanupUnusedScriptContentsFunc        CleanupUnusedScriptContentsFunc
+	CleanupUnusedScriptContentsFuncInvoked bool
+
 	WipeHostViaScriptFunc        WipeHostViaScriptFunc
 	WipeHostViaScriptFuncInvoked bool
 
@@ -2908,11 +2913,11 @@ func (s *DataStore) GetMDMSolution(ctx context.Context, mdmID uint) (*fleet.MDMS
 	return s.GetMDMSolutionFunc(ctx, mdmID)
 }
 
-func (s *DataStore) OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
+func (s *DataStore) OSVersions(ctx context.Context, teamFilter *fleet.TeamFilter, platform *string, name *string, version *string) (*fleet.OSVersions, error) {
 	s.mu.Lock()
 	s.OSVersionsFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionsFunc(ctx, teamID, platform, name, version)
+	return s.OSVersionsFunc(ctx, teamFilter, platform, name, version)
 }
 
 func (s *DataStore) OSVersionsByCVE(ctx context.Context, cve string, teamID *uint) ([]*fleet.VulnerableOS, time.Time, error) {
@@ -2929,11 +2934,11 @@ func (s *DataStore) SoftwareByCVE(ctx context.Context, cve string, teamID *uint)
 	return s.SoftwareByCVEFunc(ctx, cve, teamID)
 }
 
-func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamID *uint) (*fleet.OSVersion, *time.Time, error) {
+func (s *DataStore) OSVersion(ctx context.Context, osVersionID uint, teamFilter *fleet.TeamFilter) (*fleet.OSVersion, *time.Time, error) {
 	s.mu.Lock()
 	s.OSVersionFuncInvoked = true
 	s.mu.Unlock()
-	return s.OSVersionFunc(ctx, osVersionID, teamID)
+	return s.OSVersionFunc(ctx, osVersionID, teamFilter)
 }
 
 func (s *DataStore) UpdateOSVersions(ctx context.Context) error {
@@ -5027,6 +5032,13 @@ func (s *DataStore) CleanMacOSMDMLock(ctx context.Context, hostUUID string) erro
 	s.CleanMacOSMDMLockFuncInvoked = true
 	s.mu.Unlock()
 	return s.CleanMacOSMDMLockFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) CleanupUnusedScriptContents(ctx context.Context) error {
+	s.mu.Lock()
+	s.CleanupUnusedScriptContentsFuncInvoked = true
+	s.mu.Unlock()
+	return s.CleanupUnusedScriptContentsFunc(ctx)
 }
 
 func (s *DataStore) WipeHostViaScript(ctx context.Context, request *fleet.HostScriptRequestPayload, hostFleetPlatform string) error {

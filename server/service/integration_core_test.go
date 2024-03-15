@@ -1000,7 +1000,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsFromTeam() {
 	require.NoError(t, s.ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{hosts[0].ID}))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{TeamID: ptr.Uint(team1.ID)},
+		Filters: &map[string]interface{}{"team_id": float64(team1.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1037,7 +1037,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsInLabel() {
 	require.NoError(t, s.ds.RecordLabelQueryExecutions(context.Background(), hosts[2], map[uint]*bool{label.ID: ptr.Bool(true)}, time.Now(), false))
 
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(label.ID)},
+		Filters: &map[string]interface{}{"label_id": float64(label.ID)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1120,7 +1120,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsAll() {
 
 	// All hosts should be deleted when an empty filter is specified
 	req := deleteHostsRequest{
-		Filters: &deleteHostsFilters{},
+		Filters: &map[string]interface{}{},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusOK, &resp)
@@ -1163,7 +1163,7 @@ func (s *integrationTestSuite) TestBulkDeleteHostsErrors() {
 
 	req := deleteHostsRequest{
 		IDs:     []uint{hosts[0].ID, hosts[1].ID},
-		Filters: &deleteHostsFilters{LabelID: ptr.Uint(1)},
+		Filters: &map[string]interface{}{"label_id": float64(1)},
 	}
 	resp := deleteHostsResponse{}
 	s.DoJSON("POST", "/api/latest/fleet/hosts/delete", req, http.StatusBadRequest, &resp)
@@ -2814,8 +2814,11 @@ func (s *integrationTestSuite) TestHostsAddToTeam() {
 
 	// assign host to team 2 with filter
 	var addfResp addHostsToTeamByFilterResponse
-	req := addHostsToTeamByFilterRequest{TeamID: &tm2.ID}
-	req.Filters.MatchQuery = hosts[2].Hostname
+	req := addHostsToTeamByFilterRequest{
+		TeamID:  &tm2.ID,
+		Filters: &map[string]interface{}{"query": hosts[2].Hostname},
+	}
+
 	s.DoJSON("POST", "/api/latest/fleet/hosts/transfer/filter", req, http.StatusOK, &addfResp)
 	s.lastActivityOfTypeMatches(
 		fleet.ActivityTypeTransferredHostsToTeam{}.ActivityName(),
@@ -5368,8 +5371,8 @@ func (s *integrationTestSuite) TestPremiumEndpointsWithoutLicense() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Fleet MDM is not configured")
 
-	// update MDM settings, the endpoint returns an error if MDM is not enabled
-	res = s.Do("PATCH", "/api/latest/fleet/mdm/apple/settings", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
+	// update MDM disk encryption, the endpoint returns an error if MDM is not enabled
+	res = s.Do("POST", "/api/latest/fleet/disk_encryption", fleet.MDMAppleSettingsPayload{}, fleet.ErrMDMNotConfigured.StatusCode())
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
 
@@ -6782,6 +6785,74 @@ func (s *integrationTestSuite) TestLogLoginAttempts() {
 	require.NoError(t, err)
 }
 
+func (s *integrationTestSuite) TestChangePassword() {
+	t := s.T()
+
+	endpoint := "/api/latest/fleet/change_password"
+	// also the default password for the default logged in admin user
+	startPwd := test.GoodPassword
+
+	testCases := []struct {
+		oldPw          string
+		newPw          string
+		expectedStatus int
+	}{
+		// valid changes – 12-48 characters, with at least 1 number (e.g. 0 - 9) and 1 symbol (e.g. &*#).
+		{startPwd, "password123$", http.StatusOK},
+		{"password123$", "Password$321", http.StatusOK},
+
+		// invalid changes
+		// empty old
+		{"", "PassworD$321", http.StatusUnprocessableEntity},
+		// empty new
+		{"password123$", "", http.StatusUnprocessableEntity},
+		// too short
+		{"password123$", "Password$21", http.StatusUnprocessableEntity},
+		// too long
+		{"password123$", "Password$321Password$321Password$321Password$321Password$321", http.StatusUnprocessableEntity},
+		// no numbers
+		{"password123$", "Password$!@#", http.StatusUnprocessableEntity},
+		// no symbols
+		{"password123$", "Password4321", http.StatusUnprocessableEntity},
+		// new pw is same as old
+		{"password123$", "password123$", http.StatusUnprocessableEntity},
+		// wrong old pw
+		{"passgord123$", "Password$321", http.StatusUnprocessableEntity},
+	}
+
+	runTestCases := func(name string) {
+		for _, tc := range testCases {
+			t.Run(name, func(t *testing.T) {
+				var changePwResp changePasswordResponse
+				s.DoJSON("POST", endpoint, changePasswordRequest{OldPassword: tc.oldPw, NewPassword: tc.newPw}, tc.expectedStatus, &changePwResp)
+			})
+		}
+	}
+
+	runTestCases("test change passwords as admin")
+
+	// create a new user
+	testUserEmail := "changepwd@example.com"
+	var createResp createUserResponse
+	params := fleet.UserPayload{
+		Name:                     ptr.String("Test Change Password"),
+		Email:                    ptr.String(testUserEmail),
+		Password:                 ptr.String(startPwd),
+		GlobalRole:               ptr.String(fleet.RoleObserver),
+		AdminForcedPasswordReset: ptr.Bool(false),
+	}
+	s.DoJSON("POST", "/api/latest/fleet/users/admin", params, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.User.ID)
+
+	// schedule cleanup with admin user's token before changing it
+	oldToken := s.token
+	t.Cleanup(func() { s.token = oldToken })
+
+	// login and run the change password tests as the user
+	s.token = s.getTestToken(testUserEmail, startPwd)
+	runTestCases("test change passwords as user")
+}
+
 func (s *integrationTestSuite) TestPasswordReset() {
 	t := s.T()
 
@@ -7832,7 +7903,8 @@ func (s *integrationTestSuite) TestOSVersions() {
 	require.Equal(t, &expectedVersion, osVersionResp.OSVersion)
 
 	// invalid id
-	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusNotFound, &osVersionResp)
+	s.DoJSON("GET", "/api/latest/fleet/os_versions/999", nil, http.StatusOK, &osVersionResp)
+	assert.Zero(t, osVersionResp.OSVersion.HostsCount)
 
 	// name and version filters
 	s.DoJSON("GET", "/api/latest/fleet/os_versions", nil, http.StatusOK, &osVersionsResp, "os_name", "Windows 11 Pro 21H2", "os_version", "10.0.22000.2")

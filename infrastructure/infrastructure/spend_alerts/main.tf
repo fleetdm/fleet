@@ -24,6 +24,7 @@ provider "aws" {
       environment = "spend-alerts"
       terraform   = "https://github.com/fleetdm/fleet/tree/main/infrastructure/infrastructure/spend_alerts"
       state       = "s3://fleet-terraform-state20220408141538466600000002/root/spend-alerts/terraform.tfstate"
+      VantaOwner  = "robert@fleetdm.com"
     }
   }
 }

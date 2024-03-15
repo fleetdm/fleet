@@ -33,6 +33,7 @@ func TestScripts(t *testing.T) {
 		{"TestLockUnlockWipeViaScripts", testLockUnlockWipeViaScripts},
 		{"TestLockUnlockManually", testLockUnlockManually},
 		{"TestInsertScriptContents", testInsertScriptContents},
+		{"TestCleanupUnusedScriptContents", testCleanupUnusedScriptContents},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -457,9 +458,9 @@ func testGetHostScriptDetails(t *testing.T, ds *Datastore) {
 	insertResults := func(t *testing.T, hostID uint, script *fleet.Script, createdAt time.Time, execID string, exitCode *int64) {
 		stmt := `
 INSERT INTO
-	host_script_results (%s host_id, created_at, execution_id, exit_code, script_contents, output)
+	host_script_results (%s host_id, created_at, execution_id, exit_code, output)
 VALUES
-	(%s ?,?,?,?,?,?)`
+	(%s ?,?,?,?,?)`
 
 		args := []interface{}{}
 		if script.ID == 0 {
@@ -468,7 +469,7 @@ VALUES
 			stmt = fmt.Sprintf(stmt, "script_id,", "?,")
 			args = append(args, script.ID)
 		}
-		args = append(args, hostID, createdAt, execID, exitCode, script.ScriptContents, "")
+		args = append(args, hostID, createdAt, execID, exitCode, "")
 
 		ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, args...)
@@ -1064,6 +1065,11 @@ func checkLockWipeState(t *testing.T, status *fleet.HostLockWipeStatus, unlocked
 	require.Equal(t, pendingWipe, status.IsPendingWipe(), "pending wipe")
 }
 
+type scriptContents struct {
+	ID       uint   `db:"id"`
+	Checksum string `db:"md5_checksum"`
+}
+
 func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	contents := `echo foobar;`
@@ -1081,10 +1087,6 @@ func testInsertScriptContents(t *testing.T, ds *Datastore) {
 
 	stmt := `SELECT id, HEX(md5_checksum) as md5_checksum FROM script_contents WHERE id = ?`
 
-	type scriptContents struct {
-		ID       uint   `db:"id"`
-		Checksum string `db:"md5_checksum"`
-	}
 	var sc []scriptContents
 	err = sqlx.SelectContext(ctx, ds.reader(ctx),
 		&sc, stmt,
@@ -1095,4 +1097,39 @@ func testInsertScriptContents(t *testing.T, ds *Datastore) {
 	require.Len(t, sc, 1)
 	require.Equal(t, uint(id), sc[0].ID)
 	require.Equal(t, expectedCS, sc[0].Checksum)
+}
+
+func testCleanupUnusedScriptContents(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// create a saved script
+	s := &fleet.Script{
+		ScriptContents: "echo foobar",
+	}
+	s, err := ds.NewScript(ctx, s)
+	require.NoError(t, err)
+
+	// create a sync script execution
+	res, err := ds.NewHostScriptExecutionRequest(ctx, &fleet.HostScriptRequestPayload{ScriptContents: "echo something_else", SyncRequest: true})
+	require.NoError(t, err)
+
+	// delete our saved script without ever executing it
+	require.NoError(t, ds.DeleteScript(ctx, s.ID))
+
+	// validate that script contents still exist
+	var sc []scriptContents
+	stmt := `SELECT id, HEX(md5_checksum) as md5_checksum FROM script_contents`
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
+	require.NoError(t, err)
+	require.Len(t, sc, 2)
+
+	// this should only remove the script_contents of the saved script, since the sync script is
+	// still "in use" by the script execution
+	require.NoError(t, ds.CleanupUnusedScriptContents(ctx))
+
+	sc = []scriptContents{}
+	err = sqlx.SelectContext(ctx, ds.reader(ctx), &sc, stmt)
+	require.NoError(t, err)
+	require.Len(t, sc, 1)
+	require.Equal(t, md5ChecksumScriptContent(res.ScriptContents), sc[0].Checksum)
 }

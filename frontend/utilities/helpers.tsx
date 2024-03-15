@@ -49,6 +49,7 @@ import {
   PLATFORM_LABEL_DISPLAY_TYPES,
 } from "utilities/constants";
 import { IScheduledQueryStats } from "interfaces/scheduled_query_stats";
+import { IDropdownOption } from "interfaces/dropdownOption";
 
 const ORG_INFO_ATTRS = ["org_name", "org_logo_url"];
 const ADMIN_ATTRS = ["email", "name", "password", "password_confirmation"];
@@ -857,14 +858,18 @@ export const internallyTruncateText = (
   original: string,
   prefixLength = 280,
   suffixLength = 10
-) => (
+): JSX.Element => (
   <>
     {original.slice(0, prefixLength)}...
     {original.slice(original.length - suffixLength)} <em>(truncated)</em>
   </>
 );
 
-export const getUniqueColumnNamesFromRows = (rows: any[]) =>
+export const getUniqueColumnNamesFromRows = <
+  T extends Record<keyof T, unknown>
+>(
+  rows: T[]
+) =>
   // rows of type {col:val, col:val, ...}[]
   // cannot type more narrowly due to loose typing of websocket API and use of this function
   // by QueryResultsTableConfig, where results come from that API
@@ -872,13 +877,28 @@ export const getUniqueColumnNamesFromRows = (rows: any[]) =>
   Array.from(
     rows.reduce(
       (accOuter, row) =>
-        Object.keys(row).reduce(
-          (accInner, colNameInRow) => accInner.add(colNameInRow),
-          accOuter
-        ),
-      new Set()
+        Object.keys(row).reduce((accInner, colNameInRow) => {
+          return accInner.add(colNameInRow as keyof T);
+        }, accOuter),
+      new Set<keyof T>()
     )
   );
+
+// can allow additional dropdown value types in the future
+type DropdownOptionValue = IDropdownOption["value"];
+
+export function getCustomDropdownOptions(
+  defaultOptions: IDropdownOption[],
+  customValue: DropdownOptionValue,
+  labelFormatter: (value: DropdownOptionValue) => string
+): IDropdownOption[] {
+  return defaultOptions.some((option) => option.value === customValue)
+    ? defaultOptions
+    : [
+        { label: labelFormatter(customValue), value: customValue },
+        ...defaultOptions,
+      ];
+}
 
 export default {
   addGravatarUrlToResource,
@@ -898,6 +918,7 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getCustomDropdownOptions,
   greyCell,
   humanHostLastSeen,
   humanHostEnrolled,

@@ -23,7 +23,6 @@ module.exports.policies = {
   'view-homepage-or-redirect': true,
   'view-faq': true,
   'view-contact': true,
-  'view-fleetctl-preview': true,// Redirects not-logged-in users to /try-fleet/login
   'view-pricing': true,
   'legal/view-terms': true,
   'legal/view-privacy': true,
@@ -38,8 +37,6 @@ module.exports.policies = {
   'deliver-demo-signup': true,
   'articles/*': true,
   'reports/*': true,
-  'try-fleet/view-register': true,
-  'try-fleet/view-sandbox-login': true,
   'try-fleet/view-sandbox-teleporter-or-redirect-because-expired-or-waitlist': true,
   'create-or-update-one-newsletter-subscription': true,
   'unsubscribe-from-all-newsletters': true,

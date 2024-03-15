@@ -18,9 +18,9 @@ import (
 type EnterpriseOverrides struct {
 	HostFeatures   func(context context.Context, host *Host) (*Features, error)
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
-	// UpdateTeamMDMAppleSettings is the team-specific service method for when
-	// a team ID is provided to the UpdateMDMAppleSettings method.
-	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMDiskEncryption method.
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -350,8 +350,8 @@ type Service interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
-	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
-	DeleteHosts(ctx context.Context, ids []uint, opt *HostListOptions, lid *uint) error
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
+	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]interface{}) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
@@ -761,9 +761,9 @@ type Service interface {
 	// profile for the given team.
 	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
-	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// UpdateMDMDiskEncryption updates the disk encryption setting for a
 	// specified team or for hosts with no team.
-	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
