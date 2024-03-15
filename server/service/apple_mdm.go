@@ -2225,7 +2225,6 @@ func (svc *MDMAppleCheckinAndCommandService) Authenticate(r *mdm.Request, m *mdm
 		InstalledFromDEP: info.DEPAssignedToFleet,
 		MDMPlatform:      fleet.MDMPlatformApple,
 	})
-
 }
 
 // TokenUpdate handles MDM [TokenUpdate][1] requests.
@@ -2354,7 +2353,8 @@ func (svc *MDMAppleCheckinAndCommandService) UserAuthenticate(*mdm.Request, *mdm
 // This method is executed after the request has been handled by nanomdm.
 //
 // [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
-func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(*mdm.Request, *mdm.DeclarativeManagement) ([]byte, error) {
+func (svc *MDMAppleCheckinAndCommandService) DeclarativeManagement(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
+	// DeclarativeManagement is handled by the MDMAppleDDMService.
 	return nil, nil
 }
 
@@ -2945,4 +2945,64 @@ func RenewSCEPCertificates(
 	}
 
 	return nil
+}
+
+// MDMAppleDDMService is the service that handles MDM [DeclarativeManagement][1] requests.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+type MDMAppleDDMService struct {
+	ds     fleet.Datastore
+	logger kitlog.Logger
+}
+
+func NewMDMAppleDDMService(ds fleet.Datastore, logger kitlog.Logger) *MDMAppleDDMService {
+	return &MDMAppleDDMService{
+		ds:     ds,
+		logger: logger,
+	}
+}
+
+// DeclarativeManagement handles MDM [DeclarativeManagement][1] requests.
+//
+// This method is when the request has been handled by nanomdm.
+//
+// [1]: https://developer.apple.com/documentation/devicemanagement/declarative_management_checkin
+func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
+	if dm == nil {
+		level.Debug(svc.logger).Log("msg", "ddm request received with nil payload")
+		return nil, nil
+	}
+	level.Debug(svc.logger).Log("msg", "ddm request received", "endpoint", dm.Endpoint)
+
+	switch {
+	case dm.Endpoint == "tokens":
+		// TODO(sarah): handle tokens
+		level.Debug(svc.logger).Log("msg", "received tokens request")
+		return nil, nil
+
+	case dm.Endpoint == "declaration-items":
+		// TODO(sarah): handle declaration-items
+		level.Debug(svc.logger).Log("msg", "received declaration-items request")
+		return nil, nil
+
+	case dm.Endpoint == "status":
+		// TODO(roberto): handle status
+		level.Debug(svc.logger).Log("msg", "received status request")
+		return nil, nil
+
+	case strings.HasPrefix(dm.Endpoint, "declarations"):
+		// TODO(sarah): handle declarations
+		level.Debug(svc.logger).Log("msg", "received declarations request")
+		parts := strings.Split(dm.Endpoint, "/")
+		if len(parts) != 3 {
+			return nil, ctxerr.New(r.Context, "unrecognized declarations endpoint")
+		}
+		declarationType := parts[1]
+		declarationIdentifier := parts[2]
+		level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", declarationType, "identifier", declarationIdentifier)
+		return nil, nil
+
+	default:
+		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
+	}
 }

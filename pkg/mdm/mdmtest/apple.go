@@ -386,6 +386,18 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 	return err
 }
 
+func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) error {
+	payload := map[string]any{
+		"MessageType":  "DeclarativeManagement",
+		"UDID":         c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.UUID,
+		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Endpoint":     endpoint,
+	}
+	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return err
+}
+
 // Checkout sends the CheckOut message to the MDM server.
 func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{

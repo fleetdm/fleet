@@ -12503,3 +12503,27 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
+
+// TODO(sarah): Build out this test
+func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
+	t := s.T()
+	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
+		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
+		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
+		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	})
+	err := mdmDevice.Enroll()
+	require.NoError(t, err)
+
+	err = mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+
+	err = mdmDevice.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+
+	err = mdmDevice.DeclarativeManagement("status")
+	require.NoError(t, err)
+
+	err = mdmDevice.DeclarativeManagement("declarations/foo/bar")
+	require.NoError(t, err)
+}
