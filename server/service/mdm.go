@@ -1598,11 +1598,20 @@ func getAppleProfiles(
 			// TODO(JVE): break this out into its own helper function per type, or find a way to use
 			// generics to DRY this up
 
-			mdmDecl, err := fleet.NewMDMAppleDeclaration(prof.Contents, tmID)
+			declType, ident, err := fleet.GetRawDeclarationValues(prof.Contents)
+			if err != nil {
+				return nil, nil, err
+			}
+
+			if !strings.HasPrefix(declType, string(fleet.MDMAppleDeclarativeConfiguration)) {
+				return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(prof.Name, "Only configuration declarations (com.apple.configuration) are supported."))
+			}
+
+			mdmDecl, err := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, declType, ident)
 			if err != nil {
 				return nil, nil, ctxerr.Wrap(ctx,
 					fleet.NewInvalidArgumentError(prof.Name, err.Error()),
-					"invalid mobileconfig profile")
+					"invalid mobileconfig profile") // TODO(JVE): use decl copy
 			}
 
 			// for _, labelName := range prof.Labels {
@@ -1619,14 +1628,14 @@ func getAppleProfiles(
 			if byName[mdmDecl.Name] {
 				return nil, nil, ctxerr.Wrap(ctx,
 					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmDecl.Name)),
-					"duplicate mobileconfig profile by name")
+					"duplicate mobileconfig profile by name") // TODO(JVE): use decl copy
 			}
 			byName[mdmDecl.Name] = true
 
 			if byIdent[mdmDecl.Identifier] {
 				return nil, nil, ctxerr.Wrap(ctx,
 					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmDecl.Identifier)),
-					"duplicate mobileconfig profile by identifier")
+					"duplicate mobileconfig profile by identifier") // TODO(JVE): use decl copy
 			}
 			byIdent[mdmDecl.Identifier] = true
 

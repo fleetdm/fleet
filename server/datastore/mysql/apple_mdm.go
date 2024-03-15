@@ -3083,9 +3083,8 @@ WHERE h.uuid = ?
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) error {
 	/* TODO(JVE): fill me in! should need to
-	- Create a new internal type for the declarations, similar to fleet.MDMAppleConfigProfile
 	- Call this method in the batch upload service method. We'll need to sort the declarations out
-	  from the profiles and call this separately.
+	  from the profiles and call this separately. ✅
 	*/
 
 	insertStmt := `
@@ -3095,25 +3094,28 @@ INSERT INTO mdm_apple_declarations (
 	name,
 	declaration_type,
 	declaration,
-	md5_checksum
+	md5_checksum,
+	uploaded_at
 )
 VALUES (
-	?,?,?,?,?,UNHEX(?)
+	?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP()
 )
-	`
+`
 
 	for _, d := range declarations {
+		checksum := md5ChecksumScriptContent(string(d.Declaration))
+		declUUID := "x" + uuid.NewString()
 		if _, err := tx.ExecContext(ctx, insertStmt,
-			d.DeclarationUUID,
+			declUUID,
 			d.Identifier,
 			d.Name,
 			d.DeclarationType,
 			d.Declaration,
-			d.MD5Checksum); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+			checksum); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", d.DeclarationUUID)
+			return ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
 	}
 
