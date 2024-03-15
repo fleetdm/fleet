@@ -1273,7 +1273,7 @@ func checkNextPayloads(t *testing.T, mdmDevice *mdmtest.TestAppleMDMClient, forc
 			break
 		}
 
-		var fullCmd *micromdm.CommandPayload
+		var fullCmd micromdm.CommandPayload
 		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
@@ -5875,7 +5875,7 @@ func (s *integrationMDMTestSuite) TestBootstrapPackageStatus() {
 		cmd, err := d.device.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
-			var fullCmd *micromdm.CommandPayload
+			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 			// if the command is to install the bootstrap package
@@ -11576,7 +11576,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 		cmd, err := mdmDevice.Idle()
 		require.NoError(t, err)
 		for cmd != nil {
-			var fullCmd *micromdm.CommandPayload
+			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 				foundInstallFleetdCommand = true
@@ -12255,7 +12255,7 @@ func (s *integrationMDMTestSuite) TestDontIgnoreAnyProfileErrors() {
 	for cmd != nil {
 		if cmd.Command.RequestType == "RemoveProfile" {
 			var errChain []mdm.ErrorChain
-			var fullCmd *micromdm.CommandPayload
+			var fullCmd micromdm.CommandPayload
 			require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
 
 			if fullCmd.Command.RemoveProfile.Identifier == "I1" {
@@ -12399,8 +12399,8 @@ func (s *integrationMDMTestSuite) TestSCEPCertExpiration() {
 			require.NoError(t, err)
 		}
 		require.NotNil(t, renewCmd)
-		var fullCmd *micromdm.CommandPayload
-		require.NoError(t, plist.Unmarshal(cmd.Raw, &fullCmd))
+		var fullCmd micromdm.CommandPayload
+		require.NoError(t, plist.Unmarshal(renewCmd.Raw, &fullCmd))
 		s.verifyEnrollmentProfile(fullCmd.Command.InstallProfile.Payload, enrollRef)
 	}
 
