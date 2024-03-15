@@ -4107,7 +4107,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 
 ## Labels
 
-- [Create label](#create-label)
+- [Add label](#add-label)
 - [Modify label](#modify-label)
 - [Get label](#get-label)
 - [Get labels summary](#get-labels-summary)
@@ -4116,9 +4116,9 @@ Note that if the host is online and the query times out, this endpoint will retu
 - [Delete label](#delete-label)
 - [Delete label by ID](#delete-label-by-id)
 
-### Create label
+### Add label
 
-Creates a dynamic label.
+Add a dynamic or manual label.
 
 `POST /api/v1/fleet/labels`
 
@@ -4128,7 +4128,8 @@ Creates a dynamic label.
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
-| query       | string | body | **Required**. The query in SQL syntax used to filter the hosts.                                                                                                                                                                              |
+| query       | string | body | **Required**. The query in SQL syntax used to filter the hosts. Can't be used if `hosts` is specified  already.    |
+| hosts       | array | body | **Required**. List of the hosts to create label from. Can't be used if `query` is specified already.                                                                                                                                                                              |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 #### Example
