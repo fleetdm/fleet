@@ -3080,3 +3080,42 @@ WHERE h.uuid = ?
 
 	return nil
 }
+
+func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) error {
+	/* TODO(JVE): fill me in! should need to
+	- Create a new internal type for the declarations, similar to fleet.MDMAppleConfigProfile
+	- Call this method in the batch upload service method. We'll need to sort the declarations out
+	  from the profiles and call this separately.
+	*/
+
+	insertStmt := `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	identifier,
+	name,
+	declaration_type,
+	declaration,
+	md5_checksum
+)
+VALUES (
+	?,?,?,?,?,?
+)
+	`
+
+	for _, d := range declarations {
+		if _, err := tx.ExecContext(ctx, insertStmt,
+			d.DeclarationUUID,
+			d.Identifier,
+			d.Name,
+			d.DeclarationType,
+			d.Declaration,
+			"TODO(JVE):fixme"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+			if err == nil {
+				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+			}
+			return ctxerr.Wrapf(ctx, err, "insert new/edited profile with identifier %q", d.DeclarationUUID)
+		}
+	}
+
+	return nil
+}

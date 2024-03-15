@@ -1491,7 +1491,8 @@ func (svc *Service) BatchSetMDMProfiles(
 		return nil
 	}
 
-	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles); err != nil {
+	// TODO(JVE): have to separate out the declarations above and then pass them in here!
+	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, []*fleet.MDMAppleDeclaration{{DeclarationUUID: "foobar", DeclarationType: fleet.MDMAppleDeclarativeActivation, Declaration: []byte(`{"foo": "bar"}`), Identifier: "foobar", Name: "foobar.json"}}); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 

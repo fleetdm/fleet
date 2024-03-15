@@ -101,7 +101,8 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
-func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+// TODO(JVE): should we update this signature to acceept the new declarations as well?
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
@@ -109,6 +110,10 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 
 		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		if err := ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
 		return nil
@@ -1045,14 +1050,5 @@ func (ds *Datastore) CleanSCEPRenewRefs(ctx context.Context, hostUUID string) er
 		return ctxerr.Errorf(ctx, "nano association for host.uuid %s doesn't exist", hostUUID)
 	}
 
-	return nil
-}
-
-func (ds *Datastore) BatchSetMacDDMDeclarations(ctx context.Context, declarations []any) error {
-	/* TODO(JVE): fill me in! should need to
-	- Create a new internal type for the declarations, similar to fleet.MDMAppleConfigProfile
-	- Call this method in the batch upload service method. We'll need to sort the declarations out
-	  from the profiles and call this separately.
-	*/
 	return nil
 }
