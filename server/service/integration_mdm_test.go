@@ -12511,7 +12511,15 @@ func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
 
-	ddmProf := []byte(`{"foo": "bar"}`)
+	ddmProf := []byte(`
+{
+	"Type": "com.apple.configuration.services.configuration-files",
+	"Identifier": "io.macadmins.config.bash",
+	"Payload": {
+		"ServiceType": "com.apple.bash",
+		"DataAssetReference": "io.macadmins.asset.bash"
+	}
+}`)
 
 	testProfiles := []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: ddmProf},

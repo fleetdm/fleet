@@ -387,6 +387,45 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*fleet.MDMAppleDeclaration, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("declaration", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var tmID *uint
+	if teamID >= 1 {
+		tmID = &teamID
+	}
+
+	declType, ident, err := fleet.GetRawDeclarationValues(data)
+	if err != nil {
+		return nil, err
+	}
+	d, err := fleet.NewMDMAppleDeclaration(data, tmID, name, declType, ident)
+	if err != nil {
+		return nil, err
+	}
+
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, tmID, labels, d)
+	if err != nil {
+		return nil, err
+	}
+
+	return decl, nil
+}
+
 type listMDMAppleConfigProfilesRequest struct {
 	TeamID uint `query:"team_id,optional"`
 }

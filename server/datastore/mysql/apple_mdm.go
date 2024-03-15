@@ -3081,7 +3081,7 @@ WHERE h.uuid = ?
 	return nil
 }
 
-func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) error {
+func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
 	/* TODO(JVE): fill me in! should need to
 	- Call this method in the batch upload service method. We'll need to sort the declarations out
 	  from the profiles and call this separately. ✅
@@ -3115,9 +3115,28 @@ VALUES (
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}
-			return ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
+			return nil, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
 		}
+
+		d.DeclarationUUID = declUUID
 	}
 
-	return nil
+	return declarations, nil
+}
+
+func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, labels []string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+	var decls []*fleet.MDMAppleDeclaration
+	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		decls, err = ds.batchSetMDMAppleDeclarations(ctx, tx, teamID, []*fleet.MDMAppleDeclaration{declaration})
+		if err != nil {
+			return err
+		}
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return decls[0], nil
 }

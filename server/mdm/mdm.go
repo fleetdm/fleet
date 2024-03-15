@@ -41,6 +41,7 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 //     empty.
 func GetRawProfilePlatform(profile []byte) string {
 	trimmedProfile := bytes.TrimSpace(profile)
+	slog.With("filename", "server/mdm/mdm.go", "func", "GetRawProfilePlatform").Info("JVE_LOG: got a profile ", "profile", trimmedProfile)
 
 	if len(trimmedProfile) == 0 {
 		return ""
@@ -52,7 +53,6 @@ func GetRawProfilePlatform(profile []byte) string {
 	}
 
 	if prefixMatches([]byte("<?xml")) || prefixMatches([]byte(`{`)) {
-		slog.With("filename", "server/mdm/mdm.go", "func", "GetRawProfilePlatform").Info("JVE_LOG: got darwin profile ", "profile", trimmedProfile)
 		return "darwin"
 	}
 
