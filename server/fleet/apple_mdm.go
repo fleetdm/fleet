@@ -533,7 +533,7 @@ type SCEPIdentityAssociation struct {
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
 
-// MDMAppleEnrollmentType is the type for Apple MDM enrollments.
+// MDMAppleDeclarationType is the type for the supported declaration types.
 type MDMAppleDeclarationType string
 
 const (
