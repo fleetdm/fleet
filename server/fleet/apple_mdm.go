@@ -532,3 +532,80 @@ type SCEPIdentityAssociation struct {
 	EnrollReference  string `db:"enroll_reference"`
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
+
+// MDMAppleEnrollmentType is the type for Apple MDM enrollments.
+type MDMAppleDeclarationType string
+
+const (
+	// MDMAppleConfigurationDeclaration is the value for [configuration][1] declarations
+	//
+	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3813088
+	MDMAppleDeclarativeConfiguration MDMAppleDeclarationType = "com.apple.configuration"
+
+	// MDMAppleActivationConfiguration is the value for [activation][1] declarations
+	//
+	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
+	MDMAppleDeclarativeActivation MDMAppleDeclarationType = "com.apple.activation"
+)
+
+// MDMAppleDeclaration represents a DDM JSON declaration.
+type MDMAppleDeclaration struct {
+	// DeclarationUUID is the unique identifier of the declaration in
+	// Fleet. Since we use the same endpoints for declarations and profiles:
+	//    - This is marshalled as profile_uuid
+	//    - The value has a prefix (TODO: @jahzielv to determine and document this)
+	DeclarationUUID string `db:"declaration_uuid" json:"profile_uuid"`
+
+	// TeamID is the id of the team with which the declaration is associated. A nil team id
+	// represents a declaration that is not associated with any team.
+	TeamID *uint `db:"team_id" json:"team_id"`
+
+	// Identifier corresponds to the "Identifier" key of the associated declaration.
+	// Fleet requires that Identifier must be unique in combination with the Name and TeamID.
+	Identifier string `db:"identifier" json:"identifier"`
+
+	// Name corresponds to the file name of the associated JSON declaration payload.
+	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
+	Name string `db:"name" json:"name"`
+
+	// DeclarationType is the type of the declaration, at the moment we
+	// only support configurations and activations.
+	DeclarationType MDMAppleDeclarationType `db:"declaration_type"`
+
+	// Declaration is the raw JSON content of the declaration
+	Declaration json.RawMessage `db:"declaration" json:"-"`
+
+	// MD5Checksum is a checsum of the JSON contents
+	MD5Checksum string `db:"md5_checksum" json:"-"`
+
+	CreatedAt  time.Time `db:"created_at" json:"created_at"`
+	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
+}
+
+// MDMAppleHostDeclaration represents the state of a declaration on a host
+type MDMAppleHostDeclaration struct {
+	// HostUUID is the uuid of the host affected by this declaration
+	HostUUID string `db:"host_uuid" json:"-"`
+
+	// DeclarationUUID is the unique identifier of the declaration in
+	// Fleet. Since we use the same endpoints for declarations and profiles:
+	//    - This is marshalled as profile_uuid
+	//    - The value has a prefix (TODO: @jahzielv to determine and document this)
+	DeclarationUUID string `db:"declaration_uuid" json:"profile_uuid"`
+
+	// Name corresponds to the file name of the associated JSON declaration payload.
+	Name string `db:"name" json:"name"`
+
+	// Identifier corresponds to the "Identifier" key of the associated declaration.
+	Identifier string `db:"identifier" json:"-"`
+
+	// Status represent the current state of the declaration, as known by the Fleet server.
+	Status *MDMDeliveryStatus `db:"status" json:"status"`
+
+	// Operation type represents the operation being performed.
+	OperationType MDMOperationType `db:"operation_type" json:"operation_type"`
+
+	// Detail contains any messages that must be surfaced to the user,
+	// either by the MDM protocol or the Fleet server.
+	Detail string `db:"detail" json:"detail"`
+}
