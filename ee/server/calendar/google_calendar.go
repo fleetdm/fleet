@@ -20,12 +20,11 @@ import (
 )
 
 const (
-	eventTitle      = "💻🚫Downtime"
-	startHour       = 9
-	endHour         = 17
-	eventLength     = 30 * time.Minute
-	calendarID      = "primary"
-	searchStartTime = -8 * time.Hour
+	eventTitle  = "💻🚫Downtime"
+	startHour   = 9
+	endHour     = 17
+	eventLength = 30 * time.Minute
+	calendarID  = "primary"
 )
 
 var calendarScopes = []string{
@@ -112,7 +111,14 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetEvent(id, eTag string) (*calend
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string) (*calendar.Events, error) {
 	// Default maximum number of events returned is 250, which should be sufficient for most calendars.
-	return lowLevelAPI.service.Events.List(calendarID).EventTypes("default").OrderBy("startTime").SingleEvents(true).TimeMin(timeMin).TimeMax(timeMax).Do()
+	return lowLevelAPI.service.Events.List(calendarID).
+		EventTypes("default").
+		OrderBy("startTime").
+		SingleEvents(true).
+		TimeMin(timeMin).
+		TimeMax(timeMax).
+		ShowDeleted(false).
+		Do()
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
@@ -289,14 +295,18 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 	eventStart := dayStart
 	eventEnd := dayStart.Add(eventLength)
 
-	searchStart := dayStart.Add(searchStartTime)
-	events, err := c.config.API.ListEvents(searchStart.Format(time.RFC3339), dayEnd.Format(time.RFC3339))
+	events, err := c.config.API.ListEvents(dayStart.Format(time.RFC3339), dayEnd.Format(time.RFC3339))
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "listing Google calendar events")
 	}
 	for _, gEvent := range events.Items {
 		// Ignore cancelled events
 		if gEvent.Status == "cancelled" {
+			continue
+		}
+
+		// Ignore all day events
+		if gEvent.Start == nil || gEvent.Start.DateTime == "" || gEvent.End == nil || gEvent.End.DateTime == "" {
 			continue
 		}
 
@@ -320,27 +330,23 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 		}
 
 		// Ignore events that will end before our event
-		endTime, err := time.Parse(time.RFC3339, gEvent.End.DateTime)
+		endTime, err := c.parseDateTime(gEvent.End)
 		if err != nil {
-			return nil, ctxerr.Wrap(
-				c.config.Context, err, fmt.Sprintf("parsing Google calendar event end time: %s", gEvent.End.DateTime),
-			)
+			return nil, err
 		}
 		if endTime.Before(eventStart) || endTime.Equal(eventStart) {
 			continue
 		}
 
-		startTime, err := time.Parse(time.RFC3339, gEvent.Start.DateTime)
+		startTime, err := c.parseDateTime(gEvent.Start)
 		if err != nil {
-			return nil, ctxerr.Wrap(
-				c.config.Context, err, fmt.Sprintf("parsing Google calendar event start time: %s", gEvent.Start.DateTime),
-			)
+			return nil, err
 		}
 
 		if startTime.Before(eventEnd) {
 			// Event occurs during our event, so we need to adjust.
 			var isLastSlot bool
-			eventStart, eventEnd, isLastSlot = adjustEventTimes(endTime, dayEnd)
+			eventStart, eventEnd, isLastSlot = adjustEventTimes(*endTime, dayEnd)
 			if isLastSlot {
 				break
 			}
