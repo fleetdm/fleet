@@ -2705,6 +2705,17 @@ func TestMDMApplePreassignEndpoints(t *testing.T) {
 	}
 }
 
+func declarationForTest(identifier string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.configuration.management.test",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, identifier))
+}
+
 func mobileconfigForTest(name, identifier string) []byte {
 	return []byte(fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
