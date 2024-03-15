@@ -4128,8 +4128,8 @@ Add a dynamic or manual label.
 | ----------- | ------ | ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | name        | string | body | **Required**. The label's name.                                                                                                                                                                                                              |
 | description | string | body | The label's description.                                                                                                                                                                                                                     |
-| query       | string | body | **Required**. The query in SQL syntax used to filter the hosts. Can't be used if `hosts` is specified  already.    |
-| hosts       | array | body | **Required**. List of the hosts to create label from. Can't be used if `query` is specified already.                                                                                                                                                                              |
+| query       | string | body | **Required**. The query in SQL syntax used to filter the hosts. Only one of either `query` or `hosts` can be included in the request.  |
+| hosts       | array | body | **Required**. The list of host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name` to create a label from. Only one of either `query` or `hosts` can be included in the request. |
 | platform    | string | body | The specific platform for the label to target. Provides an additional filter. Choices for platform are `darwin`, `windows`, `ubuntu`, and `centos`. All platforms are included by default and this option is represented by an empty string. |
 
 #### Example
