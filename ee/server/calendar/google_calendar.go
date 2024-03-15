@@ -20,11 +20,12 @@ import (
 )
 
 const (
-	eventTitle  = "💻🚫Downtime"
-	startHour   = 9
-	endHour     = 17
-	eventLength = 30 * time.Minute
-	calendarID  = "primary"
+	eventTitle      = "💻🚫Downtime"
+	startHour       = 9
+	endHour         = 17
+	eventLength     = 30 * time.Minute
+	calendarID      = "primary"
+	searchStartTime = -8 * time.Hour
 )
 
 var calendarScopes = []string{
@@ -141,6 +142,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 	// http.StatusNotModified is returned sometimes, but not always, so we need to check ETag explicitly later
 	case googleapi.IsNotModified(err):
 		return event, false, nil
+	// http.StatusNotFound should be very rare -- Google keeps events for a while after they are deleted
 	case isNotFound(err):
 		deleted = true
 	case err != nil:
@@ -197,18 +199,24 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		}
 	}
 
-	newStartDate := event.StartTime.Add(24 * time.Hour)
-	if newStartDate.Weekday() == time.Saturday {
-		newStartDate = newStartDate.Add(48 * time.Hour)
-	} else if newStartDate.Weekday() == time.Sunday {
-		newStartDate = newStartDate.Add(24 * time.Hour)
-	}
+	newStartDate := calculateNewEventDate(event.StartTime)
 
 	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn())
 	if err != nil {
 		return nil, false, err
 	}
 	return fleetEvent, true, nil
+}
+
+func calculateNewEventDate(oldStartDate time.Time) time.Time {
+	// Note: we do not handle time changes (daylight savings time, etc.) -- assuming 1 day is always 24 hours.
+	newStartDate := oldStartDate.Add(24 * time.Hour)
+	if newStartDate.Weekday() == time.Saturday {
+		newStartDate = newStartDate.Add(48 * time.Hour)
+	} else if newStartDate.Weekday() == time.Sunday {
+		newStartDate = newStartDate.Add(24 * time.Hour)
+	}
+	return newStartDate
 }
 
 func (c *GoogleCalendar) parseDateTime(eventDateTime *calendar.EventDateTime) (*time.Time, error) {
@@ -281,7 +289,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 	eventStart := dayStart
 	eventEnd := dayStart.Add(eventLength)
 
-	searchStart := dayStart.Add(-24 * time.Hour)
+	searchStart := dayStart.Add(searchStartTime)
 	events, err := c.config.API.ListEvents(searchStart.Format(time.RFC3339), dayEnd.Format(time.RFC3339))
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "listing Google calendar events")
@@ -331,7 +339,6 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 
 		if startTime.Before(eventEnd) {
 			// Event occurs during our event, so we need to adjust.
-			fmt.Printf("VICTOR Adjusting event times due to %s: %s - %s\n", gEvent.Summary, eventStart, eventEnd)
 			var isLastSlot bool
 			eventStart, eventEnd, isLastSlot = adjustEventTimes(endTime, dayEnd)
 			if isLastSlot {

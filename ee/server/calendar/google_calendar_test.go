@@ -166,8 +166,9 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	err := cal.Configure(baseUserEmail)
 	assert.NoError(t, err)
 
+	eventStartTime := time.Now().UTC()
 	event := &fleet.CalendarEvent{
-		StartTime: time.Now(),
+		StartTime: eventStartTime,
 		EndTime:   time.Now().Add(time.Hour),
 		Data:      []byte(`{"ID":"` + baseEventID + `","ETag":"` + baseETag + `"}`),
 	}
@@ -219,8 +220,8 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	assert.True(t, updated)
 	assert.NotEqual(t, event, retrievedEvent)
 	require.NotNil(t, retrievedEvent)
-	assert.Equal(t, startTime, retrievedEvent.StartTime)
-	assert.Equal(t, endTime, retrievedEvent.EndTime)
+	assert.Equal(t, startTime.UTC(), retrievedEvent.StartTime.UTC())
+	assert.Equal(t, endTime.UTC(), retrievedEvent.EndTime.UTC())
 	assert.Equal(t, baseUserEmail, retrievedEvent.Email)
 	gCal, _ := cal.(*GoogleCalendar)
 	details, err := gCal.unmarshalDetails(retrievedEvent)
@@ -251,6 +252,18 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
 	assert.Error(t, err)
 
+	// Bad time format
+	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
+		return &calendar.Event{
+			Id:    baseEventID,
+			Etag:  "new-eTag",
+			Start: &calendar.EventDateTime{DateTime: startTime.Format(time.RFC3339)},
+			End:   &calendar.EventDateTime{DateTime: "bozo"},
+		}, nil
+	}
+	_, _, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	assert.Error(t, err)
+
 	// Event has been modified, with custom timezone.
 	tzId := "Africa/Kinshasa"
 	location, _ := time.LoadLocation(tzId)
@@ -273,14 +286,143 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	assert.Equal(t, endTime.UTC(), retrievedEvent.EndTime.UTC())
 	assert.Equal(t, baseUserEmail, retrievedEvent.Email)
 
-	// TODO: 404 response (deleted)
+	// 404 response (deleted)
+	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
+		return nil, &googleapi.Error{Code: http.StatusNotFound}
+	}
+	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
+		return &calendar.Setting{Value: "UTC"}, nil
+	}
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return &calendar.Events{}, nil
+	}
+	genBodyFn = func() string {
+		return "event-body"
+	}
+	eventCreated := false
+	mockAPI.CreateEventFunc = func(event *calendar.Event) (*calendar.Event, error) {
+		assert.Equal(t, eventTitle, event.Summary)
+		assert.Equal(t, genBodyFn(), event.Description)
+		event.Id = baseEventID
+		event.Etag = baseETag
+		eventCreated = true
+		return event, nil
+	}
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	require.NoError(t, err)
+	assert.True(t, updated)
+	assert.NotEqual(t, event, retrievedEvent)
+	require.NotNil(t, retrievedEvent)
+	assert.Equal(t, baseUserEmail, retrievedEvent.Email)
+	newEventDate := calculateNewEventDate(eventStartTime)
+	expectedStartTime := time.Date(newEventDate.Year(), newEventDate.Month(), newEventDate.Day(), startHour, 0, 0, 0, time.UTC)
+	assert.Equal(t, expectedStartTime.UTC(), retrievedEvent.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), retrievedEvent.EndTime.UTC())
+	assert.True(t, eventCreated)
 
-	// TODO: cancelled (deleted)
+	// cancelled (deleted)
+	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
+		return &calendar.Event{
+			Id:     baseEventID,
+			Etag:   "new-eTag",
+			Start:  &calendar.EventDateTime{DateTime: startTime.Format(time.RFC3339)},
+			End:    &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
+			Status: "cancelled",
+		}, nil
+	}
+	eventCreated = false
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	require.NoError(t, err)
+	assert.True(t, updated)
+	require.NotNil(t, retrievedEvent)
+	assert.NotEqual(t, event, retrievedEvent)
+	assert.Equal(t, expectedStartTime.UTC(), retrievedEvent.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), retrievedEvent.EndTime.UTC())
+	assert.True(t, eventCreated)
 
-	// TODO: all day event (deleted)
+	// all day event (deleted)
+	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
+		return &calendar.Event{
+			Id:     baseEventID,
+			Etag:   "new-eTag",
+			Start:  &calendar.EventDateTime{Date: startTime.Format("2006-01-02")},
+			End:    &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
+			Status: "cancelled",
+		}, nil
+	}
+	eventCreated = false
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	require.NoError(t, err)
+	assert.True(t, updated)
+	require.NotNil(t, retrievedEvent)
+	assert.NotEqual(t, event, retrievedEvent)
+	assert.Equal(t, expectedStartTime.UTC(), retrievedEvent.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), retrievedEvent.EndTime.UTC())
+	assert.True(t, eventCreated)
 
-	// TODO: moved in the past event (deleted)
-
+	// moved in the past event (deleted)
+	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
+		return &calendar.Event{
+			Id:     baseEventID,
+			Etag:   "new-eTag",
+			Start:  &calendar.EventDateTime{DateTime: startTime.Add(-time.Hour).Format(time.RFC3339)},
+			End:    &calendar.EventDateTime{DateTime: endTime.Add(-time.Hour).Format(time.RFC3339)},
+			Status: "cancelled",
+		}, nil
+	}
+	eventCreated = false
+	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
+	require.NoError(t, err)
+	assert.True(t, updated)
+	require.NotNil(t, retrievedEvent)
+	assert.NotEqual(t, event, retrievedEvent)
+	assert.Equal(t, expectedStartTime.UTC(), retrievedEvent.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), retrievedEvent.EndTime.UTC())
+	assert.True(t, eventCreated)
 }
 
-//CreateEvent(dateOfEvent time.Time, body string) (event *CalendarEvent, err error)
+func TestGoogleCalendar_CreateEvent(t *testing.T) {
+	mockAPI := &MockGoogleCalendarLowLevelAPI{}
+	const baseEventID = "event-id"
+	const baseETag = "event-eTag"
+	const eventBody = "event-body"
+	var cal fleet.UserCalendar = NewGoogleCalendar(makeConfig(mockAPI))
+	err := cal.Configure(baseUserEmail)
+	assert.NoError(t, err)
+
+	tzId := "Africa/Kinshasa"
+	mockAPI.GetSettingFunc = func(name string) (*calendar.Setting, error) {
+		return &calendar.Setting{Value: tzId}, nil
+	}
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return &calendar.Events{}, nil
+	}
+	mockAPI.CreateEventFunc = func(event *calendar.Event) (*calendar.Event, error) {
+		assert.Equal(t, eventTitle, event.Summary)
+		assert.Equal(t, eventBody, event.Description)
+		event.Id = baseEventID
+		event.Etag = baseETag
+		return event, nil
+	}
+
+	// Happy path test
+	date := time.Now().Add(24 * time.Hour)
+	location, _ := time.LoadLocation(tzId)
+	expectedStartTime := time.Date(date.Year(), date.Month(), date.Day(), startHour, 0, 0, 0, location)
+	_, expectedOffset := expectedStartTime.Zone()
+	event, err := cal.CreateEvent(date, eventBody)
+	require.NoError(t, err)
+	assert.Equal(t, baseUserEmail, event.Email)
+	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
+	_, offset := event.StartTime.Zone()
+	assert.Equal(t, expectedOffset, offset)
+	_, offset = event.EndTime.Zone()
+	assert.Equal(t, expectedOffset, offset)
+	gCal, _ := cal.(*GoogleCalendar)
+	details, err := gCal.unmarshalDetails(event)
+	require.NoError(t, err)
+	assert.Equal(t, baseETag, details.ETag)
+	assert.Equal(t, baseEventID, details.ID)
+
+}
