@@ -3098,7 +3098,7 @@ INSERT INTO mdm_apple_declarations (
 	md5_checksum
 )
 VALUES (
-	?,?,?,?,?,?
+	?,?,?,?,?,UNHEX(?)
 )
 	`
 
@@ -3109,7 +3109,7 @@ VALUES (
 			d.Name,
 			d.DeclarationType,
 			d.Declaration,
-			"TODO(JVE):fixme"); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
+			d.MD5Checksum); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
 				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 			}

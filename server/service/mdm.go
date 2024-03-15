@@ -1477,7 +1477,7 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating labels")
 	}
 
-	appleProfiles, err := getAppleProfiles(ctx, tmID, appCfg, profiles, labelMap)
+	appleProfiles, appleDecls, err := getAppleProfiles(ctx, tmID, appCfg, profiles, labelMap)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "validating macOS profiles")
 	}
@@ -1492,7 +1492,7 @@ func (svc *Service) BatchSetMDMProfiles(
 	}
 
 	// TODO(JVE): have to separate out the declarations above and then pass them in here!
-	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, []*fleet.MDMAppleDeclaration{{DeclarationUUID: "foobar", DeclarationType: fleet.MDMAppleDeclarativeActivation, Declaration: []byte(`{"foo": "bar"}`), Identifier: "foobar", Name: "foobar.json"}}); err != nil {
+	if err := svc.ds.BatchSetMDMProfiles(ctx, tmID, appleProfiles, windowsProfiles, appleDecls); err != nil {
 		return ctxerr.Wrap(ctx, err, "setting config profiles")
 	}
 
@@ -1578,9 +1578,10 @@ func getAppleProfiles(
 	appCfg *fleet.AppConfig,
 	profiles []fleet.MDMProfileBatchPayload,
 	labelMap map[string]fleet.ConfigurationProfileLabel,
-) ([]*fleet.MDMAppleConfigProfile, error) {
+) ([]*fleet.MDMAppleConfigProfile, []*fleet.MDMAppleDeclaration, error) {
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
+	decls := make([]*fleet.MDMAppleDeclaration, 0, len(profiles))
 	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
 	for _, prof := range profiles {
 		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
@@ -1589,15 +1590,54 @@ func getAppleProfiles(
 
 		// Check for DDM files
 
+		slog.With("filename", "server/service/mdm.go", "func", "getAppleProfiles").Info("JVE_LOG: validating apple profiles ", "profile", prof.Contents)
+
+		// TODO(JVE): need a more bulletproof way to determine if the bytes are JSON or not.
 		if bytes.Contains(prof.Contents, []byte("{")) {
 			slog.With("filename", "server/service/mdm.go", "func", "getAppleProfiles").Info("JVE_LOG: got a JSON profile ", "profile", prof.Contents)
-			// TODO(JVE): add handling for JSON DDM declarations
+			// TODO(JVE): break this out into its own helper function per type, or find a way to use
+			// generics to DRY this up
+
+			mdmDecl, err := fleet.NewMDMAppleDeclaration(prof.Contents, tmID)
+			if err != nil {
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(prof.Name, err.Error()),
+					"invalid mobileconfig profile")
+			}
+
+			// for _, labelName := range prof.Labels {
+			// 	if lbl, ok := labelMap[labelName]; ok {
+			// 		mdmDecl.Labels = append(mdmDecl.Labels, lbl)
+			// 	}
+			// }
+
+			// if err := mdmDecl.ValidateUserProvided(); err != nil {
+			// 	return nil, nil, ctxerr.Wrap(ctx,
+			// 		fleet.NewInvalidArgumentError(prof.Name, err.Error()))
+			// }
+
+			if byName[mdmDecl.Name] {
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmDecl.Name)),
+					"duplicate mobileconfig profile by name")
+			}
+			byName[mdmDecl.Name] = true
+
+			if byIdent[mdmDecl.Identifier] {
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmDecl.Identifier)),
+					"duplicate mobileconfig profile by identifier")
+			}
+			byIdent[mdmDecl.Identifier] = true
+
+			decls = append(decls, mdmDecl)
+
 			continue
 		}
 
 		mdmProf, err := fleet.NewMDMAppleConfigProfile(prof.Contents, tmID)
 		if err != nil {
-			return nil, ctxerr.Wrap(ctx,
+			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()),
 				"invalid mobileconfig profile")
 		}
@@ -1609,25 +1649,25 @@ func getAppleProfiles(
 		}
 
 		if err := mdmProf.ValidateUserProvided(); err != nil {
-			return nil, ctxerr.Wrap(ctx,
+			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, err.Error()))
 		}
 
 		if mdmProf.Name != prof.Name {
-			return nil, ctxerr.Wrap(ctx,
+			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. The name provided for the profile must match the profile PayloadDisplayName: %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 
 		if byName[mdmProf.Name] {
-			return nil, ctxerr.Wrap(ctx,
+			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
 		byName[mdmProf.Name] = true
 
 		if byIdent[mdmProf.Identifier] {
-			return nil, ctxerr.Wrap(ctx,
+			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
@@ -1643,13 +1683,13 @@ func getAppleProfiles(
 		// custom_settings key, we just return a success response in this
 		// situation.
 		if len(profs) == 0 {
-			return []*fleet.MDMAppleConfigProfile{}, nil
+			return []*fleet.MDMAppleConfigProfile{}, []*fleet.MDMAppleDeclaration{}, nil
 		}
 
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
+		return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("mdm", "cannot set custom settings: Fleet MDM is not configured"))
 	}
 
-	return profs, nil
+	return profs, decls, nil
 }
 
 func getWindowsProfiles(

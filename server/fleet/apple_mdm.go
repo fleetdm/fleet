@@ -5,7 +5,9 @@ import (
 	"crypto/md5" // nolint: gosec
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"strings"
 	"time"
@@ -572,10 +574,13 @@ type MDMAppleDeclaration struct {
 	// only support configurations and activations.
 	DeclarationType MDMAppleDeclarationType `db:"declaration_type"`
 
+	// Type is the "Type" field on the raw declaration JSON.
+	Type string `json:"Type,omitempty"`
+
 	// Declaration is the raw JSON content of the declaration
 	Declaration json.RawMessage `db:"declaration" json:"-"`
 
-	// MD5Checksum is a checsum of the JSON contents
+	// MD5Checksum is a checksum of the JSON contents
 	MD5Checksum string `db:"md5_checksum" json:"-"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
@@ -608,4 +613,30 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+}
+
+func NewMDMAppleDeclaration(raw []byte, teamID *uint) (*MDMAppleDeclaration, error) {
+	// TODO(JVE): Do we need an equivalent package to mdm/apple/mobileconfig?
+
+	var decl MDMAppleDeclaration
+	if err := json.Unmarshal(raw, &decl); err != nil {
+		return nil, err
+	}
+
+	decl.TeamID = teamID
+	decl.Declaration = raw
+	rawChecksum := md5.Sum(raw)
+	decl.MD5Checksum = strings.ToUpper(hex.EncodeToString(rawChecksum[:])) // TODO(JVE): this isn't done in the equivalent function for profiles. should it be done here?
+
+	if !strings.HasPrefix(decl.Type, string(MDMAppleDeclarativeActivation)) && !strings.HasPrefix(decl.Type, string(MDMAppleDeclarativeConfiguration)) {
+		return nil, errors.New("bad type") // TODO(JVE): update this with better copy
+	}
+
+	decl.DeclarationType = MDMAppleDeclarationType(strings.Join(strings.Split(decl.Type, ".")[:3], "."))
+
+	// TODO(JVE): set the UUID
+	// TODO(JVE): set the upload at?
+
+	slog.With("filename", "server/fleet/apple_mdm.go", "func", "NewMDMAppleDeclaration").Info("JVE_LOG: making new decl ", "decltype", decl.DeclarationType, "type", decl.Type)
+	return &decl, nil
 }

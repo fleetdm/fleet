@@ -51,7 +51,7 @@ func GetRawProfilePlatform(profile []byte) string {
 			bytes.EqualFold(prefix, trimmedProfile[:len(prefix)])
 	}
 
-	if prefixMatches([]byte("<?xml")) || prefixMatches([]byte(`{"`)) {
+	if prefixMatches([]byte("<?xml")) || prefixMatches([]byte(`{`)) {
 		slog.With("filename", "server/mdm/mdm.go", "func", "GetRawProfilePlatform").Info("JVE_LOG: got darwin profile ", "profile", trimmedProfile)
 		return "darwin"
 	}

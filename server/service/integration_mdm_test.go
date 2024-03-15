@@ -12519,4 +12519,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
 
 	// add global profiles
 	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+
+	// verify that our declaration worked
 }

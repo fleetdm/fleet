@@ -101,7 +101,6 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
-// TODO(JVE): should we update this signature to acceept the new declarations as well?
 func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
