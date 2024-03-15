@@ -452,20 +452,6 @@ spec:
 	)
 
 	// Apply calendar integration
-	validPolicyID := uint(10)
-	validPolicyName := "validPolicy"
-	ds.PoliciesByNameFunc = func(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
-		var policies = make(map[string]*fleet.Policy)
-		for _, name := range names {
-			if name != validPolicyName {
-				return nil, &notFoundError{}
-			}
-			policies[name] = &fleet.Policy{
-				PolicyData: fleet.PolicyData{ID: validPolicyID, TeamID: &teamsByName["team1"].ID, Name: validPolicyName},
-			}
-		}
-		return policies, nil
-	}
 	filename = writeTmpYml(
 		t, `
 apiVersion: v1
@@ -477,8 +463,6 @@ spec:
       google_calendar:
         email: `+googleCalEmail+`
         enable_calendar_events: true
-        policies:
-          - name: `+validPolicyName+`
         webhook_url: https://example.com/webhook
 `,
 	)
@@ -488,7 +472,6 @@ spec:
 		t, fleet.TeamGoogleCalendarIntegration{
 			Email:      googleCalEmail,
 			Enable:     true,
-			Policies:   []*fleet.PolicyRef{{Name: validPolicyName, ID: validPolicyID}},
 			WebhookURL: "https://example.com/webhook",
 		}, *teamsByName["team1"].Config.Integrations.GoogleCalendar,
 	)
@@ -505,34 +488,12 @@ spec:
       google_calendar:
         email: not_present_globally@example.com
         enable_calendar_events: true
-        policies:
-          - name: `+validPolicyName+`
         webhook_url: https://example.com/webhook
 `,
 	)
 
 	_, err = runAppNoChecks([]string{"apply", "-f", filename})
 	assert.ErrorContains(t, err, "email must match a global Google Calendar integration email")
-
-	// Apply calendar integration -- invalid policy name
-	filename = writeTmpYml(
-		t, `
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: team1
-    integrations:
-      google_calendar:
-        email: `+googleCalEmail+`
-        enable_calendar_events: true
-        policies:
-          - name: invalidPolicy
-        webhook_url: https://example.com/webhook
-`,
-	)
-	_, err = runAppNoChecks([]string{"apply", "-f", filename})
-	assert.ErrorContains(t, err, "name is invalid")
 
 	// Apply calendar integration -- invalid webhook destination
 	filename = writeTmpYml(
@@ -546,8 +507,6 @@ spec:
       google_calendar:
         email: `+googleCalEmail+`
         enable_calendar_events: true
-        policies:
-          - name: `+validPolicyName+`
         webhook_url: bozo
 `,
 	)

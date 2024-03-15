@@ -466,12 +466,6 @@ func TestFullTeamGitOps(t *testing.T) {
 		}
 		return nil, nil
 	}
-	ds.PoliciesByNameFunc = func(ctx context.Context, names []string, teamID uint) (map[string]*fleet.Policy, error) {
-		if slices.Contains(names, "policy1") && slices.Contains(names, "policy2") {
-			return map[string]*fleet.Policy{"policy1": &policy, "policy2": &policy}, nil
-		}
-		return nil, nil
-	}
 	ds.DeleteTeamPoliciesFunc = func(ctx context.Context, teamID uint, IDs []uint) ([]uint, error) {
 		policyDeleted = true
 		assert.Equal(t, []uint{policy.ID}, IDs)
@@ -554,7 +548,6 @@ func TestFullTeamGitOps(t *testing.T) {
 	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.Equal(t, "service@example.com", savedTeam.Config.Integrations.GoogleCalendar.Email)
 	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
-	assert.Len(t, savedTeam.Config.Integrations.GoogleCalendar.Policies, 2)
 
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
