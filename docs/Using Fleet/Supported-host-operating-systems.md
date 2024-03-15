@@ -25,7 +25,7 @@ The osquery installer generated for MacOS by `fleetctl package` does not include
 The osquery installer will run on Linux distributions where `glibc` is >= 2.2 (there is ongoing work to make osquery work with `glibc` 2.12+).
 If you aren't sure what version of `glibc` your distribution is using, [DistroWatch](https://distrowatch.com/) is a great resource. 
 
-> On Ubuntu, Fleet Desktop only supports display `0`.
+> On Linux, Fleet Desktop only supports $DISPLAY `:0`.
 
 > Fedora, CentOS 8 and 9 require a [gnome extension](https://extensions.gnome.org/extension/615/appindicator-support/) and Google Chrome set to the default browser for Fleet Desktop.
 
