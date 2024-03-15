@@ -130,9 +130,7 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 }
 
 func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func() string) (*fleet.CalendarEvent, bool, error) {
-	if event.EndTime.Before(time.Now()) {
-		return nil, false, ctxerr.Errorf(c.config.Context, "cannot get and update an event that has already ended: %s", event.EndTime)
-	}
+	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return nil, false, err
@@ -153,21 +151,45 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			// Event was not modified
 			return event, false, nil
 		}
-		endTime, err := time.Parse(time.RFC3339, gEvent.End.DateTime)
-		if err != nil {
-			return nil, false, ctxerr.Wrap(
-				c.config.Context, err, fmt.Sprintf("parsing Google calendar event end time: %s", gEvent.End.DateTime),
-			)
+		if gEvent.End == nil || (gEvent.End.DateTime == "" && gEvent.End.Date == "") {
+			// We should not see this error. If we do, we can work around by treating event as deleted.
+			return nil, false, ctxerr.Errorf(c.config.Context, "missing end date/time for Google calendar event: %s", gEvent.Id)
 		}
-		// If event already ended, it is effectively deleted
-		if endTime.After(time.Now()) {
-			startTime, err := time.Parse(time.RFC3339, gEvent.Start.DateTime)
+
+		if gEvent.End.DateTime == "" {
+			// User has modified the event to be an all-day event. All-day events are problematic because they depend on the user's timezone.
+			// We won't handle all-day events at this time, and treat the event as deleted.
+			deleted = true
+		}
+
+		var endTime *time.Time
+		if !deleted {
+			endTime, err = c.parseDateTime(gEvent.End)
 			if err != nil {
-				return nil, false, ctxerr.Wrap(
-					c.config.Context, err, fmt.Sprintf("parsing Google calendar event start time: %s", gEvent.Start.DateTime),
-				)
+				return nil, false, err
 			}
-			fleetEvent, err := c.googleEventToFleetEvent(startTime, endTime, gEvent)
+			if !endTime.After(time.Now()) {
+				// If event already ended, it is effectively deleted
+				deleted = true
+			}
+		}
+		if !deleted {
+			if gEvent.Start == nil || (gEvent.Start.DateTime == "" && gEvent.Start.Date == "") {
+				// We should not see this error. If we do, we can work around by treating event as deleted.
+				return nil, false, ctxerr.Errorf(c.config.Context, "missing start date/time for Google calendar event: %s", gEvent.Id)
+			}
+			if gEvent.Start.DateTime == "" {
+				// User has modified the event to be an all-day event. All-day events are problematic because they depend on the user's timezone.
+				// We won't handle all-day events at this time, and treat the event as deleted.
+				deleted = true
+			}
+		}
+		if !deleted {
+			startTime, err := c.parseDateTime(gEvent.Start)
+			if err != nil {
+				return nil, false, err
+			}
+			fleetEvent, err := c.googleEventToFleetEvent(*startTime, *endTime, gEvent)
 			if err != nil {
 				return nil, false, err
 			}
@@ -187,6 +209,23 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		return nil, false, err
 	}
 	return fleetEvent, true, nil
+}
+
+func (c *GoogleCalendar) parseDateTime(eventDateTime *calendar.EventDateTime) (*time.Time, error) {
+	var endTime time.Time
+	var err error
+	if eventDateTime.TimeZone != "" {
+		loc := getLocation(eventDateTime.TimeZone, c.config)
+		endTime, err = time.ParseInLocation(time.RFC3339, eventDateTime.DateTime, loc)
+	} else {
+		endTime, err = time.Parse(time.RFC3339, eventDateTime.DateTime)
+	}
+	if err != nil {
+		return nil, ctxerr.Wrap(
+			c.config.Context, err, fmt.Sprintf("parsing Google calendar event time: %s", eventDateTime.DateTime),
+		)
+	}
+	return &endTime, nil
 }
 
 func isNotFound(err error) bool {
@@ -349,15 +388,20 @@ func getTimezone(gCal *GoogleCalendar) error {
 		return ctxerr.Wrap(config.Context, err, "retrieving Google calendar timezone")
 	}
 
-	loc, err := time.LoadLocation(setting.Value)
-	if err != nil {
-		// Could not load location, use EST
-		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", setting.Value, "err", err)
-		loc, _ = time.LoadLocation("America/New_York")
-	}
+	loc := getLocation(setting.Value, config)
 	_, timezoneOffset := time.Now().In(loc).Zone()
 	gCal.timezoneOffset = &timezoneOffset
 	return nil
+}
+
+func getLocation(name string, config *GoogleCalendarConfig) *time.Location {
+	loc, err := time.LoadLocation(name)
+	if err != nil {
+		// Could not load location, use EST
+		level.Warn(config.Logger).Log("msg", "parsing Google calendar timezone", "timezone", name, "err", err)
+		loc, _ = time.LoadLocation("America/New_York")
+	}
+	return loc
 }
 
 func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime time.Time, event *calendar.Event) (
