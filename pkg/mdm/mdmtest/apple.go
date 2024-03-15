@@ -386,6 +386,12 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 	return err
 }
 
+
+// DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
+//
+// The endpoint argument is used as the value for the `Endpoint` key in the request payload.
+//
+// For more details check https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest
 func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) error {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
