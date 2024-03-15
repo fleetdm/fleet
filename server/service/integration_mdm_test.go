@@ -11581,7 +11581,7 @@ func (s *integrationMDMTestSuite) TestManualEnrollmentCommands() {
 			if manifest := fullCmd.Command.InstallEnterpriseApplication.ManifestURL; manifest != nil {
 				foundInstallFleetdCommand = true
 				require.Equal(t, "InstallEnterpriseApplication", cmd.Command.RequestType)
-				require.Contains(t, manifest, apple_mdm.FleetdPublicManifestURL)
+				require.Contains(t, *fullCmd.Command.InstallEnterpriseApplication.ManifestURL, apple_mdm.FleetdPublicManifestURL)
 			}
 			cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 			require.NoError(t, err)
