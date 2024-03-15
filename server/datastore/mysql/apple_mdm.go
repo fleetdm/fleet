@@ -3080,3 +3080,22 @@ WHERE h.uuid = ?
 
 	return nil
 }
+
+func (ds *Datastore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error) {
+	const stmt = `
+SELECT
+	md5_checksum,
+	latest_created_timestamp
+FROM
+	team_declaration_checksum_view
+WHERE
+	team_id = ?
+`
+
+	var res fleet.MDMAppleDDMSynchronizationTokens
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
+	}
+
+	return &res, nil
+}

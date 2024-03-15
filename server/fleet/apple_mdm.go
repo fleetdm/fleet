@@ -609,3 +609,11 @@ type MDMAppleHostDeclaration struct {
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
 }
+
+// MDMAppleDDMSynchronizationTokens represent tokens used to synchorize declarations.
+//
+// https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
+type MDMAppleDDMSynchronizationTokens struct {
+	DeclarationsToken string    `db:"md5_checksum"`
+	Timestamp         time.Time `db:"latest_created_timestamp"`
+}

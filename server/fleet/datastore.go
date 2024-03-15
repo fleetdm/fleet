@@ -1152,6 +1152,10 @@ type Datastore interface {
 	// serials.
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
 
+	// MDMAppleDDMSynchronizationTokens returns the token used to synchronize declarations for the
+	// specified team or no team.
+	MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*MDMAppleDDMSynchronizationTokens, error)
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 

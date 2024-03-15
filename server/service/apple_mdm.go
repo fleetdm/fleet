@@ -2978,7 +2978,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	case dm.Endpoint == "tokens":
 		// TODO(sarah): handle tokens
 		level.Debug(svc.logger).Log("msg", "received tokens request")
-		return nil, nil
+		return svc.handleTokens(r, dm)
 
 	case dm.Endpoint == "declaration-items":
 		// TODO(sarah): handle declaration-items
@@ -3005,4 +3005,33 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	default:
 		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
 	}
+}
+
+func (svc *MDMAppleDDMService) handleTokens(r *mdm.Request, dm *mdm.DeclarativeManagement) ([]byte, error) {
+	if dm == nil {
+		return nil, ctxerr.New(r.Context, "missing ddm payload")
+	}
+	if dm.UDID == "" {
+		return nil, ctxerr.New(r.Context, "missing device id")
+	}
+
+	h, err := svc.ds.HostLiteByIdentifier(r.Context, dm.UDID)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
+	}
+	var tid uint
+	if h.TeamID != nil {
+		tid = *h.TeamID
+	}
+	tok, err := svc.ds.MDMAppleDDMSynchronizationTokens(r.Context, tid)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "getting synchronization tokens")
+	}
+
+	b, err := json.Marshal(tok)
+	if err != nil {
+		return nil, ctxerr.Wrap(r.Context, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
 }

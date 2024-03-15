@@ -858,6 +858,8 @@ type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
 
+type MDMAppleDDMSynchronizationTokensFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error)
+
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
 	HealthCheckFuncInvoked bool
@@ -2118,6 +2120,9 @@ type DataStore struct {
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
+
+	MDMAppleDDMSynchronizationTokensFunc        MDMAppleDDMSynchronizationTokensFunc
+	MDMAppleDDMSynchronizationTokensFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -5060,4 +5065,11 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
+}
+
+func (s *DataStore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMSynchronizationTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMSynchronizationTokensFunc(ctx, teamID)
 }

@@ -12507,23 +12507,51 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 // TODO(sarah): Build out this test
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
-	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
-		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+		_, err := q.ExecContext(context.Background(), `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	declaration_type,
+	declaration,
+	md5_checksum
+) VALUES (
+	'declaration-uuid', 
+	0, 
+	'declaration-identifier', 
+	'declaration-name', 
+	'com.apple.configuration', 
+	CAST('{"foo": "bar"}' AS JSON), 
+	'declaration-checksum'
+)`)
+		return err
 	})
-	err := mdmDevice.Enroll()
+
+	r, err := mdmDevice.DeclarativeManagement("tokens")
+	require.NoError(t, err)
+	require.NotNil(t, r)
+	b, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	defer r.Body.Close()
+	r.Body = io.NopCloser(bytes.NewBuffer(b))
+	fmt.Println("body", string(b))
+
+	// unmarsal the response to make sure it's valid
+	var tok fleet.MDMAppleDDMSynchronizationTokens
+	err = json.NewDecoder(r.Body).Decode(&tok)
+	require.NoError(t, err)
+	fmt.Println("decoded", tok)
+
+	_, err = mdmDevice.DeclarativeManagement("declaration-items")
 	require.NoError(t, err)
 
-	err = mdmDevice.DeclarativeManagement("tokens")
+	_, err = mdmDevice.DeclarativeManagement("status")
 	require.NoError(t, err)
 
-	err = mdmDevice.DeclarativeManagement("declaration-items")
-	require.NoError(t, err)
-
-	err = mdmDevice.DeclarativeManagement("status")
-	require.NoError(t, err)
-
-	err = mdmDevice.DeclarativeManagement("declarations/foo/bar")
+	_, err = mdmDevice.DeclarativeManagement("declarations/foo/bar")
 	require.NoError(t, err)
 }

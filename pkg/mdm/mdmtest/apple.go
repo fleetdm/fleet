@@ -391,7 +391,7 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.
 //
 // For more details check https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest
-func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) error {
+func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) (*http.Response, error) {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
 		"UDID":         c.UUID,
@@ -399,8 +399,8 @@ func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) error {
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"Endpoint":     endpoint,
 	}
-	_, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
-	return err
+	r, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return r, err
 }
 
 // Checkout sends the CheckOut message to the MDM server.
