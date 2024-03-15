@@ -12531,25 +12531,42 @@ INSERT INTO mdm_apple_declarations (
 		return err
 	})
 
-	r, err := mdmDevice.DeclarativeManagement("tokens")
-	require.NoError(t, err)
-	require.NotNil(t, r)
-	b, err := io.ReadAll(r.Body)
-	require.NoError(t, err)
-	defer r.Body.Close()
-	r.Body = io.NopCloser(bytes.NewBuffer(b))
-	fmt.Println("body", string(b))
+	t.Run("Tokens", func(t *testing.T) {
+		r, err := mdmDevice.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+		fmt.Println("body", string(b))
 
-	// unmarsal the response to make sure it's valid
-	var tok fleet.MDMAppleDDMSynchronizationTokens
-	err = json.NewDecoder(r.Body).Decode(&tok)
-	require.NoError(t, err)
-	fmt.Println("decoded", tok)
+		// unmarsal the response to make sure it's valid
+		var tok fleet.MDMAppleDDMTokensResponse
+		err = json.NewDecoder(r.Body).Decode(&tok)
+		require.NoError(t, err)
+		fmt.Println("decoded", tok)
+	})
 
-	_, err = mdmDevice.DeclarativeManagement("declaration-items")
-	require.NoError(t, err)
+	t.Run("DeclarationItems", func(t *testing.T) {
+		r, err := mdmDevice.DeclarativeManagement("declaration-items")
+		require.NoError(t, err)
+		require.NoError(t, err)
+		require.NotNil(t, r)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+		fmt.Println("body", string(b))
 
-	_, err = mdmDevice.DeclarativeManagement("status")
+		// unmarsal the response to make sure it's valid
+		var di fleet.MDMAppleDDMDeclarationItemsResponse
+		err = json.NewDecoder(r.Body).Decode(&di)
+		require.NoError(t, err)
+		fmt.Println("decoded", di)
+	})
+
+	_, err := mdmDevice.DeclarativeManagement("status")
 	require.NoError(t, err)
 
 	_, err = mdmDevice.DeclarativeManagement("declarations/foo/bar")

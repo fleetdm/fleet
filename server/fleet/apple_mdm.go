@@ -610,10 +610,52 @@ type MDMAppleHostDeclaration struct {
 	Detail string `db:"detail" json:"detail"`
 }
 
-// MDMAppleDDMSynchronizationTokens represent tokens used to synchorize declarations.
+// MDMAppleDDMTokensResponse is the response from the DDM tokens endpoint.
+//
+// https://developer.apple.com/documentation/devicemanagement/tokensresponse
+type MDMAppleDDMTokensResponse struct {
+	SyncTokens MDMAppleDDMSyncTokens
+}
+
+// MDMAppleDDMSyncTokens is dictionary describes the state of declarations on the server.
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
-type MDMAppleDDMSynchronizationTokens struct {
+type MDMAppleDDMSyncTokens struct {
 	DeclarationsToken string    `db:"md5_checksum"`
 	Timestamp         time.Time `db:"latest_created_timestamp"`
+}
+
+// MDMAppleDDMDeclarationItemsResponse is the response from the DDM declaration items endpoint.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
+type MDMAppleDDMDeclarationItemsResponse struct {
+	Declarations      MDMAppleDDMManifestItems
+	DeclarationsToken string
+}
+
+// MDMAppleDDMManifestItems is a dictionary that contains the lists of declarations available on the
+// server.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse/manifestdeclarationitems
+type MDMAppleDDMManifestItems struct {
+	Activations    []MDMAppleDDMManifest
+	Assets         []MDMAppleDDMManifest
+	Configurations []MDMAppleDDMManifest
+	Management     []MDMAppleDDMManifest
+}
+
+// MDMAppleDDMManifest is a dictionary that describes a declaration.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse/manifestdeclarationitems
+type MDMAppleDDMManifest struct {
+	Identifier  string
+	ServerToken string
+}
+
+// MDMAppleDDMDeclarationItemDB represents a declaration item in the datastore.
+type MDMAppleDDMDeclarationItemDB struct {
+	Identifier        string `db:"identifier"`
+	DeclarationType   string `db:"declaration_type"`
+	DeclarationsToken string `db:"declarations_token"`
+	ServerToken       string `db:"server_token"`
 }

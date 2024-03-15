@@ -756,6 +756,10 @@ type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
 
+type MDMAppleDDMSynchronizationTokensFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSyncTokens, error)
+
+type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error)
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -857,8 +861,6 @@ type WipeHostViaScriptFunc func(ctx context.Context, request *fleet.HostScriptRe
 type WipeHostViaWindowsMDMFunc func(ctx context.Context, host *fleet.Host, cmd *fleet.MDMWindowsCommand) error
 
 type UpdateHostLockWipeStatusFromAppleMDMResultFunc func(ctx context.Context, hostUUID string, cmdUUID string, requestType string, succeeded bool) error
-
-type MDMAppleDDMSynchronizationTokensFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error)
 
 type DataStore struct {
 	HealthCheckFunc        HealthCheckFunc
@@ -1968,6 +1970,12 @@ type DataStore struct {
 	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
 	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
 
+	MDMAppleDDMSynchronizationTokensFunc        MDMAppleDDMSynchronizationTokensFunc
+	MDMAppleDDMSynchronizationTokensFuncInvoked bool
+
+	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
+	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
 
@@ -2120,9 +2128,6 @@ type DataStore struct {
 
 	UpdateHostLockWipeStatusFromAppleMDMResultFunc        UpdateHostLockWipeStatusFromAppleMDMResultFunc
 	UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked bool
-
-	MDMAppleDDMSynchronizationTokensFunc        MDMAppleDDMSynchronizationTokensFunc
-	MDMAppleDDMSynchronizationTokensFuncInvoked bool
 
 	mu sync.Mutex
 }
@@ -4710,6 +4715,20 @@ func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobI
 	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
 }
 
+func (s *DataStore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSyncTokens, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMSynchronizationTokensFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMSynchronizationTokensFunc(ctx, teamID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationItemsFunc(ctx, teamID)
+}
+
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
 	s.mu.Lock()
 	s.WSTEPStoreCertificateFuncInvoked = true
@@ -5065,11 +5084,4 @@ func (s *DataStore) UpdateHostLockWipeStatusFromAppleMDMResult(ctx context.Conte
 	s.UpdateHostLockWipeStatusFromAppleMDMResultFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostLockWipeStatusFromAppleMDMResultFunc(ctx, hostUUID, cmdUUID, requestType, succeeded)
-}
-
-func (s *DataStore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error) {
-	s.mu.Lock()
-	s.MDMAppleDDMSynchronizationTokensFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleDDMSynchronizationTokensFunc(ctx, teamID)
 }

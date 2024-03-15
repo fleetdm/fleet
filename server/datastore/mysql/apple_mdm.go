@@ -3081,7 +3081,7 @@ WHERE h.uuid = ?
 	return nil
 }
 
-func (ds *Datastore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSynchronizationTokens, error) {
+func (ds *Datastore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSyncTokens, error) {
 	const stmt = `
 SELECT
 	md5_checksum,
@@ -3092,10 +3092,34 @@ WHERE
 	team_id = ?
 `
 
-	var res fleet.MDMAppleDDMSynchronizationTokens
+	var res fleet.MDMAppleDDMSyncTokens
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
 	}
 
 	return &res, nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error) {
+	// TODO: Confirm whether we can use JSON functions in the query (if 5.7 officially unsupported
+	// by Fleet)
+	const stmt = `
+SELECT
+	mad.md5_checksum as server_token,
+	identifier,
+	declaration_type,
+	tv.md5_checksum as declarations_token
+FROM
+	mdm_apple_declarations mad
+	JOIN team_declaration_checksum_view tv ON mad.team_id = tv.team_id
+WHERE
+	mad.team_id = ?
+`
+
+	var res []fleet.MDMAppleDDMDeclarationItemDB
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
+	}
+
+	return res, nil
 }
