@@ -30,6 +30,8 @@ type PolicyPayload struct {
 	//
 	// Empty string targets all platforms.
 	Platform string
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool
 }
 
 var (
@@ -107,6 +109,8 @@ type ModifyPolicyPayload struct {
 	Platform *string `json:"platform"`
 	// Critical marks the policy as high impact.
 	Critical *bool `json:"critical" premium:"true"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled *bool `json:"calendar_events_enabled" premium:"true"`
 }
 
 // Verify verifies the policy payload is valid.
@@ -158,6 +162,8 @@ type PolicyData struct {
 	//
 	// Empty string targets all platforms.
 	Platform string `json:"platform" db:"platforms"`
+
+	CalendarEventsEnabled bool `json:"calendar_events_enabled" db:"calendar_events_enabled"`
 
 	UpdateCreateTimestamps
 }
@@ -212,6 +218,8 @@ type PolicySpec struct {
 	//
 	// Empty string targets all platforms.
 	Platform string `json:"platform,omitempty"`
+	// CalendarEventsEnabled indicates whether calendar events are enabled for the policy. Only applies to team policies.
+	CalendarEventsEnabled bool `json:"calendar_events_enabled"`
 }
 
 // Verify verifies the policy data is valid.

@@ -451,6 +451,11 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
 	}
 
+	var integrations TeamSpecIntegrations
+	if t.Config.Integrations.GoogleCalendar != nil {
+		integrations.GoogleCalendar = t.Config.Integrations.GoogleCalendar
+	}
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -459,5 +464,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
+		Integrations:       integrations,
 	}, nil
 }
