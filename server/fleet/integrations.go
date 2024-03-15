@@ -112,14 +112,9 @@ func (z TeamZendeskIntegration) UniqueKey() string {
 }
 
 type TeamGoogleCalendarIntegration struct {
-	Email      string       `json:"email"`
-	Enable     bool         `json:"enable_calendar_events"`
-	Policies   []*PolicyRef `json:"policies"`
-	WebhookURL string       `json:"webhook_url"`
-}
-type PolicyRef struct {
-	Name string `json:"name"`
-	ID   uint   `json:"id"`
+	Email      string `json:"email"`
+	Enable     bool   `json:"enable_calendar_events"`
+	WebhookURL string `json:"webhook_url"`
 }
 
 // JiraIntegration configures an instance of an integration with the Jira
@@ -380,7 +375,7 @@ func ValidateEnabledHostStatusIntegrations(webhook HostStatusWebhookSettings, in
 
 func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, invalid *InvalidArgumentError) {
 	if len(intgs) > 1 {
-		invalid.Append("integrations.google_calendar", "only one Google Calendar integration is allowed at this time")
+		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
 		intg.Email = strings.TrimSpace(intg.Email)

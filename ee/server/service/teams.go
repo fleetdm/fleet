@@ -197,19 +197,21 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 	}
 
 	if payload.Integrations != nil {
-		// the team integrations must reference an existing global config integration.
-		if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+		if payload.Integrations.Jira != nil || payload.Integrations.Zendesk != nil {
+			// the team integrations must reference an existing global config integration.
+			if _, err := payload.Integrations.MatchWithIntegrations(appCfg.Integrations); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		// integrations must be unique
-		if err := payload.Integrations.Validate(); err != nil {
-			return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
-		}
+			// integrations must be unique
+			if err := payload.Integrations.Validate(); err != nil {
+				return nil, fleet.NewInvalidArgumentError("integrations", err.Error())
+			}
 
-		team.Config.Integrations.Jira = payload.Integrations.Jira
-		team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
-		// Only update the google calendar integration if it's not nil
+			team.Config.Integrations.Jira = payload.Integrations.Jira
+			team.Config.Integrations.Zendesk = payload.Integrations.Zendesk
+		}
+		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
 			_ = svc.validateTeamCalendarIntegrations(ctx, team, payload.Integrations.GoogleCalendar, appCfg, invalid)
@@ -1178,35 +1180,6 @@ func (svc *Service) validateTeamCalendarIntegrations(
 		invalid.Append("integrations.google_calendar.webhook_url", err.Error())
 	} else if u.Scheme != "https" && u.Scheme != "http" {
 		invalid.Append("integrations.google_calendar.webhook_url", "webhook_url must be https or http")
-	}
-	// Validate policy ids
-	if len(calendarIntegration.Policies) == 0 {
-		invalid.Append("integrations.google_calendar.policies", "policies are required")
-	}
-	if len(calendarIntegration.Policies) > 0 {
-		for _, policy := range calendarIntegration.Policies {
-			policy.Name = strings.TrimSpace(policy.Name)
-		}
-		calendarIntegration.Policies = server.RemoveDuplicatesFromSlice(calendarIntegration.Policies)
-		policyNames := make([]string, 0, len(calendarIntegration.Policies))
-		for _, policy := range calendarIntegration.Policies {
-			policyNames = append(policyNames, policy.Name)
-		}
-		// Policies must be team policies. Global policies are not allowed.
-		policyMap, err := svc.ds.PoliciesByName(ctx, policyNames, team.ID)
-		if err != nil {
-			level.Error(svc.logger).Log("msg", "error getting policies by name", "names", policyNames, "err", err)
-			if fleet.IsNotFound(err) {
-				invalid.Append("integrations.google_calendar.policies[].name", "name is invalid")
-			} else {
-				return err
-			}
-		} else {
-			// PoliciesByName guarantees that all policies are present
-			for _, policy := range calendarIntegration.Policies {
-				policy.ID = policyMap[policy.Name].ID
-			}
-		}
 	}
 	return nil
 }

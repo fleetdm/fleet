@@ -38,7 +38,6 @@ func TestPolicies(t *testing.T) {
 		{"PolicyQueriesForHost", testPolicyQueriesForHost},
 		{"PolicyQueriesForHostPlatforms", testPolicyQueriesForHostPlatforms},
 		{"PoliciesByID", testPoliciesByID},
-		{"PoliciesByName", testPoliciesByName},
 		{"TeamPolicyTransfer", testTeamPolicyTransfer},
 		{"ApplyPolicySpec", testApplyPolicySpec},
 		{"Save", testPoliciesSave},
@@ -583,10 +582,11 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	require.Error(t, err)
 
 	p, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, fleet.PolicyPayload{
-		Name:        "query1",
-		Query:       "select 1;",
-		Description: "query1 desc",
-		Resolution:  "query1 resolution",
+		Name:                  "query1",
+		Query:                 "select 1;",
+		Description:           "query1 desc",
+		Resolution:            "query1 resolution",
+		CalendarEventsEnabled: true,
 	})
 	require.NoError(t, err)
 
@@ -616,6 +616,7 @@ func testTeamPolicyProprietary(t *testing.T, ds *Datastore) {
 	assert.Equal(t, "query1 resolution", *p.Resolution)
 	require.NotNil(t, p.AuthorID)
 	assert.Equal(t, user1.ID, *p.AuthorID)
+	assert.True(t, p.CalendarEventsEnabled)
 
 	globalPolicies, err := ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1115,47 +1116,6 @@ func testPoliciesByID(t *testing.T, ds *Datastore) {
 	require.ErrorAs(t, err, &nfe)
 }
 
-func testPoliciesByName(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
-	policyName1 := "policy1"
-	policyName2 := "policy2"
-	_ = newTestPolicy(t, ds, user1, policyName1, "darwin", nil)
-	_ = newTestPolicy(t, ds, user1, policyName2, "darwin", nil)
-	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: t.Name() + "team1"})
-	require.NoError(t, err)
-
-	// No names provided
-	_, err = ds.PoliciesByName(context.Background(), []string{}, team1.ID)
-	require.Error(t, err)
-
-	// Policies don't belong to a team
-	_, err = ds.PoliciesByName(context.Background(), []string{policyName1, policyName2}, team1.ID)
-	require.Error(t, err)
-	var nfe fleet.NotFoundError
-	require.ErrorAs(t, err, &nfe)
-
-	policy1 := newTestPolicy(t, ds, user1, policyName1, "darwin", &team1.ID)
-	policy2 := newTestPolicy(t, ds, user1, policyName2, "darwin", &team1.ID)
-
-	policiesByName, err := ds.PoliciesByName(context.Background(), []string{policyName1, policyName2}, team1.ID)
-	require.NoError(t, err)
-	require.Len(t, policiesByName, 2)
-	assert.Equal(t, policiesByName[policyName1].ID, policy1.ID)
-	assert.Equal(t, policiesByName[policyName2].ID, policy2.ID)
-	assert.Equal(t, policiesByName[policyName1].Name, policy1.Name)
-	assert.Equal(t, policiesByName[policyName2].Name, policy2.Name)
-
-	// Policy does not exist
-	_, err = ds.PoliciesByName(context.Background(), []string{"doesn't exist"}, team1.ID)
-	assert.ErrorAs(t, err, &nfe)
-
-	// One exists and one doesn't
-	_, err = ds.PoliciesByName(context.Background(), []string{policyName1, "doesn't exist"}, team1.ID)
-	assert.ErrorAs(t, err, &nfe)
-
-}
-
 func testTeamPolicyTransfer(t *testing.T, ds *Datastore) {
 	ctx := context.Background()
 	user1 := test.NewUser(t, ds, "Alice", "alice@example.com", true)
@@ -1286,12 +1246,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Platform:    "",
 		},
 		{
-			Name:        "query2",
-			Query:       "select 2;",
-			Description: "query2 desc",
-			Resolution:  "some other resolution",
-			Team:        "team1",
-			Platform:    "darwin",
+			Name:                  "query2",
+			Query:                 "select 2;",
+			Description:           "query2 desc",
+			Resolution:            "some other resolution",
+			Team:                  "team1",
+			Platform:              "darwin",
+			CalendarEventsEnabled: true,
 		},
 		{
 			Name:        "query3",
@@ -1326,6 +1287,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[0].Resolution)
 	assert.Equal(t, "some other resolution", *teamPolicies[0].Resolution)
 	assert.Equal(t, "darwin", teamPolicies[0].Platform)
+	assert.True(t, teamPolicies[0].CalendarEventsEnabled)
 
 	assert.Equal(t, "query3", teamPolicies[1].Name)
 	assert.Equal(t, "select 3;", teamPolicies[1].Query)
@@ -1335,6 +1297,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, teamPolicies[1].Resolution)
 	assert.Equal(t, "some other good resolution", *teamPolicies[1].Resolution)
 	assert.Equal(t, "windows,linux", teamPolicies[1].Platform)
+	assert.False(t, teamPolicies[1].CalendarEventsEnabled)
 
 	// Make sure apply is idempotent
 	require.NoError(t, ds.ApplyPolicySpecs(ctx, user1.ID, []*fleet.PolicySpec{
@@ -1347,12 +1310,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Platform:    "",
 		},
 		{
-			Name:        "query2",
-			Query:       "select 2;",
-			Description: "query2 desc",
-			Resolution:  "some other resolution",
-			Team:        "team1",
-			Platform:    "darwin",
+			Name:                  "query2",
+			Query:                 "select 2;",
+			Description:           "query2 desc",
+			Resolution:            "some other resolution",
+			Team:                  "team1",
+			Platform:              "darwin",
+			CalendarEventsEnabled: true,
 		},
 		{
 			Name:        "query3",
@@ -1382,12 +1346,13 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 			Platform:    "",
 		},
 		{
-			Name:        "query2",
-			Query:       "select 2 from updated;",
-			Description: "query2 desc updated",
-			Resolution:  "some other resolution updated",
-			Team:        "team1", // No error, team did not change
-			Platform:    "windows",
+			Name:                  "query2",
+			Query:                 "select 2 from updated;",
+			Description:           "query2 desc updated",
+			Resolution:            "some other resolution updated",
+			Team:                  "team1", // No error, team did not change
+			Platform:              "windows",
+			CalendarEventsEnabled: false,
 		},
 	}))
 	policies, err = ds.ListGlobalPolicies(ctx, fleet.ListOptions{})
@@ -1402,6 +1367,7 @@ func testApplyPolicySpec(t *testing.T, ds *Datastore) {
 	require.NotNil(t, policies[0].Resolution)
 	assert.Equal(t, "some resolution updated", *policies[0].Resolution)
 	assert.Equal(t, "", policies[0].Platform)
+	assert.False(t, policies[0].CalendarEventsEnabled)
 
 	teamPolicies, _, err = ds.ListTeamPolicies(ctx, team1.ID, fleet.ListOptions{}, fleet.ListOptions{})
 	require.NoError(t, err)
@@ -1481,11 +1447,12 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	assert.Equal(t, computeChecksum(*gp), hex.EncodeToString(globalChecksum))
 
 	payload = fleet.PolicyPayload{
-		Name:        "team1 query",
-		Query:       "select 2;",
-		Description: "team1 query desc",
-		Resolution:  "team1 query resolution",
-		Critical:    true,
+		Name:                  "team1 query",
+		Query:                 "select 2;",
+		Description:           "team1 query desc",
+		Resolution:            "team1 query resolution",
+		Critical:              true,
+		CalendarEventsEnabled: true,
 	}
 	tp1, err := ds.NewTeamPolicy(ctx, team1.ID, &user1.ID, payload)
 	require.NoError(t, err)
@@ -1494,6 +1461,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	require.Equal(t, tp1.Description, payload.Description)
 	require.Equal(t, *tp1.Resolution, payload.Resolution)
 	require.Equal(t, tp1.Critical, payload.Critical)
+	assert.Equal(t, tp1.CalendarEventsEnabled, payload.CalendarEventsEnabled)
 	var teamChecksum []uint8
 	err = ds.writer(context.Background()).Get(&teamChecksum, `SELECT checksum FROM policies WHERE id = ?`, tp1.ID)
 	require.NoError(t, err)
@@ -1522,6 +1490,7 @@ func testPoliciesSave(t *testing.T, ds *Datastore) {
 	tp2.Description = "team1 query desc updated"
 	tp2.Resolution = ptr.String("team1 query resolution updated")
 	tp2.Critical = false
+	tp2.CalendarEventsEnabled = false
 	err = ds.SavePolicy(ctx, &tp2, true)
 	require.NoError(t, err)
 	tp1, err = ds.Policy(ctx, tp1.ID)

@@ -124,7 +124,8 @@ func TestTriggerFailingPoliciesWebhookBasic(t *testing.T) {
         "passing_host_count": 0,
         "failing_host_count": 0,
         "host_count_updated_at": null,
-		"critical": true
+		"critical": true,
+		"calendar_events_enabled": false
     },
     "hosts": [
         {
@@ -183,16 +184,17 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
 	policiesByID := map[uint]*fleet.Policy{
 		1: {
 			PolicyData: fleet.PolicyData{
-				ID:          1,
-				Name:        "policy1",
-				Query:       "select 1",
-				Description: "policy1 description",
-				AuthorID:    ptr.Uint(1),
-				AuthorName:  "Alice",
-				AuthorEmail: "alice@example.com",
-				TeamID:      &teamID,
-				Resolution:  ptr.String("policy1 resolution"),
-				Platform:    "darwin",
+				ID:                    1,
+				Name:                  "policy1",
+				Query:                 "select 1",
+				Description:           "policy1 description",
+				AuthorID:              ptr.Uint(1),
+				AuthorName:            "Alice",
+				AuthorEmail:           "alice@example.com",
+				TeamID:                &teamID,
+				Resolution:            ptr.String("policy1 resolution"),
+				Platform:              "darwin",
+				CalendarEventsEnabled: true,
 			},
 		},
 		2: {
@@ -309,7 +311,8 @@ func TestTriggerFailingPoliciesWebhookTeam(t *testing.T) {
         "passing_host_count": 0,
         "failing_host_count": 0,
         "host_count_updated_at": null,
-		"critical": false
+		"critical": false,
+		"calendar_events_enabled": true
     },
     "hosts": [
         {
