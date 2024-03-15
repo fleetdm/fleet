@@ -41,7 +41,6 @@ const Modal = ({
       }
     };
 
-    hideFlash();
     document.addEventListener("keydown", closeWithEscapeKey);
 
     return () => {
