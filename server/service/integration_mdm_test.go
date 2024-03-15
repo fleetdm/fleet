@@ -12526,7 +12526,13 @@ func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
 	}
 
 	// add global profiles
-	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
 
 	// verify that our declaration worked
+	var resp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 1)
+	require.Equal(t, "N1", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
 }

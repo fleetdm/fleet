@@ -578,6 +578,9 @@ type MDMAppleDeclaration struct {
 	// MD5Checksum is a checksum of the JSON contents
 	MD5Checksum string `db:"md5_checksum" json:"-"`
 
+	// Labels are the labels associated with this Declaration
+	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
+
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
 }
@@ -608,6 +611,18 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+}
+
+// DeclarationLabel represents the many-to-many relationship between
+// declarations and labels.
+//
+// NOTE: json representation of the fields is a bit awkward to match the
+// required API response, as this struct is returned within profile responses.
+type DeclarationLabel struct {
+	DeclarationUUID string `db:"profile_uuid" json:"-"`
+	LabelName       string `db:"label_name" json:"name"`
+	LabelID         uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
+	Broken          bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) (*MDMAppleDeclaration, error) {

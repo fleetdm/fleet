@@ -418,7 +418,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, tmID, labels, d)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, tmID, d)
 	if err != nil {
 		return nil, err
 	}

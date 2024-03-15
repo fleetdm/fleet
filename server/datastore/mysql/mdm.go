@@ -167,6 +167,20 @@ FROM (
 	WHERE
 		team_id = ? AND
 		name NOT IN (?)
+	
+	UNION
+
+	SELECT
+		declaration_uuid AS profile_uuid,
+		team_id,
+		name,
+		'darwin' AS platform,
+		identifier,
+		md5_checksum AS checksum,
+		created_at,
+		uploaded_at
+	FROM mdm_apple_declarations
+	WHERE team_id = ?
 ) as combined_profiles
 `
 
@@ -186,7 +200,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)

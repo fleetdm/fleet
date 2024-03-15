@@ -3124,7 +3124,7 @@ VALUES (
 	return declarations, nil
 }
 
-func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, labels []string, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	var decls []*fleet.MDMAppleDeclaration
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
