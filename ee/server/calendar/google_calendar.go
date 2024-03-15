@@ -5,17 +5,18 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
-	"github.com/go-kit/log"
+	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"golang.org/x/oauth2/google"
 	"golang.org/x/oauth2/jwt"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
-	"net/http"
-	"time"
 )
 
 const (
@@ -34,8 +35,7 @@ var calendarScopes = []string{
 type GoogleCalendarConfig struct {
 	Context           context.Context
 	IntegrationConfig *fleet.GoogleCalendarIntegration
-	UserEmail         string
-	Logger            log.Logger
+	Logger            kitlog.Logger
 	// Should be nil for production
 	API GoogleCalendarAPI
 }
@@ -43,12 +43,23 @@ type GoogleCalendarConfig struct {
 // GoogleCalendar is an implementation of the UserCalendar interface that uses the
 // Google Calendar API to manage events.
 type GoogleCalendar struct {
-	config         *GoogleCalendarConfig
-	timezoneOffset *int
+	config           *GoogleCalendarConfig
+	currentUserEmail string
+	timezoneOffset   *int
+}
+
+func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
+	if config.API == nil {
+		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
+		config.API = lowLevelAPI
+	}
+	return &GoogleCalendar{
+		config: config,
+	}
 }
 
 type GoogleCalendarAPI interface {
-	Connect(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error
+	Configure(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error
 	GetSetting(name string) (*calendar.Setting, error)
 	ListEvents(timeMin, timeMax string) (*calendar.Events, error)
 	CreateEvent(event *calendar.Event) (*calendar.Event, error)
@@ -65,8 +76,8 @@ type GoogleCalendarLowLevelAPI struct {
 	service *calendar.Service
 }
 
-// Connect creates a new Google Calendar service using the provided credentials.
-func (lowLevelAPI *GoogleCalendarLowLevelAPI) Connect(
+// Configure creates a new Google Calendar service using the provided credentials.
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) Configure(
 	ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string,
 ) error {
 	// Create a new calendar service
@@ -107,33 +118,18 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 	return lowLevelAPI.service.Events.Delete(calendarID, id).Do()
 }
 
-func (c *GoogleCalendar) Configure(config any) (fleet.UserCalendar, error) {
-	gConfig, ok := config.(*GoogleCalendarConfig)
-	if !ok {
-		return nil, errors.New("invalid Google calendar config")
-	}
-	if gConfig.API == nil {
-		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
-		gConfig.API = lowLevelAPI
-	}
-	err := gConfig.API.Connect(
-		gConfig.Context, gConfig.IntegrationConfig.Email, gConfig.IntegrationConfig.PrivateKey, gConfig.UserEmail,
+func (c *GoogleCalendar) Configure(userEmail string) error {
+	err := c.config.API.Configure(
+		c.config.Context, c.config.IntegrationConfig.Email, c.config.IntegrationConfig.PrivateKey, userEmail,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(gConfig.Context, err, "creating Google calendar service")
+		return ctxerr.Wrap(c.config.Context, err, "creating Google calendar service")
 	}
-
-	gCal := &GoogleCalendar{
-		config: gConfig,
-	}
-
-	return gCal, nil
+	c.currentUserEmail = userEmail
+	return nil
 }
 
 func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func() string) (*fleet.CalendarEvent, bool, error) {
-	if c.config == nil {
-		return nil, false, errors.New("the Google calendar is not connected. Please call Configure first")
-	}
 	if event.EndTime.Before(time.Now()) {
 		return nil, false, ctxerr.Errorf(c.config.Context, "cannot get and update an event that has already ended: %s", event.EndTime)
 	}
@@ -211,16 +207,11 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 	if details.ID == "" {
 		return nil, ctxerr.Errorf(c.config.Context, "missing Google calendar event ID")
 	}
-	if details.ETag == "" {
-		return nil, ctxerr.Errorf(c.config.Context, "missing Google calendar event ETag")
-	}
+	// ETag is optional, but we need it to check if the event was modified
 	return &details, nil
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.CalendarEvent, error) {
-	if c.config == nil {
-		return nil, errors.New("the Google calendar is not connected. Please call Configure first")
-	}
 	if c.timezoneOffset == nil {
 		err := getTimezone(c)
 		if err != nil {
@@ -269,7 +260,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 			attending = true
 		} else {
 			for _, attendee := range gEvent.Attendees {
-				if attendee.Email == c.config.UserEmail {
+				if attendee.Email == c.currentUserEmail {
 					if attendee.ResponseStatus != "declined" {
 						attending = true
 					}
@@ -328,8 +319,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 	if err != nil {
 		return nil, err
 	}
-	level.Debug(c.config.Logger).Log("msg", "created Google calendar events", "user", c.config.UserEmail, "startTime", eventStart)
-	fmt.Printf("VICTOR Created event with id:%s and ETag:%s\n", event.Id, event.Etag)
+	level.Debug(c.config.Logger).Log("msg", "created Google calendar event", "user", c.currentUserEmail, "startTime", eventStart)
 
 	return fleetEvent, nil
 }
@@ -376,7 +366,7 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 	fleetEvent := &fleet.CalendarEvent{}
 	fleetEvent.StartTime = startTime
 	fleetEvent.EndTime = endTime
-	fleetEvent.Email = c.config.UserEmail
+	fleetEvent.Email = c.currentUserEmail
 	details := &eventDetails{
 		ID:   event.Id,
 		ETag: event.Etag,
