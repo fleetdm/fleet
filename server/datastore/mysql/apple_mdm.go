@@ -107,6 +107,25 @@ func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfil
 	}
 }
 
+func formatErrorDuplicateDeclaration(err error, decl *fleet.MDMAppleDeclaration) error {
+	switch {
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadIdentifier",
+			Identifier:   decl.Identifier,
+			TeamID:       decl.TeamID,
+		}
+	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
+		return &existsError{
+			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+			Identifier:   decl.Name,
+			TeamID:       decl.TeamID,
+		}
+	default:
+		return err
+	}
+}
+
 func (ds *Datastore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
 	stmt := `
 SELECT
@@ -3144,24 +3163,68 @@ ON DUPLICATE KEY UPDATE
 	return declarations, nil
 }
 
+// TODO(JVE): remove the teamID param, unless we really need it. It should just be set inside the declaration
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-	var decls []*fleet.MDMAppleDeclaration
-	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		var err error
-		// TODO(JVE): fix me: this won't work because the batch function should apply the entire set
-		// of declarations given to it as the new state. if we use this function, we will overwrite
-		// all other declarations (once the batch function is updated to work correctly).
-		decls, err = ds.batchSetMDMAppleDeclarations(ctx, tx, teamID, []*fleet.MDMAppleDeclaration{declaration})
+	declUUID := "x" + uuid.NewString()
+	checksum := md5ChecksumScriptContent(string(declaration.Declaration))
+
+	stmt := `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	declaration_type,
+	declaration,
+	md5_checksum,
+	uploaded_at
+)
+VALUES (
+	?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP()
+)
+	`
+
+	var tmID uint
+	if teamID != nil {
+		tmID = *teamID
+	}
+
+	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(ctx, stmt,
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.DeclarationType, declaration.Declaration, checksum)
 		if err != nil {
-			return err
+			switch {
+			case isDuplicate(err):
+				return ctxerr.Wrap(ctx, formatErrorDuplicateDeclaration(err, declaration))
+			default:
+				return ctxerr.Wrap(ctx, err, "creating new apple mdm declaration")
+			}
+		}
+
+		aff, _ := res.RowsAffected()
+		if aff == 0 {
+			return &existsError{
+				ResourceType: "MDMAppleDeclaration.PayloadDisplayName",
+				Identifier:   declaration.Name,
+				TeamID:       teamID,
+			}
+		}
+
+		for i := range declaration.Labels {
+			declaration.Labels[i].DeclarationUUID = declUUID
+		}
+		if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, declaration.Labels); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
 		}
 
 		return nil
-	}); err != nil {
-		return nil, err
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "inserting declaration and label associations")
 	}
 
-	return decls[0], nil
+	declaration.DeclarationUUID = declUUID
+	return declaration, nil
 }
 
 func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.DeclarationLabel) error {
