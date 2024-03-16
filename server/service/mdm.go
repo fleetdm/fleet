@@ -1628,16 +1628,15 @@ func getAppleProfiles(
 					"invalid mobileconfig profile") // TODO(JVE): use decl copy
 			}
 
-			// for _, labelName := range prof.Labels {
-			// 	if lbl, ok := labelMap[labelName]; ok {
-			// 		mdmDecl.Labels = append(mdmDecl.Labels, lbl)
-			// 	}
-			// }
-
-			// if err := mdmDecl.ValidateUserProvided(); err != nil {
-			// 	return nil, nil, ctxerr.Wrap(ctx,
-			// 		fleet.NewInvalidArgumentError(prof.Name, err.Error()))
-			// }
+			for _, labelName := range prof.Labels {
+				if lbl, ok := labelMap[labelName]; ok {
+					declLabel := fleet.DeclarationLabel{
+						LabelName: lbl.LabelName,
+						LabelID:   lbl.LabelID,
+					}
+					mdmDecl.Labels = append(mdmDecl.Labels, declLabel)
+				}
+			}
 
 			if byName[mdmDecl.Name] {
 				return nil, nil, ctxerr.Wrap(ctx,

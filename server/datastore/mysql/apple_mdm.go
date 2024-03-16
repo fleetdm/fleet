@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -3083,8 +3084,9 @@ WHERE h.uuid = ?
 
 func (ds *Datastore) batchSetMDMAppleDeclarations(ctx context.Context, tx sqlx.ExtContext, tmID *uint, declarations []*fleet.MDMAppleDeclaration) ([]*fleet.MDMAppleDeclaration, error) {
 	/* TODO(JVE): fill me in! should need to
-	- Call this method in the batch upload service method. We'll need to sort the declarations out
-	  from the profiles and call this separately. ✅
+	- handle label mapping
+	- handle setting the batch of decls passed in as the new state (i.e. remove old decls, update
+	  existing ones, etc.)
 	*/
 
 	insertStmt := `
@@ -3100,8 +3102,14 @@ INSERT INTO mdm_apple_declarations (
 VALUES (
 	?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP()
 )
+ON DUPLICATE KEY UPDATE
+  uploaded_at = IF(md5_checksum = VALUES(md5_checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  md5_checksum = VALUES(md5_checksum),
+  name = VALUES(name),
+  declaration = VALUES(declaration)
 `
 
+	incomingLabels := []fleet.DeclarationLabel{}
 	for _, d := range declarations {
 		checksum := md5ChecksumScriptContent(string(d.Declaration))
 		declUUID := "x" + uuid.NewString()
@@ -3119,6 +3127,18 @@ VALUES (
 		}
 
 		d.DeclarationUUID = declUUID
+		for _, l := range d.Labels {
+			l.DeclarationUUID = declUUID
+			incomingLabels = append(incomingLabels, l)
+		}
+	}
+
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "batchSetMDMAppleDeclarations").Info("JVE_LOG: going to create the labels ", "incomingLabels", incomingLabels)
+	if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, incomingLabels); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "labels") {
+		if err == nil {
+			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
 	}
 
 	return declarations, nil
@@ -3128,6 +3148,9 @@ func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, d
 	var decls []*fleet.MDMAppleDeclaration
 	if err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
+		// TODO(JVE): fix me: this won't work because the batch function should apply the entire set
+		// of declarations given to it as the new state. if we use this function, we will overwrite
+		// all other declarations (once the batch function is updated to work correctly).
 		decls, err = ds.batchSetMDMAppleDeclarations(ctx, tx, teamID, []*fleet.MDMAppleDeclaration{declaration})
 		if err != nil {
 			return err
@@ -3139,4 +3162,77 @@ func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, d
 	}
 
 	return decls[0], nil
+}
+
+func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.DeclarationLabel) error {
+	if len(declarationLabels) == 0 {
+		return nil
+	}
+
+	// delete any profile+label tuple that is NOT in the list of provided tuples
+	// but are associated with the provided profiles (so we don't delete
+	// unrelated profile+label tuples)
+	deleteStmt := `
+	  DELETE FROM mdm_declaration_labels
+	  WHERE (declaration_uuid, label_id) NOT IN (%s) AND
+	  declaration_uuid IN (?)
+	`
+
+	upsertStmt := `
+	  INSERT INTO mdm_declaration_labels
+              (declaration_uuid, label_id, label_name)
+          VALUES
+              %s
+          ON DUPLICATE KEY UPDATE
+              label_id = VALUES(label_id)
+	`
+
+	var (
+		insertBuilder strings.Builder
+		deleteBuilder strings.Builder
+		insertParams  []any
+		deleteParams  []any
+
+		setProfileUUIDs = make(map[string]struct{})
+	)
+	for i, pl := range declarationLabels {
+		if i > 0 {
+			insertBuilder.WriteString(",")
+			deleteBuilder.WriteString(",")
+		}
+		insertBuilder.WriteString("(?, ?, ?)")
+		deleteBuilder.WriteString("(?, ?)")
+		insertParams = append(insertParams, pl.DeclarationUUID, pl.LabelID, pl.LabelName)
+		deleteParams = append(deleteParams, pl.DeclarationUUID, pl.LabelID)
+
+		setProfileUUIDs[pl.DeclarationUUID] = struct{}{}
+	}
+
+	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)
+	if err != nil {
+		if isChildForeignKeyError(err) {
+			// one of the provided labels doesn't exist
+			return foreignKey("mdm_declaration_labels", fmt.Sprintf("(declaration, label)=(%v)", insertParams))
+		}
+
+		return ctxerr.Wrap(ctx, err, "setting label associations for declarations")
+	}
+
+	deleteStmt = fmt.Sprintf(deleteStmt, deleteBuilder.String())
+
+	profUUIDs := make([]string, 0, len(setProfileUUIDs))
+	for k := range setProfileUUIDs {
+		profUUIDs = append(profUUIDs, k)
+	}
+	deleteArgs := append(deleteParams, profUUIDs)
+
+	deleteStmt, args, err := sqlx.In(deleteStmt, deleteArgs...)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "sqlx.In delete labels for declarations")
+	}
+	if _, err := tx.ExecContext(ctx, deleteStmt, args...); err != nil {
+		return ctxerr.Wrap(ctx, err, "deleting labels for declarations")
+	}
+
+	return nil
 }

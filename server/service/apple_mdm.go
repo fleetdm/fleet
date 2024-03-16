@@ -409,14 +409,22 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		tmID = &teamID
 	}
 
+	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
+	if err != nil {
+		return nil, err
+	}
+
 	declType, ident, err := fleet.GetRawDeclarationValues(data)
 	if err != nil {
 		return nil, err
 	}
+
 	d, err := fleet.NewMDMAppleDeclaration(data, tmID, name, declType, ident)
 	if err != nil {
 		return nil, err
 	}
+
+	d.Labels = validatedLabels
 
 	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, tmID, d)
 	if err != nil {
@@ -424,6 +432,53 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	}
 
 	return decl, nil
+}
+
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.DeclarationLabel, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	uniqueNames := make(map[string]bool)
+	for _, entry := range labelNames {
+		if _, value := uniqueNames[entry]; !value {
+			uniqueNames[entry] = true
+		}
+	}
+
+	if len(labels) != len(uniqueNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+		}
+	}
+
+	profLabels := make(map[string]fleet.DeclarationLabel)
+	for labelName, labelID := range labels {
+		profLabels[labelName] = fleet.DeclarationLabel{
+			LabelName: labelName,
+			LabelID:   labelID,
+		}
+	}
+	return profLabels, nil
+}
+
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.DeclarationLabel, error) {
+	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
+	}
+
+	var profLabels []fleet.DeclarationLabel
+	for _, label := range labelMap {
+		profLabels = append(profLabels, label)
+	}
+	return profLabels, nil
 }
 
 type listMDMAppleConfigProfilesRequest struct {
