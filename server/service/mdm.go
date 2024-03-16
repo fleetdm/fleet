@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log/slog"
 	"mime/multipart"
 	"net/http"
 	"path/filepath"
@@ -1604,11 +1603,8 @@ func getAppleProfiles(
 
 		// Check for DDM files
 
-		slog.With("filename", "server/service/mdm.go", "func", "getAppleProfiles").Info("JVE_LOG: validating apple profiles ", "profile", prof.Contents)
-
 		// TODO(JVE): need a more bulletproof way to determine if the bytes are JSON or not.
 		if bytes.Contains(prof.Contents, []byte("{")) {
-			slog.With("filename", "server/service/mdm.go", "func", "getAppleProfiles").Info("JVE_LOG: got a JSON profile ", "profile", prof.Contents)
 			// TODO(JVE): break this out into its own helper function per type, or find a way to use
 			// generics to DRY this up
 
