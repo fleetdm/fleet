@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -3089,8 +3090,7 @@ SELECT
 FROM
 	team_declaration_checksum_view
 WHERE
-	team_id = ?
-`
+	team_id = ?`
 
 	var res fleet.MDMAppleDDMSyncTokens
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
@@ -3100,7 +3100,7 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	// TODO: Confirm whether we can use JSON functions in the query (if 5.7 officially unsupported
 	// by Fleet)
 	const stmt = `
@@ -3113,12 +3113,28 @@ FROM
 	mdm_apple_declarations mad
 	JOIN team_declaration_checksum_view tv ON mad.team_id = tv.team_id
 WHERE
-	mad.team_id = ?
-`
+	mad.team_id = ?`
 
-	var res []fleet.MDMAppleDDMDeclarationItemDB
+	var res []fleet.MDMAppleDDMDeclarationItem
 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
+	}
+
+	return res, nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationPayload(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error) {
+	const stmt = `
+SELECT
+	declaration
+FROM
+	mdm_apple_declarations
+WHERE
+	team_id = ? AND identifier = ? AND declaration_type = ?`
+
+	var res json.RawMessage
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID, identifier, declarationType); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ddm declaration")
 	}
 
 	return res, nil
@@ -3193,6 +3209,9 @@ UPDATE
 
 		return ctxerr.Wrap(ctx, err, "updating nano_command_results")
 	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving declarative management response")
+	}
 
-	return ctxerr.Wrap(ctx, err, "saving declarative management response")
+	return nil
 }

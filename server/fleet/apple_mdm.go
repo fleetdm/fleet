@@ -652,10 +652,24 @@ type MDMAppleDDMManifest struct {
 	ServerToken string
 }
 
-// MDMAppleDDMDeclarationItemDB represents a declaration item in the datastore.
-type MDMAppleDDMDeclarationItemDB struct {
+// MDMAppleDDMDeclarationItem represents a declaration item in the datastore. It is used to
+// construct the DDM `declaration-items` endpoint response.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
+type MDMAppleDDMDeclarationItem struct {
 	Identifier        string `db:"identifier"`
 	DeclarationType   string `db:"declaration_type"`
 	DeclarationsToken string `db:"declarations_token"`
 	ServerToken       string `db:"server_token"`
+}
+
+// MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
+// `declaration/.../...` enpoint response.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationresponse
+type MDMAppleDDMDeclarationResponse struct {
+	Identifier  string          `db:"identifier"`
+	Type        string          `db:"type"`
+	Payload     json.RawMessage `db:"payload"`
+	ServerToken string          `db:"server_token"`
 }

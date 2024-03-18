@@ -1160,8 +1160,10 @@ type Datastore interface {
 	// MDMAppleDDMSynchronizationTokens returns the token used to synchronize declarations for the
 	// specified team or no team.
 	MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*MDMAppleDDMSyncTokens, error)
-
-	MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]MDMAppleDDMDeclarationItemDB, error)
+	// MDMAppleDDMDeclarationItems returns the declaration items for the specified team or no team.
+	MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]MDMAppleDDMDeclarationItem, error)
+	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
+	MDMAppleDDMDeclarationPayload(ctx context.Context, declarationType MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

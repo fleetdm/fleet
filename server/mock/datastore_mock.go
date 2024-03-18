@@ -760,7 +760,9 @@ type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint
 
 type MDMAppleDDMSynchronizationTokensFunc func(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSyncTokens, error)
 
-type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error)
+type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItem, error)
+
+type MDMAppleDDMDeclarationPayloadFunc func(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1980,6 +1982,9 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
 	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
+	MDMAppleDDMDeclarationPayloadFunc        MDMAppleDDMDeclarationPayloadFunc
+	MDMAppleDDMDeclarationPayloadFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4734,11 +4739,18 @@ func (s *DataStore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID
 	return s.MDMAppleDDMSynchronizationTokensFunc(ctx, teamID)
 }
 
-func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItemDB, error) {
+func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	s.mu.Lock()
 	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationItemsFunc(ctx, teamID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationPayload(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationPayloadFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationPayloadFunc(ctx, declarationType, identifier, teamID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

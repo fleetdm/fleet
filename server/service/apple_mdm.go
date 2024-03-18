@@ -3016,9 +3016,17 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 		declarationType := parts[1]
 		declarationIdentifier := parts[2]
 		level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", declarationType, "identifier", declarationIdentifier)
-		// TODO(sarah): handle declarations
 
-		return nil, nil
+		// TODO: Validate declarationType?
+		d, err := svc.ds.MDMAppleDDMDeclarationPayload(r.Context, fleet.MDMAppleDeclarationType("com.apple."+declarationType), declarationIdentifier, tid)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "getting declaration")
+		}
+		b, err := json.Marshal(d)
+		if err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "marshaling declaration")
+		}
+		return b, nil
 
 	default:
 		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
@@ -3049,7 +3057,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamI
 
 	var dTok string
 	activations := []fleet.MDMAppleDDMManifest{}
-	configuations := []fleet.MDMAppleDDMManifest{}
+	configurations := []fleet.MDMAppleDDMManifest{}
 	for _, d := range di {
 		if dTok == "" {
 			dTok = d.DeclarationsToken
@@ -3062,7 +3070,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamI
 		case string(fleet.MDMAppleDeclarativeActivation):
 			activations = append(activations, manifest)
 		case string(fleet.MDMAppleDeclarativeConfiguration):
-			configuations = append(configuations, manifest)
+			configurations = append(configurations, manifest)
 		default:
 			level.Debug(svc.logger).Log("msg", "unrecognized declaration type", "type", d.DeclarationType)
 			return nil, ctxerr.New(ctx, "unrecognized declaration type")
@@ -3072,7 +3080,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamI
 	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
 		Declarations: fleet.MDMAppleDDMManifestItems{
 			Activations:    activations,
-			Configurations: configuations,
+			Configurations: configurations,
 			Assets:         []fleet.MDMAppleDDMManifest{},
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
