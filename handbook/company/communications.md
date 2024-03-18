@@ -236,8 +236,8 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
 
-## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+## GitHub
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
