@@ -380,6 +380,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.

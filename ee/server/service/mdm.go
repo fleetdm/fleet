@@ -933,6 +933,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				// instead by CopyDefaultMDMAppleBootstrapPackage below
 				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+				// TODO(mna): should we copy the EnableReleaseDeviceManually setting from the global config?
 			},
 		}
 
