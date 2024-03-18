@@ -407,6 +407,10 @@ module.exports = {
               let pageOrderInSection;
               let docNavCategory;
               if(sectionRepoPath === 'docs/') {
+                // If a page has a hiddenOnFleetWebsite meta tag set to "true", we won't add this page to the builtStaticContent.markdownPages array.
+                if(embeddedMetadata.hiddenOnFleetWebsite && embeddedMetadata.hiddenOnFleetWebsite === 'true'){
+                  continue;
+                }
                 // Set a flag to determine if the page is a readme (e.g. /docs/Using-Fleet/configuration-files/readme.md) or a FAQ page.
                 // READMEs in subfolders and FAQ pages don't have pageOrderInSection values, they are always sorted at the end of sections.
                 let isPageAReadmeOrFAQ = (_.last(pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//)) === 'faq' || _.last(pageUnextensionedUnwhitespacedLowercasedRelPath.split(/\//)) === 'readme');

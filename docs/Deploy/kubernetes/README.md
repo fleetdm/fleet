@@ -1,1 +1,4 @@
 This folder includes the best practice YAML files for [deploying Fleet on Kubernetes](https://fleetdm.com/docs/deploy/deploy-fleet-on-kubernetes). 
+
+
+<meta name="hiddenOnFleetWebsite" value="true">
