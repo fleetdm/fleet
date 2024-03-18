@@ -70,7 +70,7 @@ const AutocompleteDropdown = ({
 
   // We disable any filtering client side as the server filters the results
   // for us.
-  const filterOptions = useCallback((options) => {
+  const filterOptions = useCallback((options: any) => {
     return options;
   }, []);
 

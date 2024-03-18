@@ -39,7 +39,7 @@ func (ds *Datastore) NewHostScriptExecutionRequest(ctx context.Context, request 
 
 func newHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload, tx sqlx.ExtContext) (*fleet.HostScriptResult, error) {
 	const (
-		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, script_contents, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', '', ?, ?, ?)`
+		insStmt = `INSERT INTO host_script_results (host_id, execution_id, script_content_id, output, script_id, user_id, sync_request) VALUES (?, ?, ?, '', ?, ?, ?)`
 		getStmt = `SELECT hsr.id, hsr.host_id, hsr.execution_id, hsr.created_at, hsr.script_id, hsr.user_id, hsr.sync_request, sc.contents as script_contents FROM host_script_results hsr JOIN script_contents sc WHERE sc.id = hsr.script_content_id AND hsr.id = ?`
 	)
 
@@ -171,8 +171,7 @@ func (ds *Datastore) ListPendingHostScriptExecutions(ctx context.Context, hostID
     id,
     host_id,
     execution_id,
-    script_id,
-    script_contents
+    script_id
   FROM
     host_script_results
   WHERE
@@ -278,17 +277,17 @@ func insertScript(ctx context.Context, script *fleet.Script, scriptContentsID ui
 	const insertStmt = `
 INSERT INTO
   scripts (
-    team_id, global_or_team_id, name, script_contents, script_content_id
+    team_id, global_or_team_id, name, script_content_id
   )
 VALUES
-  (?, ?, ?, ?, ?)
+  (?, ?, ?, ?)
 `
 	var globalOrTeamID uint
 	if script.TeamID != nil {
 		globalOrTeamID = *script.TeamID
 	}
 	res, err := tx.ExecContext(ctx, insertStmt,
-		script.TeamID, globalOrTeamID, script.Name, "", scriptContentsID)
+		script.TeamID, globalOrTeamID, script.Name, scriptContentsID)
 	if err != nil {
 		if isDuplicate(err) {
 			// name already exists for this team/global
@@ -573,10 +572,10 @@ WHERE
 	const insertNewOrEditedScript = `
 INSERT INTO
   scripts (
-    team_id, global_or_team_id, name, script_contents, script_content_id
+    team_id, global_or_team_id, name, script_content_id
   )
 VALUES
-  (?, ?, ?, ?, ?)
+  (?, ?, ?, ?)
 ON DUPLICATE KEY UPDATE
   script_content_id = VALUES(script_content_id)
 `
@@ -646,7 +645,7 @@ ON DUPLICATE KEY UPDATE
 				return ctxerr.Wrapf(ctx, err, "inserting script contents for script with name %q", s.Name)
 			}
 			id, _ := scRes.LastInsertId()
-			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, "", uint(id)); err != nil {
+			if _, err := tx.ExecContext(ctx, insertNewOrEditedScript, tmID, globalOrTeamID, s.Name, uint(id)); err != nil {
 				return ctxerr.Wrapf(ctx, err, "insert new/edited script with name %q", s.Name)
 			}
 		}
@@ -1071,4 +1070,21 @@ func updateHostLockWipeStatusFromResult(ctx context.Context, tx sqlx.ExtContext,
 	stmt += ` WHERE host_id = ?`
 	_, err := tx.ExecContext(ctx, stmt, hostID)
 	return ctxerr.Wrap(ctx, err, "update host lock/wipe status from result")
+}
+
+func (ds *Datastore) CleanupUnusedScriptContents(ctx context.Context) error {
+	deleteStmt := `
+DELETE FROM
+  script_contents
+WHERE
+  NOT EXISTS (
+    SELECT 1 FROM host_script_results WHERE script_content_id = script_contents.id)
+  AND NOT EXISTS (
+    SELECT 1 FROM scripts WHERE script_content_id = script_contents.id)
+		`
+	_, err := ds.writer(ctx).ExecContext(ctx, deleteStmt)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "cleaning up unused script contents")
+	}
+	return nil
 }
