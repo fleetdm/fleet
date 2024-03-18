@@ -1,1 +1,0 @@
-- Fixes an issue with Windows MDM profile processing where `<Add>` commands were being skipped.
