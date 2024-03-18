@@ -97,7 +97,7 @@ go.mod @fleetdm/go
 /handbook/digital-experience        @sampfluger88
 /handbook/customer-success          @sampfluger88
 /handbook/demand                    @sampfluger88
-/handbook/engineering               @lukeheath
+/handbook/engineering               @sampfluger88 @lukeheath
 /handbook/sales                     @sampfluger88
 /handbook/product-design            @sampfluger88
 
