@@ -61,6 +61,7 @@ func (m *MockGoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 }
 
 func TestGoogleCalendar_Configure(t *testing.T) {
+	t.Parallel()
 	mockAPI := &MockGoogleCalendarLowLevelAPI{}
 	mockAPI.ConfigureFunc = func(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error {
 		assert.Equal(t, baseCtx, ctx)
@@ -102,6 +103,7 @@ func makeConfig(mockAPI *MockGoogleCalendarLowLevelAPI) *GoogleCalendarConfig {
 }
 
 func TestGoogleCalendar_DeleteEvent(t *testing.T) {
+	t.Parallel()
 	mockAPI := &MockGoogleCalendarLowLevelAPI{}
 	mockAPI.DeleteEventFunc = func(id string) error {
 		assert.Equal(t, "event-id", id)
@@ -124,6 +126,7 @@ func TestGoogleCalendar_DeleteEvent(t *testing.T) {
 }
 
 func TestGoogleCalendar_unmarshalDetails(t *testing.T) {
+	t.Parallel()
 	var gCal = NewGoogleCalendar(makeConfig(&MockGoogleCalendarLowLevelAPI{}))
 	err := gCal.Configure(baseUserEmail)
 	assert.NoError(t, err)
@@ -148,6 +151,7 @@ func TestGoogleCalendar_unmarshalDetails(t *testing.T) {
 }
 
 func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
+	t.Parallel()
 	mockAPI := &MockGoogleCalendarLowLevelAPI{}
 	const baseETag = "event-eTag"
 	const baseEventID = "event-id"
@@ -343,11 +347,10 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	// all day event (deleted)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return &calendar.Event{
-			Id:     baseEventID,
-			Etag:   "new-eTag",
-			Start:  &calendar.EventDateTime{Date: startTime.Format("2006-01-02")},
-			End:    &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
-			Status: "cancelled",
+			Id:    baseEventID,
+			Etag:  "new-eTag",
+			Start: &calendar.EventDateTime{Date: startTime.Format("2006-01-02")},
+			End:   &calendar.EventDateTime{DateTime: endTime.Format(time.RFC3339)},
 		}, nil
 	}
 	eventCreated = false
@@ -363,14 +366,17 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	// moved in the past event (deleted)
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return &calendar.Event{
-			Id:     baseEventID,
-			Etag:   "new-eTag",
-			Start:  &calendar.EventDateTime{DateTime: startTime.Add(-time.Hour).Format(time.RFC3339)},
-			End:    &calendar.EventDateTime{DateTime: endTime.Add(-time.Hour).Format(time.RFC3339)},
-			Status: "cancelled",
+			Id:    baseEventID,
+			Etag:  "new-eTag",
+			Start: &calendar.EventDateTime{DateTime: startTime.Add(-2 * time.Hour).Format(time.RFC3339)},
+			End:   &calendar.EventDateTime{DateTime: endTime.Add(-2 * time.Hour).Format(time.RFC3339)},
 		}, nil
 	}
 	eventCreated = false
+	mockAPI.DeleteEventFunc = func(id string) error {
+		assert.Equal(t, baseEventID, id)
+		return nil
+	}
 	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
 	require.NoError(t, err)
 	assert.True(t, updated)
@@ -382,6 +388,7 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 }
 
 func TestGoogleCalendar_CreateEvent(t *testing.T) {
+	t.Parallel()
 	mockAPI := &MockGoogleCalendarLowLevelAPI{}
 	const baseEventID = "event-id"
 	const baseETag = "event-eTag"
@@ -405,8 +412,8 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 		return event, nil
 	}
 
-	// Happy path test
-	date := time.Now().Add(24 * time.Hour)
+	// Happy path test -- empty calendar
+	date := time.Now().Add(48 * time.Hour)
 	location, _ := time.LoadLocation(tzId)
 	expectedStartTime := time.Date(date.Year(), date.Month(), date.Day(), startHour, 0, 0, 0, location)
 	_, expectedOffset := expectedStartTime.Zone()
@@ -425,4 +432,158 @@ func TestGoogleCalendar_CreateEvent(t *testing.T) {
 	assert.Equal(t, baseETag, details.ETag)
 	assert.Equal(t, baseEventID, details.ID)
 
+	// Workday already ended
+	date = time.Now().Add(-48 * time.Hour)
+	_, err = cal.CreateEvent(date, eventBody)
+	assert.ErrorAs(t, err, &fleet.DayEndedError{})
+
+	// There is no time left in the day to schedule an event
+	date = time.Now().Add(48 * time.Hour)
+	timeNow := func() time.Time {
+		now := time.Date(date.Year(), date.Month(), date.Day(), endHour-1, 45, 0, 0, location)
+		return now
+	}
+	_, err = gCal.createEvent(date, eventBody, timeNow)
+	assert.ErrorAs(t, err, &fleet.DayEndedError{})
+
+	// Workday already started
+	date = time.Now().Add(48 * time.Hour)
+	expectedStartTime = time.Date(date.Year(), date.Month(), date.Day(), endHour-1, 30, 0, 0, location)
+	timeNow = func() time.Time {
+		return expectedStartTime
+	}
+	event, err = gCal.createEvent(date, eventBody, timeNow)
+	require.NoError(t, err)
+	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
+
+	// Busy calendar
+	date = time.Now().Add(48 * time.Hour)
+	dayStart := time.Date(date.Year(), date.Month(), date.Day(), startHour, 0, 0, 0, location)
+	dayEnd := time.Date(date.Year(), date.Month(), date.Day(), endHour, 0, 0, 0, location)
+	gEvents := &calendar.Events{}
+	// Cancelled event
+	gEvent := &calendar.Event{
+		Id:     "cancelled-event-id",
+		Start:  &calendar.EventDateTime{DateTime: dayStart.Format(time.RFC3339)},
+		End:    &calendar.EventDateTime{DateTime: dayEnd.Format(time.RFC3339)},
+		Status: "cancelled",
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	// All day events
+	gEvent = &calendar.Event{
+		Id:    "all-day-event-id",
+		Start: &calendar.EventDateTime{Date: dayStart.Format(time.DateOnly)},
+		End:   &calendar.EventDateTime{DateTime: dayEnd.Format(time.RFC3339)},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	gEvent = &calendar.Event{
+		Id:    "all-day2-event-id",
+		Start: &calendar.EventDateTime{DateTime: dayStart.Format(time.RFC3339)},
+		End:   &calendar.EventDateTime{Date: dayEnd.Format(time.DateOnly)},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	// User-declined event
+	gEvent = &calendar.Event{
+		Id:        "user-declined-event-id",
+		Start:     &calendar.EventDateTime{DateTime: dayStart.Format(time.RFC3339)},
+		End:       &calendar.EventDateTime{DateTime: dayEnd.Format(time.RFC3339)},
+		Attendees: []*calendar.EventAttendee{{Email: baseUserEmail, ResponseStatus: "declined"}},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	// Event before day
+	gEvent = &calendar.Event{
+		Id:    "before-event-id",
+		Start: &calendar.EventDateTime{DateTime: dayStart.Add(-time.Hour).Format(time.RFC3339)},
+		End:   &calendar.EventDateTime{DateTime: dayStart.Add(-30 * time.Minute).Format(time.RFC3339)},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+
+	// Event from 6am to 11am
+	eventStart := time.Date(date.Year(), date.Month(), date.Day(), 6, 0, 0, 0, location)
+	eventEnd := time.Date(date.Year(), date.Month(), date.Day(), 11, 0, 0, 0, location)
+	gEvent = &calendar.Event{
+		Id:        "6-to-11-event-id",
+		Start:     &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)},
+		End:       &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)},
+		Attendees: []*calendar.EventAttendee{{Email: baseUserEmail, ResponseStatus: "accepted"}},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+
+	// Event from 10am to 10:30am
+	eventStart = time.Date(date.Year(), date.Month(), date.Day(), 10, 0, 0, 0, location)
+	eventEnd = time.Date(date.Year(), date.Month(), date.Day(), 10, 30, 0, 0, location)
+	gEvent = &calendar.Event{
+		Id:        "10-to-10-30-event-id",
+		Start:     &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)},
+		End:       &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)},
+		Attendees: []*calendar.EventAttendee{{Email: "other@example.com", ResponseStatus: "accepted"}},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	// Event from 11am to 11:45am
+	eventStart = time.Date(date.Year(), date.Month(), date.Day(), 11, 0, 0, 0, location)
+	eventEnd = time.Date(date.Year(), date.Month(), date.Day(), 11, 45, 0, 0, location)
+	gEvent = &calendar.Event{
+		Id:        "11-to-11-45-event-id",
+		Start:     &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)},
+		End:       &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)},
+		Attendees: []*calendar.EventAttendee{{Email: "other@example.com", ResponseStatus: "accepted"}},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+
+	// Event after day
+	eventStart = time.Date(date.Year(), date.Month(), date.Day(), endHour, 0, 0, 0, location)
+	eventEnd = time.Date(date.Year(), date.Month(), date.Day(), endHour, 45, 0, 0, location)
+	gEvent = &calendar.Event{
+		Id:        "after-event-id",
+		Start:     &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)},
+		End:       &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)},
+		Attendees: []*calendar.EventAttendee{{Email: "other@example.com", ResponseStatus: "accepted"}},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return gEvents, nil
+	}
+	expectedStartTime = time.Date(date.Year(), date.Month(), date.Day(), 12, 0, 0, 0, location)
+	event, err = gCal.CreateEvent(date, eventBody)
+	require.NoError(t, err)
+	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
+
+	// Full schedule -- pick the last slot
+	date = time.Now().Add(48 * time.Hour)
+	dayStart = time.Date(date.Year(), date.Month(), date.Day(), startHour, 0, 0, 0, location)
+	dayEnd = time.Date(date.Year(), date.Month(), date.Day(), endHour, 0, 0, 0, location)
+	gEvents = &calendar.Events{}
+	gEvent = &calendar.Event{
+		Id:    "9-to-5-event-id",
+		Start: &calendar.EventDateTime{DateTime: dayStart.Format(time.RFC3339)},
+		End:   &calendar.EventDateTime{DateTime: dayEnd.Format(time.RFC3339)},
+	}
+	gEvents.Items = append(gEvents.Items, gEvent)
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return gEvents, nil
+	}
+	expectedStartTime = time.Date(date.Year(), date.Month(), date.Day(), endHour-1, 30, 0, 0, location)
+	event, err = gCal.CreateEvent(date, eventBody)
+	require.NoError(t, err)
+	assert.Equal(t, expectedStartTime.UTC(), event.StartTime.UTC())
+	assert.Equal(t, expectedStartTime.Add(eventLength).UTC(), event.EndTime.UTC())
+
+	// API error in ListEvents
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return nil, assert.AnError
+	}
+	_, err = gCal.CreateEvent(date, eventBody)
+	assert.ErrorIs(t, err, assert.AnError)
+
+	// API error in CreateEvent
+	mockAPI.ListEventsFunc = func(timeMin, timeMax string) (*calendar.Events, error) {
+		return &calendar.Events{}, nil
+	}
+	mockAPI.CreateEventFunc = func(event *calendar.Event) (*calendar.Event, error) {
+		return nil, assert.AnError
+	}
+	_, err = gCal.CreateEvent(date, eventBody)
+	assert.ErrorIs(t, err, assert.AnError)
 }

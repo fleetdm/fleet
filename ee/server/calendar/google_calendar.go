@@ -178,6 +178,11 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			}
 			if !endTime.After(time.Now()) {
 				// If event already ended, it is effectively deleted
+				// Delete this event to prevent confusion. This operation should be rare.
+				err = c.DeleteEvent(event)
+				if err != nil {
+					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which is in the past", "err", err)
+				}
 				deleted = true
 			}
 		}
@@ -265,6 +270,12 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 }
 
 func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.CalendarEvent, error) {
+	return c.createEvent(dayOfEvent, body, time.Now)
+}
+
+// createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
+// timeNow can be overwritten for testing
+func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow func() time.Time) (*fleet.CalendarEvent, error) {
 	if c.timezoneOffset == nil {
 		err := getTimezone(c)
 		if err != nil {
@@ -276,19 +287,19 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 	dayStart := time.Date(dayOfEvent.Year(), dayOfEvent.Month(), dayOfEvent.Day(), startHour, 0, 0, 0, location)
 	dayEnd := time.Date(dayOfEvent.Year(), dayOfEvent.Month(), dayOfEvent.Day(), endHour, 0, 0, 0, location)
 
-	now := time.Now().In(location)
+	now := timeNow().In(location)
 	if dayEnd.Before(now) {
 		// The workday has already ended.
 		return nil, ctxerr.Wrap(c.config.Context, fleet.DayEndedError{Msg: "cannot schedule an event for a day that has already ended"})
 	}
 
 	// Adjust day start if workday already started
-	if dayStart.Before(now) {
+	if !dayStart.After(now) {
 		dayStart = now.Truncate(eventLength)
 		if dayStart.Before(now) {
 			dayStart = dayStart.Add(eventLength)
 		}
-		if dayStart.Equal(dayEnd) {
+		if !dayStart.Before(dayEnd) {
 			return nil, ctxerr.Wrap(c.config.Context, fleet.DayEndedError{Msg: "no time available for event"})
 		}
 	}
@@ -311,21 +322,17 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 		}
 
 		// Ignore events that the user has declined
-		var attending bool
-		if len(gEvent.Attendees) == 0 {
-			// No attendees, so we assume the user is attending
-			attending = true
-		} else {
-			for _, attendee := range gEvent.Attendees {
-				if attendee.Email == c.currentUserEmail {
-					if attendee.ResponseStatus != "declined" {
-						attending = true
-					}
+		var declined bool
+		for _, attendee := range gEvent.Attendees {
+			if attendee.Email == c.currentUserEmail {
+				// The user has declined the event, so this time is open for scheduling
+				if attendee.ResponseStatus == "declined" {
+					declined = true
 					break
 				}
 			}
 		}
-		if !attending {
+		if declined {
 			continue
 		}
 
@@ -334,7 +341,7 @@ func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.
 		if err != nil {
 			return nil, err
 		}
-		if endTime.Before(eventStart) || endTime.Equal(eventStart) {
+		if !endTime.After(eventStart) {
 			continue
 		}
 
