@@ -4603,7 +4603,7 @@ func testMDMAppleRecordDeclarativeCheckIn(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 
 	// record a response from the host
-	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte("foo"))
+	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte("<?xml"))
 	require.NoError(t, err)
 
 	res, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
@@ -4611,7 +4611,7 @@ func testMDMAppleRecordDeclarativeCheckIn(t *testing.T, ds *Datastore) {
 	require.Len(t, res, 1)
 	require.Equal(t, host.UUID, res[0].HostUUID)
 	require.Equal(t, fleet.MDMAppleStatusAcknowledged, res[0].Status)
-	require.EqualValues(t, []byte("foo"), res[0].Result)
+	require.EqualValues(t, []byte("<?xml"), res[0].Result)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {
