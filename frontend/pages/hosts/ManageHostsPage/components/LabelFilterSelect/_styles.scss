@@ -25,7 +25,10 @@
     background-color: $ui-light-grey;
     border-radius: $border-radius;
     height: 40px;
-    cursor: default;
+
+    :hover {
+      cursor: pointer;
+    }
 
     &--is-focused,
     &--menu-is-open,
