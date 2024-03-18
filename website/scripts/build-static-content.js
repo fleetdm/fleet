@@ -202,6 +202,11 @@ module.exports = {
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
+
+            // If this page is in the docs/contributing/ folder, skip it.
+            if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+              continue;
+            }
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
             // Determine this page's default (fallback) display title.
