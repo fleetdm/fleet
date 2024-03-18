@@ -3080,3 +3080,76 @@ WHERE h.uuid = ?
 
 	return nil
 }
+
+func (ds *Datastore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, result []byte) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(
+			ctx,
+			`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating last_seen times")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.New(ctx, "host is not enrolled in MDM")
+		}
+
+		// NOTE: DeclarativeManagement checkin commands sent by the device
+		// don't carry a CommandUUID reference like commands in
+		// CommandAndReportResults messages do.
+		//
+		// In nanomdm's view of the world, a command is pending until
+		// it receives a result or is deactivated, so we'll grab the
+		// command_uuid of the oldest DeclarativeManagement command we
+		// sent and assume this is the response for it.
+		//
+		// Other DeclarativeManagement commands will still be in the
+		// queue and they will trigger DDM syncs when the device checks
+		// in, so eventually all DDM commands wil get acknowledged.
+		//
+		// Alternatively, we could mark all DDM commands as
+		// acknowledged here, TBD based on the behaviors we see.
+		var cmdUUID string
+		err = sqlx.GetContext(ctx, tx, &cmdUUID, `
+SELECT nc.command_uuid
+FROM nano_enrollment_queue neq
+JOIN nano_commands nc
+  ON neq.command_uuid = nc.command_uuid
+WHERE
+  id = ? AND
+  request_type = 'DeclarativeManagement'
+ORDER BY neq.created_at ASC
+LIMIT 1
+		`, hostUUID)
+		if err != nil {
+			// it's okay if the host doesn't have matching command enqueued, the
+			// check-in could be initiated by the device.
+			if err == sql.ErrNoRows {
+				return nil
+			}
+
+			return ctxerr.Wrap(ctx, err, "getting DDM command")
+		}
+
+		_, err = tx.ExecContext(
+			ctx, `
+INSERT INTO nano_command_results
+    (id, command_uuid, status, result)
+VALUES
+    (?, ?, ?, ?)
+ON DUPLICATE KEY
+UPDATE
+    status = VALUES(status),
+    result = VALUES(result)`,
+			hostUUID,
+			cmdUUID,
+			fleet.MDMAppleStatusAcknowledged,
+			result,
+		)
+
+		return ctxerr.Wrap(ctx, err, "updating nano_command_results")
+	})
+
+	return ctxerr.Wrap(ctx, err, "saving declarative management response")
+}
