@@ -6,7 +6,6 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"time"
 
@@ -3192,8 +3191,6 @@ WHERE
 		deleteDeclsNotInList = deleteDeclsNotInList + fmt.Sprintf(` AND identifier NOT IN (? %s)`, strings.Repeat(",?", len(keepIdents)-1))
 	}
 
-	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "deleteDeclsNotInList").Info("JVE_LOG: hmmmmmm ", "sql")
-
 	var args []any
 	args = append(args, declTeamID)
 	args = append(args, keepIdents...)
@@ -3239,8 +3236,7 @@ WHERE
 	return declarations, nil
 }
 
-// TODO(JVE): remove the teamID param, unless we really need it. It should just be set inside the declaration
-func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, teamID *uint, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := "x" + uuid.NewString()
 	checksum := md5ChecksumScriptContent(string(declaration.Declaration))
 
@@ -3261,8 +3257,8 @@ VALUES (
 	`
 
 	var tmID uint
-	if teamID != nil {
-		tmID = *teamID
+	if declaration.TeamID != nil {
+		tmID = *declaration.TeamID
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
@@ -3280,9 +3276,9 @@ VALUES (
 		aff, _ := res.RowsAffected()
 		if aff == 0 {
 			return &existsError{
-				ResourceType: "MDMAppleDeclaration.PayloadDisplayName",
+				ResourceType: "MDMAppleDeclaration.Name",
 				Identifier:   declaration.Name,
-				TeamID:       teamID,
+				TeamID:       declaration.TeamID,
 			}
 		}
 

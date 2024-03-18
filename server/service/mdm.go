@@ -1608,24 +1608,17 @@ func getAppleProfiles(
 			return json.Unmarshal(b, &js) == nil
 		}
 
-		// TODO(JVE): need a more bulletproof way to determine if the bytes are JSON or not.
 		if isJSON(prof.Contents) {
-			declType, ident, err := fleet.GetRawDeclarationValues(prof.Contents)
+			rawDecl, err := fleet.GetRawDeclarationValues(prof.Contents)
 			if err != nil {
 				return nil, nil, err
 			}
 
-			if !strings.HasPrefix(declType, string(fleet.MDMAppleDeclarativeConfiguration)) {
-				return nil, nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError(prof.Name, "Only configuration declarations (com.apple.configuration) are supported."))
+			if err := rawDecl.ValidateUserProvided(); err != nil {
+				return nil, nil, err
 			}
 
-			mdmDecl, err := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, declType, ident)
-			if err != nil {
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(prof.Name, err.Error()),
-					"invalid mobileconfig profile") // TODO(JVE): use decl copy
-			}
-
+			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			for _, labelName := range prof.Labels {
 				if lbl, ok := labelMap[labelName]; ok {
 					declLabel := fleet.DeclarationLabel{
@@ -1638,15 +1631,15 @@ func getAppleProfiles(
 
 			if byName[mdmDecl.Name] {
 				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmDecl.Name)),
-					"duplicate mobileconfig profile by name") // TODO(JVE): use decl copy
+					fleet.NewInvalidArgumentError(prof.Name, "A configuration profile with this name already exists."),
+					"duplicate mobileconfig profile by name")
 			}
 			byName[mdmDecl.Name] = true
 
 			if byIdent[mdmDecl.Identifier] {
 				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmDecl.Identifier)),
-					"duplicate mobileconfig profile by identifier") // TODO(JVE): use decl copy
+					fleet.NewInvalidArgumentError(prof.Name, "A declaration profile with this identifier already exists."),
+					"duplicate mobileconfig profile by identifier")
 			}
 			byIdent[mdmDecl.Identifier] = true
 

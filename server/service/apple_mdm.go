@@ -414,19 +414,21 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
-	declType, ident, err := fleet.GetRawDeclarationValues(data)
+	rawDecl, err := fleet.GetRawDeclarationValues(data)
 	if err != nil {
 		return nil, err
 	}
 
-	d, err := fleet.NewMDMAppleDeclaration(data, tmID, name, declType, ident)
-	if err != nil {
+	if err := rawDecl.ValidateUserProvided(); err != nil {
 		return nil, err
 	}
+
+	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
 	d.Labels = validatedLabels
+	d.TeamID = tmID
 
-	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, tmID, d)
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
 	if err != nil {
 		return nil, err
 	}

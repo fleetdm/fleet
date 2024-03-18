@@ -12504,12 +12504,8 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
 
-func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
+func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	t := s.T()
-	ctx := context.Background()
-
-	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
-	require.NoError(t, err)
 	tmpl := `
 {
 	"Type": "com.apple.configuration.decl%d",
@@ -12534,11 +12530,55 @@ func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
 		decls = append(decls, newDeclBytes(i))
 	}
 
-	// Should fail at adding the same declaration twice
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+	// Non-configuration type should fail
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad", Contents: []byte(`{"Type": "com.apple.activation"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration) are supported")
+
+	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.softwareupdate.enforcement.specific"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+
+	// Types from our list of forbidden types should fail
+	for ft := range fleet.ForbiddenDeclTypes {
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "bad2", Contents: []byte(fmt.Sprintf(`{"Type": "%s"}`, ft))},
+		}}, http.StatusUnprocessableEntity)
+
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported.")
+	}
+
+	// "com.apple.configuration.management.status-subscriptions" type should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.management.status-subscriptions"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+
+	// Two different payloads with the same name should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: newDeclBytes(1, `"foo": "bar"`)},
+		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
+	}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "A configuration profile with this name already exists.")
+
+	// Same identifier should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
 		{Name: "N1", Contents: decls[0]},
 		{Name: "N2", Contents: decls[0]},
 	}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "A declaration profile with this identifier already exists.")
 
 	// Create 2 declarations
 	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{

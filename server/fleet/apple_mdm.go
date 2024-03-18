@@ -585,6 +585,60 @@ type MDMAppleDeclaration struct {
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
 }
 
+type MDMAppleRawDeclaration struct {
+	// Type is the "Type" field on the raw declaration JSON.
+	Type       string `json:"Type"`
+	Identifier string `json:"Identifier"`
+}
+
+var ForbiddenDeclTypes = map[string]struct{}{
+	"com.apple.configuration.account.caldav":               {},
+	"com.apple.configuration.account.carddav":              {},
+	"com.apple.configuration.account.exchange":             {},
+	"com.apple.configuration.account.google":               {},
+	"com.apple.configuration.account":                      {},
+	"com.apple.configuration.account.mail":                 {},
+	"com.apple.configuration.management.test":              {},
+	"com.apple.configuration.screensharing.connection":     {},
+	"com.apple.configuration.security.certificate":         {},
+	"com.apple.configuration.security.identity":            {},
+	"com.apple.configuration.security.passkey.attestation": {},
+	"com.apple.configuration.services.configuration-files": {},
+	"com.apple.configuration.watch.enrollment":             {},
+}
+
+func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
+	var err error
+
+	// Check against types we don't allow
+	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+	}
+
+	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+	}
+
+	if r.Type == "com.apple.configuration.management.status-subscriptions" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+	}
+
+	if !strings.HasPrefix(r.Type, string(MDMAppleDeclarativeConfiguration)) {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
+	}
+
+	return err
+}
+
+func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
+	var rawDecl MDMAppleRawDeclaration
+	if err := json.Unmarshal(raw, &rawDecl); err != nil {
+		return nil, err
+	}
+
+	return &rawDecl, nil
+}
+
 // MDMAppleHostDeclaration represents the state of a declaration on a host
 type MDMAppleHostDeclaration struct {
 	// HostUUID is the uuid of the host affected by this declaration
@@ -625,28 +679,14 @@ type DeclarationLabel struct {
 	Broken          bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
-func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) (*MDMAppleDeclaration, error) {
-	// TODO(JVE): Do we need an equivalent package to mdm/apple/mobileconfig?
-
+func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
 	var decl MDMAppleDeclaration
 
 	decl.DeclarationType = MDMAppleDeclarationType(strings.Join(strings.Split(declType, ".")[:3], "."))
 	decl.Identifier = ident
 	decl.Name = name
 	decl.Declaration = raw
+	decl.TeamID = teamID
 
-	return &decl, nil
-}
-
-func GetRawDeclarationValues(raw []byte) (string, string, error) {
-	var rawDecl struct {
-		// Type is the "Type" field on the raw declaration JSON.
-		Type       string `json:"Type"`
-		Identifier string `json:"Identifier"`
-	}
-	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return "", "", err
-	}
-
-	return rawDecl.Type, rawDecl.Identifier, nil
+	return &decl
 }

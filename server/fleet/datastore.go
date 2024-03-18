@@ -1272,7 +1272,7 @@ type Datastore interface {
 	// no team in a single transaction.
 	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile, macDeclarations []*MDMAppleDeclaration) error
 
-	NewMDMAppleDeclaration(ctx context.Context, tmID *uint, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
+	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results
