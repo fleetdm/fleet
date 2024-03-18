@@ -1,0 +1,46 @@
+.setup-assistant-uploaded-profile-view {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+
+  > p {
+    font-size: $x-small;
+    margin: 0;
+  }
+
+  // TODO: create reusable list item component
+  &__uploaded-profile {
+    display: grid;
+  }
+
+  &__info {
+    display: flex;
+    flex-direction: column;
+  }
+
+  &__profile-name {
+    font-size: $x-small;
+    font-weight: $bold;
+  }
+  &__uploaded-at {
+    font-size: $xx-small;
+  }
+
+  &__actions {
+    display: flex;
+    gap: $pad-medium;
+
+    > * {
+      padding: 11px; // TODO: use padding from variables. talk to design.
+    }
+  }
+
+  // needed these styles for the download button for some weird icon buttons
+  // styles that are causeing alignment issues
+  &__download-button {
+    button {
+      margin: 0;
+      height: auto;
+    }
+  }
+}

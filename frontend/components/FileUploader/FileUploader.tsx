@@ -32,6 +32,8 @@ interface IFileUploaderProps {
    * https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/accept
    */
   accept?: string;
+  /** The text to display on the upload button */
+  buttonMessage?: string;
   className?: string;
   onFileUpload: (files: FileList | null) => void;
 }
@@ -45,6 +47,7 @@ const FileUploader = ({
   additionalInfo,
   isLoading = false,
   accept,
+  buttonMessage = "Upload",
   className,
   onFileUpload,
 }: IFileUploaderProps) => {
@@ -73,7 +76,7 @@ const FileUploader = ({
         variant="brand"
         isLoading={isLoading}
       >
-        <label htmlFor="upload-profile">Upload</label>
+        <label htmlFor="upload-profile">{buttonMessage}</label>
       </Button>
       <input
         accept={accept}
