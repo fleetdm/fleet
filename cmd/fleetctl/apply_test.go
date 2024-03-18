@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -1760,6 +1761,9 @@ func TestApplyMacosSetup(t *testing.T) {
 	invalidURLMacosSetup := writeTmpJSON(t, map[string]any{
 		"url": "https://example.com",
 	})
+	invalidAwaitMacosSetup := writeTmpJSON(t, map[string]any{
+		"await_device_configured": true,
+	})
 
 	const (
 		appConfigSpec = `
@@ -1770,6 +1774,9 @@ spec:
     macos_setup:
       bootstrap_package: %s
       macos_setup_assistant: %s
+`
+		appConfigEnableReleaseSpec = appConfigSpec + `
+      enable_release_device_manually: %s
 `
 		appConfigNoKeySpec = `
 apiVersion: v1
@@ -1796,6 +1803,9 @@ spec:
       macos_setup:
         bootstrap_package: %s
         macos_setup_assistant: %s
+`
+		team1EnableReleaseSpec = team1Spec + `
+        enable_release_device_manually: %s
 `
 		team1NoKeySpec = `
 apiVersion: v1
@@ -1957,10 +1967,16 @@ spec:
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedAppConfigSet.yml"))
 		require.NoError(t, err)
 		expectedAppCfgSet := fmt.Sprintf(string(b), "", emptyMacosSetup)
+		expectedAppCfgSetReleaseEnabled := strings.ReplaceAll(expectedAppCfgSet, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Empty.yml"))
 		require.NoError(t, err)
 		expectedEmptyTm1 := string(b)
+
+		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1Set.yml"))
+		require.NoError(t, err)
+		expectedTm1Set := fmt.Sprintf(string(b), "", "")
+		expectedTm1SetReleaseEnabled := strings.ReplaceAll(expectedTm1Set, `enable_release_device_manually: false`, `enable_release_device_manually: true`)
 
 		b, err = os.ReadFile(filepath.Join("testdata", "macosSetupExpectedTeam1And2Empty.yml"))
 		require.NoError(t, err)
@@ -1990,8 +2006,8 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig for real
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", emptyMacosSetup))
+		// apply appconfig for real, and enable release device
+		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", emptyMacosSetup, "true"))
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.True(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 		assert.True(t, ds.SaveAppConfigFuncInvoked)
@@ -2004,7 +2020,7 @@ spec:
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, setup assistant is now set
-		assert.YAMLEq(t, expectedAppCfgSet, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// clear with dry-run, appconfig
@@ -2040,11 +2056,11 @@ spec:
 		assert.True(t, ds.SaveTeamFuncInvoked)
 
 		// get, results unchanged
-		assert.YAMLEq(t, expectedAppCfgSet, runAppForTest(t, []string{"get", "config", "--yaml"}))
+		assert.YAMLEq(t, expectedAppCfgSetReleaseEnabled, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedTm1And2Set, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
 		// clear appconfig for real
-		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", ""))
+		name = writeTmpYml(t, fmt.Sprintf(appConfigEnableReleaseSpec, "", "", "false"))
 		ds.SaveAppConfigFuncInvoked = false
 		assert.Equal(t, "[+] applied fleet config\n", runAppForTest(t, []string{"apply", "-f", name}))
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
@@ -2063,16 +2079,40 @@ spec:
 		assert.YAMLEq(t, expectedEmptyAppCfg, runAppForTest(t, []string{"get", "config", "--yaml"}))
 		assert.YAMLEq(t, expectedEmptyTm1And2, runAppForTest(t, []string{"get", "teams", "--yaml"}))
 
-		// apply appconfig with invalid key
+		// apply team 1 without the setup assistant key but enable device release
+		name = writeTmpYml(t, fmt.Sprintf(team1EnableReleaseSpec, "", "", "true"))
+		ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked = false
+		ds.DeleteMDMAppleSetupAssistantFuncInvoked = false
+		ds.SaveTeamFuncInvoked = false
+		assert.Equal(t, "[+] applied 1 teams\n", runAppForTest(t, []string{"apply", "-f", name}))
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		assert.False(t, ds.DeleteMDMAppleSetupAssistantFuncInvoked)
+		assert.True(t, ds.SaveTeamFuncInvoked)
+
+		assert.YAMLEq(t, expectedTm1SetReleaseEnabled, runAppForTest(t, []string{"get", "teams", "--yaml"}))
+
+		// apply appconfig with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
-		// apply teams with invalid key
+		// apply teams with invalid URL key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
 		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+
+		// apply appconfig with invalid await_device_configured key
+		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidAwaitMacosSetup))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
+		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+
+		// apply teams with invalid await_device_configured key
+		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidAwaitMacosSetup, "", invalidAwaitMacosSetup))
+		_, err = runAppNoChecks([]string{"apply", "-f", name})
+		require.ErrorContains(t, err, `The profile can't include "await_device_configured" option.`)
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	})
 
