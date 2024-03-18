@@ -6323,7 +6323,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	cases := []struct {
+	endUserAuthCases := []struct {
 		raw      string
 		expected bool
 	}{
@@ -6355,6 +6355,38 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 	}
 
+	enableReleaseDeviceCases := []struct {
+		raw      string
+		expected bool
+	}{
+		{
+			raw:      `"mdm": {}`,
+			expected: false,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {}
+			}`,
+			expected: false,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_release_device_manually": true
+				}
+			}`,
+			expected: true,
+		},
+		{
+			raw: `"mdm": {
+				"macos_setup": {
+					"enable_release_device_manually": false
+				}
+			}`,
+			expected: false,
+		},
+	}
+
 	t.Run("UpdateAppConfig", func(t *testing.T) {
 		acResp := appConfigResponse{}
 		path := "/api/latest/fleet/config"
@@ -6364,11 +6396,13 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			}`, s))
 		}
 
-		// get the initial appconfig; enable end user authentication default is false
+		// get the initial appconfig; enable end user authentication and release
+		// device default is false
 		s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.False(t, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
-		for i, c := range cases {
+		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				acResp = appConfigResponse{}
 				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
@@ -6377,6 +6411,17 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+		for i, c := range enableReleaseDeviceCases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				acResp = appConfigResponse{}
+				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
+				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+
+				acResp = appConfigResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
+				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 			})
 		}
 	})
@@ -6388,12 +6433,14 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			%s
 		}`
 
-		// get the initial team config; enable end user authentication default is false
+		// get the initial team config; enable end user authentication and release
+		// device default is false
 		teamResp := teamResponse{}
 		s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 		require.False(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.False(t, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
-		for i, c := range cases {
+		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				teamResp = teamResponse{}
 				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
@@ -6402,6 +6449,18 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+		for i, c := range enableReleaseDeviceCases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				// TODO(mna): this must use apply team specs endpoint.
+				teamResp = teamResponse{}
+				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
+				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+
+				teamResp = teamResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
+				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 			})
 		}
 	})
