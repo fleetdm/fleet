@@ -1250,6 +1250,13 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		}
 	}
 
+	if payload.EnableReleaseDeviceManually != nil {
+		if tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
+			tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
