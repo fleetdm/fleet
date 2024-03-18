@@ -748,6 +748,8 @@ type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
+type MDMAppleRecordDeclarativeCheckInFunc func(ctx context.Context, hostUUID string, response []byte) error
+
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
@@ -1953,6 +1955,9 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	MDMAppleRecordDeclarativeCheckInFunc        MDMAppleRecordDeclarativeCheckInFunc
+	MDMAppleRecordDeclarativeCheckInFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
@@ -4675,6 +4680,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	s.DeleteHostDEPAssignmentsFuncInvoked = true
 	s.mu.Unlock()
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
+}
+
+func (s *DataStore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, response []byte) error {
+	s.mu.Lock()
+	s.MDMAppleRecordDeclarativeCheckInFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleRecordDeclarativeCheckInFunc(ctx, hostUUID, response)
 }
 
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {

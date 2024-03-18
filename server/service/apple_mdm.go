@@ -2976,6 +2976,9 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	switch {
 	case dm.Endpoint == "tokens":
+		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
+		}
 		// TODO(sarah): handle tokens
 		level.Debug(svc.logger).Log("msg", "received tokens request")
 		return nil, nil
