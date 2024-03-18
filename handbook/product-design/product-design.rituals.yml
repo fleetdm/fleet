@@ -42,6 +42,7 @@
   frequency: "Daily" 
   description: "Contributors present wireframes (UI changes) that are “Ready for review”. Head of Product Design provides feedback on UI/CLI/API changes." 
   moreInfoUrl: "https://fleetdm.com/handbook/company/product-groups#design-reviews" 
+  dri: "marko-lisica"
 -
   task: "🦢🗣 Design review (#g-endpoint-ops)"
   startedOn: "2024-03-07" 
