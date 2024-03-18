@@ -517,7 +517,7 @@
   tier: Premium
 - industryName: Self-managed
   friendlyName: Host it yourself
-  description: Deploy Fleet anywhere and host it yourself, even in airgapped environments.
+  description: Deploy Fleet anywhere and host it yourself, even in air-gapped environments except where technologically impossible.
   pricingTableCategories: [Deployment]
   documentationUrl: https://fleetdm.com/docs/deploy/introduction
   productCategories: [Endpoint operations,Device management,Vulnerability management]
@@ -529,7 +529,7 @@
   tier: Free
   productCategories: [Endpoint operations]
   pricingTableCategories: [Deployment]
-- industryName: Managed Cloud
+- industryName: Managed Cloud (700+ hosts)
   description: Have Fleet host it for you (currently only available for customers with 700+ hosts.  PS. Wish we could host for you?  We're working on it!  Please let us know if you know of a good partner.  In the meantime, join fleetdm.com/support and we're happy to help you deploy Fleet yourself.)
   pricingTableCategories: [Deployment]
   productCategories: [Endpoint operations,Device management,Vulnerability management]

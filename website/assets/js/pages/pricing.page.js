@@ -18,7 +18,7 @@ parasails.registerPage('pricing', {
     // Tooltips for desktop users are opened by a user hovering their cursor over them.
     $('[data-toggle="tooltip"]').tooltip({
       container: '#pricing',
-      trigger: 'hover focus',
+      trigger: 'hover',
     });
   },
 
