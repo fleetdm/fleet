@@ -27,7 +27,7 @@ The metrics are:
 
 Each week these are tracked and shared in the weekly KPI sheet by Luke Heath.
 
-#### Create an engineering-initiated story
+### Create an engineering-initiated story
 Engineering-initiated stories are types of user stories created by engineers to make technical changes to Fleet. Technical changes should improve the user experience or contributor experience. For example, optimizing SQL that improves the response time of an API endpoint improves user experience by reducing latency. A script that generates common boilerplate, or automated tests to cover important business logic, improves the quality of life for contributors, making them happier and more productive, resulting in faster delivery of features to our customers.
 
 It is important to frame engineering-initiated user stories the same way we frame all user stories. Stay focused on how this technical change will drive value for our users.
@@ -41,6 +41,20 @@ If there are product changes (i.e. interface, documentation, or dependency chang
 If there are no product changes, and the DRI decides to prioritize the story, the story is added to the "Specified" column on drafting board so that it can be estimated.
 
 > We prefer the term engineering-initiated stories over technical debt because the user story format helps keep us focused on our users and contributors.
+
+### Manage release branches
+Every three weeks, release a minor version of Fleet from the `main` branch. 
+
+Every week between minor releases, release a patch release with fixes for released bugs. 
+
+The DRI for publishing a release is responsible for creating the next patch branch. Create a patch branch off the latest tagged release of Fleet. Submit PRs for released bug fixes directly to the target patch branch to avoid merge conflicts later in the release cycle. After merging into the patch branch, submit another PR to `main` containing the same fix and resolve any merge conflicts.
+
+> It is the responsibility of the person merging the fix into the patch branch to make sure the fix is also merged into `main`.
+
+### Fix a bug
+If the bug is labeled `~unreleased bug`, branch off and put your PR into `main`.
+
+If the bug is labeled `~released bug`, branch off and put your PR into the upcoming patch branch `patch-fleet-v4.x.x`. If you are unsure which branch to use, confirm with your manager. Don't forget to also submit a second PR to `main` after the bug is confirmed fixed.
 
 ### Begin a merge freeze
 To ensure release quality, Fleet has a freeze period for testing beginning the Tuesday before the release at 9:00 AM Pacific. Effective at the start of the freeze period, new feature work will not be merged into `main`.
@@ -155,6 +169,8 @@ Immediately after publishing a new release, we close out the associated GitHub i
 11. **Remove the freeze**: [Open the repo in Merge Freeze](https://app.mergefreeze.com/installations/3704/branches/6847) and click the "Unfreeze" button. 
 
 12. Announce that `main` is unfrozen and the milestone has been closed in #help-engineering.
+
+13. Create a branch for the next patch and push it to GitHub. For example, if you release `fleet-v4.44.0`, create a branch called `patch-fleet-v4.44.1`. 
 
 ### Update the Fleet releases calendar
 The [Fleet releases Google calendar](https://calendar.google.com/calendar/embed?src=c_v7943deqn1uns488a65v2d94bs%40group.calendar.google.com&ctz=America%2FChicago) is kept up-to-date by the [release ritual DRI](https://fleetdm.com/handbook/engineering#rituals). Any change to targeted release dates is reflected on this calendar.
