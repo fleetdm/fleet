@@ -244,6 +244,10 @@ func (t *TeamConfig) Scan(val interface{}) error {
 
 // Value implements the sql.Valuer interface
 func (t TeamConfig) Value() (driver.Value, error) {
+	// force-save as the default `false` value if not set
+	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
