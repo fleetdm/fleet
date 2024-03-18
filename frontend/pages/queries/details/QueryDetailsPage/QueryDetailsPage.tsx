@@ -33,6 +33,7 @@ import DataError from "components/DataError/DataError";
 import LogDestinationIndicator from "components/LogDestinationIndicator/LogDestinationIndicator";
 import CustomLink from "components/CustomLink";
 import InfoBanner from "components/InfoBanner";
+import ShowQueryModal from "components/modals/ShowQueryModal";
 import QueryReport from "../components/QueryReport/QueryReport";
 import NoResults from "../components/NoResults/NoResults";
 
@@ -94,6 +95,7 @@ const QueryDetailsPage = ({
   const {
     lastEditedQueryName,
     lastEditedQueryDescription,
+    lastEditedQueryBody,
     lastEditedQueryObserverCanRun,
     lastEditedQueryDiscardData,
     lastEditedQueryLoggingType,
@@ -109,6 +111,7 @@ const QueryDetailsPage = ({
     setLastEditedQueryDiscardData,
   } = useContext(QueryContext);
 
+  const [showQueryModal, setShowQueryModal] = useState(false);
   const [disabledCachingGlobally, setDisabledCachingGlobally] = useState(true);
 
   useEffect(() => {
@@ -184,6 +187,10 @@ const QueryDetailsPage = ({
     }
   }, [location.pathname, storedQuery?.name]);
 
+  const onShowQueryModal = () => {
+    setShowQueryModal(!showQueryModal);
+  };
+
   const isLoading = isStoredQueryLoading || isQueryReportLoading;
   const isApiError = storedQueryError || queryReportError;
   const isClipped =
@@ -216,6 +223,13 @@ const QueryDetailsPage = ({
                 </p>
               </div>
               <div className={`${baseClass}__action-button-container`}>
+                <Button
+                  className={`${baseClass}__show-query-btn`}
+                  onClick={onShowQueryModal}
+                  variant="text-icon"
+                >
+                  Show query
+                </Button>
                 {canEditQuery && (
                   <Button
                     onClick={() => {
@@ -364,6 +378,12 @@ const QueryDetailsPage = ({
         {renderHeader()}
         {isClipped && renderClippedBanner()}
         {renderReport()}
+        {showQueryModal && (
+          <ShowQueryModal
+            query={lastEditedQueryBody}
+            onCancel={onShowQueryModal}
+          />
+        )}
       </div>
     </MainContent>
   );

@@ -1,0 +1,22 @@
+{
+  "profile_name": "(Required) Human readable name",
+  "url": "https://mymdm.example.org/mdm/enroll",
+  "allow_pairing": true,
+  "auto_advance_setup": false,
+  "await_device_configured": false,
+  "configuration_web_url": "(Optional) sso.example.com/?redirect=enroll",
+  "department": "(Optional) support@example.com",
+  "is_supervised": false,
+  "is_multi_user": false,
+  "is_mandatory": false,
+  "is_mdm_removable": true,
+  "language": "(Optional) en",
+  "org_magic": "(Optional)",
+  "region": "(Optional) US",
+  "support_phone_number": "(Optional) +1 408 555 1010",
+  "support_email_address": "(Optional) support@example.com",
+  "anchor_certs": [],
+  "supervising_host_certs": [],
+  "skip_setup_items": ["AppleID", "Android"],
+  "devices": ["SERIAL1","SERIAL2"]
+}

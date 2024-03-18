@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -29,7 +30,7 @@ import (
 type osqueryError struct {
 	message     string
 	nodeInvalid bool
-
+	statusCode  int
 	fleet.ErrorWithUUID
 }
 
@@ -44,6 +45,10 @@ func (e *osqueryError) Error() string {
 // should contain the node_invalid property.
 func (e *osqueryError) NodeInvalid() bool {
 	return e.nodeInvalid
+}
+
+func (e *osqueryError) Status() int {
+	return e.statusCode
 }
 
 func newOsqueryErrorWithInvalidNode(msg string) *osqueryError {
@@ -947,6 +952,8 @@ func (svc *Service) SubmitDistributedQueryResults(
 
 	svc.maybeDebugHost(ctx, host, results, statuses, messages, stats)
 
+	preProcessSoftwareResults(host.ID, &results, &statuses, &messages, svc.logger)
+
 	var hostWithoutPolicies bool
 	for query, rows := range results {
 		// When receiving this query in the results, we will update the host's
@@ -1064,6 +1071,9 @@ func (svc *Service) SubmitDistributedQueryResults(
 		host.RefetchRequested = false
 	}
 	refetchCriticalCleared := refetchCriticalSet && host.RefetchCriticalQueriesUntil == nil
+	if refetchCriticalSet {
+		level.Debug(svc.logger).Log("msg", "refetch critical status on submit distributed query results", "host_id", host.ID, "refetch_requested", refetchRequested, "refetch_critical_queries_until", host.RefetchCriticalQueriesUntil, "refetch_critical_cleared", refetchCriticalCleared)
+	}
 
 	if refetchRequested || detailUpdated || refetchCriticalCleared {
 		appConfig, err := svc.ds.AppConfig(ctx)
@@ -1081,6 +1091,74 @@ func (svc *Service) SubmitDistributedQueryResults(
 	}
 
 	return nil
+}
+
+// preProcessSoftwareResults will run pre-processing on the responses of the software queries.
+// It will move the results from the software extra queries (e.g. software_vscode_extensions)
+// into the main software query results (software_{macos|linux|windows}).
+// We do this to not grow the main software queries and to ingest
+// all software together (one direct ingest function for all software).
+func preProcessSoftwareResults(
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	vsCodeExtensionsExtraQuery := hostDetailQueryPrefix + "software_vscode_extensions"
+	preProcessSoftwareExtraResults(vsCodeExtensionsExtraQuery, hostID, results, statuses, messages, logger)
+}
+
+func preProcessSoftwareExtraResults(
+	softwareExtraQuery string,
+	hostID uint,
+	results *fleet.OsqueryDistributedQueryResults,
+	statuses *map[string]fleet.OsqueryStatus,
+	messages *map[string]string,
+	logger log.Logger,
+) {
+	// We always remove the extra query and its results
+	// in case the main or extra software query failed to execute.
+	defer delete(*results, softwareExtraQuery)
+
+	status, ok := (*statuses)[softwareExtraQuery]
+	if !ok {
+		return // query did not execute, e.g. the table does not exist.
+	}
+	failed := status != fleet.StatusOK
+	if failed {
+		// extra query executed but with errors, so we return without changing anything.
+		level.Error(logger).Log(
+			"query", softwareExtraQuery,
+			"message", (*messages)[softwareExtraQuery],
+			"hostID", hostID,
+		)
+		return
+	}
+
+	// Extract the results of the extra query.
+	softwareExtraRows, _ := (*results)[softwareExtraQuery]
+	if len(softwareExtraRows) == 0 {
+		return
+	}
+
+	// Append the results of the extra query to the main query.
+	for _, query := range []string{
+		// Only one of these execute in each host.
+		hostDetailQueryPrefix + "software_macos",
+		hostDetailQueryPrefix + "software_windows",
+		hostDetailQueryPrefix + "software_linux",
+	} {
+		if _, ok := (*results)[query]; !ok {
+			continue
+		}
+		if status, ok := (*statuses)[query]; ok && status != fleet.StatusOK {
+			// Do not append results if the main query failed to run.
+			continue
+		}
+		(*results)[query] = append((*results)[query], softwareExtraRows...)
+		return
+	}
 }
 
 // globalPolicyAutomationsEnabled returns true if any of the global policy automations are enabled.
@@ -1449,6 +1527,7 @@ func submitLogsEndpoint(ctx context.Context, request interface{}, svc fleet.Serv
 			err = newOsqueryError("unmarshalling result logs: " + err.Error())
 			break
 		}
+		logging.WithExtras(ctx, "results", len(results))
 
 		// We currently return errors to osqueryd if there are any issues submitting results
 		// to the configured external destinations.
@@ -1539,7 +1618,10 @@ func (svc *Service) SubmitStatusLogs(ctx context.Context, logs []json.RawMessage
 	svc.authz.SkipAuthorization(ctx)
 
 	if err := svc.osqueryLogWriter.Status.Write(ctx, logs); err != nil {
-		return newOsqueryError("error writing status logs: " + err.Error())
+		osqueryErr := newOsqueryError("error writing status logs: " + err.Error())
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }
@@ -1616,11 +1698,14 @@ func (svc *Service) SubmitResultLogs(ctx context.Context, logs []json.RawMessage
 	}
 
 	if err := svc.osqueryLogWriter.Result.Write(ctx, filteredLogs); err != nil {
-		return newOsqueryError(
+		osqueryErr := newOsqueryError(
 			"error writing result logs " +
 				"(if the logging destination is down, you can reduce frequency/size of osquery logs by " +
 				"increasing logger_tls_period and decreasing logger_tls_max_lines): " + err.Error(),
 		)
+		// Attempting to write a large amount of data is the most likely explanation for this error.
+		osqueryErr.statusCode = http.StatusRequestEntityTooLarge
+		return osqueryErr
 	}
 	return nil
 }

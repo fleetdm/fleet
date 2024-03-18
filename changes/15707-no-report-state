@@ -1,2 +1,0 @@
-* Added "No report" text when query results for a host are not being saved in Fleet but are being
-sent to a configured log destination.

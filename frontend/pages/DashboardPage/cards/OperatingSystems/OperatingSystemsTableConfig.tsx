@@ -1,7 +1,13 @@
+/**
+ dashboard/:osname Dashboard > OS dropdown selected > Operating system table
+ software/os > OS tab > Operating system table
+*/
+
 import React from "react";
-import { Column } from "react-table";
+import { CellProps, Column, HeaderProps } from "react-table";
 import { InjectedRouter } from "react-router";
 
+import { buildQueryStringFromParams } from "utilities/url";
 import PATHS from "router/paths";
 import {
   formatOperatingSystemDisplayName,
@@ -16,40 +22,21 @@ import LinkCell from "components/TableContainer/DataTable/LinkCell";
 
 import VulnerabilitiesCell from "pages/SoftwarePage/components/VulnerabilitiesCell";
 import SoftwareIcon from "pages/SoftwarePage/components/icons/SoftwareIcon";
+import {
+  INumberCellProps,
+  IStringCellProps,
+} from "interfaces/datatable_config";
 
-interface ICellProps {
-  cell: {
-    value: number | string | ISoftwareVulnerability[];
-  };
-  row: {
-    original: IOperatingSystemVersion;
-  };
-}
+type ITableColumnConfig = Column<IOperatingSystemVersion>;
 
-interface IStringCellProps extends ICellProps {
-  cell: {
-    value: string;
-  };
-}
-
-interface INumberCellProps extends ICellProps {
-  cell: {
-    value: number;
-  };
-}
-
-interface IVulnCellProps extends ICellProps {
-  cell: {
-    value: ISoftwareVulnerability[];
-  };
-}
-
-interface IHeaderProps {
-  column: {
-    title: string;
-    isSortedDesc: boolean;
-  };
-}
+type INameCellProps = IStringCellProps<IOperatingSystemVersion>;
+type IVersionCellProps = IStringCellProps<IOperatingSystemVersion>;
+type IVulnCellProps = CellProps<
+  IOperatingSystemVersion,
+  ISoftwareVulnerability[]
+>;
+type IHostCountCellProps = INumberCellProps<IOperatingSystemVersion>;
+type IHostHeaderProps = HeaderProps<IOperatingSystemVersion>;
 
 interface IOSTableConfigOptions {
   includeName?: boolean;
@@ -61,12 +48,12 @@ const generateDefaultTableHeaders = (
   teamId?: number,
   router?: InjectedRouter,
   configOptions?: IOSTableConfigOptions
-): Column[] => [
+): ITableColumnConfig[] => [
   {
     Header: "Name",
     disableSortBy: true,
     accessor: "name_only",
-    Cell: (cellProps: IStringCellProps) => {
+    Cell: (cellProps: INameCellProps) => {
       if (!configOptions?.includeIcon) {
         return (
           <TextCell
@@ -76,23 +63,29 @@ const generateDefaultTableHeaders = (
         );
       }
 
-      const { name, name_only, version } = cellProps.row.original;
-      console.log("cellProps.row.original", cellProps.row.original);
-      console.log("name_only, version", name_only, version);
+      const { name, os_version_id } = cellProps.row.original;
+
+      const teamQueryParam = buildQueryStringFromParams({
+        team_id: teamId,
+      });
+      const softwareOsDetailsPath = `${PATHS.SOFTWARE_OS_DETAILS(
+        os_version_id
+      )}?${teamQueryParam}`;
+
       const onClickSoftware = (e: React.MouseEvent) => {
         // Allows for button to be clickable in a clickable row
         e.stopPropagation();
 
-        router?.push(PATHS.SOFTWARE_OS_DETAILS(name_only, version));
+        router?.push(softwareOsDetailsPath);
       };
 
       return (
         <LinkCell
-          path={PATHS.SOFTWARE_OS_DETAILS(name_only, version)}
+          path={softwareOsDetailsPath}
           customOnClick={onClickSoftware}
           value={
             <>
-              <SoftwareIcon name={name} />
+              <SoftwareIcon name={cellProps.row.original.platform} />
               <span className="software-name">{name}</span>
             </>
           }
@@ -104,7 +97,7 @@ const generateDefaultTableHeaders = (
     Header: "Version",
     disableSortBy: true,
     accessor: "version",
-    Cell: (cellProps: IStringCellProps) => (
+    Cell: (cellProps: IVersionCellProps) => (
       <TextCell value={cellProps.cell.value} />
     ),
   },
@@ -112,7 +105,7 @@ const generateDefaultTableHeaders = (
     Header: "Vulnerabilities",
     disableSortBy: true,
     accessor: "vulnerabilities",
-    Cell: (cellProps: IVulnCellProps): JSX.Element => {
+    Cell: (cellProps: IVulnCellProps) => {
       const platform = cellProps.row.original.platform;
       if (platform !== "darwin" && platform !== "windows") {
         return <TextCell value="Not supported" greyed />;
@@ -121,17 +114,18 @@ const generateDefaultTableHeaders = (
     },
   },
   {
-    Header: (cellProps: IHeaderProps): JSX.Element => (
+    Header: (cellProps: IHostHeaderProps) => (
       <HeaderCell
         value="Hosts"
         disableSortBy={false}
         isSortedDesc={cellProps.column.isSortedDesc}
       />
     ),
+
     disableSortBy: false,
     accessor: "hosts_count",
-    Cell: (cellProps: INumberCellProps): JSX.Element => {
-      const { hosts_count, name_only, version } = cellProps.row.original;
+    Cell: (cellProps: IHostCountCellProps) => {
+      const { hosts_count, os_version_id } = cellProps.row.original;
       return (
         <span className="hosts-cell__wrapper">
           <span className="hosts-cell__count">
@@ -140,8 +134,7 @@ const generateDefaultTableHeaders = (
           <span className="hosts-cell__link">
             <ViewAllHostsLink
               queryParams={{
-                os_name: name_only,
-                os_version: version,
+                os_version_id,
                 team_id: teamId,
               }}
               className="os-hosts-link"
@@ -157,7 +150,7 @@ const generateTableHeaders = (
   teamId?: number,
   router?: InjectedRouter,
   configOptions?: IOSTableConfigOptions
-): Column[] => {
+): ITableColumnConfig[] => {
   let tableConfig = generateDefaultTableHeaders(teamId, router, configOptions);
 
   if (!configOptions?.includeName) {

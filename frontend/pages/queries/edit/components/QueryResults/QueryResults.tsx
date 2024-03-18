@@ -10,7 +10,7 @@ import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
-import { ICampaign } from "interfaces/campaign";
+import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
 
 import Button from "components/buttons/Button";
@@ -67,7 +67,9 @@ const QueryResults = ({
   const [resultsColumnConfigs, setResultsColumnConfigs] = useState<Column[]>(
     []
   );
-  const [errorColumnConfigs, setErrorColumnConfigs] = useState<Column[]>([]);
+  const [errorColumnConfigs, setErrorColumnConfigs] = useState<
+    Column<ICampaignError>[]
+  >([]);
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );

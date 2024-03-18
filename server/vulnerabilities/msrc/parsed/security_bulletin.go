@@ -3,9 +3,9 @@ package parsed
 import (
 	"encoding/json"
 	"errors"
-	"os"
-
 	"github.com/fleetdm/fleet/v4/server/ptr"
+	"golang.org/x/exp/slices"
+	"os"
 )
 
 type SecurityBulletin struct {
@@ -78,7 +78,7 @@ func (b *SecurityBulletin) Merge(other *SecurityBulletin) error {
 	// Vendor fixes
 	for kbID, r := range other.VendorFixes {
 		if _, ok := b.VendorFixes[kbID]; !ok {
-			newVF := NewVendorFix(r.FixedBuild)
+			newVF := NewVendorFix(r.FixedBuilds...)
 			for pID, v := range r.ProductIDs {
 				newVF.ProductIDs[pID] = v
 			}
@@ -202,16 +202,24 @@ func NewVulnerability(publishedDateEpoch *int64) Vulnerability {
 // ----------------------
 
 type VendorFix struct {
-	FixedBuild string
+	FixedBuilds []string
 	// Set of products ids that target this vendor fix
 	ProductIDs map[string]bool
 	// A Reference to what vendor fix this particular vendor fix 'replaces'.
 	Supersedes *uint `json:",omitempty"`
 }
 
-func NewVendorFix(fixedBuild string) VendorFix {
+func (vf *VendorFix) AddFixedBuild(fixedBuild string) {
+	if fixedBuild != "" && !slices.Contains(vf.FixedBuilds, fixedBuild) {
+		vf.FixedBuilds = append(vf.FixedBuilds, fixedBuild)
+	}
+}
+
+func NewVendorFix(fixedBuilds ...string) VendorFix {
+	fixedBuildsCopy := make([]string, len(fixedBuilds))
+	copy(fixedBuildsCopy, fixedBuilds)
 	return VendorFix{
-		FixedBuild: fixedBuild,
-		ProductIDs: make(map[string]bool),
+		FixedBuilds: fixedBuildsCopy,
+		ProductIDs:  make(map[string]bool),
 	}
 }

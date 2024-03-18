@@ -104,9 +104,8 @@
       margin-right: 32px;
       background: @core-vibrant-red;
       border-radius: 8px;
-      padding-left: 32px;
-      padding-right: 32px;
-      height: 48px;
+      padding: 16px 32px;
+      height: 36px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -136,11 +135,11 @@
   }
   [purpose='animated-arrow-button-red'] {
     display: inline;
-    padding-right: 40px;
+    padding-right: 20px;
     cursor: pointer;
     position: relative;
     width: fit-content;
-    min-width: 125px;
+    min-width: auto;
     font-weight: bold;
     user-select: none;
     transition: 0.2s ease-in-out;
@@ -155,7 +154,7 @@
     transform: scale(0.5);
     position: absolute;
     top: -5px;
-    left: 80%; // <--- here
+    right: -5px; // <--- here
     transition: 0.2s ease-in-out;
     -o-transition: 0.2s ease-in-out;
     -ms-transition: 0.2s ease-in-out;
@@ -164,7 +163,7 @@
     /*   opacity: 0; */
     }
     &:hover:after {
-    left: 82%; // <--- here
+    right: -10px; // <--- here
     transition: 0.2s ease-in-out;
     -o-transition: 0.2s ease-in-out;
     -ms-transition: 0.2s ease-in-out;

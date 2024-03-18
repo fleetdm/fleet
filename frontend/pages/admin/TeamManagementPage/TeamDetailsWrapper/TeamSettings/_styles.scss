@@ -1,7 +1,13 @@
 .team-settings {
   max-width: $settings-form-max-width;
   .section-header {
-    border-bottom: 1px solid #e3e3e3;
-    padding-bottom: 8px;
+    margin-bottom: 0;
+    &:not(:first-child) {
+      margin-top: $pad-medium;
+    }
+  }
+  .button--inverse {
+    // compensate for button's padding
+    margin: -$pad-small;
   }
 }

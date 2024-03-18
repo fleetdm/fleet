@@ -228,16 +228,16 @@ func (svc *Service) VerifyMDMAppleConfigured(ctx context.Context) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// POST /mdm/apple/setup/eula
+// POST /mdm/setup/eula
 ////////////////////////////////////////////////////////////////////////////////
 
-type createMDMAppleEULARequest struct {
+type createMDMEULARequest struct {
 	EULA *multipart.FileHeader
 }
 
 // TODO: We parse the whole body before running svc.authz.Authorize.
 // An authenticated but unauthorized user could abuse this.
-func (createMDMAppleEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
+func (createMDMEULARequest) DecodeRequest(ctx context.Context, r *http.Request) (interface{}, error) {
 	err := r.ParseMultipartForm(512 * units.MiB)
 	if err != nil {
 		return nil, &fleet.BadRequestError{
@@ -253,33 +253,33 @@ func (createMDMAppleEULARequest) DecodeRequest(ctx context.Context, r *http.Requ
 		}
 	}
 
-	return &createMDMAppleEULARequest{
+	return &createMDMEULARequest{
 		EULA: r.MultipartForm.File["eula"][0],
 	}, nil
 }
 
-type createMDMAppleEULAResponse struct {
+type createMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r createMDMAppleEULAResponse) error() error { return r.Err }
+func (r createMDMEULAResponse) error() error { return r.Err }
 
-func createMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*createMDMAppleEULARequest)
+func createMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*createMDMEULARequest)
 	ff, err := req.EULA.Open()
 	if err != nil {
-		return createMDMAppleEULAResponse{Err: err}, nil
+		return createMDMEULAResponse{Err: err}, nil
 	}
 	defer ff.Close()
 
-	if err := svc.MDMAppleCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
-		return createMDMAppleEULAResponse{Err: err}, nil
+	if err := svc.MDMCreateEULA(ctx, req.EULA.Filename, ff); err != nil {
+		return createMDMEULAResponse{Err: err}, nil
 	}
 
-	return createMDMAppleEULAResponse{}, nil
+	return createMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
+func (svc *Service) MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -288,23 +288,23 @@ func (svc *Service) MDMAppleCreateEULA(ctx context.Context, name string, file io
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple/setup/eula?token={token}
+// GET /mdm/setup/eula?token={token}
 ////////////////////////////////////////////////////////////////////////////////
 
-type getMDMAppleEULARequest struct {
+type getMDMEULARequest struct {
 	Token string `url:"token"`
 }
 
-type getMDMAppleEULAResponse struct {
+type getMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 
 	// fields used in hijackRender to build the response
-	eula *fleet.MDMAppleEULA
+	eula *fleet.MDMEULA
 }
 
-func (r getMDMAppleEULAResponse) error() error { return r.Err }
+func (r getMDMEULAResponse) error() error { return r.Err }
 
-func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
+func (r getMDMEULAResponse) hijackRender(ctx context.Context, w http.ResponseWriter) {
 	w.Header().Set("Content-Length", strconv.Itoa(len(r.eula.Bytes)))
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("X-Content-Type-Options", "nosniff")
@@ -318,18 +318,18 @@ func (r getMDMAppleEULAResponse) hijackRender(ctx context.Context, w http.Respon
 	}
 }
 
-func getMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*getMDMAppleEULARequest)
+func getMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*getMDMEULARequest)
 
-	eula, err := svc.MDMAppleGetEULABytes(ctx, req.Token)
+	eula, err := svc.MDMGetEULABytes(ctx, req.Token)
 	if err != nil {
-		return getMDMAppleEULAResponse{Err: err}, nil
+		return getMDMEULAResponse{Err: err}, nil
 	}
 
-	return getMDMAppleEULAResponse{eula: eula}, nil
+	return getMDMEULAResponse{eula: eula}, nil
 }
 
-func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULABytes(ctx context.Context, token string) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -338,28 +338,28 @@ func (svc *Service) MDMAppleGetEULABytes(ctx context.Context, token string) (*fl
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// GET /mdm/apple/setup/eula/{token}/metadata
+// GET /mdm/setup/eula/{token}/metadata
 ////////////////////////////////////////////////////////////////////////////////
 
-type getMDMAppleEULAMetadataRequest struct{}
+type getMDMEULAMetadataRequest struct{}
 
-type getMDMAppleEULAMetadataResponse struct {
-	*fleet.MDMAppleEULA
+type getMDMEULAMetadataResponse struct {
+	*fleet.MDMEULA
 	Err error `json:"error,omitempty"`
 }
 
-func (r getMDMAppleEULAMetadataResponse) error() error { return r.Err }
+func (r getMDMEULAMetadataResponse) error() error { return r.Err }
 
-func getMDMAppleEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	eula, err := svc.MDMAppleGetEULAMetadata(ctx)
+func getMDMEULAMetadataEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	eula, err := svc.MDMGetEULAMetadata(ctx)
 	if err != nil {
-		return getMDMAppleEULAMetadataResponse{Err: err}, nil
+		return getMDMEULAMetadataResponse{Err: err}, nil
 	}
 
-	return getMDMAppleEULAMetadataResponse{MDMAppleEULA: eula}, nil
+	return getMDMEULAMetadataResponse{MDMEULA: eula}, nil
 }
 
-func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppleEULA, error) {
+func (svc *Service) MDMGetEULAMetadata(ctx context.Context) (*fleet.MDMEULA, error) {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -368,28 +368,28 @@ func (svc *Service) MDMAppleGetEULAMetadata(ctx context.Context) (*fleet.MDMAppl
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-// DELETE /mdm/apple/setup/eula
+// DELETE /mdm/setup/eula
 ////////////////////////////////////////////////////////////////////////////////
 
-type deleteMDMAppleEULARequest struct {
+type deleteMDMEULARequest struct {
 	Token string `url:"token"`
 }
 
-type deleteMDMAppleEULAResponse struct {
+type deleteMDMEULAResponse struct {
 	Err error `json:"error,omitempty"`
 }
 
-func (r deleteMDMAppleEULAResponse) error() error { return r.Err }
+func (r deleteMDMEULAResponse) error() error { return r.Err }
 
-func deleteMDMAppleEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
-	req := request.(*deleteMDMAppleEULARequest)
-	if err := svc.MDMAppleDeleteEULA(ctx, req.Token); err != nil {
-		return deleteMDMAppleEULAResponse{Err: err}, nil
+func deleteMDMEULAEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*deleteMDMEULARequest)
+	if err := svc.MDMDeleteEULA(ctx, req.Token); err != nil {
+		return deleteMDMEULAResponse{Err: err}, nil
 	}
-	return deleteMDMAppleEULAResponse{}, nil
+	return deleteMDMEULAResponse{}, nil
 }
 
-func (svc *Service) MDMAppleDeleteEULA(ctx context.Context, token string) error {
+func (svc *Service) MDMDeleteEULA(ctx context.Context, token string) error {
 	// skipauth: No authorization check needed due to implementation returning
 	// only license error.
 	svc.authz.SkipAuthorization(ctx)
@@ -616,7 +616,7 @@ func (svc *Service) enqueueMicrosoftMDMCommand(ctx context.Context, rawXMLCmd []
 	winCmd := &fleet.MDMWindowsCommand{
 		// TODO: using the provided ID to mimic Apple, but seems better if
 		// we're full in control of it, what we should do?
-		CommandUUID:  cmdMsg.CmdID,
+		CommandUUID:  cmdMsg.CmdID.Value,
 		RawCommand:   rawXMLCmd,
 		TargetLocURI: cmdMsg.GetTargetURI(),
 	}
@@ -1393,10 +1393,11 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID   *uint                        `json:"-" query:"team_id,optional"`
-	TeamName *string                      `json:"-" query:"team_name,optional"`
-	DryRun   bool                         `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Profiles backwardsCompatProfilesParam `json:"profiles"`
+	TeamID        *uint                        `json:"-" query:"team_id,optional"`
+	TeamName      *string                      `json:"-" query:"team_name,optional"`
+	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
+	AssumeEnabled bool                         `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
+	Profiles      backwardsCompatProfilesParam `json:"profiles"`
 }
 
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
@@ -1439,13 +1440,16 @@ func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent 
 
 func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
-	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool) error {
+func (svc *Service) BatchSetMDMProfiles(
+	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
+	assumeEnabled bool,
+) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
@@ -1454,6 +1458,9 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if assumeEnabled {
+		appCfg.MDM.WindowsEnabledAndConfigured = true
 	}
 
 	if err := validateProfiles(profiles); err != nil {
@@ -1688,7 +1695,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
-			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}
 	}
 
@@ -1751,4 +1758,57 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 	opt.IncludeMetadata = true
 
 	return svc.ds.ListMDMConfigProfiles(ctx, teamID, opt)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update MDM Disk encryption
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMDiskEncryptionRequest struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
+}
+
+type updateMDMDiskEncryptionResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
+
+func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
+
+func updateMDMDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMDiskEncryptionRequest)
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
+		return updateMDMDiskEncryptionResponse{Err: err}, nil
+	}
+	return updateMDMDiskEncryptionResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error {
+	// TODO(mna): this should all move to the ee package when we remove the
+	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
+	// leave here so both endpoints can reuse the same logic.
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ErrMissingLicense
+	}
+
+	// for historical reasons (the deprecated PATCH /mdm/apple/settings
+	// endpoint), this uses an Apple-specific struct for authorization. Can be improved
+	// once we remove the deprecated endpoint.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleSettingsPayload{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if teamID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption)
+	}
+	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }

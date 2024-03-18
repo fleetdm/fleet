@@ -3,12 +3,13 @@ import { IOSVersionsResponse } from "services/entities/operating_systems";
 import { createMockSoftwareVulnerability } from "./softwareMock";
 
 const DEFAULT_OS_VERSION: IOperatingSystemVersion = {
+  os_version_id: 1,
   name: "Mac OS X",
   name_only: "Mac OS X",
   version: "10.15.7",
   platform: "darwin",
   hosts_count: 1,
-  generated_cpe: "cpe:/o:apple:mac_os_x:10.15.7",
+  generated_cpes: ["cpe:/o:apple:mac_os_x:10.15.7"],
   vulnerabilities: [createMockSoftwareVulnerability()],
 };
 

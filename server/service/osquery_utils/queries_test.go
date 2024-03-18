@@ -19,13 +19,14 @@ import (
 
 	"github.com/WatchBeam/clock"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/publicip"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/microsoft/syncml"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service/async"
-	"github.com/go-kit/kit/log"
+	"github.com/go-kit/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/exp/maps"
@@ -101,7 +102,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM osquery_info",
     "system_time":"150",
     "user_time":"180",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"50400",
@@ -115,7 +116,8 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"140",
     "user_time":"190",
-    "wall_time":"1"
+    "wall_time":"1111",
+    "wall_time_ms":"1"
   },
   {
     "average_memory":"0",
@@ -129,7 +131,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM processes",
     "system_time":"0",
     "user_time":"0",
-    "wall_time":"0"
+    "wall_time_ms":"0"
   },
   {
     "average_memory":"0",
@@ -143,7 +145,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
     "query":"SELECT * FROM time",
     "system_time":"70",
     "user_time":"50",
-    "wall_time":"1"
+    "wall_time_ms":"1"
   }
 ]
 `
@@ -170,7 +172,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         100,
 				UserTime:           60,
-				WallTime:           180,
+				WallTimeMs:         180 * 1000,
 			},
 		},
 	)
@@ -188,7 +190,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         1337,
 				SystemTime:         150,
 				UserTime:           180,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "processes?",
@@ -201,7 +203,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         140,
 				UserTime:           190,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 			{
 				ScheduledQueryName: "processes?-1",
@@ -214,7 +216,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         0,
 				UserTime:           0,
-				WallTime:           0,
+				WallTimeMs:         0,
 			},
 			{
 				ScheduledQueryName: "time",
@@ -227,7 +229,7 @@ func TestDetailQueryScheduledQueryStats(t *testing.T) {
 				OutputSize:         0,
 				SystemTime:         70,
 				UserTime:           50,
-				WallTime:           1,
+				WallTimeMs:         1,
 			},
 		},
 	)
@@ -288,7 +290,7 @@ func TestGetDetailQueries(t *testing.T) {
 	sortedKeysCompare(t, queriesWithUsers, qs)
 
 	queriesWithUsersAndSoftware := GetDetailQueries(context.Background(), config.FleetConfig{App: config.AppConfig{EnableScheduledQueryStats: true}}, nil, &fleet.Features{EnableHostUsers: true, EnableSoftwareInventory: true})
-	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_chrome", "scheduled_query_stats")
+	qs = append(baseQueries, "users", "users_chrome", "software_macos", "software_linux", "software_windows", "software_vscode_extensions", "software_chrome", "scheduled_query_stats")
 	require.Len(t, queriesWithUsersAndSoftware, len(qs))
 	sortedKeysCompare(t, queriesWithUsersAndSoftware, qs)
 
@@ -683,6 +685,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 		wantInstalledFromDep bool
 		wantIsServer         bool
 		wantServerURL        string
+		wantMDMSolName       string
 	}{
 		{
 			name: "off empty server URL",
@@ -707,6 +710,14 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 					"installation_type": "Client",
 				},
 			},
+			wantEnrolled:         false,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "",
+		},
+		{
+			name:                 "off no rows",
+			data:                 []map[string]string{},
 			wantEnrolled:         false,
 			wantInstalledFromDep: false,
 			wantIsServer:         false,
@@ -771,6 +782,106 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantIsServer:         true,
 			wantServerURL:        "https://example.com",
 		},
+
+		// Test that names are being calculated correctly
+
+		{
+			name: "on manual jumpcloud",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://jumpcloud.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://jumpcloud.com",
+			wantMDMSolName:       fleet.WellKnownMDMJumpCloud,
+		},
+		{
+			name: "on manual airwatch",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://airwatch.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://airwatch.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual awmdm",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://awmdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://awmdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMVMWare,
+		},
+		{
+			name: "on manual microsoft",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://microsoft.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://microsoft.com",
+			wantMDMSolName:       fleet.WellKnownMDMIntune,
+		},
+		{
+			name: "on manual fleetdm cloud hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://fleetdm.com",
+					"is_federated":          "0",
+					"provider_id":           "Local_Management",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://fleetdm.com",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
+
+		{
+			name: "on manual fleetdm self hosted",
+			data: []map[string]string{
+				{
+					"discovery_service_url": "https://myinstall.local",
+					"is_federated":          "0",
+					"provider_id":           "Fleet",
+					"installation_type":     "Client",
+				},
+			},
+			wantEnrolled:         true,
+			wantInstalledFromDep: false,
+			wantIsServer:         false,
+			wantServerURL:        "https://myinstall.local",
+			wantMDMSolName:       fleet.WellKnownMDMFleet,
+		},
 	}
 
 	for _, c := range cases {
@@ -780,6 +891,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 				require.Equal(t, c.wantInstalledFromDep, installedFromDep)
 				require.Equal(t, c.wantIsServer, isServer)
 				require.Equal(t, c.wantServerURL, serverURL)
+				require.Equal(t, c.wantMDMSolName, name)
 				require.Empty(t, fleetEnrollmentRef)
 				return nil
 			}
@@ -1745,5 +1857,65 @@ func TestDirectIngestWindowsProfiles(t *testing.T) {
 		} else {
 			require.Equal(t, gotQuery, tc.want)
 		}
+	}
+}
+
+func TestShouldRemoveSoftware(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+		s    *fleet.Software
+		h    *fleet.Host
+	}{
+		{
+			name: "parallels windows software on MacOS host",
+			want: true,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.parallels.winapp.notepad", Name: "Notepad.app"},
+		},
+		{
+			name: "regular macos software",
+			want: false,
+			h:    &fleet.Host{Platform: "darwin"},
+			s:    &fleet.Software{BundleIdentifier: "com.apple.dock", Name: "Dock.app"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			require.Equal(t, tt.want, shouldRemoveSoftware(tt.h, tt.s))
+		})
+	}
+}
+
+func TestIngestNetworkInterface(t *testing.T) {
+	t.Parallel()
+
+	// NOTE: It was decided that we should allow ingesting private IPs on the PublicIP field,
+	// see https://github.com/fleetdm/fleet/issues/11102.
+	for _, tc := range []struct {
+		name  string
+		ip    string
+		valid bool
+	}{
+		{"public IPv6", "598b:6910:e935:63ff:54db:1753:9c01:4c84", true},
+		{"private IPv6", "fd42:fdaa:1234:5678::1a2b", true},
+		{"public IPv4", "190.18.97.12", true},
+		{"private IPv4", "127.0.0.1", true},
+		{"IP could not be determined", "", true},
+		{"invalid value ends up in the context", "invalid-ip", false},
+	} {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			h := fleet.Host{PublicIP: "190.18.97.3"} // set to some old value that should always be overriden
+			err := ingestNetworkInterface(publicip.NewContext(context.Background(), tc.ip), log.NewNopLogger(), &h, nil)
+			require.NoError(t, err)
+			if tc.valid {
+				require.Equal(t, tc.ip, h.PublicIP)
+			} else {
+				require.Empty(t, h.PublicIP)
+			}
+		})
 	}
 }

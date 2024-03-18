@@ -157,16 +157,22 @@ interface IMdmMacOsSetup {
   bootstrap_package_name: string;
 }
 
+export type HostMdmDeviceStatus = "unlocked" | "locked" | "wiped";
+export type HostMdmPendingAction = "unlock" | "lock" | "wipe" | "";
+
 export interface IHostMdmData {
   encryption_key_available: boolean;
   enrollment_status: MdmEnrollmentStatus | null;
+  dep_profile_error?: boolean;
   name?: string;
-  server_url: string | null;
   id?: number;
+  server_url: string | null;
   profiles: IHostMdmProfile[] | null;
   os_settings?: IOSSettings;
   macos_settings?: IMdmMacOsSettings;
   macos_setup?: IMdmMacOsSetup;
+  device_status: HostMdmDeviceStatus;
+  pending_action: HostMdmPendingAction;
 }
 
 export interface IMunkiIssue {
@@ -240,6 +246,11 @@ export interface IHostEncrpytionKeyResponse {
   };
 }
 
+export interface IHostIssues {
+  total_issues_count: number;
+  failing_policies_count: number;
+}
+
 export interface IHost {
   created_at: string;
   updated_at: string;
@@ -287,10 +298,7 @@ export interface IHost {
   labels: ILabel[];
   packs: IPack[];
   software: ISoftware[];
-  issues: {
-    total_issues_count: number;
-    failing_policies_count: number;
-  };
+  issues: IHostIssues;
   status: HostStatus;
   display_text: string;
   display_name: string;
@@ -304,6 +312,7 @@ export interface IHost {
   geolocation?: IGeoLocation;
   batteries?: IBattery[];
   disk_encryption_enabled?: boolean;
+  device_mapping: IDeviceUser[] | null;
 }
 
 /*

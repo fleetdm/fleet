@@ -104,6 +104,15 @@ export interface IConfigFeatures {
   enable_software_inventory: boolean;
 }
 
+export interface IConfigServerSettings {
+  server_url: string;
+  live_query_disabled: boolean;
+  enable_analytics: boolean;
+  deferred_save_host: boolean;
+  query_reports_disabled: boolean;
+  scripts_disabled: boolean;
+}
+
 export interface IConfig {
   org_info: {
     org_name: string;
@@ -112,14 +121,7 @@ export interface IConfig {
     contact_url: string;
   };
   sandbox_enabled: boolean;
-  server_settings: {
-    server_url: string;
-    live_query_disabled: boolean;
-    enable_analytics: boolean;
-    deferred_save_host: boolean;
-    query_reports_disabled: boolean;
-    scripts_disabled: boolean;
-  };
+  server_settings: IConfigServerSettings;
   smtp_settings: {
     enable_smtp: boolean;
     configured: boolean;
@@ -212,7 +214,7 @@ export interface IConfig {
 
 export interface IWebhookSettings {
   failing_policies_webhook: IWebhookFailingPolicies;
-  host_status_webhook: IWebhookHostStatus;
+  host_status_webhook: IWebhookHostStatus | null;
   vulnerabilities_webhook: IWebhookSoftwareVulnerabilities;
 }
 

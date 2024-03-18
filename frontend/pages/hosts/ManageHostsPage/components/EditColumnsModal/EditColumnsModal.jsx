@@ -61,7 +61,7 @@ const EditColumnsModal = ({
 
   return (
     <Modal title="Edit columns" onExit={onCancelColumns} className={baseClass}>
-      <>
+      <div className="form">
         <p>Choose which columns you see:</p>
         <div className={`${baseClass}__column-headers`}>
           {columnItems.map((column) => {
@@ -82,15 +82,15 @@ const EditColumnsModal = ({
         <div className="modal-cta-wrap">
           <Button
             onClick={() => onSaveColumns(getHiddenColumns(columnItems))}
-            variant={"default"}
+            variant="default"
           >
             Save
           </Button>
-          <Button onClick={onCancelColumns} variant={"inverse"}>
+          <Button onClick={onCancelColumns} variant="inverse">
             Cancel
           </Button>
         </div>
-      </>
+      </div>
     </Modal>
   );
 };

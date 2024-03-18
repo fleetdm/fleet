@@ -59,10 +59,10 @@ Investing in people and providing generous, prioritized training, especially up 
 
 Here are a few examples of how Fleet prioritizes training:
 - the first 3 days at the company for every new team member are reserved for working on the tasks and training in their onboarding issue.
-- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or Charlie will join this short daily meeting with them instead.
+- during the first 2 weeks at the company, every new fleetie joins a **daily 1:1 meeting** with their manager to check in and see how they're doing, and if they have any questions or blockers.  If the manager is not available for this meeting, the CEO (pending availability) or the Head of Business Operations will join this short daily meeting with them instead.
 - In their first few days, every new fleetie joins:
-  - hands-on contributor experience training session with Charlie where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
-  - a short sightseeing tour with Charlie and (pending availability) Fleet's CEO to show them around and welcome them to the company.
+  - hands-on contributor experience training session with the Head of Business Operations where they share their screen, check the configuration of their tools, complete any remaining setup, and discuss best practices.
+  - a short sightseeing tour with the Head of Business Operations and (pending availability) Fleet's CEO to show them around and welcome them to the company.
 
 
 ## Why direct responsibility?
@@ -360,7 +360,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
 
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
   
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from [Sam Pfluger](https://fleetdm.com/handbook/digital-experience#team).
 Thank you so much!" 🙇
 </blockquote> 
 

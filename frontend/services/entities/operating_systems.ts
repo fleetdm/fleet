@@ -23,11 +23,6 @@ export interface IGetOSVersionsQueryParams {
   per_page?: number;
 }
 
-export interface IGetOSVersionsDetailsQueryParams {
-  os_name?: string;
-  os_version?: string;
-}
-
 export interface IGetOSVersionsQueryKey extends IGetOSVersionsQueryParams {
   scope: string;
 }
@@ -40,6 +35,18 @@ export interface IOSVersionsResponse {
     has_next_results: boolean;
     has_previous_results: boolean;
   };
+}
+interface IGetOsVersionOptions {
+  os_version_id: number;
+  teamId?: number;
+}
+
+export interface IGetOsVersionQueryKey extends IGetOsVersionOptions {
+  scope: "osVersionDetails";
+}
+
+export interface IOSVersionResponse {
+  os_version: IOperatingSystemVersion;
 }
 
 export const getOSVersions = ({
@@ -72,18 +79,12 @@ export const getOSVersions = ({
 };
 
 const getOSVersion = ({
-  os_name,
-  os_version,
-}: IGetOSVersionsDetailsQueryParams): Promise<IOSVersionsResponse> => {
-  const { OS_VERSIONS } = endpoints;
-  let path = OS_VERSIONS;
+  os_version_id,
+  teamId,
+}: IGetOsVersionOptions): Promise<IOSVersionResponse> => {
+  const endpoint = endpoints.OS_VERSION(os_version_id);
+  const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
-  const queryString = buildQueryStringFromParams({
-    os_name,
-    os_version,
-  });
-
-  if (queryString) path += `?${queryString}`;
   return sendRequest("GET", path);
 };
 

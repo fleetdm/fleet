@@ -80,6 +80,10 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeCreatedWindowsProfile{},
 	ActivityTypeDeletedWindowsProfile{},
 	ActivityTypeEditedWindowsProfile{},
+
+	ActivityTypeLockedHost{},
+	ActivityTypeUnlockedHost{},
+	ActivityTypeWipedHost{},
 }
 
 type ActivityDetails interface {
@@ -87,6 +91,13 @@ type ActivityDetails interface {
 	ActivityName() string
 	// Documentation is used by "go generate" to generate markdown docs.
 	Documentation() (activity string, details string, detailsExample string)
+}
+
+// ActivityHosts is the optional additional interface that can be implemented
+// by activities that are related to hosts.
+type ActivityHosts interface {
+	ActivityDetails
+	HostIDs() []uint
 }
 
 type ActivityTypeCreatedPack struct {
@@ -493,7 +504,17 @@ func (a ActivityTypeUserAddedBySSO) Documentation() (activity string, details st
 
 type Activity struct {
 	CreateTimestamp
-	ID            uint             `json:"id" db:"id"`
+
+	// ID is the activity id in the activities table, it is omitted for upcoming
+	// activities as those are "virtual activities" generated from entries in
+	// queues (e.g. pending host_script_results).
+	ID uint `json:"id,omitempty" db:"id"`
+
+	// UUID is the activity UUID for the upcoming activities, as identified in
+	// the relevant queue (e.g. pending host_script_results). It is omitted for
+	// past activities as those are "real activities" with an activity id.
+	UUID string `json:"uuid,omitempty" db:"uuid"`
+
 	ActorFullName *string          `json:"actor_full_name,omitempty" db:"name"`
 	ActorID       *uint            `json:"actor_id,omitempty" db:"user_id"`
 	ActorGravatar *string          `json:"actor_gravatar,omitempty" db:"gravatar_url"`
@@ -1055,7 +1076,7 @@ func (a ActivityTypeEnabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeEnabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
+	return `Generated when a user turns on MDM features for all Windows hosts (servers excluded).`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1066,7 +1087,7 @@ func (a ActivityTypeDisabledWindowsMDM) ActivityName() string {
 }
 
 func (a ActivityTypeDisabledWindowsMDM) Documentation() (activity, details, detailsExample string) {
-	return `Windows MDM features are not ready for production and are currently in development. These features are disabled by default. Generated when a user turns off MDM features for all Windows hosts.`,
+	return `Generated when a user turns off MDM features for all Windows hosts.`,
 		`This activity does not contain any detail fields.`, ``
 }
 
@@ -1074,11 +1095,16 @@ type ActivityTypeRanScript struct {
 	HostID            uint   `json:"host_id"`
 	HostDisplayName   string `json:"host_display_name"`
 	ScriptExecutionID string `json:"script_execution_id"`
+	ScriptName        string `json:"script_name"`
 	Async             bool   `json:"async"`
 }
 
 func (a ActivityTypeRanScript) ActivityName() string {
 	return "ran_script"
+}
+
+func (a ActivityTypeRanScript) HostIDs() []uint {
+	return []uint{a.HostID}
 }
 
 func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExample string) {
@@ -1087,9 +1113,11 @@ func (a ActivityTypeRanScript) Documentation() (activity, details, detailsExampl
 - "host_id": ID of the host.
 - "host_display_name": Display name of the host.
 - "script_execution_id": Execution ID of the script run.
+- "script_name": Name of the script (empty if it was an anonymous script).
 - "async": Whether the script was executed asynchronously.`, `{
   "host_id": 1,
   "host_display_name": "Anna's MacBook Pro",
+  "script_name": "set-timezones.sh",
   "script_execution_id": "d6cffa75-b5b5-41ef-9230-15073c8a88cf",
   "async": false
 }`
@@ -1218,6 +1246,74 @@ func (a ActivityTypeEditedWindowsProfile) Documentation() (activity, details, de
 - "team_name": The name of the team that the profiles apply to, ` + "`null`" + ` if they apply to devices that are not in a team.`, `{
   "team_id": 123,
   "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeLockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeLockedHost) ActivityName() string {
+	return "locked_host"
+}
+
+func (a ActivityTypeLockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeLockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to lock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}`
+}
+
+type ActivityTypeUnlockedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+	HostPlatform    string `json:"host_platform"`
+}
+
+func (a ActivityTypeUnlockedHost) ActivityName() string {
+	return "unlocked_host"
+}
+
+func (a ActivityTypeUnlockedHost) HostIDs() []uint {
+	return []uint{a.HostID}
+}
+
+func (a ActivityTypeUnlockedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to unlock a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}`
+}
+
+type ActivityTypeWipedHost struct {
+	HostID          uint   `json:"host_id"`
+	HostDisplayName string `json:"host_display_name"`
+}
+
+func (a ActivityTypeWipedHost) ActivityName() string {
+	return "wiped_host"
+}
+
+func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExample string) {
+	return `Generated when a user sends a request to wipe a host.`,
+		`This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.`, `{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
 }`
 }
 

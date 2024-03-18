@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
 import { isEmpty } from "lodash";
-import classnames from "classnames";
 
 import { APP_CONTEXT_NO_TEAM_ID } from "interfaces/team";
 import { NotificationContext } from "context/notification";
@@ -50,7 +49,19 @@ const validateForm = (formData: IMacOSTargetFormData) => {
   return errors;
 };
 
-const createMdmConfigData = (minOsVersion: string, deadline: string) => {
+interface IMacMdmConfigData {
+  mdm: {
+    macos_updates: {
+      minimum_version: string;
+      deadline: string;
+    };
+  };
+}
+
+const createMdmConfigData = (
+  minOsVersion: string,
+  deadline: string
+): IMacMdmConfigData => {
   return {
     mdm: {
       macos_updates: {
@@ -65,12 +76,16 @@ interface IMacOSTargetFormProps {
   currentTeamId: number;
   defaultMinOsVersion: string;
   defaultDeadline: string;
+  refetchAppConfig: () => void;
+  refetchTeamConfig: () => void;
 }
 
 const MacOSTargetForm = ({
   currentTeamId,
   defaultMinOsVersion,
   defaultDeadline,
+  refetchAppConfig,
+  refetchTeamConfig,
 }: IMacOSTargetFormProps) => {
   const { renderFlash } = useContext(NotificationContext);
 
@@ -82,6 +97,8 @@ const MacOSTargetForm = ({
   >();
   const [deadlineError, setDeadlineError] = useState<string | undefined>();
 
+  // FIXME: This behaves unexpectedly when a user switches tabs or changes the teams dropdown while the form is
+  // submitting because this component is unmounted.
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const errors = validateForm({
@@ -103,6 +120,9 @@ const MacOSTargetForm = ({
       } catch {
         renderFlash("error", "Couldn’t update. Please try again.");
       } finally {
+        currentTeamId === APP_CONTEXT_NO_TEAM_ID
+          ? refetchAppConfig()
+          : refetchTeamConfig();
         setIsSaving(false);
       }
     }
