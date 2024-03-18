@@ -19,7 +19,7 @@ type GoogleCalendarMockAPI struct {
 
 var events = make(map[string]*calendar.Event)
 var mu sync.Mutex
-var id uint64 = 0
+var id uint64
 
 const latency = 500 * time.Millisecond
 

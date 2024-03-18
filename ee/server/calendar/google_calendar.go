@@ -140,7 +140,9 @@ func (c *GoogleCalendar) Configure(userEmail string) error {
 	return nil
 }
 
-func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func() string) (*fleet.CalendarEvent, bool, error) {
+func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn func(conflict bool) string) (
+	*fleet.CalendarEvent, bool, error,
+) {
 	// We assume that the Fleet event has not already ended. We will simply return it if it has not been modified.
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
@@ -216,7 +218,7 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 
 	newStartDate := calculateNewEventDate(event.StartTime)
 
-	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn())
+	fleetEvent, err := c.CreateEvent(newStartDate, genBodyFn)
 	if err != nil {
 		return nil, false, err
 	}
@@ -273,13 +275,15 @@ func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDet
 	return &details, nil
 }
 
-func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, body string) (*fleet.CalendarEvent, error) {
-	return c.createEvent(dayOfEvent, body, time.Now)
+func (c *GoogleCalendar) CreateEvent(dayOfEvent time.Time, genBodyFn func(conflict bool) string) (*fleet.CalendarEvent, error) {
+	return c.createEvent(dayOfEvent, genBodyFn, time.Now)
 }
 
 // createEvent creates a new event on the calendar on the given date. timeNow is a function that returns the current time.
 // timeNow can be overwritten for testing
-func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow func() time.Time) (*fleet.CalendarEvent, error) {
+func (c *GoogleCalendar) createEvent(
+	dayOfEvent time.Time, genBodyFn func(conflict bool) string, timeNow func() time.Time,
+) (*fleet.CalendarEvent, error) {
 	if c.timezoneOffset == nil {
 		err := getTimezone(c)
 		if err != nil {
@@ -314,6 +318,7 @@ func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow 
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "listing Google calendar events")
 	}
+	var conflict bool
 	for _, gEvent := range events.Items {
 		// Ignore cancelled events
 		if gEvent.Status == "cancelled" {
@@ -357,7 +362,7 @@ func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow 
 		if startTime.Before(eventEnd) {
 			// Event occurs during our event, so we need to adjust.
 			var isLastSlot bool
-			eventStart, eventEnd, isLastSlot = adjustEventTimes(*endTime, dayEnd)
+			eventStart, eventEnd, isLastSlot, conflict = adjustEventTimes(*endTime, dayEnd)
 			if isLastSlot {
 				break
 			}
@@ -371,7 +376,7 @@ func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow 
 	event.Start = &calendar.EventDateTime{DateTime: eventStart.Format(time.RFC3339)}
 	event.End = &calendar.EventDateTime{DateTime: eventEnd.Format(time.RFC3339)}
 	event.Summary = eventTitle
-	event.Description = body
+	event.Description = genBodyFn(conflict)
 	event, err = c.config.API.CreateEvent(event)
 	if err != nil {
 		return nil, ctxerr.Wrap(c.config.Context, err, "creating Google calendar event")
@@ -387,7 +392,7 @@ func (c *GoogleCalendar) createEvent(dayOfEvent time.Time, body string, timeNow 
 	return fleetEvent, nil
 }
 
-func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time, eventEnd time.Time, isLastSlot bool) {
+func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time, eventEnd time.Time, isLastSlot bool, conflict bool) {
 	eventStart = endTime.Truncate(eventLength)
 	if eventStart.Before(endTime) {
 		eventStart = eventStart.Add(eventLength)
@@ -398,11 +403,11 @@ func adjustEventTimes(endTime time.Time, dayEnd time.Time) (eventStart time.Time
 		eventEnd = dayEnd
 		eventStart = eventEnd.Add(-eventLength)
 		isLastSlot = true
-	}
-	if eventEnd.Equal(dayEnd) {
+		conflict = true
+	} else if eventEnd.Equal(dayEnd) {
 		isLastSlot = true
 	}
-	return eventStart, eventEnd, isLastSlot
+	return eventStart, eventEnd, isLastSlot, conflict
 }
 
 func getTimezone(gCal *GoogleCalendar) error {
