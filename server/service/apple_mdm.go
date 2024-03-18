@@ -2998,7 +2998,9 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	case dm.Endpoint == "status":
 		level.Debug(svc.logger).Log("msg", "received status request")
-		// TODO(roberto): handle status
+		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
+		}
 
 		return nil, nil
 
