@@ -691,9 +691,6 @@ func (svc *Service) validateMDM(
 	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.enable_release_device_manually", ErrMissingLicense.Error())
 	}
-	if mdm.MacOSSetup.EnableReleaseDeviceManually.Value && oldMdm.MacOSSetup.EnableReleaseDeviceManually.Value != mdm.MacOSSetup.EnableReleaseDeviceManually.Value && mdm.MacOSSetup.MacOSSetupAssistant.Value == "" {
-		invalid.Append("macos_setup.enable_release_device_manually", `Couldn't enable macos_setup.enable_release_device_manually as no macOS Setup Assistant is set.`)
-	}
 	if mdm.MacOSSetup.BootstrapPackage.Value != "" && oldMdm.MacOSSetup.BootstrapPackage.Value != mdm.MacOSSetup.BootstrapPackage.Value && !license.IsPremium() {
 		invalid.Append("macos_setup.bootstrap_package", ErrMissingLicense.Error())
 	}

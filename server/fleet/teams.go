@@ -120,6 +120,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,

@@ -201,12 +201,19 @@ spec:
 			MinimumVersion: optjson.SetString("12.3.1"),
 			Deadline:       optjson.SetString("2011-03-01"),
 		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
+		},
 	}
 	require.Equal(t, "[+] applied 2 teams\n", runAppForTest(t, []string{"apply", "-f", filename}))
 	assert.JSONEq(t, string(agentOpts), string(*teamsByName["team2"].Config.AgentOptions))
 	assert.JSONEq(t, string(newAgentOpts), string(*teamsByName["team1"].Config.AgentOptions))
 	assert.Equal(t, []*fleet.EnrollSecret{{Secret: "AAA"}}, enrolledSecretsCalled[uint(42)])
-	assert.Equal(t, fleet.TeamMDM{}, teamsByName["team2"].Config.MDM)
+	assert.Equal(t, fleet.TeamMDM{
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
+		},
+	}, teamsByName["team2"].Config.MDM)
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
 	assert.True(t, ds.ApplyEnrollSecretsFuncInvoked)
 	ds.ApplyEnrollSecretsFuncInvoked = false
@@ -233,6 +240,9 @@ spec:
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(1),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 	assert.Equal(t, newMDMSettings, teamsByName["team1"].Config.MDM)
@@ -261,6 +271,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 
@@ -302,6 +315,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{ // macos settings not provided, so not cleared
 			CustomSettings: []fleet.MDMProfileSpec{{Path: mobileCfgPath}},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 	newAgentOpts = json.RawMessage(`{"config":{"views":{"foo":"qux"}}}`)
@@ -375,6 +391,9 @@ spec:
 		},
 		MacOSSettings: fleet.MacOSSettings{
 			CustomSettings: []fleet.MDMProfileSpec{},
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}
 
@@ -1243,6 +1262,9 @@ spec:
 			MinimumVersion: optjson.SetString("10.10.10"),
 			Deadline:       optjson.SetString("1992-03-01"),
 		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
+		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(0),
 			GracePeriodDays: optjson.SetInt(1),
@@ -1287,7 +1309,8 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
 
@@ -1323,8 +1346,9 @@ spec:
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
-			BootstrapPackage:    optjson.SetString(bootstrapURL),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			BootstrapPackage:            optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 	}, savedTeam.Config.MDM)
 
