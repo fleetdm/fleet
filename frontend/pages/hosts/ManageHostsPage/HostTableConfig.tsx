@@ -637,7 +637,7 @@ const generateAvailableTableHeaders = ({
       // skip over column headers that are not shown in free observer tier
       if (isFreeTier && isOnlyObserver) {
         if (
-          currentColumn.accessor === "team_name" ||
+          currentColumn.id === "team_name" ||
           currentColumn.id === "selection"
         ) {
           return columns;
@@ -645,7 +645,7 @@ const generateAvailableTableHeaders = ({
         // skip over column headers that are not shown in free admin/maintainer
       } else if (isFreeTier) {
         if (
-          currentColumn.accessor === "team_name" ||
+          currentColumn.id === "team_name" ||
           currentColumn.id === "mdm.server_url" ||
           currentColumn.id === "mdm.enrollment_status"
         ) {
@@ -680,7 +680,7 @@ const generateVisibleTableColumns = ({
   // remove columns set as hidden by the user.
   return generateAvailableTableHeaders({ isFreeTier, isOnlyObserver }).filter(
     (column) => {
-      return !hiddenColumns.includes(column.accessor as string);
+      return !hiddenColumns.includes(column.id as string);
     }
   );
 };
