@@ -50,8 +50,12 @@ type GoogleCalendar struct {
 
 func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	if config.API == nil {
-		var lowLevelAPI GoogleCalendarAPI = &GoogleCalendarLowLevelAPI{}
-		config.API = lowLevelAPI
+		if config.IntegrationConfig.Email == "calendar-mock@example.com" {
+			// Assumes that only 1 Fleet server accesses the calendar, since all mock events are held in memory
+			config.API = &GoogleCalendarMockAPI{}
+		} else {
+			config.API = &GoogleCalendarLowLevelAPI{}
+		}
 	}
 	return &GoogleCalendar{
 		config: config,
@@ -444,9 +448,6 @@ func (c *GoogleCalendar) googleEventToFleetEvent(startTime time.Time, endTime ti
 }
 
 func (c *GoogleCalendar) DeleteEvent(event *fleet.CalendarEvent) error {
-	if c.config == nil {
-		return errors.New("the Google calendar is not connected. Please call Configure first")
-	}
 	details, err := c.unmarshalDetails(event)
 	if err != nil {
 		return err
