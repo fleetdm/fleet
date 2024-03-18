@@ -2,12 +2,10 @@
 
 ### Bug fixes
 
-```markdown
 * Removed outdated tooltips from UI.
 * Fixed an issue with Windows MDM profile processing where `<Add>` commands were being skipped.
 * Team users no longer have access to OS versions on hosts from other teams for GET fleet/os_versions and GET fleet/os_versions/[id].
 * Reduced the number of 'Deadlock found' errors seen by the server when multiple hosts share the same UUID.
-```
 
 ## Fleet 4.47.0 (Mar 11, 2024)
 
