@@ -40,6 +40,7 @@ export interface IPolicy {
   created_at: string;
   updated_at: string;
   critical: boolean;
+  calendar_events_enabled: boolean;
 }
 
 // Used on the manage hosts page and other places where aggregate stats are displayed

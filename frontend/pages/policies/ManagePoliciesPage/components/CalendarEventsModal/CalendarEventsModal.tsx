@@ -12,6 +12,7 @@ import Slider from "components/forms/fields/Slider";
 import InputField from "components/forms/fields/InputField";
 import Graphic from "components/Graphic";
 import Modal from "components/Modal";
+import Checkbox from "components/forms/fields/Checkbox";
 
 const baseClass = "calendar-events-modal";
 
@@ -22,13 +23,12 @@ interface ICalendarEventsModal {
   enabled: boolean;
   url: string;
   policies: IPolicy[];
-  enabledPolicies: number[];
 }
 
 interface IFormPolicy {
   name: string;
   id: number;
-  checked: boolean;
+  isChecked: boolean;
 }
 interface ICalendarEventsFormData {
   enabled: boolean;
@@ -46,7 +46,6 @@ const CalendarEventsModal = ({
   enabled,
   url,
   policies,
-  enabledPolicies,
 }: ICalendarEventsModal) => {
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
@@ -58,7 +57,7 @@ const CalendarEventsModal = ({
     policies: policies.map((policy) => ({
       name: policy.name,
       id: policy.id,
-      checked: enabledPolicies.includes(policy.id),
+      isChecked: policy.calendar_events_enabled || false,
     })),
   });
   const [formErrors, setFormErrors] = useState<Record<string, string | null>>(
@@ -89,7 +88,7 @@ const CalendarEventsModal = ({
       } else if (typeof value === "boolean") {
         const newFormPolicies = formData.policies.map((formPolicy) => {
           if (formPolicy.name === name) {
-            return { ...formPolicy, checked: value };
+            return { ...formPolicy, isChecked: value };
           }
           return formPolicy;
         });
@@ -107,8 +106,38 @@ const CalendarEventsModal = ({
     // TODO
   };
 
-  const renderPoliciesList = () => {
-    //  TODO
+  const renderPolicies = () => {
+    return (
+      <div className="form-field">
+        <div className="form-field__label">Policies:</div>
+        {formData.policies.map((policy) => {
+          const { isChecked, name, id } = policy;
+          return (
+            <div key={id}>
+              <Checkbox
+                value={isChecked}
+                name={name}
+                // can't use parseTarget as value needs to be set to !currentValue
+                onChange={() => {
+                  onInputChange({ name, value: !isChecked });
+                }}
+              >
+                {name}
+              </Checkbox>
+            </div>
+          );
+        })}
+        <span className="form-field__help-text">
+          A calendar event will be created for end users if one of their hosts
+          fail any of these policies.{" "}
+          <CustomLink
+            url="https://www.fleetdm.com/learn-more-about/calendar-events"
+            text="Learn more"
+            newTab
+          />
+        </span>
+      </div>
+    );
   };
   const renderPreviewCalendarEventModal = () => {
     // TODO
@@ -180,7 +209,7 @@ const CalendarEventsModal = ({
         }}
       />
       {showExamplePayload && renderExamplePayload()} */}
-        {renderPoliciesList()}
+        {renderPolicies()}
       </>
     </div>
   );
@@ -194,6 +223,7 @@ const CalendarEventsModal = ({
       onExit={onExit}
       onEnter={configured ? onSubmit : onExit}
       className={baseClass}
+      width="large"
     >
       {configured ? renderConfiguredModal() : renderPlaceholderModal()}
     </Modal>

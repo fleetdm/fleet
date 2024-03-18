@@ -892,11 +892,6 @@ const ManagePolicyPage = ({
             // }
             url="https://google.com"
             policies={teamPolicies || []}
-            // TODO - may need to update per updated policy structure
-            // enabledPolicies={
-            //   teamConfig?.integrations.google_calendar?.policies || []
-            // }
-            enabledPolicies={[]}
           />
         )}
       </div>

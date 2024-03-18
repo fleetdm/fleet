@@ -62,15 +62,13 @@ export interface IIntegrationFormErrors {
 
 export interface IGlobalCalendarIntegration {
   email: string;
-  domain: string;
   private_key: string;
+  domain: string;
 }
 
 interface ITeamCalendarSettings {
-  resolution_webhook_url: string;
   enable_calendar_events: boolean;
-  // name required to set - id is returned in response
-  policies: { name: string; id?: number }[];
+  webhook_url: string;
 }
 
 export interface IIntegrations {
