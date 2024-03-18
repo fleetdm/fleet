@@ -524,6 +524,9 @@ spec:
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
 		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
+		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.SetInt(5),
 			GracePeriodDays: optjson.SetInt(1),
@@ -575,6 +578,9 @@ spec:
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("12.1.1"),
 			Deadline:       optjson.SetString("2011-02-01"),
+		},
+		MacOSSetup: fleet.MacOSSetup{
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsUpdates: fleet.WindowsUpdates{
 			DeadlineDays:    optjson.Int{Set: true},
@@ -1136,7 +1142,8 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),
@@ -1177,8 +1184,9 @@ spec:
 	assert.Equal(t, fleet.MDM{
 		EnabledAndConfigured: true,
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.SetString(emptySetupAsst),
-			BootstrapPackage:    optjson.SetString(bootstrapURL),
+			MacOSSetupAssistant:         optjson.SetString(emptySetupAsst),
+			BootstrapPackage:            optjson.SetString(bootstrapURL),
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		MacOSUpdates: fleet.MacOSUpdates{
 			MinimumVersion: optjson.SetString("10.10.10"),

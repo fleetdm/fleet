@@ -810,6 +810,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
 	}
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 
 	type aliasConfig AppConfig
 	aa := aliasConfig(c)

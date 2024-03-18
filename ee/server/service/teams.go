@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	authz_ctx "github.com/fleetdm/fleet/v4/server/contexts/authz"
@@ -856,12 +857,19 @@ func (svc *Service) createTeamFromSpec(
 		return nil, err
 	}
 	macOSSetup := spec.MDM.MacOSSetup
-	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" {
+	if !macOSSetup.EnableReleaseDeviceManually.Valid {
+		macOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
+	if macOSSetup.MacOSSetupAssistant.Value != "" || macOSSetup.BootstrapPackage.Value != "" || macOSSetup.EnableReleaseDeviceManually.Value {
 		if !appCfg.MDM.EnabledAndConfigured {
 			return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup",
 				`Couldn't update macos_setup because MDM features aren't turned on in Fleet. Use fleetctl generate mdm-apple and then fleet serve with mdm configuration to turn on MDM features.`))
 		}
 	}
+	if macOSSetup.MacOSSetupAssistant.Value == "" && macOSSetup.EnableReleaseDeviceManually.Value {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("macos_setup", `Couldn't enable macos_setup.enable_release_device_manually as no macOS Setup Assistant is set.`))
+	}
+
 	enableDiskEncryption := spec.MDM.EnableDiskEncryption.Value
 	if !spec.MDM.EnableDiskEncryption.Valid {
 		if de := macOSSettings.DeprecatedEnableDiskEncryption; de != nil {
