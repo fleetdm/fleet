@@ -68,6 +68,7 @@ usage() {
     echo "Usage: $0 [options] (optional|start_version)"
     echo ""
     echo "Options:"
+    echo "  -c, --cherry_pick_resolved The script has been run, had merge conflicts, and those have been resolved and all cherry picks completed manually."
     echo "  -d, --dry_run          Perform a trial run with no changes made"
     echo "  -f, --force            Skip all confirmations"
     echo "  -h, --help             Display this help message and exit"
@@ -178,15 +179,50 @@ print_announce_info() {
     echo "===================================================="
     echo "Release $target_milestone QA ticket and docker publish"
     echo "QA ticket for Release $target_milestone " `gh issue list --search "Release QA: $target_milestone in:title" --json url | jq -r .[0].url`
-    echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
+    echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
     echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
     echo 
+}
+
+update_release_notes() {
+    if [ ! -f temp_changelog ]; then
+        echo "cannot find changelog to populate release notes"
+        exit 1
+    fi
+    cat temp_changelog | tail -n +3 > release_notes
+    echo "" >> release_notes
+    echo "### Upgrading" >> release_notes
+    echo "" >> release_notes
+    echo "Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions." >> release_notes
+    echo "" >> release_notes
+    echo "### Documentation" >> release_notes
+    echo "" >> release_notes
+    echo "Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs)." >> release_notes
+    echo "" >> release_notes
+    echo "### Binary Checksum" >> release_notes
+    echo "" >> release_notes
+    echo "**SHA256**" >> release_notes
+    echo "" >> release_notes
+    echo '```' >> release_notes
+    gh release download $next_tag -p checksums.txt --clobber
+    cat checksums.txt >> release_notes
+    echo '```' >> release_notes
+
+    echo
+    echo "============== Release Notes ========================"
+    cat release_notes
+    echo "============== Release Notes ========================"
+
+    if [ "$dry_run" = "false" ]; then
+        gh release edit --draft -F release_notes $next_tag
+    fi
 }
 
 # Validate we have all commands required to perform this script
 check_required_binaries
 
 # Initialize variables for the options
+cherry_pick_resolved=false
 dry_run=false
 force=false
 minor=false
@@ -195,17 +231,20 @@ start_version=""
 target_date=""
 target_version=""
 print_info=false
+release_notes=false
 
 # Parse long options manually
 for arg in "$@"; do
   shift
   case "$arg" in
+    "--cherry_pick_resolved") set -- "$@" "-c" ;;
     "--dry-run") set -- "$@" "-d" ;;
     "--force") set -- "$@" "-f" ;;
     "--help") set -- "$@" "-h" ;;
     "--minor") set -- "$@" "-m" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
+    "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
     "--target_date") set -- "$@" "-t" ;;
     "--target_version") set -- "$@" "-v" ;;
@@ -214,14 +253,16 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "dfhmo:ps:t:v:" opt; do
+while getopts "cdfhmo:prs:t:v:" opt; do
     case "$opt" in
+        c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
         f) force=true ;;
         h) usage; exit 0 ;;
         m) minor=true ;;
         o) open_api_key=$OPTARG ;;
         p) print_info=true ;;
+        r) release_notes=true ;;
         s) start_version=$OPTARG ;;
         t) target_date=$OPTARG ;;
         v) target_version=$OPTARG ;;
@@ -318,9 +359,15 @@ start_milestone="${start_version:1}"
 target_milestone="${next_ver:1}"
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
 target_patch_branch="patch-fleet-$next_ver"
+next_tag="fleet-$next_ver"
 
 if [ "$print_info" = "true" ]; then
     print_announce_info
+    exit 0
+fi
+
+if [ "$release_notes" = "true" ]; then
+    update_release_notes
     exit 0
 fi
 
@@ -330,131 +377,134 @@ if [[ "$target_milestone_number" == "" ]]; then
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
 
-if [ "$dry_run" = "false" ]; then
-    git fetch
-fi
+failed=false
 
-# TODO Fail if not found
-if [ "$dry_run" = "false" ]; then
-    git checkout $start_ver_tag
-else
-    echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
-fi
-
-
-local_exists=`git branch | $GREP_CMD $target_patch_branch`
-
-if [ "$dry_run" = "false" ]; then
-    if [[ $local_exists != "" ]]; then
-        # Clear previous
-        git branch -D $target_patch_branch
+if [ "$cherry_pick_resolved" = "false" ]; then
+    if [ "$dry_run" = "false" ]; then
+        git fetch
     fi
-    git checkout -b $target_patch_branch
-else
-    echo "DRYRUN: Would have cleared / checked out new branch $target_patch_branch"
-fi
 
-
-total_prs=()
-
-issue_list=`gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number'`
-if [[ "$issue_list" == "" ]]; then
-    echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
-    exit 1
-fi
-echo "Issue list for new patch $next_ver"
-echo $issue_list
-for issue in $issue_list; do
-    prs_for_issue=`gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)"`
-    echo -n "https://github.com/fleetdm/fleet/issues/$issue"
-    if [[ "$prs_for_issue" == "" ]]; then
-        echo -n "NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
-    fi
-    for val in $prs_for_issue; do
-        echo -n " $val"
-        total_prs+=("$val")
-    done
-    echo
-done
-
-
-if [ "$force" = "false" ]; then
-    read -r -p "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] " response
-    case "$response" in
-        [yY][eE][sS]|[yY])
-            echo "Continuing to cherry-pick"
-            echo
-            ;;
-        *)
-            exit 1
-            ;;
-    esac
-fi
-
-commits=""
-
-for pr in ${total_prs[*]};
-do
-    output=`gh pr view $pr --json state,mergeCommit,baseRefName`
-    state=`echo $output | jq -r .state`
-    commit=`echo $output | jq -r .mergeCommit.oid`
-    target_branch=`echo $output | jq -r .baseRefName`
-    echo -n "$pr $state $commit $target_branch:"
-    if [[ "$state" != "MERGED" || "$target_branch" != "main" ]]; then
-        echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
+    # TODO Fail if not found
+    if [ "$dry_run" = "false" ]; then
+        git checkout $start_ver_tag
     else
-        if [[ "$commit" != "" && "$commit" != "null" ]]; then
-            echo " Commit looks valid - $commit, adding to cherry-pick"
-            commits+="$commit "
-        else
-            echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
-        fi
+        echo "DRYRUN: Would have checked out starting tag $start_ver_tag"
     fi
-    #echo "======================================="
-done
 
-for commit in $commits;
-do
-    # echo $commit
-    timestamp=`git log -n 1 --pretty=format:%at $commit`
-    if [ $? -ne 0 ]; then
-        echo "Failed to identify $commit, exiting"
+
+    local_exists=`git branch | $GREP_CMD $target_patch_branch`
+
+    if [ "$dry_run" = "false" ]; then
+        if [[ $local_exists != "" ]]; then
+            # Clear previous
+            git branch -D $target_patch_branch
+        fi
+        git checkout -b $target_patch_branch
+    else
+        echo "DRYRUN: Would have cleared / checked out new branch $target_patch_branch"
+    fi
+
+
+    total_prs=()
+
+    issue_list=`gh issue list --search 'milestone:"'"$target_milestone"'"' --json number | jq -r '.[] | .number'`
+    if [[ "$issue_list" == "" ]]; then
+        echo "Milestone $target_milestone has no target issues, please tie tickets to the milestone to continue"
         exit 1
     fi
-    # echo $timestamp
-    time_map[$timestamp]=$commit
-done
+    echo "Issue list for new patch $next_ver"
+    echo $issue_list
+    for issue in $issue_list; do
+        prs_for_issue=`gh api repos/fleetdm/fleet/issues/$issue/timeline --paginate | jq -r '.[]' | $GREP_CMD "fleetdm/fleet/" | $GREP_CMD -oP "pulls\/\K(?:\d+)"`
+        echo -n "https://github.com/fleetdm/fleet/issues/$issue"
+        if [[ "$prs_for_issue" == "" ]]; then
+            echo -n "NO PR's found, please verify they are not missing in the issue, if no PR's were required for this ticket please reconsider adding it to this release."
+        fi
+        for val in $prs_for_issue; do
+            echo -n " $val"
+            total_prs+=("$val")
+        done
+        echo
+    done
 
-timestamps=""
-failed=false
-for key in "${!time_map[@]}"; do
-    timestamps+="$key\n"
-done
-for ts in `echo -e $timestamps | sort`; do
-    commit_hash="${time_map[$ts]}"
-    # echo "# $ts $commit_hash"
-    if git branch --contains "$commit_hash" | $GREP_CMD -q "$(git rev-parse --abbrev-ref HEAD)"; then
-        echo "# Commit $commit_hash is on the current branch."
-        is_on_current_branch=true
-    else
-        # echo "# Commit $commit_hash is not on the current branch."
-        if [[ "$failed" == "false" ]]; then
 
-            if [ "$dry_run" = "false" ]; then
-                git cherry-pick $commit_hash
-                if [ $? -ne 0 ]; then
-                    echo "Cherry pick of $commit_hash failed. Please resolve then continue the cherry-picks manually"
-                    failed=true
+    if [ "$force" = "false" ]; then
+        read -r -p "Check any issues that have no pull requests, no to cancel and yes to continue? [y/N] " response
+        case "$response" in
+            [yY][eE][sS]|[yY])
+                echo "Continuing to cherry-pick"
+                echo
+                ;;
+            *)
+                exit 1
+                ;;
+        esac
+    fi
+
+    commits=""
+
+    for pr in ${total_prs[*]};
+    do
+        output=`gh pr view $pr --json state,mergeCommit,baseRefName`
+        state=`echo $output | jq -r .state`
+        commit=`echo $output | jq -r .mergeCommit.oid`
+        target_branch=`echo $output | jq -r .baseRefName`
+        echo -n "$pr $state $commit $target_branch:"
+        if [[ "$state" != "MERGED" || "$target_branch" != "main" ]]; then
+            echo " WARNING - Skipping pr https://github.com/fleetdm/fleet/pull/$pr"
+        else
+            if [[ "$commit" != "" && "$commit" != "null" ]]; then
+                echo " Commit looks valid - $commit, adding to cherry-pick"
+                commits+="$commit "
+            else
+                echo " WARNING - invalid commit for pr https://github.com/fleetdm/fleet/pull/$pr - $commit"
+            fi
+        fi
+        #echo "======================================="
+    done
+
+    for commit in $commits;
+    do
+        # echo $commit
+        timestamp=`git log -n 1 --pretty=format:%at $commit`
+        if [ $? -ne 0 ]; then
+            echo "Failed to identify $commit, exiting"
+            exit 1
+        fi
+        # echo $timestamp
+        time_map[$timestamp]=$commit
+    done
+
+    timestamps=""
+    for key in "${!time_map[@]}"; do
+        timestamps+="$key\n"
+    done
+    for ts in `echo -e $timestamps | sort`; do
+        commit_hash="${time_map[$ts]}"
+        # echo "# $ts $commit_hash"
+        if git branch --contains "$commit_hash" | $GREP_CMD -q "$(git rev-parse --abbrev-ref HEAD)"; then
+            echo "# Commit $commit_hash is on the current branch."
+            is_on_current_branch=true
+        else
+            # echo "# Commit $commit_hash is not on the current branch."
+            if [[ "$failed" == "false" ]]; then
+
+                if [ "$dry_run" = "false" ]; then
+                    git cherry-pick $commit_hash
+                    if [ $? -ne 0 ]; then
+                        echo "Cherry pick of $commit_hash failed. Please resolve then continue the cherry-picks manually"
+                        failed=true
+                    fi
+                else
+                    echo "DRYRUN: Would have cherry picked $commit_hash"
                 fi
             else
-                echo "DRYRUN: Would have cherry picked $commit_hash"
+                echo "git cherry-pick $commit_hash"
             fi
-        else
-            echo "git cherry-pick $commit_hash"
+            is_on_current_branch=false
         fi
-        is_on_current_branch=false
-    fi
-done
+    done
+fi
 
 if [[ "$failed" == "false" ]]; then
 
@@ -502,9 +552,17 @@ if [[ "$failed" == "false" ]]; then
         cat temp_changelog > CHANGELOG.md
         cat old_changelog >> CHANGELOG.md
         rm -f old_changelog
+        update_changelog_patch_branch="update-changelog-pb-$target_milestone"
+        local_exists=`git branch | $GREP_CMD $update_changelog_patch_branch`
+        if [[ $local_exists != "" ]]; then
+            # Clear previous
+            git branch -D $update_changelog_patch_branch
+        fi
+        git checkout -b $update_changelog_patch_branch
         git add CHANGELOG.md
         git commit -m "Adding changes for patch $target_milestone"
-        git push origin $target_patch_branch -f
+        git push origin $update_changelog_patch_branch -f
+        gh pr create -f -B $target_patch_branch
 
         cp CHANGELOG.md /tmp
         git checkout main 
@@ -558,11 +616,21 @@ if [[ "$failed" == "false" ]]; then
         echo "DRYRUN: Would have printed announce in #help-engineering text w/ qa ticket, deploy to docker link, and milestone issue list link"
     fi
 
-    next_tag="fleet-$next_ver"
     if [ "$dry_run" = "false" ]; then
-        # after passing QA
-        #echo "After QA is passed run these commands"
-        #echo
+        echo "waiting for Changelog PR to merge..."
+        echo `gh pr view $update_changelog_patch_branch --json url | jq -r .url`
+        echo
+        waiting=true
+        while waiting; do
+            pr_state=`gh pr view $update_changelog_patch_branch --json state | jq -r .state`
+            if [[ "$pr_state" == "MERGED" ]]; then
+                waiting=false
+            else
+                show_spinner 50
+            fi
+        done
+        git pull origin $target_patch_branch
+
         git tag $next_tag
         git push origin $next_tag
 
@@ -581,40 +649,7 @@ if [[ "$failed" == "false" ]]; then
     fi
 
 
-    if [ "$dry_run" = "false" ]; then
-        # echo "### Changes" > release_notes
-        # echo "" >> release_notes
-        cat temp_changelog | tail -n +3 >> release_notes
-        echo "" >> release_notes
-        echo "### Upgrading" >> release_notes
-        echo "" >> release_notes
-        echo "Please visit our [update guide](https://fleetdm.com/docs/deploying/upgrading-fleet) for upgrade instructions." >> release_notes
-        echo "" >> release_notes
-        echo "### Documentation" >> release_notes
-        echo "" >> release_notes
-        echo "Documentation for Fleet is available at [fleetdm.com/docs](https://fleetdm.com/docs)." >> release_notes
-        echo "" >> release_notes
-        echo "### Binary Checksum" >> release_notes
-        echo "" >> release_notes
-        echo "**SHA256**" >> release_notes
-        echo "" >> release_notes
-        echo '\`\`\`' >> release_notes
-        gh release download $next_tag -p checksums.txt
-        cat checksums.txt >> release_notes
-        echo '\`\`\`' >> release_notes
-
-        echo
-        echo "============== Release Notes ========================"
-        cat release_notes
-        echo "============== Release Notes ========================"
-
-        gh release edit --draft -F release_notes $next_tag
-    else
-        echo "DRYRUN: Would have created release notes text for update."
-    fi
-    # gh release create -d -t "fleet-v$target_milestone" $target_milestone -n ""
-    # gh release create -d -t "fleet-v$target_milestone" $target_milestone -F release_notes
-    # rm -f release_notes
+    update_release_notes
 else
     # TODO echo what to do
     echo "Placeholder, Cherry pick failed....figure out what to do..."
