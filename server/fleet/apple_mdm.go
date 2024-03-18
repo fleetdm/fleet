@@ -669,9 +669,8 @@ type MDMAppleHostDeclaration struct {
 
 // DeclarationLabel represents the many-to-many relationship between
 // declarations and labels.
-//
-// NOTE: json representation of the fields is a bit awkward to match the
-// required API response, as this struct is returned within profile responses.
+// TODO(JVE): I think we can remove this type altogether, but double check first (mainly when
+// ingesting declarations).
 type DeclarationLabel struct {
 	DeclarationUUID string `db:"profile_uuid" json:"-"`
 	LabelName       string `db:"label_name" json:"name"`

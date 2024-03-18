@@ -223,11 +223,16 @@ FROM (
 	}
 
 	// load the labels associated with those profiles
-	var winProfUUIDs, macProfUUIDs []string
+	var winProfUUIDs, macProfUUIDs, macDeclUUIDs []string
 	for _, prof := range profs {
 		if prof.Platform == "windows" {
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
 		} else {
+			if strings.HasPrefix(prof.ProfileUUID, "x") {
+				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
+				continue
+			}
+
 			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
 		}
 	}
@@ -235,6 +240,13 @@ FROM (
 	if err != nil {
 		return nil, nil, err
 	}
+
+	declLabels, err := ds.listDeclarationLabelsForDeclarations(ctx, macDeclUUIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	labels = append(labels, declLabels...)
 
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
@@ -248,6 +260,38 @@ FROM (
 	}
 
 	return profs, metaData, nil
+}
+
+// Note: we're using the ConfigurationProfileLabel type here since from the product perspective, MDM
+// profiles and declarations are both "profiles".
+func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, declUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+	if len(declUUIDs) == 0 {
+		return []fleet.ConfigurationProfileLabel{}, nil
+	}
+
+	stmt := `
+SELECT
+	declaration_uuid AS profile_uuid,
+	label_name,
+	label_id
+FROM
+	mdm_declaration_labels
+WHERE
+	declaration_uuid IN (?)
+ORDER BY
+	declaration_uuid, label_name
+	`
+
+	stmt, args, err := sqlx.In(stmt, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for declarations")
+	}
+
+	var labels []fleet.ConfigurationProfileLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select declaration labels")
+	}
+	return labels, nil
 }
 
 func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {

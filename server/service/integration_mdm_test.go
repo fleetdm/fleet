@@ -12541,7 +12541,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 
 	var decls [][]byte
 
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 7; i++ {
 		decls = append(decls, newDeclBytes(i))
 	}
 
@@ -12653,6 +12653,34 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, "darwin", resp.Profiles[0].Platform)
 	require.Equal(t, "N5", resp.Profiles[1].Name)
 	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	var createResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_1"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.Label.ID)
+	require.Equal(t, "label_1", createResp.Label.Name)
+	lbl1 := createResp.Label.Label
+
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_2"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.Label.ID)
+	require.Equal(t, "label_2", createResp.Label.Name)
+	lbl2 := createResp.Label.Label
+
+	// Add with labels
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N5", Contents: decls[5], Labels: []string{lbl1.Name, lbl2.Name}},
+		{Name: "N6", Contents: decls[6]},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N5", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N6", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Len(t, resp.Profiles[0].Labels, 2)
+	require.Equal(t, lbl1.Name, resp.Profiles[0].Labels[0].LabelName)
+	require.Equal(t, lbl2.Name, resp.Profiles[0].Labels[1].LabelName)
 }
 
 // TODO(sarah): Build out this test
