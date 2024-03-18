@@ -2066,13 +2066,13 @@ spec:
 		// apply appconfig with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(appConfigSpec, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
+		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 
 		// apply teams with invalid key
 		name = writeTmpYml(t, fmt.Sprintf(team1And2Spec, "", invalidURLMacosSetup, "", invalidURLMacosSetup))
 		_, err = runAppNoChecks([]string{"apply", "-f", name})
-		require.ErrorContains(t, err, "The automatic enrollment profile can’t include url.")
+		require.ErrorContains(t, err, "The automatic enrollment profile can't include url.")
 		assert.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
 	})
 

@@ -557,7 +557,10 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
+	}
+	if _, ok := m["await_device_configured"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
