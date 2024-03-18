@@ -8,13 +8,26 @@
     .button-wrap {
       display: flex;
       justify-content: flex-end;
-      min-width: 266px;
+      align-items: center;
+      gap: 8px;
     }
   }
 
-  &__manage-automations {
-    padding: $pad-small;
-    margin-right: $pad-small;
+  &__manage-automations-wrapper {
+    @include button-dropdown;
+    .Select-multi-value-wrapper {
+      width: 146px;
+    }
+    .Select > .Select-menu-outer {
+      left: -22px;
+    }
+    .Select-control {
+      margin-top: 0;
+      gap: 6px;
+    }
+    .Select-placeholder {
+      font-weight: $bold;
+    }
   }
 
   &__header {

@@ -142,33 +142,34 @@ const CalendarEventsModal = ({
 
   const renderConfiguredModal = () => (
     <div className={`${baseClass} form`}>
-      <Slider
-        value={formData.enabled}
-        onChange={() => {
-          onInputChange({ name: "enabled", value: !formData.enabled });
-        }}
-        inactiveText="Disabled"
-        activeText="Enabled"
-      />
-      <Button
-        type="button"
-        variant="text-link"
-        onClick={togglePreviewCalendarEvent}
-      >
-        Preview calendar event
-      </Button>
-      <InputField
-        placeholder="https://server.com/example"
-        label="Resolution webhook URL"
-        onChange={onInputChange}
-        name="resolutionWebhookUrl"
-        value={formData.url}
-        parseTarget
-        error={formErrors.url}
-        tooltip="Provide a URL to deliver a webhook request to."
-        helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
-      />
-      {/* <RevealButton
+      <>
+        <Slider
+          value={formData.enabled}
+          onChange={() => {
+            onInputChange({ name: "enabled", value: !formData.enabled });
+          }}
+          inactiveText="Disabled"
+          activeText="Enabled"
+        />
+        <Button
+          type="button"
+          variant="text-link"
+          onClick={togglePreviewCalendarEvent}
+        >
+          Preview calendar event
+        </Button>
+        <InputField
+          placeholder="https://server.com/example"
+          label="Resolution webhook URL"
+          onChange={onInputChange}
+          name="resolutionWebhookUrl"
+          value={formData.url}
+          parseTarget
+          error={formErrors.url}
+          tooltip="Provide a URL to deliver a webhook request to."
+          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
+        />
+        {/* <RevealButton
         isShowing={showExamplePayload}
         className={`${baseClass}__show-example-payload-toggle`}
         hideText="Hide example payload"
@@ -179,7 +180,8 @@ const CalendarEventsModal = ({
         }}
       />
       {showExamplePayload && renderExamplePayload()} */}
-      {renderPoliciesList()}
+        {renderPoliciesList()}
+      </>
     </div>
   );
 

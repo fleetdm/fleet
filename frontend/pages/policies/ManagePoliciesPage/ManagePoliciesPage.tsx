@@ -757,13 +757,15 @@ const ManagePolicyPage = ({
           {showCtaButtons && (
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations && automationsConfig && (
-                <Dropdown
-                  className={`${baseClass}__manage-automations-dropdown`}
-                  onChange={onSelectAutomationOption}
-                  placeholder="Manage automations"
-                  searchable={false}
-                  options={automationsDropdownOptions}
-                />
+                <div className={`${baseClass}__manage-automations-wrapper`}>
+                  <Dropdown
+                    className={`${baseClass}__manage-automations-dropdown`}
+                    onChange={onSelectAutomationOption}
+                    placeholder="Manage automations"
+                    searchable={false}
+                    options={automationsDropdownOptions}
+                  />
+                </div>
 
                 // <Button
                 //   onClick={toggleManageAutomationsModal}
