@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"time"
 
@@ -3122,12 +3123,11 @@ ON DUPLICATE KEY UPDATE
   declaration = VALUES(declaration)
 `
 
-	const deleteDeclsNotInList = `
+	deleteDeclsNotInList := `
 DELETE FROM
   mdm_apple_declarations
 WHERE
-  team_id = ? AND
-  identifier NOT IN (?)
+  team_id = ?
 `
 
 	const loadExistingDecls = `
@@ -3180,27 +3180,25 @@ WHERE
 	}
 
 	// figure out if we need to delete any declarations
-	keepIdents := make([]string, 0, len(incomingIdents))
+	keepIdents := make([]any, 0, len(incomingIdents))
 	for _, p := range existingDecls {
 		if newP := incomingDecls[p.Identifier]; newP != nil {
 			keepIdents = append(keepIdents, p.Identifier)
 		}
 	}
 
-	var (
-		stmt string
-		args []interface{}
-		err  error
-	)
-	// delete the obsolete declarations (all those that are not in keepIdents or delivered by Fleet)
-	stmt, args, err = sqlx.In(deleteDeclsNotInList, declTeamID, keepIdents)
-	if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "indelete") {
-		if err == nil {
-			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-		}
-		return nil, ctxerr.Wrap(ctx, err, "build statement to delete obsolete profiles")
+	// delete the obsolete declarations (all those that are not in keepIdents)
+	if len(keepIdents) > 0 {
+		deleteDeclsNotInList = deleteDeclsNotInList + fmt.Sprintf(` AND identifier NOT IN (? %s)`, strings.Repeat(",?", len(keepIdents)-1))
 	}
-	if _, err := tx.ExecContext(ctx, stmt, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
+
+	slog.With("filename", "server/datastore/mysql/apple_mdm.go", "func", "deleteDeclsNotInList").Info("JVE_LOG: hmmmmmm ", "sql")
+
+	var args []any
+	args = append(args, declTeamID)
+	args = append(args, keepIdents...)
+
+	if _, err := tx.ExecContext(ctx, deleteDeclsNotInList, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}

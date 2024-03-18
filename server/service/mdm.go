@@ -1603,11 +1603,13 @@ func getAppleProfiles(
 
 		// Check for DDM files
 
-		// TODO(JVE): need a more bulletproof way to determine if the bytes are JSON or not.
-		if bytes.Contains(prof.Contents, []byte("{")) {
-			// TODO(JVE): break this out into its own helper function per type, or find a way to use
-			// generics to DRY this up
+		isJSON := func(b []byte) bool {
+			var js json.RawMessage
+			return json.Unmarshal(b, &js) == nil
+		}
 
+		// TODO(JVE): need a more bulletproof way to determine if the bytes are JSON or not.
+		if isJSON(prof.Contents) {
 			declType, ident, err := fleet.GetRawDeclarationValues(prof.Contents)
 			if err != nil {
 				return nil, nil, err
