@@ -5,7 +5,6 @@ import (
 	"crypto"
 	"crypto/x509"
 	"encoding/base64"
-	"log/slog"
 
 	"go.mozilla.org/pkcs7"
 )
@@ -41,7 +40,6 @@ func DecryptBase64CMS(p7Base64 string, cert *x509.Certificate, key crypto.Privat
 //     empty.
 func GetRawProfilePlatform(profile []byte) string {
 	trimmedProfile := bytes.TrimSpace(profile)
-	slog.With("filename", "server/mdm/mdm.go", "func", "GetRawProfilePlatform").Info("JVE_LOG: got a profile ", "profile", trimmedProfile)
 
 	if len(trimmedProfile) == 0 {
 		return ""

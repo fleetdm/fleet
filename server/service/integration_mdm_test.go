@@ -12510,29 +12510,92 @@ func (s *integrationMDMTestSuite) TestAppleDDMUpload() {
 
 	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: t.Name()}})
 	require.NoError(t, err)
-
-	ddmProf := []byte(`
+	tmpl := `
 {
-	"Type": "com.apple.configuration.services.configuration-files",
-	"Identifier": "io.macadmins.config.bash",
+	"Type": "com.apple.configuration.decl%d",
+	"Identifier": "com.fleet.config%d",
 	"Payload": {
 		"ServiceType": "com.apple.bash",
-		"DataAssetReference": "io.macadmins.asset.bash"
+		"DataAssetReference": "com.fleet.asset.bash" %s
 	}
-}`)
+}`
 
-	testProfiles := []fleet.MDMProfileBatchPayload{
-		{Name: "N1", Contents: ddmProf},
+	newDeclBytes := func(i int, payload ...string) []byte {
+		var p string
+		if len(payload) > 0 {
+			p = "," + strings.Join(payload, ",")
+		}
+		return []byte(fmt.Sprintf(tmpl, i, i, p))
 	}
 
-	// add global profiles
-	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: testProfiles}, http.StatusNoContent)
+	var decls [][]byte
 
-	// verify that our declaration worked
+	for i := 0; i < 5; i++ {
+		decls = append(decls, newDeclBytes(i))
+	}
+
+	// Should fail at adding the same declaration twice
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: decls[0]},
+		{Name: "N2", Contents: decls[0]},
+	}}, http.StatusUnprocessableEntity)
+
+	// Create 2 declarations
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: decls[0]},
+		{Name: "N2", Contents: decls[1]},
+	}}, http.StatusNoContent)
+
 	var resp listMDMConfigProfilesResponse
 	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
 
-	require.Len(t, resp.Profiles, 1)
+	require.Len(t, resp.Profiles, 2)
 	require.Equal(t, "N1", resp.Profiles[0].Name)
 	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N2", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// Create 2 new declarations. These should take the place of the first two.
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: decls[2]},
+		{Name: "N4", Contents: decls[3]},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N4", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// replace only 1 declaration, the other one should be the same
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: decls[2]},
+		{Name: "N5", Contents: decls[4]},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N5", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// update the declarations
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: newDeclBytes(2, `"foo": "bar"`)},
+		{Name: "N5", Contents: newDeclBytes(4, `"bing": "baz"`)},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N5", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
 }
