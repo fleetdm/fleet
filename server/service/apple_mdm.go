@@ -2990,6 +2990,11 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	switch {
 	case dm.Endpoint == "tokens":
 		level.Debug(svc.logger).Log("msg", "received tokens request")
+		// TODO: Should we record the checkin for all endpoints or just tokens?
+		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
+		}
+
 		return svc.handleTokens(r.Context, tid)
 
 	case dm.Endpoint == "declaration-items":
@@ -2998,9 +3003,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	case dm.Endpoint == "status":
 		level.Debug(svc.logger).Log("msg", "received status request")
-		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
-		}
+		// TODO(roberto): handle status
 
 		return nil, nil
 
