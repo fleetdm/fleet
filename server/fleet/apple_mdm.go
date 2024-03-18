@@ -596,7 +596,7 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.carddav":              {},
 	"com.apple.configuration.account.exchange":             {},
 	"com.apple.configuration.account.google":               {},
-	"com.apple.configuration.account":                      {},
+	"com.apple.configuration.account.ldap":                 {},
 	"com.apple.configuration.account.mail":                 {},
 	"com.apple.configuration.management.test":              {},
 	"com.apple.configuration.screensharing.connection":     {},
