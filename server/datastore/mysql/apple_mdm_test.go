@@ -69,6 +69,7 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
+		{"MDMAppleRecordDeclarativeCheckIn", testMDMAppleRecordDeclarativeCheckIn},
 	}
 
 	for _, c := range cases {
@@ -4568,6 +4569,49 @@ func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, skip)
 	require.Empty(t, assign)
+}
+
+func testMDMAppleRecordDeclarativeCheckIn(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	host, err := ds.NewHost(ctx, &fleet.Host{
+		Hostname:      "test-host1-name",
+		OsqueryHostID: ptr.String("1337"),
+		NodeKey:       ptr.String("1337"),
+		UUID:          "test-uuid-1",
+		TeamID:        nil,
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// error if the host is not enrolled
+	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte{})
+	require.Error(t, err)
+
+	// enroll the host
+	nanoEnroll(t, ds, host, true)
+
+	// it's okay if the host doesn't have matching command enqueued, the
+	// check-in could be initiated by the device.
+	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte{})
+	require.NoError(t, err)
+
+	// enqueue a declarative checkin request
+	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
+	cmdUUID := uuid.New().String()
+	err = commander.DeclarativeManagement(ctx, []string{host.UUID}, cmdUUID)
+	require.NoError(t, err)
+
+	// record a response from the host
+	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte("<?xml"))
+	require.NoError(t, err)
+
+	res, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
+	require.NoError(t, err)
+	require.Len(t, res, 1)
+	require.Equal(t, host.UUID, res[0].HostUUID)
+	require.Equal(t, fleet.MDMAppleStatusAcknowledged, res[0].Status)
+	require.EqualValues(t, []byte("<?xml"), res[0].Result)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {

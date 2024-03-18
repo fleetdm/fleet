@@ -748,6 +748,8 @@ type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
+type MDMAppleRecordDeclarativeCheckInFunc func(ctx context.Context, hostUUID string, response []byte) error
+
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
@@ -816,7 +818,7 @@ type SetOrUpdateMDMWindowsConfigProfileFunc func(ctx context.Context, cp fleet.M
 
 type BatchSetMDMProfilesFunc func(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error
 
-type NewMDMAppleDeclarationFunc func(ctx context.Context, tmID *uint, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
+type NewMDMAppleDeclarationFunc func(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error)
 
 type NewHostScriptExecutionRequestFunc func(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error)
 
@@ -1955,6 +1957,9 @@ type DataStore struct {
 
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
+
+	MDMAppleRecordDeclarativeCheckInFunc        MDMAppleRecordDeclarativeCheckInFunc
+	MDMAppleRecordDeclarativeCheckInFuncInvoked bool
 
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
@@ -4682,6 +4687,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
 }
 
+func (s *DataStore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, response []byte) error {
+	s.mu.Lock()
+	s.MDMAppleRecordDeclarativeCheckInFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleRecordDeclarativeCheckInFunc(ctx, hostUUID, response)
+}
+
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {
 	s.mu.Lock()
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
@@ -4920,11 +4932,11 @@ func (s *DataStore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProf
 	return s.BatchSetMDMProfilesFunc(ctx, tmID, macProfiles, winProfiles, macDeclarations)
 }
 
-func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, tmID *uint, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
+func (s *DataStore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	s.mu.Lock()
 	s.NewMDMAppleDeclarationFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewMDMAppleDeclarationFunc(ctx, tmID, declaration)
+	return s.NewMDMAppleDeclarationFunc(ctx, declaration)
 }
 
 func (s *DataStore) NewHostScriptExecutionRequest(ctx context.Context, request *fleet.HostScriptRequestPayload) (*fleet.HostScriptResult, error) {
