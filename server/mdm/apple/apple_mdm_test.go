@@ -45,6 +45,7 @@ func TestDEPService(t *testing.T) {
 				require.Contains(t, got.ConfigurationWebURL, serverURL+"api/mdm/apple/enroll?token=")
 				got.URL = ""
 				got.ConfigurationWebURL = ""
+				defaultProfile.AwaitDeviceConfigured = true // this is set to !appCfg.MDM.MacOSSetup.EnableReleaseDeviceManully which is false by default
 				require.Equal(t, defaultProfile, &got)
 			default:
 				require.Fail(t, "unexpected path: %s", r.URL.Path)
