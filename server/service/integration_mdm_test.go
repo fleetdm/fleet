@@ -12688,23 +12688,246 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 // TODO(sarah): Build out this test
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
-	mdmDevice := mdmtest.NewTestMDMClientAppleDirect(mdmtest.AppleEnrollInfo{
-		SCEPChallenge: s.fleetCfg.MDM.AppleSCEPChallenge,
-		SCEPURL:       s.server.URL + apple_mdm.SCEPPath,
-		MDMURL:        s.server.URL + apple_mdm.MDMPath,
+	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	insertDeclaration := func(t *testing.T, decl fleet.MDMAppleDeclaration) {
+		stmt := `
+INSERT INTO mdm_apple_declarations (
+	declaration_uuid,
+	team_id,
+	identifier,
+	name,
+	declaration_type,
+	declaration,
+	md5_checksum,
+	created_at,
+	uploaded_at
+) VALUES (?,?,?,?,?,?,?,?,?)`
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), stmt,
+				decl.DeclarationUUID,
+				decl.TeamID,
+				decl.Identifier,
+				decl.Name,
+				decl.DeclarationType,
+				decl.Declaration,
+				decl.MD5Checksum,
+				decl.CreatedAt,
+				decl.UploadedAt,
+			)
+			return err
+		})
+	}
+
+	// initialize a time to use for our first declaration, subsequent declarations will be
+	// incremented by a minute
+	then := time.Now().UTC().Truncate(time.Second).Add(-1 * time.Hour)
+
+	// insert a declaration with no team
+	noTeamDeclsByUUID := map[string]fleet.MDMAppleDeclaration{
+		"123": {
+			DeclarationUUID: "123",
+			TeamID:          ptr.Uint(0),
+			Identifier:      "com.example",
+			Name:            "Example",
+			DeclarationType: fleet.MDMAppleDeclarativeConfiguration,
+			Declaration:     json.RawMessage(`{"foo": "bar"}`),
+			MD5Checksum:     "csum123",
+			CreatedAt:       then,
+			UploadedAt:      then,
+		},
+	}
+	insertDeclaration(t, noTeamDeclsByUUID["123"])
+
+	mapDeclsByChecksum := func(byUUID map[string]fleet.MDMAppleDeclaration) map[string]fleet.MDMAppleDeclaration {
+		byChecksum := make(map[string]fleet.MDMAppleDeclaration)
+		for _, d := range byUUID {
+			byChecksum[d.MD5Checksum] = byUUID[d.DeclarationUUID]
+		}
+		return byChecksum
+	}
+
+	parseTokensResp := func(r *http.Response) fleet.MDMAppleDDMTokensResponse {
+		require.NotNil(t, r)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+		// t.Log("body", string(b))
+
+		// unmarsal the response to make sure it's valid
+		var tok fleet.MDMAppleDDMTokensResponse
+		err = json.NewDecoder(r.Body).Decode(&tok)
+		require.NoError(t, err)
+		// t.Log("decoded", tok)
+
+		return tok
+	}
+
+	parseDeclarationItemsResp := func(r *http.Response) fleet.MDMAppleDDMDeclarationItemsResponse {
+		require.NotNil(t, r)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+		// t.Log("body", string(b))
+
+		// unmarsal the response to make sure it's valid
+		var di fleet.MDMAppleDDMDeclarationItemsResponse
+		err = json.NewDecoder(r.Body).Decode(&di)
+		require.NoError(t, err)
+		// t.Log("decoded", di)
+
+		return di
+	}
+
+	parseDeclarationResp := func(r *http.Response, expectedBytes []byte) fleet.MDMAppleDDMDeclarationResponse {
+		require.NotNil(t, r)
+		b, err := io.ReadAll(r.Body)
+		require.NoError(t, err)
+		defer r.Body.Close()
+		if expectedBytes != nil {
+			require.Equal(t, expectedBytes, b)
+		}
+		r.Body = io.NopCloser(bytes.NewBuffer(b))
+		// t.Log("body", string(b))
+
+		// unmarsal the response to make sure it's valid
+		var d fleet.MDMAppleDDMDeclarationResponse
+		err = json.NewDecoder(r.Body).Decode(&d)
+		require.NoError(t, err)
+		// t.Logf("decoded: %+v", d)
+
+		return d
+	}
+
+	checkTokensResp := func(t *testing.T, r fleet.MDMAppleDDMTokensResponse, expectedTimestamp time.Time, prevToken string) {
+		require.Equal(t, expectedTimestamp, r.SyncTokens.Timestamp)
+		require.NotEmpty(t, r.SyncTokens.DeclarationsToken)
+		require.NotEqual(t, prevToken, r.SyncTokens.DeclarationsToken)
+	}
+
+	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string, expectedDeclsByChecksum map[string]fleet.MDMAppleDeclaration) {
+		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
+		require.Empty(t, r.Declarations.Activations)
+		require.Empty(t, r.Declarations.Assets)
+		require.Empty(t, r.Declarations.Management)
+		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByChecksum))
+		for _, m := range r.Declarations.Configurations {
+			// look up the declaration by the server token (we trim the token to the first seven
+			// chars to match our keys because response is padded to length 16 with "\u000")
+			d, ok := expectedDeclsByChecksum[m.ServerToken[0:7]]
+			require.True(t, ok)
+			require.Equal(t, d.Identifier, m.Identifier)
+		}
+	}
+
+	var currDeclToken string // we'll use this to track the expected token across tests
+
+	t.Run("Tokens", func(t *testing.T) {
+		// get tokens, timestamp should be the same as the declaration and token should be non-empty
+		r, err := mdmDevice.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+		parsed := parseTokensResp(r)
+		checkTokensResp(t, parsed, then, "")
+		currDeclToken = parsed.SyncTokens.DeclarationsToken
+
+		// insert a new declaration
+		noTeamDeclsByUUID["456"] = fleet.MDMAppleDeclaration{
+			DeclarationUUID: "456",
+			TeamID:          ptr.Uint(0),
+			Identifier:      "com.example2",
+			Name:            "Example2",
+			DeclarationType: fleet.MDMAppleDeclarativeConfiguration,
+			Declaration:     json.RawMessage(`{"foo": "baz"}`),
+			MD5Checksum:     "csum456",
+			CreatedAt:       then.Add(1 * time.Minute),
+			UploadedAt:      then.Add(1 * time.Minute),
+		}
+		insertDeclaration(t, noTeamDeclsByUUID["456"])
+
+		// get tokens again, timestamp and token should have changed
+		r, err = mdmDevice.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+		parsed = parseTokensResp(r)
+		checkTokensResp(t, parsed, then.Add(1*time.Minute), currDeclToken)
+		currDeclToken = parsed.SyncTokens.DeclarationsToken
 	})
-	err := mdmDevice.Enroll()
-	require.NoError(t, err)
 
-	err = mdmDevice.DeclarativeManagement("tokens")
-	require.NoError(t, err)
+	t.Run("DeclarationItems", func(t *testing.T) {
+		r, err := mdmDevice.DeclarativeManagement("declaration-items")
+		require.NoError(t, err)
+		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
 
-	err = mdmDevice.DeclarativeManagement("declaration-items")
-	require.NoError(t, err)
+		// insert a new declaration
+		noTeamDeclsByUUID["789"] = fleet.MDMAppleDeclaration{
+			DeclarationUUID: "789",
+			TeamID:          ptr.Uint(0),
+			Identifier:      "com.example3",
+			Name:            "Example3",
+			DeclarationType: fleet.MDMAppleDeclarativeConfiguration,
+			Declaration:     json.RawMessage(`{"foo": "bang"}`),
+			MD5Checksum:     "csum789",
+			CreatedAt:       then.Add(2 * time.Minute),
+			UploadedAt:      then.Add(2 * time.Minute),
+		}
+		insertDeclaration(t, noTeamDeclsByUUID["789"])
 
-	err = mdmDevice.DeclarativeManagement("status")
-	require.NoError(t, err)
+		// get tokens again, timestamp and token should have changed
+		r, err = mdmDevice.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+		toks := parseTokensResp(r)
+		checkTokensResp(t, toks, then.Add(2*time.Minute), currDeclToken)
+		currDeclToken = toks.SyncTokens.DeclarationsToken
 
-	err = mdmDevice.DeclarativeManagement("declarations/foo/bar")
-	require.NoError(t, err)
+		r, err = mdmDevice.DeclarativeManagement("declaration-items")
+		require.NoError(t, err)
+		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
+	})
+
+	t.Run("Status", func(t *testing.T) {
+		_, err := mdmDevice.DeclarativeManagement("status")
+		require.NoError(t, err)
+	})
+
+	t.Run("Declaration", func(t *testing.T) {
+		want := noTeamDeclsByUUID["123"]
+		wantBytes, err := json.Marshal(want.Declaration)
+		require.NoError(t, err)
+		r, err := mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configuration", want.Identifier))
+		require.NoError(t, err)
+
+		_ = parseDeclarationResp(r, wantBytes)
+
+		// insert a new declaration
+		noTeamDeclsByUUID["abc"] = fleet.MDMAppleDeclaration{
+			DeclarationUUID: "abc",
+			TeamID:          ptr.Uint(0),
+			Identifier:      "com.example4",
+			Name:            "Example4",
+			DeclarationType: fleet.MDMAppleDeclarativeConfiguration,
+			Declaration: json.RawMessage(`{
+				"Type": "com.apple.configuration.test",
+				"Payload": {"foo":"bar"},
+				"Identifier": "com.example4",
+				"ServerToken": "csumabc"
+			}`),
+			MD5Checksum: "csumabc",
+			CreatedAt:   then.Add(3 * time.Minute),
+			UploadedAt:  then.Add(3 * time.Minute),
+		}
+		insertDeclaration(t, noTeamDeclsByUUID["abc"])
+		want = noTeamDeclsByUUID["abc"]
+		wantBytes, err = json.Marshal(want.Declaration)
+		require.NoError(t, err)
+		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configuration", want.Identifier))
+		require.NoError(t, err)
+
+		d := parseDeclarationResp(r, wantBytes)
+		require.Equal(t, want.Identifier, d.Identifier)
+		require.Equal(t, "com.apple.configuration.test", d.Type)
+		require.Equal(t, json.RawMessage(`{"foo":"bar"}`), d.Payload)
+		require.Equal(t, want.MD5Checksum, d.ServerToken)
+	})
 }

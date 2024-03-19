@@ -689,3 +689,67 @@ func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ide
 
 	return &decl
 }
+
+// MDMAppleDDMTokensResponse is the response from the DDM tokens endpoint.
+//
+// https://developer.apple.com/documentation/devicemanagement/tokensresponse
+type MDMAppleDDMTokensResponse struct {
+	SyncTokens MDMAppleDDMSyncTokens
+}
+
+// MDMAppleDDMSyncTokens is dictionary describes the state of declarations on the server.
+//
+// https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
+type MDMAppleDDMSyncTokens struct {
+	DeclarationsToken string    `db:"md5_checksum"`
+	Timestamp         time.Time `db:"latest_created_timestamp"`
+}
+
+// MDMAppleDDMDeclarationItemsResponse is the response from the DDM declaration items endpoint.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
+type MDMAppleDDMDeclarationItemsResponse struct {
+	Declarations      MDMAppleDDMManifestItems
+	DeclarationsToken string
+}
+
+// MDMAppleDDMManifestItems is a dictionary that contains the lists of declarations available on the
+// server.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse/manifestdeclarationitems
+type MDMAppleDDMManifestItems struct {
+	Activations    []MDMAppleDDMManifest
+	Assets         []MDMAppleDDMManifest
+	Configurations []MDMAppleDDMManifest
+	Management     []MDMAppleDDMManifest
+}
+
+// MDMAppleDDMManifest is a dictionary that describes a declaration.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse/manifestdeclarationitems
+type MDMAppleDDMManifest struct {
+	Identifier  string
+	ServerToken string
+}
+
+// MDMAppleDDMDeclarationItem represents a declaration item in the datastore. It is used to
+// construct the DDM `declaration-items` endpoint response.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
+type MDMAppleDDMDeclarationItem struct {
+	Identifier        string `db:"identifier"`
+	DeclarationType   string `db:"declaration_type"`
+	DeclarationsToken string `db:"declarations_token"`
+	ServerToken       string `db:"server_token"`
+}
+
+// MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
+// `declaration/.../...` enpoint response.
+//
+// https://developer.apple.com/documentation/devicemanagement/declarationresponse
+type MDMAppleDDMDeclarationResponse struct {
+	Identifier  string          `db:"identifier"`
+	Type        string          `db:"type"`
+	Payload     json.RawMessage `db:"payload"`
+	ServerToken string          `db:"server_token"`
+}
