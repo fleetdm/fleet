@@ -31,7 +31,8 @@ export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
         innerProps.isDiskEncryptionProfile
           ? "The host turned disk encryption on and sent the key to Fleet. " +
             "Fleet verified with osquery."
-          : "The host applied the setting. Fleet verified with osquery.",
+          : "The host applied the setting. Fleet verified with osquery. " +
+            "Declaration profiles are verified with DDM.",
     },
     verifying: {
       statusText: "Verifying",
