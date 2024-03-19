@@ -84,7 +84,7 @@ https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac
     | 0x00000400    | Instructs the client to delete any expired, revoked, or renewed certificate from the user's certificate stores.                                                                                                                                                                                |
     | 0x00002000    | This flag instructs the client to reuse the private key for a smart card–based certificate renewal if it is unable to create a new private key on the card.                                                                                                                                    |
   - `EnrollmentState`
-    The best documentation we can find is [[https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate?view=graph-rest-beta][here]]
+    The best documentation we can find is [here](https://learn.microsoft.com/en-us/graph/api/resources/intune-shared-enrollmentstate?view=graph-rest-beta)
 
     | Member       | Value | Description                                                                                                        |
     |--------------|-------|--------------------------------------------------------------------------------------------------------------------|
