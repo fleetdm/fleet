@@ -78,18 +78,24 @@ const CalendarEventsModal = ({
     const { url: curUrl } = curFormData;
     if (!validURL({ url: curUrl })) {
       const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
-      errors.resolutionWebhookUrl = `${errorPrefix} a valid resolution webhook URL`;
+      errors.url = `${errorPrefix} a valid resolution webhook URL`;
     }
-    return {};
+    return errors;
   };
+
+  // TODO - separate change handlers for checkboxes:
+  // const onPolicyUpdate = ...
+  // const onTextFieldUpdate = ...
 
   const onInputChange = useCallback(
     (newVal: { name: FormNames; value: string | number | boolean }) => {
       const { name, value } = newVal;
       let newFormData: ICalendarEventsFormData;
+      // for the first two fields, set the new value directly
       if (["enabled", "url"].includes(name)) {
         newFormData = { ...formData, [name]: value };
       } else if (typeof value === "boolean") {
+        // otherwise, set the value for a nested policy
         const newFormPolicies = formData.policies.map((formPolicy) => {
           if (formPolicy.name === name) {
             return { ...formPolicy, isChecked: value };
@@ -194,7 +200,7 @@ const CalendarEventsModal = ({
         placeholder="https://server.com/example"
         label="Resolution webhook URL"
         onChange={onInputChange}
-        name="resolutionWebhookUrl"
+        name="url"
         value={formData.url}
         parseTarget
         error={formErrors.url}
@@ -223,6 +229,7 @@ const CalendarEventsModal = ({
           }}
           className="save-loading"
           isLoading={isUpdating}
+          disabled={Object.keys(formErrors).length > 0}
         >
           Save
         </Button>

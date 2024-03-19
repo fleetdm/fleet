@@ -539,7 +539,8 @@ const ManagePolicyPage = ({
 
   const handleUpdateAutomations = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IGlobalIntegrations | ITeamIntegrations;
+    // TODO - update below type to specify team integration
+    integrations: IIntegrations;
   }) => {
     setIsUpdatingAutomations(true);
     try {
@@ -783,6 +784,12 @@ const ManagePolicyPage = ({
       premiumOnly: false,
     },
   ];
+
+  const isCalEventsConfigured =
+    (config?.integrations.google_calendar &&
+      config?.integrations.google_calendar.length > 0) ??
+    false;
+
   return (
     <MainContent className={baseClass}>
       <div className={`${baseClass}__wrapper`}>
@@ -936,17 +943,13 @@ const ManagePolicyPage = ({
               updatePolicyEnabledCalendarEvents
             }
             // TODO - remove dummy prop values
-            // configured={config?.integrations.google_calendar}
+            // configured={isCalEventsConfigured}
             configured
-            // enabled={
-            //   teamConfig?.integrations.google_calendar?.enable_calendar_events
-            // }
-            enabled
-            // url={
-            //   teamConfig?.integrations.google_calendar?.resolution_webhook_url ||
-            //   ""
-            // }
-            url="https://google.com"
+            enabled={
+              teamConfig?.integrations.google_calendar
+                ?.enable_calendar_events ?? false
+            }
+            url={teamConfig?.integrations.google_calendar?.webhook_url || ""}
             policies={teamPolicies || []}
             isUpdating={updatingPolicyEnabledCalendarEvents}
           />

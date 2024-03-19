@@ -71,15 +71,20 @@ interface ITeamCalendarSettings {
   webhook_url: string;
 }
 
+// zendesk and jira fields are coupled – if one is present, the other needs to be present. If
+// one is present and the other is null/missing, the other will be nullified. google_calendar is
+// separated – it can be present without the other 2 without nullifying them.
+// TODO:  Update these types to reflect this.
+
 export interface IIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
 }
 
 export interface IGlobalIntegrations extends IIntegrations {
-  google_calendar: IGlobalCalendarIntegration[] | null;
+  google_calendar?: IGlobalCalendarIntegration[] | null;
 }
 
 export interface ITeamIntegrations extends IIntegrations {
-  google_calendar: ITeamCalendarSettings | null;
+  google_calendar?: ITeamCalendarSettings | null;
 }

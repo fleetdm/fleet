@@ -5,7 +5,7 @@ import { pick } from "lodash";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { ITeamIntegrations } from "interfaces/integration";
+import { IIntegrations, ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
   INewTeamUsersBody,
@@ -118,7 +118,7 @@ export default {
       requestBody.webhook_settings = webhook_settings;
     }
     if (integrations) {
-      const { jira, zendesk } = integrations;
+      const { jira, zendesk, google_calendar } = integrations;
       const teamIntegrationProps = [
         "enable_failing_policies",
         "group_id",
@@ -128,6 +128,7 @@ export default {
       requestBody.integrations = {
         jira: jira?.map((j) => pick(j, teamIntegrationProps)),
         zendesk: zendesk?.map((z) => pick(z, teamIntegrationProps)),
+        google_calendar,
       };
     }
     if (mdm) {
