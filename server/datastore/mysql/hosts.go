@@ -4967,7 +4967,11 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 
 	for _, s := range host.Software {
 		if len(s.Vulnerabilities) > 0 {
-			hh.VulnerableSoftware = append(hh.VulnerableSoftware, s)
+			hh.VulnerableSoftware = append(hh.VulnerableSoftware, fleet.HostHealthVulnerableSoftware{
+				ID:      s.ID,
+				Name:    s.Name,
+				Version: s.Version,
+			})
 		}
 	}
 
