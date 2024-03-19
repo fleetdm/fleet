@@ -3477,7 +3477,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 Re-delivers a configuration profile for the specified host.
 
-`POST /api/v1/fleet/hosts/:id/reinstall_profile`
+`POST /api/v1/fleet/hosts/:id/redeliver_profile`
 
 #### Parameters
 
@@ -3485,6 +3485,10 @@ Re-delivers a configuration profile for the specified host.
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The host's ID. |
 | profile_uuid   | string | query | **Required.** The UUID of the configuration profile to re-deliver on the host. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/233/redeliver_profile?profile_uuid=cfc14a20-84a2-42d8-9257-a425f62bb54d`
 
 ##### Default response
 
