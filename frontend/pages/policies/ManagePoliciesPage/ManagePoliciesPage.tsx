@@ -593,13 +593,12 @@ const ManagePolicyPage = ({
       );
 
       await Promise.all([configResponse, ...policyResponses]);
+      renderFlash("success", "Successfully updated policy automations.");
     } catch {
-      (errorResponse: { data: IApiError }) => {
-        renderFlash(
-          "error",
-          `Could not update team settings. ${errorResponse.data.errors[0].reason}`
-        );
-      };
+      renderFlash(
+        "error",
+        "Could not update policy automations. Please try again."
+      );
     } finally {
       toggleCalendarEventsModal();
       setUpdatingPolicyEnabledCalendarEvents(false);

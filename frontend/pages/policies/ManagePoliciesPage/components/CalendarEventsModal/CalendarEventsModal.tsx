@@ -205,6 +205,7 @@ const CalendarEventsModal = ({
         parseTarget
         error={formErrors.url}
         tooltip="Provide a URL to deliver a webhook request to."
+        labelTooltipPosition="top-start"
         helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
       />
       {/* <RevealButton
