@@ -10,7 +10,7 @@ To test these changes locally, you can:
 2. host this file on a local web server
 
     ```bash
-    go run ./tools/file-server 8082 ./server/vulnerabilities/nvd
+    go run ./tools/file-server/main.go 8082 ./server/vulnerabilities/nvd/
     ```
 
 3. (re)launch your local fleet server with one of the following
@@ -20,7 +20,6 @@ To test these changes locally, you can:
     vulnerabilities:
     cpe_translations_url: "http://localhost:8082/cpe_translations.json"
     ```
-
     
     Environment method
     ```bash
@@ -28,7 +27,6 @@ To test these changes locally, you can:
     ```
 
 4. trigger a vulnerabilities scan
-
     ```bash
     fleetctl trigger --name vulnerabilities
     ```

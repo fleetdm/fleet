@@ -372,17 +372,43 @@
       </div>
       <% } else { %>
         <div purpose="reduced-nav-footer" data-nosnippet>
-            <div style="font-size: 11px; line-height: 18px;" class="d-sm-flex d-block flex-sm-row align-items-center justify-content-center">
-              <div class="d-flex flex-row align-items-center pb-2 pb-sm-0">
-                <img alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" style="width: 80px; height: 15px; margin-right: 8px;"/>
-                <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" style="width: 9px; height: auto; margin-right: 6px;" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+            <div purpose="legal-and-social-nav" class="d-flex flex-md-row flex-column align-items-lg-center justify-content-md-between">
+
+              <div purpose="legal-section" class="d-flex flex-column justify-content-start align-items-start flex-sm-row pr-sm-0">
+                <div purpose="license-information" class="d-flex flex-row align-items-center">
+                  <img purpose="creative-commons-license" alt="Creative Commons Licence CC BY-SA 4.0" src="/images/logo-creative-commons-greyscale-80x16@2x.png" />
+                  <a purpose="footer-trust-link" class="d-flex flex-row align-items-center" href="/trust" target="_blank"><img alt="a small checkmark" src="/images/icon-checkmark-fleet-black-75-9x7@2x.png">SOC2 Type 2 certified</a>
+                </div>
+                <div purpose="copyright-and-legal-link" class="text-sm-nowrap d-block d-sm-inline">
+                  © <%= (new Date()).getFullYear() %> <a href="/handbook/company"><%= corporationDisplayName %></a>
+                  <span purpose="legal-links">
+                    <a href="/legal/privacy">Privacy</a>
+                  </span>
+                </div>
               </div>
-              <div class="d-flex">
-                © <%= (new Date()).getFullYear() %> <%= corporationDisplayName %>
-                <a style="margin-left: 12px; font-size: 12px; text-underline-offset: 2.5px; text-decoration: underline; color: #515774" href="/legal/privacy">Privacy</a>
+
+              <div purpose="footer-socials" class="flex-row d-inline-flex font-weight-bold order-first order-md-last justify-content-start justify-content-lg-end pl-lg-3">
+                <a target="_blank" href="/slack" class="mr-4">
+                  <img alt="Slack logo" src="/images/logo-slack-dark-20x20@2x.png"/>
+                </a>
+                <a target="_blank" href="https://github.com/fleetdm/fleet" class="mr-4">
+                  <img alt="GitHub logo" src="/images/logo-github-dark-24x24@2x.png" />
+                </a>
+                <a target="_blank" href="https://www.linkedin.com/company/fleetdm" class="mr-4">
+                  <img alt="LinkedIn logo" src="/images/logo-linkedin-24x24@2x.png" />
+                </a>
+                <a target="_blank" href="https://twitter.com/fleetctl" class="mr-4">
+                  <img alt="X (Twitter) logo" src="/images/logo-x-24x24@2x.png"/>
+                </a>
+                <a target="_blank" href="https://www.youtube.com/channel/UCZyoqZ4exJvoibmTKJrQ-dQ" class="mr-4">
+                  <img alt="Youtube logo" src="/images/logo-youtube-29x20@2x.png" />
+                </a>
+                <a target="_blank" href="https://mastodon.social/@Fleet@discuss.systems" class="mr-4">
+                  <img alt="Mastadon logo" src="/images/logo-mastadon-24x23@2x.png"/>
+                </a>
               </div>
+            </div>
           </div>
-        </div>
       <% } %>
     </div>
 
@@ -504,13 +530,12 @@
     <script src="/js/pages/query-detail.page.js"></script>
     <script src="/js/pages/query-library.page.js"></script>
     <script src="/js/pages/reports/state-of-device-management.page.js"></script>
+    <script src="/js/pages/start.page.js"></script>
     <script src="/js/pages/support.page.js"></script>
     <script src="/js/pages/transparency.page.js"></script>
     <script src="/js/pages/try-fleet/explore-data.page.js"></script>
     <script src="/js/pages/try-fleet/query-report.page.js"></script>
-    <script src="/js/pages/try-fleet/register.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-expired.page.js"></script>
-    <script src="/js/pages/try-fleet/sandbox-login.page.js"></script>
     <script src="/js/pages/try-fleet/sandbox-teleporter.page.js"></script>
     <script src="/js/pages/try-fleet/waitlist.page.js"></script>
     <script src="/js/pages/upgrade.page.js"></script>
