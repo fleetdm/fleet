@@ -91,6 +91,7 @@ export interface IPolicyFormData {
   query?: string | number | boolean | undefined;
   team_id?: number;
   id?: number;
+  calendar_events_enabled?: boolean;
 }
 
 export interface IPolicyNew {

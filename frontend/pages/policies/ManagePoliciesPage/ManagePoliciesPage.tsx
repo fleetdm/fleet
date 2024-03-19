@@ -2,7 +2,7 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEqual } from "lodash";
+import { noop, isEqual, set } from "lodash";
 
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -12,7 +12,11 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegrations } from "interfaces/integration";
+import {
+  IGlobalIntegrations,
+  IIntegrations,
+  ITeamIntegrations,
+} from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -48,6 +52,8 @@ import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsMo
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
+import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
+import { IApiError } from "interfaces/errors";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
@@ -129,6 +135,10 @@ const ManagePolicyPage = ({
 
   const [isUpdatingAutomations, setIsUpdatingAutomations] = useState(false);
   const [isUpdatingPolicies, setIsUpdatingPolicies] = useState(false);
+  const [
+    updatingPolicyEnabledCalendarEvents,
+    setUpdatingPolicyEnabledCalendarEvents,
+  ] = useState(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
@@ -529,7 +539,7 @@ const ManagePolicyPage = ({
 
   const handleUpdateAutomations = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IIntegrations;
+    integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => {
     setIsUpdatingAutomations(true);
     try {
@@ -547,6 +557,49 @@ const ManagePolicyPage = ({
       setIsUpdatingAutomations(false);
       refetchConfig();
       isAnyTeamSelected && refetchTeamConfig();
+    }
+  };
+
+  const updatePolicyEnabledCalendarEvents = async (
+    formData: ICalendarEventsFormData
+  ) => {
+    setUpdatingPolicyEnabledCalendarEvents(true);
+
+    try {
+      // update enabled and URL in config
+      const configResponse = teamsAPI.update(
+        {
+          integrations: {
+            google_calendar: {
+              enable_calendar_events: formData.enabled,
+              webhook_url: formData.url,
+            },
+            // TODO - can omit these?
+            zendesk: teamConfig?.integrations.zendesk || [],
+            jira: teamConfig?.integrations.jira || [],
+          },
+        },
+        teamIdForApi
+      );
+
+      // update policies calendar events enabled
+      const policyResponses = formData.policies.map((formPolicy) =>
+        teamPoliciesAPI.update(formPolicy.id, {
+          calendar_events_enabled: formPolicy.isChecked,
+          team_id: teamIdForApi,
+        })
+      );
+
+      await Promise.all([configResponse, ...policyResponses]);
+    } catch {
+      (errorResponse: { data: IApiError }) => {
+        renderFlash(
+          "error",
+          `Could not update team settings. ${errorResponse.data.errors[0].reason}`
+        );
+      };
+    } finally {
+      setUpdatingPolicyEnabledCalendarEvents(false);
     }
   };
 
@@ -758,6 +811,7 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations && automationsConfig && (
                 <div className={`${baseClass}__manage-automations-wrapper`}>
+                  {/* TODO - add subtext to dropdown options. See Hosts dropdown filters on manage hosts page */}
                   <Dropdown
                     className={`${baseClass}__manage-automations-dropdown`}
                     onChange={onSelectAutomationOption}
@@ -878,7 +932,9 @@ const ManagePolicyPage = ({
         {showCalendarEventsModal && (
           <CalendarEventsModal
             onExit={toggleCalendarEventsModal}
-            onSubmit={() => <>{/* TODO */}</>}
+            updatePolicyEnabledCalendarEvents={
+              updatePolicyEnabledCalendarEvents
+            }
             // TODO - remove dummy prop values
             // configured={config?.integrations.google_calendar}
             configured
@@ -892,6 +948,7 @@ const ManagePolicyPage = ({
             // }
             url="https://google.com"
             policies={teamPolicies || []}
+            isUpdating={updatingPolicyEnabledCalendarEvents}
           />
         )}
       </div>

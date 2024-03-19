@@ -5,7 +5,7 @@ import { pick } from "lodash";
 
 import { buildQueryStringFromParams } from "utilities/url";
 import { IEnrollSecret } from "interfaces/enroll_secret";
-import { IIntegrations } from "interfaces/integration";
+import { ITeamIntegrations } from "interfaces/integration";
 import {
   API_NO_TEAM_ID,
   INewTeamUsersBody,
@@ -39,7 +39,7 @@ export interface ITeamFormData {
 export interface IUpdateTeamFormData {
   name: string;
   webhook_settings: Partial<ITeamWebhookSettings>;
-  integrations: IIntegrations;
+  integrations: ITeamIntegrations;
   mdm: {
     macos_updates?: {
       minimum_version: string;

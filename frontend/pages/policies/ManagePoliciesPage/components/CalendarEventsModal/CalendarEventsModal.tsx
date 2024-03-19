@@ -16,24 +16,27 @@ import Checkbox from "components/forms/fields/Checkbox";
 
 const baseClass = "calendar-events-modal";
 
-interface ICalendarEventsModal {
-  onExit: () => void;
-  onSubmit: () => void;
-  configured: boolean;
-  enabled: boolean;
-  url: string;
-  policies: IPolicy[];
-}
-
 interface IFormPolicy {
   name: string;
   id: number;
   isChecked: boolean;
 }
-interface ICalendarEventsFormData {
+export interface ICalendarEventsFormData {
   enabled: boolean;
   url: string;
   policies: IFormPolicy[];
+}
+
+interface ICalendarEventsModal {
+  onExit: () => void;
+  updatePolicyEnabledCalendarEvents: (
+    formData: ICalendarEventsFormData
+  ) => void;
+  isUpdating: boolean;
+  configured: boolean;
+  enabled: boolean;
+  url: string;
+  policies: IPolicy[];
 }
 
 // allows any policy name to be the name of a form field, one of the checkboxes
@@ -41,7 +44,8 @@ type FormNames = string;
 
 const CalendarEventsModal = ({
   onExit,
-  onSubmit,
+  updatePolicyEnabledCalendarEvents,
+  isUpdating,
   configured,
   enabled,
   url,
@@ -171,34 +175,33 @@ const CalendarEventsModal = ({
 
   const renderConfiguredModal = () => (
     <div className={`${baseClass} form`}>
-      <>
-        <Slider
-          value={formData.enabled}
-          onChange={() => {
-            onInputChange({ name: "enabled", value: !formData.enabled });
-          }}
-          inactiveText="Disabled"
-          activeText="Enabled"
-        />
-        <Button
-          type="button"
-          variant="text-link"
-          onClick={togglePreviewCalendarEvent}
-        >
-          Preview calendar event
-        </Button>
-        <InputField
-          placeholder="https://server.com/example"
-          label="Resolution webhook URL"
-          onChange={onInputChange}
-          name="resolutionWebhookUrl"
-          value={formData.url}
-          parseTarget
-          error={formErrors.url}
-          tooltip="Provide a URL to deliver a webhook request to."
-          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
-        />
-        {/* <RevealButton
+      <Slider
+        value={formData.enabled}
+        onChange={() => {
+          onInputChange({ name: "enabled", value: !formData.enabled });
+        }}
+        inactiveText="Disabled"
+        activeText="Enabled"
+      />
+      <Button
+        type="button"
+        variant="text-link"
+        onClick={togglePreviewCalendarEvent}
+      >
+        Preview calendar event
+      </Button>
+      <InputField
+        placeholder="https://server.com/example"
+        label="Resolution webhook URL"
+        onChange={onInputChange}
+        name="resolutionWebhookUrl"
+        value={formData.url}
+        parseTarget
+        error={formErrors.url}
+        tooltip="Provide a URL to deliver a webhook request to."
+        helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
+      />
+      {/* <RevealButton
         isShowing={showExamplePayload}
         className={`${baseClass}__show-example-payload-toggle`}
         hideText="Hide example payload"
@@ -209,8 +212,24 @@ const CalendarEventsModal = ({
         }}
       />
       {showExamplePayload && renderExamplePayload()} */}
-        {renderPolicies()}
-      </>
+      {renderPolicies()}
+
+      <div className="modal-cta-wrap">
+        <Button
+          type="submit"
+          variant="brand"
+          onClick={() => {
+            updatePolicyEnabledCalendarEvents(formData);
+          }}
+          className="save-loading"
+          isLoading={isUpdating}
+        >
+          Save
+        </Button>
+        <Button onClick={onExit} variant="inverse">
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 
@@ -221,7 +240,13 @@ const CalendarEventsModal = ({
     <Modal
       title="Calendar events"
       onExit={onExit}
-      onEnter={configured ? onSubmit : onExit}
+      onEnter={
+        configured
+          ? () => {
+              updatePolicyEnabledCalendarEvents(formData);
+            }
+          : onExit
+      }
       className={baseClass}
       width="large"
     >
