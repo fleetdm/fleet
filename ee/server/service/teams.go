@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -1163,18 +1162,18 @@ func (svc *Service) validateTeamCalendarIntegrations(
 	if !calendarIntegration.Enable {
 		return nil
 	}
-	// Validate email
-	emailValid := false
-	calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
-	for _, globalCals := range appCfg.Integrations.GoogleCalendar {
-		if globalCals.Email == calendarIntegration.Email {
-			emailValid = true
-			break
-		}
-	}
-	if !emailValid {
-		invalid.Append("integrations.google_calendar.email", "email must match a global Google Calendar integration email")
-	}
+	// // Validate email
+	// emailValid := false
+	// calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
+	// for _, globalCals := range appCfg.Integrations.GoogleCalendar {
+	// 	if globalCals.Email == calendarIntegration.Email {
+	// 		emailValid = true
+	// 		break
+	// 	}
+	// }
+	// if !emailValid {
+	// 	invalid.Append("integrations.google_calendar.email", "email must match a global Google Calendar integration email")
+	// }
 	// Validate URL
 	if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {
 		invalid.Append("integrations.google_calendar.webhook_url", err.Error())
