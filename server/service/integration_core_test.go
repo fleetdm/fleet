@@ -5354,6 +5354,20 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 		)), http.StatusBadRequest,
 	)
 
+	// Null api_key_json -- fails validation
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": null,
+				"domain": %q
+			}]
+		}
+	}`, domain,
+		)), http.StatusUnprocessableEntity,
+	)
+
 }
 
 func (s *integrationTestSuite) TestQueriesBadRequests() {
