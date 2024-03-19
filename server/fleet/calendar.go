@@ -1,6 +1,12 @@
 package fleet
 
-import "time"
+import (
+	"context"
+	"fmt"
+	"time"
+
+	"github.com/fleetdm/fleet/v4/server"
+)
 
 type DayEndedError struct {
 	Msg string
@@ -22,4 +28,34 @@ type UserCalendar interface {
 	GetAndUpdateEvent(event *CalendarEvent, genBodyFn func() string) (updatedEvent *CalendarEvent, updated bool, err error)
 	// DeleteEvent deletes the event with the given ID.
 	DeleteEvent(event *CalendarEvent) error
+}
+
+type CalendarWebhookPayload struct {
+	Timestamp        time.Time            `json:"timestamp"`
+	HostID           uint                 `json:"host_id"`
+	HostDisplayName  string               `json:"host_display_name"`
+	HostSerialNumber string               `json:"host_serial_number"`
+	FailingPolicies  []PolicyCalendarData `json:"failing_policies,omitempty"`
+	Error            string               `json:"error,omitempty"`
+}
+
+func FireCalendarWebhook(
+	webhookURL string,
+	hostID uint,
+	hostHardwareSerial string,
+	hostDisplayName string,
+	failingCalendarPolicies []PolicyCalendarData,
+	err string,
+) error {
+	if err := server.PostJSONWithTimeout(context.Background(), webhookURL, &CalendarWebhookPayload{
+		Timestamp:        time.Now(),
+		HostID:           hostID,
+		HostDisplayName:  hostDisplayName,
+		HostSerialNumber: hostHardwareSerial,
+		FailingPolicies:  failingCalendarPolicies,
+		Error:            err,
+	}); err != nil {
+		return fmt.Errorf("POST to %q: %w", server.MaskSecretURLParams(webhookURL), server.MaskURLError(err))
+	}
+	return nil
 }
