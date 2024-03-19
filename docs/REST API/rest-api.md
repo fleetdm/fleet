@@ -3473,6 +3473,24 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
+### Reinstall host's configuration profile
+
+Reinstalls configuration profile for the specified host.
+
+`POST /api/v1/fleet/hosts/:id/reinstall_profile`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The host's ID. |
+| profile_uuid   | string | query | **Required.** The UUID of configuration profile to reinstall on the host. |
+
+##### Default response
+
+`Status: 200`
+
+
 ### List host OS versions
 
 Retrieves the aggregated host OS versions information.
