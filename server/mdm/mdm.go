@@ -50,7 +50,7 @@ func GetRawProfilePlatform(profile []byte) string {
 			bytes.EqualFold(prefix, trimmedProfile[:len(prefix)])
 	}
 
-	if prefixMatches([]byte("<?xml")) {
+	if prefixMatches([]byte("<?xml")) || prefixMatches([]byte(`{`)) {
 		return "darwin"
 	}
 

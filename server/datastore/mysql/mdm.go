@@ -82,7 +82,6 @@ func (ds *Datastore) ListMDMCommands(
 	tmFilter fleet.TeamFilter,
 	listOpts *fleet.MDMCommandListOptions,
 ) ([]*fleet.MDMCommand, error) {
-
 	jointStmt := getCombinedMDMCommandsQuery() + ds.whereFilterHostsByTeams(tmFilter, "h")
 	jointStmt, params := appendListOptionsWithCursorToSQL(jointStmt, nil, &listOpts.ListOptions)
 	var results []*fleet.MDMCommand
@@ -102,7 +101,7 @@ func (ds *Datastore) getMDMCommand(ctx context.Context, q sqlx.QueryerContext, c
 	return &cmd, nil
 }
 
-func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile) error {
+func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDeclarations []*fleet.MDMAppleDeclaration) error {
 	return ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		if err := ds.batchSetMDMWindowsProfilesDB(ctx, tx, tmID, winProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set windows profiles")
@@ -110,6 +109,10 @@ func (ds *Datastore) BatchSetMDMProfiles(ctx context.Context, tmID *uint, macPro
 
 		if err := ds.batchSetMDMAppleProfilesDB(ctx, tx, tmID, macProfiles); err != nil {
 			return ctxerr.Wrap(ctx, err, "batch set apple profiles")
+		}
+
+		if _, err := ds.batchSetMDMAppleDeclarations(ctx, tx, tmID, macDeclarations); err != nil {
+			return ctxerr.Wrap(ctx, err, "batch set apple declarations")
 		}
 
 		return nil
@@ -164,6 +167,21 @@ FROM (
 	WHERE
 		team_id = ? AND
 		name NOT IN (?)
+	
+	UNION
+
+	SELECT
+		declaration_uuid AS profile_uuid,
+		team_id,
+		name,
+		'darwin' AS platform,
+		identifier,
+		md5_checksum AS checksum,
+		created_at,
+		uploaded_at
+	FROM mdm_apple_declarations
+	WHERE team_id = ?
+	AND declaration_type <> ?
 ) as combined_profiles
 `
 
@@ -183,7 +201,7 @@ FROM (
 		fleetNames = append(fleetNames, k)
 	}
 
-	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames}
+	args := []any{globalOrTeamID, fleetIdentifiers, globalOrTeamID, fleetNames, globalOrTeamID, fleet.MDMAppleDeclarativeActivation}
 	stmt, args := appendListOptionsWithCursorToSQL(selectStmt, args, &opt)
 
 	stmt, args, err := sqlx.In(stmt, args...)
@@ -205,11 +223,16 @@ FROM (
 	}
 
 	// load the labels associated with those profiles
-	var winProfUUIDs, macProfUUIDs []string
+	var winProfUUIDs, macProfUUIDs, macDeclUUIDs []string
 	for _, prof := range profs {
 		if prof.Platform == "windows" {
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
 		} else {
+			if strings.HasPrefix(prof.ProfileUUID, "x") {
+				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
+				continue
+			}
+
 			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
 		}
 	}
@@ -217,6 +240,13 @@ FROM (
 	if err != nil {
 		return nil, nil, err
 	}
+
+	declLabels, err := ds.listDeclarationLabelsForDeclarations(ctx, macDeclUUIDs)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	labels = append(labels, declLabels...)
 
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
@@ -230,6 +260,38 @@ FROM (
 	}
 
 	return profs, metaData, nil
+}
+
+// Note: we're using the ConfigurationProfileLabel type here since from the product perspective, MDM
+// profiles and declarations are both "profiles".
+func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, declUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+	if len(declUUIDs) == 0 {
+		return []fleet.ConfigurationProfileLabel{}, nil
+	}
+
+	stmt := `
+SELECT
+	declaration_uuid AS profile_uuid,
+	label_name,
+	label_id
+FROM
+	mdm_declaration_labels
+WHERE
+	declaration_uuid IN (?)
+ORDER BY
+	declaration_uuid, label_name
+	`
+
+	stmt, args, err := sqlx.In(stmt, declUUIDs)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for declarations")
+	}
+
+	var labels []fleet.ConfigurationProfileLabel
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "select declaration labels")
+	}
+	return labels, nil
 }
 
 func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
