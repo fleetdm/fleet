@@ -31,18 +31,18 @@ func TestMDMShared(t *testing.T) {
 		name string
 		fn   func(t *testing.T, ds *Datastore)
 	}{
-		// {"TestMDMCommands", testMDMCommands},
+		{"TestMDMCommands", testMDMCommands},
 		{"TestBatchSetMDMProfiles", testBatchSetMDMProfiles},
-		// {"TestListMDMConfigProfiles", testListMDMConfigProfiles},
-		// {"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
-		// {"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
-		// {"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
-		// {"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
-		// {"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
-		// {"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
-		// {"TestMDMEULA", testMDMEULA},
-		// {"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
-		// {"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
+		{"TestListMDMConfigProfiles", testListMDMConfigProfiles},
+		{"TestBulkSetPendingMDMHostProfiles", testBulkSetPendingMDMHostProfiles},
+		{"TestBulkSetPendingMDMHostProfilesBatch2", testBulkSetPendingMDMHostProfilesBatch2},
+		{"TestBulkSetPendingMDMHostProfilesBatch3", testBulkSetPendingMDMHostProfilesBatch3},
+		{"TestGetHostMDMProfilesExpectedForVerification", testGetHostMDMProfilesExpectedForVerification},
+		{"TestBatchSetProfileLabelAssociations", testBatchSetProfileLabelAssociations},
+		{"TestBatchSetProfilesTransactionError", testBatchSetMDMProfilesTransactionError},
+		{"TestMDMEULA", testMDMEULA},
+		{"TestGetHostCertAssociationsToExpire", testSCEPRenewalHelpers},
+		{"TestSCEPRenewalHelpers", testSCEPRenewalHelpers},
 	}
 
 	for _, c := range cases {
