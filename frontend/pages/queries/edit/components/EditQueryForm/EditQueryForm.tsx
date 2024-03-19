@@ -637,10 +637,19 @@ const EditQueryForm = ({
     "differential",
     "differential_ignore_removals",
   ].includes(lastEditedQueryLoggingType);
-  // TODO: Account for equivalent platforms "linux,darwin" = "darwin,linux"
-  // TODO: Find out if "linux, darwin" is equivalent to "linux,darwin" and both work in backend
+
+  // Note: The backend is not resetting the query reports with equivalent platform strings
+  // so we are not showing a warning unless the platform combinations differ
+  const formatPlatformEquivalences = (platforms?: string) => {
+    // Remove white spaces allowed by API and format into a sorted string converted from a sorted array
+    return platforms?.replace(/\s/g, "").split(",").sort().toString();
+  };
+
   const changedPlatforms =
-    storedQuery && lastEditedQueryPlatforms !== storedQuery.platform;
+    storedQuery &&
+    formatPlatformEquivalences(lastEditedQueryPlatforms) !==
+      formatPlatformEquivalences(storedQuery?.platform);
+
   const changedMinOsqueryVersion =
     storedQuery &&
     lastEditedQueryMinOsqueryVersion !== storedQuery.min_osquery_version;
@@ -671,6 +680,7 @@ const EditQueryForm = ({
     const disableSaveFormErrors =
       (lastEditedQueryName === "" && !!lastEditedQueryId) || !!size(errors);
 
+    console.log("lastEditedQueryPlatforms", lastEditedQueryPlatforms);
     return (
       <>
         <form className={`${baseClass}`} autoComplete="off">
@@ -735,7 +745,7 @@ const EditQueryForm = ({
                     placeholder="Select"
                     label="Platform"
                     onChange={onChangeSelectPlatformOptions}
-                    value={lastEditedQueryPlatforms}
+                    value={lastEditedQueryPlatforms.replace(/\s/g, "")} // NOTE: FE requires no whitespace to render UI
                     multi
                     wrapperClassName={`${baseClass}__form-field form-field--platform`}
                     helpText="By default, your query collects data on all compatible platforms."
