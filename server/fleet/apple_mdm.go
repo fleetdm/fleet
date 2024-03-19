@@ -614,13 +614,13 @@ type MDMAppleHostDeclaration struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/tokensresponse
 type MDMAppleDDMTokensResponse struct {
-	SyncTokens MDMAppleDDMSyncTokens
+	SyncTokens MDMAppleDDMDeclarationsToken
 }
 
-// MDMAppleDDMSyncTokens is dictionary describes the state of declarations on the server.
+// MDMAppleDDMDeclarationsToken is dictionary describes the state of declarations on the server.
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
-type MDMAppleDDMSyncTokens struct {
+type MDMAppleDDMDeclarationsToken struct {
 	DeclarationsToken string    `db:"md5_checksum"`
 	Timestamp         time.Time `db:"latest_created_timestamp"`
 }
@@ -657,10 +657,9 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	Identifier        string `db:"identifier"`
-	DeclarationType   string `db:"declaration_type"`
-	DeclarationsToken string `db:"declarations_token"`
-	ServerToken       string `db:"server_token"`
+	Identifier      string `db:"identifier"`
+	DeclarationType string `db:"declaration_type"`
+	ServerToken     string `db:"md5_checksum"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

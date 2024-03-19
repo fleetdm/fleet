@@ -2978,6 +2978,8 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 		return nil, ctxerr.New(r.Context, "missing device id")
 	}
 
+	// TODO: We're using the team id only to pull the declaration detail. Any reason for us to check
+	// for a host record first in all cases? Normalizing the UDID for capitalization?
 	h, err := svc.ds.HostLiteByIdentifier(r.Context, dm.UDID)
 	if err != nil {
 		return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
@@ -2995,11 +2997,11 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
 		}
 
-		return svc.handleTokens(r.Context, tid)
+		return svc.handleTokens(r.Context, dm.UDID)
 
 	case dm.Endpoint == "declaration-items":
 		level.Debug(svc.logger).Log("msg", "received declaration-items request")
-		return svc.handleDeclarationItems(r.Context, tid)
+		return svc.handleDeclarationItems(r.Context, dm.UDID)
 
 	case dm.Endpoint == "status":
 		level.Debug(svc.logger).Log("msg", "received status request")
@@ -3033,8 +3035,8 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	}
 }
 
-func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, teamID uint) ([]byte, error) {
-	tok, err := svc.ds.MDMAppleDDMSynchronizationTokens(ctx, teamID)
+func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string) ([]byte, error) {
+	tok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
@@ -3049,22 +3051,15 @@ func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, teamID uint) ([
 	return b, nil
 }
 
-func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamID uint) ([]byte, error) {
-	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, teamID)
+func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
+	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
 	}
 
-	var dTok string
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
 	for _, d := range di {
-		if dTok == "" {
-			dTok = d.DeclarationsToken
-		} else if dTok != d.DeclarationsToken {
-			level.Debug(svc.logger).Log("msg", "inconsistent declarations token", "expected", dTok, "got", d.DeclarationsToken)
-		}
-
 		manifest := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: d.ServerToken}
 		switch d.DeclarationType {
 		case string(fleet.MDMAppleDeclarativeActivation):
@@ -3077,6 +3072,12 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamI
 		}
 	}
 
+	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
+	dTok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declarations token")
+	}
+
 	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
 		Declarations: fleet.MDMAppleDDMManifestItems{
 			Activations:    activations,
@@ -3084,7 +3085,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, teamI
 			Assets:         []fleet.MDMAppleDDMManifest{},
 			Management:     []fleet.MDMAppleDDMManifest{},
 		},
-		DeclarationsToken: dTok,
+		DeclarationsToken: dTok.DeclarationsToken,
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")

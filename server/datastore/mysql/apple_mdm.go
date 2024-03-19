@@ -3082,42 +3082,42 @@ WHERE h.uuid = ?
 	return nil
 }
 
-func (ds *Datastore) MDMAppleDDMSynchronizationTokens(ctx context.Context, teamID uint) (*fleet.MDMAppleDDMSyncTokens, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	md5_checksum,
-	latest_created_timestamp
+	md5((count(0) + group_concat(hex(mad.md5_checksum)
+		ORDER BY
+			mad.uploaded_at DESC separator ''))) AS md5_checksum,
+	max(mad.created_at) AS latest_created_timestamp
 FROM
-	team_declaration_checksum_view
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	team_id = ?`
+	hmad.host_uuid = ?`
 
-	var res fleet.MDMAppleDDMSyncTokens
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
+	var res fleet.MDMAppleDDMDeclarationsToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM declarations token")
 	}
 
 	return &res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, teamID uint) ([]fleet.MDMAppleDDMDeclarationItem, error) {
-	// TODO: Confirm whether we can use JSON functions in the query (if 5.7 officially unsupported
-	// by Fleet)
+func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
-	mad.md5_checksum as server_token,
-	identifier,
-	declaration_type,
-	tv.md5_checksum as declarations_token
+	mad.md5_checksum,
+	mad.identifier,
+	mad.declaration_type
 FROM
-	mdm_apple_declarations mad
-	JOIN team_declaration_checksum_view tv ON mad.team_id = tv.team_id
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
 WHERE
-	mad.team_id = ?`
+	hmad.host_uuid = ? AND operation_type = ?`
 
 	var res []fleet.MDMAppleDDMDeclarationItem
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, teamID); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get DDM checksum by team id")
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
 	}
 
 	return res, nil
