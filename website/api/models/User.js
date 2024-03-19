@@ -209,7 +209,7 @@ without necessarily having a billing card.`
       isIn: [
         'eo-security',
         'eo-it',
-        'dm',
+        'mdm',
         'vm',
       ]
     }
