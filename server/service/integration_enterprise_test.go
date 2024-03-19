@@ -105,8 +105,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": "testKey",
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": "testKey"
+				},
 				"domain": "example.com"
 			}]
 		}
