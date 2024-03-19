@@ -18,9 +18,8 @@ export interface IZendeskIntegration {
 }
 
 export interface IGlobalCalendarIntegration {
-  email: string;
   domain: string;
-  private_key: string;
+  api_key_json: string;
 }
 
 export interface IIntegration {

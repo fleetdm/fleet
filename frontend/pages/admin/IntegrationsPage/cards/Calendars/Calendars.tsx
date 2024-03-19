@@ -5,6 +5,8 @@ import { IConfig } from "interfaces/config";
 import { NotificationContext } from "context/notification";
 import { AppContext } from "context/app";
 import configAPI from "services/entities/config";
+// @ts-ignore
+import { stringToClipboard } from "utilities/copy_text";
 
 // @ts-ignore
 import InputField from "components/forms/fields/InputField";
@@ -14,9 +16,28 @@ import CustomLink from "components/CustomLink";
 import Spinner from "components/Spinner";
 import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
+import Icon from "components/Icon";
 
 const LEARN_MORE_CALENDARS =
-  "https://www.fleetdm.com/learn-more-about/google-workspace-service-accounts";
+  "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
+const GOOGLE_WORKSPACE_DOMAINS =
+  "https://www.fleetdm.com/learn-more-about/google-workspace-domains";
+const OAUTH_SCOPES =
+  "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.settings.readonly";
+
+const apiPlaceholderText = `{
+  "type": "service_account",
+  "project_id": "fleet-in-your-calendar",
+  "private_key_id": "<private key id>",
+  "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+  "client_email": "fleet-calendar-events@fleet-in-your-calendar.iam.gserviceaccount.com",
+  "client_id": "<client id>",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/fleet-calendar-events%40fleet-in-your-calendar.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}`;
 
 interface IFormField {
   name: string;
@@ -24,24 +45,23 @@ interface IFormField {
 }
 
 interface ICalendarsFormErrors {
-  email?: string | null;
   domain?: string | null;
-  privateKey?: string | null;
+  apiKeyJson?: string | null;
 }
 
-const baseClass = "calendars-form";
+const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
   const [formData, setFormData] = useState({
-    email: "",
     domain: "",
-    privateKey: "",
+    apiKeyJson: "",
   });
   const [isUpdatingSettings, setIsUpdatingSettings] = useState(false);
   const [formErrors, setFormErrors] = useState<ICalendarsFormErrors>({});
+  const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
     data: appConfig,
@@ -52,14 +72,13 @@ const Calendars = (): JSX.Element => {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
       setFormData({
-        email: data.integrations.google_calendar[0].email,
         domain: data.integrations.google_calendar[0].domain,
-        privateKey: data.integrations.google_calendar[0].private_key,
+        apiKeyJson: data.integrations.google_calendar[0].api_key_json,
       });
     },
   });
 
-  const { email, domain, privateKey } = formData;
+  const { apiKeyJson, domain } = formData;
 
   const handleInputChange = ({ name, value }: IFormField) => {
     setFormData({ ...formData, [name]: value });
@@ -70,14 +89,11 @@ const Calendars = (): JSX.Element => {
     const errors: ICalendarsFormErrors = {};
 
     // Must set all keys or no keys at all
-    if (!email && (!!domain || !!privateKey)) {
-      errors.email = "Email must be present";
+    if (!apiKeyJson && !!domain) {
+      errors.apiKeyJson = "API key JSON must be present";
     }
-    if (!domain && (!!email || !!privateKey)) {
-      errors.email = "Domain must be present";
-    }
-    if (!privateKey && (!!email || !!domain)) {
-      errors.privateKey = "Private key must be present";
+    if (!domain && !!apiKeyJson) {
+      errors.apiKeyJson = "Domain must be present";
     }
 
     setFormErrors(errors);
@@ -90,15 +106,12 @@ const Calendars = (): JSX.Element => {
 
     // Format for API
     const formDataToSubmit =
-      formData.email === "" &&
-      formData.domain === "" &&
-      formData.privateKey === ""
+      formData.apiKeyJson === "" && formData.domain === ""
         ? null // Send null if no keys are set
         : [
             {
-              email: formData.email,
               domain: formData.domain,
-              private_key: formData.privateKey,
+              api_key_json: formData.apiKeyJson,
             },
           ];
 
@@ -131,71 +144,211 @@ const Calendars = (): JSX.Element => {
       });
   };
 
+  const renderOauthLabel = () => {
+    const onCopyOauthScopes = () => {
+      console.log("cool");
+    };
+    // const onCopyOauthScopes = (evt: React.MouseEvent) => {
+    //   evt.preventDefault();
+
+    //   stringToClipboard(OAUTH_SCOPES)
+    //     .then(
+    //       setCopyMessage("Copied!"))
+    //     )
+    //     .catch(
+    //       setCopyMessage("Copy failed"))
+    //     );
+
+    //   // Clear message after 1 second
+    //   setTimeout(
+    //     setCopyMessage("")),
+    //     1000
+    //   );
+
+    //   return false;
+    // };
+
+    return (
+      <>
+        <span className="buttons">
+          <Button
+            variant="unstyled"
+            className={`${baseClass}__oauth-scopes-copy-icon`}
+            onClick={onCopyOauthScopes}
+          >
+            <Icon name="copy" />
+          </Button>
+          {copyMessage && (
+            <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
+          )}
+        </span>
+      </>
+    );
+  };
+
   const renderForm = () => {
     return (
       <>
         <SectionHeader title="Calendars" />
         <form onSubmit={onFormSubmit} autoComplete="off">
           <p className={`${baseClass}__page-description`}>
-            Connect Fleet to your Google Workspace service account to create
-            calendar events for end users if their host fails policies.{" "}
-            <CustomLink url={LEARN_MORE_CALENDARS} text="Learn more" newTab />
+            To create calendar events for end users with failing policies,
+            you&apos;ll need to configure a dedicated Google Workspace service
+            account.
           </p>
-          <InputField
-            label="Email"
-            onChange={handleInputChange}
-            name="email"
-            value={email}
-            parseTarget
-            onBlur={validateForm}
-            tooltip={
-              <>
-                The email address for this Google
-                <br /> Workspace service account.
-              </>
-            }
-            placeholder="name@example.com"
-            ignore1password
-          />
-          <InputField
-            label="Domain"
-            onChange={handleInputChange}
-            name="domain"
-            value={domain}
-            parseTarget
-            onBlur={validateForm}
-            tooltip={
-              <>
-                The Google Workspace domain this <br /> service account is
-                associated with.
-              </>
-            }
-            placeholder="example.com"
-          />
-          <InputField
-            label="Private key"
-            onChange={handleInputChange}
-            name="privateKey"
-            value={privateKey}
-            parseTarget
-            onBlur={validateForm}
-            tooltip={
-              <>
-                The private key for this Google <br /> Workspace service
-                account.
-              </>
-            }
-            placeholder="•••••••••••••••••••••••••••••"
-          />
-          <Button
-            type="submit"
-            variant="brand"
-            disabled={Object.keys(formErrors).length > 0}
-            className="save-loading button-wrap"
-            isLoading={isUpdatingSettings}
-          >
-            Save
-          </Button>
+          <div className={`${baseClass}__section-instructions`}>
+            <p>
+              1. Go to the <b>Service Accounts</b> page in Google Cloud
+              Platform.{" "}
+              <CustomLink text="View page" url={LEARN_MORE_CALENDARS} newTab />
+            </p>
+            <p>
+              2. Create a new project for your service account.
+              <ul>
+                <li>
+                  Click <b>Create project</b>.
+                </li>
+                <li>
+                  Enter &quot;Fleet calendar events&quot; as the project name.
+                </li>
+                <li>
+                  For &quot;Organization&quot; and &quot;Location&quot;, select
+                  your calendar&apos;s organization.
+                </li>
+              </ul>
+            </p>
+
+            <p>
+              3. Create the service account.
+              <ul>
+                <li>
+                  Click <b>Create service account</b>.
+                </li>
+                <li>
+                  Set the service account name to &quot;Fleet calendar
+                  events&quot;.
+                </li>
+                <li>
+                  Set the service account ID to
+                  &quot;fleet-calendar-events&quot;.
+                </li>
+                <li>
+                  Click <b>Create and continue</b>.
+                </li>
+                <li>
+                  Click <b>Done</b>.
+                </li>
+              </ul>
+            </p>
+            <p>
+              4. Create an API key.{" "}
+              <ul>
+                <li>
+                  Click <b>Create service account</b>.
+                </li>
+                <li>
+                  Click the <b>Actions</b> menu for your new service account.
+                </li>
+                <li>
+                  Select <b>Manage keys</b>.
+                </li>
+                <li>
+                  Click <b>Add key &gt; Create new key</b>.
+                </li>
+                <li>Select the JSON key type.</li>
+                <li>
+                  Click <b>Create</b> to create the key & download a JSON file.
+                </li>
+                <li className={`${baseClass}__configuration`}>
+                  Configure your service account integration in Fleet using the
+                  form below:
+                  <InputField
+                    label="API key JSON"
+                    onChange={handleInputChange}
+                    name="api-key-json"
+                    value={apiKeyJson}
+                    parseTarget
+                    onBlur={validateForm}
+                    type="textarea"
+                    tooltip={
+                      <>
+                        Paste the full contents of the JSON file downloaded{" "}
+                        <br />
+                        when creating your service account API key.
+                      </>
+                    }
+                    placeholder={apiPlaceholderText}
+                    ignore1password
+                  />
+                  <InputField
+                    label="Primary domain"
+                    onChange={handleInputChange}
+                    name="domain"
+                    value={domain}
+                    parseTarget
+                    onBlur={validateForm}
+                    tooltip={
+                      <>
+                        If the end user is signed into multiple Google accounts,
+                        this will be used to identify their work calendar.
+                      </>
+                    }
+                    placeholder="example.com"
+                    helpText={
+                      <>
+                        You can find your primary domain in Google Workspace{" "}
+                        <CustomLink
+                          url={GOOGLE_WORKSPACE_DOMAINS}
+                          text="here"
+                          newTab
+                        />
+                      </>
+                    }
+                  />
+                  <Button
+                    type="submit"
+                    variant="brand"
+                    disabled={Object.keys(formErrors).length > 0}
+                    className="save-loading button-wrap"
+                    isLoading={isUpdatingSettings}
+                  >
+                    Save
+                  </Button>
+                </li>
+              </ul>
+            </p>
+            <p>
+              5. Authorize the service account via domain-wide delegation.
+              <ul>
+                <li>
+                  In Google Workspace, go to{" "}
+                  <b>
+                    Security &gt; Access and data control &gt; API controls &gt;
+                    Manage Domain Wide Delegation
+                  </b>
+                  .
+                </li>
+                <li>
+                  Under <b>API clients</b>, click <b>Add new</b>
+                </li>
+                <li>Enter the client ID for the service account</li>
+                <li>
+                  For the OAuth scopes, paste the following value:
+                  <InputField
+                    disabled
+                    inputWrapperClass={`${baseClass}__oauth-scopes`}
+                    name="oauth-scopes"
+                    label={renderOauthLabel()}
+                    type="textarea"
+                    value={OAUTH_SCOPES}
+                  />
+                </li>
+                <li>
+                  Click <b>Authorize</b>.
+                </li>
+              </ul>
+            </p>
+          </div>
         </form>
       </>
     );

@@ -1,6 +1,26 @@
-.calendars {
+.calendars-integration {
   &__page-description {
     font-size: $x-small;
     color: $core-fleet-black;
+  }
+
+  &__configuration {
+    display: flex;
+    flex-direction: column;
+
+    #api-key-json {
+      height: 294px;
+      font-size: $x-small;
+    }
+
+    button {
+      align-self: flex-end;
+    }
+  }
+
+  #oauth-scopes {
+    font-family: "SourceCodePro", $monospace;
+    min-height: 80px;
+    padding: $pad-medium;
   }
 }
