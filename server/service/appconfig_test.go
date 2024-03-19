@@ -810,7 +810,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			name:        "nochange",
 			licenseTier: "free",
 			expectedMDM: fleet.MDM{
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -840,7 +840,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -855,7 +855,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			newMDM:      fleet.MDM{AppleBMDefaultTeam: "foobar"},
 			expectedMDM: fleet.MDM{
 				AppleBMDefaultTeam: "foobar",
-				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:         fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:       fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:     fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -876,7 +876,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			oldMDM:      fleet.MDM{EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}}},
 			expectedMDM: fleet.MDM{
 				EndUserAuthentication: fleet.MDMEndUserAuthentication{SSOProviderSettings: fleet.SSOProviderSettings{EntityID: "foo"}},
-				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:            fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:          fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:        fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -900,7 +900,7 @@ func TestMDMAppleConfig(t *testing.T) {
 					MetadataURL: "http://isser.metadata.com",
 					IDPName:     "onelogin",
 				}},
-				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:     fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:   fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates: fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{
@@ -958,7 +958,7 @@ func TestMDMAppleConfig(t *testing.T) {
 			},
 			expectedMDM: fleet.MDM{
 				EnableDiskEncryption: optjson.Bool{Set: true, Valid: true, Value: false},
-				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}},
+				MacOSSetup:           fleet.MacOSSetup{BootstrapPackage: optjson.String{Set: true}, MacOSSetupAssistant: optjson.String{Set: true}, EnableReleaseDeviceManually: optjson.SetBool(false)},
 				MacOSUpdates:         fleet.MacOSUpdates{MinimumVersion: optjson.String{Set: true}, Deadline: optjson.String{Set: true}},
 				WindowsUpdates:       fleet.WindowsUpdates{DeadlineDays: optjson.Int{Set: true}, GracePeriodDays: optjson.Int{Set: true}},
 				WindowsSettings: fleet.WindowsSettings{

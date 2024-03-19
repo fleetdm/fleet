@@ -237,6 +237,13 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		}
 	}
 
+	if payload.EnableReleaseDeviceManually != nil {
+		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
+			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
+			didUpdate = true
+		}
+	}
+
 	if didUpdate {
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
@@ -550,7 +557,10 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 	}
 
 	if _, ok := m["url"]; ok {
-		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn’t edit macos_setup_assistant. The automatic enrollment profile can’t include url.`))
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The automatic enrollment profile can't include url.`))
+	}
+	if _, ok := m["await_device_configured"]; ok {
+		return nil, ctxerr.Wrap(ctx, fleet.NewInvalidArgumentError("profile", `Couldn't edit macos_setup_assistant. The profile can't include "await_device_configured" option.`))
 	}
 
 	// must read the existing setup assistant first to detect if it did change
@@ -933,6 +943,7 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 				// instead by CopyDefaultMDMAppleBootstrapPackage below
 				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
 				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+				// TODO(mna): should we copy the EnableReleaseDeviceManually setting from the global config?
 			},
 		}
 

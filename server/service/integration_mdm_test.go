@@ -6323,7 +6323,7 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 	tm, err := s.ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
 	require.NoError(t, err)
 
-	cases := []struct {
+	endUserAuthCases := []struct {
 		raw      string
 		expected bool
 	}{
@@ -6355,6 +6355,73 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 		},
 	}
 
+	writeTmpJSON := func(t *testing.T, v any) string {
+		tmpFile, err := os.CreateTemp(t.TempDir(), "*.json")
+		require.NoError(t, err)
+		err = json.NewEncoder(tmpFile).Encode(v)
+		require.NoError(t, err)
+		return tmpFile.Name()
+	}
+
+	mustReadFile := func(t *testing.T, path string) string {
+		b, err := os.ReadFile(path)
+		require.NoError(t, err)
+		return string(b)
+	}
+
+	asstOk := writeTmpJSON(t, map[string]any{"ok": true})
+	asstURL := writeTmpJSON(t, map[string]any{"url": "https://example.com"})
+	asstAwait := writeTmpJSON(t, map[string]any{"await_device_configured": true})
+	asstsByName := map[string]string{
+		asstOk:    mustReadFile(t, asstOk),
+		asstURL:   mustReadFile(t, asstURL),
+		asstAwait: mustReadFile(t, asstAwait),
+	}
+
+	enableReleaseDeviceCases := []struct {
+		enableRelease     *bool
+		setupAssistant    string
+		expectedRelease   bool
+		expectedAssistant string
+		expectedStatus    int
+	}{
+		{
+			enableRelease:     nil,
+			setupAssistant:    "",
+			expectedRelease:   false,
+			expectedAssistant: "",
+			expectedStatus:    http.StatusOK,
+		},
+		{
+			enableRelease:     ptr.Bool(true),
+			setupAssistant:    "",
+			expectedRelease:   true,
+			expectedAssistant: "",
+			expectedStatus:    http.StatusOK,
+		},
+		{
+			enableRelease:     ptr.Bool(false),
+			setupAssistant:    "",
+			expectedRelease:   false,
+			expectedAssistant: "",
+			expectedStatus:    http.StatusOK,
+		},
+		{
+			enableRelease:     ptr.Bool(false),
+			setupAssistant:    asstURL,
+			expectedRelease:   false,
+			expectedAssistant: "",
+			expectedStatus:    http.StatusUnprocessableEntity,
+		},
+		{
+			enableRelease:     ptr.Bool(true),
+			setupAssistant:    asstAwait,
+			expectedRelease:   false,
+			expectedAssistant: "",
+			expectedStatus:    http.StatusUnprocessableEntity,
+		},
+	}
+
 	t.Run("UpdateAppConfig", func(t *testing.T) {
 		acResp := appConfigResponse{}
 		path := "/api/latest/fleet/config"
@@ -6364,11 +6431,13 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			}`, s))
 		}
 
-		// get the initial appconfig; enable end user authentication default is false
+		// get the initial appconfig; enable end user authentication and release
+		// device default is false
 		s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 		require.False(t, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.False(t, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
-		for i, c := range cases {
+		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				acResp = appConfigResponse{}
 				s.DoJSON("PATCH", path, fmtJSON(c.raw), http.StatusOK, &acResp)
@@ -6377,6 +6446,43 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				acResp = appConfigResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
 				require.Equal(t, c.expected, acResp.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+
+		for i, c := range enableReleaseDeviceCases {
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				macSetup := map[string]any{}
+				if c.enableRelease != nil {
+					macSetup["enable_release_device_manually"] = *c.enableRelease
+				}
+				if c.setupAssistant != "" {
+					macSetup["macos_setup_assistant"] = c.setupAssistant
+				}
+
+				uploadSucceeded := true
+				if c.setupAssistant != "" {
+					s.Do("POST", "/api/v1/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+						Name:              c.setupAssistant,
+						EnrollmentProfile: json.RawMessage(asstsByName[c.setupAssistant]),
+					}, c.expectedStatus)
+					if c.expectedStatus >= 300 {
+						uploadSucceeded = false
+					}
+				}
+
+				if uploadSucceeded {
+					acResp = appConfigResponse{}
+					s.DoJSON("PATCH", path,
+						json.RawMessage(jsonMustMarshal(t, map[string]any{"mdm": map[string]any{"macos_setup": macSetup}})),
+						c.expectedStatus, &acResp)
+					require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+					require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+				}
+
+				acResp = appConfigResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &acResp)
+				require.Equal(t, c.expectedRelease, acResp.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+				require.Equal(t, c.expectedAssistant, acResp.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})
@@ -6388,12 +6494,14 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 			%s
 		}`
 
-		// get the initial team config; enable end user authentication default is false
+		// get the initial team config; enable end user authentication and release
+		// device default is false
 		teamResp := teamResponse{}
 		s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 		require.False(t, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.False(t, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
 
-		for i, c := range cases {
+		for i, c := range endUserAuthCases {
 			t.Run(strconv.Itoa(i), func(t *testing.T) {
 				teamResp = teamResponse{}
 				s.DoJSON("PATCH", path, json.RawMessage(fmt.Sprintf(fmtJSON, tm.Name, c.raw)), http.StatusOK, &teamResp)
@@ -6402,6 +6510,54 @@ func (s *integrationMDMTestSuite) TestMDMMacOSSetup() {
 				teamResp = teamResponse{}
 				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
 				require.Equal(t, c.expected, teamResp.Team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+			})
+		}
+
+		for i, c := range enableReleaseDeviceCases {
+			expectedPatchStatus := c.expectedStatus
+			if expectedPatchStatus == http.StatusOK {
+				expectedPatchStatus = http.StatusNoContent
+			}
+
+			t.Run(strconv.Itoa(i), func(t *testing.T) {
+				if c.setupAssistant != "" {
+					s.Do("POST", "/api/v1/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+						TeamID:            &tm.ID,
+						Name:              c.setupAssistant,
+						EnrollmentProfile: json.RawMessage(asstsByName[c.setupAssistant]),
+					}, c.expectedStatus)
+					uploadSucceeded := c.expectedStatus < 300
+
+					if uploadSucceeded {
+						// use the apply team specs to set both the setup assistant and the
+						// enable release at once
+						macSetup := fleet.MacOSSetup{
+							MacOSSetupAssistant: optjson.SetString(c.setupAssistant),
+						}
+						if c.enableRelease != nil {
+							macSetup.EnableReleaseDeviceManually = optjson.SetBool(*c.enableRelease)
+						}
+						teamSpecs := applyTeamSpecsRequest{Specs: []*fleet.TeamSpec{{
+							Name: tm.Name,
+							MDM:  fleet.TeamSpecMDM{MacOSSetup: macSetup},
+						}}}
+						s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK)
+					}
+				} else {
+					// no setup assistant, use the PATCH /setup_experience endpoint
+					payload := map[string]any{
+						"team_id": tm.ID,
+					}
+					if c.enableRelease != nil {
+						payload["enable_release_device_manually"] = *c.enableRelease
+					}
+					s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), expectedPatchStatus)
+				}
+
+				teamResp = teamResponse{}
+				s.DoJSON("GET", path, nil, http.StatusOK, &teamResp)
+				require.Equal(t, c.expectedRelease, teamResp.Team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+				require.Equal(t, c.expectedAssistant, teamResp.Team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
 			})
 		}
 	})
@@ -6675,7 +6831,7 @@ func (s *integrationMDMTestSuite) TestMacosSetupAssistant() {
 		EnrollmentProfile: json.RawMessage(tmProf),
 	}, http.StatusUnprocessableEntity)
 	errMsg := extractServerErrorText(res.Body)
-	require.Contains(t, errMsg, `The automatic enrollment profile can’t include url.`)
+	require.Contains(t, errMsg, `The automatic enrollment profile can't include url.`)
 	s.lastActivityMatches(fleet.ActivityTypeChangedMacosSetupAssistant{}.ActivityName(),
 		fmt.Sprintf(`{"name": "team2", "team_id": %d, "team_name": %q}`, tm.ID, tm.Name), latestChangedActID)
 
