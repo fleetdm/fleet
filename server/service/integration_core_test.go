@@ -5181,8 +5181,10 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
 				"domain": %q
 			}]
 		}
@@ -5192,8 +5194,8 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 
 	appConfig := s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].Email)
-	assert.Equal(t, fleet.MaskedPassword, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Add 2nd config -- not allowed at this time
@@ -5202,18 +5204,22 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
 				"domain": %q
 			},
 			{
-				"email": "bozo@example.com"",
-				"private_key": "abc",
+				"api_key_json": {
+					"client_email": "bozo@example.com",
+					"private_key": "abc"
+				},
 				"domain": "example.com"
 			}]
 		}
 	}`, email, privateKey, domain,
-		)), http.StatusBadRequest,
+		)), http.StatusUnprocessableEntity,
 	)
 
 	// Make an unrelated config change, should not remove the integrations
@@ -5237,8 +5243,10 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
 				"domain": %q
 			}]
 		}
@@ -5247,8 +5255,8 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 	)
 	appConfig = s.getConfig()
 	require.Len(t, appConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].Email)
-	assert.Equal(t, fleet.MaskedPassword, appConfig.Integrations.GoogleCalendar[0].PrivateKey)
+	assert.Equal(t, email, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarEmail])
+	assert.Equal(t, privateKey, appConfig.Integrations.GoogleCalendar[0].ApiKey[fleet.GoogleCalendarPrivateKey])
 	assert.Equal(t, domain, appConfig.Integrations.GoogleCalendar[0].Domain)
 
 	// Clearing other integrations does not clear Google Calendar integration
@@ -5284,26 +5292,13 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
+				"api_key_json": {
+					"client_email": %q
+				},
 				"domain": %q
 			}]
 		}
 	}`, email, domain,
-		)), http.StatusUnprocessableEntity,
-	)
-
-	// Try adding Google Calendar integration with masked private key -- not allowed
-	s.DoRaw(
-		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
-			`{
-		"integrations": {
-			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
-				"domain": %q
-			}]
-		}
-	}`, email, fleet.MaskedPassword, domain,
 		)), http.StatusUnprocessableEntity,
 	)
 
@@ -5313,8 +5308,10 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": " ",
-				"private_key": %q,
+				"api_key_json": {
+					"client_email": " ",
+					"private_key": %q
+				},
 				"domain": %q
 			}]
 		}
@@ -5328,8 +5325,10 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
 				"domain": ""
 			}]
 		}
@@ -5343,9 +5342,11 @@ func (s *integrationTestSuite) TestGoogleCalendarIntegrations() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": %q,
-				"domain": %q
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": %q
+				},
+				"domain": %q,
 				"foo": "bar"
 			}]
 		}

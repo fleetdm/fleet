@@ -341,6 +341,11 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 	return nil
 }
 
+const (
+	GoogleCalendarEmail      = "client_email"
+	GoogleCalendarPrivateKey = "private_key"
+)
+
 type GoogleCalendarIntegration struct {
 	Domain string            `json:"domain"`
 	ApiKey map[string]string `json:"api_key_json"`
@@ -376,22 +381,34 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
-		if email, ok := intg.ApiKey["client_email"]; !ok {
-			invalid.Append("integrations.google_calendar.api_key_json.client_email", "client_email is required")
+		if email, ok := intg.ApiKey[GoogleCalendarEmail]; !ok {
+			invalid.Append(
+				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
+				fmt.Sprintf("%s is required", GoogleCalendarEmail),
+			)
 		} else {
 			email = strings.TrimSpace(email)
-			intg.ApiKey["client_email"] = email
+			intg.ApiKey[GoogleCalendarEmail] = email
 			if email == "" {
-				invalid.Append("integrations.google_calendar.api_key_json.client_email", "client_email cannot be blank")
+				invalid.Append(
+					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarEmail),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarEmail),
+				)
 			}
 		}
 		if privateKey, ok := intg.ApiKey["private_key"]; !ok {
-			invalid.Append("integrations.google_calendar.api_key_json.private_key", "private_key is required")
+			invalid.Append(
+				fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
+				fmt.Sprintf("%s is required", GoogleCalendarPrivateKey),
+			)
 		} else {
 			privateKey = strings.TrimSpace(privateKey)
-			intg.ApiKey["private_key"] = privateKey
+			intg.ApiKey[GoogleCalendarPrivateKey] = privateKey
 			if privateKey == "" {
-				invalid.Append("integrations.google_calendar.api_key_json.private_key", "private_key cannot be blank")
+				invalid.Append(
+					fmt.Sprintf("integrations.google_calendar.api_key_json.%s", GoogleCalendarPrivateKey),
+					fmt.Sprintf("%s cannot be blank", GoogleCalendarPrivateKey),
+				)
 			}
 		}
 		intg.Domain = strings.TrimSpace(intg.Domain)
