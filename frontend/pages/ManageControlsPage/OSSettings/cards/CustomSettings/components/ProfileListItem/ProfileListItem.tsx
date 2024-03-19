@@ -11,6 +11,7 @@ import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
 import strUtils from "utilities/strings";
+import { is } from "date-fns/locale";
 
 const baseClass = "profile-list-item";
 
@@ -29,11 +30,17 @@ const LabelCount = ({
 interface IProfileDetailsProps {
   platform: string;
   createdAt: string;
+  isDDMProfile?: boolean;
 }
 
-const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
+const ProfileDetails = ({
+  platform,
+  createdAt,
+  isDDMProfile,
+}: IProfileDetailsProps) => {
   const getPlatformName = () => {
-    return platform === "darwin" ? "macOS" : "Windows";
+    if (platform === "windows") return "Windows";
+    return isDDMProfile ? "macOS (declaration)" : "macOS";
   };
 
   return (
@@ -55,6 +62,10 @@ interface IProfileListItemProps {
     React.SetStateAction<IMdmProfile | null>
   >;
 }
+
+const isDDMProfile = (profile: IMdmProfile) => {
+  return profile.name.includes(".json");
+};
 
 const ProfileListItem = ({
   isPremium,
@@ -81,7 +92,11 @@ const ProfileListItem = ({
         <div className={`${subClass}__info`}>
           <span className={`${subClass}__title`}>{name}</span>
           <div className={`${subClass}__details`}>
-            <ProfileDetails platform={platform} createdAt={created_at} />
+            <ProfileDetails
+              platform={platform}
+              createdAt={created_at}
+              isDDMProfile={isDDMProfile(profile)}
+            />
           </div>
         </div>
       </div>
