@@ -173,6 +173,10 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 		if gEvent.End.DateTime == "" {
 			// User has modified the event to be an all-day event. All-day events are problematic because they depend on the user's timezone.
 			// We won't handle all-day events at this time, and treat the event as deleted.
+			err = c.DeleteEvent(event)
+			if err != nil {
+				level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+			}
 			deleted = true
 		}
 
@@ -200,6 +204,10 @@ func (c *GoogleCalendar) GetAndUpdateEvent(event *fleet.CalendarEvent, genBodyFn
 			if gEvent.Start.DateTime == "" {
 				// User has modified the event to be an all-day event. All-day events are problematic because they depend on the user's timezone.
 				// We won't handle all-day events at this time, and treat the event as deleted.
+				err = c.DeleteEvent(event)
+				if err != nil {
+					level.Warn(c.config.Logger).Log("msg", "deleting Google calendar event which was changed to all-day event", "err", err)
+				}
 				deleted = true
 			}
 		}

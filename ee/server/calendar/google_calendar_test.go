@@ -346,6 +346,10 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 	assert.True(t, eventCreated)
 
 	// all day event (deleted)
+	mockAPI.DeleteEventFunc = func(id string) error {
+		assert.Equal(t, baseEventID, id)
+		return nil
+	}
 	mockAPI.GetEventFunc = func(id, eTag string) (*calendar.Event, error) {
 		return &calendar.Event{
 			Id:    baseEventID,
@@ -374,10 +378,6 @@ func TestGoogleCalendar_GetAndUpdateEvent(t *testing.T) {
 		}, nil
 	}
 	eventCreated = false
-	mockAPI.DeleteEventFunc = func(id string) error {
-		assert.Equal(t, baseEventID, id)
-		return nil
-	}
 	retrievedEvent, updated, err = cal.GetAndUpdateEvent(event, genBodyFn)
 	require.NoError(t, err)
 	assert.True(t, updated)
