@@ -488,9 +488,6 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-	for _, calIntegration := range c.Integrations.GoogleCalendar {
-		calIntegration.PrivateKey = MaskedPassword
-	}
 }
 
 // Clone implements cloner.

@@ -143,17 +143,12 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	googleCalEmail := "service-valid@example.com"
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			AgentOptions: &agentOpts,
 			MDM:          fleet.MDM{EnabledAndConfigured: true},
 			Integrations: fleet.Integrations{
-				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{
-						Email: googleCalEmail,
-					},
-				},
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			},
 		}, nil
 	}

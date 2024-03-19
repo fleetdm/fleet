@@ -361,7 +361,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
 	require.Len(t, savedAppConfig.Integrations.GoogleCalendar, 1)
-	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].Email)
+	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
 }
 
 func TestFullTeamGitOps(t *testing.T) {
@@ -392,11 +392,7 @@ func TestFullTeamGitOps(t *testing.T) {
 				WindowsEnabledAndConfigured: true,
 			},
 			Integrations: fleet.Integrations{
-				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{
-						Email: "service@example.com",
-					},
-				},
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			},
 		}, nil
 	}

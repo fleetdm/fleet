@@ -342,9 +342,8 @@ func makeTestZendeskRequest(ctx context.Context, intg *ZendeskIntegration) error
 }
 
 type GoogleCalendarIntegration struct {
-	Email      string `json:"email"`
-	PrivateKey string `json:"private_key"`
-	Domain     string `json:"domain"`
+	Domain string            `json:"domain"`
+	ApiKey map[string]string `json:"api_key_json"`
 }
 
 // Integrations configures the integrations with external systems.
@@ -377,13 +376,23 @@ func ValidateGoogleCalendarIntegrations(intgs []*GoogleCalendarIntegration, inva
 		invalid.Append("integrations.google_calendar", "integrating with >1 Google Workspace service account is not yet supported.")
 	}
 	for _, intg := range intgs {
-		intg.Email = strings.TrimSpace(intg.Email)
-		if intg.Email == "" {
-			invalid.Append("integrations.google_calendar.email", "email is required")
+		if email, ok := intg.ApiKey["client_email"]; !ok {
+			invalid.Append("integrations.google_calendar.api_key_json.client_email", "client_email is required")
+		} else {
+			email = strings.TrimSpace(email)
+			intg.ApiKey["client_email"] = email
+			if email == "" {
+				invalid.Append("integrations.google_calendar.api_key_json.client_email", "client_email cannot be blank")
+			}
 		}
-		intg.PrivateKey = strings.TrimSpace(intg.PrivateKey)
-		if intg.PrivateKey == "" || intg.PrivateKey == MaskedPassword {
-			invalid.Append("integrations.google_calendar.private_key", "private_key is required")
+		if privateKey, ok := intg.ApiKey["private_key"]; !ok {
+			invalid.Append("integrations.google_calendar.api_key_json.private_key", "private_key is required")
+		} else {
+			privateKey = strings.TrimSpace(privateKey)
+			intg.ApiKey["private_key"] = privateKey
+			if privateKey == "" {
+				invalid.Append("integrations.google_calendar.api_key_json.private_key", "private_key cannot be blank")
+			}
 		}
 		intg.Domain = strings.TrimSpace(intg.Domain)
 		if intg.Domain == "" {
