@@ -6405,10 +6405,18 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	//
 	s.setTokenForTest(t, "gitops1-mdm@example.com", test.GoodPassword)
 
-	// Attempt to edit global MDM settings, should allow.
+	// Attempt to edit global MDM settings, should allow (also ensure the IdP settings are cleared).
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
-		"mdm": { "enable_disk_encryption": true }
+		"mdm": {
+			"enable_disk_encryption": true,
+			"end_user_authentication": {
+				"entity_id": "",
+				"issuer_uri": "",
+				"idp_name": "",
+				"metadata_url": ""
+			}
+		}
   }`), http.StatusOK, &acResp)
 	assert.True(t, acResp.MDM.EnableDiskEncryption.Value)
 
