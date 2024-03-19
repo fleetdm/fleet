@@ -546,7 +546,6 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
 	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
-	assert.Equal(t, "service@example.com", savedTeam.Config.Integrations.GoogleCalendar.Email)
 	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 
 	// Now clear the settings
