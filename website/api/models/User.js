@@ -207,10 +207,10 @@ without necessarily having a billing card.`
       description: 'The primary buying situation the user selected when they signed up.',
       extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
       isIn: [
-        'endpoint-ops-security',
-        'endpoint-ops-it',
-        'device-management',
-        'vulnerability-management',
+        'eo-security',
+        'eo-it',
+        'dm',
+        'vm',
       ]
     }
 
