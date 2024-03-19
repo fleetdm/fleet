@@ -49,7 +49,7 @@ Download:
 # macOS
 make osqueryd-app-tar-gz version=5.11.0 out-path=.
 
-# osqueryd
+# Linux
 curl -L https://github.com/osquery/osquery/releases/download/5.11.0/osquery_5.11.0-1.linux_amd64.deb --output osquery.deb
 ar x osquery.deb
 tar xf data.tar.gz

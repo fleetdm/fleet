@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/semver"
 	"github.com/fleetdm/fleet/v4/orbit/pkg/constant"
@@ -15,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/pkg/secure"
 	"github.com/goreleaser/nfpm/v2"
 	"github.com/goreleaser/nfpm/v2/files"
+	"github.com/goreleaser/nfpm/v2/rpm"
 	"github.com/rs/zerolog/log"
 )
 
@@ -85,9 +87,11 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	// Write files
 
-	if err := writeSystemdUnit(opt, rootDir); err != nil {
+	systemdPath, cleanupFn, err := writeSystemdUnit()
+	if err != nil {
 		return "", fmt.Errorf("write systemd unit: %w", err)
 	}
+	defer cleanupFn()
 
 	if err := writeEnvFile(opt, rootDir); err != nil {
 		return "", fmt.Errorf("write env file: %w", err)
@@ -142,14 +146,15 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 
 	contents := files.Contents{
 		&files.Content{
-			Source:      filepath.Join(rootDir, "**"),
+			Source:      rootDir,
 			Destination: "/",
+			Type:        files.TypeTree,
 		},
 		// Symlink current into /opt/orbit/bin/orbit/orbit
 		&files.Content{
 			Source:      "/opt/orbit/bin/orbit/linux/" + opt.OrbitChannel + "/orbit",
 			Destination: "/opt/orbit/bin/orbit/orbit",
-			Type:        "symlink",
+			Type:        files.TypeSymlink,
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
 			},
@@ -158,19 +163,40 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 		&files.Content{
 			Source:      "/opt/orbit/bin/orbit/orbit",
 			Destination: "/usr/local/bin/orbit",
-			Type:        "symlink",
+			Type:        files.TypeSymlink,
 			FileInfo: &files.ContentFileInfo{
 				Mode: constant.DefaultExecutableMode | os.ModeSymlink,
 			},
 		},
+		//
+		// We need to include the systemd file separately because it
+		// currently breaks installs on CentOS 7/8 with the following error:
+		//
+		//	$ sudo rpm --install fleet-osquery-1.22.0-1.x86_64.rpm
+		//	file /usr/lib from install of fleet-osquery-0:1.22.0-1.x86_64
+		//	conflicts with file from package filesystem-3.2-25.el7.x86_64
+		//
+		&files.Content{
+			Source:      systemdPath,
+			Destination: "/usr/lib/systemd/system/orbit.service",
+			Type:        files.TypeFile,
+			FileInfo: &files.ContentFileInfo{
+				Mode: constant.DefaultSystemdUnitMode,
+			},
+		},
 	}
+
+	// Let's use a safe umask value of 0o022 which forces
+	// non writable access to group and other.
+	const uMask = 0o022
+	mTime := time.Now()
 
 	// Add empty folders to be created.
 	for _, emptyFolder := range []string{"/var/log/osquery", "/var/log/orbit"} {
 		contents = append(contents, (&files.Content{
 			Destination: emptyFolder,
 			Type:        "dir",
-		}).WithFileInfoDefaults())
+		}).WithFileInfoDefaults(uMask, mTime))
 	}
 
 	if varLibSymlink {
@@ -186,10 +212,17 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 			})
 	}
 
-	contents, err = files.ExpandContentGlobs(contents, false)
+	contents, err = files.PrepareForPackager(
+		contents,
+		uMask,
+		getPackager(pkger),
+		true,
+		mTime,
+	)
 	if err != nil {
-		return "", fmt.Errorf("glob contents: %w", err)
+		return "", fmt.Errorf("prepare contents for packager: %w", err)
 	}
+
 	for _, c := range contents {
 		log.Debug().Interface("file", c).Msg("added file")
 	}
@@ -198,6 +231,7 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	info := &nfpm.Info{
 		Name:        "fleet-osquery",
 		Version:     opt.Version,
+		Platform:    "linux",
 		Description: "Fleet osquery -- runtime and autoupdater",
 		Arch:        "amd64",
 		Maintainer:  "Fleet Device Management",
@@ -239,13 +273,21 @@ func buildNFPM(opt Options, pkger nfpm.Packager) (string, error) {
 	return filename, nil
 }
 
-func writeSystemdUnit(opt Options, rootPath string) error {
-	systemdRoot := filepath.Join(rootPath, "usr", "lib", "systemd", "system")
-	if err := secure.MkdirAll(systemdRoot, constant.DefaultDirMode); err != nil {
-		return fmt.Errorf("create systemd dir: %w", err)
+func getPackager(pkger nfpm.Packager) string {
+	packager := "deb"
+	if _, ok := pkger.(*rpm.RPM); ok {
+		packager = "rpm"
 	}
-	if err := os.WriteFile(
-		filepath.Join(systemdRoot, "orbit.service"),
+	return packager
+}
+
+func writeSystemdUnit() (string, func(), error) {
+	path, err := os.MkdirTemp("", "orbit-systemd")
+	if err != nil {
+		return "", nil, err
+	}
+	systemdPath := filepath.Join(path, "orbit.service")
+	if err := os.WriteFile(systemdPath,
 		[]byte(`
 [Unit]
 Description=Orbit osquery
@@ -267,10 +309,13 @@ WantedBy=multi-user.target
 `),
 		constant.DefaultSystemdUnitMode,
 	); err != nil {
-		return fmt.Errorf("write file: %w", err)
+		os.RemoveAll(path)
+		return "", nil, fmt.Errorf("write file: %w", err)
 	}
 
-	return nil
+	return systemdPath, func() {
+		os.RemoveAll(path)
+	}, nil
 }
 
 var envTemplate = template.Must(template.New("env").Parse(`
