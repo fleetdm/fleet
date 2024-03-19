@@ -13,6 +13,7 @@ import InputField from "components/forms/fields/InputField";
 import Graphic from "components/Graphic";
 import Modal from "components/Modal";
 import Checkbox from "components/forms/fields/Checkbox";
+import { syntaxHighlight } from "utilities/helpers";
 
 const baseClass = "calendar-events-modal";
 
@@ -70,6 +71,7 @@ const CalendarEventsModal = ({
   const [showPreviewCalendarEvent, setShowPreviewCalendarEvent] = useState(
     false
   );
+  const [showExamplePayload, setShowExamplePayload] = useState(false);
 
   const validateCalendarEventsFormData = (
     curFormData: ICalendarEventsFormData
@@ -114,6 +116,30 @@ const CalendarEventsModal = ({
 
   const togglePreviewCalendarEvent = () => {
     // TODO
+  };
+
+  const renderExamplePayload = () => {
+    return (
+      <>
+        <pre>POST https://server.com/example</pre>
+        <pre
+          dangerouslySetInnerHTML={{
+            __html: syntaxHighlight({
+              timestamp: "0000-00-00T00:00:00Z",
+              host_id: 1,
+              host_display_name: "Anna's MacBook Pro",
+              host_serial_number: "ABCD1234567890",
+              failing_policies: [
+                {
+                  id: 123,
+                  name: "macOS - Disable guest account",
+                },
+              ],
+            }),
+          }}
+        />
+      </>
+    );
   };
 
   const renderPolicies = () => {
@@ -208,7 +234,7 @@ const CalendarEventsModal = ({
         labelTooltipPosition="top-start"
         helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
       />
-      {/* <RevealButton
+      <RevealButton
         isShowing={showExamplePayload}
         className={`${baseClass}__show-example-payload-toggle`}
         hideText="Hide example payload"
@@ -218,7 +244,7 @@ const CalendarEventsModal = ({
           setShowExamplePayload(!showExamplePayload);
         }}
       />
-      {showExamplePayload && renderExamplePayload()} */}
+      {showExamplePayload && renderExamplePayload()}
       {renderPolicies()}
 
       <div className="modal-cta-wrap">
