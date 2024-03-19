@@ -231,9 +231,10 @@ func processFailingHostExistingCalendarEvent(
 	calendarEvent *fleet.CalendarEvent,
 	host fleet.HostPolicyMembershipData,
 ) error {
-	updatedEvent, updated, err := calendar.GetAndUpdateEvent(calendarEvent, func() string {
-		return generateCalendarEventBody(orgName, host.HostDisplayName)
-	})
+	updatedEvent, updated, err := calendar.GetAndUpdateEvent(
+		calendarEvent, func(bool) string {
+			return generateCalendarEventBody(orgName, host.HostDisplayName)
+		})
 	if err != nil {
 		return fmt.Errorf("get event calendar on db: %w", err)
 	}
@@ -325,9 +326,12 @@ func attemptCreatingEventOnUserCalendar(
 	// - If it’s the 3rd Tuesday, Weds, Thurs, etc. of the month and it’s past the last slot, schedule the call for the next business day.
 	year, month, today := time.Now().Date()
 	preferredDate := getPreferredCalendarEventDate(year, month, today)
-	body := generateCalendarEventBody(orgName, host.HostDisplayName)
 	for {
-		calendarEvent, err := userCalendar.CreateEvent(preferredDate, body)
+		calendarEvent, err := userCalendar.CreateEvent(
+			preferredDate, func(bool) string {
+				return generateCalendarEventBody(orgName, host.HostDisplayName)
+			},
+		)
 		var dee fleet.DayEndedError
 		switch {
 		case err == nil:
