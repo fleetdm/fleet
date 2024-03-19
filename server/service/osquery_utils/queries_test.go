@@ -703,7 +703,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "",
 		},
 		{
-			name: "off missing is_federated and server url",
+			name: "off missing aad_resource_id and server url",
 			data: []map[string]string{
 				{
 					"provider_id":       "Some_ID",
@@ -754,7 +754,7 @@ func TestDirectIngestMDMWindows(t *testing.T) {
 			wantServerURL:        "https://example.com",
 		},
 		{
-			name: "on manual missing is_federated",
+			name: "on manual missing aad_resource_id",
 			data: []map[string]string{
 				{
 					"discovery_service_url": "https://example.com",
