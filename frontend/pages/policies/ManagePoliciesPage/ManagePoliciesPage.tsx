@@ -25,6 +25,7 @@ import {
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
 import { IDropdownOption } from "interfaces/dropdownOption";
+import { IApiError } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -53,7 +54,6 @@ import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
 import { ICalendarEventsFormData } from "./components/CalendarEventsModal/CalendarEventsModal";
-import { IApiError } from "interfaces/errors";
 
 interface IManagePoliciesPageProps {
   router: InjectedRouter;
