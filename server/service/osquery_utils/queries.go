@@ -473,10 +473,10 @@ var extraDetailQueries = map[string]DetailQuery{
                     enrollment_info AS (
                         SELECT
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
                             MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -487,7 +487,7 @@ var extraDetailQueries = map[string]DetailQuery{
                         LIMIT 1
                     )
                     SELECT
-                        e.is_federated,
+                        e.aad_resource_id,
                         e.discovery_service_url,
                         e.provider_id,
                         i.installation_type
@@ -1612,7 +1612,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	serverURL := data["discovery_service_url"]
 	if serverURL != "" {
 		enrolled = true
-		if isFederated := data["is_federated"]; isFederated == "1" {
+		if data["aad_resource_id"] != "" {
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
