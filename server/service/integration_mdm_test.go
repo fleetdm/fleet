@@ -288,6 +288,7 @@ func (s *integrationMDMTestSuite) TearDownTest() {
 	appCfg.MDM.WindowsEnabledAndConfigured = true
 	// ensure global disk encryption is disabled on exit
 	appCfg.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	// TODO(mna): disable MDM settings, MacOSSetup, updates, etc.
 	// ensure global Windows OS updates are always disabled for the next test
 	appCfg.MDM.WindowsUpdates = fleet.WindowsUpdates{}
 	err := s.ds.SaveAppConfig(ctx, &appCfg.AppConfig)
@@ -6409,6 +6410,9 @@ func (s *integrationMDMTestSuite) TestGitOpsUserActions() {
 	acResp := appConfigResponse{}
 	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(`{
 		"mdm": {
+			"macos_setup": {
+				"enable_end_user_authentication": false
+			},
 			"enable_disk_encryption": true,
 			"end_user_authentication": {
 				"entity_id": "",
