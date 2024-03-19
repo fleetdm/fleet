@@ -18,8 +18,6 @@
       moreInfoUrl: https://play.goconsensus.com/s4e490bb9
   buzzwords: [Device trust,Zero trust,Layer 7 device trust,Beyondcorp,Device attestation,Conditional access]
   waysToUse:
-    - description: Create a calendar event and auto-remediate all failing policies when users are free. Coming soon (2024-04-01).
-      moreInfoUrl: https://github.com/fleetdm/fleet/issues/17230
     - description: Automatically manage the behavior of endpoints that are at higher risk of vulnerabilities or data loss due to their configuration or patch level.
     - description: Block access to corporate apps for users whose devices with unexpected settings, like disabled screen lock, passwords that are too short, unencrypted hard disks, and more
     - description: Quickly implement conditional access based on device health using osquery and a simple device health REST API.
@@ -34,6 +32,13 @@
       moreInfoUrl: https://cloud.google.com/beyondcorp
     - description: Get endpoint data into ServiceNow and make your asset management teams happy
       moreInfoUrl: https://www.youtube.com/watch?v=aVbU6_9JoM0
+- industryName: Maintenance windows
+  friendlyName: Fleet in your calendar
+  description: Create a calendar event to auto-remediate failing policies when your end users are free. Coming soon (2024-04-01)
+  documentationUrl: https://github.com/fleetdm/fleet/issues/17230
+  tier: Premium
+  productCategories: [Endpoint operations]
+  pricingTableCategories: [Endpoint operations]
 #
 #  ╔═╗╔═╗╦═╗╦╔═╗╔╦╗  ╔═╗═╗ ╦╔═╗╔═╗╦ ╦╔╦╗╦╔═╗╔╗╔
 #  ╚═╗║  ╠╦╝║╠═╝ ║   ║╣ ╔╩╦╝║╣ ║  ║ ║ ║ ║║ ║║║║
