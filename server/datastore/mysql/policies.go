@@ -5,10 +5,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
-	"golang.org/x/text/unicode/norm"
 	"sort"
 	"strings"
 	"time"
+
+	"golang.org/x/text/unicode/norm"
 
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -1158,4 +1159,53 @@ func (ds *Datastore) UpdateHostPolicyCounts(ctx context.Context) error {
 	}
 
 	return nil
+}
+
+func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
+	query := `SELECT id, name FROM policies WHERE team_id = ? AND calendar_events_enabled;`
+	var policies []fleet.PolicyCalendarData
+	err := sqlx.SelectContext(ctx, ds.reader(ctx), &policies, query, teamID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get calendar policies")
+	}
+	return policies, nil
+}
+
+// TODO(lucas): Must be tested at scale.
+func (ds *Datastore) GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
+	query := `
+	SELECT 
+		COALESCE(sh.email, '') AS email,
+		pm.passing AS passing,
+		h.id AS host_id,
+		hdn.display_name AS host_display_name,
+		h.hardware_serial AS host_hardware_serial
+	FROM (
+		SELECT host_id, BIT_AND(COALESCE(passes, 0)) AS passing
+		FROM policy_membership
+		WHERE policy_id IN (?)
+		GROUP BY host_id
+	) pm
+	LEFT JOIN (
+		SELECT MIN(h.host_id) as host_id, h.email as email
+		FROM (
+			SELECT host_id, MIN(email) AS email
+			FROM host_emails WHERE email LIKE CONCAT('%@', ?)
+			GROUP BY host_id
+		) h GROUP BY h.email
+	) sh ON sh.host_id = pm.host_id
+	JOIN hosts h ON h.id = pm.host_id
+	LEFT JOIN host_display_names hdn ON hdn.host_id = pm.host_id;
+`
+
+	query, args, err := sqlx.In(query, policyIDs, domain)
+	if err != nil {
+		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
+	}
+	var hosts []fleet.HostPolicyMembershipData
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &hosts, query, args...); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "listing policies")
+	}
+
+	return hosts, nil
 }

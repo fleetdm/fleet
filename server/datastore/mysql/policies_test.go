@@ -59,6 +59,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNameUnicode", testPoliciesNameUnicode},
 		{"TestPoliciesNameEmoji", testPoliciesNameEmoji},
 		{"TestPoliciesNameSort", testPoliciesNameSort},
+		{"TestGetCalendarPolicies", testGetCalendarPolicies},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2784,7 +2785,6 @@ func testPoliciesNameEmoji(t *testing.T, ds *Datastore) {
 	assert.NoError(t, err)
 	require.Len(t, policies, 1)
 	assert.Equal(t, emoji1, policies[0].Name)
-
 }
 
 // Ensure case-insensitive sort order for policy names
@@ -2805,4 +2805,58 @@ func testPoliciesNameSort(t *testing.T, ds *Datastore) {
 	for i, policy := range policies {
 		assert.Equal(t, policy.Name, policiesResult[i].Name)
 	}
+}
+
+func testGetCalendarPolicies(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// Test with non-existent team.
+	_, err := ds.GetCalendarPolicies(ctx, 999)
+	require.NoError(t, err)
+
+	team, err := ds.NewTeam(ctx, &fleet.Team{
+		Name: "Foobar",
+	})
+	require.NoError(t, err)
+
+	// Test when the team has no policies.
+	_, err = ds.GetCalendarPolicies(ctx, team.ID)
+	require.NoError(t, err)
+
+	// Create a global query to test that only team policies are returned.
+	_, err = ds.NewGlobalPolicy(ctx, nil, fleet.PolicyPayload{
+		Name:  "Global Policy",
+		Query: "SELECT * FROM time;",
+	})
+	require.NoError(t, err)
+
+	_, err = ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team Policy 1",
+		Query:                 "SELECT * FROM system_info;",
+		CalendarEventsEnabled: false,
+	})
+	require.NoError(t, err)
+
+	// Test when the team has policies, but none is configured for calendar.
+	_, err = ds.GetCalendarPolicies(ctx, team.ID)
+	require.NoError(t, err)
+
+	teamPolicy2, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team Policy 2",
+		Query:                 "SELECT * FROM osquery_info;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+	teamPolicy3, err := ds.NewTeamPolicy(ctx, team.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team Policy 3",
+		Query:                 "SELECT * FROM os_version;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	calendarPolicies, err := ds.GetCalendarPolicies(ctx, team.ID)
+	require.NoError(t, err)
+	require.Len(t, calendarPolicies, 2)
+	require.Equal(t, calendarPolicies[0].ID, teamPolicy2.ID)
+	require.Equal(t, calendarPolicies[1].ID, teamPolicy3.ID)
 }
