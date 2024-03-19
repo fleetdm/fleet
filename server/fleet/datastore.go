@@ -1163,7 +1163,7 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
-	MDMAppleDDMDeclarationPayload(ctx context.Context, declarationType MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error)
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

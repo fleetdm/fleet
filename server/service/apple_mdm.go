@@ -2978,17 +2978,6 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 		return nil, ctxerr.New(r.Context, "missing device id")
 	}
 
-	// TODO: We're using the team id only to pull the declaration detail. Any reason for us to check
-	// for a host record first in all cases? Normalizing the UDID for capitalization?
-	h, err := svc.ds.HostLiteByIdentifier(r.Context, dm.UDID)
-	if err != nil {
-		return nil, ctxerr.Wrap(r.Context, err, "getting host by identifier")
-	}
-	var tid uint
-	if h.TeamID != nil {
-		tid = *h.TeamID
-	}
-
 	switch {
 	case dm.Endpoint == "tokens":
 		level.Debug(svc.logger).Log("msg", "received tokens request")
@@ -3011,24 +3000,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	case strings.HasPrefix(dm.Endpoint, "declarations"):
 		level.Debug(svc.logger).Log("msg", "received declarations request")
-		parts := strings.Split(dm.Endpoint, "/")
-		if len(parts) != 3 {
-			return nil, ctxerr.New(r.Context, "unrecognized declarations endpoint")
-		}
-		declarationType := parts[1]
-		declarationIdentifier := parts[2]
-		level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", declarationType, "identifier", declarationIdentifier)
-
-		// TODO: Validate declarationType?
-		d, err := svc.ds.MDMAppleDDMDeclarationPayload(r.Context, fleet.MDMAppleDeclarationType("com.apple."+declarationType), declarationIdentifier, tid)
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "getting declaration")
-		}
-		b, err := json.Marshal(d)
-		if err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "marshaling declaration")
-		}
-		return b, nil
+		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.UDID)
 
 	default:
 		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
@@ -3089,6 +3061,26 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	})
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string) ([]byte, error) {
+	parts := strings.Split(endpoint, "/")
+	if len(parts) != 3 {
+		return nil, ctxerr.New(ctx, "unrecognized declarations endpoint")
+	}
+	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
+
+	// TODO: Validate declarationType?
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, fleet.MDMAppleDeclarationType("com.apple."+parts[1]), parts[2], hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration")
+	}
+	b, err := json.Marshal(d)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
 	}
 
 	return b, nil

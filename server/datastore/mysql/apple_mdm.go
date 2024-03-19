@@ -3123,18 +3123,23 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationPayload(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, teamID uint) (json.RawMessage, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error) {
+	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
+	// declaration for the host's current team is returned. In the case where the specified
+	// identifier is not unique to the team, the cron should ensure that any conflicting
+	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	declaration
+	mad.declaration
 FROM
-	mdm_apple_declarations
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	team_id = ? AND identifier = ? AND declaration_type = ?`
+	host_uuid = ? AND identifier = ? AND declaration_type = ? AND operation_type = ?`
 
 	var res json.RawMessage
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, teamID, identifier, declarationType); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "get ddm declaration")
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
 	}
 
 	return res, nil
