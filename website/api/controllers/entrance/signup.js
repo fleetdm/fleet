@@ -70,7 +70,7 @@ the account verification message.)`,
       isIn: [
         'eo-security',
         'eo-it',
-        'dm',
+        'mdm',
         'vm'
       ],
     }
