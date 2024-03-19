@@ -594,6 +594,9 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
+	GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]HostPolicyMembershipData, error)
+	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
+
 	// Methods used for async processing of host policy query results.
 	AsyncBatchInsertPolicyMembership(ctx context.Context, batch []PolicyMembershipResult) error
 	AsyncBatchUpdatePolicyTimestamp(ctx context.Context, ids []uint, ts time.Time) error
@@ -612,6 +615,16 @@ type Datastore interface {
 	// DeleteOutOfDateVulnerabilities deletes 'software_cve' entries from the provided source where
 	// the updated_at timestamp is older than the provided duration
 	DeleteOutOfDateVulnerabilities(ctx context.Context, source VulnerabilitySource, duration time.Duration) error
+
+	///////////////////////////////////////////////////////////////////////////////
+	// Calendar events
+
+	NewCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint) (*CalendarEvent, error)
+	GetCalendarEvent(ctx context.Context, email string) (*CalendarEvent, error)
+	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
+	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
+	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
+	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Team Policies

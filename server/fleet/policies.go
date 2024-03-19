@@ -179,6 +179,11 @@ type Policy struct {
 	HostCountUpdatedAt *time.Time `json:"host_count_updated_at" db:"host_count_updated_at"`
 }
 
+type PolicyCalendarData struct {
+	ID   uint   `db:"id" json:"id"`
+	Name string `db:"name" json:"name"`
+}
+
 func (p Policy) AuthzType() string {
 	return "policy"
 }

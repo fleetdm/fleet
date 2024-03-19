@@ -571,6 +571,13 @@ func (c *AppConfig) Copy() *AppConfig {
 			clone.Integrations.Zendesk[i] = &zd
 		}
 	}
+	if len(c.Integrations.GoogleCalendar) > 0 {
+		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
+		for i, g := range c.Integrations.GoogleCalendar {
+			gc := *g
+			clone.Integrations.GoogleCalendar[i] = &gc
+		}
+	}
 
 	if c.MDM.MacOSSettings.CustomSettings != nil {
 		clone.MDM.MacOSSettings.CustomSettings = make([]MDMProfileSpec, len(c.MDM.MacOSSettings.CustomSettings))
