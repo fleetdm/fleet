@@ -47,7 +47,7 @@ module.exports = {
       description: 'What this user will be using Fleet for',
       isIn: [
         'vm',
-        'dm',
+        'mdm',
         'eo-it',
         'eo-security',
       ],
