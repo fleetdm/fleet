@@ -4,11 +4,21 @@
     color: $core-fleet-black;
   }
 
-  &__configuration {
-    display: flex;
-    flex-direction: column;
+  ui {
+    margin-block-start: $pad-small;
+  }
 
+  li {
+    margin: $pad-small 0;
+  }
+
+  form {
+    margin-top: $pad-large;
+  }
+
+  &__configuration {
     #api-key-json {
+      min-width: 100%; // resize vertically only
       height: 294px;
       font-size: $x-small;
     }
@@ -22,5 +32,27 @@
     font-family: "SourceCodePro", $monospace;
     min-height: 80px;
     padding: $pad-medium;
+    padding-right: $pad-xxlarge;
+    resize: none;
+  }
+
+  &__oauth-scopes-copy-icon-wrapper {
+    display: flex;
+    flex-direction: row-reverse;
+    align-items: center;
+    position: relative;
+    top: 36px;
+    right: 16px;
+    height: 0;
+    gap: 0.5rem;
+  }
+
+  &__copy-message {
+    font-weight: $regular;
+    vertical-align: top;
+    background-color: $ui-light-grey;
+    border: solid 1px #e2e4ea;
+    border-radius: 10px;
+    padding: 2px 6px;
   }
 }

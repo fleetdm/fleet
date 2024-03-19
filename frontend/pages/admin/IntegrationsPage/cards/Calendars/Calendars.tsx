@@ -145,32 +145,22 @@ const Calendars = (): JSX.Element => {
   };
 
   const renderOauthLabel = () => {
-    const onCopyOauthScopes = () => {
-      console.log("cool");
+    const onCopyOauthScopes = (evt: React.MouseEvent) => {
+      evt.preventDefault();
+
+      stringToClipboard(OAUTH_SCOPES)
+        .then(() => setCopyMessage(() => "Copied!"))
+        .catch(() => setCopyMessage(() => "Copy failed"));
+
+      // Clear message after 1 second
+      setTimeout(() => setCopyMessage(() => ""), 1000);
+
+      return false;
     };
-    // const onCopyOauthScopes = (evt: React.MouseEvent) => {
-    //   evt.preventDefault();
-
-    //   stringToClipboard(OAUTH_SCOPES)
-    //     .then(
-    //       setCopyMessage("Copied!"))
-    //     )
-    //     .catch(
-    //       setCopyMessage("Copy failed"))
-    //     );
-
-    //   // Clear message after 1 second
-    //   setTimeout(
-    //     setCopyMessage("")),
-    //     1000
-    //   );
-
-    //   return false;
-    // };
 
     return (
       <>
-        <span className="buttons">
+        <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
           <Button
             variant="unstyled"
             className={`${baseClass}__oauth-scopes-copy-icon`}
@@ -190,78 +180,76 @@ const Calendars = (): JSX.Element => {
     return (
       <>
         <SectionHeader title="Calendars" />
-        <form onSubmit={onFormSubmit} autoComplete="off">
-          <p className={`${baseClass}__page-description`}>
-            To create calendar events for end users with failing policies,
-            you&apos;ll need to configure a dedicated Google Workspace service
-            account.
+        <p className={`${baseClass}__page-description`}>
+          To create calendar events for end users with failing policies,
+          you&apos;ll need to configure a dedicated Google Workspace service
+          account.
+        </p>
+        <div className={`${baseClass}__section-instructions`}>
+          <p>
+            1. Go to the <b>Service Accounts</b> page in Google Cloud Platform.{" "}
+            <CustomLink text="View page" url={LEARN_MORE_CALENDARS} newTab />
           </p>
-          <div className={`${baseClass}__section-instructions`}>
-            <p>
-              1. Go to the <b>Service Accounts</b> page in Google Cloud
-              Platform.{" "}
-              <CustomLink text="View page" url={LEARN_MORE_CALENDARS} newTab />
-            </p>
-            <p>
-              2. Create a new project for your service account.
-              <ul>
-                <li>
-                  Click <b>Create project</b>.
-                </li>
-                <li>
-                  Enter &quot;Fleet calendar events&quot; as the project name.
-                </li>
-                <li>
-                  For &quot;Organization&quot; and &quot;Location&quot;, select
-                  your calendar&apos;s organization.
-                </li>
-              </ul>
-            </p>
+          <p>
+            2. Create a new project for your service account.
+            <ul>
+              <li>
+                Click <b>Create project</b>.
+              </li>
+              <li>
+                Enter &quot;Fleet calendar events&quot; as the project name.
+              </li>
+              <li>
+                For &quot;Organization&quot; and &quot;Location&quot;, select
+                your calendar&apos;s organization.
+              </li>
+            </ul>
+          </p>
 
-            <p>
-              3. Create the service account.
-              <ul>
-                <li>
-                  Click <b>Create service account</b>.
-                </li>
-                <li>
-                  Set the service account name to &quot;Fleet calendar
-                  events&quot;.
-                </li>
-                <li>
-                  Set the service account ID to
-                  &quot;fleet-calendar-events&quot;.
-                </li>
-                <li>
-                  Click <b>Create and continue</b>.
-                </li>
-                <li>
-                  Click <b>Done</b>.
-                </li>
-              </ul>
-            </p>
-            <p>
-              4. Create an API key.{" "}
-              <ul>
-                <li>
-                  Click <b>Create service account</b>.
-                </li>
-                <li>
-                  Click the <b>Actions</b> menu for your new service account.
-                </li>
-                <li>
-                  Select <b>Manage keys</b>.
-                </li>
-                <li>
-                  Click <b>Add key &gt; Create new key</b>.
-                </li>
-                <li>Select the JSON key type.</li>
-                <li>
-                  Click <b>Create</b> to create the key & download a JSON file.
-                </li>
-                <li className={`${baseClass}__configuration`}>
-                  Configure your service account integration in Fleet using the
-                  form below:
+          <p>
+            3. Create the service account.
+            <ul>
+              <li>
+                Click <b>Create service account</b>.
+              </li>
+              <li>
+                Set the service account name to &quot;Fleet calendar
+                events&quot;.
+              </li>
+              <li>
+                Set the service account ID to &quot;fleet-calendar-events&quot;.
+              </li>
+              <li>
+                Click <b>Create and continue</b>.
+              </li>
+              <li>
+                Click <b>Done</b>.
+              </li>
+            </ul>
+          </p>
+          <p>
+            4. Create an API key.{" "}
+            <ul>
+              <li>
+                Click <b>Create service account</b>.
+              </li>
+              <li>
+                Click the <b>Actions</b> menu for your new service account.
+              </li>
+              <li>
+                Select <b>Manage keys</b>.
+              </li>
+              <li>
+                Click <b>Add key &gt; Create new key</b>.
+              </li>
+              <li>Select the JSON key type.</li>
+              <li>
+                Click <b>Create</b> to create the key & download a JSON file.
+              </li>
+              <li className={`${baseClass}__configuration`}>
+                Configure your service account integration in Fleet using the
+                form below:
+                <form onSubmit={onFormSubmit} autoComplete="off">
                   <InputField
                     label="API key JSON"
                     onChange={handleInputChange}
@@ -314,42 +302,42 @@ const Calendars = (): JSX.Element => {
                   >
                     Save
                   </Button>
-                </li>
-              </ul>
-            </p>
-            <p>
-              5. Authorize the service account via domain-wide delegation.
-              <ul>
-                <li>
-                  In Google Workspace, go to{" "}
-                  <b>
-                    Security &gt; Access and data control &gt; API controls &gt;
-                    Manage Domain Wide Delegation
-                  </b>
-                  .
-                </li>
-                <li>
-                  Under <b>API clients</b>, click <b>Add new</b>
-                </li>
-                <li>Enter the client ID for the service account</li>
-                <li>
-                  For the OAuth scopes, paste the following value:
-                  <InputField
-                    disabled
-                    inputWrapperClass={`${baseClass}__oauth-scopes`}
-                    name="oauth-scopes"
-                    label={renderOauthLabel()}
-                    type="textarea"
-                    value={OAUTH_SCOPES}
-                  />
-                </li>
-                <li>
-                  Click <b>Authorize</b>.
-                </li>
-              </ul>
-            </p>
-          </div>
-        </form>
+                </form>
+              </li>
+            </ul>
+          </p>
+          <p>
+            5. Authorize the service account via domain-wide delegation.
+            <ul>
+              <li>
+                In Google Workspace, go to{" "}
+                <b>
+                  Security &gt; Access and data control &gt; API controls &gt;
+                  Manage Domain Wide Delegation
+                </b>
+                .
+              </li>
+              <li>
+                Under <b>API clients</b>, click <b>Add new</b>
+              </li>
+              <li>Enter the client ID for the service account</li>
+              <li>
+                For the OAuth scopes, paste the following value:
+                <InputField
+                  disabled
+                  inputWrapperClass={`${baseClass}__oauth-scopes`}
+                  name="oauth-scopes"
+                  label={renderOauthLabel()}
+                  type="textarea"
+                  value={OAUTH_SCOPES}
+                />
+              </li>
+              <li>
+                Click <b>Authorize</b>.
+              </li>
+            </ul>
+          </p>
+        </div>
       </>
     );
   };
