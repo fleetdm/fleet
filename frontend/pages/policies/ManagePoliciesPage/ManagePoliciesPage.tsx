@@ -584,6 +584,7 @@ const ManagePolicyPage = ({
       );
 
       // update policies calendar events enabled
+      // TODO - only update changed policies
       const policyResponses = formData.policies.map((formPolicy) =>
         teamPoliciesAPI.update(formPolicy.id, {
           calendar_events_enabled: formPolicy.isChecked,
@@ -600,7 +601,10 @@ const ManagePolicyPage = ({
         );
       };
     } finally {
+      toggleCalendarEventsModal();
       setUpdatingPolicyEnabledCalendarEvents(false);
+      refetchTeamPolicies();
+      refetchTeamConfig();
     }
   };
 
