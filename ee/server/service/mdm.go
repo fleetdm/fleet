@@ -228,7 +228,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		return err
 	}
 
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSReleaseDevice bool
 	if payload.EnableEndUserAuthentication != nil {
 		if ac.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			ac.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -241,6 +241,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		if ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
 			didUpdate = true
+			didUpdateMacOSReleaseDevice = true
 		}
 	}
 
@@ -248,11 +249,23 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 		if err := svc.ds.SaveAppConfig(ctx, ac); err != nil {
 			return err
 		}
+		if didUpdateMacOSReleaseDevice {
+			if err := svc.updateMacOSSetupEnableReleaseDevice(ctx, ac.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, nil, nil); err != nil {
+				return err
+			}
+		}
 		if didUpdateMacOSEndUserAuth {
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, ac.MDM.MacOSSetup.EnableEndUserAuthentication, nil, nil); err != nil {
 				return err
 			}
 		}
+	}
+	return nil
+}
+
+func (svc *Service) updateMacOSSetupEnableReleaseDevice(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}
 	return nil
 }
