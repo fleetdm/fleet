@@ -82,8 +82,8 @@ interface ITeamCalendarSettings {
 // TODO:  Update these types to reflect this.
 
 export interface IIntegrations {
-  zendesk: IZendeskIntegration[] | null;
-  jira: IJiraIntegration[] | null;
+  zendesk: IZendeskIntegration[];
+  jira: IJiraIntegration[];
   google_calendar: IGlobalCalendarIntegration[] | null;
 }
 
