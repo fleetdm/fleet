@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"time"
 )
 
 func init() {
@@ -38,17 +39,21 @@ func Up_20240320145650(tx *sql.Tx) error {
 		return fmt.Errorf("failed to JSON marshal the job arguments: %w", err)
 	}
 
+	// hard-coded timestamps are used so that schema.sql is stable
 	const query = `
 INSERT INTO jobs (
     name,
     args,
     state,
 		error,
-    not_before
+    not_before,
+		created_at,
+		updated_at
 )
-VALUES (?, ?, ?, '', NOW())
+VALUES (?, ?, ?, '', ?, ?, ?)
 `
-	if _, err := tx.Exec(query, jobName, argsJSON, jobStateQueued); err != nil {
+	ts := time.Date(2024, 3, 20, 0, 0, 0, 0, time.UTC)
+	if _, err := tx.Exec(query, jobName, argsJSON, jobStateQueued, ts, ts, ts); err != nil {
 		return fmt.Errorf("failed to insert worker job: %w", err)
 	}
 	return nil
