@@ -141,17 +141,12 @@ const Calendars = (): JSX.Element => {
       .then(() => {
         renderFlash(
           "success",
-          <>Successfully updated Google calendar settings</>
+          <>Successfully saved calendar integration settings</>
         );
         refetchConfig();
       })
       .catch(() => {
-        renderFlash(
-          "error",
-          <>
-            Could not add <b>Google calendar integration</b>. Please try again.
-          </>
-        );
+        renderFlash("error", <>Could not save calendar integration settings</>);
       })
       .finally(() => {
         setIsUpdatingSettings(false);
