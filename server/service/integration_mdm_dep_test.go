@@ -16,6 +16,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push"
@@ -38,6 +39,12 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 	ctx := context.Background()
 
 	globalDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
+
+	// set an enroll secret, the Fleetd configuration profile will be installed
+	// on the host
+	enrollSecret := "test-release-dep-device"
+	err := s.ds.ApplyEnrollSecrets(ctx, nil, []*fleet.EnrollSecret{{Secret: enrollSecret}})
+	require.NoError(t, err)
 
 	// add a valid bootstrap package
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
@@ -152,28 +159,52 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
+		// Can be useful for debugging
+		//switch cmd.Command.RequestType {
+		//case "InstallProfile":
+		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
+		//case "InstallEnterpriseApplication":
+		//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
+		//	} else {
+		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		//	}
+		//default:
+		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+		//}
 		cmds = append(cmds, cmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
 
-	// expected commands: install fleetd, install bootstrap, install profile (not
-	// expected: account configuration, since enrollment_reference not set)
-	require.Len(t, cmds, 3)
+	// expected commands: install fleetd, install bootstrap, install profiles (N1
+	// and fleetd configuration) (not expected: account configuration, since
+	// enrollment_reference not set)
+	require.Len(t, cmds, 4)
 	var installProfileCount, installEnterpriseCount, otherCount int
+	var profileI1Seen, profileFleetdSeen bool
 	for _, cmd := range cmds {
 		switch cmd.Command.RequestType {
 		case "InstallProfile":
 			installProfileCount++
+			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+				profileI1Seen = true
+			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+				profileFleetdSeen = true
+			} else {
+			}
+
 		case "InstallEnterpriseApplication":
 			installEnterpriseCount++
 		default:
 			otherCount++
 		}
 	}
-	require.Equal(t, 1, installProfileCount)
+	require.Equal(t, 2, installProfileCount)
 	require.Equal(t, 2, installEnterpriseCount)
 	require.Equal(t, 0, otherCount)
+	require.True(t, profileI1Seen)
+	require.True(t, profileFleetdSeen)
 
 	// get the worker's pending job from the future, there should be a DEP
 	// release device task
