@@ -50,7 +50,7 @@ type GoogleCalendar struct {
 
 func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	if config.API == nil {
-		if config.IntegrationConfig.Email == "calendar-mock@example.com" {
+		if config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == "calendar-mock@example.com" {
 			// Assumes that only 1 Fleet server accesses the calendar, since all mock events are held in memory
 			config.API = &GoogleCalendarMockAPI{}
 		} else {
