@@ -35,9 +35,9 @@ type profileAssignmentReq struct {
 
 func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 	t := s.T()
+	ctx := context.Background()
 
 	globalDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
-	fmt.Println(">>>> globalDevice serial: ", globalDevice.SerialNumber)
 
 	// add a valid bootstrap package
 	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
@@ -152,22 +152,69 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 	cmd, err := mdmDevice.Idle()
 	require.NoError(t, err)
 	for cmd != nil {
-		switch cmd.Command.RequestType {
-		case "InstallProfile":
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
-		case "InstallEnterpriseApplication":
-			if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
-			} else {
-				fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-			}
-		default:
-			fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		}
 		cmds = append(cmds, cmd)
 		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
 		require.NoError(t, err)
 	}
+
+	// expected commands: install fleetd, install bootstrap, install profile (not
+	// expected: account configuration, since enrollment_reference not set)
+	require.Len(t, cmds, 3)
+	var installProfileCount, installEnterpriseCount, otherCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "InstallProfile":
+			installProfileCount++
+		case "InstallEnterpriseApplication":
+			installEnterpriseCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, installProfileCount)
+	require.Equal(t, 2, installEnterpriseCount)
+	require.Equal(t, 0, otherCount)
+
+	// get the worker's pending job from the future, there should be a DEP
+	// release device task
+	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+	require.NoError(t, err)
+	require.Len(t, pending, 1)
+	releaseJob := pending[0]
+	require.Equal(t, 0, releaseJob.Retries)
+	require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+	// update the job so that it can run immediately
+	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+	_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+	require.NoError(t, err)
+
+	// run the worker to process the DEP release
+	s.runWorker()
+
+	// make the device process the commands, it should receive the
+	// DeviceConfigured one.
+	cmds = cmds[:0]
+	cmd, err = mdmDevice.Idle()
+	require.NoError(t, err)
+	for cmd != nil {
+		cmds = append(cmds, cmd)
+		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+	}
+
+	require.Len(t, cmds, 1)
+	var deviceConfiguredCount int
+	for _, cmd := range cmds {
+		switch cmd.Command.RequestType {
+		case "DeviceConfigured":
+			deviceConfiguredCount++
+		default:
+			otherCount++
+		}
+	}
+	require.Equal(t, 1, deviceConfiguredCount)
+	require.Equal(t, 0, otherCount)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
