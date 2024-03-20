@@ -140,7 +140,7 @@ func TestMacosSetupAssistant(t *testing.T) {
 		err = w.ProcessJobs(ctx)
 		require.NoError(t, err)
 		// no remaining jobs to process
-		pending, err := ds.GetQueuedJobs(ctx, 10)
+		pending, err := ds.GetQueuedJobs(ctx, 10, time.Time{})
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	}

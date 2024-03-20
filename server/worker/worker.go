@@ -95,14 +95,26 @@ func (w *Worker) Register(jobs ...Job) {
 // identified by the name (e.g. "jira"). The args value is marshaled as JSON
 // and provided to the job processor when the job is executed.
 func QueueJob(ctx context.Context, ds fleet.Datastore, name string, args interface{}) (*fleet.Job, error) {
+	return QueueJobWithDelay(ctx, ds, name, args, 0)
+}
+
+// QueueJobWithDelay is like QueueJob but does not make the job available
+// before a specified delay (or no delay if delay is <= 0).
+func QueueJobWithDelay(ctx context.Context, ds fleet.Datastore, name string, args interface{}, delay time.Duration) (*fleet.Job, error) {
 	argsJSON, err := json.Marshal(args)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshal args")
 	}
+
+	var notBefore time.Time
+	if delay > 0 {
+		notBefore = time.Now().UTC().Add(delay)
+	}
 	job := &fleet.Job{
-		Name:  name,
-		Args:  (*json.RawMessage)(&argsJSON),
-		State: fleet.JobStateQueued,
+		Name:      name,
+		Args:      (*json.RawMessage)(&argsJSON),
+		State:     fleet.JobStateQueued,
+		NotBefore: notBefore,
 	}
 
 	return ds.NewJob(ctx, job)
@@ -128,7 +140,7 @@ func (w *Worker) ProcessJobs(ctx context.Context) error {
 	// process jobs until there are none left or the context is cancelled
 	seen := make(map[uint]struct{})
 	for {
-		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs)
+		jobs, err := w.ds.GetQueuedJobs(ctx, maxNumJobs, time.Time{})
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "get queued jobs")
 		}

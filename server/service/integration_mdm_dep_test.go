@@ -255,7 +255,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 
 	checkPendingMacOSSetupAssistantJob := func(expectedTask string, expectedTeamID *uint, expectedSerials []string, expectedJobID uint) {
-		pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
+		pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 		require.NoError(t, err)
 		require.Len(t, pending, 1)
 		require.Equal(t, "macos_setup_assistant", pending[0].Name)
@@ -281,7 +281,7 @@ func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
 	}
 
 	checkNoJobsPending := func() {
-		pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
+		pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 		require.NoError(t, err)
 		require.Empty(t, pending)
 	}

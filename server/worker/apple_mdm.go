@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
@@ -325,7 +326,13 @@ func QueueAppleMDMJob(
 		EnrollReference:    enrollReference,
 		EnrollmentCommands: enrollmentCommandUUIDs,
 	}
-	job, err := QueueJob(ctx, ds, appleMDMJobName, args)
+
+	// the release device task is always added with a delay
+	var delay time.Duration
+	if task == AppleMDMPostDEPReleaseDeviceTask {
+		delay = 30 * time.Second
+	}
+	job, err := QueueJobWithDelay(ctx, ds, appleMDMJobName, args, delay)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "queueing job")
 	}

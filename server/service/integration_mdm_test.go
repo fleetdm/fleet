@@ -9920,7 +9920,7 @@ func (s *integrationMDMTestSuite) TestMDMEnabledAndConfigured() {
 func (s *integrationMDMTestSuite) runWorker() {
 	err := s.worker.ProcessJobs(context.Background())
 	require.NoError(s.T(), err)
-	pending, err := s.ds.GetQueuedJobs(context.Background(), 1)
+	pending, err := s.ds.GetQueuedJobs(context.Background(), 1, time.Time{})
 	require.NoError(s.T(), err)
 	require.Empty(s.T(), pending)
 }
