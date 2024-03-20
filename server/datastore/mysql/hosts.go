@@ -4982,7 +4982,11 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 
 	for _, p := range policies {
 		if p.Response == "fail" {
-			hh.FailingPolicies = append(hh.FailingPolicies, p)
+			hh.FailingPolicies = append(hh.FailingPolicies, &fleet.HostHealthFailingPolicy{
+				ID:         p.ID,
+				Name:       p.Name,
+				Resolution: p.Resolution,
+			})
 		}
 	}
 

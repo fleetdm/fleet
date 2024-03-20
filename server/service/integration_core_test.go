@@ -10001,7 +10001,8 @@ func (s *integrationTestSuite) TestHostHealth() {
 	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
 	defer cleanupQuery(s, q2.ID)
 	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q2.ID,
+		QueryID:    &q2.ID,
+		Resolution: "Run this command to fix it",
 	})
 	require.NoError(t, err)
 
@@ -10018,11 +10019,16 @@ func (s *integrationTestSuite) TestHostHealth() {
 	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
 	assert.Len(t, hh.HostHealth.VulnerableSoftware, 1)
 	assert.Equal(t, hh.HostHealth.VulnerableSoftware[0], fleet.HostHealthVulnerableSoftware{
-		ID: soft1.ID,
-		Name: soft1.Name,
+		ID:      soft1.ID,
+		Name:    soft1.Name,
 		Version: soft1.Version,
 	})
 	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
+	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
+		ID:         failingPolicy.ID,
+		Name:       failingPolicy.Name,
+		Resolution: failingPolicy.Resolution,
+	})
 	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
 	// Check that the TeamID didn't make it into the response
 	assert.Nil(t, hh.HostHealth.TeamID)

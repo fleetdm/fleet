@@ -363,7 +363,7 @@ type HostHealth struct {
 	OsVersion             string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
 	VulnerableSoftware    []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
-	FailingPolicies       []*HostPolicy                  `json:"failing_policies,omitempty"`
+	FailingPolicies       []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
 	Platform              string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
 	TeamID                *uint                          `json:"team_id,omitempty" db:"team_id"` // Needed to verify that user can access this host's health data. Not returned in HTTP responses.
 }
@@ -372,6 +372,12 @@ type HostHealthVulnerableSoftware struct {
 	ID      uint   `json:"id"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
+}
+
+type HostHealthFailingPolicy struct {
+	ID         uint   `json:"id"`
+	Name       string `json:"name"`
+	Resolution *string `json:"resolution"`
 }
 
 func (hh HostHealth) AuthzType() string {
