@@ -17,7 +17,7 @@
   }
 
   &__configuration {
-    #api-key-json {
+    &--api-key-json {
       min-width: 100%; // resize vertically only
       height: 294px;
       font-size: $x-small;
@@ -54,5 +54,9 @@
     border: solid 1px #e2e4ea;
     border-radius: 10px;
     padding: 2px 6px;
+  }
+
+  &__code {
+    font-family: "SourceCodePro", $monospace;
   }
 }

@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useCallback } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
@@ -18,14 +18,18 @@ import DataError from "components/DataError";
 import PremiumFeatureMessage from "components/PremiumFeatureMessage/PremiumFeatureMessage";
 import Icon from "components/Icon";
 
-const LEARN_MORE_CALENDARS =
+const CREATING_SERVICE_ACCOUNT =
   "https://www.fleetdm.com/learn-more-about/creating-service-accounts";
 const GOOGLE_WORKSPACE_DOMAINS =
   "https://www.fleetdm.com/learn-more-about/google-workspace-domains";
+const DOMAIN_WIDE_DELEGATION =
+  "https://www.fleetdm.com/learn-more-about/domain-wide-delegation";
+const ENABLING_CALENDAR_API =
+  "fleetdm.com/learn-more-about/enabling-calendar-api";
 const OAUTH_SCOPES =
   "https://www.googleapis.com/auth/calendar.events,https://www.googleapis.com/auth/calendar.settings.readonly";
 
-const apiPlaceholderText = `{
+const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",
   "project_id": "fleet-in-your-calendar",
   "private_key_id": "<private key id>",
@@ -49,13 +53,18 @@ interface ICalendarsFormErrors {
   apiKeyJson?: string | null;
 }
 
+interface ICalendarsFormData {
+  domain?: string;
+  apiKeyJson?: string;
+}
+
 const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
   const { renderFlash } = useContext(NotificationContext);
   const { isPremiumTier } = useContext(AppContext);
 
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<ICalendarsFormData>({
     domain: "",
     apiKeyJson: "",
   });
@@ -71,33 +80,38 @@ const Calendars = (): JSX.Element => {
   } = useQuery<IConfig, Error, IConfig>(["config"], () => configAPI.loadAll(), {
     select: (data: IConfig) => data,
     onSuccess: (data) => {
-      setFormData({
-        domain: data.integrations.google_calendar[0].domain,
-        apiKeyJson: data.integrations.google_calendar[0].api_key_json,
-      });
+      if (data.integrations.google_calendar) {
+        setFormData({
+          domain: data.integrations.google_calendar[0].domain,
+          apiKeyJson: data.integrations.google_calendar[0].api_key_json,
+        });
+      }
     },
   });
 
   const { apiKeyJson, domain } = formData;
 
-  const handleInputChange = ({ name, value }: IFormField) => {
-    setFormData({ ...formData, [name]: value });
-    setFormErrors({});
-  };
-
-  const validateForm = () => {
+  const validateForm = (curFormData: ICalendarsFormData) => {
     const errors: ICalendarsFormErrors = {};
 
     // Must set all keys or no keys at all
-    if (!apiKeyJson && !!domain) {
+    if (!curFormData.apiKeyJson && !!curFormData.domain) {
       errors.apiKeyJson = "API key JSON must be present";
     }
-    if (!domain && !!apiKeyJson) {
+    if (!curFormData.domain && !!curFormData.apiKeyJson) {
       errors.apiKeyJson = "Domain must be present";
     }
-
-    setFormErrors(errors);
+    return errors;
   };
+
+  const onInputChange = useCallback(
+    ({ name, value }: IFormField) => {
+      const newFormData = { ...formData, [name]: value };
+      setFormData(newFormData);
+      setFormErrors(validateForm(newFormData));
+    },
+    [formData]
+  );
 
   const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
@@ -188,7 +202,11 @@ const Calendars = (): JSX.Element => {
         <div className={`${baseClass}__section-instructions`}>
           <p>
             1. Go to the <b>Service Accounts</b> page in Google Cloud Platform.{" "}
-            <CustomLink text="View page" url={LEARN_MORE_CALENDARS} newTab />
+            <CustomLink
+              text="View page"
+              url={CREATING_SERVICE_ACCOUNT}
+              newTab
+            />
           </p>
           <p>
             2. Create a new project for your service account.
@@ -223,16 +241,14 @@ const Calendars = (): JSX.Element => {
                 Click <b>Create and continue</b>.
               </li>
               <li>
-                Click <b>Done</b>.
+                Click <b>Done</b> at the bottom of the form. (No need to
+                complete the optional steps.)
               </li>
             </ul>
           </p>
           <p>
             4. Create an API key.{" "}
             <ul>
-              <li>
-                Click <b>Create service account</b>.
-              </li>
               <li>
                 Click the <b>Actions</b> menu for your new service account.
               </li>
@@ -252,11 +268,10 @@ const Calendars = (): JSX.Element => {
                 <form onSubmit={onFormSubmit} autoComplete="off">
                   <InputField
                     label="API key JSON"
-                    onChange={handleInputChange}
-                    name="api-key-json"
+                    onChange={onInputChange}
+                    name="apiKeyJson"
                     value={apiKeyJson}
                     parseTarget
-                    onBlur={validateForm}
                     type="textarea"
                     tooltip={
                       <>
@@ -265,16 +280,16 @@ const Calendars = (): JSX.Element => {
                         when creating your service account API key.
                       </>
                     }
-                    placeholder={apiPlaceholderText}
+                    placeholder={API_KEY_JSON_PLACEHOLDER}
                     ignore1password
+                    inputClassName={`${baseClass}__configuration--api-key-json`}
                   />
                   <InputField
                     label="Primary domain"
-                    onChange={handleInputChange}
+                    onChange={onInputChange}
                     name="domain"
                     value={domain}
                     parseTarget
-                    onBlur={validateForm}
                     tooltip={
                       <>
                         If the end user is signed into multiple Google accounts,
@@ -315,12 +330,23 @@ const Calendars = (): JSX.Element => {
                   Security &gt; Access and data control &gt; API controls &gt;
                   Manage Domain Wide Delegation
                 </b>
-                .
+                .{" "}
+                <CustomLink
+                  url={DOMAIN_WIDE_DELEGATION}
+                  text="View page"
+                  newTab
+                />
               </li>
               <li>
-                Under <b>API clients</b>, click <b>Add new</b>
+                Under <b>API clients</b>, click <b>Add new</b>.
               </li>
-              <li>Enter the client ID for the service account</li>
+              <li>
+                Enter the client ID for the service account. You can find this
+                in your downloaded API key JSON file (
+                <span className={`${baseClass}__code`}>client_id</span>
+                ), or under <b>Advanced Settings</b> when viewing the service
+                account.
+              </li>
               <li>
                 For the OAuth scopes, paste the following value:
                 <InputField
@@ -334,6 +360,27 @@ const Calendars = (): JSX.Element => {
               </li>
               <li>
                 Click <b>Authorize</b>.
+              </li>
+            </ul>
+          </p>
+          <p>
+            6. Enable the Google Calendar API.
+            <ul>
+              <li>
+                In the Google Cloud console API library, go to the Google
+                Calendar API.{" "}
+                <CustomLink
+                  url={ENABLING_CALENDAR_API}
+                  text="View page"
+                  newTab
+                />
+              </li>
+              <li>
+                Make sure the &quot;Fleet calendar events&quot; project is
+                selected at the top of the page.
+              </li>
+              <li>
+                Click <b>Enable</b>.
               </li>
             </ul>
           </p>
