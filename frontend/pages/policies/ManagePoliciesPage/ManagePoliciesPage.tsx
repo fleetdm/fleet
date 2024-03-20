@@ -772,19 +772,20 @@ const ManagePolicyPage = ({
     );
   };
 
-  const automationsDropdownOptions: IDropdownOption[] = [
+  const automationsDropdownOptions = [
     {
       label: "Calendar events",
       value: "calendar_events",
       // TODO - disable and different tooltips for each of below scenarios
-      disabled: !isPremiumTier || teamIdForApi === -1, // TODO - how does this interact with below setting?
-      premiumOnly: true,
+      disabled:
+        !isPremiumTier || teamIdForApi === undefined || teamIdForApi === -1,
+      helpText: "Automatically reserve time to resolve failing policies.",
     },
     {
       label: "Other workflows",
       value: "other_workflows",
-      disabled: false, // TODO - how does this interact with below setting?
-      premiumOnly: false,
+      disabled: false,
+      helpText: "Create tickets or fire webhooks for failing policies.",
     },
   ];
 
