@@ -138,9 +138,7 @@ const ManagePolicyPage = ({
     setUpdatingPolicyEnabledCalendarEvents,
   ] = useState(false);
   const [selectedPolicyIds, setSelectedPolicyIds] = useState<number[]>([]);
-  const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
-    false
-  );
+  const [showOtherWorkflowsModal, setShowOtherWorkflowsModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
@@ -493,8 +491,8 @@ const ManagePolicyPage = ({
     ] // Other dependencies can cause infinite re-renders as URL is source of truth
   );
 
-  const toggleManageAutomationsModal = () =>
-    setShowManageAutomationsModal(!showManageAutomationsModal);
+  const toggleOtherWorkflowsModal = () =>
+    setShowOtherWorkflowsModal(!showOtherWorkflowsModal);
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
@@ -511,7 +509,7 @@ const ManagePolicyPage = ({
         toggleCalendarEventsModal();
         break;
       case "other_workflows":
-        toggleManageAutomationsModal();
+        toggleOtherWorkflowsModal();
         break;
       default:
     }
@@ -547,7 +545,7 @@ const ManagePolicyPage = ({
         "Could not update policy automations. Please try again."
       );
     } finally {
-      toggleManageAutomationsModal();
+      toggleOtherWorkflowsModal();
       setIsUpdatingAutomations(false);
       refetchConfig();
       isAnyTeamSelected && refetchTeamConfig();
@@ -939,13 +937,13 @@ const ManagePolicyPage = ({
             )}
           </div>
         )}
-        {config && automationsConfig && showManageAutomationsModal && (
+        {config && automationsConfig && showOtherWorkflowsModal && (
           <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}
             isUpdatingAutomations={isUpdatingAutomations}
-            onExit={toggleManageAutomationsModal}
+            onExit={toggleOtherWorkflowsModal}
             handleSubmit={handleUpdateAutomations}
           />
         )}
