@@ -202,6 +202,18 @@ without necessarily having a billing card.`
       defaultsTo: false
     },
 
+    primaryBuyingSituation: {
+      type: 'string',
+      description: 'The primary buying situation the user selected when they signed up.',
+      extendedDescription: 'User records created before 2024-03-14 will have this attribute set to ""',
+      isIn: [
+        'eo-security',
+        'eo-it',
+        'mdm',
+        'vm',
+      ]
+    }
+
     //  ╔═╗╔╦╗╔╗ ╔═╗╔╦╗╔═╗
     //  ║╣ ║║║╠╩╗║╣  ║║╚═╗
     //  ╚═╝╩ ╩╚═╝╚═╝═╩╝╚═╝
