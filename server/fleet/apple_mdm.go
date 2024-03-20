@@ -575,11 +575,68 @@ type MDMAppleDeclaration struct {
 	// Declaration is the raw JSON content of the declaration
 	Declaration json.RawMessage `db:"declaration" json:"-"`
 
-	// MD5Checksum is a checsum of the JSON contents
+	// MD5Checksum is a checksum of the JSON contents
 	MD5Checksum string `db:"md5_checksum" json:"-"`
+
+	// Labels are the labels associated with this Declaration
+	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
+}
+
+type MDMAppleRawDeclaration struct {
+	// Type is the "Type" field on the raw declaration JSON.
+	Type       string `json:"Type"`
+	Identifier string `json:"Identifier"`
+}
+
+var ForbiddenDeclTypes = map[string]struct{}{
+	"com.apple.configuration.account.caldav":               {},
+	"com.apple.configuration.account.carddav":              {},
+	"com.apple.configuration.account.exchange":             {},
+	"com.apple.configuration.account.google":               {},
+	"com.apple.configuration.account.ldap":                 {},
+	"com.apple.configuration.account.mail":                 {},
+	"com.apple.configuration.management.test":              {},
+	"com.apple.configuration.screensharing.connection":     {},
+	"com.apple.configuration.security.certificate":         {},
+	"com.apple.configuration.security.identity":            {},
+	"com.apple.configuration.security.passkey.attestation": {},
+	"com.apple.configuration.services.configuration-files": {},
+	"com.apple.configuration.watch.enrollment":             {},
+}
+
+func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
+	var err error
+
+	// Check against types we don't allow
+	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+	}
+
+	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+	}
+
+	if r.Type == "com.apple.configuration.management.status-subscriptions" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+	}
+
+	if !strings.HasPrefix(r.Type, string(MDMAppleDeclarativeConfiguration)) {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
+	}
+
+	return err
+}
+
+func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
+	var rawDecl MDMAppleRawDeclaration
+	if err := json.Unmarshal(raw, &rawDecl); err != nil {
+		return nil, err
+	}
+
+	return &rawDecl, nil
 }
 
 // MDMAppleHostDeclaration represents the state of a declaration on a host
@@ -608,6 +665,29 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+}
+
+// DeclarationLabel represents the many-to-many relationship between
+// declarations and labels.
+// TODO(JVE): I think we can remove this type altogether, but double check first (mainly when
+// ingesting declarations).
+type DeclarationLabel struct {
+	DeclarationUUID string `db:"profile_uuid" json:"-"`
+	LabelName       string `db:"label_name" json:"name"`
+	LabelID         uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
+	Broken          bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
+}
+
+func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
+	var decl MDMAppleDeclaration
+
+	decl.DeclarationType = MDMAppleDeclarationType(strings.Join(strings.Split(declType, ".")[:3], "."))
+	decl.Identifier = ident
+	decl.Name = name
+	decl.Declaration = raw
+	decl.TeamID = teamID
+
+	return &decl
 }
 
 // MDMAppleDDMTokensResponse is the response from the DDM tokens endpoint.
