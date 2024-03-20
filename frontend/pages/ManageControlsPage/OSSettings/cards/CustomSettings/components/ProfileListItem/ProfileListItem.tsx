@@ -4,14 +4,13 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile } from "interfaces/mdm";
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
 import Icon from "components/Icon";
 
 import strUtils from "utilities/strings";
-import { is } from "date-fns/locale";
 
 const baseClass = "profile-list-item";
 
@@ -30,17 +29,17 @@ const LabelCount = ({
 interface IProfileDetailsProps {
   platform: string;
   createdAt: string;
-  isDDMProfile?: boolean;
+  isDDM?: boolean;
 }
 
 const ProfileDetails = ({
   platform,
   createdAt,
-  isDDMProfile,
+  isDDM,
 }: IProfileDetailsProps) => {
   const getPlatformName = () => {
     if (platform === "windows") return "Windows";
-    return isDDMProfile ? "macOS (declaration)" : "macOS";
+    return isDDM ? "macOS (declaration)" : "macOS";
   };
 
   return (
@@ -62,10 +61,6 @@ interface IProfileListItemProps {
     React.SetStateAction<IMdmProfile | null>
   >;
 }
-
-const isDDMProfile = (profile: IMdmProfile) => {
-  return profile.name.includes(".json");
-};
 
 const ProfileListItem = ({
   isPremium,
@@ -95,7 +90,7 @@ const ProfileListItem = ({
             <ProfileDetails
               platform={platform}
               createdAt={created_at}
-              isDDMProfile={isDDMProfile(profile)}
+              isDDM={isDDMProfile(name)}
             />
           </div>
         </div>

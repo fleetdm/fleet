@@ -46,6 +46,10 @@ export interface IUploadProfileApiParams {
   labels?: string[];
 }
 
+export const isDDMProfile = (name: string) => {
+  return name.includes(".json");
+};
+
 const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
