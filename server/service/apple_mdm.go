@@ -387,6 +387,104 @@ func (svc *Service) NewMDMAppleConfigProfile(ctx context.Context, teamID uint, r
 	return newCP, nil
 }
 
+func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r io.Reader, labels []string, name string) (*fleet.MDMAppleDeclaration, error) {
+	if err := svc.authz.Authorize(ctx, &fleet.MDMConfigProfileAuthz{TeamID: &teamID}, fleet.ActionWrite); err != nil {
+		return nil, ctxerr.Wrap(ctx, err)
+	}
+
+	// check that Apple MDM is enabled - the middleware of that endpoint checks
+	// only that any MDM is enabled, maybe it's just Windows
+	if err := svc.VerifyMDMAppleConfigured(ctx); err != nil {
+		err := fleet.NewInvalidArgumentError("declaration", fleet.AppleMDMNotConfiguredMessage).WithStatus(http.StatusBadRequest)
+		return nil, ctxerr.Wrap(ctx, err, "check macOS MDM enabled")
+	}
+
+	data, err := io.ReadAll(r)
+	if err != nil {
+		return nil, err
+	}
+
+	var tmID *uint
+	if teamID >= 1 {
+		tmID = &teamID
+	}
+
+	validatedLabels, err := svc.validateDeclarationLabels(ctx, labels)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
+	rawDecl, err := fleet.GetRawDeclarationValues(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := rawDecl.ValidateUserProvided(); err != nil {
+		return nil, err
+	}
+
+	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
+
+	// TODO(roberto): Is this already handled in NewMDMAppleDeclaration? Could we add the labels as well?
+	d.Labels = validatedLabels
+	d.TeamID = tmID
+
+	decl, err := svc.ds.NewMDMAppleDeclaration(ctx, d)
+	if err != nil {
+		return nil, err
+	}
+
+	return decl, nil
+}
+
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.DeclarationLabel, error) {
+	if len(labelNames) == 0 {
+		return nil, nil
+	}
+
+	labels, err := svc.ds.LabelIDsByName(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting label IDs by name")
+	}
+
+	uniqueNames := make(map[string]bool)
+	for _, entry := range labelNames {
+		if _, value := uniqueNames[entry]; !value {
+			uniqueNames[entry] = true
+		}
+	}
+
+	if len(labels) != len(uniqueNames) {
+		return nil, &fleet.BadRequestError{
+			Message:     "some or all the labels provided don't exist",
+			InternalErr: fmt.Errorf("names provided: %v", labelNames),
+		}
+	}
+
+	profLabels := make(map[string]fleet.DeclarationLabel)
+	for labelName, labelID := range labels {
+		profLabels[labelName] = fleet.DeclarationLabel{
+			LabelName: labelName,
+			LabelID:   labelID,
+		}
+	}
+	return profLabels, nil
+}
+
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.DeclarationLabel, error) {
+	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
+	}
+
+	var declLabels []fleet.DeclarationLabel
+	for _, label := range labelMap {
+		declLabels = append(declLabels, label)
+	}
+	return declLabels, nil
+}
+
 type listMDMAppleConfigProfilesRequest struct {
 	TeamID uint `query:"team_id,optional"`
 }

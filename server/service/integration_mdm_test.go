@@ -9379,8 +9379,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
 
 	// not an xml nor mobileconfig file
-	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
-	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't upload. The file should be a .mobileconfig or .xml file.")
+	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
+	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
@@ -12519,6 +12519,173 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
 
+func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
+	t := s.T()
+	tmpl := `
+{
+	"Type": "com.apple.configuration.decl%d",
+	"Identifier": "com.fleet.config%d",
+	"Payload": {
+		"ServiceType": "com.apple.bash",
+		"DataAssetReference": "com.fleet.asset.bash" %s
+	}
+}`
+
+	newDeclBytes := func(i int, payload ...string) []byte {
+		var p string
+		if len(payload) > 0 {
+			p = "," + strings.Join(payload, ",")
+		}
+		return []byte(fmt.Sprintf(tmpl, i, i, p))
+	}
+
+	var decls [][]byte
+
+	for i := 0; i < 7; i++ {
+		decls = append(decls, newDeclBytes(i))
+	}
+
+	// Non-configuration type should fail
+	res := s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad", Contents: []byte(`{"Type": "com.apple.activation"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Only configuration declarations (com.apple.configuration) are supported")
+
+	// "com.apple.configuration.softwareupdate.enforcement.specific" type should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.softwareupdate.enforcement.specific"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+
+	// Types from our list of forbidden types should fail
+	for ft := range fleet.ForbiddenDeclTypes {
+		res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+			{Name: "bad2", Contents: []byte(fmt.Sprintf(`{"Type": "%s"}`, ft))},
+		}}, http.StatusUnprocessableEntity)
+
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "Only configuration declarations that don’t require an asset reference are supported.")
+	}
+
+	// "com.apple.configuration.management.status-subscriptions" type should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: []byte(`{"Type": "com.apple.configuration.management.status-subscriptions"}`)},
+	}}, http.StatusUnprocessableEntity)
+
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+
+	// Two different payloads with the same name should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "bad2", Contents: newDeclBytes(1, `"foo": "bar"`)},
+		{Name: "bad2", Contents: newDeclBytes(2, `"baz": "bing"`)},
+	}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "A declaration profile with this name already exists.")
+
+	// Same identifier should fail
+	res = s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: decls[0]},
+		{Name: "N2", Contents: decls[0]},
+	}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "A declaration profile with this identifier already exists.")
+
+	// Create 2 declarations
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N1", Contents: decls[0]},
+		{Name: "N2", Contents: decls[1]},
+	}}, http.StatusNoContent)
+
+	var resp listMDMConfigProfilesResponse
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N1", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N2", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// Create 2 new declarations. These should take the place of the first two.
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: decls[2]},
+		{Name: "N4", Contents: decls[3]},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N4", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// replace only 1 declaration, the other one should be the same
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: decls[2]},
+		{Name: "N5", Contents: decls[4]},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N5", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	// update the declarations
+
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N3", Contents: newDeclBytes(2, `"foo": "bar"`)},
+		{Name: "N5", Contents: newDeclBytes(4, `"bing": "baz"`)},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N3", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N5", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+
+	var createResp createLabelResponse
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_1"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.Label.ID)
+	require.Equal(t, "label_1", createResp.Label.Name)
+	lbl1 := createResp.Label.Label
+
+	s.DoJSON("POST", "/api/latest/fleet/labels", &fleet.LabelPayload{Name: ptr.String("label_2"), Query: ptr.String("select 1")}, http.StatusOK, &createResp)
+	require.NotZero(t, createResp.Label.ID)
+	require.Equal(t, "label_2", createResp.Label.Name)
+	lbl2 := createResp.Label.Label
+
+	// Add with labels
+	s.Do("POST", "/api/latest/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: []fleet.MDMProfileBatchPayload{
+		{Name: "N5", Contents: decls[5], Labels: []string{lbl1.Name, lbl2.Name}},
+		{Name: "N6", Contents: decls[6], Labels: []string{lbl1.Name}},
+	}}, http.StatusNoContent)
+
+	s.DoJSON("GET", "/api/latest/fleet/mdm/profiles", &listMDMConfigProfilesRequest{}, http.StatusOK, &resp)
+
+	require.Len(t, resp.Profiles, 2)
+	require.Equal(t, "N5", resp.Profiles[0].Name)
+	require.Equal(t, "darwin", resp.Profiles[0].Platform)
+	require.Equal(t, "N6", resp.Profiles[1].Name)
+	require.Equal(t, "darwin", resp.Profiles[1].Platform)
+	require.Len(t, resp.Profiles[0].Labels, 2)
+	require.Equal(t, lbl1.Name, resp.Profiles[0].Labels[0].LabelName)
+	require.Equal(t, lbl2.Name, resp.Profiles[0].Labels[1].LabelName)
+	require.Len(t, resp.Profiles[1].Labels, 1)
+	require.Equal(t, lbl1.Name, resp.Profiles[1].Labels[0].LabelName)
+}
+
+// TODO(sarah): Build out this test
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
