@@ -77,10 +77,12 @@ const CalendarEventsModal = ({
     curFormData: ICalendarEventsFormData
   ) => {
     const errors: Record<string, string> = {};
-    const { url: curUrl } = curFormData;
-    if (!validURL({ url: curUrl })) {
-      const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
-      errors.url = `${errorPrefix} a valid resolution webhook URL`;
+    if (curFormData.enabled) {
+      const { url: curUrl } = curFormData;
+      if (!validURL({ url: curUrl })) {
+        const errorPrefix = curUrl ? `${curUrl} is not` : "Please enter";
+        errors.url = `${errorPrefix} a valid resolution webhook URL`;
+      }
     }
     return errors;
   };
@@ -226,46 +228,51 @@ const CalendarEventsModal = ({
 
   const renderConfiguredModal = () => (
     <div className={`${baseClass} form`}>
-      <Slider
-        value={formData.enabled}
-        onChange={() => {
-          onInputChange({ name: "enabled", value: !formData.enabled });
-        }}
-        inactiveText="Disabled"
-        activeText="Enabled"
-      />
-      <Button
-        type="button"
-        variant="text-link"
-        onClick={togglePreviewCalendarEvent}
+      <div className="form-header">
+        <Slider
+          value={formData.enabled}
+          onChange={() => {
+            onInputChange({ name: "enabled", value: !formData.enabled });
+          }}
+          inactiveText="Disabled"
+          activeText="Enabled"
+        />
+        <Button
+          type="button"
+          variant="text-link"
+          onClick={togglePreviewCalendarEvent}
+        >
+          Preview calendar event
+        </Button>
+      </div>
+      <div
+        className={`form ${formData.enabled ? "" : "form-fields--disabled"}`}
       >
-        Preview calendar event
-      </Button>
-      <InputField
-        placeholder="https://server.com/example"
-        label="Resolution webhook URL"
-        onChange={onInputChange}
-        name="url"
-        value={formData.url}
-        parseTarget
-        error={formErrors.url}
-        tooltip="Provide a URL to deliver a webhook request to."
-        labelTooltipPosition="top-start"
-        helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
-      />
-      <RevealButton
-        isShowing={showExamplePayload}
-        className={`${baseClass}__show-example-payload-toggle`}
-        hideText="Hide example payload"
-        showText="Show example payload"
-        caretPosition="after"
-        onClick={() => {
-          setShowExamplePayload(!showExamplePayload);
-        }}
-      />
-      {showExamplePayload && renderExamplePayload()}
-      {renderPolicies()}
-
+        <InputField
+          placeholder="https://server.com/example"
+          label="Resolution webhook URL"
+          onChange={onInputChange}
+          name="url"
+          value={formData.url}
+          parseTarget
+          error={formErrors.url}
+          tooltip="Provide a URL to deliver a webhook request to."
+          labelTooltipPosition="top-start"
+          helpText="A request will be sent to this URL during the calendar event. Use it to trigger auto-remidiation."
+        />
+        <RevealButton
+          isShowing={showExamplePayload}
+          className={`${baseClass}__show-example-payload-toggle`}
+          hideText="Hide example payload"
+          showText="Show example payload"
+          caretPosition="after"
+          onClick={() => {
+            setShowExamplePayload(!showExamplePayload);
+          }}
+        />
+        {showExamplePayload && renderExamplePayload()}
+        {renderPolicies()}
+      </div>
       <div className="modal-cta-wrap">
         <Button
           type="submit"

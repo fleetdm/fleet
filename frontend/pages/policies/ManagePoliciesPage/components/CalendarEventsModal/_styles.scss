@@ -8,6 +8,19 @@
       margin-top: 0;
     }
   }
+  .form-header {
+    display: flex;
+    justify-content: space-between;
+    .button--text-link {
+      white-space: nowrap;
+    }
+  }
+
+  .form-fields {
+    &--disabled {
+      @include disabled;
+    }
+  }
 
   pre {
     box-sizing: border-box;
