@@ -12519,7 +12519,6 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
 }
 
-// TODO(sarah): Build out this test
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
@@ -12554,6 +12553,28 @@ INSERT INTO mdm_apple_declarations (
 		})
 	}
 
+	insertHostDeclaration := func(t *testing.T, hostUUID string, decl fleet.MDMAppleDeclaration) {
+		stmt := `
+INSERT INTO host_mdm_apple_declarations (
+	host_uuid,
+	status,
+	operation_type,
+	md5_checksum,
+	declaration_uuid
+) VALUES (?,?,?,?,?)`
+
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			_, err := q.ExecContext(context.Background(), stmt,
+				hostUUID,
+				fleet.MDMDeliveryPending,
+				fleet.MDMOperationTypeInstall,
+				decl.MD5Checksum,
+				decl.DeclarationUUID,
+			)
+			return err
+		})
+	}
+
 	// initialize a time to use for our first declaration, subsequent declarations will be
 	// incremented by a minute
 	then := time.Now().UTC().Truncate(time.Second).Add(-1 * time.Hour)
@@ -12573,6 +12594,7 @@ INSERT INTO mdm_apple_declarations (
 		},
 	}
 	insertDeclaration(t, noTeamDeclsByUUID["123"])
+	insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["123"])
 
 	mapDeclsByChecksum := func(byUUID map[string]fleet.MDMAppleDeclaration) map[string]fleet.MDMAppleDeclaration {
 		byChecksum := make(map[string]fleet.MDMAppleDeclaration)
@@ -12680,6 +12702,7 @@ INSERT INTO mdm_apple_declarations (
 			UploadedAt:      then.Add(1 * time.Minute),
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["456"])
+		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["456"])
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -12707,6 +12730,7 @@ INSERT INTO mdm_apple_declarations (
 			UploadedAt:      then.Add(2 * time.Minute),
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["789"])
+		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["789"])
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -12752,6 +12776,7 @@ INSERT INTO mdm_apple_declarations (
 			UploadedAt:  then.Add(3 * time.Minute),
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["abc"])
+		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["abc"])
 		want = noTeamDeclsByUUID["abc"]
 		wantBytes, err = json.Marshal(want.Declaration)
 		require.NoError(t, err)
