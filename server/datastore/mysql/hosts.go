@@ -4996,6 +4996,8 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 		}
 	}
 
+	hh.FailingPoliciesCount = len(hh.FailingPolicies)
+
 	return &hh, nil
 }
 

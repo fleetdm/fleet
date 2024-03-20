@@ -10023,6 +10023,7 @@ func (s *integrationTestSuite) TestHostHealth() {
 		Name:    soft1.Name,
 		Version: soft1.Version,
 	})
+	assert.Equal(t, 1, hh.HostHealth.FailingPoliciesCount)
 	assert.Len(t, hh.HostHealth.FailingPolicies, 1)
 	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
 		ID:         failingPolicy.ID,

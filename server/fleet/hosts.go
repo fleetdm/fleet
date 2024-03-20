@@ -362,6 +362,7 @@ type HostHealth struct {
 	UpdatedAt             time.Time                      `json:"updated_at,omitempty" db:"updated_at"`
 	OsVersion             string                         `json:"os_version,omitempty" db:"os_version"`
 	DiskEncryptionEnabled *bool                          `json:"disk_encryption_enabled,omitempty" db:"disk_encryption_enabled"`
+	FailingPoliciesCount  int                            `json:"failing_policies_count"`
 	VulnerableSoftware    []HostHealthVulnerableSoftware `json:"vulnerable_software,omitempty"`
 	FailingPolicies       []*HostHealthFailingPolicy     `json:"failing_policies,omitempty"`
 	Platform              string                         `json:"-" db:"platform"`                // Needed to fetch failing policies. Not returned in HTTP responses.
@@ -377,7 +378,7 @@ type HostHealthVulnerableSoftware struct {
 type HostHealthFailingPolicy struct {
 	ID         uint    `json:"id"`
 	Name       string  `json:"name"`
-	Critical   *bool   `json:"critical,omitempty"`
+	Critical   *bool   `json:"critical,omitempty"` // Fleet Premium Only
 	Resolution *string `json:"resolution"`
 }
 
