@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -90,6 +91,32 @@ func TestAppleMDM(t *testing.T) {
 			return sqlx.SelectContext(ctx, q, &commands, "SELECT request_type FROM nano_commands")
 		})
 		return commands
+	}
+
+	enableManualRelease := func(t *testing.T, teamID *uint) {
+		if teamID == nil {
+			enableAppCfg := func(enable bool) {
+				ac, err := ds.AppConfig(ctx)
+				require.NoError(t, err)
+				ac.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(enable)
+				err = ds.SaveAppConfig(ctx, ac)
+				require.NoError(t, err)
+			}
+
+			enableAppCfg(true)
+			t.Cleanup(func() { enableAppCfg(false) })
+		} else {
+			enableTm := func(enable bool) {
+				tm, err := ds.Team(ctx, *teamID)
+				require.NoError(t, err)
+				tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(enable)
+				_, err = ds.SaveTeam(ctx, tm)
+				require.NoError(t, err)
+			}
+
+			enableTm(true)
+			t.Cleanup(func() { enableTm(false) })
+		}
 	}
 
 	t.Run("no-op with nil commander", func(t *testing.T) {
@@ -177,7 +204,47 @@ func TestAppleMDM(t *testing.T) {
 
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
+
+		// the post-DEP release device job is pending, having failed its first attempt
+		require.Len(t, jobs, 1)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Equal(t, 1, jobs[0].Retries)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+	})
+
+	t.Run("installs default manifest, manual release", func(t *testing.T) {
+		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
+
+		h := createEnrolledHost(t, 1, nil, true)
+		enableManualRelease(t, nil)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, nil, "")
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1)
+		require.NoError(t, err)
+
+		// there is no post-DEP release device job pending
 		require.Empty(t, jobs)
+
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
 
@@ -215,7 +282,13 @@ func TestAppleMDM(t *testing.T) {
 
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
-		require.Empty(t, jobs)
+
+		// the post-DEP release device job is pending, having failed its first attempt
+		require.Len(t, jobs, 1)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Equal(t, 1, jobs[0].Retries)
+
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
 		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
@@ -260,7 +333,62 @@ func TestAppleMDM(t *testing.T) {
 
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
+
+		// the post-DEP release device job is pending, having failed its first attempt
+		require.Len(t, jobs, 1)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Equal(t, 1, jobs[0].Retries)
+
+		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
+
+		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
+		require.NoError(t, err)
+		require.Equal(t, "custom-team-bootstrap", ms.BootstrapPackageName)
+	})
+
+	t.Run("installs custom bootstrap manifest of a team, manual release", func(t *testing.T) {
+		t.Cleanup(func() { mysql.TruncateTables(t, ds) })
+
+		tm, err := ds.NewTeam(ctx, &fleet.Team{Name: "test"})
+		require.NoError(t, err)
+		enableManualRelease(t, &tm.ID)
+
+		h := createEnrolledHost(t, 1, &tm.ID, true)
+		err = ds.InsertMDMAppleBootstrapPackage(ctx, &fleet.MDMAppleBootstrapPackage{
+			Name:   "custom-team-bootstrap",
+			TeamID: tm.ID,
+			Bytes:  []byte("test"),
+			Sha256: []byte("test"),
+			Token:  "token",
+		})
+		require.NoError(t, err)
+
+		mdmWorker := &AppleMDM{
+			Datastore: ds,
+			Log:       nopLog,
+			Commander: apple_mdm.NewMDMAppleCommander(mdmStorage, mockPusher{}),
+		}
+		w := NewWorker(ds, nopLog)
+		w.Register(mdmWorker)
+
+		err = QueueAppleMDMJob(ctx, ds, nopLog, AppleMDMPostDEPEnrollmentTask, h.UUID, &tm.ID, "")
+		require.NoError(t, err)
+
+		// run the worker, should succeed
+		err = w.ProcessJobs(ctx)
+		require.NoError(t, err)
+
+		// ensure the job's not_before allows it to be returned if it were to run
+		// again
+		time.Sleep(time.Second)
+
+		jobs, err := ds.GetQueuedJobs(ctx, 1)
+		require.NoError(t, err)
+
+		// there is no post-DEP release device job pending
 		require.Empty(t, jobs)
+
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 
 		ms, err := ds.GetHostMDMMacOSSetup(ctx, h.ID)
@@ -336,7 +464,13 @@ func TestAppleMDM(t *testing.T) {
 
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
-		require.Empty(t, jobs)
+
+		// the post-DEP release device job is pending, having failed its first attempt
+		require.Len(t, jobs, 1)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Equal(t, 1, jobs[0].Retries)
+
 		// confirm that AccountConfiguration command was not enqueued
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication"}, getEnqueuedCommandTypes(t))
 	})
@@ -385,7 +519,13 @@ func TestAppleMDM(t *testing.T) {
 
 		jobs, err := ds.GetQueuedJobs(ctx, 1)
 		require.NoError(t, err)
-		require.Empty(t, jobs)
+
+		// the post-DEP release device job is pending, having failed its first attempt
+		require.Len(t, jobs, 1)
+		require.Equal(t, appleMDMJobName, jobs[0].Name)
+		require.Contains(t, string(*jobs[0].Args), AppleMDMPostDEPReleaseDeviceTask)
+		require.Equal(t, 1, jobs[0].Retries)
+
 		require.ElementsMatch(t, []string{"InstallEnterpriseApplication", "AccountConfiguration"}, getEnqueuedCommandTypes(t))
 	})
 
