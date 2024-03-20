@@ -4,7 +4,7 @@ import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
 import { noop, isEqual, uniqueId } from "lodash";
 
-import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
+import { Tooltip as ReactTooltip5 } from "react-tooltip-5";
 
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -14,7 +14,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegrations, ITeamIntegrations } from "interfaces/integration";
+import { IIntegrations } from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -22,8 +22,6 @@ import {
   IPoliciesCountResponse,
 } from "interfaces/policy";
 import { ITeamConfig } from "interfaces/team";
-import { IDropdownOption } from "interfaces/dropdownOption";
-import { IApiError } from "interfaces/errors";
 
 import configAPI from "services/entities/config";
 import globalPoliciesAPI, {
@@ -362,13 +360,6 @@ const ManagePolicyPage = ({
       staleTime: 5000,
     }
   );
-
-  // wip.../TODO
-  // let calendarConfigured = false;
-  // const googleCalendarGlobalConfig = config?.integrations.google_calendar;
-  // if (typeof googleCalendarGlobalConfig
-  //   isGlobalCalendarConfig(googleCalendarGlobalConfig) &&
-  //   googleCalendarGlobalConfig.length > 0;
 
   const {
     data: teamConfig,
@@ -800,7 +791,6 @@ const ManagePolicyPage = ({
       {
         label: calEventsLabel,
         value: "calendar_events",
-        // TODO - disable and different tooltips for each of below scenarios
         disabled: !isPremiumTier || isAllTeams,
         helpText: "Automatically reserve time to resolve failing policies.",
       },
@@ -846,7 +836,6 @@ const ManagePolicyPage = ({
             <div className={`${baseClass} button-wrap`}>
               {canManageAutomations && automationsConfig && (
                 <div className={`${baseClass}__manage-automations-wrapper`}>
-                  {/* TODO - add subtext to dropdown options. See Hosts dropdown filters on manage hosts page */}
                   <Dropdown
                     className={`${baseClass}__manage-automations-dropdown`}
                     onChange={onSelectAutomationOption}
@@ -855,19 +844,6 @@ const ManagePolicyPage = ({
                     options={getAutomationsDropdownOptions()}
                   />
                 </div>
-
-                // <Button
-                //   onClick={toggleManageAutomationsModal}
-                //   className={`${baseClass}__manage-automations button`}
-                //   variant="inverse"
-                //   disabled={
-                //     isAnyTeamSelected
-                //       ? isFetchingTeamPolicies
-                //       : isFetchingGlobalPolicies
-                //   }
-                // >
-                //   <span>Manage automations</span>
-                // </Button>
               )}
               {canAddOrDeletePolicy && (
                 <div className={`${baseClass}__action-button-container`}>
@@ -969,7 +945,6 @@ const ManagePolicyPage = ({
               updatePolicyEnabledCalendarEvents
             }
             configured={isCalEventsConfigured}
-            // configured={false}
             enabled={
               teamConfig?.integrations.google_calendar
                 ?.enable_calendar_events ?? false
