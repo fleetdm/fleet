@@ -90,12 +90,6 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
-	// TODO(mna): what happens if this function fails before everything got sent?
-	// On the next try, new commands will be enqueued for the same task (e.g. if
-	// it failed at the bootstrap package, install fleetd will be enqeueued
-	// again), will Apple MDM process both commands successfully or would the
-	// second one fail? Relevant for the device release.
-
 	var awaitCmdUUIDs []string
 
 	fleetdCmdUUID, err := a.installFleetd(ctx, args.HostUUID)
