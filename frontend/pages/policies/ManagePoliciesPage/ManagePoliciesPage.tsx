@@ -945,9 +945,8 @@ const ManagePolicyPage = ({
             updatePolicyEnabledCalendarEvents={
               updatePolicyEnabledCalendarEvents
             }
-            // TODO - remove dummy prop values
-            // configured={isCalEventsConfigured}
-            configured
+            configured={isCalEventsConfigured}
+            // configured={false}
             enabled={
               teamConfig?.integrations.google_calendar
                 ?.enable_calendar_events ?? false

@@ -115,7 +115,7 @@ const CalendarEventsModal = ({
   );
 
   const togglePreviewCalendarEvent = () => {
-    // TODO
+    setShowPreviewCalendarEvent(!showPreviewCalendarEvent);
   };
 
   const renderExamplePayload = () => {
@@ -176,21 +176,40 @@ const CalendarEventsModal = ({
     );
   };
   const renderPreviewCalendarEventModal = () => {
-    // TODO
-    return <></>;
+    return (
+      <Modal
+        title="Calendar event preview"
+        width="large"
+        onExit={togglePreviewCalendarEvent}
+        className="calendar-event-preview"
+      >
+        <>
+          <p>A similar event will appear in the end user&apos;s calendar:</p>
+          <Graphic name="calendar-event-preview" />
+          <div className="modal-cta-wrap">
+            <Button onClick={togglePreviewCalendarEvent} variant="brand">
+              Done
+            </Button>
+          </div>
+        </>
+      </Modal>
+    );
   };
 
   const renderPlaceholderModal = () => {
     return (
-      <>
+      <div className="placeholder">
         <a href="https://www.fleetdm.com/learn-more-about/calendar-events">
-          <Graphic name="calendar-integration-not-configured" />
+          <Graphic name="calendar-event-preview" />
         </a>
-        To create calendar events for end users if their hosts fail policies,
-        you must first connect Fleet to your Google Workspace service account.
-        <br />
-        This can be configured in{" "}
-        <b>Settings &gt; Integrations &gt; Calendars.</b>
+        <div>
+          To create calendar events for end users if their hosts fail policies,
+          you must first connect Fleet to your Google Workspace service account.
+        </div>
+        <div>
+          This can be configured in{" "}
+          <b>Settings &gt; Integrations &gt; Calendars.</b>
+        </div>
         <CustomLink
           url="https://www.fleetdm.com/learn-more-about/calendar-events"
           text="Learn more"
@@ -201,7 +220,7 @@ const CalendarEventsModal = ({
             Done
           </Button>
         </div>
-      </>
+      </div>
     );
   };
 

@@ -1,6 +1,22 @@
 .calendar-events-modal {
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    line-height: 150%;
+    .modal-cta-wrap {
+      margin-top: 0;
+    }
+  }
+
   pre {
     box-sizing: border-box;
     margin: 0;
+  }
+}
+
+.calendar-event-preview {
+  p {
+    margin: 24px 0;
   }
 }
