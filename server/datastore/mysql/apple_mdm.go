@@ -3129,7 +3129,7 @@ DELETE FROM
 WHERE
   team_id = ? AND %s
 `
-	andIdentNotInList := "AND identifier NOT IN (?)" // added to fmtDeleteStmt if needed
+	andIdentNotInList := "identifier NOT IN (?)" // added to fmtDeleteStmt if needed
 
 	const loadExistingDecls = `
 SELECT
