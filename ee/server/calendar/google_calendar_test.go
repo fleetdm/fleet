@@ -93,8 +93,10 @@ func makeConfig(mockAPI *MockGoogleCalendarLowLevelAPI) *GoogleCalendarConfig {
 	config := &GoogleCalendarConfig{
 		Context: context.Background(),
 		IntegrationConfig: &fleet.GoogleCalendarIntegration{
-			Email:      baseServiceEmail,
-			PrivateKey: basePrivateKey,
+			ApiKey: map[string]string{
+				fleet.GoogleCalendarEmail:      baseServiceEmail,
+				fleet.GoogleCalendarPrivateKey: basePrivateKey,
+			},
 		},
 		Logger: logger,
 		API:    mockAPI,
