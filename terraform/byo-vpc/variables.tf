@@ -44,7 +44,7 @@ variable "rds_config" {
     master_username                 = "fleet"
     snapshot_identifier             = null
     cluster_tags                    = {}
-    preferred_maintenance_window    = "thurs:23:00-fri:00:00"
+    preferred_maintenance_window    = "thu:23:00-fri:00:00"
   }
   description = "The config for the terraform-aws-modules/rds-aurora/aws module"
   nullable    = false
