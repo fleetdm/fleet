@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
@@ -214,7 +213,7 @@ func (svc *Service) ModifyTeam(ctx context.Context, teamID uint, payload fleet.T
 		// Only update the calendar integration if it's not nil
 		if payload.Integrations.GoogleCalendar != nil {
 			invalid := &fleet.InvalidArgumentError{}
-			_ = svc.validateTeamCalendarIntegrations(ctx, team, payload.Integrations.GoogleCalendar, appCfg, invalid)
+			_ = svc.validateTeamCalendarIntegrations(payload.Integrations.GoogleCalendar, appCfg, invalid)
 			if invalid.HasErrors() {
 				return nil, ctxerr.Wrap(ctx, invalid)
 			}
@@ -1083,7 +1082,7 @@ func (svc *Service) editTeamFromSpec(
 	}
 
 	if spec.Integrations.GoogleCalendar != nil {
-		err = svc.validateTeamCalendarIntegrations(ctx, team, spec.Integrations.GoogleCalendar, appCfg, invalid)
+		err = svc.validateTeamCalendarIntegrations(spec.Integrations.GoogleCalendar, appCfg, invalid)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "validate team calendar integrations")
 		}
@@ -1157,23 +1156,15 @@ func (svc *Service) editTeamFromSpec(
 }
 
 func (svc *Service) validateTeamCalendarIntegrations(
-	ctx context.Context, team *fleet.Team, calendarIntegration *fleet.TeamGoogleCalendarIntegration,
+	calendarIntegration *fleet.TeamGoogleCalendarIntegration,
 	appCfg *fleet.AppConfig, invalid *fleet.InvalidArgumentError,
 ) error {
 	if !calendarIntegration.Enable {
 		return nil
 	}
-	// Validate email
-	emailValid := false
-	calendarIntegration.Email = strings.TrimSpace(calendarIntegration.Email)
-	for _, globalCals := range appCfg.Integrations.GoogleCalendar {
-		if globalCals.Email == calendarIntegration.Email {
-			emailValid = true
-			break
-		}
-	}
-	if !emailValid {
-		invalid.Append("integrations.google_calendar.email", "email must match a global Google Calendar integration email")
+	// Check that global configs exist
+	if len(appCfg.Integrations.GoogleCalendar) == 0 {
+		invalid.Append("integrations.google_calendar.enable_calendar_events", "global Google Calendar integration is not configured")
 	}
 	// Validate URL
 	if u, err := url.ParseRequestURI(calendarIntegration.WebhookURL); err != nil {

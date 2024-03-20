@@ -17,7 +17,6 @@ team_settings:
     host_expiry_window: 30
   integrations:
     google_calendar:
-      email: service@example.com
       enable_calendar_events: true
       webhook_url: https://example.com/google_calendar_webhook
 agent_options:

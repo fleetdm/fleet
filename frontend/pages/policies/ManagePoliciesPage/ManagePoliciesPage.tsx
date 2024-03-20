@@ -47,7 +47,7 @@ import TableDataError from "components/DataError";
 import MainContent from "components/MainContent";
 
 import PoliciesTable from "./components/PoliciesTable";
-import ManagePolicyAutomationsModal from "./components/ManagePolicyAutomationsModal";
+import OtherWorkflowsModal from "./components/OtherWorkflowsModal";
 import AddPolicyModal from "./components/AddPolicyModal";
 import DeletePolicyModal from "./components/DeletePolicyModal";
 import CalendarEventsModal from "./components/CalendarEventsModal";
@@ -141,7 +141,6 @@ const ManagePolicyPage = ({
   const [showManageAutomationsModal, setShowManageAutomationsModal] = useState(
     false
   );
-  const [showPreviewPayloadModal, setShowPreviewPayloadModal] = useState(false);
   const [showAddPolicyModal, setShowAddPolicyModal] = useState(false);
   const [showDeletePolicyModal, setShowDeletePolicyModal] = useState(false);
   const [showCalendarEventsModal, setShowCalendarEventsModal] = useState(false);
@@ -496,10 +495,6 @@ const ManagePolicyPage = ({
 
   const toggleManageAutomationsModal = () =>
     setShowManageAutomationsModal(!showManageAutomationsModal);
-
-  const togglePreviewPayloadModal = useCallback(() => {
-    setShowPreviewPayloadModal(!showPreviewPayloadModal);
-  }, [setShowPreviewPayloadModal, showPreviewPayloadModal]);
 
   const toggleAddPolicyModal = () => setShowAddPolicyModal(!showAddPolicyModal);
 
@@ -945,15 +940,13 @@ const ManagePolicyPage = ({
           </div>
         )}
         {config && automationsConfig && showManageAutomationsModal && (
-          <ManagePolicyAutomationsModal
+          <OtherWorkflowsModal
             automationsConfig={automationsConfig}
             availableIntegrations={config.integrations}
             availablePolicies={availablePoliciesForAutomation}
             isUpdatingAutomations={isUpdatingAutomations}
-            showPreviewPayloadModal={showPreviewPayloadModal}
             onExit={toggleManageAutomationsModal}
             handleSubmit={handleUpdateAutomations}
-            togglePreviewPayloadModal={togglePreviewPayloadModal}
           />
         )}
         {showAddPolicyModal && (

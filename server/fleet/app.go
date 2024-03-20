@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -488,9 +489,6 @@ func (c *AppConfig) Obfuscate() {
 	for _, zdIntegration := range c.Integrations.Zendesk {
 		zdIntegration.APIToken = MaskedPassword
 	}
-	for _, calIntegration := range c.Integrations.GoogleCalendar {
-		calIntegration.PrivateKey = MaskedPassword
-	}
 }
 
 // Clone implements cloner.
@@ -574,8 +572,10 @@ func (c *AppConfig) Copy() *AppConfig {
 	if len(c.Integrations.GoogleCalendar) > 0 {
 		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
 		for i, g := range c.Integrations.GoogleCalendar {
-			gc := *g
-			clone.Integrations.GoogleCalendar[i] = &gc
+			gCal := *g
+			clone.Integrations.GoogleCalendar[i] = &gCal
+			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
+			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
 
