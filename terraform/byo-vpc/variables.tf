@@ -178,6 +178,7 @@ variable "fleet_config" {
     security_groups              = optional(list(string), null)
     security_group_name          = optional(string, "fleet")
     iam_role_arn                 = optional(string, null)
+    repository_credentials       = optional(string, "")
     service = optional(object({
       name = optional(string, "fleet")
       }), {
@@ -274,6 +275,7 @@ variable "fleet_config" {
     security_groups              = null
     security_group_name          = "fleet"
     iam_role_arn                 = null
+    repository_credentials       = ""
     service = {
       name = "fleet"
     }
