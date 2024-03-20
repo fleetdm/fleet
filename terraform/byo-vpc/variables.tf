@@ -25,7 +25,7 @@ variable "rds_config" {
     master_username                 = optional(string, "fleet")
     snapshot_identifier             = optional(string)
     cluster_tags                    = optional(map(string), {})
-    preferred_maintenance_window    = optional(string, "thurs:23:00-fri:00:00")
+    preferred_maintenance_window    = optional(string, "thu:23:00-fri:00:00")
   })
   default = {
     name                            = "fleet"
