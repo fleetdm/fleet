@@ -4,7 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
-import { IGlobalIntegrations, IIntegrations } from "./integration";
+import { IGlobalIntegrations } from "./integration";
 
 export interface ILicense {
   tier: string;
