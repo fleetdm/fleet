@@ -396,9 +396,7 @@ const OtherWorkflowsModal = ({
           <div className="form-field">
             {availablePolicies?.length ? (
               <>
-                <div className="form-field__label">
-                  Choose which policies you would like to listen to:
-                </div>
+                <div className="form-field__label">Policies:</div>
                 {policyItems &&
                   policyItems.map((policyItem) => {
                     const { isChecked, name, id } = policyItem;
@@ -426,7 +424,7 @@ const OtherWorkflowsModal = ({
               </>
             )}
           </div>
-          <p className={`${baseClass}__info`}>
+          <p className={`${baseClass}__help-text`}>
             The workflow will be triggered when hosts fail these policies.{" "}
             <CustomLink
               url="https://fleetdm.com/docs/using-fleet/automations"

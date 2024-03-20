@@ -20,7 +20,7 @@
     display: block;
   }
 
-  &__info {
-    font-size: $xx-small;
+  &__help-text {
+    @include help-text;
   }
 }
