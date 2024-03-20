@@ -4108,7 +4108,7 @@ Note that if the host is online and the query times out, this endpoint will retu
 ## Labels
 
 - [Add label](#add-label)
-- [Modify label](#modify-label)
+- [Update label](#update-label)
 - [Get label](#get-label)
 - [Get labels summary](#get-labels-summary)
 - [List labels](#list-labels)
@@ -4169,9 +4169,9 @@ Add a dynamic or manual label.
 }
 ```
 
-### Modify label
+### Update label
 
-Modifies the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
+Updates the specified label. Note: Label queries and platforms are immutable. To change these, you must delete the label and create a new label.
 
 `PATCH /api/v1/fleet/labels/:id`
 
@@ -4182,6 +4182,8 @@ Modifies the specified label. Note: Label queries and platforms are immutable. T
 | id          | integer | path | **Required**. The label's id. |
 | name        | string  | body | The label's name.             |
 | description | string  | body | The label's description.      |
+| hosts       | array   | body | The list of host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `name` to add to the label.|
+
 
 #### Example
 
