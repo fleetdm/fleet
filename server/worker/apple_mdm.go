@@ -81,6 +81,12 @@ func (a *AppleMDM) runPostManualEnrollment(ctx context.Context, args appleMDMArg
 }
 
 func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) error {
+	// TODO(mna): what happens if this function fails before everything got sent?
+	// On the next try, new commands will be enqueued for the same task (e.g. if
+	// it failed at the bootstrap package, install fleetd will be enqeueued
+	// again), will Apple MDM process both commands successfully or would the
+	// second one fail? Relevant for the device release.
+
 	if err := a.installFleetd(ctx, args.HostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 	}
@@ -123,6 +129,28 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 			}
 		}
 	}
+
+	// TODO(mna): collect all command uuids for the commands sent here and
+	// enqueue a new job ApplePostDEPEnrollmentReleaseDevice (if
+	// enable_release_device_manually is false). Then this job will look
+	// for the status of those commands to be final (successful or failed)
+	// and for ds.GetHostMDMAppleProfiles for that host to return non-pending
+	// installation statuses (successful or failed). At this point, it means
+	// the DEP enrollment process is done and the device can be released.
+	//
+	// Edge cases:
+	//   - if the device goes offline for a long time, should we go ahead and
+	//   release after a while?
+	//   - if some commands/profiles failed, should we go ahead and release?
+	//   - if the device keeps moving team, or profiles keep being added/removed
+	//   from its team, it's possible that its profiles will never settle and
+	//   always have pending statuses. Same as going offline, should we release
+	//   after a while?
+	//
+	// I'll assume "yes" to all those edge cases, as a) it matches the previous
+	// Fleet behavior and b) if the user really doesn't want the device to be
+	// released in case of issues, they can use manual release.
+
 	return nil
 }
 

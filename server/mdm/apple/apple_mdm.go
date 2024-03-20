@@ -206,11 +206,10 @@ func (d *DEPService) RegisterProfileWithAppleDEPServer(ctx context.Context, team
 	// ensure `url` is the same as `configuration_web_url`, to not leak the URL
 	// to get a token without SSO enabled
 	jsonProf.URL = jsonProf.ConfigurationWebURL
-	// set await_device_configured based on appCfg/team enable_release_device_manually
-	jsonProf.AwaitDeviceConfigured = !appCfg.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	if team != nil {
-		jsonProf.AwaitDeviceConfigured = !team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	}
+	// always set await_device_configured to true - it will be released either
+	// automatically by Fleet or manually by the user if
+	// enable_release_device_manually is true.
+	jsonProf.AwaitDeviceConfigured = true
 
 	depClient := NewDEPClient(d.depStorage, d.ds, d.logger)
 	res, err := depClient.DefineProfile(ctx, DEPName, &jsonProf)
