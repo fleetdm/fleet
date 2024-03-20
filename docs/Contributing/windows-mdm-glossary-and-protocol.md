@@ -57,6 +57,10 @@ The certificate created through the WSTEP process is used to authenticate mTLS b
 
 https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-mdm/33769a92-ac31-47ef-ae7b-dc8501f7104f
 
+## MDM Device Registration Summary
+
+https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-dvrd/296ebf70-bd4b-489e-a531-460d8ef7519b
+
 # Registry
 
 - `HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Enrollments\`
