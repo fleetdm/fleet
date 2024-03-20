@@ -414,6 +414,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 		return nil, err
 	}
 
+	// TODO(roberto): Maybe GetRawDeclarationValues belongs inside NewMDMAppleDeclaration? We can refactor this in a follow up.
 	rawDecl, err := fleet.GetRawDeclarationValues(data)
 	if err != nil {
 		return nil, err
@@ -425,6 +426,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 
 	d := fleet.NewMDMAppleDeclaration(data, tmID, name, rawDecl.Type, rawDecl.Identifier)
 
+	// TODO(roberto): Is this already handled in NewMDMAppleDeclaration? Could we add the labels as well?
 	d.Labels = validatedLabels
 	d.TeamID = tmID
 
@@ -476,11 +478,11 @@ func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
 	}
 
-	var profLabels []fleet.DeclarationLabel
+	var declLabels []fleet.DeclarationLabel
 	for _, label := range labelMap {
-		profLabels = append(profLabels, label)
+		declLabels = append(declLabels, label)
 	}
-	return profLabels, nil
+	return declLabels, nil
 }
 
 type listMDMAppleConfigProfilesRequest struct {

@@ -1595,7 +1595,10 @@ func getAppleProfiles(
 	// any duplicate identifier or name in the provided set results in an error
 	profs := make([]*fleet.MDMAppleConfigProfile, 0, len(profiles))
 	decls := make([]*fleet.MDMAppleDeclaration, 0, len(profiles))
-	byName, byIdent := make(map[string]bool, len(profiles)), make(map[string]bool, len(profiles))
+	// we need to keep track of the names and identifiers to check for duplicates so we will use
+	// a map where the key is the name oridentifier and the value is either "mobileconfig" or
+	// "declaration" to differentiate between the two types of profiles
+	byName, byIdent := make(map[string]string, len(profiles)), make(map[string]string, len(profiles))
 	for _, prof := range profiles {
 		if mdm.GetRawProfilePlatform(prof.Contents) != "darwin" {
 			continue
@@ -1608,6 +1611,7 @@ func getAppleProfiles(
 			return json.Unmarshal(b, &js) == nil
 		}
 
+		// TODO(roberto): As a mini optimization, GetRawDeclarationValues could replace isJSON.
 		if isJSON(prof.Contents) {
 			rawDecl, err := fleet.GetRawDeclarationValues(prof.Contents)
 			if err != nil {
@@ -1629,19 +1633,43 @@ func getAppleProfiles(
 				}
 			}
 
-			if byName[mdmDecl.Name] {
+			v, ok := byName[mdmDecl.Name]
+			switch {
+			case !ok:
+				byName[mdmDecl.Name] = "declaration"
+			case v == "mobileconfig":
 				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(prof.Name, "A configuration profile with this name already exists."),
+					fleet.NewInvalidArgumentError(mdmDecl.Name, "A configuration profile with this name already exists."),
 					"duplicate mobileconfig profile by name")
-			}
-			byName[mdmDecl.Name] = true
-
-			if byIdent[mdmDecl.Identifier] {
+			case v == "declaration":
 				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(prof.Name, "A declaration profile with this identifier already exists."),
-					"duplicate mobileconfig profile by identifier")
+					fleet.NewInvalidArgumentError(mdmDecl.Name, "A declaration profile with this name already exists."),
+					"duplicate declaration profile by name")
+			default:
+				// this should never happen but just in case
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(mdmDecl.Name, "A profile with this name already exists."),
+					"duplicate profile by name")
 			}
-			byIdent[mdmDecl.Identifier] = true
+
+			v, ok = byIdent[mdmDecl.Identifier]
+			switch {
+			case !ok:
+				byIdent[mdmDecl.Identifier] = "declaration"
+			case v == "mobileconfig":
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(mdmDecl.Identifier, "A configuration profile with this identifier already exists."),
+					"duplicate mobileconfig profile by identifier")
+			case v == "declaration":
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(mdmDecl.Identifier, "A declaration profile with this identifier already exists."),
+					"duplicate declaration profile by identifier")
+			default:
+				// this should never happen but just in case
+				return nil, nil, ctxerr.Wrap(ctx,
+					fleet.NewInvalidArgumentError(mdmDecl.Identifier, "A profile with this identifier already exists."),
+					"duplicate identifier by identifier")
+			}
 
 			decls = append(decls, mdmDecl)
 
@@ -1672,19 +1700,21 @@ func getAppleProfiles(
 				"duplicate mobileconfig profile by name")
 		}
 
-		if byName[mdmProf.Name] {
+		// TODO: confirm error messages
+		if _, ok := byName[mdmProf.Name]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same name (PayloadDisplayName): %q", mdmProf.Name)),
 				"duplicate mobileconfig profile by name")
 		}
-		byName[mdmProf.Name] = true
+		byName[mdmProf.Name] = "mobileconfig"
 
-		if byIdent[mdmProf.Identifier] {
+		// TODO: confirm error messages
+		if _, ok := byIdent[mdmProf.Identifier]; ok {
 			return nil, nil, ctxerr.Wrap(ctx,
 				fleet.NewInvalidArgumentError(prof.Name, fmt.Sprintf("Couldn’t edit custom_settings. More than one configuration profile have the same identifier (PayloadIdentifier): %q", mdmProf.Identifier)),
 				"duplicate mobileconfig profile by identifier")
 		}
-		byIdent[mdmProf.Identifier] = true
+		byIdent[mdmProf.Identifier] = "mobileconfig"
 
 		profs = append(profs, mdmProf)
 	}

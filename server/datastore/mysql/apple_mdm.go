@@ -3123,12 +3123,13 @@ ON DUPLICATE KEY UPDATE
   declaration = VALUES(declaration)
 `
 
-	deleteDeclsNotInList := `
+	fmtDeleteStmt := `
 DELETE FROM
   mdm_apple_declarations
 WHERE
-  team_id = ?
+  team_id = ? AND %s
 `
+	andIdentNotInList := "AND identifier NOT IN (?)" // added to fmtDeleteStmt if needed
 
 	const loadExistingDecls = `
 SELECT
@@ -3187,16 +3188,29 @@ WHERE
 		}
 	}
 
-	// delete the obsolete declarations (all those that are not in keepIdents)
-	if len(keepIdents) > 0 {
-		deleteDeclsNotInList = deleteDeclsNotInList + fmt.Sprintf(` AND identifier NOT IN (? %s)`, strings.Repeat(",?", len(keepIdents)-1))
+	var delArgs []any
+	var delStmt string
+	if len(keepIdents) == 0 {
+		// delete all declarations for the team
+		delStmt = fmt.Sprintf(fmtDeleteStmt, "TRUE")
+		delArgs = []any{declTeamID}
+	} else {
+		// delete the obsolete declarations (all those that are not in keepIdents)
+		stmt, args, err := sqlx.In(fmt.Sprintf(fmtDeleteStmt, andIdentNotInList), declTeamID, keepIdents)
+		// if err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "inselect") { // TODO(JVE): do we need to create similar errors for testing decls?
+		// 	if err == nil {
+		// 		err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
+		// 	}
+		// 	return nil, ctxerr.Wrap(ctx, err, "build query to load existing declarations")
+		// }
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build query to delete obsolete profiles")
+		}
+		delStmt = stmt
+		delArgs = args
 	}
 
-	var args []any
-	args = append(args, declTeamID)
-	args = append(args, keepIdents...)
-
-	if _, err := tx.ExecContext(ctx, deleteDeclsNotInList, args...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
+	if _, err := tx.ExecContext(ctx, delStmt, delArgs...); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "delete") {
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}

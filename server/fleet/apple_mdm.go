@@ -591,6 +591,8 @@ type MDMAppleRawDeclaration struct {
 	Identifier string `json:"Identifier"`
 }
 
+// ForbiddenDeclTypes is a set of declaration types that are not allowed to be
+// added by users into Fleet.
 var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.caldav":               {},
 	"com.apple.configuration.account.carddav":              {},
