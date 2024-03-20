@@ -35,7 +35,7 @@ type profileAssignmentReq struct {
 	Devices     []string `json:"devices"`
 }
 
-func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
+func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceGlobal() {
 	t := s.T()
 	ctx := context.Background()
 
@@ -219,6 +219,249 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 			require.Equal(t, 2, installEnterpriseCount)
 			require.Equal(t, 0, otherCount)
 			require.True(t, profileI1Seen)
+			require.True(t, profileFleetdSeen)
+
+			if enableReleaseManually {
+				// get the worker's pending job from the future, there should not be any
+				// because it needs to be released manually
+				pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+				require.NoError(t, err)
+				require.Empty(t, pending)
+			} else {
+				// get the worker's pending job from the future, there should be a DEP
+				// release device task
+				pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+				require.NoError(t, err)
+				require.Len(t, pending, 1)
+				releaseJob := pending[0]
+				require.Equal(t, 0, releaseJob.Retries)
+				require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+				// update the job so that it can run immediately
+				releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+				_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+				require.NoError(t, err)
+
+				// run the worker to process the DEP release
+				s.runWorker()
+
+				// make the device process the commands, it should receive the
+				// DeviceConfigured one.
+				cmds = cmds[:0]
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					cmds = append(cmds, cmd)
+					cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				}
+
+				require.Len(t, cmds, 1)
+				var deviceConfiguredCount int
+				for _, cmd := range cmds {
+					switch cmd.Command.RequestType {
+					case "DeviceConfigured":
+						deviceConfiguredCount++
+					default:
+						otherCount++
+					}
+				}
+				require.Equal(t, 1, deviceConfiguredCount)
+				require.Equal(t, 0, otherCount)
+			}
+		})
+	}
+}
+
+func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceTeam() {
+	t := s.T()
+	ctx := context.Background()
+
+	teamDevice := godep.Device{SerialNumber: uuid.New().String(), Model: "MacBook Pro", OS: "osx", OpType: "added"}
+
+	tm, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "test-team-device-release"})
+	require.NoError(t, err)
+
+	// set an enroll secret, the Fleetd configuration profile will be installed
+	// on the host
+	enrollSecret := "test-release-dep-device-team"
+	err = s.ds.ApplyEnrollSecrets(ctx, &tm.ID, []*fleet.EnrollSecret{{Secret: enrollSecret}})
+	require.NoError(t, err)
+
+	// add a valid bootstrap package
+	b, err := os.ReadFile(filepath.Join("testdata", "bootstrap-packages", "signed.pkg"))
+	require.NoError(t, err)
+	signedPkg := b
+	s.uploadBootstrapPackage(&fleet.MDMAppleBootstrapPackage{Bytes: signedPkg, Name: "pkg.pkg", TeamID: tm.ID}, http.StatusOK, "")
+
+	// add a custom setup assistant and ensure enable_release_device_manually is
+	// false (the default)
+	teamProf := `{"y": 2}`
+	s.Do("POST", "/api/latest/fleet/enrollment_profiles/automatic", createMDMAppleSetupAssistantRequest{
+		TeamID:            &tm.ID,
+		Name:              "team",
+		EnrollmentProfile: json.RawMessage(teamProf),
+	}, http.StatusOK)
+	payload := map[string]any{
+		"enable_release_device_manually": false,
+	}
+	s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+
+	// setup IdP so that AccountConfiguration profile is sent after DEP enrollment
+	var acResp appConfigResponse
+	s.DoJSON("PATCH", "/api/latest/fleet/config", json.RawMessage(fmt.Sprintf(`{
+			"mdm": {
+				"apple_bm_default_team": %q,
+				"end_user_authentication": {
+					"entity_id": "https://localhost:8080",
+					"issuer_uri": "http://localhost:8080/simplesaml/saml2/idp/SSOService.php",
+					"idp_name": "SimpleSAML",
+					"metadata_url": "http://localhost:9080/simplesaml/saml2/idp/metadata.php"
+				},
+				"macos_setup": {
+					"enable_end_user_authentication": true
+				}
+			}
+		}`, tm.Name)), http.StatusOK, &acResp)
+	require.NotEmpty(t, acResp.MDM.EndUserAuthentication)
+
+	// TODO(mna): how/where to pass an enroll_reference so that
+	// runPostDEPEnrollment sends an AccountConfiguration command?
+
+	// add a team profile
+	teamProfile := mobileconfigForTest("N2", "I2")
+	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{teamProfile}}, http.StatusNoContent, "team_id", fmt.Sprint(tm.ID))
+
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			// set the enable release device manually option
+			payload := map[string]any{
+				"enable_release_device_manually": enableReleaseManually,
+				"team_id":                        tm.ID,
+			}
+			s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+
+			// query all hosts
+			listHostsRes := listHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "team_id", fmt.Sprint(tm.ID))
+			require.Empty(t, listHostsRes.Hosts)
+
+			s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+				return map[string]*push.Response{}, nil
+			}
+
+			s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				encoder := json.NewEncoder(w)
+				switch r.URL.Path {
+				case "/session":
+					err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+					require.NoError(t, err)
+				case "/profile":
+					err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+					require.NoError(t, err)
+				case "/server/devices":
+					err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{teamDevice}})
+					require.NoError(t, err)
+				case "/devices/sync":
+					// This endpoint is polled over time to sync devices from
+					// ABM, send a repeated serial and a new one
+					err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{teamDevice}, Cursor: "foo"})
+					require.NoError(t, err)
+				case "/profile/devices":
+					b, err := io.ReadAll(r.Body)
+					require.NoError(t, err)
+
+					var prof profileAssignmentReq
+					require.NoError(t, json.Unmarshal(b, &prof))
+
+					var resp godep.ProfileResponse
+					resp.ProfileUUID = prof.ProfileUUID
+					resp.Devices = make(map[string]string, len(prof.Devices))
+					for _, device := range prof.Devices {
+						resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+					}
+					err = encoder.Encode(resp)
+					require.NoError(t, err)
+				default:
+					_, _ = w.Write([]byte(`{}`))
+				}
+			}))
+
+			// trigger a profile sync
+			s.runDEPSchedule()
+
+			listHostsRes = listHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes, "team_id", fmt.Sprint(tm.ID))
+			require.Len(t, listHostsRes.Hosts, 1)
+			require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, teamDevice.SerialNumber)
+
+			t.Cleanup(func() {
+				// delete the enrolled host
+				err := s.ds.DeleteHost(ctx, listHostsRes.Hosts[0].ID)
+				require.NoError(t, err)
+			})
+
+			// enroll the host
+			depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+			mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+			mdmDevice.SerialNumber = teamDevice.SerialNumber
+			err = mdmDevice.Enroll()
+			require.NoError(t, err)
+
+			// run the worker to process the DEP enroll request
+			s.runWorker()
+			// run the worker to assign configuration profiles
+			s.awaitTriggerProfileSchedule(t)
+
+			var cmds []*micromdm.CommandPayload
+			cmd, err := mdmDevice.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				// Can be useful for debugging
+				//switch cmd.Command.RequestType {
+				//case "InstallProfile":
+				//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
+				//case "InstallEnterpriseApplication":
+				//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+				//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
+				//	} else {
+				//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+				//	}
+				//default:
+				//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+				//}
+				cmds = append(cmds, cmd)
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
+
+			// expected commands: install fleetd, install bootstrap, install profiles (N1
+			// and fleetd configuration) (not expected: account configuration, since
+			// enrollment_reference not set)
+			require.Len(t, cmds, 4)
+			var installProfileCount, installEnterpriseCount, otherCount int
+			var profileI2Seen, profileFleetdSeen bool
+			for _, cmd := range cmds {
+				switch cmd.Command.RequestType {
+				case "InstallProfile":
+					installProfileCount++
+					if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I2</string>") {
+						profileI2Seen = true
+					} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+						profileFleetdSeen = true
+					} else {
+					}
+
+				case "InstallEnterpriseApplication":
+					installEnterpriseCount++
+				default:
+					otherCount++
+				}
+			}
+			require.Equal(t, 2, installProfileCount)
+			require.Equal(t, 2, installEnterpriseCount)
+			require.Equal(t, 0, otherCount)
+			require.True(t, profileI2Seen)
 			require.True(t, profileFleetdSeen)
 
 			if enableReleaseManually {
