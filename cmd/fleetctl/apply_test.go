@@ -143,17 +143,12 @@ func TestApplyTeamSpecs(t *testing.T) {
 	}
 
 	agentOpts := json.RawMessage(`{"config":{"foo":"bar"},"overrides":{"platforms":{"darwin":{"foo":"override"}}}}`)
-	googleCalEmail := "service-valid@example.com"
 	ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
 		return &fleet.AppConfig{
 			AgentOptions: &agentOpts,
 			MDM:          fleet.MDM{EnabledAndConfigured: true},
 			Integrations: fleet.Integrations{
-				GoogleCalendar: []*fleet.GoogleCalendarIntegration{
-					{
-						Email: googleCalEmail,
-					},
-				},
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			},
 		}, nil
 	}
@@ -461,7 +456,6 @@ spec:
     name: team1
     integrations:
       google_calendar:
-        email: `+googleCalEmail+`
         enable_calendar_events: true
         webhook_url: https://example.com/webhook
 `,
@@ -470,30 +464,10 @@ spec:
 	require.NotNil(t, teamsByName["team1"].Config.Integrations.GoogleCalendar)
 	assert.Equal(
 		t, fleet.TeamGoogleCalendarIntegration{
-			Email:      googleCalEmail,
 			Enable:     true,
 			WebhookURL: "https://example.com/webhook",
 		}, *teamsByName["team1"].Config.Integrations.GoogleCalendar,
 	)
-
-	// Apply calendar integration -- invalid email
-	filename = writeTmpYml(
-		t, `
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: team1
-    integrations:
-      google_calendar:
-        email: not_present_globally@example.com
-        enable_calendar_events: true
-        webhook_url: https://example.com/webhook
-`,
-	)
-
-	_, err = runAppNoChecks([]string{"apply", "-f", filename})
-	assert.ErrorContains(t, err, "email must match a global Google Calendar integration email")
 
 	// Apply calendar integration -- invalid webhook destination
 	filename = writeTmpYml(
@@ -505,7 +479,6 @@ spec:
     name: team1
     integrations:
       google_calendar:
-        email: `+googleCalEmail+`
         enable_calendar_events: true
         webhook_url: bozo
 `,

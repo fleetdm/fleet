@@ -131,7 +131,8 @@ func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
 
 func (c *GoogleCalendar) Configure(userEmail string) error {
 	err := c.config.API.Configure(
-		c.config.Context, c.config.IntegrationConfig.Email, c.config.IntegrationConfig.PrivateKey, userEmail,
+		c.config.Context, c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail],
+		c.config.IntegrationConfig.ApiKey[fleet.GoogleCalendarPrivateKey], userEmail,
 	)
 	if err != nil {
 		return ctxerr.Wrap(c.config.Context, err, "creating Google calendar service")
