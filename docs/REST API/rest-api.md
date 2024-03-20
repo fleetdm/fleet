@@ -3484,7 +3484,7 @@ Redelivers a configuration profile for the specified host.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | query | **Required.** The UUID of the configuration profile to re-deliver on the host. |
+| profile_uuid   | string | query | **Required.** The UUID of the configuration profile to redeliver on the host. |
 
 #### Example
 
