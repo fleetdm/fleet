@@ -558,7 +558,7 @@ CREATE TABLE `jobs` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB AUTO_INCREMENT=2 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `jobs` VALUES (1,'2024-03-20 19:27:19','2024-03-20 19:27:19','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 19:27:19');
+INSERT INTO `jobs` VALUES (1,'2024-03-20 19:48:49','2024-03-20 19:48:49','macos_setup_assistant','{\"task\": \"update_all_profiles\"}','queued',0,'','2024-03-20 19:48:49');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `label_membership` (
