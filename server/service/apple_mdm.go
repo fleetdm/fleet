@@ -2974,35 +2974,114 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	}
 	level.Debug(svc.logger).Log("msg", "ddm request received", "endpoint", dm.Endpoint)
 
+	if dm.UDID == "" {
+		return nil, ctxerr.New(r.Context, "missing device id")
+	}
+
 	switch {
 	case dm.Endpoint == "tokens":
-		// TODO(sarah): handle tokens
 		level.Debug(svc.logger).Log("msg", "received tokens request")
-		return nil, nil
+		// TODO: Should we record the checkin for all endpoints or just tokens?
+		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
+			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
+		}
+
+		return svc.handleTokens(r.Context, dm.UDID)
 
 	case dm.Endpoint == "declaration-items":
-		// TODO(sarah): handle declaration-items
 		level.Debug(svc.logger).Log("msg", "received declaration-items request")
-		return nil, nil
+		return svc.handleDeclarationItems(r.Context, dm.UDID)
 
 	case dm.Endpoint == "status":
-		// TODO(roberto): handle status
 		level.Debug(svc.logger).Log("msg", "received status request")
+		// TODO(roberto): handle status
+
 		return nil, nil
 
 	case strings.HasPrefix(dm.Endpoint, "declarations"):
-		// TODO(sarah): handle declarations
 		level.Debug(svc.logger).Log("msg", "received declarations request")
-		parts := strings.Split(dm.Endpoint, "/")
-		if len(parts) != 3 {
-			return nil, ctxerr.New(r.Context, "unrecognized declarations endpoint")
-		}
-		declarationType := parts[1]
-		declarationIdentifier := parts[2]
-		level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", declarationType, "identifier", declarationIdentifier)
-		return nil, nil
+		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.UDID)
 
 	default:
 		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
 	}
+}
+
+func (svc *MDMAppleDDMService) handleTokens(ctx context.Context, hostUUID string) ([]byte, error) {
+	tok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
+	}
+
+	b, err := json.Marshal(fleet.MDMAppleDDMTokensResponse{
+		SyncTokens: *tok,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostUUID string) ([]byte, error) {
+	di, err := svc.ds.MDMAppleDDMDeclarationItems(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting synchronization tokens")
+	}
+
+	activations := []fleet.MDMAppleDDMManifest{}
+	configurations := []fleet.MDMAppleDDMManifest{}
+	for _, d := range di {
+		manifest := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: d.ServerToken}
+		switch d.DeclarationType {
+		case string(fleet.MDMAppleDeclarativeActivation):
+			activations = append(activations, manifest)
+		case string(fleet.MDMAppleDeclarativeConfiguration):
+			configurations = append(configurations, manifest)
+		default:
+			level.Debug(svc.logger).Log("msg", "unrecognized declaration type", "type", d.DeclarationType)
+			return nil, ctxerr.New(ctx, "unrecognized declaration type")
+		}
+	}
+
+	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
+	dTok, err := svc.ds.MDMAppleDDMDeclarationsToken(ctx, hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declarations token")
+	}
+
+	b, err := json.Marshal(fleet.MDMAppleDDMDeclarationItemsResponse{
+		Declarations: fleet.MDMAppleDDMManifestItems{
+			Activations:    activations,
+			Configurations: configurations,
+			Assets:         []fleet.MDMAppleDDMManifest{},
+			Management:     []fleet.MDMAppleDDMManifest{},
+		},
+		DeclarationsToken: dTok.DeclarationsToken,
+	})
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling synchronization tokens")
+	}
+
+	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string) ([]byte, error) {
+	parts := strings.Split(endpoint, "/")
+	if len(parts) != 3 {
+		return nil, ctxerr.New(ctx, "unrecognized declarations endpoint")
+	}
+	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
+
+	// TODO: Validate declarationType?
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, fleet.MDMAppleDeclarationType("com.apple."+parts[1]), parts[2], hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration")
+	}
+	b, err := json.Marshal(d)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
+	}
+
+	return b, nil
 }

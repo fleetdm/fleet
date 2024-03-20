@@ -1,4 +1,4 @@
-name: "Workstations (canary)"
+name: "💻🐣Workstations (canary)"
 team_settings:
   features:
     enable_host_users: true
@@ -50,6 +50,7 @@ controls:
   scripts:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:

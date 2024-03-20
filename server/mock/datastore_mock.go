@@ -748,6 +748,8 @@ type GetMatchingHostSerialsFunc func(ctx context.Context, serials []string) (map
 
 type DeleteHostDEPAssignmentsFunc func(ctx context.Context, serials []string) error
 
+type MDMAppleRecordDeclarativeCheckInFunc func(ctx context.Context, hostUUID string, response []byte) error
+
 type UpdateHostDEPAssignProfileResponsesFunc func(ctx context.Context, resp *godep.ProfileResponse) error
 
 type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, serials []string) (skipSerials []string, assignSerials []string, err error)
@@ -755,6 +757,12 @@ type ScreenDEPAssignProfileSerialsForCooldownFunc func(ctx context.Context, seri
 type GetDEPAssignProfileExpiredCooldownsFunc func(ctx context.Context) (map[uint][]string, error)
 
 type UpdateDEPAssignProfileRetryPendingFunc func(ctx context.Context, jobID uint, serials []string) error
+
+type MDMAppleDDMDeclarationsTokenFunc func(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error)
+
+type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error)
+
+type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error)
 
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
@@ -1954,6 +1962,9 @@ type DataStore struct {
 	DeleteHostDEPAssignmentsFunc        DeleteHostDEPAssignmentsFunc
 	DeleteHostDEPAssignmentsFuncInvoked bool
 
+	MDMAppleRecordDeclarativeCheckInFunc        MDMAppleRecordDeclarativeCheckInFunc
+	MDMAppleRecordDeclarativeCheckInFuncInvoked bool
+
 	UpdateHostDEPAssignProfileResponsesFunc        UpdateHostDEPAssignProfileResponsesFunc
 	UpdateHostDEPAssignProfileResponsesFuncInvoked bool
 
@@ -1965,6 +1976,15 @@ type DataStore struct {
 
 	UpdateDEPAssignProfileRetryPendingFunc        UpdateDEPAssignProfileRetryPendingFunc
 	UpdateDEPAssignProfileRetryPendingFuncInvoked bool
+
+	MDMAppleDDMDeclarationsTokenFunc        MDMAppleDDMDeclarationsTokenFunc
+	MDMAppleDDMDeclarationsTokenFuncInvoked bool
+
+	MDMAppleDDMDeclarationItemsFunc        MDMAppleDDMDeclarationItemsFunc
+	MDMAppleDDMDeclarationItemsFuncInvoked bool
+
+	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
+	MDMAppleDDMDeclarationsResponseFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4677,6 +4697,13 @@ func (s *DataStore) DeleteHostDEPAssignments(ctx context.Context, serials []stri
 	return s.DeleteHostDEPAssignmentsFunc(ctx, serials)
 }
 
+func (s *DataStore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, response []byte) error {
+	s.mu.Lock()
+	s.MDMAppleRecordDeclarativeCheckInFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleRecordDeclarativeCheckInFunc(ctx, hostUUID, response)
+}
+
 func (s *DataStore) UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error {
 	s.mu.Lock()
 	s.UpdateHostDEPAssignProfileResponsesFuncInvoked = true
@@ -4703,6 +4730,27 @@ func (s *DataStore) UpdateDEPAssignProfileRetryPending(ctx context.Context, jobI
 	s.UpdateDEPAssignProfileRetryPendingFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateDEPAssignProfileRetryPendingFunc(ctx, jobID, serials)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsTokenFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsTokenFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationItemsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationItemsFunc(ctx, hostUUID)
+}
+
+func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error) {
+	s.mu.Lock()
+	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, declarationType, identifier, hostUUID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

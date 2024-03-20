@@ -27,9 +27,9 @@ Each PR to the website is manually checked for quality and tested before before 
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
-2. [View the website locally](#test-changes-to-the-website) and follow the QA steps in the request ticket to test changes.
+2. [View the website locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally) and follow the QA steps in the request ticket to test changes.
 
-3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
+3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
 
 ### Test fleetdm.com locally 
@@ -85,7 +85,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
 - Document any issues in GitHub as a [bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/hanbook/digital-experience#team).
+- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Export an image for fleetdm.com

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -3076,6 +3077,145 @@ WHERE h.uuid = ?
 
 	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID); err != nil {
 		return ctxerr.Wrap(ctx, err, "cleaning up macOS lock")
+	}
+
+	return nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
+	const stmt = `
+SELECT
+	md5((count(0) + group_concat(hex(mad.md5_checksum)
+		ORDER BY
+			mad.uploaded_at DESC separator ''))) AS md5_checksum,
+	max(mad.created_at) AS latest_created_timestamp
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
+WHERE
+	hmad.host_uuid = ?`
+
+	var res fleet.MDMAppleDDMDeclarationsToken
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM declarations token")
+	}
+
+	return &res, nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
+	const stmt = `
+SELECT
+	mad.md5_checksum,
+	mad.identifier,
+	mad.declaration_type
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
+WHERE
+	hmad.host_uuid = ? AND operation_type = ?`
+
+	var res []fleet.MDMAppleDDMDeclarationItem
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, fleet.MDMOperationTypeInstall); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get DDM declaration items")
+	}
+
+	return res, nil
+}
+
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error) {
+	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
+	// declaration for the host's current team is returned. In the case where the specified
+	// identifier is not unique to the team, the cron should ensure that any conflicting
+	// declarations are removed, but the join would provide an extra layer of safety.
+	const stmt = `
+SELECT
+	mad.declaration
+FROM
+	host_mdm_apple_declarations hmad
+	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
+WHERE
+	host_uuid = ? AND identifier = ? AND declaration_type = ? AND operation_type = ?`
+
+	var res json.RawMessage
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
+	}
+
+	return res, nil
+}
+
+func (ds *Datastore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, result []byte) error {
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		res, err := tx.ExecContext(
+			ctx,
+			`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
+			hostUUID,
+		)
+		if err != nil {
+			return ctxerr.Wrap(ctx, err, "updating last_seen times")
+		}
+		if n, _ := res.RowsAffected(); n == 0 {
+			return ctxerr.New(ctx, "host is not enrolled in MDM")
+		}
+
+		// NOTE: DeclarativeManagement checkin commands sent by the device
+		// don't carry a CommandUUID reference like commands in
+		// CommandAndReportResults messages do.
+		//
+		// In nanomdm's view of the world, a command is pending until
+		// it receives a result or is deactivated, so we'll grab the
+		// command_uuid of the oldest DeclarativeManagement command we
+		// sent and assume this is the response for it.
+		//
+		// Other DeclarativeManagement commands will still be in the
+		// queue and they will trigger DDM syncs when the device checks
+		// in, so eventually all DDM commands wil get acknowledged.
+		//
+		// Alternatively, we could mark all DDM commands as
+		// acknowledged here, TBD based on the behaviors we see.
+		var cmdUUID string
+		err = sqlx.GetContext(ctx, tx, &cmdUUID, `
+SELECT nc.command_uuid
+FROM nano_enrollment_queue neq
+JOIN nano_commands nc
+  ON neq.command_uuid = nc.command_uuid
+WHERE
+  id = ? AND
+  request_type = 'DeclarativeManagement'
+ORDER BY neq.created_at ASC
+LIMIT 1
+		`, hostUUID)
+		if err != nil {
+			// it's okay if the host doesn't have matching command enqueued, the
+			// check-in could be initiated by the device.
+			if err == sql.ErrNoRows {
+				return nil
+			}
+
+			return ctxerr.Wrap(ctx, err, "getting DDM command")
+		}
+
+		_, err = tx.ExecContext(
+			ctx, `
+INSERT INTO nano_command_results
+    (id, command_uuid, status, result)
+VALUES
+    (?, ?, ?, ?)
+ON DUPLICATE KEY
+UPDATE
+    status = VALUES(status),
+    result = VALUES(result)`,
+			hostUUID,
+			cmdUUID,
+			fleet.MDMAppleStatusAcknowledged,
+			result,
+		)
+
+		return ctxerr.Wrap(ctx, err, "updating nano_command_results")
+	})
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "saving declarative management response")
 	}
 
 	return nil

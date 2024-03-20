@@ -1137,6 +1137,11 @@ type Datastore interface {
 	// host_dep_assignments for host with matching serials.
 	DeleteHostDEPAssignments(ctx context.Context, serials []string) error
 
+	// MDMAppleRecordDeclarativeCheckIn records a DeclarativeManagement
+	// checking from a host, so we know the host received the command to
+	// start the declarative management sync.
+	MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, response []byte) error
+
 	// UpdateHostDEPAssignProfileResponses receives a profile UUID and threes lists of serials, each representing
 	// one of the three possible responses, and updates the host_dep_assignments table with the corresponding responses.
 	UpdateHostDEPAssignProfileResponses(ctx context.Context, resp *godep.ProfileResponse) error
@@ -1151,6 +1156,14 @@ type Datastore interface {
 	// UpdateDEPAssignProfileRetryPending sets the retry_pending flag for the hosts with the given
 	// serials.
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
+
+	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
+	// specified host UUID.
+	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)
+	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
+	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
+	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
