@@ -427,7 +427,7 @@ const OtherWorkflowsModal = ({
           <p className={`${baseClass}__help-text`}>
             The workflow will be triggered when hosts fail these policies.{" "}
             <CustomLink
-              url="https://fleetdm.com/docs/using-fleet/automations"
+              url="https://www.fleetdm.com/learn-more-about/policy-automations"
               text="Learn more"
               newTab
             />
