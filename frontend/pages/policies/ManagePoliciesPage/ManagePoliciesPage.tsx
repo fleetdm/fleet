@@ -2,7 +2,9 @@ import React, { useCallback, useContext, useEffect, useState } from "react";
 import { useQuery } from "react-query";
 import { InjectedRouter } from "react-router/lib/Router";
 import PATHS from "router/paths";
-import { noop, isEqual, set } from "lodash";
+import { noop, isEqual, uniqueId } from "lodash";
+
+import { Tooltip as ReactTooltip5, PlacesType } from "react-tooltip-5";
 
 import { getNextLocationPath } from "utilities/helpers";
 
@@ -12,11 +14,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import {
-  IGlobalIntegrations,
-  IIntegrations,
-  ITeamIntegrations,
-} from "interfaces/integration";
+import { IIntegrations, ITeamIntegrations } from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -772,22 +770,55 @@ const ManagePolicyPage = ({
     );
   };
 
-  const automationsDropdownOptions = [
-    {
-      label: "Calendar events",
-      value: "calendar_events",
-      // TODO - disable and different tooltips for each of below scenarios
-      disabled:
-        !isPremiumTier || teamIdForApi === undefined || teamIdForApi === -1,
-      helpText: "Automatically reserve time to resolve failing policies.",
-    },
-    {
-      label: "Other workflows",
-      value: "other_workflows",
-      disabled: false,
-      helpText: "Create tickets or fire webhooks for failing policies.",
-    },
-  ];
+  const getAutomationsDropdownOptions = () => {
+    const isAllTeams = teamIdForApi === undefined || teamIdForApi === -1;
+    let calEventsLabel: React.ReactNode = "Calendar events";
+    if (!isPremiumTier) {
+      const tipId = uniqueId();
+      calEventsLabel = (
+        <span>
+          <div data-tooltip-id={tipId}>Calendar events</div>
+          <ReactTooltip5 id={tipId} place="left">
+            Available in Fleet Premium
+          </ReactTooltip5>
+        </span>
+      );
+    } else if (isAllTeams) {
+      const tipId = uniqueId();
+      calEventsLabel = (
+        <span>
+          <div data-tooltip-id={tipId}>Calendar events</div>
+          <ReactTooltip5
+            id={tipId}
+            place="left"
+            positionStrategy="fixed"
+            disableStyleInjection
+            offset={5}
+          >
+            Select a team to manage
+            <br />
+            calendar events.
+          </ReactTooltip5>
+        </span>
+      );
+    }
+
+    return [
+      {
+        label: calEventsLabel,
+        value: "calendar_events",
+        // TODO - disable and different tooltips for each of below scenarios
+        disabled: !isPremiumTier || isAllTeams,
+        helpText: "Automatically reserve time to resolve failing policies.",
+      },
+      {
+        label: "Other workflows",
+        value: "other_workflows",
+        disabled: false,
+        helpText: "Create tickets or fire webhooks for failing policies.",
+      },
+    ];
+  };
 
   const isCalEventsConfigured =
     (config?.integrations.google_calendar &&
@@ -828,7 +859,7 @@ const ManagePolicyPage = ({
                     onChange={onSelectAutomationOption}
                     placeholder="Manage automations"
                     searchable={false}
-                    options={automationsDropdownOptions}
+                    options={getAutomationsDropdownOptions()}
                   />
                 </div>
 
