@@ -125,14 +125,14 @@ const Calendars = (): JSX.Element => {
         : [
             {
               domain: formData.domain,
-              api_key_json: formData.apiKeyJson,
+              api_key_json:
+                (formData.apiKeyJson && JSON.parse(formData.apiKeyJson)) ||
+                null,
             },
           ];
 
     // Update integrations.google_calendar only
     const destination = {
-      zendesk: appConfig?.integrations.zendesk,
-      jira: appConfig?.integrations.jira,
       google_calendar: formDataToSubmit,
     };
 
