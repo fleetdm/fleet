@@ -10028,6 +10028,7 @@ func (s *integrationTestSuite) TestHostHealth() {
 		ID:         failingPolicy.ID,
 		Name:       failingPolicy.Name,
 		Resolution: failingPolicy.Resolution,
+		Critical:   nil,
 	})
 	assert.True(t, *hh.HostHealth.DiskEncryptionEnabled)
 	// Check that the TeamID didn't make it into the response

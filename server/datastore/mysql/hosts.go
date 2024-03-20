@@ -15,6 +15,7 @@ import (
 	"github.com/doug-martin/goqu/v9"
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
+	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
@@ -4982,10 +4983,15 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 
 	for _, p := range policies {
 		if p.Response == "fail" {
+			var critical *bool
+			if license.IsPremium(ctx) {
+				critical = &p.Critical
+			}
 			hh.FailingPolicies = append(hh.FailingPolicies, &fleet.HostHealthFailingPolicy{
 				ID:         p.ID,
 				Name:       p.Name,
 				Resolution: p.Resolution,
+				Critical:   critical,
 			})
 		}
 	}

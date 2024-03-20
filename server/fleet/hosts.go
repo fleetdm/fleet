@@ -375,8 +375,9 @@ type HostHealthVulnerableSoftware struct {
 }
 
 type HostHealthFailingPolicy struct {
-	ID         uint   `json:"id"`
-	Name       string `json:"name"`
+	ID         uint    `json:"id"`
+	Name       string  `json:"name"`
+	Critical   *bool   `json:"critical,omitempty"`
 	Resolution *string `json:"resolution"`
 }
 

@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -3147,6 +3148,67 @@ func (s *integrationEnterpriseTestSuite) TestListHosts() {
 	}
 }
 
+func (s *integrationEnterpriseTestSuite) TestHostHealth() {
+	t := s.T()
+
+	team, err := s.ds.NewTeam(context.Background(), &fleet.Team{
+		Name: "team1",
+	})
+	require.NoError(t, err)
+
+	host, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		DetailUpdatedAt: time.Now(),
+		OsqueryHostID:   ptr.String(t.Name() + "hostid1"),
+		LabelUpdatedAt:  time.Now(),
+		PolicyUpdatedAt: time.Now(),
+		SeenTime:        time.Now(),
+		NodeKey:         ptr.String(t.Name() + "nodekey1"),
+		UUID:            t.Name() + "uuid1",
+		Hostname:        t.Name() + "foo.local",
+		PrimaryIP:       "192.168.1.1",
+		PrimaryMac:      "30-65-EC-6F-C4-58",
+		OSVersion:       "Mac OS X 10.14.6",
+		Platform:        "darwin",
+		CPUType:         "cpuType",
+		TeamID:          ptr.Uint(team.ID),
+	})
+	require.NoError(t, err)
+	require.NotNil(t, host)
+
+	user1 := test.NewUser(t, s.ds, "Joe", "joe@example.com", true)
+
+	q1 := test.NewQuery(t, s.ds, nil, "passing_query", "select 1", 0, true)
+
+	passingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
+		QueryID: &q1.ID,
+	})
+	require.NoError(t, err)
+
+	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
+
+	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
+		QueryID:    &q2.ID,
+		Resolution: "Run this command to fix it",
+		Critical:   true,
+	})
+	require.NoError(t, err)
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+
+	hh := getHostHealthResponse{}
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
+	require.Equal(t, host.ID, hh.HostID)
+	assert.NotNil(t, hh.HostHealth)
+	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
+	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
+		ID:         failingPolicy.ID,
+		Name:       failingPolicy.Name,
+		Resolution: failingPolicy.Resolution,
+		Critical:   ptr.Bool(true),
+	})
+}
+
 func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
 	t := s.T()
 	var resp listVulnerabilitiesResponse
@@ -3499,7 +3561,6 @@ func (s *integrationEnterpriseTestSuite) TestOSVersions() {
 		"GET", fmt.Sprintf("/api/latest/fleet/os_versions/%d", osinfo.OSVersionID), nil, http.StatusForbidden, &osVersionResp, "team_id",
 		"99999",
 	)
-
 }
 
 func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
