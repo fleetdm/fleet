@@ -87,6 +87,7 @@ export default {
       resolution,
       platform,
       critical,
+      calendar_events_enabled,
     } = data;
     const { TEAMS } = endpoints;
     const path = `${TEAMS}/${team_id}/policies/${id}`;
@@ -98,6 +99,7 @@ export default {
       resolution,
       platform,
       critical,
+      calendar_events_enabled,
     });
   },
   destroy: (teamId: number | undefined, ids: number[]) => {
