@@ -105,8 +105,10 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			`{
 		"integrations": {
 			"google_calendar": [{
-				"email": %q,
-				"private_key": "testKey",
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": "testKey"
+				},
 				"domain": "example.com"
 			}]
 		}
@@ -197,7 +199,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 				"name": teamName,
 				"integrations": map[string]any{
 					"google_calendar": map[string]any{
-						"email":                  calendarEmail,
 						"enable_calendar_events": true,
 						"webhook_url":            calendarWebhookUrl,
 					},
@@ -210,7 +211,6 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	team, err = s.ds.TeamByName(context.Background(), teamName)
 	require.NotNil(t, team.Config.Integrations.GoogleCalendar)
-	assert.Equal(t, calendarEmail, team.Config.Integrations.GoogleCalendar.Email)
 	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
 	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
 
@@ -1026,7 +1026,7 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	modifyCalendar := fleet.TeamPayload{
 		Integrations: &fleet.TeamIntegrations{
 			GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
-				Email: "calendar@example.com",
+				WebhookURL: "https://example.com/modified",
 			},
 		},
 	}
