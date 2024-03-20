@@ -17,6 +17,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/jmoiron/sqlx"
@@ -4997,6 +4998,16 @@ func (ds *Datastore) GetHostHealth(ctx context.Context, id uint) (*fleet.HostHea
 	}
 
 	hh.FailingPoliciesCount = len(hh.FailingPolicies)
+
+	if license.IsPremium(ctx) {
+		var count int
+		for _, p := range hh.FailingPolicies {
+			if p.Critical != nil && *p.Critical {
+				count++
+			}
+		}
+		hh.FailingCriticalPoliciesCount = ptr.Int(count)
+	}
 
 	return &hh, nil
 }

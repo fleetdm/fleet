@@ -3207,6 +3207,8 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 		Resolution: failingPolicy.Resolution,
 		Critical:   ptr.Bool(true),
 	})
+	assert.Equal(t, 1, hh.HostHealth.FailingPoliciesCount)
+	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
 }
 
 func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
