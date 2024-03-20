@@ -241,6 +241,8 @@ func TestWorkerMiddleJobFails(t *testing.T) {
 func TestWorkerWithRealDatastore(t *testing.T) {
 	ctx := context.Background()
 	ds := mysql.CreateMySQLDS(t)
+	// call TruncateTables immediately, because a DB migration may create jobs
+	mysql.TruncateTables(t, ds)
 
 	oldDelayPerRetry := delayPerRetry
 	delayPerRetry = []time.Duration{

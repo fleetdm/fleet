@@ -41,6 +41,8 @@ func TestAppleMDM(t *testing.T) {
 	// specific internals (sequence and number of calls, etc.). The MDM storage
 	// and pusher are mocks.
 	ds := mysql.CreateMySQLDS(t)
+	// call TruncateTables immediately as a DB migation may have created jobs
+	mysql.TruncateTables(t, ds)
 
 	mdmStorage, err := ds.NewMDMAppleMDMStorage([]byte("test"), []byte("test"))
 	require.NoError(t, err)
