@@ -84,6 +84,29 @@ func TestGoogleCalendar_Configure(t *testing.T) {
 	assert.ErrorIs(t, err, assert.AnError)
 }
 
+func TestGoogleCalendar_ConfigurePlusAddressing(t *testing.T) {
+	// Do not run this test in t.Parallel(), since it involves modifying a global variable
+	plusAddressing = true
+	t.Cleanup(
+		func() {
+			plusAddressing = false
+		},
+	)
+	email := "user+my_test+email@example.com"
+	mockAPI := &MockGoogleCalendarLowLevelAPI{}
+	mockAPI.ConfigureFunc = func(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error {
+		assert.Equal(t, baseCtx, ctx)
+		assert.Equal(t, baseServiceEmail, serviceAccountEmail)
+		assert.Equal(t, basePrivateKey, privateKey)
+		assert.Equal(t, "user@example.com", userToImpersonateEmail)
+		return nil
+	}
+
+	var cal fleet.UserCalendar = NewGoogleCalendar(makeConfig(mockAPI))
+	err := cal.Configure(email)
+	assert.NoError(t, err)
+}
+
 func makeConfig(mockAPI *MockGoogleCalendarLowLevelAPI) *GoogleCalendarConfig {
 	if mockAPI != nil && mockAPI.ConfigureFunc == nil {
 		mockAPI.ConfigureFunc = func(ctx context.Context, serviceAccountEmail, privateKey, userToImpersonateEmail string) error {
@@ -125,6 +148,13 @@ func TestGoogleCalendar_DeleteEvent(t *testing.T) {
 	}
 	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
 	assert.ErrorIs(t, err, assert.AnError)
+
+	// Event already deleted
+	mockAPI.DeleteEventFunc = func(id string) error {
+		return &googleapi.Error{Code: http.StatusGone}
+	}
+	err = cal.DeleteEvent(&fleet.CalendarEvent{Data: []byte(`{"ID":"event-id"}`)})
+	assert.NoError(t, err)
 }
 
 func TestGoogleCalendar_unmarshalDetails(t *testing.T) {

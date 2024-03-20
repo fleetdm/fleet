@@ -17,7 +17,7 @@ type GoogleCalendarMockAPI struct {
 	logger kitlog.Logger
 }
 
-var events = make(map[string]*calendar.Event)
+var mockEvents = make(map[string]*calendar.Event)
 var mu sync.Mutex
 var id uint64
 
@@ -49,7 +49,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) CreateEvent(event *calendar.Event) (*c
 	id += 1
 	event.Id = strconv.FormatUint(id, 10)
 	lowLevelAPI.logger.Log("msg", "CreateEvent", "id", event.Id, "start", event.Start.DateTime)
-	events[event.Id] = event
+	mockEvents[event.Id] = event
 	return event, nil
 }
 
@@ -57,7 +57,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) GetEvent(id, _ string) (*calendar.Even
 	time.Sleep(latency)
 	mu.Lock()
 	defer mu.Unlock()
-	event, ok := events[id]
+	event, ok := mockEvents[id]
 	if !ok {
 		return nil, &googleapi.Error{Code: http.StatusNotFound}
 	}
@@ -76,6 +76,6 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 	mu.Lock()
 	defer mu.Unlock()
 	lowLevelAPI.logger.Log("msg", "DeleteEvent", "id", id)
-	delete(events, id)
+	delete(mockEvents, id)
 	return nil
 }
