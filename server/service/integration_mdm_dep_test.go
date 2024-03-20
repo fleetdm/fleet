@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/mdm/mdmtest"
@@ -89,163 +90,187 @@ func (s *integrationMDMTestSuite) TestDEPEnrollReleaseDeviceAutomatically() {
 	globalProfile := mobileconfigForTest("N1", "I1")
 	s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch", batchSetMDMAppleProfilesRequest{Profiles: [][]byte{globalProfile}}, http.StatusNoContent)
 
-	// query all hosts
-	listHostsRes := listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Empty(t, listHostsRes.Hosts)
-
-	s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
-		return map[string]*push.Response{}, nil
-	}
-
-	s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		encoder := json.NewEncoder(w)
-		switch r.URL.Path {
-		case "/session":
-			err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
-			require.NoError(t, err)
-		case "/profile":
-			err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
-			require.NoError(t, err)
-		case "/server/devices":
-			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{globalDevice}})
-			require.NoError(t, err)
-		case "/devices/sync":
-			// This endpoint is polled over time to sync devices from
-			// ABM, send a repeated serial and a new one
-			err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{globalDevice}, Cursor: "foo"})
-			require.NoError(t, err)
-		case "/profile/devices":
-			b, err := io.ReadAll(r.Body)
-			require.NoError(t, err)
-
-			var prof profileAssignmentReq
-			require.NoError(t, json.Unmarshal(b, &prof))
-
-			var resp godep.ProfileResponse
-			resp.ProfileUUID = prof.ProfileUUID
-			resp.Devices = make(map[string]string, len(prof.Devices))
-			for _, device := range prof.Devices {
-				resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+	for _, enableReleaseManually := range []bool{false, true} {
+		t.Run(fmt.Sprintf("enableReleaseManually=%t", enableReleaseManually), func(t *testing.T) {
+			// set the enable release device manually option
+			payload := map[string]any{
+				"enable_release_device_manually": enableReleaseManually,
 			}
-			err = encoder.Encode(resp)
+			s.Do("PATCH", "/api/latest/fleet/setup_experience", json.RawMessage(jsonMustMarshal(t, payload)), http.StatusNoContent)
+
+			// query all hosts
+			listHostsRes := listHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+			require.Empty(t, listHostsRes.Hosts)
+
+			s.pushProvider.PushFunc = func(pushes []*mdm.Push) (map[string]*push.Response, error) {
+				return map[string]*push.Response{}, nil
+			}
+
+			s.mockDEPResponse(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				encoder := json.NewEncoder(w)
+				switch r.URL.Path {
+				case "/session":
+					err := encoder.Encode(map[string]string{"auth_session_token": "xyz"})
+					require.NoError(t, err)
+				case "/profile":
+					err := encoder.Encode(godep.ProfileResponse{ProfileUUID: uuid.New().String()})
+					require.NoError(t, err)
+				case "/server/devices":
+					err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{globalDevice}})
+					require.NoError(t, err)
+				case "/devices/sync":
+					// This endpoint is polled over time to sync devices from
+					// ABM, send a repeated serial and a new one
+					err := encoder.Encode(godep.DeviceResponse{Devices: []godep.Device{globalDevice}, Cursor: "foo"})
+					require.NoError(t, err)
+				case "/profile/devices":
+					b, err := io.ReadAll(r.Body)
+					require.NoError(t, err)
+
+					var prof profileAssignmentReq
+					require.NoError(t, json.Unmarshal(b, &prof))
+
+					var resp godep.ProfileResponse
+					resp.ProfileUUID = prof.ProfileUUID
+					resp.Devices = make(map[string]string, len(prof.Devices))
+					for _, device := range prof.Devices {
+						resp.Devices[device] = string(fleet.DEPAssignProfileResponseSuccess)
+					}
+					err = encoder.Encode(resp)
+					require.NoError(t, err)
+				default:
+					_, _ = w.Write([]byte(`{}`))
+				}
+			}))
+
+			// trigger a profile sync
+			s.runDEPSchedule()
+
+			listHostsRes = listHostsResponse{}
+			s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
+			require.Len(t, listHostsRes.Hosts, 1)
+			require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, globalDevice.SerialNumber)
+
+			t.Cleanup(func() {
+				// delete the enrolled host
+				err := s.ds.DeleteHost(ctx, listHostsRes.Hosts[0].ID)
+				require.NoError(t, err)
+			})
+
+			// enroll the host
+			depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
+			mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
+			mdmDevice.SerialNumber = globalDevice.SerialNumber
+			err = mdmDevice.Enroll()
 			require.NoError(t, err)
-		default:
-			_, _ = w.Write([]byte(`{}`))
-		}
-	}))
 
-	// trigger a profile sync
-	s.runDEPSchedule()
+			// run the worker to process the DEP enroll request
+			s.runWorker()
+			// run the worker to assign configuration profiles
+			s.awaitTriggerProfileSchedule(t)
 
-	listHostsRes = listHostsResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/hosts", nil, http.StatusOK, &listHostsRes)
-	require.Len(t, listHostsRes.Hosts, 1)
-	require.Equal(t, listHostsRes.Hosts[0].HardwareSerial, globalDevice.SerialNumber)
+			var cmds []*micromdm.CommandPayload
+			cmd, err := mdmDevice.Idle()
+			require.NoError(t, err)
+			for cmd != nil {
+				// Can be useful for debugging
+				//switch cmd.Command.RequestType {
+				//case "InstallProfile":
+				//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
+				//case "InstallEnterpriseApplication":
+				//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
+				//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
+				//	} else {
+				//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+				//	}
+				//default:
+				//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
+				//}
+				cmds = append(cmds, cmd)
+				cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+				require.NoError(t, err)
+			}
 
-	// enroll the host
-	depURLToken := loadEnrollmentProfileDEPToken(t, s.ds)
-	mdmDevice := mdmtest.NewTestMDMClientAppleDEP(s.server.URL, depURLToken)
-	mdmDevice.SerialNumber = globalDevice.SerialNumber
-	err = mdmDevice.Enroll()
-	require.NoError(t, err)
+			// expected commands: install fleetd, install bootstrap, install profiles (N1
+			// and fleetd configuration) (not expected: account configuration, since
+			// enrollment_reference not set)
+			require.Len(t, cmds, 4)
+			var installProfileCount, installEnterpriseCount, otherCount int
+			var profileI1Seen, profileFleetdSeen bool
+			for _, cmd := range cmds {
+				switch cmd.Command.RequestType {
+				case "InstallProfile":
+					installProfileCount++
+					if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
+						profileI1Seen = true
+					} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
+						profileFleetdSeen = true
+					} else {
+					}
 
-	// run the worker to process the DEP enroll request
-	s.runWorker()
-	// run the worker to assign configuration profiles
-	s.awaitTriggerProfileSchedule(t)
+				case "InstallEnterpriseApplication":
+					installEnterpriseCount++
+				default:
+					otherCount++
+				}
+			}
+			require.Equal(t, 2, installProfileCount)
+			require.Equal(t, 2, installEnterpriseCount)
+			require.Equal(t, 0, otherCount)
+			require.True(t, profileI1Seen)
+			require.True(t, profileFleetdSeen)
 
-	var cmds []*micromdm.CommandPayload
-	cmd, err := mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		// Can be useful for debugging
-		//switch cmd.Command.RequestType {
-		//case "InstallProfile":
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, string(cmd.Command.InstallProfile.Payload))
-		//case "InstallEnterpriseApplication":
-		//	if cmd.Command.InstallEnterpriseApplication.ManifestURL != nil {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType, *cmd.Command.InstallEnterpriseApplication.ManifestURL)
-		//	} else {
-		//		fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//	}
-		//default:
-		//	fmt.Println(">>>> device received command: ", cmd.CommandUUID, cmd.Command.RequestType)
-		//}
-		cmds = append(cmds, cmd)
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-
-	// expected commands: install fleetd, install bootstrap, install profiles (N1
-	// and fleetd configuration) (not expected: account configuration, since
-	// enrollment_reference not set)
-	require.Len(t, cmds, 4)
-	var installProfileCount, installEnterpriseCount, otherCount int
-	var profileI1Seen, profileFleetdSeen bool
-	for _, cmd := range cmds {
-		switch cmd.Command.RequestType {
-		case "InstallProfile":
-			installProfileCount++
-			if strings.Contains(string(cmd.Command.InstallProfile.Payload), "<string>I1</string>") {
-				profileI1Seen = true
-			} else if strings.Contains(string(cmd.Command.InstallProfile.Payload), fmt.Sprintf("<string>%s</string>", mobileconfig.FleetdConfigPayloadIdentifier)) {
-				profileFleetdSeen = true
+			if enableReleaseManually {
+				// get the worker's pending job from the future, there should not be any
+				// because it needs to be released manually
+				pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+				require.NoError(t, err)
+				require.Empty(t, pending)
 			} else {
+				// get the worker's pending job from the future, there should be a DEP
+				// release device task
+				pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
+				require.NoError(t, err)
+				require.Len(t, pending, 1)
+				releaseJob := pending[0]
+				require.Equal(t, 0, releaseJob.Retries)
+				require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
+
+				// update the job so that it can run immediately
+				releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
+				_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
+				require.NoError(t, err)
+
+				// run the worker to process the DEP release
+				s.runWorker()
+
+				// make the device process the commands, it should receive the
+				// DeviceConfigured one.
+				cmds = cmds[:0]
+				cmd, err = mdmDevice.Idle()
+				require.NoError(t, err)
+				for cmd != nil {
+					cmds = append(cmds, cmd)
+					cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
+					require.NoError(t, err)
+				}
+
+				require.Len(t, cmds, 1)
+				var deviceConfiguredCount int
+				for _, cmd := range cmds {
+					switch cmd.Command.RequestType {
+					case "DeviceConfigured":
+						deviceConfiguredCount++
+					default:
+						otherCount++
+					}
+				}
+				require.Equal(t, 1, deviceConfiguredCount)
+				require.Equal(t, 0, otherCount)
 			}
-
-		case "InstallEnterpriseApplication":
-			installEnterpriseCount++
-		default:
-			otherCount++
-		}
+		})
 	}
-	require.Equal(t, 2, installProfileCount)
-	require.Equal(t, 2, installEnterpriseCount)
-	require.Equal(t, 0, otherCount)
-	require.True(t, profileI1Seen)
-	require.True(t, profileFleetdSeen)
-
-	// get the worker's pending job from the future, there should be a DEP
-	// release device task
-	pending, err := s.ds.GetQueuedJobs(ctx, 1, time.Now().UTC().Add(time.Minute))
-	require.NoError(t, err)
-	require.Len(t, pending, 1)
-	releaseJob := pending[0]
-	require.Equal(t, 0, releaseJob.Retries)
-	require.Contains(t, string(*releaseJob.Args), worker.AppleMDMPostDEPReleaseDeviceTask)
-
-	// update the job so that it can run immediately
-	releaseJob.NotBefore = time.Now().UTC().Add(-time.Minute)
-	_, err = s.ds.UpdateJob(ctx, releaseJob.ID, releaseJob)
-	require.NoError(t, err)
-
-	// run the worker to process the DEP release
-	s.runWorker()
-
-	// make the device process the commands, it should receive the
-	// DeviceConfigured one.
-	cmds = cmds[:0]
-	cmd, err = mdmDevice.Idle()
-	require.NoError(t, err)
-	for cmd != nil {
-		cmds = append(cmds, cmd)
-		cmd, err = mdmDevice.Acknowledge(cmd.CommandUUID)
-		require.NoError(t, err)
-	}
-
-	require.Len(t, cmds, 1)
-	var deviceConfiguredCount int
-	for _, cmd := range cmds {
-		switch cmd.Command.RequestType {
-		case "DeviceConfigured":
-			deviceConfiguredCount++
-		default:
-			otherCount++
-		}
-	}
-	require.Equal(t, 1, deviceConfiguredCount)
-	require.Equal(t, 0, otherCount)
 }
 
 func (s *integrationMDMTestSuite) TestDEPProfileAssignment() {
