@@ -3175,40 +3175,58 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 	require.NoError(t, err)
 	require.NotNil(t, host)
 
-	user1 := test.NewUser(t, s.ds, "Joe", "joe@example.com", true)
-
-	q1 := test.NewQuery(t, s.ds, nil, "passing_query", "select 1", 0, true)
-
-	passingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID: &q1.ID,
+	passingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
 	})
 	require.NoError(t, err)
 
-	q2 := test.NewQuery(t, s.ds, nil, "failing_query", "select 0", 0, true)
-
-	failingPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, &user1.ID, fleet.PolicyPayload{
-		QueryID:    &q2.ID,
+	failingTeamPolicy, err := s.ds.NewTeamPolicy(context.Background(), team.ID, nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
 		Resolution: "Run this command to fix it",
 		Critical:   true,
 	})
 	require.NoError(t, err)
 
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingPolicy.ID: ptr.Bool(false)}, time.Now(), false))
-	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	passingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Passing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+	})
+
+	failingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
+		Name:       "Failing Global Policy",
+		Query:      "select 1",
+		Resolution: "Run this command to fix it",
+		Critical:   false,
+	})
+
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingTeamPolicy.ID: ptr.Bool(false)}, time.Now(), false))
+	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingTeamPolicy.ID: ptr.Bool(true)}, time.Now(), false))
 
 	hh := getHostHealthResponse{}
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d/health", host.ID), nil, http.StatusOK, &hh)
 	require.Equal(t, host.ID, hh.HostID)
 	assert.NotNil(t, hh.HostHealth)
 	assert.Equal(t, host.OSVersion, hh.HostHealth.OsVersion)
-	assert.Equal(t, hh.HostHealth.FailingPolicies[0], &fleet.HostHealthFailingPolicy{
-		ID:         failingPolicy.ID,
-		Name:       failingPolicy.Name,
-		Resolution: failingPolicy.Resolution,
+	assert.Equal(t, 2, hh.HostHealth.FailingPoliciesCount)
+	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingTeamPolicy.ID,
+		Name:       failingTeamPolicy.Name,
+		Resolution: failingTeamPolicy.Resolution,
 		Critical:   ptr.Bool(true),
 	})
-	assert.Equal(t, 1, hh.HostHealth.FailingPoliciesCount)
-	assert.Equal(t, ptr.Int(1), hh.HostHealth.FailingCriticalPoliciesCount)
+	assert.Contains(t, hh.HostHealth.FailingPolicies, &fleet.HostHealthFailingPolicy{
+		ID:         failingGlobalPolicy.ID,
+		Name:       failingGlobalPolicy.Name,
+		Resolution: failingGlobalPolicy.Resolution,
+		Critical:   ptr.Bool(false),
+	})
 }
 
 func (s *integrationEnterpriseTestSuite) TestListVulnerabilities() {
