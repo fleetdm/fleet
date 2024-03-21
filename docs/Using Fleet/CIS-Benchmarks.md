@@ -15,7 +15,7 @@ Fleet has implemented native support for CIS Benchmarks for the following platfo
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
-These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is not a specific policy in place to enforce that setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
+These benchmarks are intended to gauge your organization's security posture, rather than the current state of a given host. A host may fail a CIS Benchmark policy despite having the correct settings enabled if there is no configuration profile or Group Policy Object (GPO) in place to enforce the setting. For example, this is the query for  **CIS - Ensure FileVault Is Enabled (MDM Required)**:
 
 ```sql
 SELECT 1 WHERE 
@@ -106,10 +106,6 @@ Each benchmark has two elements:
 Since Fleetd is currently read-only without the ability to execute actions on the host, Fleet does not implement the remediation portions of CIS benchmarks.
 
 To implement automated remediation, you can install a separate agent such as Munki, Chef, Puppet, etc. which has write functionality.
-
-### Manual vs. automated
-
-Certain checks require human action to remediate, while others can be handled automatically. Many CIS policy resolutions in Fleet are prefixed with "Automated method:" to help clarify which can be resolved automatically.
 
 
 ## Levels 1 and 2
