@@ -2030,9 +2030,10 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       },
       "mdm": {
         "encryption_key_available": false,
-        "enrollment_status": null,
-        "name": "",
-        "server_url": null
+        "enrollment_status": "Pending",
+        "dep_profile_error": true,
+        "name": "Fleet",
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
       },
       "software": [
         {
