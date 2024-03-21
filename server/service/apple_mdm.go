@@ -31,6 +31,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
+	nano_service "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/service"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/log"
@@ -3178,7 +3179,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	level.Debug(svc.logger).Log("msg", "ddm request received", "endpoint", dm.Endpoint)
 
 	if dm.UDID == "" {
-		return nil, ctxerr.New(r.Context, "missing device id")
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, "missing UDID in request"))
 	}
 
 	switch {
@@ -3196,12 +3197,12 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 		return nil, nil
 
-	case strings.HasPrefix(dm.Endpoint, "declaration"):
+	case strings.HasPrefix(dm.Endpoint, "declaration/"):
 		level.Debug(svc.logger).Log("msg", "received declarations request")
 		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.UDID)
 
 	default:
-		return nil, ctxerr.New(r.Context, "unrecognized ddm endpoint")
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(r.Context, fmt.Sprintf("unrecognized declarations endpoint: %s", dm.Endpoint)))
 	}
 }
 
@@ -3267,7 +3268,7 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, endpoint string, hostUUID string) ([]byte, error) {
 	parts := strings.Split(endpoint, "/")
 	if len(parts) != 3 {
-		return nil, ctxerr.New(ctx, "unrecognized declarations endpoint")
+		return nil, nano_service.NewHTTPStatusError(http.StatusBadRequest, ctxerr.New(ctx, fmt.Sprintf("unrecognized declarations endpoint: %s", endpoint)))
 	}
 	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
 
@@ -3277,7 +3278,10 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 		hostUUID,
 	)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting declaration")
+		if fleet.IsNotFound(err) {
+			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
 	}
 
 	// unmarshall into a temporary map in order to add the token.

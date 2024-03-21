@@ -13040,6 +13040,11 @@ INSERT INTO host_mdm_apple_declarations (
 		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
 
+		// try getting a non-existent declaration
+		_, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent"))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "404 Not Found")
+
 		assertDeclarationResponse(r, want)
 	})
 }

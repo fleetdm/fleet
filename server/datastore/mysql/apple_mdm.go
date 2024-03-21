@@ -3505,6 +3505,9 @@ WHERE
 
 	var res fleet.MDMAppleDeclaration
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, notFound(string(declarationType)).WithName(identifier)
+		}
 		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
 	}
 
