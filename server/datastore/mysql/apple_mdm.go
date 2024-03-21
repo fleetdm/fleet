@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -111,15 +110,15 @@ func formatErrorDuplicateConfigProfile(err error, cp *fleet.MDMAppleConfigProfil
 
 func formatErrorDuplicateDeclaration(err error, decl *fleet.MDMAppleDeclaration) error {
 	switch {
-	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_identifier"):
+	case strings.Contains(err.Error(), "idx_mdm_apple_declaration_team_identifier"):
 		return &existsError{
-			ResourceType: "MDMAppleConfigProfile.PayloadIdentifier",
+			ResourceType: "MDMAppleDeclaration.Identifier",
 			Identifier:   decl.Identifier,
 			TeamID:       decl.TeamID,
 		}
-	case strings.Contains(err.Error(), "idx_mdm_apple_config_prof_team_name"):
+	case strings.Contains(err.Error(), "idx_mdm_apple_declaration_team_name"):
 		return &existsError{
-			ResourceType: "MDMAppleConfigProfile.PayloadDisplayName",
+			ResourceType: "MDMAppleDeclaration.Name",
 			Identifier:   decl.Name,
 			TeamID:       decl.TeamID,
 		}
@@ -3109,9 +3108,9 @@ INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
 	identifier,
 	name,
-	declaration_type,
-	declaration,
-	md5_checksum,
+	category,
+	raw_json,
+	checksum,
 	uploaded_at,
 	team_id
 )
@@ -3119,10 +3118,10 @@ VALUES (
 	?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
-  uploaded_at = IF(md5_checksum = VALUES(md5_checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
-  md5_checksum = VALUES(md5_checksum),
+  uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
+  checksum = VALUES(checksum),
   name = VALUES(name),
-  declaration = VALUES(declaration)
+  raw_json = VALUES(raw_json)
 `
 
 	fmtDeleteStmt := `
@@ -3137,7 +3136,7 @@ WHERE
 SELECT
   identifier,
   declaration_uuid,
-  declaration
+  raw_json
 FROM
   mdm_apple_declarations
 WHERE
@@ -3220,14 +3219,14 @@ WHERE
 	}
 
 	for _, d := range declarations {
-		checksum := md5ChecksumScriptContent(string(d.Declaration))
+		checksum := md5ChecksumScriptContent(string(d.RawJSON))
 		declUUID := "x" + uuid.NewString()
 		if _, err := tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
 			d.Name,
-			d.DeclarationType,
-			d.Declaration,
+			d.Category,
+			d.RawJSON,
 			checksum,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
 			if err == nil {
@@ -3255,7 +3254,7 @@ WHERE
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := "x" + uuid.NewString()
-	checksum := md5ChecksumScriptContent(string(declaration.Declaration))
+	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
 
 	stmt := `
 INSERT INTO mdm_apple_declarations (
@@ -3263,9 +3262,9 @@ INSERT INTO mdm_apple_declarations (
 	team_id,
 	identifier,
 	name,
-	declaration_type,
-	declaration,
-	md5_checksum,
+	category,
+	raw_json,
+	checksum,
 	uploaded_at)
 (SELECT ?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
@@ -3282,7 +3281,7 @@ INSERT INTO mdm_apple_declarations (
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.DeclarationType, declaration.Declaration, checksum, declaration.Name, tmID, declaration.Name, tmID)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Category, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -3328,13 +3327,13 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	// unrelated profile+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
-	  WHERE (declaration_uuid, label_id) NOT IN (%s) AND
-	  declaration_uuid IN (?)
+	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
+	  apple_declaration_uuid IN (?)
 	`
 
 	upsertStmt := `
 	  INSERT INTO mdm_declaration_labels
-              (declaration_uuid, label_id, label_name)
+              (apple_declaration_uuid, label_id, label_name)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
@@ -3394,9 +3393,9 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 func (ds *Datastore) MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*fleet.MDMAppleDDMDeclarationsToken, error) {
 	const stmt = `
 SELECT
-	md5((count(0) + group_concat(hex(mad.md5_checksum)
+	md5((count(0) + group_concat(hex(mad.checksum)
 		ORDER BY
-			mad.uploaded_at DESC separator ''))) AS md5_checksum,
+			mad.uploaded_at DESC separator ''))) AS checksum,
 	max(mad.created_at) AS latest_created_timestamp
 FROM
 	host_mdm_apple_declarations hmad
@@ -3415,9 +3414,9 @@ WHERE
 func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]fleet.MDMAppleDDMDeclarationItem, error) {
 	const stmt = `
 SELECT
-	mad.md5_checksum,
+	HEX(mad.checksum) as checksum,
 	mad.identifier,
-	mad.declaration_type
+	mad.category
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
@@ -3432,100 +3431,24 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationType, identifier string, hostUUID string) (json.RawMessage, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
 	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
 	// declaration for the host's current team is returned. In the case where the specified
 	// identifier is not unique to the team, the cron should ensure that any conflicting
 	// declarations are removed, but the join would provide an extra layer of safety.
 	const stmt = `
 SELECT
-	mad.declaration
+	mad.raw_json, HEX(mad.checksum) as checksum
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND identifier = ? AND declaration_type = ? AND operation_type = ?`
+	host_uuid = ? AND identifier = ? AND category = ? AND operation_type = ?`
 
-	var res json.RawMessage
+	var res fleet.MDMAppleDeclaration
 	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
 	}
 
-	return res, nil
-}
-
-func (ds *Datastore) MDMAppleRecordDeclarativeCheckIn(ctx context.Context, hostUUID string, result []byte) error {
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(
-			ctx,
-			`UPDATE nano_enrollments SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?`,
-			hostUUID,
-		)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "updating last_seen times")
-		}
-		if n, _ := res.RowsAffected(); n == 0 {
-			return ctxerr.New(ctx, "host is not enrolled in MDM")
-		}
-
-		// NOTE: DeclarativeManagement checkin commands sent by the device
-		// don't carry a CommandUUID reference like commands in
-		// CommandAndReportResults messages do.
-		//
-		// In nanomdm's view of the world, a command is pending until
-		// it receives a result or is deactivated, so we'll grab the
-		// command_uuid of the oldest DeclarativeManagement command we
-		// sent and assume this is the response for it.
-		//
-		// Other DeclarativeManagement commands will still be in the
-		// queue and they will trigger DDM syncs when the device checks
-		// in, so eventually all DDM commands wil get acknowledged.
-		//
-		// Alternatively, we could mark all DDM commands as
-		// acknowledged here, TBD based on the behaviors we see.
-		var cmdUUID string
-		err = sqlx.GetContext(ctx, tx, &cmdUUID, `
-SELECT nc.command_uuid
-FROM nano_enrollment_queue neq
-JOIN nano_commands nc
-  ON neq.command_uuid = nc.command_uuid
-WHERE
-  id = ? AND
-  request_type = 'DeclarativeManagement'
-ORDER BY neq.created_at ASC
-LIMIT 1
-		`, hostUUID)
-		if err != nil {
-			// it's okay if the host doesn't have matching command enqueued, the
-			// check-in could be initiated by the device.
-			if err == sql.ErrNoRows {
-				return nil
-			}
-
-			return ctxerr.Wrap(ctx, err, "getting DDM command")
-		}
-
-		_, err = tx.ExecContext(
-			ctx, `
-INSERT INTO nano_command_results
-    (id, command_uuid, status, result)
-VALUES
-    (?, ?, ?, ?)
-ON DUPLICATE KEY
-UPDATE
-    status = VALUES(status),
-    result = VALUES(result)`,
-			hostUUID,
-			cmdUUID,
-			fleet.MDMAppleStatusAcknowledged,
-			result,
-		)
-
-		return ctxerr.Wrap(ctx, err, "updating nano_command_results")
-	})
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "saving declarative management response")
-	}
-
-	return nil
+	return &res, nil
 }

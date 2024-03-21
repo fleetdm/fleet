@@ -3079,11 +3079,6 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	switch {
 	case dm.Endpoint == "tokens":
 		level.Debug(svc.logger).Log("msg", "received tokens request")
-		// TODO: Should we record the checkin for all endpoints or just tokens?
-		if err := svc.ds.MDMAppleRecordDeclarativeCheckIn(r.Context, dm.UDID, dm.Raw); err != nil {
-			return nil, ctxerr.Wrap(r.Context, err, "recording declarative checkin")
-		}
-
 		return svc.handleTokens(r.Context, dm.UDID)
 
 	case dm.Endpoint == "declaration-items":
@@ -3096,7 +3091,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 		return nil, nil
 
-	case strings.HasPrefix(dm.Endpoint, "declarations"):
+	case strings.HasPrefix(dm.Endpoint, "declaration"):
 		level.Debug(svc.logger).Log("msg", "received declarations request")
 		return svc.handleDeclarationsResponse(r.Context, dm.Endpoint, dm.UDID)
 
@@ -3131,14 +3126,14 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	configurations := []fleet.MDMAppleDDMManifest{}
 	for _, d := range di {
 		manifest := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: d.ServerToken}
-		switch d.DeclarationType {
+		switch d.Category {
 		case string(fleet.MDMAppleDeclarativeActivation):
 			activations = append(activations, manifest)
 		case string(fleet.MDMAppleDeclarativeConfiguration):
 			configurations = append(configurations, manifest)
 		default:
-			level.Debug(svc.logger).Log("msg", "unrecognized declaration type", "type", d.DeclarationType)
-			return nil, ctxerr.New(ctx, "unrecognized declaration type")
+			level.Debug(svc.logger).Log("msg", "unrecognized declaration category", "category", d.Category)
+			return nil, ctxerr.New(ctx, "unrecognized declaration category")
 		}
 	}
 
@@ -3171,15 +3166,30 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 	}
 	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
 
-	// TODO: Validate declarationType?
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, fleet.MDMAppleDeclarationType("com.apple."+parts[1]), parts[2], hostUUID)
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(
+		ctx, fleet.MDMAppleDeclarationCategory("com.apple."+parts[1]),
+		parts[2],
+		hostUUID,
+	)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration")
 	}
-	b, err := json.Marshal(d)
+
+	// unmarshall into a temporary map in order to add the token.
+	// we do this at this stage because tokens are purely managed by Fleet,
+	// and we don't want to store a modified version of what's provided by
+	// the IT admin.
+	//
+	// This mimics what we do for CommandUUID, but can be revisited.
+	var tempd map[string]any
+	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")
+	}
+	tempd["ServerToken"] = d.Checksum
+
+	b, err := json.Marshal(tempd)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
 	}
-
 	return b, nil
 }

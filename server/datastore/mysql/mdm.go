@@ -177,12 +177,12 @@ FROM (
 		name,
 		'darwin' AS platform,
 		identifier,
-		md5_checksum AS checksum,
+		checksum AS checksum,
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
 	WHERE team_id = ?
-	AND declaration_type <> ?
+	AND category <> ?
 ) as combined_profiles
 `
 
@@ -272,15 +272,15 @@ func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, d
 
 	stmt := `
 SELECT
-	declaration_uuid AS profile_uuid,
+	apple_declaration_uuid AS profile_uuid,
 	label_name,
 	label_id
 FROM
 	mdm_declaration_labels
 WHERE
-	declaration_uuid IN (?)
+	apple_declaration_uuid IN (?)
 ORDER BY
-	declaration_uuid, label_name
+	apple_declaration_uuid, label_name
 	`
 
 	stmt, args, err := sqlx.In(stmt, declUUIDs)
