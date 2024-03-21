@@ -82,7 +82,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 onDelete={() => setShowDeleteProfileModal(true)}
               />
             )}
-            <AdvancedOptionsForm />
+            <AdvancedOptionsForm currentTeamId={currentTeamId} />
           </div>
           <div className={`${baseClass}__preview-container`}>
             <SetupAssistantPreview />

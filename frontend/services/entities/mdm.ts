@@ -4,7 +4,10 @@ import {
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
+import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
+import configAPI from "services/entities/config";
+import teamAPI from "services/entities/teams";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 
@@ -225,6 +228,16 @@ const mdmService = {
       team_id: teamId,
       enable_end_user_authentication: isEnabled,
     });
+  },
+
+  updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
+    if (teamId === API_NO_TEAM_ID) {
+      return configAPI.update({
+        mdm: { macos_setup: { enable_release_device_manually: isEnabled } },
+      });
+    }
+
+    return teamAPI.update({});
   },
 };
 

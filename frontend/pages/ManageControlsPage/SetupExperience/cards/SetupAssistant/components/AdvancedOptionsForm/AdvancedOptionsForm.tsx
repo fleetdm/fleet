@@ -1,22 +1,36 @@
-import React, { useState } from "react";
+import React, { useContext, useState } from "react";
+
+import mdmAPI from "services/entities/mdm";
 
 import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
 import Button from "components/buttons/Button";
+import { NotificationContext } from "context/notification";
 
 const baseClass = "advanced-options-form";
 
-const AdvancedOptionsForm = () => {
+interface IAdvancedOptionsFormProps {
+  currentTeamId: number;
+}
+
+const AdvancedOptionsForm = ({ currentTeamId }: IAdvancedOptionsFormProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [releaseDevice, setReleaseDevice] = useState(false);
+  const { renderFlash } = useContext(NotificationContext);
 
   const accordionText = showAdvancedOptions ? "Hide" : "Show";
   const icon = showAdvancedOptions ? "chevron-up" : "chevron-down";
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    console.log("release?", releaseDevice);
+
+    try {
+      await mdmAPI.updateReleaseDeviceSetting(currentTeamId, releaseDevice);
+      renderFlash("success", "Successfully updated.");
+    } catch {
+      renderFlash("error", "Something went wrong. Please try again.");
+    }
   };
 
   const tooltip = (

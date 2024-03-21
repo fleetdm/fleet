@@ -13,6 +13,7 @@ import {
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
+import { NotifyManager } from "react-query/types/core/notifyManager";
 
 interface ILoadTeamsParams {
   page?: number;
@@ -139,6 +140,16 @@ export default {
 
     return sendRequest("PATCH", path, requestBody);
   },
+
+  /**
+   *
+   */
+  updateConfig: (data: any, teamId?: number) => {
+    const { TEAMS } = endpoints;
+    const path = `${TEAMS}/${teamId}`;
+    return sendRequest("PATCH", path, data);
+  },
+
   addUsers: (teamId: number | undefined, newUsers: INewTeamUsersBody) => {
     if (!teamId || teamId <= API_NO_TEAM_ID) {
       return Promise.reject(
