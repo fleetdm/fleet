@@ -1,0 +1,59 @@
+
+/**
+ * <ajax-button>
+ *
+ * App-wide styles for our ajax buttons.
+ */
+
+[parasails-component='logo-carousel'] {
+  margin-bottom: 80px;
+  max-width: 1200px;
+  padding-left: 0px;
+  padding-right: 0px;
+  overflow-x: hidden;
+  width: 100%;
+  [purpose='logo-carousel'] {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    div {
+      white-space: nowrap;
+      animation: scroll-horizontal 80s linear infinite;
+    }
+    img {
+      vertical-align: middle;
+      height: 32px;
+      margin-right: 64px;
+    }
+    [purpose='fade-left'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      left: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, #FFF 0%, rgba(255, 255, 255, 0.00) 100%);
+    }
+    [purpose='fade-right'] {
+      height: 32px;
+      width: 80px;
+      position: absolute;
+      right: 0px;
+      bottom: 0px;
+      animation: none;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
+    }
+  }
+
+  @media (max-width: 575px) {
+    margin-bottom: 64px;
+    [purpose='logo-carousel'] {
+      img {
+        margin-right: 48px;
+      }
+    }
+  }
+ }
