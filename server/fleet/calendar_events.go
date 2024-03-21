@@ -15,7 +15,8 @@ type CalendarEvent struct {
 type CalendarWebhookStatus int
 
 const (
-	CalendarWebhookStatusPending CalendarWebhookStatus = iota
+	CalendarWebhookStatusNone CalendarWebhookStatus = iota
+	CalendarWebhookStatusPending
 	CalendarWebhookStatusSent
 )
 
