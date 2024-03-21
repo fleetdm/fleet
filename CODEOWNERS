@@ -147,7 +147,7 @@ go.mod @fleetdm/go
 /.github/workflows/test-db-changes.yml @roperzh
 /.github/workflows/test-go.yaml @roperzh
 /.github/workflows/golangci-lint.yml @roperzh
-/.github/workflows/test-native-tooling-packaging.yml @roperszh
+/.github/workflows/test-native-tooling-packaging.yml @roperzh
 /.github/workflows/check-tuf-timestamps.yml @roperzh
 /.github/workflows/test-puppet.yml @roperzh
 /.github/workflows/generate-nudge-targets.yml @roperzh
