@@ -32,6 +32,7 @@ export default {
   ADMIN_INTEGRATIONS_MDM_WINDOWS: `${URL_PREFIX}/settings/integrations/mdm/windows`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT: `${URL_PREFIX}/settings/integrations/automatic-enrollment`,
   ADMIN_INTEGRATIONS_AUTOMATIC_ENROLLMENT_WINDOWS: `${URL_PREFIX}/settings/integrations/automatic-enrollment/windows`,
+  ADMIN_INTEGRATIONS_CALENDARS: `${URL_PREFIX}/settings/integrations/calendars`,
   ADMIN_TEAMS: `${URL_PREFIX}/settings/teams`,
   ADMIN_ORGANIZATION: `${URL_PREFIX}/settings/organization`,
   ADMIN_ORGANIZATION_INFO: `${URL_PREFIX}/settings/organization/info`,

@@ -8,7 +8,7 @@ import {
   IZendeskIntegration,
   IIntegration,
   IIntegrationTableData,
-  IIntegrations,
+  IGlobalIntegrations,
 } from "interfaces/integration";
 import { IApiError } from "interfaces/errors";
 
@@ -69,7 +69,7 @@ const Integrations = (): JSX.Element => {
     isLoading: isLoadingIntegrations,
     error: loadingIntegrationsError,
     refetch: refetchIntegrations,
-  } = useQuery<IConfig, Error, IIntegrations>(
+  } = useQuery<IConfig, Error, IGlobalIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
     {
@@ -133,9 +133,15 @@ const Integrations = (): JSX.Element => {
       // Updates either integrations.jira or integrations.zendesk
       const destination = () => {
         if (integrationDestination === "jira") {
-          return { jira: integrationSubmitData, zendesk: zendeskIntegrations };
+          return {
+            jira: integrationSubmitData,
+            zendesk: zendeskIntegrations,
+          };
         }
-        return { zendesk: integrationSubmitData, jira: jiraIntegrations };
+        return {
+          zendesk: integrationSubmitData,
+          jira: jiraIntegrations,
+        };
       };
 
       setTestingConnection(true);

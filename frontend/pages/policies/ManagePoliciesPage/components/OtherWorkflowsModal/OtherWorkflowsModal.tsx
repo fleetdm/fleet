@@ -3,7 +3,12 @@ import { Link } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegration, IIntegrations } from "interfaces/integration";
+import {
+  IGlobalIntegrations,
+  IIntegration,
+  IIntegrations,
+  ITeamIntegrations,
+} from "interfaces/integration";
 import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
@@ -26,13 +31,13 @@ import ExamplePayload from "../ExamplePayload";
 
 interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
-  availableIntegrations: IIntegrations;
+  availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
   availablePolicies: IPolicy[];
   isUpdatingAutomations: boolean;
   onExit: () => void;
   handleSubmit: (formData: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IIntegrations;
+    integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
 }
 
@@ -256,6 +261,7 @@ const OtherWorkflowsModal = ({
       integrations: {
         jira: newJira,
         zendesk: newZendesk,
+        google_calendar: null, // When null, the backend does not update google_calendar
       },
     });
 
