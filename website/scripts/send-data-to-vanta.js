@@ -34,7 +34,9 @@ module.exports = {
           grant_type: 'refresh_token',// eslint-disable-line camelcase
         },
         headers: { accept: 'application/json' }
-      }).tolerate((err)=>{
+      })
+      .retry({raw:{statusCode: 503}})
+      .tolerate((err)=>{
         // If an error occurs while sending a request to Vanta, we'll add the error to the errorReportById object, with this connections ID set as the key.
         errorReportById[connectionIdAsString] = new Error(`Could not refresh the token for Vanta connection (id: ${connectionIdAsString}). Full error: ${err}`);
       });
