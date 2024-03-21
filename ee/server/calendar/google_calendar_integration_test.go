@@ -22,6 +22,7 @@ type googleCalendarIntegrationTestSuite struct {
 
 func (s *googleCalendarIntegrationTestSuite) SetupSuite() {
 	dbFile, err := os.CreateTemp("", "calendar.db")
+	s.Require().NoError(err)
 	handler, err := calendartest.Configure(dbFile.Name())
 	s.Require().NoError(err)
 	server := httptest.NewUnstartedServer(handler)
@@ -41,6 +42,8 @@ func (s *googleCalendarIntegrationTestSuite) TearDownSuite() {
 	calendartest.Close()
 }
 
+// TestGoogleCalendarIntegration tests should be able to be run in parallel, but this is not natively supported by suites: https://github.com/stretchr/testify/issues/187
+// There are workarounds that can be explored.
 func TestGoogleCalendarIntegration(t *testing.T) {
 	testingSuite := new(googleCalendarIntegrationTestSuite)
 	suite.Run(t, testingSuite)

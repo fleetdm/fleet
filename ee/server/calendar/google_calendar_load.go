@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
 	kitlog "github.com/go-kit/log"
 	"google.golang.org/api/calendar/v3"
 	"google.golang.org/api/googleapi"
@@ -32,7 +33,7 @@ func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ strin
 	lowLevelAPI.userToImpersonate = userToImpersonate
 	lowLevelAPI.ctx = ctx
 	if lowLevelAPI.client == nil {
-		lowLevelAPI.client = &http.Client{}
+		lowLevelAPI.client = fleethttp.NewClient()
 	}
 	return nil
 }

@@ -3,7 +3,7 @@ package calendartest
 
 import (
 	"context"
-	"crypto/md5"
+	"crypto/md5" //nolint:gosec // (only used in testing)
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
@@ -218,6 +218,10 @@ func getEvents(w http.ResponseWriter, r *http.Request) {
 		calEvent.Etag = computeETag(start, end, summary, description, status)
 		events.Items = append(events.Items, &calEvent)
 	}
+	if err = rows.Err(); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	err = json.NewEncoder(w).Encode(events)
@@ -322,7 +326,8 @@ func parseDateTime(ctx context.Context, eventDateTime *calendar.EventDateTime) (
 	var t time.Time
 	var err error
 	if eventDateTime.TimeZone != "" {
-		loc, err := time.LoadLocation(eventDateTime.TimeZone)
+		var loc *time.Location
+		loc, err = time.LoadLocation(eventDateTime.TimeZone)
 		if err == nil {
 			t, err = time.ParseInLocation(time.RFC3339, eventDateTime.DateTime, loc)
 		}
