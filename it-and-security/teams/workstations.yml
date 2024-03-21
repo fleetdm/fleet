@@ -1,4 +1,4 @@
-name: "Workstations"
+name: $DOGFOOD_APPLE_BM_DEFAULT_TEAM
 team_settings:
   features:
     enable_host_users: true
@@ -40,8 +40,8 @@ controls:
     enable_end_user_authentication: true
     macos_setup_assistant: null
   macos_updates:
-    deadline: "2023-12-19"
-    minimum_version: "14.2"
+    deadline: "2024-03-22"
+    minimum_version: "14.4"
   windows_settings:
     custom_settings: null
   windows_updates:
@@ -50,6 +50,7 @@ controls:
   scripts:
     - path: ../lib/collect-fleetd-logs.sh
     - path: ../lib/macos-see-automatic-enrollment-profile.sh
+    - path: ../lib/macos-remove-old-nudge.sh
     - path: ../lib/windows-remove-fleetd.ps1
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:

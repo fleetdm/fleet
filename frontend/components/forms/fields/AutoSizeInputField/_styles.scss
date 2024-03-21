@@ -3,7 +3,7 @@
   color: $core-fleet-black;
 
   &::placeholder {
-    @include placeholder;
+    color: $ui-fleet-black-50;
   }
 
   &:focus {
@@ -13,7 +13,6 @@
 
   .input-sizer {
     display: inline-grid;
-    vertical-align: top;
     align-items: center;
     position: relative;
 
@@ -22,7 +21,6 @@
     textarea {
       white-space: pre-wrap;
       width: auto;
-      max-width: 100%;
       grid-area: 1 / 2;
       resize: none;
       background: none;
@@ -37,7 +35,6 @@
     &::after {
       content: attr(data-value) " ";
       visibility: hidden;
-      white-space: pre-wrap;
     }
   }
 }

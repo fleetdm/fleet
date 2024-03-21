@@ -153,14 +153,12 @@ Fleet policy requires that:
 The following order of succession to make sure that decision-making authority for the Fleet Contingency Plan is uninterrupted. The Chief Executive Officer (CEO) is responsible for ensuring the safety of personnel and the execution of procedures documented within this Fleet Contingency Plan. The CTO is responsible for the recovery of Fleet technical environments. If the CEO or Head of Engineering cannot function as the overall authority or choose to delegate this responsibility to a successor, the board of directors shall serve as that authority or choose an alternative delegate.
 
 For technical incidents:
-1. CTO (Zach Wasserman)
-2. Director of Product Engineering (Luke Heath)
-3. CEO (Mike McNeil)
+1. CTO (Luke Heath)
+2. CEO (Mike McNeil)
 
 For business/operational incidents:
 1. CEO (Mike McNeil)
 2. Head of Business Operations (Joanne Stableford)
-3. CTO (Zach Wasserman)
 
 ### Response Teams and Responsibilities
 

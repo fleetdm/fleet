@@ -19,8 +19,9 @@ We track competitors' capabilities and adjacent (or commonly integrated) product
 | Best practices for using Fleet | [Noah Talerman](https://www.linkedin.com/in/noah-talerman/) _([@noahtalerman](https://github.com/noahtalerman))_ | 
 | What goes in a release | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
 | Engineering output and architecture | [Luke Heath](https://www.linkedin.com/in/lukeheath/) _([@lukeheath](https://github.com/lukeheath))_ |
-| Structure and intentionallity of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
+| Structure and intentionality of the [Docs](https://fleetdm.com/docs/get-started/why-fleet)| [Mike Thomas](https://www.linkedin.com/in/mike-thomas-52277938) _([@mike-j-thomas](https://github.com/mike-j-thomas))_ |
 | Design and content of the [Docs](https://fleetdm.com/docs/get-started/why-fleet) | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
+| API design | [Rachael Shaw](https://www.linkedin.com/in/rachaelcshaw/) _([@rachaelshaw](https://github.com/rachaelshaw))_ |
 
 
 ### Docs
@@ -59,6 +60,10 @@ Here are some topics for social media posts:
 - Industry news about device management
 - Upcoming events, interviews, and podcasts
 
+#### Fleet on LinkedIn
+Original posts on LinkedIn by Fleet employees [can be promoted using the Fleet company page](https://fleetdm.com/handbook/demand#promote-a-post-on-linkedin). If you think your post would make sense in front of a bigger audience, [create an issue on the demand board](https://fleetdm.com/handbook/demand#contact-us) linking the team to your personal LinkedIn post (only original posts please, reposts and quotes of other posts can not be promoted). Include any context in the issue and keep an eye on your inbox, The Demand team will request permission to use the post in a promoted post.
+
+
 ### Ads
 Fleet uses advertising to spread awareness through a broader audience and foster greater engagement within user communities. The more people actively using Fleet, or contributing, the better Fleet will be.
 
@@ -70,7 +75,7 @@ It's important for Fleet to engage at events. This provides an opportunity to di
 Fleet has created the [ExpedITioners podcast](https://expeditioners.podbean.com/) to open discussions and help IT and security professionals get ahead of the curve and prepare themselves and their organizations for what lies ahead. 
 <!-- TODO: Find a way to link to the meetings section below and make it make sense-->
 ### Video
-Fleet uses YouTube to help keep the community up to date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
+Fleet uses YouTube to help keep the community up-to-date and informed. These videos facilitate community engagement, provide educational resources, and help share essential information about Fleet and the people using it. Meetings regularly uploaded to YouTube will have a "▶️" emoji prepended to the calendar event title (e.g. "▶️ ☁️🌈 Sprint demos!").  
 
 ## Meetings
 - **Plan to join meetings on time.** At Fleet, we start on time and do not wait for folks to join.  As most of our meetings are conducted over zoom, please join with a working microphone and with your camera on whenever possible.  Being even a few minutes late can make a big difference and slow your meeting counterparts down. When in doubt, show up a couple of minutes early. 
@@ -231,8 +236,8 @@ If you need to track content from a Slack channel (ie. #g-sales), you can automa
 ![Screen Shot 2022-12-05 at 10 22 43 AM](https://user-images.githubusercontent.com/114112018/205676145-38491aa2-288d-4a6c-a611-a96b5a87a0f0.png)
 
 
-## Github
-Fleet uses Github as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for our product and documentation; a platform to allow community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
+## GitHub
+Fleet uses GitHub as the [source of truth](https://fleetdm.com/handbook/company/why-this-way#why-do-we-use-one-repo) for the product and documentation. GitHub allows community members to interact with Fleet, [contribute and provide feedback](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Committing-Changes.md#committing-changes).
 
 ### GitHub labels
 Fleet prefixes all GitHub labels with special characters or words to organize and categorize GitHub issues.
@@ -415,7 +420,9 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Individualized expenses should include the team member's name explicitly in the name of the expense.
 - If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
 - Individualized expenses are always attributed to the  "🔦 Business operations" department.
-- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
+- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
+
+For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
 
 ## Travel

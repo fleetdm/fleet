@@ -3,6 +3,8 @@ import sendRequest from "services";
 import endpoints from "utilities/endpoints";
 import { IVulnerability } from "interfaces/vulnerability";
 import { buildQueryStringFromParams } from "utilities/url";
+import { IVulnerabilityOSVersion } from "interfaces/operating_system";
+import { IVulnerabilitySoftware } from "interfaces/software";
 
 export interface IGetVulnerabilitiesQueryParams {
   teamId?: number;
@@ -20,7 +22,7 @@ export interface IGetVulnerabilitiesQueryKey
 }
 
 interface IGetVulnerabilityOptions {
-  cve: string;
+  vulnerability: string;
   teamId?: number;
 }
 
@@ -40,6 +42,8 @@ export interface IVulnerabilitiesResponse {
 
 export interface IVulnerabilityResponse {
   vulnerability: IVulnerability;
+  os_versions: IVulnerabilityOSVersion[];
+  software: IVulnerabilitySoftware[];
 }
 
 export const getVulnerabilities = ({
@@ -70,10 +74,10 @@ export const getVulnerabilities = ({
 };
 
 const getVulnerability = ({
-  cve,
+  vulnerability,
   teamId,
 }: IGetVulnerabilityOptions): Promise<IVulnerabilityResponse> => {
-  const endpoint = endpoints.VULNERABILITY(cve);
+  const endpoint = endpoints.VULNERABILITY(vulnerability);
   const path = teamId ? `${endpoint}?team_id=${teamId}` : endpoint;
 
   return sendRequest("GET", path);

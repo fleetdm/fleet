@@ -39,6 +39,15 @@ const (
 	OnlineIntervalBuffer = 60
 )
 
+func (s HostStatus) IsValid() bool {
+	switch s {
+	case StatusOnline, StatusOffline, StatusNew, StatusMissing, StatusMIA:
+		return true
+	default:
+		return false
+	}
+}
+
 // MDMEnrollStatus defines the possible MDM enrollment statuses.
 type MDMEnrollStatus string
 
