@@ -106,5 +106,56 @@ go.mod @fleetdm/go
 ##############################################################################################
 /.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
 
+##############################################################################################
+# 🌐 GitHub workflows
+##############################################################################################
+/.github/workflows/markdown-link-check-config.json @eashaw
+/.github/workflows/deploy-vulnerability-dashboard.yml @eashaw
+/.github/workflows/test-website.yml @eashaw
+/.github/workflows/test-vulnerability-dashboard-changes.yml @eashaw
+/.github/workflows/docs.yml @eashaw
+/.github/workflows/deploy-fleet-website.yml @eashaw
+
+##############################################################################################
+# 🚀 GitHub workflows
+##############################################################################################
+/.github/workflows/README.md @lukeheath
+/.github/workflows/goreleaser-fleet.yaml @lukeheath
+/.github/workflows/update-certs.yml @lukeheath
+/.github/workflows/codeql-analysis.yml @lukeheath
+/.github/workflows/codeql.yml @lukeheath
+/.github/workflows/scorecards-analysis.yml @lukeheath
+/.github/workflows/integration.yml @lukeheath
+/.github/workflows/fleetctl-preview.yml @lukeheath
+/.github/workflows/fleetctl-preview-latest.yml @lukeheath
+/.github/workflows/goreleaser-orbit.yaml @lukeheath
+/.github/workflows/trivy-scan.yml @lukeheath
+/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath
+/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath
+/.github/workflows/fleetd-tuf.yml @lucasmrod
+/.github/workflows/generate-desktop-targets.yml @lucasmrod
+/.github/workflows/test-yml-specs.yml @lucasmrod
+/.github/workflows/build-binaries.yaml @lucasmrod
+/.github/workflows/fleet-and-orbit.yml @lucasmrod
+/.github/workflows/build-orbit.yaml @lucasmrod
+/.github/workflows/generate-osqueryd-targets.yml @lucasmrod
+/.github/workflows/test-packaging.yml @lucasmrod
+/.github/workflows/release-helm.yaml @rfairburn
+/.github/workflows/pr-helm.yaml @rfairburn
+/.github/workflows/tfvalidate.yml @rfairburn
+/.github/workflows/dogfood-deploy.yml @rfairburn
+/.github/workflows/test-db-changes.yml @roperzh
+/.github/workflows/test-go.yaml @roperzh
+/.github/workflows/golangci-lint.yml @roperzh
+/.github/workflows/test-native-tooling-packaging.yml @roperzh
+/.github/workflows/check-tuf-timestamps.yml @roperzh
+/.github/workflows/test-puppet.yml @roperzh
+/.github/workflows/generate-nudge-targets.yml @roperzh
+/.github/workflows/test-js.yml @ghernandez345
+/.github/workflows/dogfood-gitops.yml @getvictor
+/.github/workflows/test-fleetd-chrome.yml @getvictor
+/.github/workflows/release-fleetd-chrome.yml @getvictor
+/.github/workflows/release-fleetd-chrome-beta.yml @getvictor
+
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
