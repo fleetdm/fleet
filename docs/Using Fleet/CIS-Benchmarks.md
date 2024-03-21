@@ -91,7 +91,7 @@ fleetctl apply --policies-team "Workstations" -f cis-policy-queries.yml
 
 ## Limitations
 
-Certain benchmarks require human action to audit, and cannot be automated by Fleet. For a list of specific checks which are not covered, please visit the README for each benchmark:
+Certain benchmarks require human action to audit, and cannot be automated by a policy in Fleet. For a list of specific benchmarks which are not covered, please visit the README for each benchmark:
 
 - [macOS 13.0 Ventura](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-13/README.md)
 - [macOS 14.0 Sonoma](https://github.com/fleetdm/fleet/blob/main/ee/cis/macos-14/README.md)
