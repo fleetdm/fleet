@@ -4,7 +4,7 @@ import { IApiError } from "interfaces/errors";
 export const UPLOAD_ERROR_MESSAGES = {
   wrongType: {
     condition: (reason: string) => reason.includes("invalid file type"),
-    message: "Couldn’t upload. The file should be a package (.pkg).",
+    message: "Couldn’t upload. The file should be a .json file.",
   },
   unsigned: {
     condition: (reason: string) => reason.includes("file is not"),

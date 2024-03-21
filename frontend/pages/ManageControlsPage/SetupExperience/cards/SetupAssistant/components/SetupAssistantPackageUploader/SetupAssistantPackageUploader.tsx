@@ -35,7 +35,7 @@ const SetupAssistantPackageUploader = ({
     const file = files[0];
 
     // quick exit if the file type is incorrect
-    if (!file.name.includes(".pkg")) {
+    if (!file.name.includes(".json")) {
       renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;

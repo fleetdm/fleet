@@ -1,4 +1,10 @@
 import React, { useState } from "react";
+import { useQuery } from "react-query";
+
+import { IConfig } from "interfaces/config";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import configAPI from "services/entities/config";
+import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -17,9 +23,31 @@ interface ISetupAssistantProps {
 const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
 
+  const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
+    IConfig,
+    Error
+  >(["config", currentTeamId], () => configAPI.loadAll(), {
+    enabled: currentTeamId === API_NO_TEAM_ID,
+    refetchOnWindowFocus: false,
+    retry: false,
+  });
+
+  const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
+    ILoadTeamResponse,
+    Error,
+    ITeamConfig
+  >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
+    refetchOnWindowFocus: false,
+    retry: false,
+    enabled: currentTeamId !== API_NO_TEAM_ID,
+    select: (res) => res.team,
+  });
+
   const isLoading = false;
 
   const noPackageUploaded = true;
+
+  const onUpload = () => {};
 
   const onDelete = () => {};
 
