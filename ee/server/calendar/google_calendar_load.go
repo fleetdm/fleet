@@ -17,7 +17,7 @@ import (
 
 // GoogleCalendarLoadAPI is used for load testing.
 type GoogleCalendarLoadAPI struct {
-	logger            kitlog.Logger
+	Logger            kitlog.Logger
 	baseUrl           string
 	userToImpersonate string
 	ctx               context.Context
@@ -26,8 +26,8 @@ type GoogleCalendarLoadAPI struct {
 
 // Configure creates a new Google Calendar service using the provided credentials.
 func (lowLevelAPI *GoogleCalendarLoadAPI) Configure(ctx context.Context, _ string, privateKey string, userToImpersonate string) error {
-	if lowLevelAPI.logger == nil {
-		lowLevelAPI.logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarLoadAPI", "user", userToImpersonate)
+	if lowLevelAPI.Logger == nil {
+		lowLevelAPI.Logger = kitlog.With(kitlog.NewLogfmtLogger(os.Stderr), "mock", "GoogleCalendarLoadAPI", "user", userToImpersonate)
 	}
 	lowLevelAPI.baseUrl = privateKey
 	lowLevelAPI.userToImpersonate = userToImpersonate

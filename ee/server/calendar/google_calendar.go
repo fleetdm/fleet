@@ -68,7 +68,7 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	case config.API != nil:
 		// Use the provided API.
 	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == loadEmail:
-		config.API = &GoogleCalendarLoadAPI{}
+		config.API = &GoogleCalendarLoadAPI{Logger: config.Logger}
 	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == mockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
