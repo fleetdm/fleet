@@ -3195,6 +3195,7 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 		Query:      "select 1",
 		Resolution: "Run this command to fix it",
 	})
+	require.NoError(t, err)
 
 	failingGlobalPolicy, err := s.ds.NewGlobalPolicy(context.Background(), nil, fleet.PolicyPayload{
 		Name:       "Failing Global Policy",
@@ -3202,6 +3203,7 @@ func (s *integrationEnterpriseTestSuite) TestHostHealth() {
 		Resolution: "Run this command to fix it",
 		Critical:   false,
 	})
+	require.NoError(t, err)
 
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{failingGlobalPolicy.ID: ptr.Bool(false)}, time.Now(), false))
 	require.NoError(t, s.ds.RecordPolicyQueryExecutions(context.Background(), host, map[uint]*bool{passingGlobalPolicy.ID: ptr.Bool(true)}, time.Now(), false))
