@@ -13004,3 +13004,254 @@ INSERT INTO host_mdm_apple_declarations (
 		assertDeclarationResponse(r, want)
 	})
 }
+
+func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	// TODO: use endpoints once those are available.
+	addDeclaration := func(identifier string, teamID uint) {
+		stmt := `
+		  INSERT INTO mdm_apple_declarations
+		    (declaration_uuid, team_id, identifier, name, category, raw_json, checksum)
+		  VALUES
+		    (UUID(), ?, ?, UUID(), 'com.apple.configuration', ?, HEX(MD5(raw_json)) )`
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, teamID, identifier, declarationForTest(identifier))
+			return err
+		})
+	}
+
+	deleteDeclaration := func(identifier string, teamID uint) {
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			var uuid string
+			err := sqlx.GetContext(ctx, tx, &uuid, "SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?", teamID, identifier)
+			require.NoError(t, err)
+
+			_, err = tx.ExecContext(ctx, "DELETE FROM mdm_apple_declaration_activation_references WHERE reference = ?", uuid)
+			require.NoError(t, err)
+
+			_, err = tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", uuid)
+			require.NoError(t, err)
+
+			return nil
+		})
+	}
+
+	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+		_, err = d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+
+	// create a windows host
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("non-macos-host"),
+		NodeKey:       ptr.String("non-macos-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// create a windows host that's enrolled in MDM
+	_, _ = createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// create a linux host
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            2,
+		OsqueryHostID: ptr.String("linux-host"),
+		NodeKey:       ptr.String("linux-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.linux", t.Name()),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// create a host that's not enrolled into MDM
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            2,
+		OsqueryHostID: ptr.String("not-mdm-enrolled"),
+		NodeKey:       ptr.String("not-mdm-enrolled"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create a host and then enroll in MDM.
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// trigger the reconciler, no error
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// declarativeManagement command is not sent.
+	checkNoCommands(device)
+
+	// add global declarations
+	addDeclaration("I1", 0)
+	addDeclaration("I2", 0)
+
+	// reconcile again, this time new declarations were added
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// TODO: check command is pending
+
+	// declarativeManagement command is sent
+	checkDDMSync(device)
+
+	// reconcile again, commands for the uploaded declarations are already sent
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// no new commands are sent
+	checkNoCommands(device)
+
+	// delete a declaration
+	deleteDeclaration("I1", 0)
+	// reconcile again
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// a DDM sync is triggered
+	checkDDMSync(device)
+
+	// add a new host
+	_, deviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// reconcile again
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the new host
+	checkNoCommands(device)
+	checkDDMSync(deviceTwo)
+
+	// create a team
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name: teamName,
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	// add device to the team
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// DDM sync is triggered only for the transferred host
+	// because the team doesn't have any declarations
+	checkDDMSync(device)
+	checkNoCommands(deviceTwo)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// nobody receives commands this time
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+
+	// add declarations to the team
+	addDeclaration("I1", team.ID)
+	addDeclaration("I2", team.ID)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered for the host in the team
+	checkDDMSync(device)
+	checkNoCommands(deviceTwo)
+
+	// add a new host, this one belongs to the team
+	mdmHostThree, deviceThree := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the new host
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkDDMSync(deviceThree)
+
+	// no new commands after another reconciliation
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkNoCommands(deviceThree)
+
+	// TODO: use proper APIs for this
+	// add a new label + label declaration
+	addDeclaration("I3", team.ID)
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "test label 1", Query: "select 1;"})
+	require.NoError(t, err)
+	// update label with host membership
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+				mdmHostThree.ID,
+				label.ID,
+			)
+			return err
+		},
+	)
+
+	// update declaration <-> label mapping
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				`INSERT INTO
+				  mdm_declaration_labels (apple_declaration_uuid, label_name, label_id)
+				  VALUES ((SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? and identifier = ?), ?, ?)`,
+				team.ID,
+				"I3",
+				label.Name,
+				label.ID,
+			)
+			return err
+		},
+	)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the host with the label
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkDDMSync(deviceThree)
+}
+
+func declarationForTest(identifier string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.configuration.management.test",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, identifier))
+}

@@ -579,7 +579,7 @@ type MDMAppleDeclaration struct {
 	Checksum string `db:"checksum" json:"-"`
 
 	// Labels are the labels associated with this Declaration
-	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
+	Labels []MDMAppleDeclarationLabel `db:"labels" json:"labels,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
@@ -600,7 +600,6 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.google":               {},
 	"com.apple.configuration.account.ldap":                 {},
 	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.management.test":              {},
 	"com.apple.configuration.screensharing.connection":     {},
 	"com.apple.configuration.security.certificate":         {},
 	"com.apple.configuration.security.identity":            {},
@@ -667,13 +666,15 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+
+	// Checksum contains the MD5 checksum of the declaration JSON uploaded
+	// by the IT admin. Fleet uses this value as the ServerToken.
+	Checksum string `db:"checksum" json:"-"`
 }
 
-// DeclarationLabel represents the many-to-many relationship between
+// MDMAppleDeclarationLabel represents the many-to-many relationship between
 // declarations and labels.
-// TODO(JVE): I think we can remove this type altogether, but double check first (mainly when
-// ingesting declarations).
-type DeclarationLabel struct {
+type MDMAppleDeclarationLabel struct {
 	DeclarationUUID string `db:"profile_uuid" json:"-"`
 	LabelName       string `db:"label_name" json:"name"`
 	LabelID         uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
