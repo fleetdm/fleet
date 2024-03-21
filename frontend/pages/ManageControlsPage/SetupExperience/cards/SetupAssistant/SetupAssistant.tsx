@@ -8,11 +8,13 @@ import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
+import CustomLink from "components/CustomLink";
 
 import SetupAssistantPreview from "./components/SetupAssistantPreview";
-import SetupAssistantPackageUploader from "./components/SetupAssistantPackageUploader";
-import SetuAssistantUploadedProfileView from "./components/SetupAssistantUploadedProfileView/SetupAssistantUploadedProfileView";
+import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUploader";
+import SetuAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
+import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
 
 const baseClass = "setup-assistant";
 
@@ -58,28 +60,33 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
-          {false ? (
-            <>
-              <SetupAssistantPackageUploader
+          <div className={`${baseClass}__upload-container`}>
+            <p className={`${baseClass}__section-description`}>
+              Add an automatic enrollment profile to customize the macOS Setup
+              Assistant.
+              <CustomLink
+                url=" https://fleetdm.com/learn-more-about/setup-assistant"
+                text="Learn how"
+                newTab
+              />
+            </p>
+            {true ? (
+              <SetupAssistantProfileUploader
                 currentTeamId={currentTeamId}
                 onUpload={() => 1}
               />
-              <div className={`${baseClass}__preview-container`}>
-                <SetupAssistantPreview />
-              </div>
-            </>
-          ) : (
-            <>
-              <SetuAssistantUploadedProfileView
+            ) : (
+              <SetuAssistantProfileCard
                 profileMetaData={1}
                 currentTeamId={currentTeamId}
                 onDelete={() => setShowDeleteProfileModal(true)}
               />
-              <div className={`${baseClass}__preview-container`}>
-                <SetupAssistantPreview />
-              </div>
-            </>
-          )}
+            )}
+            <AdvancedOptionsForm />
+          </div>
+          <div className={`${baseClass}__preview-container`}>
+            <SetupAssistantPreview />
+          </div>
         </div>
       )}
       {showDeleteProfileModal && (

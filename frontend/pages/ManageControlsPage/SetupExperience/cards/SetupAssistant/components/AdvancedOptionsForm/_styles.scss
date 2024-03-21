@@ -1,0 +1,18 @@
+.advanced-options-form {
+  display: flex;
+  flex-direction: column;
+  gap: $pad-large;
+
+  &__accordion-title {
+    display: flex;
+    align-items: center;
+    gap: $pad-xsmall;
+    color: $core-vibrant-blue;
+    font-weight: bold;
+    font-size: $x-small;
+
+    :hover {
+      cursor: pointer;
+    }
+  }
+}

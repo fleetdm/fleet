@@ -5,22 +5,21 @@ import { IApiError } from "interfaces/errors";
 import { NotificationContext } from "context/notification";
 import mdmAPI from "services/entities/mdm";
 
-import CustomLink from "components/CustomLink";
 import FileUploader from "components/FileUploader";
 
 import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
 
-const baseClass = "setup-assistant-package-uploader";
+const baseClass = "setup-assistant-profile-uploader";
 
-interface ISetupAssistantPackageUploaderProps {
+interface ISetupAssistantProfileUploaderProps {
   currentTeamId: number;
   onUpload: () => void;
 }
 
-const SetupAssistantPackageUploader = ({
+const SetupAssistantProfileUploader = ({
   currentTeamId,
   onUpload,
-}: ISetupAssistantPackageUploaderProps) => {
+}: ISetupAssistantProfileUploaderProps) => {
   const { renderFlash } = useContext(NotificationContext);
   const [showLoading, setShowLoading] = useState(false);
 
@@ -55,26 +54,16 @@ const SetupAssistantPackageUploader = ({
   };
 
   return (
-    <div className={baseClass}>
-      <p>
-        Add an automatic enrollment profile to customize the macOS Setup
-        Assistant.
-        <CustomLink
-          url=" https://fleetdm.com/learn-more-about/setup-assistant"
-          text="Learn how"
-          newTab
-        />
-      </p>
-      <FileUploader
-        message="Automatic enrollment profile (.json)"
-        graphicName="file-configuration-profile"
-        accept=".json"
-        buttonMessage="Add profile"
-        onFileUpload={onUploadFile}
-        isLoading={showLoading}
-      />
-    </div>
+    <FileUploader
+      message="Automatic enrollment profile (.json)"
+      graphicName="file-configuration-profile"
+      accept=".json"
+      buttonMessage="Add profile"
+      onFileUpload={onUploadFile}
+      isLoading={showLoading}
+      className={baseClass}
+    />
   );
 };
 
-export default SetupAssistantPackageUploader;
+export default SetupAssistantProfileUploader;

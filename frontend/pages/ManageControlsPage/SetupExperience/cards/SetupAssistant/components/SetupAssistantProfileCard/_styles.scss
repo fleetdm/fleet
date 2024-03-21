@@ -1,20 +1,9 @@
-.setup-assistant-uploaded-profile-view {
+.setup-assistant-profile-card {
   display: flex;
-  flex-direction: column;
-  gap: 24px;
+  gap: $pad-medium;
+  align-items: center;
 
-  > p {
-    font-size: $x-small;
-    margin: 0;
-  }
-
-  // TODO: create reusable list item component
-  &__uploaded-profile {
-    display: flex;
-    gap: $pad-medium;
-    align-items: center;
-  }
-
+  // TODO: create reusable list item component and use instead of all these styles.
   &__info {
     display: flex;
     flex-direction: column;
@@ -48,25 +37,6 @@
     }
 
     &:hover {
-      cursor: pointer;
-    }
-  }
-
-  &__advanced-options {
-    display: flex;
-    flex-direction: column;
-    gap: $pad-large;
-  }
-
-  &__accordion-title {
-    display: flex;
-    align-items: center;
-    gap: $pad-xsmall;
-    color: $core-vibrant-blue;
-    font-weight: bold;
-    font-size: $x-small;
-
-    :hover {
       cursor: pointer;
     }
   }
