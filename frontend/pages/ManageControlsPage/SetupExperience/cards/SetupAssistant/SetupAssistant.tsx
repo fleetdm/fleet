@@ -2,9 +2,12 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
-import team, { API_NO_TEAM_ID, ITeam, ITeamConfig } from "interfaces/team";
+import { API_NO_TEAM_ID, ITeam, ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
+import mdmAPI, {
+  IAppleSetupEnrollmentProfileResponse,
+} from "services/entities/mdm";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -15,6 +18,8 @@ import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUpl
 import SetuAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
+import { Axios, AxiosError } from "axios";
 
 const baseClass = "setup-assistant";
 
@@ -45,6 +50,16 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     select: (res) => res.team,
   });
 
+  const {
+    data: enrollmentProfileData,
+    isLoading: isLoadingEnrollmentProfile,
+    isError: isErrorEnrollmentProfile,
+  } = useQuery<IAppleSetupEnrollmentProfileResponse, AxiosError>(
+    ["enrollment_profile", currentTeamId],
+    () => mdmAPI.getSetupEnrollmentProfile(currentTeamId),
+    DEFAULT_USE_QUERY_OPTIONS
+  );
+
   const getReleaseDeviceSetting = () => {
     if (currentTeamId === API_NO_TEAM_ID) {
       return (
@@ -53,10 +68,6 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     }
     return teamConfig?.mdm?.macos_setup.enable_release_device_manually || false;
   };
-
-  const isLoading = false;
-
-  const noPackageUploaded = true;
 
   const onUpload = () => {};
 
@@ -67,7 +78,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   return (
     <div className={baseClass}>
       <SectionHeader title="Setup assistant" />
-      {isLoading ? (
+      {isLoadingEnrollmentProfile ? (
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
@@ -81,7 +92,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 newTab
               />
             </p>
-            {true ? (
+            {!enrollmentProfileData ? (
               <SetupAssistantProfileUploader
                 currentTeamId={currentTeamId}
                 onUpload={() => 1}

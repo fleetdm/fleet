@@ -49,6 +49,14 @@ export interface IUploadProfileApiParams {
   labels?: string[];
 }
 
+export interface IAppleSetupEnrollmentProfileResponse {
+  team_id: number | null;
+  name: string;
+  uploaded_at: string;
+  // enrollment profile is an object with keys found here https://developer.apple.com/documentation/devicemanagement/profile.
+  enrollment_profile: Record<string, any>;
+}
+
 const mdmService = {
   downloadDeviceUserEnrollmentProfile: (token: string) => {
     const { DEVICE_USER_MDM_ENROLLMENT_PROFILE } = endpoints;
@@ -240,6 +248,33 @@ const mdmService = {
     }
 
     return teamAPI.updateConfig(body, teamId);
+  },
+  getSetupEnrollmentProfile: (teamId?: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (!teamId || teamId === API_NO_TEAM_ID) {
+      return sendRequest("GET", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("GET", path);
+  },
+  uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+
+    const formData = new FormData();
+    formData.append("profile", file);
+    formData.append("team_id", teamId.toString());
+
+    return sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, formData);
+  },
+  deleteSetupEnrollmentProfile: (teamId: number) => {
+    const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
+      { team_id: teamId }
+    )}`;
+    return sendRequest("DELETE", path);
   },
 };
 
