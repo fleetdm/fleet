@@ -1081,8 +1081,6 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 		hostOS.DisplayVersion = displayVersion
 	}
 
-	logger.Log("AAAAAA hostOS:", fmt.Sprintf("%+v", hostOS))
-
 	if err := ds.UpdateHostOperatingSystem(ctx, host.ID, hostOS); err != nil {
 		return ctxerr.Wrap(ctx, err, "directIngestOSWindows update host operating system")
 	}
