@@ -213,7 +213,7 @@ WHERE
 	// get the labels for that profile, except if the profile was loaded by the
 	// old (deprecated) endpoint.
 	if uuid != "" {
-		labels, err := ds.listProfileLabelsForProfiles(ctx, nil, []string{res.ProfileUUID})
+		labels, err := ds.listProfileLabelsForProfiles(ctx, nil, []string{res.ProfileUUID}, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -226,11 +226,52 @@ WHERE
 	return &res, nil
 }
 
+func (ds *Datastore) GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error) {
+	stmt := `
+SELECT
+	declaration_uuid,
+	team_id,
+	name,
+	identifier,
+	raw_json,
+	checksum,
+	created_at,
+	uploaded_at
+FROM
+	mdm_apple_declarations
+WHERE
+	declaration_uuid = ? AND category = 'com.apple.configuration'`
+
+	var res fleet.MDMAppleDeclaration
+	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, declUUID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, ctxerr.Wrap(ctx, notFound("MDMAppleDeclaration").WithName(declUUID))
+		}
+
+		return nil, ctxerr.Wrap(ctx, err, "get mdm apple declaration")
+	}
+
+	labels, err := ds.listProfileLabelsForProfiles(ctx, nil, nil, []string{res.DeclarationUUID})
+	if err != nil {
+		return nil, err
+	}
+	if len(labels) > 0 {
+		// ensure we leave Labels nil if there are none
+		res.Labels = labels
+	}
+
+	return &res, nil
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfileByDeprecatedID(ctx context.Context, profileID uint) error {
 	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, profileID, "")
 }
 
 func (ds *Datastore) DeleteMDMAppleConfigProfile(ctx context.Context, profileUUID string) error {
+	if strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
+		return ds.deleteMDMAppleDeclaration(ctx, profileUUID)
+	}
 	return ds.deleteMDMAppleConfigProfileByIDOrUUID(ctx, 0, profileUUID)
 }
 
@@ -260,11 +301,28 @@ func (ds *Datastore) deleteMDMAppleConfigProfileByIDOrUUID(ctx context.Context, 
 	return nil
 }
 
+func (ds *Datastore) deleteMDMAppleDeclaration(ctx context.Context, uuid string) error {
+	stmt := `DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?`
+
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, uuid)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	deleted, _ := res.RowsAffected()
+	if deleted != 1 {
+		return ctxerr.Wrap(ctx, notFound("MDMAppleDeclaration").WithName(uuid))
+	}
+
+	return nil
+}
+
 func (ds *Datastore) DeleteMDMAppleConfigProfileByTeamAndIdentifier(ctx context.Context, teamID *uint, profileIdentifier string) error {
 	if teamID == nil {
 		teamID = ptr.Uint(0)
 	}
 
+	// TODO: add deletion of declarations here or separate method?
 	res, err := ds.writer(ctx).ExecContext(ctx, `DELETE FROM mdm_apple_configuration_profiles WHERE team_id = ? AND identifier = ?`, teamID, profileIdentifier)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err)
@@ -3149,7 +3207,7 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	var incomingLabels []fleet.DeclarationLabel
+	var incomingLabels []fleet.ConfigurationProfileLabel
 
 	// build a list of identifiers for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
@@ -3237,7 +3295,7 @@ WHERE
 
 		d.DeclarationUUID = declUUID
 		for _, l := range d.Labels {
-			l.DeclarationUUID = declUUID
+			l.ProfileUUID = declUUID
 			incomingLabels = append(incomingLabels, l)
 		}
 	}
@@ -3301,7 +3359,7 @@ INSERT INTO mdm_apple_declarations (
 		}
 
 		for i := range declaration.Labels {
-			declaration.Labels[i].DeclarationUUID = declUUID
+			declaration.Labels[i].ProfileUUID = declUUID
 		}
 		if err := batchSetDeclarationLabelAssociationsDB(ctx, tx, declaration.Labels); err != nil {
 			return ctxerr.Wrap(ctx, err, "inserting mdm declaration label associations")
@@ -3317,7 +3375,7 @@ INSERT INTO mdm_apple_declarations (
 	return declaration, nil
 }
 
-func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.DeclarationLabel) error {
+func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.ConfigurationProfileLabel) error {
 	if len(declarationLabels) == 0 {
 		return nil
 	}
@@ -3355,10 +3413,10 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 		}
 		insertBuilder.WriteString("(?, ?, ?)")
 		deleteBuilder.WriteString("(?, ?)")
-		insertParams = append(insertParams, pl.DeclarationUUID, pl.LabelID, pl.LabelName)
-		deleteParams = append(deleteParams, pl.DeclarationUUID, pl.LabelID)
+		insertParams = append(insertParams, pl.ProfileUUID, pl.LabelID, pl.LabelName)
+		deleteParams = append(deleteParams, pl.ProfileUUID, pl.LabelID)
 
-		setProfileUUIDs[pl.DeclarationUUID] = struct{}{}
+		setProfileUUIDs[pl.ProfileUUID] = struct{}{}
 	}
 
 	_, err := tx.ExecContext(ctx, fmt.Sprintf(upsertStmt, insertBuilder.String()), insertParams...)

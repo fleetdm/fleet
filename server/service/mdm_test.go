@@ -753,6 +753,8 @@ func TestGetMDMDiskEncryptionSummary(t *testing.T) {
 	})
 }
 
+// TODO: Add tests for Apple DDM authz?
+
 func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 	ds := new(mock.Store)
 	// while the config profiles are not premium-only, teams are and we want to test with teams.

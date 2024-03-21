@@ -546,6 +546,10 @@ const (
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
 	MDMAppleDeclarativeActivation MDMAppleDeclarationCategory = "com.apple.activation"
+
+	// MDMAppleDeclarationUUIDPrefix is the prefix used to differentiate declaration uuids
+	// from legacy Apple profile uuids and Windows profile uuids.
+	MDMAppleDeclarationUUIDPrefix = "x" // TODO: update to 'd'; add constants for other prefixes; move to mdm file
 )
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -579,7 +583,7 @@ type MDMAppleDeclaration struct {
 	Checksum string `db:"checksum" json:"-"`
 
 	// Labels are the labels associated with this Declaration
-	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
+	Labels []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
@@ -635,7 +639,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
 	var rawDecl MDMAppleRawDeclaration
 	if err := json.Unmarshal(raw, &rawDecl); err != nil {
-		return nil, err
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
 	}
 
 	return &rawDecl, nil
@@ -667,17 +671,6 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
-}
-
-// DeclarationLabel represents the many-to-many relationship between
-// declarations and labels.
-// TODO(JVE): I think we can remove this type altogether, but double check first (mainly when
-// ingesting declarations).
-type DeclarationLabel struct {
-	DeclarationUUID string `db:"profile_uuid" json:"-"`
-	LabelName       string `db:"label_name" json:"name"`
-	LabelID         uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)
-	Broken          bool   `db:"broken" json:"broken,omitempty"` // omitted (not rendered to JSON) if false
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
