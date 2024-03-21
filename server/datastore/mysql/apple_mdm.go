@@ -3323,13 +3323,13 @@ func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtCont
 	// unrelated profile+label tuples)
 	deleteStmt := `
 	  DELETE FROM mdm_declaration_labels
-	  WHERE (declaration_uuid, label_id) NOT IN (%s) AND
-	  declaration_uuid IN (?)
+	  WHERE (apple_declaration_uuid, label_id) NOT IN (%s) AND
+	  apple_declaration_uuid IN (?)
 	`
 
 	upsertStmt := `
 	  INSERT INTO mdm_declaration_labels
-              (declaration_uuid, label_id, label_name)
+              (apple_declaration_uuid, label_id, label_name)
           VALUES
               %s
           ON DUPLICATE KEY UPDATE
