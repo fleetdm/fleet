@@ -34,7 +34,7 @@ Fleet UI:
    
 4. In the **Run Script** menu, select the **Actions** dropdown for the script you'd like to execute and choose the **Run** option.
 
-Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution, as well as the output once the script has been executed, in the **Activities** feed in your target host's detail page or the Fleet Dashboard.
+Scripts run from the Fleet UI will run the next time your host checks in with Fleet. You can view the status of the script execution as well as the output in the target host's activity feed.
 
 Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#run-script]
 
