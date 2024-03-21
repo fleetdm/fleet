@@ -14,7 +14,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegrations } from "interfaces/integration";
+import { IZendeskJiraIntegrations } from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -519,10 +519,9 @@ const ManagePolicyPage = ({
     router?.replace(locationPath);
   };
 
-  const handleUpdateAutomations = async (requestBody: {
+  const handleUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    // TODO - update below type to specify team integration
-    integrations: IIntegrations;
+    integrations: IZendeskJiraIntegrations;
   }) => {
     setIsUpdatingAutomations(true);
     try {
@@ -557,7 +556,8 @@ const ManagePolicyPage = ({
               enable_calendar_events: formData.enabled,
               webhook_url: formData.url,
             },
-            // TODO - can omit these?
+            // These fields will never actually be changed here. See comment above
+            // IGlobalIntegrations definition.
             zendesk: teamConfig?.integrations.zendesk || [],
             jira: teamConfig?.integrations.jira || [],
           },
@@ -936,7 +936,7 @@ const ManagePolicyPage = ({
             availablePolicies={availablePoliciesForAutomation}
             isUpdatingAutomations={isUpdatingAutomations}
             onExit={toggleOtherWorkflowsModal}
-            handleSubmit={handleUpdateAutomations}
+            handleSubmit={handleUpdateOtherWorkflows}
           />
         )}
         {showAddPolicyModal && (

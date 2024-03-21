@@ -55,10 +55,6 @@ const CalendarEventsModal = ({
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
     url,
-    // TODO - stay udpdated on state of backend approach to syncing policies in the policies table
-    // and in the new calendar table
-    // id may change if policy was deleted
-    // name could change if policy was renamed
     policies: policies.map((policy) => ({
       name: policy.name,
       id: policy.id,
@@ -87,7 +83,7 @@ const CalendarEventsModal = ({
     return errors;
   };
 
-  // TODO - separate change handlers for checkboxes:
+  // TODO? - separate change handlers for checkboxes:
   // const onPolicyUpdate = ...
   // const onTextFieldUpdate = ...
 
