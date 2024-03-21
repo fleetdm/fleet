@@ -73,7 +73,6 @@ const Calendars = (): JSX.Element => {
   const [copyMessage, setCopyMessage] = useState<string>("");
 
   const {
-    data: appConfig,
     isLoading: isLoadingAppConfig,
     refetch: refetchConfig,
     error: errorAppConfig,
@@ -83,7 +82,12 @@ const Calendars = (): JSX.Element => {
       if (data.integrations.google_calendar) {
         setFormData({
           domain: data.integrations.google_calendar[0].domain,
-          apiKeyJson: data.integrations.google_calendar[0].api_key_json,
+          // Formats string for better UI readability
+          apiKeyJson: JSON.stringify(
+            data.integrations.google_calendar[0].api_key_json,
+            null,
+            "\t"
+          ),
         });
       }
     },
@@ -121,7 +125,7 @@ const Calendars = (): JSX.Element => {
     // Format for API
     const formDataToSubmit =
       formData.apiKeyJson === "" && formData.domain === ""
-        ? null // Send null if no keys are set
+        ? [] // Send empty array if no keys are set
         : [
             {
               domain: formData.domain,
