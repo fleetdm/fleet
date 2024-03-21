@@ -761,8 +761,15 @@ const ManagePolicyPage = ({
       const tipId = uniqueId();
       calEventsLabel = (
         <span>
-          <div data-tooltip-id={tipId}>Calendar events</div>
-          <ReactTooltip5 id={tipId} place="left">
+          <div className="label-text" data-tooltip-id={tipId}>
+            Calendar events
+          </div>
+          <ReactTooltip5
+            id={tipId}
+            place="left"
+            positionStrategy="fixed"
+            offset={24}
+          >
             Available in Fleet Premium
           </ReactTooltip5>
         </span>
@@ -771,13 +778,14 @@ const ManagePolicyPage = ({
       const tipId = uniqueId();
       calEventsLabel = (
         <span>
-          <div data-tooltip-id={tipId}>Calendar events</div>
+          <div className="label-text" data-tooltip-id={tipId}>
+            Calendar events
+          </div>
           <ReactTooltip5
             id={tipId}
             place="left"
             positionStrategy="fixed"
-            disableStyleInjection
-            offset={5}
+            offset={24}
           >
             Select a team to manage
             <br />
