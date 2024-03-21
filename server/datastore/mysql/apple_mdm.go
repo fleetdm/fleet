@@ -31,6 +31,8 @@ INSERT INTO
 (SELECT ?, ?, ?, ?, ?, UNHEX(MD5(?)), CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
 	)
 )`
 
@@ -42,7 +44,7 @@ INSERT INTO
 	var profileID int64
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID)
+			profUUID, teamID, cp.Identifier, cp.Name, cp.Mobileconfig, cp.Mobileconfig, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -3264,12 +3266,14 @@ INSERT INTO mdm_apple_declarations (
 	declaration_type,
 	declaration,
 	md5_checksum,
-	uploaded_at
-)
-VALUES (
-	?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP()
-)
-	`
+	uploaded_at)
+(SELECT ?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+	NOT EXISTS (
+ 		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
+ 	) AND NOT EXISTS (
+ 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+ 	)
+)`
 
 	var tmID uint
 	if declaration.TeamID != nil {
@@ -3278,7 +3282,7 @@ VALUES (
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.DeclarationType, declaration.Declaration, checksum)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.DeclarationType, declaration.Declaration, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
