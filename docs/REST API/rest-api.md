@@ -3718,12 +3718,9 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 ### Get host's disk encryption key
 
-For macOS, requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
-
 Retrieves the disk encryption key for a host.
+
+Requires that disk encryption is enforced and the host has MDM turned on.
 
 `GET /api/v1/fleet/mdm/hosts/:id/encryption_key`
 
