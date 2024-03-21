@@ -420,7 +420,9 @@ Recurring expenses related to a particular team member, such as coworking fees, 
 - Individualized expenses should include the team member's name explicitly in the name of the expense.
 - If multiple team members use the same vendor for an individualized expense (for example, "WeWork"), use a separate row for each individualized expense.  (For example: "Coworking, Mungojerry (WeWork)" and "Coworking, Jennyanydots (WeWork)")
 - Individualized expenses are always attributed to the  "🔦 Business operations" department.
-- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.   
+- These expenses are still considered non-personnel expenses, in the same way seat licenses for tools like Salesforce or GitHub are considered non-personnel expenses.
+
+For all new individualized expenses, [create an issue](https://github.com/fleetdm/confidential/issues/new?assignees=&labels=%23g-business-operations&projects=&template=custom-request.md&title=Request%3A+_______________________) to notify the Business Operations department.  
 
 
 ## Travel
