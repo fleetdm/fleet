@@ -462,7 +462,7 @@ type DeleteSoftwareVulnerabilitiesFunc func(ctx context.Context, vulnerabilities
 
 type DeleteOutOfDateVulnerabilitiesFunc func(ctx context.Context, source fleet.VulnerabilitySource, duration time.Duration) error
 
-type NewCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint) (*fleet.CalendarEvent, error)
+type CreateOrUpdateCalendarEventFunc func(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error)
 
 type GetCalendarEventFunc func(ctx context.Context, email string) (*fleet.CalendarEvent, error)
 
@@ -473,6 +473,10 @@ type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, sta
 type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
 
 type UpdateHostCalendarWebhookStatusFunc func(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error
+
+type ListCalendarEventsFunc func(ctx context.Context, teamID *uint) ([]*fleet.CalendarEvent, error)
+
+type ListOutOfDateCalendarEventsFunc func(ctx context.Context, t time.Time) ([]*fleet.CalendarEvent, error)
 
 type NewTeamPolicyFunc func(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error)
 
@@ -1541,8 +1545,8 @@ type DataStore struct {
 	DeleteOutOfDateVulnerabilitiesFunc        DeleteOutOfDateVulnerabilitiesFunc
 	DeleteOutOfDateVulnerabilitiesFuncInvoked bool
 
-	NewCalendarEventFunc        NewCalendarEventFunc
-	NewCalendarEventFuncInvoked bool
+	CreateOrUpdateCalendarEventFunc        CreateOrUpdateCalendarEventFunc
+	CreateOrUpdateCalendarEventFuncInvoked bool
 
 	GetCalendarEventFunc        GetCalendarEventFunc
 	GetCalendarEventFuncInvoked bool
@@ -1558,6 +1562,12 @@ type DataStore struct {
 
 	UpdateHostCalendarWebhookStatusFunc        UpdateHostCalendarWebhookStatusFunc
 	UpdateHostCalendarWebhookStatusFuncInvoked bool
+
+	ListCalendarEventsFunc        ListCalendarEventsFunc
+	ListCalendarEventsFuncInvoked bool
+
+	ListOutOfDateCalendarEventsFunc        ListOutOfDateCalendarEventsFunc
+	ListOutOfDateCalendarEventsFuncInvoked bool
 
 	NewTeamPolicyFunc        NewTeamPolicyFunc
 	NewTeamPolicyFuncInvoked bool
@@ -3716,11 +3726,11 @@ func (s *DataStore) DeleteOutOfDateVulnerabilities(ctx context.Context, source f
 	return s.DeleteOutOfDateVulnerabilitiesFunc(ctx, source, duration)
 }
 
-func (s *DataStore) NewCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint) (*fleet.CalendarEvent, error) {
+func (s *DataStore) CreateOrUpdateCalendarEvent(ctx context.Context, email string, startTime time.Time, endTime time.Time, data []byte, hostID uint, webhookStatus fleet.CalendarWebhookStatus) (*fleet.CalendarEvent, error) {
 	s.mu.Lock()
-	s.NewCalendarEventFuncInvoked = true
+	s.CreateOrUpdateCalendarEventFuncInvoked = true
 	s.mu.Unlock()
-	return s.NewCalendarEventFunc(ctx, email, startTime, endTime, data, hostID)
+	return s.CreateOrUpdateCalendarEventFunc(ctx, email, startTime, endTime, data, hostID, webhookStatus)
 }
 
 func (s *DataStore) GetCalendarEvent(ctx context.Context, email string) (*fleet.CalendarEvent, error) {
@@ -3756,6 +3766,20 @@ func (s *DataStore) UpdateHostCalendarWebhookStatus(ctx context.Context, hostID 
 	s.UpdateHostCalendarWebhookStatusFuncInvoked = true
 	s.mu.Unlock()
 	return s.UpdateHostCalendarWebhookStatusFunc(ctx, hostID, status)
+}
+
+func (s *DataStore) ListCalendarEvents(ctx context.Context, teamID *uint) ([]*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.ListCalendarEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListCalendarEventsFunc(ctx, teamID)
+}
+
+func (s *DataStore) ListOutOfDateCalendarEvents(ctx context.Context, t time.Time) ([]*fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.ListOutOfDateCalendarEventsFuncInvoked = true
+	s.mu.Unlock()
+	return s.ListOutOfDateCalendarEventsFunc(ctx, t)
 }
 
 func (s *DataStore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *uint, args fleet.PolicyPayload) (*fleet.Policy, error) {

@@ -1172,6 +1172,7 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 }
 
 // TODO(lucas): Must be tested at scale.
+// TODO(lucas): Filter out hosts with team_id == NULL
 func (ds *Datastore) GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
 	SELECT 
