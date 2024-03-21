@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 
 import URL_PREFIX from "router/url_prefix";
 import { uploadedFromNow } from "utilities/date_format";
@@ -9,6 +9,8 @@ import Icon from "components/Icon";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Button from "components/buttons/Button";
+import Checkbox from "components/forms/fields/Checkbox";
+import TooltipWrapper from "components/TooltipWrapper";
 
 const baseClass = "setup-assistant-uploaded-profile-view";
 
@@ -43,6 +45,51 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
         <Icon name="download" />
       </Button>
     </form>
+  );
+};
+
+const AdvancedOptionsForm = () => {
+  const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
+  const [releaseDevice, setReleaseDevice] = useState(false);
+
+  const accordionText = showAdvancedOptions ? "Hide" : "Show";
+  const icon = showAdvancedOptions ? "chevron-up" : "chevron-down";
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("release?", releaseDevice);
+  };
+
+  const tooltip = (
+    <>
+      When enabled, you&apos;re responsible for sending the DeviceConfigured
+      command. (Default: <b>Off</b>)
+    </>
+  );
+
+  return (
+    <div className={`${baseClass}__advanced-options`}>
+      <div
+        className={`${baseClass}__accordion-title`}
+        onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
+      >
+        <span>{accordionText} advanced options</span>
+        <Icon name={icon} color="core-fleet-blue" />
+      </div>
+      {showAdvancedOptions && (
+        <form onSubmit={handleSubmit}>
+          <Checkbox
+            value={releaseDevice}
+            onChange={() => setReleaseDevice(!releaseDevice)}
+          >
+            <TooltipWrapper tipContent={tooltip}>
+              Release device manually
+            </TooltipWrapper>
+          </Checkbox>
+          <Button type="submit">Save</Button>
+        </form>
+      )}
+    </div>
   );
 };
 
@@ -103,6 +150,8 @@ const SetuAssistantUploadedProfileView = ({
           </Button>
         </div>
       </Card>
+
+      <AdvancedOptionsForm />
     </div>
   );
 };
