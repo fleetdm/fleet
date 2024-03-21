@@ -6,7 +6,7 @@ For requirements and usage details, see the [CIS Benchmarks](https://fleetdm.com
 
 ### Limitations
 
-The following CIS benchmark checks cannot be automated and must be addressed manually:
+The following CIS benchmarks cannot be checked with a policy in Fleet:
 1. 2.1.2 Audit App Store Password Settings
 2. 2.3.3.12 Ensure Computer Name Does Not Contain PII or Protected Organizational Information
 3. 2.6.6 Audit Lockdown Mode
