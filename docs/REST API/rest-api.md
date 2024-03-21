@@ -7154,7 +7154,7 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 | script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
 | script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
 | script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
-| team_id       | integer | body | ID of the team where the saved script referenced by `script_name` belongs to. Default: 0 (hosts assigned to "No team") |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
 
 
 > Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
