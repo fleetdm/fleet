@@ -10,7 +10,9 @@
 
   // TODO: create reusable list item component
   &__uploaded-profile {
-    display: grid;
+    display: flex;
+    gap: $pad-medium;
+    align-items: center;
   }
 
   &__info {
@@ -29,18 +31,24 @@
   &__actions {
     display: flex;
     gap: $pad-medium;
+    flex: 1;
+    justify-content: flex-end;
+  }
 
-    > * {
-      padding: 11px; // TODO: use padding from variables. talk to design.
-    }
+  &__download-button, &__delete-button {
+    padding: 11px; // TODO: use a padding value from existing variables. talk to design.
   }
 
   // needed these styles for the download button for some weird icon buttons
-  // styles that are causeing alignment issues
-  &__download-button {
+  // styles that are causing alignment issues
+  &__download-package {
     button {
       margin: 0;
       height: auto;
+    }
+
+    &:hover {
+      cursor: pointer;
     }
   }
 

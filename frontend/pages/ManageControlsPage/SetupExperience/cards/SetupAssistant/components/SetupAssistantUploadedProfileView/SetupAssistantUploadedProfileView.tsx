@@ -40,7 +40,7 @@ const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
       <Button
         variant="text-icon"
         type="submit"
-        className={`${baseClass}__list-item-button`}
+        className={`${baseClass}__download-button`}
       >
         <Icon name="download" />
       </Button>
@@ -137,12 +137,12 @@ const SetuAssistantUploadedProfileView = ({
         </div>
         <div className={`${baseClass}__actions`}>
           <DownloadPackageButton
-            className={`${baseClass}__download-button`}
+            className={`${baseClass}__download-package`}
             url={url}
             token={profileMetaData.token}
           />
           <Button
-            className={`${baseClass}__list-item-button`}
+            className={`${baseClass}__delete-button`}
             variant="text-icon"
             onClick={() => onDelete(profileMetaData)}
           >
