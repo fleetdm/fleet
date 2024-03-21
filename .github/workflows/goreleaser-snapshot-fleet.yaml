@@ -40,6 +40,11 @@ jobs:
     runs-on: ubuntu-20.04
     environment: Docker Hub
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Checkout
         uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
 

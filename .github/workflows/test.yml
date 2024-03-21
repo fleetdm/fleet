@@ -37,6 +37,11 @@ jobs:
 
     steps:
       # Set the Node.js version
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Set up Node.js ${{ vars.NODE_VERSION }}
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
@@ -76,6 +81,11 @@ jobs:
 
     steps:
       # Set the Node.js version
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: Set up Node.js ${{ vars.NODE_VERSION }}
         uses: actions/setup-node@5e21ff4d9bc1a8cf6de233a3057d20ec6b3fb69d # v3.8.1
         with:
