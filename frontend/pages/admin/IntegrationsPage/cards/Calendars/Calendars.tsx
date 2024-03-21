@@ -117,7 +117,7 @@ const Calendars = (): JSX.Element => {
     [formData]
   );
 
-  const onFormSubmit = (evt: React.MouseEvent<HTMLFormElement>) => {
+  const onFormSubmit = async (evt: React.MouseEvent<HTMLFormElement>) => {
     setIsUpdatingSettings(true);
 
     evt.preventDefault();
@@ -140,21 +140,18 @@ const Calendars = (): JSX.Element => {
       google_calendar: formDataToSubmit,
     };
 
-    configAPI
-      .update({ integrations: destination })
-      .then(() => {
-        renderFlash(
-          "success",
-          <>Successfully saved calendar integration settings</>
-        );
-        refetchConfig();
-      })
-      .catch(() => {
-        renderFlash("error", <>Could not save calendar integration settings</>);
-      })
-      .finally(() => {
-        setIsUpdatingSettings(false);
-      });
+    try {
+      await configAPI.update({ integrations: destination });
+      renderFlash(
+        "success",
+        "Successfully saved calendar integration settings"
+      );
+      refetchConfig();
+    } catch (e) {
+      renderFlash("error", "Could not save calendar integration settings");
+    } finally {
+      setIsUpdatingSettings(false);
+    }
   };
 
   const renderOauthLabel = () => {
@@ -172,20 +169,18 @@ const Calendars = (): JSX.Element => {
     };
 
     return (
-      <>
-        <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
-          <Button
-            variant="unstyled"
-            className={`${baseClass}__oauth-scopes-copy-icon`}
-            onClick={onCopyOauthScopes}
-          >
-            <Icon name="copy" />
-          </Button>
-          {copyMessage && (
-            <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
-          )}
-        </span>
-      </>
+      <span className={`${baseClass}__oauth-scopes-copy-icon-wrapper`}>
+        <Button
+          variant="unstyled"
+          className={`${baseClass}__oauth-scopes-copy-icon`}
+          onClick={onCopyOauthScopes}
+        >
+          <Icon name="copy" />
+        </Button>
+        {copyMessage && (
+          <span className={`${baseClass}__copy-message`}>{copyMessage}</span>
+        )}
+      </span>
     );
   };
 
@@ -281,7 +276,7 @@ const Calendars = (): JSX.Element => {
                     }
                     placeholder={API_KEY_JSON_PLACEHOLDER}
                     ignore1password
-                    inputClassName={`${baseClass}__configuration--api-key-json`}
+                    inputClassName={`${baseClass}__api-key-json`}
                   />
                   <InputField
                     label="Primary domain"

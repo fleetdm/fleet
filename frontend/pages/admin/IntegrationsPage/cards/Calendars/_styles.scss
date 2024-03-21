@@ -17,15 +17,15 @@
   }
 
   &__configuration {
-    &--api-key-json {
-      min-width: 100%; // resize vertically only
-      height: 294px;
-      font-size: $x-small;
-    }
-
     button {
       align-self: flex-end;
     }
+  }
+
+  &__api-key-json {
+    min-width: 100%; // resize vertically only
+    height: 294px;
+    font-size: $x-small;
   }
 
   #oauth-scopes {
