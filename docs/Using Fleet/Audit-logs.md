@@ -996,6 +996,59 @@ This activity contains the following fields:
 }
 ```
 
+## locked_host
+
+Generated when a user sends a request to lock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
+## unlocked_host
+
+Generated when a user sends a request to unlock a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+- "host_platform": Platform of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro",
+  "host_platform": "darwin"
+}
+```
+
+## wiped_host
+
+Generated when a user sends a request to wipe a host.
+
+This activity contains the following fields:
+- "host_id": ID of the host.
+- "host_display_name": Display name of the host.
+
+#### Example
+
+```json
+{
+  "host_id": 1,
+  "host_display_name": "Anna's MacBook Pro"
+}
+```
+
 
 <meta name="title" value="Audit logs">
 <meta name="pageOrderInSection" value="1400">

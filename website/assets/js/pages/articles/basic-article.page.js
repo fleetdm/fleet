@@ -31,11 +31,6 @@ parasails.registerPage('basic-article', {
   //  ║║║║ ║ ║╣ ╠╦╝╠═╣║   ║ ║║ ║║║║╚═╗
   //  ╩╝╚╝ ╩ ╚═╝╩╚═╩ ╩╚═╝ ╩ ╩╚═╝╝╚╝╚═╝
   methods: {
-    clickOpenChatWidget: function() {
-      if(window.HubSpotConversations && window.HubSpotConversations.widget){
-        window.HubSpotConversations.widget.open();
-      }
-    },
     clickCopyRssLink: function(articleCategory) {
       let rssButton = $('a[purpose="rss-button"]');
       if(typeof navigator.clipboard !== 'undefined' && rssButton) {

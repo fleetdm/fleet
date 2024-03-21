@@ -24,13 +24,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	depclient "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/sso"
 	"github.com/fleetdm/fleet/v4/server/worker"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/google/uuid"
-	depclient "github.com/micromdm/nanodep/client"
-	"github.com/micromdm/nanodep/storage"
 )
 
 func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
@@ -69,7 +69,7 @@ func (svc *Service) GetAppleBM(ctx context.Context) (*fleet.AppleBM, error) {
 	return appleBM, nil
 }
 
-func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
+func getAppleBMAccountDetail(ctx context.Context, depStorage storage.AllDEPStorage, ds fleet.Datastore, logger kitlog.Logger) (*fleet.AppleBM, error) {
 	depClient := apple_mdm.NewDEPClient(depStorage, ds, logger)
 	res, err := depClient.AccountDetail(ctx, apple_mdm.DEPName)
 	if err != nil {
@@ -117,8 +117,7 @@ func (svc *Service) MDMAppleDeviceLock(ctx context.Context, hostID uint) error {
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	err = svc.mdmAppleCommander.DeviceLock(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.DeviceLock(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -140,8 +139,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 		return err
 	}
 
-	// TODO: save the pin (first return value) in the database
-	err = svc.mdmAppleCommander.EraseDevice(ctx, []string{host.UUID}, uuid.New().String())
+	err = svc.mdmAppleCommander.EraseDevice(ctx, host, uuid.New().String())
 	if err != nil {
 		return err
 	}
@@ -149,7 +147,7 @@ func (svc *Service) MDMAppleEraseDevice(ctx context.Context, hostID uint) error 
 }
 
 func (svc *Service) MDMListHostConfigurationProfiles(ctx context.Context, hostID uint) ([]*fleet.MDMAppleConfigProfile, error) {
-	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionList); err != nil {
+	if err := svc.authz.Authorize(ctx, &fleet.Host{}, fleet.ActionSelectiveList); err != nil {
 		return nil, err
 	}
 
@@ -253,7 +251,7 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 }
 
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
 	}
 
@@ -569,7 +567,7 @@ func (svc *Service) SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst 
 
 	// if the name is the same and the content did not change, uploaded at will stay the same
 	if prevAsst == nil || newAsst.Name != prevAsst.Name || newAsst.UploadedAt.After(prevAsst.UploadedAt) {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -613,7 +611,7 @@ func (svc *Service) DeleteMDMAppleSetupAssistant(ctx context.Context, teamID *ui
 	}
 
 	if prevAsst != nil {
-		if err := worker.QueueMacosSetupAssistantJob(
+		if _, err := worker.QueueMacosSetupAssistantJob(
 			ctx,
 			svc.ds,
 			svc.logger,
@@ -797,7 +795,7 @@ func (svc *Service) mdmSSOHandleCallbackAuth(ctx context.Context, auth fleet.Aut
 }
 
 func (svc *Service) mdmAppleSyncDEPProfiles(ctx context.Context) error {
-	if err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
+	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateAllProfiles, nil); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update all profiles job")
 	}
 	return nil

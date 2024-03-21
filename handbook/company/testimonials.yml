@@ -12,11 +12,11 @@
   quoteAuthorName: Andre Shields
   quoteAuthorProfileImageFilename: testimonial-author-andre-shields-48x48@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/andre-shields/
-  quoteAuthorJobTitle: Cybersecurity Security Engineer, Vulnerability Management
+  quoteAuthorJobTitle: Staff Cybersecurity Engineer, Vulnerability Management
   youtubeVideoUrl: https://www.youtube.com/watch?v=siXy9aanOu4
   productCategories: [Endpoint operations, Vulnerability management]
 -
-  quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. ❤️
+  quote: I love the steady and consistent delivery of features that help teams work how they want to work, not how your product dictates they work. 
   quoteImageFilename: social-proof-logo-atlassian-192x32@2x.png
   quoteLinkUrl: https://www.linkedin.com/in/danielgrzelak/
   quoteAuthorName: Dan Grzelak
@@ -37,7 +37,7 @@
   quoteLinkUrl: https://www.linkedin.com/in/eriknicolasgomez/
   quoteAuthorName: Erik Gomez
   quoteAuthorProfileImageFilename: testimonial-author-erik-gomez-48x48@2x.png
-  quoteAuthorJobTitle: Senior Staff Security Engineer at Uber
+  quoteAuthorJobTitle: Staff Client Platform Engineer
   productCategories: [Endpoint operations, Device management]
 -
   quote: Context is king for device data, and Fleet provides a way to surface that information to our other teams and partners.
@@ -142,3 +142,19 @@
   quoteLinkUrl: https://www.linkedin.com/in/thlarkin/
   youtubeVideoUrl: https://www.youtube.com/watch?v=nkjg_hNe86Q
   productCategories: [Endpoint operations]
+-
+  quote: Something I really appreciate about working with you guys is that it doesn't feel like I'm talking to a vendor. It actually feels like I'm talking to my team, and I really appreciate it.
+  quoteImageFilename: social-proof-logo-deloitte-130x32@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/cmajumdar/
+  quoteAuthorName: Chandra Majumdar
+  quoteAuthorProfileImageFilename: testimonial-author-chandra-majumdar-48x48@2x.png
+  quoteAuthorJobTitle: Partner - Cyber and Strategic Risk
+  productCategories: [Vulnerability management, Endpoint operations]
+-
+  quote: This is not just production osquery, but actually a way bigger opportunity than even something like Airwatch or Jamf.
+  quoteImageFilename: logo-flock-safety-907x132@2x.png
+  quoteLinkUrl: https://www.linkedin.com/in/mrerictan/
+  quoteAuthorName: Eric Tan
+  quoteAuthorProfileImageFilename: testimonial-author-eric-tan-99x99@2x.png
+  quoteAuthorJobTitle: CIO & Chief Security Officer at Flock Safety
+  productCategories: [Device management, Endpoint operations]

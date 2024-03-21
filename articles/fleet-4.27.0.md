@@ -21,8 +21,6 @@ In the UI an account administrator will see the following information:
 
 If you pair this new login activity with the audit improvements from [release 4.26](https://fleetdm.com/releases/fleet-4.26.0) you can now set up an alert if multiple failed login attempts occur. 
 
-<call-to-action preset="premium-upgrade"></call-to-action>
-
 ## Better search filters on the ‘Select Targets’ screen in Fleet
 
 **Available in Fleet Free and Fleet Premium**

@@ -20,11 +20,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
-	"github.com/micromdm/scep/v2/cryptoutil/x509util"
 	"github.com/stretchr/testify/require"
 )
 
@@ -805,8 +805,8 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			// profiles.
 			"global gitops",
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
-			true,
-			true,
+			false,
+			false,
 			false,
 			false,
 		},
@@ -881,7 +881,7 @@ func TestMDMWindowsConfigProfileAuthz(t *testing.T) {
 			"team gitops, belongs to team",
 			&fleet.User{Teams: []fleet.UserTeam{{Team: fleet.Team{ID: 1}, Role: fleet.RoleGitOps}}},
 			true,
-			true,
+			false,
 			true,
 			false,
 		},
@@ -1028,7 +1028,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"mdm not enabled", 0, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"duplicate profile name", 0, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"multiple Replace", 0, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"Replace and non-Replace", 0, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"BitLocker profile", 0, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"Windows updates profile", 0, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
@@ -1039,7 +1039,7 @@ func TestUploadWindowsMDMConfigProfileValidations(t *testing.T) {
 		{"team mdm not enabled", 1, `<Replace></Replace>`, false, "Windows MDM isn't turned on."},
 		{"team duplicate profile name", 1, `<Replace>duplicate</Replace>`, true, "configuration profile with this name already exists."},
 		{"team multiple Replace", 1, `<Replace>a</Replace><Replace>b</Replace>`, true, ""},
-		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Only <Replace> supported as a top level element."},
+		{"team Replace and non-Replace", 1, `<Replace>a</Replace><Get>b</Get>`, true, "Windows configuration profiles can only have <Replace> or <Add> top level elements."},
 		{"team BitLocker profile", 1, `<Replace><Item><Target><LocURI>./Device/Vendor/MSFT/BitLocker/AllowStandardUserEncryption</LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include BitLocker settings."},
 		{"team Windows updates profile", 1, `<Replace><Item><Target><LocURI> ./Device/Vendor/MSFT/Policy/Config/Update/ConfigureDeadlineNoAutoRebootForFeatureUpdates </LocURI></Target></Item></Replace>`, true, "Custom configuration profiles can't include Windows updates settings."},
 
@@ -1339,7 +1339,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			nil,
 			nil,
 			[]fleet.MDMProfileBatchPayload{
-				{Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
+				{
+					Name: "foo", Contents: []byte(`<?xml version="1.0" encoding="UTF-8"?>
 			<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 			<plist version="1.0">
 			<dict>
@@ -1372,7 +1373,8 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 				<integer>1</integer>
 			</dict>
 			</plist>`),
-				}},
+				},
+			},
 			"unsupported PayloadType(s)",
 		},
 	}
@@ -1389,7 +1391,7 @@ func TestMDMBatchSetProfiles(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false)
+			err := svc.BatchSetMDMProfiles(ctx, tt.teamID, tt.teamName, tt.profiles, false, false, false)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				require.True(t, ds.BatchSetMDMProfilesFuncInvoked)

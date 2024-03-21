@@ -1091,9 +1091,9 @@ Modifies the Fleet's configuration with the supplied information.
 | enable                          | boolean  | body  | _mdm.macos_migration settings_. Whether to enable the end user migration workflow for devices migrating from your old MDM solution. **Requires Fleet Premium license** |
 | mode                          | string  | body  | _mdm.macos_migration settings_. The end user migration workflow mode for devices migrating from your old MDM solution. Options are `"voluntary"` or `"forced"`. **Requires Fleet Premium license** |
 | webhook_url                          | string  | body  | _mdm.macos_migration settings_. The webhook url configured to receive requests to unenroll devices migrating from your old MDM solution. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| custom_settings                   | list    | body  | _mdm.macos_settings settings_. macOS hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | enable_disk_encryption            | boolean | body  | _mdm.macos_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true. **Requires Fleet Premium license** |
-| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Hosts that belong to no team and are enrolled into Fleet's MDM will have those custom profiles applied. |
+| custom_settings                   | list    | body  | _mdm.windows_settings settings_. Windows hosts that belong to no team, and are members of specified labels will have custom profiles applied. |
 | scripts                           | list    | body  | A list of script files to add so they can be executed at a later time.                                                                                                                                                 |
 | enable_end_user_authentication            | boolean | body  | _mdm.macos_setup settings_. If set to true, end user authentication will be required during automatic MDM enrollment of new macOS devices. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula). **Requires Fleet Premium license** |
 | additional_queries                | boolean | body  | Whether or not additional queries are enabled on hosts.                                                                                                                                |
@@ -1189,11 +1189,17 @@ Note that when making changes to the `integrations` object, all integrations mus
       "grace_period_days": 1
     },
     "macos_settings": {
-      "custom_settings": ["path/to/profile1.mobileconfig"],
+      "custom_settings": {
+        "path": "path/to/profile1.mobileconfig",
+        "labels": ["Label 1", "Label 2"]
+      },
       "enable_disk_encryption": true
     },
     "windows_settings": {
-      "custom_settings": ["path/to/profile2.xml"],
+      "custom_settings": {
+        "path": "path/to/profile1.xml",
+        "labels": ["Label 1", "Label 2"]
+      }      
     },
     "end_user_authentication": {
       "entity_id": "",
@@ -1815,17 +1821,25 @@ None.
 - [Transfer hosts to a team](#transfer-hosts-to-a-team)
 - [Transfer hosts to a team by filter](#transfer-hosts-to-a-team-by-filter)
 - [Bulk delete hosts by filter or ids](#bulk-delete-hosts-by-filter-or-ids)
-- [Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles)
+- [Get human-device mapping](#get-human-device-mapping)
+- [Update custom human-device mapping](#update-custom-human-device-mapping)
+- [Get host's device health report](#get-hosts-device-health-report)
 - [Get host's mobile device management (MDM) information](#get-hosts-mobile-device-management-mdm-information)
 - [Get mobile device management (MDM) summary](#get-mobile-device-management-mdm-summary)
 - [Get host's mobile device management (MDM) and Munki information](#get-hosts-mobile-device-management-mdm-and-munki-information)
 - [Get aggregated host's mobile device management (MDM) and Munki information](#get-aggregated-hosts-macadmin-mobile-device-management-mdm-and-munki-information)
-- [Get host OS versions](#get-host-os-versions)
+- [List host OS versions](#list-host-os-versions)
+- [Get host OS version](#get-host-os-version)
 - [Get host's scripts](#get-hosts-scripts)
 - [Get hosts report in CSV](#get-hosts-report-in-csv)
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
+- [Lock host](#lock-host)
+- [Unlock host](#unlock-host)
+- [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
+- [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
+- [Live query host by identifier (ad-hoc)](#live-query-host-by-identifier-ad-hoc)
 
 ### On the different timestamps in the host data structure
 
@@ -1867,14 +1881,15 @@ the `software` table.
 | status                  | string  | query | Indicates the status of the hosts to return. Can either be 'new', 'online', 'offline', 'mia' or 'missing'.                                                                                                                                                                                                                                  |
 | query                   | string  | query | Search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, `ipv4` and the hosts' email addresses (only searched if the query looks like an email address, i.e. contains an '@', no space, etc.).                                                                                                                |
 | additional_info_filters | string  | query | A comma-delimited list of fields to include in each host's `additional` object. See [Configuration files](https://fleetdm.com/docs/configuration/configuration-files#features-additional-queries) for how to configure Fleet to collect additional information for each host. Use '*' to get all fields.                                                  |
-| team_id                 | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team.                                                                                                                                                                                                                                                 |
+| team_id                 | integer | query | _Available in Fleet Premium_. Filters to only include hosts in the specified team. Use `0` to filter by hosts assigned to "No team".                                                                                                                                                                                                                                                |
 | policy_id               | integer | query | The ID of the policy to filter hosts by.                                                                                                                                                                                                                                                                                                    |
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                                                                                                                                                                                                                  |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                                                                                                                                                                                                                  |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -1888,6 +1903,7 @@ the `software` table.
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -1907,7 +1923,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
 ##### Request query parameters
 
@@ -2039,6 +2055,18 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
           ],
           "installed_paths": ["/usr/lib/some-path-1"]
         }
+      ],
+      "policies": [
+        {
+          "id": 1,
+          "name": "Gatekeeper enabled",
+          "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+          "description": "Checks if gatekeeper is enabled on macOS devices",
+          "resolution": "Fix with these steps...",
+          "platform": "darwin",
+          "response": "fail",
+          "critical": false
+        }
       ]
     }
   ]
@@ -2091,9 +2119,10 @@ Response payload with the `munki_issue_id` filter provided:
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'.                                                                                                                                                                                                                                       |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                            |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -2144,9 +2173,9 @@ Returns the count of all hosts organized by status. `online_count` includes all 
 
 | Name            | Type    | In    | Description                                                                     |
 | --------------- | ------- | ----  | ------------------------------------------------------------------------------- |
-| team_id         | integer | query | The ID of the team whose host counts should be included. Defaults to all teams. |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the team whose host counts should be included. Defaults to all teams. |
 | platform        | string  | query | Platform to filter by when counting. Defaults to all platforms.                 |
-| low_disk_space  | integer | query | _Available in Fleet Premium_ Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
+| low_disk_space  | integer | query | _Available in Fleet Premium_. Returns the count of hosts with less GB of disk space available than this value. Must be a number between 1-100. |
 
 #### Example
 
@@ -2448,6 +2477,8 @@ Returns the information of the specified host.
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "device_status": "unlocked",
+      "pending_action": "",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2484,7 +2515,9 @@ Returns the information of the specified host.
 ### Get host by identifier
 
 Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
-`node_key` as an identifier
+`node_key` as an identifier.
+
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host.
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -2509,14 +2542,14 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
     "updated_at": "2022-10-14T17:07:11Z",
     "software": [
       {
-          "id": 16923,
-          "name": "Automat",
-          "version": "0.8.0",
-          "source": "python_packages",
-          "browser": "",
-          "generated_cpe": "",
-          "vulnerabilities": null,
-          "installed_paths": ["/usr/lib/some_path/"]
+        "id": 16923,
+        "name": "Automat",
+        "version": "0.8.0",
+        "source": "python_packages",
+        "browser": "",
+        "generated_cpe": "",
+        "vulnerabilities": null,
+        "installed_paths": ["/usr/lib/some_path/"]
       }
     ],
     "id": 33,
@@ -2588,52 +2621,52 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
         "failing_policies_count": 0
     },
     "labels": [
-            {
-            "created_at": "2021-09-14T05:11:02Z",
-            "updated_at": "2021-09-14T05:11:02Z",
-            "id": 12,
-            "name": "All Linux",
-            "description": "All Linux distributions",
-            "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
-            "platform": "",
-            "label_type": "builtin",
-            "label_membership_type": "dynamic"
-        }
+      {
+        "created_at": "2021-09-14T05:11:02Z",
+        "updated_at": "2021-09-14T05:11:02Z",
+        "id": 12,
+        "name": "All Linux",
+        "description": "All Linux distributions",
+        "query": "SELECT 1 FROM osquery_info WHERE build_platform LIKE '%ubuntu%' OR build_distro LIKE '%centos%';",
+        "platform": "",
+        "label_type": "builtin",
+        "label_membership_type": "dynamic"
+      }
     ],
     "packs": [
-          {
-            "created_at": "2021-09-17T05:28:54Z",
-            "updated_at": "2021-09-17T05:28:54Z",
-            "id": 1,
-            "name": "Global",
-            "description": "Global pack",
-            "disabled": false,
-            "type": "global",
-            "labels": null,
-            "label_ids": null,
-            "hosts": null,
-            "host_ids": null,
-            "teams": null,
-            "team_ids": null
-        }
+      {
+        "created_at": "2021-09-17T05:28:54Z",
+        "updated_at": "2021-09-17T05:28:54Z",
+        "id": 1,
+        "name": "Global",
+        "description": "Global pack",
+        "disabled": false,
+        "type": "global",
+        "labels": null,
+        "label_ids": null,
+        "hosts": null,
+        "host_ids": null,
+        "teams": null,
+        "team_ids": null
+      }
     ],
     "policies": [
       {
-            "id": 142,
-            "name": "Full disk encryption enabled (macOS)",
-            "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
-            "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
-            "author_id": 31,
-            "author_name": "",
-            "author_email": "",
-            "team_id": null,
-            "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
-            "platform": "darwin,linux",
-            "created_at": "2022-09-02T18:52:19Z",
-            "updated_at": "2022-09-02T18:52:19Z",
-            "response": "fail",
-            "critical": false
-        }
+        "id": 142,
+        "name": "Full disk encryption enabled (macOS)",
+        "query": "SELECT 1 FROM disk_encryption WHERE user_uuid IS NOT '' AND filevault_status = 'on' LIMIT 1;",
+        "description": "Checks to make sure that full disk encryption (FileVault) is enabled on macOS devices.",
+        "author_id": 31,
+        "author_name": "",
+        "author_email": "",
+        "team_id": null,
+        "resolution": "To enable full disk encryption, on the failing device, select System Preferences > Security & Privacy > FileVault > Turn On FileVault.",
+        "platform": "darwin,linux",
+        "created_at": "2022-09-02T18:52:19Z",
+        "updated_at": "2022-09-02T18:52:19Z",
+        "response": "fail",
+        "critical": false
+      }
     ],
     "batteries": [
       {
@@ -2657,6 +2690,8 @@ Returns the information of the host specified using the `uuid`, `hardware_serial
       "enrollment_status": null,
       "name": "",
       "server_url": null,
+      "device_status": "unlocked",
+      "pending_action": "lock",
       "macos_settings": {
         "disk_encryption": null,
         "action_required": null
@@ -2977,7 +3012,7 @@ _Available in Fleet Premium_
 | Name    | Type    | In   | Description                                                                                                                                                                                                                                                                                                                        |
 | ------- | ------- | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | team_id | integer | body | **Required**. The ID of the team you'd like to transfer the host(s) to.                                                                                                                                                                                                                                                            |
-| filters | object  | body | **Required** Contains any of the following three properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `label_id` and `status` cannot be used at the same time. |
+| filters | object  | body | **Required** Contains any of the following four properties: `query` for search query keywords. Searchable fields include `hostname`, `hardware_serial`, `uuid`, and `ipv4`. `status` to indicate the status of the hosts to return. Can either be `new`, `online`, `offline`, `mia` or `missing`. `label_id` to indicate the selected label. `team_id` to indicate the selected team. Note: `label_id` and `status` cannot be used at the same time. |
 
 #### Example
 
@@ -2989,7 +3024,8 @@ _Available in Fleet Premium_
 {
   "team_id": 1,
   "filters": {
-    "status": "online"
+    "status": "online",
+    "team_id": 2,
   }
 }
 ```
@@ -3437,7 +3473,7 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Get host OS versions
+### List host OS versions
 
 Retrieves the aggregated host OS versions information.
 
@@ -3447,10 +3483,15 @@ Retrieves the aggregated host OS versions information.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_ Filters the hosts to only include hosts in the specified team. If not provided, all hosts are included. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `hosts_count`. Default is `hosts_count` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+
 
 ##### Default response
 
@@ -3458,59 +3499,110 @@ Retrieves the aggregated host OS versions information.
 
 ```json
 {
-  "counts_updated_at": "2022-03-22T21:38:31Z",
+  "count": 1
+  "counts_updated_at": "2023-12-06T22:17:30Z",
   "os_versions": [
     {
-      "hosts_count": 1,
-      "name": "CentOS 6.10.0",
-      "name_only": "CentOS",
-      "version": "6.10.0",
-      "platform": "rhel",
-      "os_id": 1
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 7.9.2009",
-      "name_only": "CentOS",
-      "version": "7.9.2009",
-      "platform": "rhel",
-      "os_id": 2
-    },
-    {
-      "hosts_count": 1,
-      "name": "CentOS Linux 8.3.2011",
-      "name_only": "CentOS",
-      "version": "8.2.2011",
-      "platform": "rhel",
-      "os_id": 3
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 10.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "10.0.0",
-      "platform": "debian",
-      "os_id": 4
-    },
-    {
-      "hosts_count": 1,
-      "name": "Debian GNU/Linux 9.0.0",
-      "name_only": "Debian GNU/Linux",
-      "version": "9.0.0",
-      "platform": "debian",
-      "os_id": 5
-    },
-    {
-      "hosts_count": 1,
-      "name": "Ubuntu 16.4.0 LTS",
-      "name_only": "Ubuntu",
-      "version": "16.4.0 LTS",
-      "platform": "ubuntu",
-      "os_id": 6
+      "os_version_id": 123,
+      "hosts_count": 21,
+      "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+      "name_only": "Microsoft Windows 11 Pro 23H2",
+      "version": "10.0.22621.1234",
+      "platform": "windows",
+      "generated_cpes": [],
+      "vulnerabilities": [
+        {
+          "cve": "CVE-2022-30190",
+          "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+          "cvss_score": 7.8,// Available in Fleet Premium
+          "epss_probability": 0.9729,// Available in Fleet Premium
+          "cisa_known_exploit": false,// Available in Fleet Premium
+          "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+          "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+          "resolved_in_version": ""// Available in Fleet Premium
+        }
+      ]
     }
-  ]
+  ],
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
 }
 ```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
+### Get host OS version
+
+Retrieves information about the specified OS version.
+
+`GET /api/v1/fleet/os_versions/:id`
+
+#### Parameters
+
+| Name | Type | In | Description |
+| ---- | ---- | -- | ----------- |
+| id   | integer | path | **Required.** The OS version's ID. |
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "counts_updated_at": "2023-12-06T22:17:30Z",
+  "os_version": {
+    "id": 123,
+    "hosts_count": 21,
+    "name": "Microsoft Windows 11 Pro 23H2 10.0.22621.1234",
+    "name_only": "Microsoft Windows 11 Pro 23H2",
+    "version": "10.0.22621.1234",
+    "platform": "windows",
+    "generated_cpes": [],
+    "vulnerabilities": [
+      {
+        "cve": "CVE-2022-30190",
+        "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+        "cvss_score": 7.8,// Available in Fleet Premium
+        "epss_probability": 0.9729,// Available in Fleet Premium
+        "cisa_known_exploit": false,// Available in Fleet Premium
+        "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+        "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+        "resolved_in_version": ""// Available in Fleet Premium
+      }
+    ]
+  }
+}
+```
+
+OS vulnerability data is currently available for Windows and macOS. For other platforms, `vulnerabilities` will be an empty array:
+
+```json
+{
+  "id": 321,
+  "hosts_count": 1,
+  "name": "CentOS Linux 7.9.2009",
+  "name_only": "CentOS",
+  "version": "7.9.2009",
+  "platform": "rhel",
+  "generated_cpes": [],
+  "vulnerabilities": []
+}
+```
+
 
 ### Get host's scripts
 
@@ -3533,7 +3625,6 @@ Retrieves the aggregated host OS versions information.
 `Status: 200`
 
 ```json
-{
   "scripts": [
     {
       "script_id": 3,
@@ -3593,9 +3684,10 @@ requested by a web browser.
 | policy_response         | string  | query | **Requires `policy_id`**. Valid options are 'passing' or 'failing'. **Note: If `policy_id` is specified _without_ including `policy_response`, this will also return hosts where the policy is not configured to run or failed to run.** |
 | software_version_id     | integer | query | The ID of the software version to filter hosts by.                                                                                                            |
 | software_title_id       | integer | query | The ID of the software title to filter hosts by.                                                                                                              |
-| os_id                   | integer | query | The ID of the operating system to filter hosts by.                                                                                                                                                                                                                                                                                          |
+| os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
@@ -3698,6 +3790,90 @@ Retrieves a list of the configuration profiles assigned to a host.
   ]
 }
 ```
+
+### Lock host
+
+_Available in Fleet Premium_
+
+Sends a command to lock the specified macOS, Linux, or Windows host. The host is locked once it comes online.
+
+To lock a macOS host, the host must have MDM turned on. To lock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+
+`POST /api/v1/fleet/hosts/:id/lock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be locked. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/lock`
+
+##### Default response
+
+`Status: 204`
+
+### Unlock host
+
+_Available in Fleet Premium_
+
+Sends a command to unlock the specified Windows or Linux host, or retrieves the unlock PIN for a macOS host.
+
+To unlock a Windows or Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+`POST /api/v1/fleet/hosts/:id/unlock`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be unlocked. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/:id/unlock`
+
+##### Default response (Windows or Linux hosts)
+
+`Status: 204`
+
+##### Default response (macOS hosts)
+
+`Status: 200`
+
+```json
+{
+  "host_id": 8,
+  "unlock_pin": "123456"
+}
+```
+
+
+### Wipe host
+
+Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+
+To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+`POST /api/v1/fleet/hosts/:id/wipe`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be wiped. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/wipe`
+
+##### Default response
+
+`Status: 204`
+
 
 ### Get host's past activity
 
@@ -3825,6 +4001,106 @@ Retrieves a list of the configuration profiles assigned to a host.
   }
 }
 ```
+
+### Live query one host (ad-hoc)
+
+Runs an ad-hoc live query against the specified host and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/:id/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| id       | integer  | path | **Required**. The target host ID. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be`null`.
+
+### Live query host by identifier (ad-hoc)
+
+Runs an ad-hoc live query against a host identified using `uuid` and responds with the results.
+
+The live query will stop if the targeted host is offline, or if the query times out. Timeouts happen if the host hasn't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
+
+
+`POST /api/v1/fleet/hosts/identifier/:identifier/query`
+
+#### Parameters
+
+| Name      | Type  | In   | Description                                                                                                                                                        |
+|-----------|-------|------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| identifier       | integer or string   | path | **Required**. The host's `hardware_serial`, `uuid`, `osquery_host_id`, `hostname`, or `node_key`. |
+| query            | string   | body | **Required**. The query SQL. |
+
+
+#### Example
+
+`POST /api/v1/fleet/hosts/identifier/392547dc-0000-0000-a87a-d701ff75bc65/query`
+
+##### Request body
+
+```json
+{
+  "query": "SELECT model, vendor FROM usb_devices;"
+}
+```
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "host_id": 123,
+  "query": "SELECT model, vendor FROM usb_devices;",
+  "status": "online", // "online" or "offline"
+  "error": null,
+  "rows": [
+    {
+      "model": "USB2.0 Hub",
+      "vendor": "VIA Labs, Inc."
+    }
+  ]
+}
+```
+
+Note that if the host is online and the query times out, this endpoint will return an error and `rows` will be `null`. If the host is offline, no error will be returned, and `rows` will be `null`.
 
 ---
 
@@ -4276,6 +4552,7 @@ Deletes the label specified by ID.
 These API endpoints are used to automate MDM features in Fleet. Read more about MDM features in Fleet [here](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
 
 - [Add custom OS setting (configuration profile)](#add-custom-os-setting-configuration-profile)
+- [Get manual enrollment profile](#get-manual-enrollment-profile)
 - [List custom OS settings (configuration profiles)](#list-custom-os-settings-configuration-profiles)
 - [Get or download custom OS setting (configuration profile)](#get-or-download-custom-os-setting-configuration-profile)
 - [Delete custom OS setting (configuration profile)](#delete-custom-os-setting-configuration-profile)
@@ -4315,6 +4592,7 @@ Add a configuration profile to enforce custom settings on macOS and Windows host
 | ------------------------- | -------- | ---- | ------------------------------------------------------------------------------------------------------------- |
 | profile                   | file     | form | **Required.** The .mobileconfig (macOS) or XML (Windows) file containing the profile. |
 | team_id                   | string   | form | _Available in Fleet Premium_ The team ID for the profile. If specified, the profile is applied to only hosts that are assigned to the specified team. If not specified, the profile is applied to only to hosts that are not assigned to any team. |
+| labels                   | array     | form | _Available in Fleet Premium_ An array of labels to filter hosts in a team (or no team) that should get a profile. |
 
 #### Example
 
@@ -4338,6 +4616,14 @@ Content-Type: multipart/form-data; boundary=------------------------f02md47480un
 Content-Disposition: form-data; name="team_id"
 
 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels"
+
+Label name 1
+--------------------------f02md47480und42y
+Content-Disposition: form-data; name="labels"
+
+Label name 2
 --------------------------f02md47480und42y
 Content-Disposition: form-data; name="profile"; filename="Foo.mobileconfig"
 Content-Type: application/octet-stream
@@ -4378,7 +4664,7 @@ Content-Type: application/octet-stream
 If the response is `Status: 409 Conflict`, the body may include additional error details in the case
 of duplicate payload display name or duplicate payload identifier (macOS profiles).
 
-#### Get manual enrollment profile
+### Get manual enrollment profile
 
 Retrieves the manual enrollment profile for macOS hosts. Install this profile on macOS hosts to turn on MDM features manually.
 
@@ -4402,7 +4688,7 @@ Retrieves the manual enrollment profile for macOS hosts. Install this profile on
 
 ### List custom OS settings (configuration profiles)
 
-> [List custom macOS setting](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
+> [List custom macOS settings](https://github.com/fleetdm/fleet/blob/fleet-v4.40.0/docs/REST%20API/rest-api.md#list-custom-macos-settings-configuration-profiles) (`GET /api/v1/fleet/mdm/apple/profiles`) API endpoint is deprecated as of Fleet 4.41. It is maintained for backwards compatibility. Please use the below API endpoint instead.
 
 Get a list of the configuration profiles in Fleet.
 
@@ -4441,7 +4727,12 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "identifier": "com.example.profile",
       "created_at": "2023-03-31T00:00:00Z",
       "updated_at": "2023-03-31T00:00:00Z",
-      "checksum": "dGVzdAo="
+      "checksum": "dGVzdAo=",
+      "labels": [
+       {
+        "name": "Label name 1"
+       }
+      ]
     },
     {
       "profile_uuid": "f5ad01cc-f416-4b5f-88f3-a26da3b56a19",
@@ -4450,7 +4741,16 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
       "platform": "windows",
       "created_at": "2023-04-31T00:00:00Z",
       "updated_at": "2023-04-31T00:00:00Z",
-      "checksum": "aCLemVr)"
+      "checksum": "aCLemVr)",
+      "labels": [
+       {
+         "name": "Label name 1",
+         "broken": true
+       },
+       {
+         "name": "Label name 2"
+       }
+      ]
     }
   ],
   "meta": {
@@ -4459,6 +4759,8 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   }
 }
 ```
+
+If one or more assigned labels are deleted the profile is considered broken (`broken: true`). It won’t be applied to new hosts.
 
 ### Get or download custom OS setting (configuration profile)
 
@@ -4490,7 +4792,16 @@ List all configuration profiles for macOS and Windows hosts enrolled to Fleet's 
   "identifier": "com.example.profile",
   "created_at": "2023-03-31T00:00:00Z",
   "updated_at": "2023-03-31T00:00:00Z",
-  "checksum": "dGVzdAo="
+  "checksum": "dGVzdAo=",
+  "labels": [
+    {
+      "name": "Label name 1",
+      "broken": true
+    },
+    {
+      "name": "Label name 2",
+    }
+  ]
 }
 ```
 
@@ -4714,7 +5025,8 @@ This endpoint returns the results for a specific custom MDM command.
       "updated_at": "2023-04-04:00:00Z",
       "request_type": "ProfileList",
       "hostname": "mycomputer",
-      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPCFET0NUWVBFIHBsaXN0IFBVQkxJQyAiLS8vQXBwbGUvL0RURCBQTElTVCAxLjAvL0VOIiAiaHR0cDovL3d3dy5hcHBsZS5jb20vRFREcy9Qcm9wZXJ0eUxpc3QtMS4wLmR0ZCI-CjxwbGlzdCB2ZXJzaW9uPSIxLjAiPgo8ZGljdD4KICAgIDxrZXk-Q29tbWFuZDwva2V5PgogICAgPGRpY3Q-CiAgICAgICAgPGtleT5NYW5hZ2VkT25seTwva2V5PgogICAgICAgIDxmYWxzZS8-CiAgICAgICAgPGtleT5SZXF1ZXN0VHlwZTwva2V5PgogICAgICAgIDxzdHJpbmc-UHJvZmlsZUxpc3Q8L3N0cmluZz4KICAgIDwvZGljdD4KICAgIDxrZXk-Q29tbWFuZFVVSUQ8L2tleT4KICAgIDxzdHJpbmc-MDAwMV9Qcm9maWxlTGlzdDwvc3RyaW5nPgo8L2RpY3Q-CjwvcGxpc3Q-"
+      "payload": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCg0KCTxrZXk+UGF5bG9hZERlc2NyaXB0aW9uPC9rZXk+DQoJPHN0cmluZz5UaGlzIHByb2ZpbGUgY29uZmlndXJhdGlvbiBpcyBkZXNpZ25lZCB0byBhcHBseSB0aGUgQ0lTIEJlbmNobWFyayBmb3IgbWFjT1MgMTAuMTQgKHYyLjAuMCksIDEwLjE1ICh2Mi4wLjApLCAxMS4wICh2Mi4wLjApLCBhbmQgMTIuMCAodjEuMC4wKTwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJPHN0cmluZz5EaXNhYmxlIEJsdWV0b290aCBzaGFyaW5nPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCTx0cnVlLz4NCgk8a2V5PlBheWxvYWRJZGVudGlmaWVyPC9rZXk+DQoJPHN0cmluZz5jaXMubWFjT1NCZW5jaG1hcmsuc2VjdGlvbjIuQmx1ZXRvb3RoU2hhcmluZzwvc3RyaW5nPg0KCTxrZXk+UGF5bG9hZFNjb3BlPC9rZXk+DQoJPHN0cmluZz5TeXN0ZW08L3N0cmluZz4NCgk8a2V5PlBheWxvYWRUeXBlPC9rZXk+DQoJPHN0cmluZz5Db25maWd1cmF0aW9uPC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVVVJRDwva2V5Pg0KCTxzdHJpbmc+NUNFQkQ3MTItMjhFQi00MzJCLTg0QzctQUEyOEE1QTM4M0Q4PC9zdHJpbmc+DQoJPGtleT5QYXlsb2FkVmVyc2lvbjwva2V5Pg0KCTxpbnRlZ2VyPjE8L2ludGVnZXI+DQogICAgPGtleT5QYXlsb2FkUmVtb3ZhbERpc2FsbG93ZWQ8L2tleT4NCiAgICA8dHJ1ZS8+DQoJPGtleT5QYXlsb2FkQ29udGVudDwva2V5Pg0KCTxhcnJheT4NCgkJPGRpY3Q+DQoJCQk8a2V5PlBheWxvYWRDb250ZW50PC9rZXk+DQoJCQk8ZGljdD4NCgkJCQk8a2V5PmNvbS5hcHBsZS5CbHVldG9vdGg8L2tleT4NCgkJCQk8ZGljdD4NCgkJCQkJPGtleT5Gb3JjZWQ8L2tleT4NCgkJCQkJPGFycmF5Pg0KCQkJCQkJPGRpY3Q+DQoJCQkJCQkJPGtleT5tY3hfcHJlZmVyZW5jZV9zZXR0aW5nczwva2V5Pg0KCQkJCQkJCTxkaWN0Pg0KCQkJCQkJCQk8a2V5PlByZWZLZXlTZXJ2aWNlc0VuYWJsZWQ8L2tleT4NCgkJCQkJCQkJPGZhbHNlLz4NCgkJCQkJCQk8L2RpY3Q+DQoJCQkJCQk8L2RpY3Q+DQoJCQkJCTwvYXJyYXk+DQoJCQkJPC9kaWN0Pg0KCQkJPC9kaWN0Pg0KCQkJPGtleT5QYXlsb2FkRGVzY3JpcHRpb248L2tleT4NCgkJCTxzdHJpbmc+RGlzYWJsZXMgQmx1ZXRvb3RoIFNoYXJpbmc8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZERpc3BsYXlOYW1lPC9rZXk+DQoJCQk8c3RyaW5nPkN1c3RvbTwvc3RyaW5nPg0KCQkJPGtleT5QYXlsb2FkRW5hYmxlZDwva2V5Pg0KCQkJPHRydWUvPg0KCQkJPGtleT5QYXlsb2FkSWRlbnRpZmllcjwva2V5Pg0KCQkJPHN0cmluZz4wMjQwREQxQy03MERDLTQ3NjYtOTAxOC0wNDMyMkJGRUVBRDE8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFR5cGU8L2tleT4NCgkJCTxzdHJpbmc+Y29tLmFwcGxlLk1hbmFnZWRDbGllbnQucHJlZmVyZW5jZXM8L3N0cmluZz4NCgkJCTxrZXk+UGF5bG9hZFVVSUQ8L2tleT4NCgkJCTxzdHJpbmc+MDI0MEREMUMtNzBEQy00NzY2LTkwMTgtMDQzMjJCRkVFQUQxPC9zdHJpbmc+DQoJCQk8a2V5PlBheWxvYWRWZXJzaW9uPC9rZXk+DQoJCQk8aW50ZWdlcj4xPC9pbnRlZ2VyPg0KCQk8L2RpY3Q+DQoJPC9hcnJheT4NCjwvZGljdD4NCjwvcGxpc3Q+",
+      "result": "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4NCjwhRE9DVFlQRSBwbGlzdCBQVUJMSUMgIi0vL0FwcGxlLy9EVEQgUExJU1QgMS4wLy9FTiIgImh0dHA6Ly93d3cuYXBwbGUuY29tL0RURHMvUHJvcGVydHlMaXN0LTEuMC5kdGQiPg0KPHBsaXN0IHZlcnNpb249IjEuMCI+DQo8ZGljdD4NCiAgICA8a2V5PkNvbW1hbmRVVUlEPC9rZXk+DQogICAgPHN0cmluZz4wMDAxX0luc3RhbGxQcm9maWxlPC9zdHJpbmc+DQogICAgPGtleT5TdGF0dXM8L2tleT4NCiAgICA8c3RyaW5nPkFja25vd2xlZGdlZDwvc3RyaW5nPg0KICAgIDxrZXk+VURJRDwva2V5Pg0KICAgIDxzdHJpbmc+MDAwMDgwMjAtMDAwOTE1MDgzQzgwMDEyRTwvc3RyaW5nPg0KPC9kaWN0Pg0KPC9wbGlzdD4="
     }
   ]
 }
@@ -5647,7 +5959,7 @@ Triggers [automations](https://fleetdm.com/docs/using-fleet/automations#policy-a
 
 ---
 
-### Team policies
+## Team policies
 
 - [List team policies](#list-team-policies)
 - [Count team policies](#count-team-policies)
@@ -5998,7 +6310,7 @@ Returns a list of global queries or team queries.
 | --------------- | ------- | ----- | ----------------------------------------------------------------------------------------------------------------------------- |
 | order_key       | string  | query | What to order results by. Can be any column in the queries table.                                                             |
 | order_direction | string  | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
-| team_id         | integer | query | The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
+| team_id         | integer | query | _Available in Fleet Premium_. The ID of the parent team for the queries to be listed. When omitted, returns global queries.                  |
 | query           | string  | query | Search query keywords. Searchable fields include `name`.                                                                      |
 
 
@@ -6319,7 +6631,7 @@ Creates a global query or team query.
 | query                           | string  | body | **Required**. The query in SQL syntax.                                                                                                                 |
 | description                     | string  | body | The query's description.                                                                                                                               |
 | observer_can_run                | bool    | body | Whether or not users with the `observer` role can run the query. In Fleet 4.0.0, 3 user roles were introduced (`admin`, `maintainer`, and `observer`). This field is only relevant for the `observer` role. The `observer_plus` role can run any query and is not limited by this flag (`observer_plus` role was added in Fleet 4.30.0). |
-| team_id                         | integer | body | The parent team to which the new query should be added. If omitted, the query will be global.                                           |
+| team_id                         | integer | body | _Available in Fleet Premium_. The parent team to which the new query should be added. If omitted, the query will be global.                                           |
 | interval                       | integer | body | The amount of time, in seconds, the query waits before running. Can be set to `0` to never run. Default: 0.       |
 | platform                        | string  | body | The OS platforms where this query will run (other platforms ignored). Comma-separated string. If omitted, runs on all compatible platforms.                        |
 | min_osquery_version             | string  | body | The minimum required osqueryd version installed on a host. If omitted, all osqueryd versions are acceptable.                                                                          |
@@ -6462,7 +6774,7 @@ Deletes the query specified by name.
 | Name | Type       | In   | Description                          |
 | ---- | ---------- | ---- | ------------------------------------ |
 | name | string     | path | **Required.** The name of the query. |
-| team_id | integer | body | The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
+| team_id | integer | body | _Available in Fleet Premium_. The ID of the parent team of the query to be deleted. If omitted, Fleet will search among queries in the global context. |
 
 #### Example
 
@@ -6536,9 +6848,7 @@ Deletes the queries specified by ID. Returns the count of queries successfully d
 
 Runs a live query against the specified hosts and responds with the results.
 
-If some targeted hosts haven't responded, the live query will stop after 25 seconds (or whatever time period is configured), and all collected results are returned.
-
-The timeout period is configurable via environment variable on the Fleet server (e.g. `FLEET_LIVE_QUERY_REST_PERIOD=90s`). If setting a higher value than the default, be sure not to exceed your load balancer timeout.
+The live query will stop if the request times out. Timeouts happen if targeted hosts haven't responded after the configured `FLEET_LIVE_QUERY_REST_PERIOD` (default 25 seconds) or if the `distributed_interval` agent option (default 10 seconds) is higher than the `FLEET_LIVE_QUERY_REST_PERIOD`.
 
 
 `POST /api/v1/fleet/queries/:id/run`
@@ -7188,7 +7498,7 @@ Uploads a script, making it available to run on hosts assigned to the specified 
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | script          | file    | form | **Required**. The file containing the script.    |
-| team_id         | integer | form | The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
+| team_id         | integer | form | _Available in Fleet Premium_. The team ID. If specified, the script will only be available to hosts assigned to this team. If not specified, the script will only be available to hosts on **no team**.  |
 
 #### Example
 
@@ -7599,6 +7909,7 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7651,6 +7962,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7693,6 +8005,126 @@ Returns information about the specified software version.
   }
 }
 ```
+
+## Vulnerabilities
+
+
+- [List vulnerabilities](#list-vulnerabilities)
+- [Get vulnerability](#get-vulnerability)
+
+### List vulnerabilities
+
+Retrieves a list of all CVEs affecting software and/or OS versions.
+
+`GET /api/v1/fleet/vulnerabilities`
+
+#### Parameters
+
+| Name                | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters only include vulnerabilities affecting the specified team.  |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query | string | query | Search query keywords. Searchable fields include `cve`. |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-30190",
+      "created_at": "2022-06-01T00:15:00Z",
+      "hosts_count": 1234,
+      "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+      "cvss_score": 7.8,// Available in Fleet Premium
+      "epss_probability": 0.9729,// Available in Fleet Premium
+      "cisa_known_exploit": false,// Available in Fleet Premium
+      "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    }
+  ],
+  "count": 123,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+
+### Get vulnerability
+
+Retrieve details about a vulnerability and its affected software and OS versions.
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                     |
+| ---      | ---      | ---   | ---                                                                                             |
+| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
+
+#### Example
+
+`GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vulnerability": {
+  "cve": "CVE-2022-30190",
+  "created_at": "2022-06-01T00:15:00Z",
+  "hosts_count": 1234,
+  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+  "cvss_score": 7.8,// Available in Fleet Premium
+  "epss_probability": 0.9729,// Available in Fleet Premium
+  "cisa_known_exploit": false,// Available in Fleet Premium
+  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+  "os_versions" : [
+    {
+      "os_version_id": 6,
+      "hosts_count": 200,
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
+      "version": "14.1.2",
+      "platform": "darwin",
+      "resolved_in_version": "14.2",
+      "generated_cpes": [
+        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+      ]
+    }
+  ],
+  "software": [
+    {
+      "id": 2363,
+      "name": "Docker Desktop",
+      "version": "4.9.1",
+      "source": "programs",
+      "browser": "",
+      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+      "hosts_count": 50,
+      "resolved_in_version": "5.0.0"
+    }
+  ]
+}
+```
+
 
 ---
 
@@ -8137,7 +8569,7 @@ _Available in Fleet Premium_
 | id                                                      | integer | path | **Required.** The desired team's ID.                                                                                                                                                                      |
 | name                                                    | string  | body | The team's name.                                                                                                                                                                                          |
 | host_ids                                                | list    | body | A list of hosts that belong to the team.                                                                                                                                                                  |
-| user_ids                                                | list    | body | A list of users that are members of the team.                                                                                                                                                             |
+| user_ids                                                | list    | body | A list of users on the team.                                                                                                                                                             |
 | webhook_settings                                        | object  | body | Webhook settings contains for the team.                                                                                                                                                                   |
 | &nbsp;&nbsp;failing_policies_webhook                    | object  | body | Failing policies webhook settings.                                                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_failing_policies_webhook | boolean | body | Whether or not the failing policies webhook is enabled.                                                                                                                                                   |
@@ -8161,10 +8593,10 @@ _Available in Fleet Premium_
 | &nbsp;&nbsp;&nbsp;&nbsp;deadline_days                   | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before updates are installed on Windows.                                                                   |
 | &nbsp;&nbsp;&nbsp;&nbsp;grace_period_days               | integer | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have this number of days before Windows restarts to install updates.                                                                    |
 | &nbsp;&nbsp;macos_settings                              | object  | body | macOS-specific settings.                                                                                                                                                                                  |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of .mobileconfig files to apply to macOS hosts that belong to this team.                                                                                                                                        |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes .mobileconfig file (configuration profile) and label name to apply to macOS hosts that belong to this team and are members of the specified label.                                                                                                                                        |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_disk_encryption          | boolean | body | Hosts that belong to this team and are enrolled into Fleet's MDM will have disk encryption enabled if set to true.                                                                                        |
 | &nbsp;&nbsp;windows_settings                            | object  | body | Windows-specific settings.                                                                                                                                                                                |
-| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of XML files to apply to Windows hosts that belong to this team.                                                                                                                                |
+| &nbsp;&nbsp;&nbsp;&nbsp;custom_settings                 | list    | body | The list of objects where each object includes XML file (configuration profile) and label name to apply to Windows hosts that belong to this team and are members of the specified label.                                                                                                                               |
 | &nbsp;&nbsp;macos_setup                                 | object  | body | Setup for automatic MDM enrollment of macOS hosts.                                                                                                                                                      |
 | &nbsp;&nbsp;&nbsp;&nbsp;enable_end_user_authentication  | boolean | body | If set to true, end user authentication will be required during automatic MDM enrollment of new macOS hosts. Settings for your IdP provider must also be [configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup-experience#end-user-authentication-and-eula).                                                                                      |
 | host_expiry_settings                                    | object  | body | Host expiry settings for the team.                                                                                                                                                                         |

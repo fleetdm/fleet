@@ -372,3 +372,27 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 	}
 	return b, nil
 }
+
+func (c *Client) MDMLockHost(hostID uint) error {
+	var response lockHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
+		return fmt.Errorf("lock host request: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
+	var response unlockHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
+		return "", fmt.Errorf("lock host request: %w", err)
+	}
+	return response.UnlockPIN, nil
+}
+
+func (c *Client) MDMWipeHost(hostID uint) error {
+	var response wipeHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
+		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
+}

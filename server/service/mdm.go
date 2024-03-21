@@ -1393,10 +1393,11 @@ func (svc *Service) validateProfileLabels(ctx context.Context, labelNames []stri
 ////////////////////////////////////////////////////////////////////////////////
 
 type batchSetMDMProfilesRequest struct {
-	TeamID   *uint                        `json:"-" query:"team_id,optional"`
-	TeamName *string                      `json:"-" query:"team_name,optional"`
-	DryRun   bool                         `json:"-" query:"dry_run,optional"` // if true, apply validation but do not save changes
-	Profiles backwardsCompatProfilesParam `json:"profiles"`
+	TeamID        *uint                        `json:"-" query:"team_id,optional"`
+	TeamName      *string                      `json:"-" query:"team_name,optional"`
+	DryRun        bool                         `json:"-" query:"dry_run,optional"`        // if true, apply validation but do not save changes
+	AssumeEnabled bool                         `json:"-" query:"assume_enabled,optional"` // if true, assume MDM is enabled
+	Profiles      backwardsCompatProfilesParam `json:"profiles"`
 }
 
 type backwardsCompatProfilesParam []fleet.MDMProfileBatchPayload
@@ -1439,13 +1440,16 @@ func (r batchSetMDMProfilesResponse) Status() int { return http.StatusNoContent 
 
 func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*batchSetMDMProfilesRequest)
-	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false); err != nil {
+	if err := svc.BatchSetMDMProfiles(ctx, req.TeamID, req.TeamName, req.Profiles, req.DryRun, false, req.AssumeEnabled); err != nil {
 		return batchSetMDMProfilesResponse{Err: err}, nil
 	}
 	return batchSetMDMProfilesResponse{}, nil
 }
 
-func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool) error {
+func (svc *Service) BatchSetMDMProfiles(
+	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
+	assumeEnabled bool,
+) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
@@ -1454,6 +1458,9 @@ func (svc *Service) BatchSetMDMProfiles(ctx context.Context, tmID *uint, tmName 
 	appCfg, err := svc.ds.AppConfig(ctx)
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "getting app config")
+	}
+	if assumeEnabled {
+		appCfg.MDM.WindowsEnabledAndConfigured = true
 	}
 
 	if err := validateProfiles(profiles); err != nil {
@@ -1688,7 +1695,7 @@ func validateProfiles(profiles []fleet.MDMProfileBatchPayload) error {
 		platform := mdm.GetRawProfilePlatform(profile.Contents)
 		if platform != "darwin" && platform != "windows" {
 			// TODO(roberto): there's ongoing feedback with Marko about improving this message, as it's too windows specific
-			return fleet.NewInvalidArgumentError("mdm", "Only <Replace> supported as a top level element. Make sure you don’t have other top level elements.")
+			return fleet.NewInvalidArgumentError("mdm", "Windows configuration profiles can only have <Replace> or <Add> top level elements.")
 		}
 	}
 
@@ -1751,4 +1758,57 @@ func (svc *Service) ListMDMConfigProfiles(ctx context.Context, teamID *uint, opt
 	opt.IncludeMetadata = true
 
 	return svc.ds.ListMDMConfigProfiles(ctx, teamID, opt)
+}
+
+////////////////////////////////////////////////////////////////////////////////
+// Update MDM Disk encryption
+////////////////////////////////////////////////////////////////////////////////
+
+type updateMDMDiskEncryptionRequest struct {
+	TeamID               *uint `json:"team_id"`
+	EnableDiskEncryption bool  `json:"enable_disk_encryption"`
+}
+
+type updateMDMDiskEncryptionResponse struct {
+	Err error `json:"error,omitempty"`
+}
+
+func (r updateMDMDiskEncryptionResponse) error() error { return r.Err }
+
+func (r updateMDMDiskEncryptionResponse) Status() int { return http.StatusNoContent }
+
+func updateMDMDiskEncryptionEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
+	req := request.(*updateMDMDiskEncryptionRequest)
+	if err := svc.UpdateMDMDiskEncryption(ctx, req.TeamID, &req.EnableDiskEncryption); err != nil {
+		return updateMDMDiskEncryptionResponse{Err: err}, nil
+	}
+	return updateMDMDiskEncryptionResponse{}, nil
+}
+
+func (svc *Service) UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error {
+	// TODO(mna): this should all move to the ee package when we remove the
+	// `PATCH /api/v1/fleet/mdm/apple/settings` endpoint, but for now it's better
+	// leave here so both endpoints can reuse the same logic.
+
+	lic, _ := license.FromContext(ctx)
+	if lic == nil || !lic.IsPremium() {
+		svc.authz.SkipAuthorization(ctx) // so that the error message is not replaced by "forbidden"
+		return ErrMissingLicense
+	}
+
+	// for historical reasons (the deprecated PATCH /mdm/apple/settings
+	// endpoint), this uses an Apple-specific struct for authorization. Can be improved
+	// once we remove the deprecated endpoint.
+	if err := svc.authz.Authorize(ctx, fleet.MDMAppleSettingsPayload{TeamID: teamID}, fleet.ActionWrite); err != nil {
+		return ctxerr.Wrap(ctx, err)
+	}
+
+	if teamID != nil {
+		tm, err := svc.EnterpriseOverrides.TeamByIDOrName(ctx, teamID, nil)
+		if err != nil {
+			return err
+		}
+		return svc.EnterpriseOverrides.UpdateTeamMDMDiskEncryption(ctx, tm, enableDiskEncryption)
+	}
+	return svc.updateAppConfigMDMDiskEncryption(ctx, enableDiskEncryption)
 }

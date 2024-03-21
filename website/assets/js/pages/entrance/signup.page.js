@@ -17,6 +17,7 @@ parasails.registerPage('signup', {
       organization: {required: true},
       emailAddress: {required: true, isEmail: true},
       password: {required: true, minLength: 8},
+      primaryBuyingSituation: {required: true},
     },
     // Syncing / loading state
     syncing: false,
@@ -30,7 +31,11 @@ parasails.registerPage('signup', {
   //  ║  ║╠╣ ║╣ ║  ╚╦╝║  ║  ║╣
   //  ╩═╝╩╚  ╚═╝╚═╝ ╩ ╚═╝╩═╝╚═╝
   beforeMount: function() {
-    //…
+    // Removing the query string for users redirected to this page by the /try-fleet/explore-data pages.
+    // FUTURE: remove this when that view-query-report is updated.
+    if(window.location.search){
+      window.history.replaceState({}, document.title, '/register' );
+    }
   },
   mounted: async function() {
     //…
@@ -56,11 +61,11 @@ parasails.registerPage('signup', {
     },
 
     submittedSignUpForm: async function() {
-      // redirect to the new-license page.
+      // redirect to the /start page.
       // > (Note that we re-enable the syncing state here.  This is on purpose--
       // > to make sure the spinner stays there until the page navigation finishes.)
       this.syncing = true;
-      window.location = '/customers/new-license?signup';
+      window.location = '/start';
     }
 
 
