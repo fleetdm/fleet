@@ -231,13 +231,15 @@ const mdmService = {
   },
 
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
+    const body = {
+      mdm: { macos_setup: { enable_release_device_manually: isEnabled } },
+    };
+
     if (teamId === API_NO_TEAM_ID) {
-      return configAPI.update({
-        mdm: { macos_setup: { enable_release_device_manually: isEnabled } },
-      });
+      return configAPI.update(body);
     }
 
-    return teamAPI.update({});
+    return teamAPI.updateConfig(body, teamId);
   },
 };
 
