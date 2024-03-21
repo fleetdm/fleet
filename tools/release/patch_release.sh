@@ -75,6 +75,7 @@ usage() {
     echo "  -m, --minor            Increment to a minor version instead of patch (Required if including non-bugs"
     echo "  -o, --open_api_key     Set the Open API key for calling out to ChatGPT"
     echo "  -p, --print            If the release is already drafted then print out the helpful info"
+    echo "  -r, --release_notes    Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
     echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
     echo "  -v, --target_version   Set the target version for the release"
