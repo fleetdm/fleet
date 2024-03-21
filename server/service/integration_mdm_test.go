@@ -9414,9 +9414,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// add some macOS declarations
 	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusOK, "")
 	// identifier must be unique, it conflicts with existing declaration
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusConflict, "idx_mdm_apple_declaration_team_identifier")
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusConflict, "Resource Already Exists: MDMAppleDeclaration.Identifier test-declaration-ident already exists")
 	// name is pulled from filename, it conflicts with existing declaration
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "idx_mdm_apple_declaration_team_name")
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "Resource Already Exists: MDMAppleDeclaration.Name apple-declaration already exists")
 	// uniqueness is checked only within team, so it's fine to have the same name and identifier in different teams
 	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", testTeam.ID, nil, http.StatusOK, "")
 	// name is pulled from filename, it conflicts with existing macOS config profile
