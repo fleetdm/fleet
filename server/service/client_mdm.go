@@ -55,7 +55,7 @@ func (c *Client) RequestAppleCSR(email, org string) (*fleet.AppleCSR, error) {
 }
 
 func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*fleet.MDMAppleBootstrapPackage, error) {
-	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d/metadata", teamID)
+	verb, path := "GET", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d/metadata", teamID)
 	request := bootstrapPackageMetadataRequest{}
 	var responseBody bootstrapPackageMetadataResponse
 	var err error
@@ -68,7 +68,7 @@ func (c *Client) GetBootstrapPackageMetadata(teamID uint, forUpdate bool) (*flee
 }
 
 func (c *Client) DeleteBootstrapPackage(teamID uint) error {
-	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/apple/bootstrap/%d", teamID)
+	verb, path := "DELETE", fmt.Sprintf("/api/latest/fleet/mdm/bootstrap/%d", teamID)
 	request := deleteBootstrapPackageRequest{}
 	var responseBody deleteBootstrapPackageResponse
 	err := c.authenticatedRequest(request, verb, path, &responseBody)
@@ -76,7 +76,7 @@ func (c *Client) DeleteBootstrapPackage(teamID uint) error {
 }
 
 func (c *Client) UploadBootstrapPackage(pkg *fleet.MDMAppleBootstrapPackage) error {
-	verb, path := "POST", "/api/latest/fleet/mdm/apple/bootstrap"
+	verb, path := "POST", "/api/latest/fleet/mdm/bootstrap"
 
 	var b bytes.Buffer
 	w := multipart.NewWriter(&b)
@@ -371,4 +371,28 @@ func (c *Client) prepareAppleMDMCommand(rawCmd []byte) ([]byte, error) {
 		return nil, fmt.Errorf("marshal command plist: %w", err)
 	}
 	return b, nil
+}
+
+func (c *Client) MDMLockHost(hostID uint) error {
+	var response lockHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/lock", hostID), &response); err != nil {
+		return fmt.Errorf("lock host request: %w", err)
+	}
+	return nil
+}
+
+func (c *Client) MDMUnlockHost(hostID uint) (string, error) {
+	var response unlockHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/unlock", hostID), &response); err != nil {
+		return "", fmt.Errorf("lock host request: %w", err)
+	}
+	return response.UnlockPIN, nil
+}
+
+func (c *Client) MDMWipeHost(hostID uint) error {
+	var response wipeHostResponse
+	if err := c.authenticatedRequest(nil, "POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/wipe", hostID), &response); err != nil {
+		return fmt.Errorf("wipe host request: %w", err)
+	}
+	return nil
 }

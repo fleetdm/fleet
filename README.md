@@ -14,7 +14,7 @@ Organizations like Fastly and Gusto use Fleet for vulnerability reporting, detec
 To see what kind of data you can use Fleet to gather, check out the [table reference documentation](https://fleetdm.com/tables).
 
 #### Out-of-the-box policies
-Fleet includes out-of-the box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/pricing), as well as many [simpler queries](https://fleetdm.com/queries).
+Fleet includes out-of-the box support for all [CIS benchmarks for macOS and Windows](https://fleetdm.com/docs/using-fleet/cis-benchmarks), as well as many [simpler queries](https://fleetdm.com/queries).
 
 Take as much or as little as you need for your organization.
 

@@ -18,9 +18,9 @@ import (
 type EnterpriseOverrides struct {
 	HostFeatures   func(context context.Context, host *Host) (*Features, error)
 	TeamByIDOrName func(ctx context.Context, id *uint, name *string) (*Team, error)
-	// UpdateTeamMDMAppleSettings is the team-specific service method for when
-	// a team ID is provided to the UpdateMDMAppleSettings method.
-	UpdateTeamMDMAppleSettings func(ctx context.Context, tm *Team, payload MDMAppleSettingsPayload) error
+	// UpdateTeamMDMDiskEncryption is the team-specific service method for when
+	// a team ID is provided to the UpdateMDMDiskEncryption method.
+	UpdateTeamMDMDiskEncryption func(ctx context.Context, tm *Team, enable *bool) error
 
 	// The next two functions are implemented by the ee/service, and called
 	// properly when called from an ee/service method (e.g. Modify Team), but
@@ -308,7 +308,9 @@ type Service interface {
 
 	GetCampaignReader(ctx context.Context, campaign *DistributedQueryCampaign) (<-chan interface{}, context.CancelFunc, error)
 	CompleteCampaign(ctx context.Context, campaign *DistributedQueryCampaign) error
-	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, hostIDs []uint, deadline time.Duration) ([]QueryCampaignResult, int, error)
+	RunLiveQueryDeadline(ctx context.Context, queryIDs []uint, query string, hostIDs []uint, deadline time.Duration) (
+		[]QueryCampaignResult, int, error,
+	)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AgentOptionsService
@@ -348,8 +350,8 @@ type Service interface {
 	AddHostsToTeam(ctx context.Context, teamID *uint, hostIDs []uint, skipBulkPending bool) error
 	// AddHostsToTeamByFilter adds hosts to an existing team, clearing their team settings if teamID is nil. Hosts are
 	// selected by the label and HostListOptions provided.
-	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, opt HostListOptions, lid *uint) error
-	DeleteHosts(ctx context.Context, ids []uint, opt *HostListOptions, lid *uint) error
+	AddHostsToTeamByFilter(ctx context.Context, teamID *uint, filter *map[string]interface{}) error
+	DeleteHosts(ctx context.Context, ids []uint, filters *map[string]interface{}) error
 	CountHosts(ctx context.Context, labelID *uint, opts HostListOptions) (int, error)
 	// SearchHosts performs a search on the hosts table using the following criteria:
 	//	- matchQuery is the query SQL
@@ -364,6 +366,11 @@ type Service interface {
 	// device-authenticated API), or manually by the user (via the
 	// user-authenticated API).
 	SetCustomHostDeviceMapping(ctx context.Context, hostID uint, email string) ([]*HostDeviceMapping, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields using an "identifier" string.
+	// The identifier string will be matched against the Hostname, OsqueryHostID, NodeKey, UUID and HardwareSerial fields.
+	HostLiteByIdentifier(ctx context.Context, identifier string) (*HostLite, error)
+	// HostLiteByIdentifier returns a host and a subset of its fields from its id.
+	HostLiteByID(ctx context.Context, id uint) (*HostLite, error)
 
 	// ListDevicePolicies lists all policies for the given host, including passing / failing summaries
 	ListDevicePolicies(ctx context.Context, host *Host) ([]*HostPolicy, error)
@@ -385,6 +392,8 @@ type Service interface {
 	// filtered using the following optional criteria: team id, platform, or name and version.
 	// Name cannot be used without version, and conversely, version cannot be used without name.
 	OSVersions(ctx context.Context, teamID *uint, platform *string, name *string, version *string, opts ListOptions, includeCVSS bool) (*OSVersions, int, *PaginationMetadata, error)
+	// OSVersion returns an operating system and associated host counts
+	OSVersion(ctx context.Context, osVersionID uint, teamID *uint, includeCVSS bool) (*OSVersion, *time.Time, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// AppConfigService provides methods for configuring  the Fleet application
@@ -527,11 +536,21 @@ type Service interface {
 	// What we call "Activities" are administrative operations,
 	// logins, running a live query, etc.
 	NewActivity(ctx context.Context, user *User, activity ActivityDetails) error
+
 	// ListActivities lists the activities stored in the datastore.
 	//
 	// What we call "Activities" are administrative operations,
 	// logins, running a live query, etc.
 	ListActivities(ctx context.Context, opt ListActivitiesOptions) ([]*Activity, *PaginationMetadata, error)
+
+	// ListHostUpcomingActivities lists the upcoming activities for the specified
+	// host. Those are activities that are queued or scheduled to run on the host
+	// but haven't run yet. It also returns the total (unpaginated) count of upcoming
+	// activities.
+	ListHostUpcomingActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
+
+	// ListHostPastActivities lists the activities that have already happened for the specified host.
+	ListHostPastActivities(ctx context.Context, hostID uint, opt ListOptions) ([]*Activity, *PaginationMetadata, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// UserRolesService
@@ -577,14 +596,28 @@ type Service interface {
 	// Software
 
 	ListSoftware(ctx context.Context, opt SoftwareListOptions) ([]Software, *PaginationMetadata, error)
-	SoftwareByID(ctx context.Context, id uint, includeCVEScores bool) (*Software, error)
+	SoftwareByID(ctx context.Context, id uint, teamID *uint, includeCVEScores bool) (*Software, error)
 	CountSoftware(ctx context.Context, opt SoftwareListOptions) (int, error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Software Titles
 
 	ListSoftwareTitles(ctx context.Context, opt SoftwareTitleListOptions) ([]SoftwareTitle, int, *PaginationMetadata, error)
-	SoftwareTitleByID(ctx context.Context, id uint) (*SoftwareTitle, error)
+	SoftwareTitleByID(ctx context.Context, id uint, teamID *uint) (*SoftwareTitle, error)
+
+	// /////////////////////////////////////////////////////////////////////////////
+	// Vulnerabilities
+
+	// ListVulnerabilities returns a list of vulnerabilities based on the provided options.
+	ListVulnerabilities(ctx context.Context, opt VulnListOptions) ([]VulnerabilityWithMetadata, *PaginationMetadata, error)
+	// ListVulnerability returns a vulnerability based on the provided CVE.
+	Vulnerability(ctx context.Context, cve string, teamID *uint, useCVSScores bool) (*VulnerabilityWithMetadata, error)
+	// CountVulnerabilities returns the number of vulnerabilities based on the provided options.
+	CountVulnerabilities(ctx context.Context, opt VulnListOptions) (uint, error)
+	// ListOSVersionsByCVE returns a list of OS versions affected by the provided CVE.
+	ListOSVersionsByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableOS, updatedAt time.Time, err error)
+	// ListSoftwareByCVE returns a list of software affected by the provided CVE.
+	ListSoftwareByCVE(ctx context.Context, cve string, teamID *uint) (result []*VulnerableSoftware, updatedAt time.Time, err error)
 
 	// /////////////////////////////////////////////////////////////////////////////
 	// Team Policies
@@ -728,9 +761,9 @@ type Service interface {
 	// profile for the given team.
 	MDMAppleDisableFileVaultAndEscrow(ctx context.Context, teamID *uint) error
 
-	// UpdateMDMAppleSettings updates the specified MDM Apple settings for a
+	// UpdateMDMDiskEncryption updates the disk encryption setting for a
 	// specified team or for hosts with no team.
-	UpdateMDMAppleSettings(ctx context.Context, payload MDMAppleSettingsPayload) error
+	UpdateMDMDiskEncryption(ctx context.Context, teamID *uint, enableDiskEncryption *bool) error
 
 	// VerifyMDMAppleConfigured verifies that the server is configured for
 	// Apple MDM. If an error is returned, authorization is skipped so the
@@ -757,19 +790,19 @@ type Service interface {
 
 	GetMDMAppleBootstrapPackageSummary(ctx context.Context, teamID *uint) (*MDMAppleBootstrapPackageSummary, error)
 
-	// MDMAppleGetEULABytes returns the contents of the EULA that matches
+	// MDMGetEULABytes returns the contents of the EULA that matches
 	// the given token.
 	//
 	// A token is required as the means of authentication for this resource
 	// since it can be publicly accessed with anyone with a valid token.
-	MDMAppleGetEULABytes(ctx context.Context, token string) (*MDMAppleEULA, error)
-	// MDMAppleGetEULABytes returns metadata about the EULA file that can
+	MDMGetEULABytes(ctx context.Context, token string) (*MDMEULA, error)
+	// MDMGetEULAMetadata returns metadata about the EULA file that can
 	// be used by clients to display information.
-	MDMAppleGetEULAMetadata(ctx context.Context) (*MDMAppleEULA, error)
-	// MDMAppleCreateEULA adds a new EULA file.
-	MDMAppleCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
+	MDMGetEULAMetadata(ctx context.Context) (*MDMEULA, error)
+	// MDMCreateEULA adds a new EULA file.
+	MDMCreateEULA(ctx context.Context, name string, file io.ReadSeeker) error
 	// MDMAppleDelete EULA removes an EULA entry.
-	MDMAppleDeleteEULA(ctx context.Context, token string) error
+	MDMDeleteEULA(ctx context.Context, token string) error
 
 	// Create or update the MDM Apple Setup Assistant for a team or no team.
 	SetOrUpdateMDMAppleSetupAssistant(ctx context.Context, asst *MDMAppleSetupAssistant) (*MDMAppleSetupAssistant, error)
@@ -790,6 +823,8 @@ type Service interface {
 	// TriggerMigrateMDMDevice posts a webhook request to the URL configured
 	// for MDM macOS migration.
 	TriggerMigrateMDMDevice(ctx context.Context, host *Host) error
+
+	GetMDMManualEnrollmentProfile(ctx context.Context) ([]byte, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// CronSchedulesService
@@ -867,7 +902,10 @@ type Service interface {
 
 	// BatchSetMDMProfiles replaces the custom Windows/macOS profiles for a specified
 	// team or for hosts with no team.
-	BatchSetMDMProfiles(ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool) error
+	BatchSetMDMProfiles(
+		ctx context.Context, teamID *uint, teamName *string, profiles []MDMProfileBatchPayload, dryRun bool, skipBulkPending bool,
+		assumeEnabled bool,
+	) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Common MDM
@@ -884,6 +922,11 @@ type Service interface {
 	// result if waitForResult is > 0. If it times out waiting for a result, it
 	// fails with a 504 Gateway Timeout error.
 	RunHostScript(ctx context.Context, request *HostScriptRequestPayload, waitForResult time.Duration) (*HostScriptResult, error)
+
+	// GetScriptIDByName returns the ID of a script matching the provided name and team. If no team
+	// is provided, it will return the ID of the script with the provided name that is not
+	// associated with any team.
+	GetScriptIDByName(ctx context.Context, name string, teamID *uint) (uint, error)
 
 	// GetHostScript returns information about a host script execution.
 	GetHostScript(ctx context.Context, execID string) (*HostScriptResult, error)
@@ -914,4 +957,9 @@ type Service interface {
 	// BatchSetScripts replaces the scripts for a specified team or for
 	// hosts with no team.
 	BatchSetScripts(ctx context.Context, maybeTmID *uint, maybeTmName *string, payloads []ScriptPayload, dryRun bool) error
+
+	// Script-based methods (at least for some platforms, MDM-based for others)
+	LockHost(ctx context.Context, hostID uint) error
+	UnlockHost(ctx context.Context, hostID uint) (unlockPIN string, err error)
+	WipeHost(ctx context.Context, hostID uint) error
 }

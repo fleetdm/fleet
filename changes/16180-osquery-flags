@@ -1,3 +1,0 @@
-osquery flag validation has been updated for osquery 5.11
-- new flags have been added to validation
-- `table_exceptions` flag has been replaced with `ignore_table_exceptions`

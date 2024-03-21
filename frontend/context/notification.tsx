@@ -1,4 +1,10 @@
-import React, { createContext, useReducer, ReactNode } from "react";
+import React, {
+  createContext,
+  useReducer,
+  ReactNode,
+  useCallback,
+  useMemo,
+} from "react";
 import { INotification } from "interfaces/notification";
 import { noop } from "lodash";
 
@@ -55,9 +61,8 @@ export const NotificationContext = createContext<InitialStateType>(
 const NotificationProvider = ({ children }: Props) => {
   const [state, dispatch] = useReducer(reducer, initialState);
 
-  const value = {
-    notification: state.notification,
-    renderFlash: (
+  const renderFlash = useCallback(
+    (
       alertType: "success" | "error" | "warning-filled" | null,
       message: JSX.Element | string | null,
       undoAction?: (evt: React.MouseEvent<HTMLButtonElement>) => void
@@ -69,10 +74,21 @@ const NotificationProvider = ({ children }: Props) => {
         undoAction,
       });
     },
-    hideFlash: () => {
-      dispatch({ type: actions.HIDE_FLASH });
-    },
-  };
+    []
+  );
+
+  const hideFlash = useCallback(() => {
+    dispatch({ type: actions.HIDE_FLASH });
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      notification: state.notification,
+      renderFlash,
+      hideFlash,
+    }),
+    [state.notification, renderFlash, hideFlash]
+  );
 
   return (
     <NotificationContext.Provider value={value}>

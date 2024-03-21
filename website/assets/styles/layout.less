@@ -1,4 +1,4 @@
-@footer-height: 254px;
+@footer-height: 409px;
 @container-md-max-width: 1100px;
 
 [v-cloak] { display: none; }
@@ -20,9 +20,7 @@ html, body {
 }
 
 [purpose='header-background'] {
-  background: rgba(255, 255, 255, 0.8);
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
+  background: rgba(255, 255, 255, 0.95);
 }
 
 // Styles for the page header
@@ -308,73 +306,112 @@ html, body {
   color: #515774;
   height: @footer-height;
   width: 100%;
+  padding: 64px;
   position: absolute;
   left: 0px;
   bottom: 0px;
   a {
     color: #515774;
   }
-  [purpose='footer-logo'] {
-    width: 118px;
-    height: 41px;
-  }
-  [purpose='footer-container'] {
-    padding-left: 40px;
-    padding-right: 40px;
-    padding-bottom: 32px;
-    padding-top: 40px;
-    max-width: 1248px;
-    position: relative;
-    z-index: 198;
-  }
-  [purpose='footer-nav'] {
-    display: flex;
-    flex-direction: row;
-  }
-  [purpose='footer-bottom'] {
-    background-color: #FFF;
-    padding-left: 40px;
-    padding-right: 70px;
-  }
-  [purpose='legal-and-social-nav'] {
-    max-width: 1248px;
-    [purpose='legal-section'] {
-      font-size: 11px;
-      line-height: 18px;
-      img {
-        width: 80px;
-        height: 15px;
-      }
-      [purpose='legal-links'] {
-        a {
-          padding-left: 16px;
-          display: inline;
-          font-size: 11px;
-          line-height: 18px;
-          text-decoration: underline;
-        }
-      }
-    }
-    [purpose='footer-socials'] {
-      img {
-        height: 20px;
-        width: auto;
-        margin-top: 2px;
-      }
-    }
-  }
-
-
 }
+[purpose='footer-content'] {
+  max-width: 1200px;
+  margin-left: auto;
+  margin-right: auto;
+}
+[purpose='footer-logo'] {
+  width: 118px;
+  height: 41px;
+}
+[purpose='footer-nav'] {
+  display: flex;
+  flex-direction: row;
+  margin-left: -8px;
+  margin-right: -8px;
+  margin-bottom: 80px;
+  position: relative;
+  z-index: 101;
+}
+
+[purpose='footer-nav-header'] {
+  margin-bottom: 8px;
+}
+
+[purpose='footer-nav-column'] {
+  padding-right: 8px;
+  padding-left: 8px;
+  a {
+    font-size: 14px;
+    line-height: 150%;
+    margin-top: 8px;
+  }
+}
+
+[purpose='footer-bottom'] {
+  background-color: #FFF;
+}
+
+[purpose='footer-trust-link'] {
+  font-size: 10px;
+  line-height: 150%;
+  font-weight: 700;
+  padding: 2px 6px;
+  color: @core-fleet-black-75;
+  margin-right: 12px;
+  border-radius: 3px;
+  background: #FFF;
+  img {
+    width: 9px;
+    height: auto;
+    margin-right: 6px;
+  }
+  &:hover {
+    background-color: #F9FAFC;
+    text-decoration: none;
+  }
+}
+[purpose='legal-section'] {
+  font-size: 12px;
+  line-height: 150%;
+  [purpose='creative-commons-license'] {
+    width: 80px;
+    height: 15px;
+    margin-right: 8px;
+  }
+  [purpose='legal-links'] {
+    a {
+      margin-left: 12px;
+      display: inline;
+      text-underline-offset: 2.5px;
+      text-decoration: underline;
+    }
+  }
+}
+[purpose='footer-socials'] {
+  img {
+    height: 20px;
+    width: auto;
+    margin-top: 2px;
+  }
+}
+[purpose='page-wrap'].reduced-footer-links {
+  padding-bottom: 67px;
+}
+
 // Landing page footer styles
-[purpose='landing-footer'] {
+[purpose='reduced-nav-footer'] {
   position: absolute;
   bottom: 0px;
   width: 100%;
-  color: #FFFF;
-  background-color: #182147;
-  height: 60px;
+  height: 67px;
+  padding: 24px 32px;
+  color: @core-fleet-black-75;
+  a {
+    color: @core-fleet-black-75;
+  }
 }
+
+
 
 body.detected-mobile {
   // Above and beyond the media queries below, this selector (which relies on
@@ -388,16 +425,31 @@ body.detected-mobile {
   .homepage-cta-banner+.homepage-header-top {
     top: 72px;
   }
+  [purpose='page-wrap'] {
+    padding-bottom: 460px;
+  }
+  [purpose='page-footer'] {
+    padding: 64px 40px;
+    height: 460px;
+  }
+
+  [purpose='footer-socials'] {
+    margin-bottom: 32px;
+  }
 }
 
 @media (max-width: 767px) {
   [purpose='page-wrap'] {
-    padding-bottom: 264px;
-
-    [purpose='page-footer'] {
-      height: 264px;
-    }
+    padding-bottom: 701px;
   }
+  [purpose='footer-nav-column']:not(:last-of-type) {
+    margin-bottom: 64px;
+  }
+  [purpose='page-footer'] {
+    padding: 64px 32px;
+    height: 701px;
+  }
+
 }
 @media (max-width: 605px) {
   .homepage-cta-banner + .homepage-header-top {
@@ -406,10 +458,26 @@ body.detected-mobile {
 }
 @media (max-width: 575px) {
   [purpose='page-wrap'] {
-    padding-bottom: 371px;
-    [purpose='page-footer'] {
-      height: 371px;
-    }
+    padding-bottom: 925px;
+  }
+  [purpose='page-wrap'].reduced-footer-links {
+    padding-bottom: 97px;
+  }
+  [purpose='reduced-nav-footer'] {
+    height: 97px;
+  }
+  [purpose='page-footer'] {
+    height: 925px;
+    padding: 64px 24px;
+  }
+  [purpose='footer-nav'] {
+    margin-bottom: 64px;
+  }
+  [purpose='footer-nav-column']:not(:last-of-type) {
+    margin-bottom: 40px;
+  }
+  [purpose='license-information'] {
+    margin-bottom: 32px;
   }
   // For hiding the hubspot chat widget on mobile devices.
   #hubspot-messages-iframe-container iframe[aria-label='Chat Widget'] {
@@ -422,32 +490,6 @@ body.detected-mobile {
   }
 }
 
-@media (max-width: 490px) {
-  [purpose='header-ribbon-cta'] {
-    p {
-      width: 220px;
-    }
-  }
-  [purpose='page-wrap'] {
-    padding-bottom: 581px;
-
-    [purpose='page-footer'] {
-      height: 581px;
-
-      [purpose='footer-nav'] {
-        display: block;
-      }
-      [purpose='legal-nav'] {
-        padding-left: 0px;
-        display: block;
-      }
-    }
-    // Landing page footer styles
-    [purpose='landing-footer'] {
-      height: 80px;
-    }
-  }
-}
 @media (max-width: 393px) {
   .homepage-cta-banner + .homepage-header-top {
     top: 112px;

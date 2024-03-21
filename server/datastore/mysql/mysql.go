@@ -3,7 +3,6 @@ package mysql
 
 import (
 	"context"
-	"crypto/tls"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -28,15 +27,12 @@ import (
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql/migrations/tables"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/goose"
-	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
+	scep_depot "github.com/fleetdm/fleet/v4/server/mdm/scep/depot"
 	"github.com/go-kit/kit/log"
 	"github.com/go-kit/kit/log/level"
 	"github.com/go-sql-driver/mysql"
 	"github.com/hashicorp/go-multierror"
 	"github.com/jmoiron/sqlx"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
-	scep_depot "github.com/micromdm/scep/v2/depot"
 	"github.com/ngrok/sqlmw"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
@@ -86,6 +82,28 @@ type Datastore struct {
 	testDeleteMDMProfilesBatchSize int
 	// for tests, set to override the default batch size.
 	testUpsertMDMDesiredProfilesBatchSize int
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMAppleProfilesDB execution: if the string starts with "insert", it
+	// will be in the insert/upsert stage, "delete" for deletion, "select" to load
+	// existing ones, "reselect" to reload existing ones after insert, and "labels"
+	// to simulate an error in batch setting the profile label associations.
+	// "inselect", "inreselect", "indelete", etc. can also be used to fail the
+	// sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMAppleProfilesErr = "insert:fail"
+	testBatchSetMDMAppleProfilesErr string
+
+	// set this in tests to simulate an error at various stages in the
+	// batchSetMDMWindowsProfilesDB execution: if the string starts with "insert",
+	// it will be in the insert/upsert stage, "delete" for deletion, "select" to
+	// load existing ones, "reselect" to reload existing ones after insert, and
+	// "labels" to simulate an error in batch setting the profile label
+	// associations. "inselect", "inreselect", "indelete", etc. can also be used to
+	// fail the sqlx.In before the corresponding statement.
+	//
+	//	e.g.: testBatchSetMDMWindowsProfilesErr = "insert:fail"
+	testBatchSetMDMWindowsProfilesErr string
 }
 
 // reader returns the DB instance to use for read-only statements, which is the
@@ -144,97 +162,6 @@ func (ds *Datastore) NewSCEPDepot(caCertPEM []byte, caKeyPEM []byte) (scep_depot
 	return newSCEPDepot(ds.primary.DB, caCertPEM, caKeyPEM)
 }
 
-// NewMDMAppleMDMStorage returns a MySQL nanomdm storage that uses the Datastore
-// underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleMDMStorage(pushCertPEM []byte, pushKeyPEM []byte) (*NanoMDMStorage, error) {
-	s, err := nanomdm_mysql.New(nanomdm_mysql.WithDB(ds.primary.DB))
-	if err != nil {
-		return nil, err
-	}
-	return &NanoMDMStorage{
-		MySQLStorage: s,
-		pushCertPEM:  pushCertPEM,
-		pushKeyPEM:   pushKeyPEM,
-	}, nil
-}
-
-// NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
-type NanoMDMStorage struct {
-	*nanomdm_mysql.MySQLStorage
-
-	pushCertPEM []byte
-	pushKeyPEM  []byte
-}
-
-// RetrievePushCert partially implements nanomdm_storage.PushCertStore.
-//
-// Always returns "0" as stale token because we are not storing the APNS in MySQL storage,
-// and instead loading them at startup, thus the APNS will never be considered stale.
-func (s *NanoMDMStorage) RetrievePushCert(
-	ctx context.Context, topic string,
-) (cert *tls.Certificate, staleToken string, err error) {
-	tlsCert, err := tls.X509KeyPair(s.pushCertPEM, s.pushKeyPEM)
-	if err != nil {
-		return nil, "", err
-	}
-	return &tlsCert, "0", nil
-}
-
-// IsPushCertStale partially implements nanomdm_storage.PushCertStore.
-//
-// Given that we are not storing the APNS certificate in MySQL storage, and instead loading
-// them at startup (as env variables), the APNS will never be considered stale.
-//
-// TODO(lucas): Revisit solution to support changing the APNS.
-func (s *NanoMDMStorage) IsPushCertStale(ctx context.Context, topic, staleToken string) (bool, error) {
-	return false, nil
-}
-
-// StorePushCert partially implements nanomdm_storage.PushCertStore.
-//
-// Leaving this unimplemented as APNS certificate and key are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
-func (s *NanoMDMStorage) StorePushCert(ctx context.Context, pemCert, pemKey []byte) error {
-	return errors.New("unimplemented")
-}
-
-// NewMDMAppleDEPStorage returns a MySQL nanodep storage that uses the Datastore
-// underlying MySQL writer *sql.DB.
-func (ds *Datastore) NewMDMAppleDEPStorage(tok nanodep_client.OAuth1Tokens) (*NanoDEPStorage, error) {
-	s, err := nanodep_mysql.New(nanodep_mysql.WithDB(ds.primary.DB))
-	if err != nil {
-		return nil, err
-	}
-
-	return &NanoDEPStorage{
-		MySQLStorage: s,
-		tokens:       tok,
-	}, nil
-}
-
-// NanoDEPStorage wraps a *nanodep_mysql.MySQLStorage and overrides functionality to load
-// DEP auth tokens from memory.
-type NanoDEPStorage struct {
-	*nanodep_mysql.MySQLStorage
-
-	tokens nanodep_client.OAuth1Tokens
-}
-
-// RetrieveAuthTokens partially implements nanodep.AuthTokensRetriever.
-//
-// RetrieveAuthTokens returns the DEP auth tokens stored in memory.
-func (s *NanoDEPStorage) RetrieveAuthTokens(ctx context.Context, name string) (*nanodep_client.OAuth1Tokens, error) {
-	return &s.tokens, nil
-}
-
-// StoreAuthTokens partially implements nanodep.AuthTokensStorer.
-//
-// Leaving this unimplemented as DEP auth tokens are not stored in MySQL storage,
-// instead they are loaded to memory at startup.
-func (s *NanoDEPStorage) StoreAuthTokens(ctx context.Context, name string, tokens *nanodep_client.OAuth1Tokens) error {
-	return errors.New("unimplemented")
-}
-
 type txFn func(tx sqlx.ExtContext) error
 
 type entity struct {
@@ -271,10 +198,14 @@ func retryableError(err error) bool {
 	return false
 }
 
-// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
 func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
+	return withRetryTxx(ctx, ds.writer(ctx), fn, ds.logger)
+}
+
+// withRetryTxx provides a common way to commit/rollback a txFn wrapped in a retry with exponential backoff
+func withRetryTxx(ctx context.Context, db *sqlx.DB, fn txFn, logger log.Logger) (err error) {
 	operation := func() error {
-		tx, err := ds.writer(ctx).BeginTxx(ctx, nil)
+		tx, err := db.BeginTxx(ctx, nil)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "create transaction")
 		}
@@ -282,7 +213,7 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		defer func() {
 			if p := recover(); p != nil {
 				if err := tx.Rollback(); err != nil {
-					ds.logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
+					logger.Log("err", err, "msg", "error encountered during transaction panic rollback")
 				}
 				panic(p)
 			}
@@ -316,8 +247,13 @@ func (ds *Datastore) withRetryTxx(ctx context.Context, fn txFn) (err error) {
 		return nil
 	}
 
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxElapsedTime = 5 * time.Second
+	expBo := backoff.NewExponentialBackOff()
+	// MySQL innodb_lock_wait_timeout default is 50 seconds, so transaction can be waiting for a lock for several seconds.
+	// Setting a higher MaxElapsedTime to increase probability that transaction will be retried.
+	// This will reduce the number of retryable 'Deadlock found' errors. However, with a loaded DB, we will still see
+	// 'Context cancelled' errors when the server drops long-lasting connections.
+	expBo.MaxElapsedTime = 1 * time.Minute
+	bo := backoff.WithMaxRetries(expBo, 5)
 	return backoff.Retry(operation, bo)
 }
 
@@ -424,8 +360,13 @@ func (ds *Datastore) writeChanLoop() {
 		case *fleet.Host:
 			item.errCh <- ds.UpdateHost(item.ctx, actualItem)
 		case hostXUpdatedAt:
-			query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
-			_, err := ds.writer(item.ctx).ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+			err := ds.withRetryTxx(
+				item.ctx, func(tx sqlx.ExtContext) error {
+					query := fmt.Sprintf(`UPDATE hosts SET %s = ? WHERE id=?`, actualItem.what)
+					_, err := tx.ExecContext(item.ctx, query, actualItem.updatedAt, actualItem.hostID)
+					return err
+				},
+			)
 			item.errCh <- ctxerr.Wrap(item.ctx, err, "updating hosts label updated at")
 		}
 	}
@@ -938,10 +879,86 @@ func (ds *Datastore) whereFilterHostsByTeams(filter fleet.TeamFilter, hostKey st
 	return fmt.Sprintf("%s.team_id IN (%s)", hostKey, strings.Join(idStrs, ","))
 }
 
+// whereFilterGlobalOrTeamIDByTeams is the same as whereFilterHostsByTeams, it
+// returns the appropriate condition to use in the WHERE clause to render only
+// the appropriate teams, but is to be used when the team_id column uses "0" to
+// mean "all teams including no team". This is the case e.g. for
+// software_title_host_counts.
+//
+// filter provides the filtering parameters that should be used.
+// filterTableAlias is the name/alias of the table to use in generating the
+// SQL.
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeams(filter fleet.TeamFilter, filterTableAlias string) string {
+	globalFilter := fmt.Sprintf("%s.team_id = 0", filterTableAlias)
+	teamIDFilter := fmt.Sprintf("%s.team_id", filterTableAlias)
+	return ds.whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(filter, globalFilter, teamIDFilter)
+}
+
+func (ds *Datastore) whereFilterGlobalOrTeamIDByTeamsWithSqlFilter(
+	filter fleet.TeamFilter, globalSqlFilter string, teamIDSqlFilter string,
+) string {
+	if filter.User == nil {
+		// This is likely unintentional, however we would like to return no
+		// results rather than panicking or returning some other error. At least
+		// log.
+		level.Info(ds.logger).Log("err", "team filter missing user")
+		return "FALSE"
+	}
+
+	defaultAllowClause := globalSqlFilter
+	if filter.TeamID != nil {
+		defaultAllowClause = fmt.Sprintf("%s = %d", teamIDSqlFilter, *filter.TeamID)
+	}
+
+	if filter.User.GlobalRole != nil {
+		switch *filter.User.GlobalRole {
+		case fleet.RoleAdmin, fleet.RoleMaintainer, fleet.RoleObserverPlus:
+			return defaultAllowClause
+		case fleet.RoleObserver:
+			if filter.IncludeObserver {
+				return defaultAllowClause
+			}
+			return "FALSE"
+		default:
+			// Fall through to specific teams
+		}
+	}
+
+	// Collect matching teams
+	var idStrs []string
+	var teamIDSeen bool
+	for _, team := range filter.User.Teams {
+		if team.Role == fleet.RoleAdmin ||
+			team.Role == fleet.RoleMaintainer ||
+			team.Role == fleet.RoleObserverPlus ||
+			(team.Role == fleet.RoleObserver && filter.IncludeObserver) {
+			idStrs = append(idStrs, strconv.Itoa(int(team.ID)))
+			if filter.TeamID != nil && *filter.TeamID == team.ID {
+				teamIDSeen = true
+			}
+		}
+	}
+
+	if len(idStrs) == 0 {
+		// User has no global role and no teams allowed by includeObserver.
+		return "FALSE"
+	}
+
+	if filter.TeamID != nil {
+		if teamIDSeen {
+			// all good, this user has the right to see the requested team
+			return defaultAllowClause
+		}
+		return "FALSE"
+	}
+
+	return fmt.Sprintf("%s IN (%s)", teamIDSqlFilter, strings.Join(idStrs, ","))
+}
+
 // whereFilterTeams returns the appropriate condition to use in the WHERE
 // clause to render only the appropriate teams.
 //
-// filter provides the filtering parameters that should be used. hostKey is the
+// filter provides the filtering parameters that should be used. teamKey is the
 // name/alias of the teams table to use in generating the SQL.
 func (ds *Datastore) whereFilterTeams(filter fleet.TeamFilter, teamKey string) string {
 	if filter.User == nil {
@@ -1211,8 +1228,6 @@ func insertOnDuplicateDidUpdate(res sql.Result) bool {
 	// time of the Exec call, and the result simply returns the integers it
 	// already holds:
 	// https://github.com/go-sql-driver/mysql/blob/bcc459a906419e2890a50fc2c99ea6dd927a88f2/result.go
-	//
-	// TODO(mna): would that work on mariadb too?
 
 	lastID, _ := res.LastInsertId()
 	aff, _ := res.RowsAffected()

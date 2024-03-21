@@ -148,6 +148,8 @@ type TeamConfig struct {
 }
 
 type TeamWebhookSettings struct {
+	// HostStatusWebhook can be nil to match the TeamSpec webhook settings
+	HostStatusWebhook      *HostStatusWebhookSettings     `json:"host_status_webhook"`
 	FailingPoliciesWebhook FailingPoliciesWebhookSettings `json:"failing_policies_webhook"`
 }
 
@@ -395,12 +397,17 @@ type TeamSpec struct {
 	// If the agent_options key is present but empty in the YAML, will be set to
 	// "null" (JSON null). Otherwise, if the key is present and set, it will be
 	// set to the agent options JSON object.
-	AgentOptions       json.RawMessage       `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
-	HostExpirySettings *HostExpirySettings   `json:"host_expiry_settings,omitempty"`
-	Secrets            []EnrollSecret        `json:"secrets,omitempty"`
-	Features           *json.RawMessage      `json:"features"`
-	MDM                TeamSpecMDM           `json:"mdm"`
-	Scripts            optjson.Slice[string] `json:"scripts"`
+	AgentOptions       json.RawMessage         `json:"agent_options,omitempty"` // marshals as "null" if omitempty is not set
+	HostExpirySettings *HostExpirySettings     `json:"host_expiry_settings,omitempty"`
+	Secrets            []EnrollSecret          `json:"secrets,omitempty"`
+	Features           *json.RawMessage        `json:"features"`
+	MDM                TeamSpecMDM             `json:"mdm"`
+	Scripts            optjson.Slice[string]   `json:"scripts"`
+	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
+}
+
+type TeamSpecWebhookSettings struct {
+	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -430,6 +437,12 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 	mdmSpec.MacOSSetup = t.Config.MDM.MacOSSetup
 	mdmSpec.EnableDiskEncryption = optjson.SetBool(t.Config.MDM.EnableDiskEncryption)
 	mdmSpec.WindowsSettings = t.Config.MDM.WindowsSettings
+
+	var webhookSettings TeamSpecWebhookSettings
+	if t.Config.WebhookSettings.HostStatusWebhook != nil {
+		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
+	}
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -437,5 +450,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		Secrets:            secrets,
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
+		WebhookSettings:    webhookSettings,
 	}, nil
 }

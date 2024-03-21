@@ -148,7 +148,7 @@ func TestDebugCheckAPIEndpoint(t *testing.T) {
 		case res.code == 0:
 			panic(res.body)
 		case res.code < 0:
-			time.Sleep(timeout + time.Millisecond)
+			time.Sleep(timeout + timeout/10)
 			res.code = -res.code
 		}
 		w.WriteHeader(res.code)

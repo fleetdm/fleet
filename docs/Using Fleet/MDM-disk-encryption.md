@@ -12,7 +12,7 @@ For Windows hosts, disk encryption is enforced on the C: volume (default system/
 
 ## Enforce disk encryption
 
-You can enforce disk encryption in the Fleet UI, with Fleet API, or with the fleetctl command-line interface (CLI).
+You can enforce disk encryption using the Fleet UI, Fleet API, or [Fleet's GitOps workflow](https://github.com/fleetdm/fleet-gitops).
 
 Fleet UI:
 
@@ -22,43 +22,7 @@ Fleet UI:
 
 3. Check the box next to **Turn on** and select **Save**.
 
-Fleet API: API documentation is [here](../REST%20API/rest-api.md#update-disk-encryption-enforcement)
-
-`fleetctl` CLI:
-
-1. Choose which team you want to enforce disk encryption on.
-
-In this example, we'll enforce disk encryption on the "Workstations (canary)" team so that disk encryption only gets enforced on hosts assigned to this team.
-
-2. Create a `workstations-canary-config.yaml` file:
-
-```yaml
-apiVersion: v1
-kind: team
-spec:
-  team:
-    name: Workstations (canary)
-    mdm:
-      enable_disk_encryption: true        
-    ...
-```
-
-To enforce settings on hosts that aren't assigned to a team ("No team"), we'll need to create an `fleet-config.yaml` file:
-
-```yaml
-apiVersion: v1
-kind: config
-spec:
-  mdm:
-    enable_disk_encryption: true
-  ...
-```
-
-3. Set the `mdm.enable_disk_encryption` configuration option to `true`.
-
-4. Run the `fleetctl apply -f workstations-canary-config.yml` command.
-
-> Fleet auto-configures `DeferForceAtUserLoginMaxBypassAttempts` to `1`, ensuring mandatory disk encryption during new Mac setup.
+Fleet API: API documentation is [here](https://fleetdm.com/docs/rest-api/rest-api#update-disk-encryption-enforcement).
 
 ### Disk encryption status
 

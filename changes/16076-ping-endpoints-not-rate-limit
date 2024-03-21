@@ -1,1 +1,0 @@
-* Remove ineffective rate-limiting from `/api/fleet/orbit/ping` and `/api/fleet/device/ping` endpoints.

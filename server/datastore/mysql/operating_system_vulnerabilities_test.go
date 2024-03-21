@@ -59,9 +59,9 @@ func testListOSVulnerabilitiesByOS(t *testing.T, ds *Datastore) {
 
 	t.Run("returns matching", func(t *testing.T) {
 		expected := []fleet.OSVulnerability{
-			{CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.3")},
-			{CVE: "cve-3", OSID: 1, ResolvedInVersion: ptr.String("10.14.2")},
-			{CVE: "cve-2", OSID: 1, ResolvedInVersion: ptr.String("8.123.1")},
+			{CVE: "cve-1", OSID: 1, ResolvedInVersion: ptr.String("1.2.3"), Source: fleet.MSRCSource},
+			{CVE: "cve-3", OSID: 1, ResolvedInVersion: ptr.String("10.14.2"), Source: fleet.MSRCSource},
+			{CVE: "cve-2", OSID: 1, ResolvedInVersion: ptr.String("8.123.1"), Source: fleet.MSRCSource},
 		}
 
 		actual, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)
@@ -197,9 +197,15 @@ func testInsertOSVulnerabilities(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, int64(3), c)
 
+	expected := []fleet.OSVulnerability{
+		{CVE: "cve-1", OSID: 1, Source: fleet.MSRCSource},
+		{CVE: "cve-3", OSID: 1, Source: fleet.MSRCSource},
+		{CVE: "cve-2", OSID: 1, Source: fleet.MSRCSource},
+	}
+
 	actual, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)
 	require.NoError(t, err)
-	require.ElementsMatch(t, vulns, actual)
+	require.ElementsMatch(t, expected, actual)
 }
 
 func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
@@ -232,10 +238,13 @@ func testInsertOSVulnerability(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Equal(t, false, didInsert)
 
+	expected := vulnsUpdate
+	expected.Source = fleet.MSRCSource
+
 	list1, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)
 	require.NoError(t, err)
 	require.Len(t, list1, 1)
-	require.Equal(t, vulnsUpdate, list1[0])
+	require.Equal(t, expected, list1[0])
 }
 
 func testDeleteOSVulnerabilitiesEmpty(t *testing.T, ds *Datastore) {
@@ -275,8 +284,8 @@ func testDeleteOSVulnerabilities(t *testing.T, ds *Datastore) {
 	actual, err := ds.ListOSVulnerabilitiesByOS(ctx, 1)
 	require.NoError(t, err)
 	require.ElementsMatch(t, []fleet.OSVulnerability{
-		{CVE: "cve-1", OSID: 1},
-		{CVE: "cve-3", OSID: 1},
+		{CVE: "cve-1", OSID: 1, Source: fleet.MSRCSource},
+		{CVE: "cve-3", OSID: 1, Source: fleet.MSRCSource},
 	}, actual)
 }
 

@@ -1,3 +1,0 @@
-- Fleet now detects operating system vulnerabilities for macOS (via National Vulnerabilities Database) and Windows (via the
-Microsoft Security Resource Center).  We are extending the `os_versions` API to include
-vulnerabilities, as well as a new OS tab on the Software page.

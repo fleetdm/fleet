@@ -58,9 +58,10 @@ interface IHostsFilterBlockProps {
     mdmId?: number;
     mdmEnrollmentStatus?: any;
     lowDiskSpaceHosts?: number;
-    osId?: any;
-    osName?: any;
-    osVersion?: any;
+    osVersionId?: string;
+    osName?: string;
+    osVersion?: string;
+    vulnerability?: string;
     munkiIssueId?: number;
     osVersions?: IOperatingSystemVersion[];
     softwareDetails: { name: string; version?: string } | null;
@@ -101,9 +102,10 @@ const HostsFilterBlock = ({
     mdmId,
     mdmEnrollmentStatus,
     lowDiskSpaceHosts,
-    osId,
+    osVersionId,
     osName,
     osVersion,
+    vulnerability,
     munkiIssueId,
     munkiIssueDetails,
     policyResponse,
@@ -159,10 +161,12 @@ const HostsFilterBlock = ({
   };
 
   const renderOSFilterBlock = () => {
-    if (!osId && !(osName && osVersion)) return null;
-
     let os: IOperatingSystemVersion | undefined;
-    if (osName && osVersion) {
+    if (osVersionId) {
+      os = osVersions?.find(
+        (v) => v.os_version_id === parseInt(osVersionId, 10)
+      );
+    } else if (osName && osVersion) {
       const name: string = osName;
       const vers: string = osVersion;
 
@@ -172,6 +176,7 @@ const HostsFilterBlock = ({
           version.toLowerCase() === vers.toLowerCase()
       );
     }
+
     if (!os) return null;
 
     const { name, name_only, version } = os;
@@ -193,7 +198,21 @@ const HostsFilterBlock = ({
       <FilterPill
         label={label}
         tooltipDescription={TooltipDescription}
-        onClear={() => handleClearFilter(["os_id", "os_name", "os_version"])}
+        onClear={() =>
+          handleClearFilter(["os_version_id", "os_name", "os_version"])
+        }
+      />
+    );
+  };
+
+  const renderVulnerabilityFilterBlock = () => {
+    if (!vulnerability) return null;
+
+    return (
+      <FilterPill
+        label={vulnerability}
+        tooltipDescription={<span>Hosts affected by the specified CVE.</span>}
+        onClear={() => handleClearFilter(["vulnerability"])}
       />
     );
   };
@@ -296,7 +315,7 @@ const HostsFilterBlock = ({
     }`;
 
     // More narrow tooltip than other MDM tooltip
-    const MDM_STATUS_PILL_TOOLTIP: Record<string, JSX.Element> = {
+    const MDM_STATUS_PILL_TOOLTIP: Record<string, React.ReactNode> = {
       automatic: (
         <span>
           MDM was turned on <br />
@@ -317,14 +336,7 @@ const HostsFilterBlock = ({
           can turn MDM off.
         </span>
       ),
-      unenrolled: (
-        <span>
-          Hosts with MDM off <br />
-          don&apos;t receive macOS <br />
-          settings and macOS <br />
-          update encouragement.
-        </span>
-      ),
+      unenrolled: undefined, // no tooltip specified
       pending: (
         <span>
           Hosts ordered using Apple <br />
@@ -449,12 +461,13 @@ const HostsFilterBlock = ({
     mdmId ||
     mdmEnrollmentStatus ||
     lowDiskSpaceHosts ||
-    osId ||
+    osVersionId ||
     (osName && osVersion) ||
     munkiIssueId ||
     osSettingsStatus ||
     diskEncryptionStatus ||
-    bootstrapPackageStatus
+    bootstrapPackageStatus ||
+    vulnerability
   ) {
     const renderFilterPill = () => {
       switch (true) {
@@ -491,14 +504,15 @@ const HostsFilterBlock = ({
           return renderMDMSolutionFilterBlock();
         case !!mdmEnrollmentStatus:
           return renderMDMEnrollmentFilterBlock();
-        case !!osId || (!!osName && !!osVersion):
+        case !!osVersionId || (!!osName && !!osVersion):
           return renderOSFilterBlock();
+        case !!vulnerability:
+          return renderVulnerabilityFilterBlock();
         case !!munkiIssueId:
           return renderMunkiIssueFilterBlock();
         case !!lowDiskSpaceHosts:
           return renderLowDiskSpaceFilterBlock();
         case !!osSettingsStatus:
-          console.log("renderOsSettingsBlock");
           return renderOsSettingsBlock();
         case !!diskEncryptionStatus:
           return renderDiskEncryptionStatusBlock();

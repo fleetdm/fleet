@@ -147,6 +147,10 @@ func applyEnrollSecretsDB(ctx context.Context, q sqlx.ExtContext, teamID *uint, 
 			args = append(args, s.Secret, teamID, secretCreatedAt)
 		}
 		if _, err := q.ExecContext(ctx, sql, args...); err != nil {
+			if isDuplicate(err) {
+				// Obfuscate the secret in the error message
+				err = alreadyExists("secret", fleet.MaskedPassword)
+			}
 			return ctxerr.Wrap(ctx, err, "insert secrets")
 		}
 	}

@@ -1,3 +1,5 @@
+/** software/os OS tab > Table */
+
 import React, { useCallback, useContext, useMemo } from "react";
 import { InjectedRouter } from "react-router";
 import { Row } from "react-table";
@@ -23,8 +25,7 @@ const baseClass = "software-os-table";
 
 interface IRowProps extends Row {
   original: {
-    version?: string;
-    name_only?: string;
+    os_version_id?: string;
   };
 }
 
@@ -116,8 +117,7 @@ const SoftwareOSTable = ({
 
   const handleRowSelect = (row: IRowProps) => {
     const hostsBySoftwareParams = {
-      os_version: row.original.version,
-      os_name: row.original.name_only,
+      os_version_id: row.original.os_version_id,
       team_id: teamId,
     };
 
@@ -140,7 +140,7 @@ const SoftwareOSTable = ({
     return (
       <LastUpdatedText
         lastUpdatedAt={data.counts_updated_at}
-        whatToRetrieve={"software"}
+        whatToRetrieve="software"
       />
     );
   };
@@ -178,7 +178,7 @@ const SoftwareOSTable = ({
         columnConfigs={softwareTableHeaders}
         data={data?.os_versions ?? []}
         isLoading={isLoading}
-        resultsTitle={"items"}
+        resultsTitle="items"
         emptyComponent={() => (
           <EmptySoftwareTable
             isSoftwareDisabled={!isSoftwareEnabled}

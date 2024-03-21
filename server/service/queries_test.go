@@ -469,7 +469,7 @@ func TestQueryAuth(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			globalQuery.ID,
 			false,
-			true,
+			false,
 			false,
 		},
 		{
@@ -477,7 +477,7 @@ func TestQueryAuth(t *testing.T) {
 			&fleet.User{GlobalRole: ptr.String(fleet.RoleGitOps)},
 			teamQuery.ID,
 			false,
-			true,
+			false,
 			false,
 		},
 		{
@@ -589,7 +589,7 @@ func TestQueryAuth(t *testing.T) {
 			teamGitOps,
 			teamQuery.ID,
 			false,
-			true,
+			false,
 			false,
 		},
 		{

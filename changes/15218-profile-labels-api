@@ -1,1 +1,0 @@
-* Added the profile's `labels` object to the response payload of `GET /mdm/profiles` (list configuration profiles) and `GET /mdm/profiles/{profile_uuid}` (get a configuration profile).
