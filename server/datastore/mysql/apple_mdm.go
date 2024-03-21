@@ -3278,7 +3278,7 @@ WHERE
 
 	for _, d := range declarations {
 		checksum := md5ChecksumScriptContent(string(d.RawJSON))
-		declUUID := "x" + uuid.NewString()
+		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 		if _, err := tx.ExecContext(ctx, insertStmt,
 			declUUID,
 			d.Identifier,
@@ -3311,7 +3311,7 @@ WHERE
 }
 
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
-	declUUID := "x" + uuid.NewString()
+	declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
 	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
 
 	stmt := `

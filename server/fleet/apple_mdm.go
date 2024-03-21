@@ -549,7 +549,7 @@ const (
 
 	// MDMAppleDeclarationUUIDPrefix is the prefix used to differentiate declaration uuids
 	// from legacy Apple profile uuids and Windows profile uuids.
-	MDMAppleDeclarationUUIDPrefix = "x" // TODO: update to 'd'; add constants for other prefixes; move to mdm file
+	MDMAppleDeclarationUUIDPrefix = "d"
 )
 
 // MDMAppleDeclaration represents a DDM JSON declaration.

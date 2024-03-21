@@ -9326,7 +9326,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		err := json.NewDecoder(res.Body).Decode(&resp)
 		require.NoError(t, err)
 		require.NotEmpty(t, resp.ProfileUUID)
-		require.Equal(t, "x", string(resp.ProfileUUID[0]))
+		require.Equal(t, fleet.MDMAppleDeclarationUUIDPrefix, string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
 
@@ -9556,7 +9556,6 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, "alt", "media")
 	// get an unknown Apple declaration
-	// TODO: update the 'x' prefix when we switch to 'd' prefix for declarations
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, "alt", "media")
 	// get an unknown Windows profile
