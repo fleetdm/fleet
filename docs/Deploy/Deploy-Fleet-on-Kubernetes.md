@@ -57,14 +57,14 @@ Helm v2
 ```sh
 helm install \
   --name fleet-database \
-  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  --set auth.username=fleet,auth.database=fleet \
   oci://registry-1.docker.io/bitnamicharts/mysql
 ```
 
 Helm v3
 ```sh
 helm install fleet-database \
-  --set mysqlUser=fleet,mysqlDatabase=fleet \
+  --set auth.username=fleet,auth.database=fleet \
   oci://registry-1.docker.io/bitnamicharts/mysql 
 ```
 
