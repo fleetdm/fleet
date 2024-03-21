@@ -312,6 +312,8 @@ CREATE TABLE `host_mdm_apple_declarations` (
   `detail` text COLLATE utf8mb4_unicode_ci,
   `checksum` binary(16) NOT NULL,
   `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `declaration_identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `declaration_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`host_uuid`,`declaration_uuid`),
   KEY `status` (`status`),
   KEY `operation_type` (`operation_type`),
@@ -764,15 +766,15 @@ CREATE TABLE `mdm_configuration_profile_labels` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_declaration_labels` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+  `apple_declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   `label_name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `label_id` int(10) unsigned DEFAULT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`id`),
-  UNIQUE KEY `idx_mdm_declaration_labels_label_name` (`declaration_uuid`,`label_name`),
+  UNIQUE KEY `idx_mdm_declaration_labels_label_name` (`apple_declaration_uuid`,`label_name`),
   KEY `label_id` (`label_id`),
-  CONSTRAINT `mdm_declaration_labels_ibfk_1` FOREIGN KEY (`declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
+  CONSTRAINT `mdm_declaration_labels_ibfk_1` FOREIGN KEY (`apple_declaration_uuid`) REFERENCES `mdm_apple_declarations` (`declaration_uuid`) ON DELETE CASCADE,
   CONSTRAINT `mdm_declaration_labels_ibfk_3` FOREIGN KEY (`label_id`) REFERENCES `labels` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;

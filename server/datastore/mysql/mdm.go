@@ -272,15 +272,15 @@ func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, d
 
 	stmt := `
 SELECT
-	declaration_uuid AS profile_uuid,
+	apple_declaration_uuid AS profile_uuid,
 	label_name,
 	label_id
 FROM
 	mdm_declaration_labels
 WHERE
-	declaration_uuid IN (?)
+	apple_declaration_uuid IN (?)
 ORDER BY
-	declaration_uuid, label_name
+	apple_declaration_uuid, label_name
 	`
 
 	stmt, args, err := sqlx.In(stmt, declUUIDs)

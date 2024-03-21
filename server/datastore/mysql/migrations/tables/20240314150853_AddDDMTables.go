@@ -70,8 +70,8 @@ CREATE TABLE mdm_declaration_labels (
     -- id is used as the primary key of this table
     id int(10) unsigned NOT NULL AUTO_INCREMENT,
 
-    -- declaration_uuid references a declaration
-    declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+    -- apple_declaration_uuid references a declaration
+    apple_declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
 
     -- label name is stored here because we need to list the labels in the UI
@@ -86,9 +86,9 @@ CREATE TABLE mdm_declaration_labels (
     uploaded_at timestamp NULL DEFAULT NULL,
 
     PRIMARY KEY (id),
-    UNIQUE KEY idx_mdm_declaration_labels_label_name (declaration_uuid, label_name),
+    UNIQUE KEY idx_mdm_declaration_labels_label_name (apple_declaration_uuid, label_name),
     KEY label_id (label_id),
-    CONSTRAINT mdm_declaration_labels_ibfk_1 FOREIGN KEY (declaration_uuid) REFERENCES mdm_apple_declarations (declaration_uuid) ON DELETE CASCADE,
+    CONSTRAINT mdm_declaration_labels_ibfk_1 FOREIGN KEY (apple_declaration_uuid) REFERENCES mdm_apple_declarations (declaration_uuid) ON DELETE CASCADE,
     CONSTRAINT mdm_declaration_labels_ibfk_3 FOREIGN KEY (label_id) REFERENCES labels (id) ON DELETE SET NULL
 )
     `)
@@ -132,6 +132,12 @@ CREATE TABLE host_mdm_apple_declarations (
 
     -- declaration_uuid references the declaration assigned to the host's team
     declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
+
+   -- declaration_identifier is the identifier of the declaration
+    declaration_identifier varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
+
+    -- declaration_name is the name of the declaration
+    declaration_name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
 
     PRIMARY KEY (host_uuid, declaration_uuid),
     KEY status (status),
