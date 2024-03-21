@@ -12841,8 +12841,6 @@ INSERT INTO host_mdm_apple_declarations (
 		require.Empty(t, r.Declarations.Management)
 		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByChecksum))
 		for _, m := range r.Declarations.Configurations {
-			// look up the declaration by the server token (we trim the token to the first seven
-			// chars to match our keys because response is padded to length 16 with "\u000")
 			d, ok := expectedDeclsByChecksum[m.ServerToken]
 			require.True(t, ok)
 			require.Equal(t, d.Identifier, m.Identifier)
@@ -12927,7 +12925,7 @@ INSERT INTO host_mdm_apple_declarations (
 
 	t.Run("Declaration", func(t *testing.T) {
 		want := noTeamDeclsByUUID["123"]
-		r, err := mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configuration", want.Identifier))
+		r, err := mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
 
 		assertDeclarationResponse(r, want)
@@ -12950,7 +12948,7 @@ INSERT INTO host_mdm_apple_declarations (
 		insertDeclaration(t, noTeamDeclsByUUID["abc"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["abc"])
 		want = noTeamDeclsByUUID["abc"]
-		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configuration", want.Identifier))
+		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
 
 		assertDeclarationResponse(r, want)
