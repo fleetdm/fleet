@@ -8,7 +8,7 @@ import {
   IJiraIntegration,
   IZendeskIntegration,
   IIntegration,
-  IIntegrations,
+  IGlobalIntegrations,
   IIntegrationType,
 } from "interfaces/integration";
 import {
@@ -124,7 +124,7 @@ const ManageAutomationsModal = ({
     }
   }, [destinationUrl]);
 
-  const { data: integrations } = useQuery<IConfig, Error, IIntegrations>(
+  const { data: integrations } = useQuery<IConfig, Error, IGlobalIntegrations>(
     ["integrations"],
     () => configAPI.loadAll(),
     {

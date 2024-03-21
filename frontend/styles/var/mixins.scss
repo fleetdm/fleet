@@ -182,6 +182,15 @@ $max-width: 2560px;
   }
 }
 
+@mixin copy-message {
+  font-weight: $regular;
+  vertical-align: top;
+  background-color: $ui-light-grey;
+  border: solid 1px #e2e4ea;
+  border-radius: 10px;
+  padding: 2px 6px;
+}
+
 @mixin color-contrasted-sections {
   background-color: $ui-off-white;
   .section {

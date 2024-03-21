@@ -61,9 +61,8 @@ export interface IIntegrationFormErrors {
 }
 
 export interface IGlobalCalendarIntegration {
-  email: string;
-  private_key: string;
   domain: string;
+  api_key_json: string;
 }
 
 interface ITeamCalendarSettings {
