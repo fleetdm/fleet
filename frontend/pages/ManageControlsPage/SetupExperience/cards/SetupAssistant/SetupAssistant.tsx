@@ -6,6 +6,7 @@ import Spinner from "components/Spinner";
 import SetupAssistantPreview from "./components/SetupAssistantPreview";
 import SetupAssistantPackageUploader from "./components/SetupAssistantPackageUploader";
 import SetuAssistantUploadedProfileView from "./components/SetupAssistantUploadedProfileView/SetupAssistantUploadedProfileView";
+import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 
 const baseClass = "setup-assistant";
 
@@ -19,6 +20,8 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const isLoading = false;
 
   const noPackageUploaded = true;
+
+  const onDelete = () => {};
 
   return (
     <div className={baseClass}>
@@ -51,12 +54,12 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
           )}
         </div>
       )}
-      {/* {showDeleteProfileModal && (
-        <DeletePackageModal
+      {showDeleteProfileModal && (
+        <DeleteAutoEnrollmentProfile
           onDelete={onDelete}
-          onCancel={() => setShowDeletePackageModal(false)}
+          onCancel={() => setShowDeleteProfileModal(false)}
         />
-      )} */}
+      )}
     </div>
   );
 };
