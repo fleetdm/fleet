@@ -9297,6 +9297,39 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Equal(t, "a", string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
+	assertAppleDeclaration := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+		fields := map[string][]string{
+			"labels": labelNames,
+		}
+		if teamID > 0 {
+			fields["team_id"] = []string{fmt.Sprintf("%d", teamID)}
+		}
+
+		bytes := []byte(fmt.Sprintf(`{
+  "Type": "com.apple.configuration.foo",
+  "Payload": {
+    "Echo": "f1337"
+  },
+  "Identifier": "%s"
+}`, ident))
+
+		body, headers := generateNewProfileMultipartRequest(t, filename, bytes, s.token, fields)
+		res := s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), wantStatus, headers)
+
+		if wantErrMsg != "" {
+			errMsg := extractServerErrorText(res.Body)
+			require.Contains(t, errMsg, wantErrMsg)
+			return ""
+		}
+
+		var resp newMDMConfigProfileResponse
+		err := json.NewDecoder(res.Body).Decode(&resp)
+		require.NoError(t, err)
+		require.NotEmpty(t, resp.ProfileUUID)
+		require.Equal(t, "x", string(resp.ProfileUUID[0]))
+		return resp.ProfileUUID
+	}
+
 	createAppleProfile := func(name, ident string, teamID uint, labelNames []string) string {
 		uid := assertAppleProfile(name+".mobileconfig", name, ident, teamID, labelNames, http.StatusOK, "")
 
@@ -9377,6 +9410,23 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", testTeam.ID, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// but no conflict for no-team
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
+
+	// add some macOS declarations
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusOK, "")
+	// identifier must be unique, it conflicts with existing declaration
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusConflict, "idx_mdm_apple_declaration_team_identifier")
+	// name is pulled from filename, it conflicts with existing declaration
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "idx_mdm_apple_declaration_team_name")
+	// uniqueness is checked only within team, so it's fine to have the same name and identifier in different teams
+	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", testTeam.ID, nil, http.StatusOK, "")
+	// name is pulled from filename, it conflicts with existing macOS config profile
+	assertAppleDeclaration("apple-global-profile.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-global-profile already exists")
+	// name is pulled from filename, it conflicts with existing macOS config profile
+	assertAppleDeclaration("win-global-profile.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "win-global-profile already exists")
+	// windows profile name conflicts with existing declaration
+	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
+	// macOS profile name conflicts with existing declaration
+	assertAppleProfile("apple-declaration.mobileconfig", "apple-declaration", "test-declaration-ident", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 
 	// not an xml nor mobileconfig file
 	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
