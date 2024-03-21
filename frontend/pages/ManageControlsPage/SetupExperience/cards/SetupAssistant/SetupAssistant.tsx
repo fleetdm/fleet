@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useQuery } from "react-query";
 
 import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
+import team, { API_NO_TEAM_ID, ITeam, ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 
@@ -45,6 +45,15 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     select: (res) => res.team,
   });
 
+  const getReleaseDeviceSetting = () => {
+    if (currentTeamId === API_NO_TEAM_ID) {
+      return (
+        globalConfig?.mdm.macos_setup.enable_release_device_manually || false
+      );
+    }
+    return teamConfig?.mdm?.macos_setup.enable_release_device_manually || false;
+  };
+
   const isLoading = false;
 
   const noPackageUploaded = true;
@@ -52,6 +61,8 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const onUpload = () => {};
 
   const onDelete = () => {};
+
+  const defaultReleaseDeviceSetting = getReleaseDeviceSetting();
 
   return (
     <div className={baseClass}>
@@ -82,7 +93,11 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 onDelete={() => setShowDeleteProfileModal(true)}
               />
             )}
-            <AdvancedOptionsForm currentTeamId={currentTeamId} />
+            <AdvancedOptionsForm
+              key={String(defaultReleaseDeviceSetting)}
+              currentTeamId={currentTeamId}
+              defaultReleaseDevice={defaultReleaseDeviceSetting}
+            />
           </div>
           <div className={`${baseClass}__preview-container`}>
             <SetupAssistantPreview />

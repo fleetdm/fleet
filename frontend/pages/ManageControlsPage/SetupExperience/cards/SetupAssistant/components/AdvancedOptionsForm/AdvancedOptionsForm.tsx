@@ -12,11 +12,15 @@ const baseClass = "advanced-options-form";
 
 interface IAdvancedOptionsFormProps {
   currentTeamId: number;
+  defaultReleaseDevice: boolean;
 }
 
-const AdvancedOptionsForm = ({ currentTeamId }: IAdvancedOptionsFormProps) => {
+const AdvancedOptionsForm = ({
+  currentTeamId,
+  defaultReleaseDevice,
+}: IAdvancedOptionsFormProps) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
-  const [releaseDevice, setReleaseDevice] = useState(false);
+  const [releaseDevice, setReleaseDevice] = useState(defaultReleaseDevice);
   const { renderFlash } = useContext(NotificationContext);
 
   const accordionText = showAdvancedOptions ? "Hide" : "Show";
