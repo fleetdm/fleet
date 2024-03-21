@@ -107,7 +107,7 @@ go.mod @fleetdm/go
 /.github/ISSUE_TEMPLATE     @mikermcneil @sampfluger88 @lukeheath  # See https://github.com/fleetdm/fleet/pull/16203
 
 ##############################################################################################
-# 🦿 GitHub workflows
+# 🌐 GitHub workflows
 ##############################################################################################
 /.github/workflows/markdown-link-check-config.json @eashaw
 /.github/workflows/deploy-vulnerability-dashboard.yml @eashaw
