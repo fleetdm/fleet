@@ -136,13 +136,11 @@ const Integrations = (): JSX.Element => {
           return {
             jira: integrationSubmitData,
             zendesk: zendeskIntegrations,
-            google_calendar: integrations?.google_calendar,
           };
         }
         return {
           zendesk: integrationSubmitData,
           jira: jiraIntegrations,
-          google_calendar: integrations?.google_calendar,
         };
       };
 
@@ -228,7 +226,6 @@ const Integrations = (): JSX.Element => {
             integrations: {
               jira: integrations?.jira,
               zendesk: zendeskIntegrations,
-              google_calendar: integrations?.google_calendar,
             },
           });
         }
@@ -237,7 +234,6 @@ const Integrations = (): JSX.Element => {
           integrations: {
             zendesk: integrations?.zendesk,
             jira: jiraIntegrations,
-            google_calendar: integrations?.google_calendar,
           },
         });
       };
@@ -289,7 +285,6 @@ const Integrations = (): JSX.Element => {
               integrations: {
                 jira: integrationSubmitData,
                 zendesk: zendeskIntegrations,
-                google_calendar: integrations?.google_calendar,
               },
             });
           }
@@ -297,7 +292,6 @@ const Integrations = (): JSX.Element => {
             integrations: {
               zendesk: integrationSubmitData,
               jira: jiraIntegrations,
-              google_calendar: integrations?.google_calendar,
             },
           });
         };
@@ -420,9 +414,7 @@ const Integrations = (): JSX.Element => {
           onCancel={toggleAddIntegrationModal}
           onSubmit={onAddSubmit}
           backendValidators={backendValidators}
-          integrations={
-            integrations || { jira: [], zendesk: [], google_calendar: [] }
-          }
+          integrations={integrations || { jira: [], zendesk: [] }}
           testingConnection={testingConnection}
         />
       )}
