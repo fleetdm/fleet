@@ -7,9 +7,10 @@ CIS Benchmarks represent the consensus-based effort of cybersecurity experts glo
 For more information about CIS Benchmarks check out [Center for Internet Security](https://www.cisecurity.org/cis-benchmarks)'s website.
 
 Fleet has implemented native support for CIS Benchmarks for the following platforms:
-- macOS 13.0 Ventura (96 checks)
-- Windows 10 Enterprise (496 checks)
-- Windows 11 Enterprise (521 checks)
+- macOS 13.0 Ventura
+- macOS 14.0 Sonoma
+- Windows 10 Enterprise
+- Windows 11 Enterprise
 
 [Where possible](#limitations), each CIS Benchmark is implemented with a [policy query](./REST-API.md#policies) in Fleet. 
 
@@ -92,6 +93,7 @@ Fleet's current set of benchmarks only implements benchmark *auditing* steps tha
 
 In practice, Fleet is able to cover a large majority of benchmarks:
 * macOS 13 Ventura - 96 of 104
+* macOS 14 Sonoma - TODO of TODO
 * Windows 10 Enterprise - All CIS items (496)
 * Windows 11 Enterprise - All CIS items (521) 
 
@@ -115,6 +117,7 @@ For both the audit and remediation elements of a CIS Benchmark, there are two ty
 Fleet only implements automated audit checks. Manual checks require administrators to implement other processes to conduct the check.
 
 * macOS 13 Ventura - 96 of 104 are automated
+* macOS 14 Sonoma - TODO of TODO are automated
 * Windows 10 Enterprise - All CIS items (496) are automated
 * Windows 11 Enterprise - All CIS items (521) are automated 
 
@@ -137,9 +140,9 @@ This profile extends the "Level 1" profile. Items in this profile exhibit one or
 - are intended for environments or use cases where security is paramount or acts as defense in depth measure
 - may negatively inhibit the utility or performance of the technology.
 
-## macOS 13.0 Ventura benchmark
+## macOS 13.0 Ventura & 14.0 Sonoma benchmarks
 
-Fleet's policies have been written against v1.0 of the benchmark. Please refer to the "CIS Apple macOS 13.0 Ventura Benchmark v1.0.0 - 11-14-2022" PDF from the CIS website for full details.
+Fleet's policies have been written against v1.0 of the benchmark (13.0 Ventura) and vTODO of the benchmark (14.0 Sonoma). Please refer to the CIS website for full details.
 
 ### Checks that require customer decision
 
@@ -161,7 +164,7 @@ Furthermore, CIS has decided to not require the following password complexity se
 
 However, Fleet has provided these as policies. If your organization declines to implement these, simply delete the corresponding policy.
 
-### macOS 13.0 Ventura manual checks
+### macOS 13.0 Ventura & 14.0 Sonoma manual checks
 
 The following CIS benchmark checks cannot be automated and must be addressed manually:
 - 2.1.2 Audit App Store Password Settings
