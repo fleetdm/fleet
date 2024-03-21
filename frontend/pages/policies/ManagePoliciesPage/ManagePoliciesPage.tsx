@@ -565,16 +565,24 @@ const ManagePolicyPage = ({
         teamIdForApi
       );
 
-      // update policies calendar events enabled
-      // TODO - only update changed policies
-      const policyResponses = formData.policies.map((formPolicy) =>
-        teamPoliciesAPI.update(formPolicy.id, {
-          calendar_events_enabled: formPolicy.isChecked,
-          team_id: teamIdForApi,
-        })
-      );
+      // update changed policies calendar events enabled
+      const changedPolicies = formData.policies.filter((formPolicy) => {
+        const prevPolicyState = teamPolicies?.find(
+          (policy) => policy.id === formPolicy.id
+        );
+        return (
+          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
+        );
+      });
 
-      await Promise.all([configResponse, ...policyResponses]);
+      const changedPolicyResponses = changedPolicies.map((changedPolicy) => {
+        return teamPoliciesAPI.update(changedPolicy.id, {
+          calendar_events_enabled: changedPolicy.isChecked,
+          team_id: teamIdForApi,
+        });
+      });
+
+      await Promise.all([configResponse, ...changedPolicyResponses]);
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
