@@ -533,19 +533,19 @@ type SCEPIdentityAssociation struct {
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
 
-// MDMAppleDeclarationType is the type for the supported declaration types.
-type MDMAppleDeclarationType string
+// MDMAppleDeclarationCategory is the type for the supported declaration types.
+type MDMAppleDeclarationCategory string
 
 const (
 	// MDMAppleConfigurationDeclaration is the value for [configuration][1] declarations
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3813088
-	MDMAppleDeclarativeConfiguration MDMAppleDeclarationType = "com.apple.configuration"
+	MDMAppleDeclarativeConfiguration MDMAppleDeclarationCategory = "com.apple.configuration"
 
 	// MDMAppleActivationConfiguration is the value for [activation][1] declarations
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
-	MDMAppleDeclarativeActivation MDMAppleDeclarationType = "com.apple.activation"
+	MDMAppleDeclarativeActivation MDMAppleDeclarationCategory = "com.apple.activation"
 )
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -568,15 +568,15 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
-	// DeclarationType is the type of the declaration, at the moment we
+	// Category is the category of the declaration, at the moment we
 	// only support configurations and activations.
-	DeclarationType MDMAppleDeclarationType `db:"declaration_type"`
+	Category MDMAppleDeclarationCategory `db:"category"`
 
-	// Declaration is the raw JSON content of the declaration
-	Declaration json.RawMessage `db:"declaration" json:"-"`
+	// RawJSON is the raw JSON content of the declaration
+	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
-	// MD5Checksum is a checksum of the JSON contents
-	MD5Checksum string `db:"md5_checksum" json:"-"`
+	// Checksum is a checksum of the JSON contents
+	Checksum string `db:"checksum" json:"-"`
 
 	// Labels are the labels associated with this Declaration
 	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
@@ -683,10 +683,10 @@ type DeclarationLabel struct {
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
 	var decl MDMAppleDeclaration
 
-	decl.DeclarationType = MDMAppleDeclarationType(strings.Join(strings.Split(declType, ".")[:3], "."))
+	decl.Category = MDMAppleDeclarationCategory(strings.Join(strings.Split(declType, ".")[:3], "."))
 	decl.Identifier = ident
 	decl.Name = name
-	decl.Declaration = raw
+	decl.RawJSON = raw
 	decl.TeamID = teamID
 
 	return &decl
@@ -703,7 +703,7 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"md5_checksum"`
+	DeclarationsToken string    `db:"checksum"`
 	Timestamp         time.Time `db:"latest_created_timestamp"`
 }
 
@@ -739,9 +739,9 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	Identifier      string `db:"identifier"`
-	DeclarationType string `db:"declaration_type"`
-	ServerToken     string `db:"md5_checksum"`
+	Identifier  string `db:"identifier"`
+	Category    string `db:"category"`
+	ServerToken string `db:"checksum"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM

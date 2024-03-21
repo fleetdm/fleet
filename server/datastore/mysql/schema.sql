@@ -310,7 +310,7 @@ CREATE TABLE `host_mdm_apple_declarations` (
   `status` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `operation_type` varchar(20) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
   `detail` text COLLATE utf8mb4_unicode_ci,
-  `md5_checksum` binary(16) NOT NULL,
+  `checksum` binary(16) NOT NULL,
   `declaration_uuid` varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
   PRIMARY KEY (`host_uuid`,`declaration_uuid`),
   KEY `status` (`status`),
@@ -658,12 +658,12 @@ CREATE TABLE `mdm_apple_declaration_activation_references` (
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
-CREATE TABLE `mdm_apple_declaration_types` (
-  `declaration_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  PRIMARY KEY (`declaration_type`)
+CREATE TABLE `mdm_apple_declaration_categories` (
+  `declaration_category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  PRIMARY KEY (`declaration_category`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-INSERT INTO `mdm_apple_declaration_types` VALUES ('com.apple.activation'),('com.apple.configuration');
+INSERT INTO `mdm_apple_declaration_categories` VALUES ('com.apple.activation'),('com.apple.configuration');
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_apple_declarations` (
@@ -671,16 +671,16 @@ CREATE TABLE `mdm_apple_declarations` (
   `team_id` int(10) unsigned NOT NULL DEFAULT '0',
   `identifier` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `name` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `declaration_type` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `declaration` json NOT NULL,
-  `md5_checksum` binary(16) NOT NULL,
+  `category` varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+  `raw_json` json NOT NULL,
+  `checksum` binary(16) NOT NULL,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `uploaded_at` timestamp NULL DEFAULT NULL,
   PRIMARY KEY (`declaration_uuid`),
   UNIQUE KEY `idx_mdm_apple_declaration_team_identifier` (`team_id`,`identifier`),
   UNIQUE KEY `idx_mdm_apple_declaration_team_name` (`team_id`,`name`),
-  KEY `mdm_apple_declaration_declaration_type` (`declaration_type`),
-  CONSTRAINT `mdm_apple_declaration_declaration_type` FOREIGN KEY (`declaration_type`) REFERENCES `mdm_apple_declaration_types` (`declaration_type`) ON DELETE CASCADE
+  KEY `mdm_apple_declaration_category` (`category`),
+  CONSTRAINT `mdm_apple_declaration_category` FOREIGN KEY (`category`) REFERENCES `mdm_apple_declaration_categories` (`declaration_category`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -1470,13 +1470,6 @@ CREATE TABLE `statistics` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
-SET @saved_cs_client     = @@character_set_client;
-SET character_set_client = utf8;
-/*!50001 CREATE VIEW `team_declaration_checksum_view` AS SELECT 
- 1 AS `team_id`,
- 1 AS `md5_checksum`,
- 1 AS `latest_created_timestamp`*/;
-SET character_set_client = @saved_cs_client;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `teams` (
@@ -1643,19 +1636,6 @@ CREATE TABLE `wstep_serials` (
 /*!50001 CREATE ALGORITHM=UNDEFINED */
 /*!50013 DEFINER=`root`@`%` SQL SECURITY DEFINER */
 /*!50001 VIEW `nano_view_queue` AS select `q`.`id` AS `id`,`q`.`created_at` AS `created_at`,`q`.`active` AS `active`,`q`.`priority` AS `priority`,`c`.`command_uuid` AS `command_uuid`,`c`.`request_type` AS `request_type`,`c`.`command` AS `command`,`r`.`updated_at` AS `result_updated_at`,`r`.`status` AS `status`,`r`.`result` AS `result` from ((`nano_enrollment_queue` `q` join `nano_commands` `c` on((`q`.`command_uuid` = `c`.`command_uuid`))) left join `nano_command_results` `r` on(((`r`.`command_uuid` = `q`.`command_uuid`) and (`r`.`id` = `q`.`id`)))) order by `q`.`priority` desc,`q`.`created_at` */;
-/*!50001 SET character_set_client      = @saved_cs_client */;
-/*!50001 SET character_set_results     = @saved_cs_results */;
-/*!50001 SET collation_connection      = @saved_col_connection */;
-/*!50001 DROP VIEW IF EXISTS `team_declaration_checksum_view`*/;
-/*!50001 SET @saved_cs_client          = @@character_set_client */;
-/*!50001 SET @saved_cs_results         = @@character_set_results */;
-/*!50001 SET @saved_col_connection     = @@collation_connection */;
-/*!50001 SET character_set_client      = utf8mb4 */;
-/*!50001 SET character_set_results     = utf8mb4 */;
-/*!50001 SET collation_connection      = utf8mb4_unicode_ci */;
-/*!50001 CREATE ALGORITHM=UNDEFINED */
-/*!50013 DEFINER=`root`@`%` SQL SECURITY DEFINER */
-/*!50001 VIEW `team_declaration_checksum_view` AS select `mdm_apple_declarations`.`team_id` AS `team_id`,md5((count(0) + group_concat(hex(`mdm_apple_declarations`.`md5_checksum`) order by `mdm_apple_declarations`.`uploaded_at` DESC separator ''))) AS `md5_checksum`,max(`mdm_apple_declarations`.`created_at`) AS `latest_created_timestamp` from `mdm_apple_declarations` group by `mdm_apple_declarations`.`team_id` */;
 /*!50001 SET character_set_client      = @saved_cs_client */;
 /*!50001 SET character_set_results     = @saved_cs_results */;
 /*!50001 SET collation_connection      = @saved_col_connection */;

@@ -11,21 +11,21 @@ func init() {
 
 func Up_20240314150853(tx *sql.Tx) error {
 	_, err := tx.Exec(`
-CREATE TABLE mdm_apple_declaration_types (
-    declaration_type varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
-    PRIMARY KEY (declaration_type)
+CREATE TABLE mdm_apple_declaration_categories (
+    declaration_category varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+    PRIMARY KEY (declaration_category)
 )
   `)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("creating mdm_apple_declaration_categories table: %w", err)
 	}
 
 	_, err = tx.Exec(`
-    INSERT INTO mdm_apple_declaration_types
+    INSERT INTO mdm_apple_declaration_categories
     VALUES ('com.apple.configuration'), ('com.apple.activation')
 	`)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("inserting default values into mdm_apple_declaration_categories table: %w", err)
 	}
 
 	_, err = tx.Exec(`
@@ -42,14 +42,15 @@ CREATE TABLE mdm_apple_declarations (
     -- name is the name of the declaration
     name varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
 
-    -- declaration_type is the type of the declaration
-    declaration_type varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
+    -- category is the category of the declaration (activation,
+    -- declaration, management or asset)
+    category varchar(50) COLLATE utf8mb4_unicode_ci NOT NULL,
 
-    -- declaration contains a JSON blob with the declaration contents
-    declaration json NOT NULL,
+    -- raw_json contains a JSON blob with the declaration contents
+    raw_json json NOT NULL,
 
-    -- md5_checksum is an MD5 checksum of the declaration, in binary form
-    md5_checksum binary(16) NOT NULL,
+    -- checksum is an MD5 checksum of the declaration, in binary form
+    checksum binary(16) NOT NULL,
 
     created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
     uploaded_at timestamp NULL DEFAULT NULL,
@@ -57,11 +58,11 @@ CREATE TABLE mdm_apple_declarations (
     PRIMARY KEY (declaration_uuid),
     UNIQUE KEY idx_mdm_apple_declaration_team_identifier (team_id, identifier),
     UNIQUE KEY idx_mdm_apple_declaration_team_name (team_id, name),
-    CONSTRAINT mdm_apple_declaration_declaration_type FOREIGN KEY (declaration_type) REFERENCES mdm_apple_declaration_types (declaration_type) ON DELETE CASCADE
+    CONSTRAINT mdm_apple_declaration_category FOREIGN KEY (category) REFERENCES mdm_apple_declaration_categories (declaration_category) ON DELETE CASCADE
 )
     `)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("creating mdm_apple_declarations table: %w", err)
 	}
 
 	_, err = tx.Exec(`
@@ -92,7 +93,7 @@ CREATE TABLE mdm_declaration_labels (
 )
     `)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("creating mdm_declaration_labels table: %w", err)
 	}
 
 	_, err = tx.Exec(`
@@ -109,7 +110,7 @@ CREATE TABLE mdm_apple_declaration_activation_references (
 )
     `)
 	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("creating mdm_apple_declaration_activation_references table: %w", err)
 	}
 
 	_, err = tx.Exec(`
@@ -126,8 +127,8 @@ CREATE TABLE host_mdm_apple_declarations (
     -- detail contains any messages or errors from the protocol or Fleet
     detail text COLLATE utf8mb4_unicode_ci,
 
-    -- md5_checksum of the currently implemented declaration
-    md5_checksum binary(16) NOT NULL,
+    -- checksum of the currently implemented declaration
+    checksum binary(16) NOT NULL,
 
     -- declaration_uuid references the declaration assigned to the host's team
     declaration_uuid varchar(37) COLLATE utf8mb4_unicode_ci NOT NULL DEFAULT '',
@@ -140,26 +141,7 @@ CREATE TABLE host_mdm_apple_declarations (
 )
     `)
 	if err != nil {
-		return fmt.Errorf("%w", err)
-	}
-
-	_, err = tx.Exec(`
--- this view is used to pre-compute checksums on a team basis so they can be
--- used as the ServerToken to signal devices if they should fetch declarations.
-CREATE VIEW team_declaration_checksum_view AS
-SELECT 
-    team_id,
-    -- since GROUP_CONCAT can be truncated, we calculate the checksum based on
-    -- the latest updated items and the total number of items
-    MD5(COUNT(*) + GROUP_CONCAT(HEX(md5_checksum) ORDER BY uploaded_at DESC SEPARATOR '')) AS md5_checksum,
-    MAX(created_at) AS latest_created_timestamp
-FROM 
-    mdm_apple_declarations
-GROUP BY 
-    team_id
-	`)
-	if err != nil {
-		return fmt.Errorf("%w", err)
+		return fmt.Errorf("creatign host_mdm_apple_declarations table %w", err)
 	}
 
 	return nil

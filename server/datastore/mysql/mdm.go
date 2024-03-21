@@ -177,12 +177,12 @@ FROM (
 		name,
 		'darwin' AS platform,
 		identifier,
-		md5_checksum AS checksum,
+		checksum AS checksum,
 		created_at,
 		uploaded_at
 	FROM mdm_apple_declarations
 	WHERE team_id = ?
-	AND declaration_type <> ?
+	AND category <> ?
 ) as combined_profiles
 `
 

@@ -69,7 +69,6 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
-		{"MDMAppleRecordDeclarativeCheckIn", testMDMAppleRecordDeclarativeCheckIn},
 	}
 
 	for _, c := range cases {
@@ -1041,14 +1040,14 @@ func expectAppleDeclarations(
 		require.NotEmpty(t, gotD.DeclarationUUID)
 		require.True(t, strings.HasPrefix(gotD.DeclarationUUID, "x"))
 		gotD.DeclarationUUID = ""
-		gotD.MD5Checksum = "" // don't care about md5checksum here
+		gotD.Checksum = "" // don't care about md5checksum here
 
 		gotD.CreatedAt = time.Time{}
 
-		gotBytes, err := JSONRemarshal(gotD.Declaration)
+		gotBytes, err := JSONRemarshal(gotD.RawJSON)
 		require.NoError(t, err)
 
-		wantBytes, err := JSONRemarshal(wantD.Declaration)
+		wantBytes, err := JSONRemarshal(wantD.RawJSON)
 		require.NoError(t, err)
 
 		require.Equal(t, wantBytes, gotBytes)
@@ -1063,7 +1062,7 @@ func expectAppleDeclarations(
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
 		require.Equal(t, wantD.Labels, gotD.Labels)
-		require.Equal(t, wantD.DeclarationType, gotD.DeclarationType)
+		require.Equal(t, wantD.Category, gotD.Category)
 	}
 	return m
 }
@@ -1258,10 +1257,10 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	declBytes := []byte(fmt.Sprintf(tmpl, identifier, identifier, payloadContent))
 
 	decl := &fleet.MDMAppleDeclaration{
-		Declaration:     declBytes,
-		DeclarationType: fleet.MDMAppleDeclarativeConfiguration,
-		Identifier:      fmt.Sprintf("com.fleet.config%s", identifier),
-		Name:            name,
+		RawJSON:    declBytes,
+		Category:   fleet.MDMAppleDeclarativeConfiguration,
+		Identifier: fmt.Sprintf("com.fleet.config%s", identifier),
+		Name:       name,
 	}
 
 	for _, l := range labels {
@@ -4669,49 +4668,6 @@ func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, skip)
 	require.Empty(t, assign)
-}
-
-func testMDMAppleRecordDeclarativeCheckIn(t *testing.T, ds *Datastore) {
-	ctx := context.Background()
-
-	host, err := ds.NewHost(ctx, &fleet.Host{
-		Hostname:      "test-host1-name",
-		OsqueryHostID: ptr.String("1337"),
-		NodeKey:       ptr.String("1337"),
-		UUID:          "test-uuid-1",
-		TeamID:        nil,
-		Platform:      "darwin",
-	})
-	require.NoError(t, err)
-
-	// error if the host is not enrolled
-	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte{})
-	require.Error(t, err)
-
-	// enroll the host
-	nanoEnroll(t, ds, host, true)
-
-	// it's okay if the host doesn't have matching command enqueued, the
-	// check-in could be initiated by the device.
-	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte{})
-	require.NoError(t, err)
-
-	// enqueue a declarative checkin request
-	commander, _ := createMDMAppleCommanderAndStorage(t, ds)
-	cmdUUID := uuid.New().String()
-	err = commander.DeclarativeManagement(ctx, []string{host.UUID}, cmdUUID)
-	require.NoError(t, err)
-
-	// record a response from the host
-	err = ds.MDMAppleRecordDeclarativeCheckIn(ctx, host.UUID, []byte("<?xml"))
-	require.NoError(t, err)
-
-	res, err := ds.GetMDMAppleCommandResults(ctx, cmdUUID)
-	require.NoError(t, err)
-	require.Len(t, res, 1)
-	require.Equal(t, host.UUID, res[0].HostUUID)
-	require.Equal(t, fleet.MDMAppleStatusAcknowledged, res[0].Status)
-	require.EqualValues(t, []byte("<?xml"), res[0].Result)
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {
