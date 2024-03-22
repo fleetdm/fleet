@@ -12743,7 +12743,7 @@ INSERT INTO mdm_apple_declarations (
 	checksum,
 	created_at,
 	uploaded_at
-) VALUES (?,?,?,?,?,?,UNHEX(?),?,?)`
+) VALUES (?,?,?,?,?,UNHEX(?),?,?)`
 
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
@@ -12869,7 +12869,8 @@ INSERT INTO host_mdm_apple_declarations (
 
 	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string, expectedDeclsByChecksum map[string]fleet.MDMAppleDeclaration) {
 		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
-		require.Empty(t, r.Declarations.Activations)
+		// TODO(roberto): better assertions
+		require.NotEmpty(t, r.Declarations.Activations)
 		require.Empty(t, r.Declarations.Assets)
 		require.Empty(t, r.Declarations.Management)
 		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByChecksum))
@@ -12997,7 +12998,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		  INSERT INTO mdm_apple_declarations
 		    (declaration_uuid, team_id, identifier, name, raw_json, checksum)
 		  VALUES
-		    (UUID(), ?, ?, UUID(), 'com.apple.configuration', ?, HEX(MD5(raw_json)) )`
+		    (UUID(), ?, ?, UUID(), ?, HEX(MD5(raw_json)) )`
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
 			_, err := tx.ExecContext(ctx, stmt, teamID, identifier, declarationForTest(identifier))
 			return err
@@ -13006,17 +13007,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 
 	deleteDeclaration := func(identifier string, teamID uint) {
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
-			var uuid string
-			err := sqlx.GetContext(ctx, tx, &uuid, "SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?", teamID, identifier)
-			require.NoError(t, err)
-
-			_, err = tx.ExecContext(ctx, "DELETE FROM mdm_apple_declaration_activation_references WHERE reference = ?", uuid)
-			require.NoError(t, err)
-
-			_, err = tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE declaration_uuid = ?", uuid)
-			require.NoError(t, err)
-
-			return nil
+			_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?", teamID, identifier)
+			return err
 		})
 	}
 

@@ -3135,7 +3135,7 @@ INSERT INTO mdm_apple_declarations (
 	team_id
 )
 VALUES (
-	?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
+	?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP(),?
 )
 ON DUPLICATE KEY UPDATE
   uploaded_at = IF(checksum = VALUES(checksum) AND name = VALUES(name), uploaded_at, CURRENT_TIMESTAMP()),
@@ -3284,7 +3284,7 @@ INSERT INTO mdm_apple_declarations (
 	raw_json,
 	checksum,
 	uploaded_at)
-(SELECT ?,?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
+(SELECT ?,?,?,?,?,UNHEX(?),CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
  		SELECT 1 FROM mdm_windows_configuration_profiles WHERE name = ? AND team_id = ?
  	) AND NOT EXISTS (
