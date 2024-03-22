@@ -7,8 +7,7 @@
     "jsx": "react",
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "lib": ["ES2021.String"],
-    "useUnknownInCatchVariables": false
+    "lib": ["ES2021.String"]
   },
   "include": ["./frontend/**/*"],
   "exclude": ["node_modules"],

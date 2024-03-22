@@ -58,6 +58,16 @@ interface ICalendarsFormData {
   apiKeyJson?: string;
 }
 
+// Used to surface error.message in UI of unknown error type
+type ErrorWithMessage = {
+  message: string;
+  [key: string]: unknown;
+};
+
+const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
+  return (error as ErrorWithMessage).message !== undefined;
+};
+
 const baseClass = "calendars-integration";
 
 const Calendars = (): JSX.Element => {
@@ -108,8 +118,12 @@ const Calendars = (): JSX.Element => {
     if (curFormData.apiKeyJson) {
       try {
         JSON.parse(curFormData.apiKeyJson);
-      } catch (e) {
-        errors.apiKeyJson = e.message.toString();
+      } catch (e: unknown) {
+        if (isErrorWithMessage(e)) {
+          errors.apiKeyJson = e.message.toString();
+        } else {
+          throw e;
+        }
       }
     }
     return errors;
