@@ -315,7 +315,7 @@ const Calendars = (): JSX.Element => {
                     type="submit"
                     variant="brand"
                     disabled={Object.keys(formErrors).length > 0}
-                    className="save-loading button-wrap"
+                    className="save-loading"
                     isLoading={isUpdatingSettings}
                   >
                     Save
@@ -386,6 +386,10 @@ const Calendars = (): JSX.Element => {
                 Click <b>Enable</b>.
               </li>
             </ul>
+          </p>
+          <p>
+            You&apos;re ready to automatically schedule calendar events for end
+            users.
           </p>
         </div>
       </>
