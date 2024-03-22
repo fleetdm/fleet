@@ -125,7 +125,7 @@ func cronCalendarEventsForTeam(
 	for _, policy := range policies {
 		policyIDs = append(policyIDs, policy.ID)
 	}
-	hosts, err := ds.GetHostsPolicyMemberships(ctx, domain, policyIDs)
+	hosts, err := ds.GetTeamHostsPolicyMemberships(ctx, domain, team.ID, policyIDs)
 	if err != nil {
 		return fmt.Errorf("get team hosts failing policies: %w", err)
 	}
@@ -150,20 +150,26 @@ func cronCalendarEventsForTeam(
 	}
 	level.Debug(logger).Log(
 		"msg", "summary",
+		"team_id", team.ID,
 		"passing_hosts", len(passingHosts),
 		"failing_hosts", len(failingHosts),
 		"failing_hosts_without_associated_email", len(failingHostsWithoutAssociatedEmail),
 	)
 
+	// Remove calendar events from hosts that are passing the calendar policies.
+	//
+	// We execute this first to remove any calendar events for a user that is now passing
+	// policies on one of its hosts, and possibly create a new calendar event if they have
+	// another failing host on the same team.
+	if err := removeCalendarEventsFromPassingHosts(ctx, ds, calendar, passingHosts); err != nil {
+		level.Info(logger).Log("msg", "removing calendar events from passing hosts", "err", err)
+	}
+
+	// Process hosts that are failing calendar policies.
 	if err := processCalendarFailingHosts(
 		ctx, ds, calendar, orgName, failingHosts, logger,
 	); err != nil {
 		level.Info(logger).Log("msg", "processing failing hosts", "err", err)
-	}
-
-	// Remove calendar events from hosts that are passing the policies.
-	if err := removeCalendarEventsFromPassingHosts(ctx, ds, calendar, passingHosts); err != nil {
-		level.Info(logger).Log("msg", "removing calendar events from passing hosts", "err", err)
 	}
 
 	// At last we want to log the hosts that are failing and don't have an associated email.
@@ -184,14 +190,26 @@ func processCalendarFailingHosts(
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
 ) error {
+	hosts = filterHostsWithSameEmail(hosts)
+
 	for _, host := range hosts {
 		logger := log.With(logger, "host_id", host.HostID)
 
-		hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEvent(ctx, host.HostID)
+		hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEventByEmail(ctx, host.Email)
 
 		expiredEvent := false
 		webhookAlreadyFiredThisMonth := false
 		if err == nil {
+			if hostCalendarEvent.HostID != host.HostID {
+				// This calendar event belongs to another host with this associated email,
+				// thus we skip this entry.
+				continue // continue with next host
+			}
+			if hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusPending {
+				// This can happen if the host went offline (and never returned results)
+				// after setting the webhook as pending.
+				continue // continue with next host
+			}
 			now := time.Now()
 			webhookAlreadyFired := hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusSent
 			if webhookAlreadyFired && sameDate(now, calendarEvent.StartTime) {
@@ -200,7 +218,7 @@ func processCalendarFailingHosts(
 				continue // continue with next host
 			}
 			webhookAlreadyFiredThisMonth = webhookAlreadyFired && sameMonth(now, calendarEvent.StartTime)
-			if calendarEvent.EndTime.Before(time.Now()) {
+			if calendarEvent.EndTime.Before(now) {
 				expiredEvent = true
 			}
 		}
@@ -230,6 +248,25 @@ func processCalendarFailingHosts(
 	}
 
 	return nil
+}
+
+func filterHostsWithSameEmail(hosts []fleet.HostPolicyMembershipData) []fleet.HostPolicyMembershipData {
+	minHostPerEmail := make(map[string]fleet.HostPolicyMembershipData)
+	for _, host := range hosts {
+		minHost, ok := minHostPerEmail[host.Email]
+		if !ok {
+			minHostPerEmail[host.Email] = host
+			continue
+		}
+		if host.HostID < minHost.HostID {
+			minHostPerEmail[host.Email] = host
+		}
+	}
+	filtered := make([]fleet.HostPolicyMembershipData, 0, len(minHostPerEmail))
+	for _, host := range minHostPerEmail {
+		filtered = append(filtered, host)
+	}
+	return filtered
 }
 
 func processFailingHostExistingCalendarEvent(
@@ -416,10 +453,13 @@ func removeCalendarEventsFromPassingHosts(
 	hosts []fleet.HostPolicyMembershipData,
 ) error {
 	for _, host := range hosts {
-		calendarEvent, err := ds.GetCalendarEvent(ctx, host.Email)
+		hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEventByEmail(ctx, host.Email)
 		switch {
 		case err == nil:
-			// OK
+			if hostCalendarEvent.HostID != host.HostID {
+				// This calendar event belongs to another host, thus we skip this entry.
+				continue
+			}
 		case fleet.IsNotFound(err):
 			continue
 		default:

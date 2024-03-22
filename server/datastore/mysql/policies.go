@@ -1172,8 +1172,12 @@ func (ds *Datastore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fl
 }
 
 // TODO(lucas): Must be tested at scale.
-// TODO(lucas): Filter out hosts with team_id == NULL
-func (ds *Datastore) GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
+func (ds *Datastore) GetTeamHostsPolicyMemberships(
+	ctx context.Context,
+	domain string,
+	teamID uint,
+	policyIDs []uint,
+) ([]fleet.HostPolicyMembershipData, error) {
 	query := `
 	SELECT 
 		COALESCE(sh.email, '') AS email,
@@ -1188,18 +1192,17 @@ func (ds *Datastore) GetHostsPolicyMemberships(ctx context.Context, domain strin
 		GROUP BY host_id
 	) pm
 	LEFT JOIN (
-		SELECT MIN(h.host_id) as host_id, h.email as email
-		FROM (
-			SELECT host_id, MIN(email) AS email
-			FROM host_emails WHERE email LIKE CONCAT('%@', ?)
-			GROUP BY host_id
-		) h GROUP BY h.email
+		SELECT host_id, MIN(email) AS email
+		FROM host_emails
+		JOIN hosts ON host_emails.host_id=hosts.id
+		WHERE email LIKE CONCAT('%@', ?) AND team_id = ? 
+		GROUP BY host_id
 	) sh ON sh.host_id = pm.host_id
 	JOIN hosts h ON h.id = pm.host_id
 	LEFT JOIN host_display_names hdn ON hdn.host_id = pm.host_id;
 `
 
-	query, args, err := sqlx.In(query, policyIDs, domain)
+	query, args, err := sqlx.In(query, policyIDs, domain, teamID)
 	if err != nil {
 		return nil, ctxerr.Wrapf(ctx, err, "build select get team hosts policy memberships query")
 	}

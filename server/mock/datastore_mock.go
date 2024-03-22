@@ -440,7 +440,7 @@ type UpdateHostPolicyCountsFunc func(ctx context.Context) error
 
 type PolicyQueriesForHostFunc func(ctx context.Context, host *fleet.Host) (map[string]string, error)
 
-type GetHostsPolicyMembershipsFunc func(ctx context.Context, domain string, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error)
+type GetTeamHostsPolicyMembershipsFunc func(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error)
 
 type GetCalendarPoliciesFunc func(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error)
 
@@ -471,6 +471,8 @@ type DeleteCalendarEventFunc func(ctx context.Context, calendarEventID uint) err
 type UpdateCalendarEventFunc func(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
 
 type GetHostCalendarEventFunc func(ctx context.Context, hostID uint) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
+
+type GetHostCalendarEventByEmailFunc func(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error)
 
 type UpdateHostCalendarWebhookStatusFunc func(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error
 
@@ -1512,8 +1514,8 @@ type DataStore struct {
 	PolicyQueriesForHostFunc        PolicyQueriesForHostFunc
 	PolicyQueriesForHostFuncInvoked bool
 
-	GetHostsPolicyMembershipsFunc        GetHostsPolicyMembershipsFunc
-	GetHostsPolicyMembershipsFuncInvoked bool
+	GetTeamHostsPolicyMembershipsFunc        GetTeamHostsPolicyMembershipsFunc
+	GetTeamHostsPolicyMembershipsFuncInvoked bool
 
 	GetCalendarPoliciesFunc        GetCalendarPoliciesFunc
 	GetCalendarPoliciesFuncInvoked bool
@@ -1559,6 +1561,9 @@ type DataStore struct {
 
 	GetHostCalendarEventFunc        GetHostCalendarEventFunc
 	GetHostCalendarEventFuncInvoked bool
+
+	GetHostCalendarEventByEmailFunc        GetHostCalendarEventByEmailFunc
+	GetHostCalendarEventByEmailFuncInvoked bool
 
 	UpdateHostCalendarWebhookStatusFunc        UpdateHostCalendarWebhookStatusFunc
 	UpdateHostCalendarWebhookStatusFuncInvoked bool
@@ -3649,11 +3654,11 @@ func (s *DataStore) PolicyQueriesForHost(ctx context.Context, host *fleet.Host) 
 	return s.PolicyQueriesForHostFunc(ctx, host)
 }
 
-func (s *DataStore) GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
+func (s *DataStore) GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]fleet.HostPolicyMembershipData, error) {
 	s.mu.Lock()
-	s.GetHostsPolicyMembershipsFuncInvoked = true
+	s.GetTeamHostsPolicyMembershipsFuncInvoked = true
 	s.mu.Unlock()
-	return s.GetHostsPolicyMembershipsFunc(ctx, domain, policyIDs)
+	return s.GetTeamHostsPolicyMembershipsFunc(ctx, domain, teamID, policyIDs)
 }
 
 func (s *DataStore) GetCalendarPolicies(ctx context.Context, teamID uint) ([]fleet.PolicyCalendarData, error) {
@@ -3759,6 +3764,13 @@ func (s *DataStore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fle
 	s.GetHostCalendarEventFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetHostCalendarEventFunc(ctx, hostID)
+}
+
+func (s *DataStore) GetHostCalendarEventByEmail(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
+	s.mu.Lock()
+	s.GetHostCalendarEventByEmailFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetHostCalendarEventByEmailFunc(ctx, email)
 }
 
 func (s *DataStore) UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error {
