@@ -242,14 +242,6 @@ FROM (
 		return nil, nil, err
 	}
 
-	// // TODO: do we want to load labels separately for declarations?
-	// declLabels, err := ds.listDeclarationLabelsForDeclarations(ctx, macDeclUUIDs)
-	// if err != nil {
-	// 	return nil, nil, err
-	// }
-
-	// labels = append(labels, declLabels...)
-
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
 	for _, prof := range profs {
@@ -263,38 +255,6 @@ FROM (
 
 	return profs, metaData, nil
 }
-
-// // Note: we're using the ConfigurationProfileLabel type here since from the product perspective, MDM
-// // profiles and declarations are both "profiles".
-// func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, declUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
-// 	if len(declUUIDs) == 0 {
-// 		return []fleet.ConfigurationProfileLabel{}, nil
-// 	}
-
-// 	stmt := `
-// SELECT
-// 	apple_declaration_uuid AS profile_uuid,
-// 	label_name,
-// 	label_id
-// FROM
-// 	mdm_declaration_labels
-// WHERE
-// 	apple_declaration_uuid IN (?)
-// ORDER BY
-// 	apple_declaration_uuid, label_name
-// 	`
-
-// 	stmt, args, err := sqlx.In(stmt, declUUIDs)
-// 	if err != nil {
-// 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for declarations")
-// 	}
-
-// 	var labels []fleet.ConfigurationProfileLabel
-// 	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
-// 		return nil, ctxerr.Wrap(ctx, err, "select declaration labels")
-// 	}
-// 	return labels, nil
-// }
 
 func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
 	// load the labels associated with those profiles

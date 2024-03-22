@@ -772,7 +772,9 @@ func (svc *Service) DeleteMDMAppleDeclaration(ctx context.Context, declUUID stri
 		}
 	}
 
-	// TODO: refine our approach to deleting restricted/forbidden types of declarations
+	// TODO: refine our approach to deleting restricted/forbidden types of declarations so that we
+	// can check that Fleet-managed aren't being deleted; this can be addressed once we add support
+	// for more types of declarations
 	var d fleet.MDMAppleRawDeclaration
 	if err := json.Unmarshal(decl.RawJSON, &d); err != nil {
 		return ctxerr.Wrap(ctx, err, "unmarshalling declaration")
