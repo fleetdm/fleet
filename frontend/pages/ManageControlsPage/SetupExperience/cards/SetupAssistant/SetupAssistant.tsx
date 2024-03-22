@@ -55,6 +55,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     isLoading: isLoadingEnrollmentProfile,
     isError: isErrorEnrollmentProfile,
     error: enrollmentProfileError,
+    refetch: refetchEnrollmentProfile,
   } = useQuery<IAppleSetupEnrollmentProfileResponse, AxiosError>(
     ["enrollment_profile", currentTeamId],
     () => mdmAPI.getSetupEnrollmentProfile(currentTeamId),
@@ -73,9 +74,14 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     return teamConfig?.mdm?.macos_setup.enable_release_device_manually || false;
   };
 
-  const onUpload = () => {};
+  const onUpload = () => {
+    refetchEnrollmentProfile();
+  };
 
-  const onDelete = () => {};
+  const onDelete = () => {
+    setShowDeleteProfileModal(false);
+    refetchEnrollmentProfile();
+  };
 
   const defaultReleaseDeviceSetting = getReleaseDeviceSetting();
 
@@ -103,7 +109,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
             {enrollmentProfileNotFound ? (
               <SetupAssistantProfileUploader
                 currentTeamId={currentTeamId}
-                onUpload={() => 1}
+                onUpload={onUpload}
               />
             ) : (
               <SetuAssistantProfileCard
@@ -125,6 +131,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
       )}
       {showDeleteProfileModal && (
         <DeleteAutoEnrollmentProfile
+          currentTeamId={currentTeamId}
           onDelete={onDelete}
           onCancel={() => setShowDeleteProfileModal(false)}
         />

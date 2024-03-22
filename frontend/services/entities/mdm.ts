@@ -263,14 +263,28 @@ const mdmService = {
   uploadSetupEnrollmentProfile: (file: File, teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
 
-    const formData = new FormData();
-    formData.append("profile", file);
-    formData.append("team_id", teamId.toString());
+    const reader = new FileReader();
+    reader.readAsText(file);
 
-    return sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, formData);
+    return new Promise((resolve) => {
+      reader.addEventListener("load", () => {
+        const body: Record<string, any> = {
+          name: file.name,
+          enrollment_profile: JSON.parse(reader.result as string),
+        };
+        if (teamId !== API_NO_TEAM_ID) {
+          body.team_id = teamId;
+        }
+        resolve(sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body));
+      });
+    });
   },
   deleteSetupEnrollmentProfile: (teamId: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
+    if (teamId === API_NO_TEAM_ID) {
+      return sendRequest("DELETE", MDM_APPLE_SETUP_ENROLLMENT_PROFILE);
+    }
+
     const path = `${MDM_APPLE_SETUP_ENROLLMENT_PROFILE}?${buildQueryStringFromParams(
       { team_id: teamId }
     )}`;

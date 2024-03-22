@@ -34,14 +34,14 @@ const SetupAssistantProfileUploader = ({
     const file = files[0];
 
     // quick exit if the file type is incorrect
-    if (!file.name.includes(".json")) {
+    if (file.type !== "application/json") {
       renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
       setShowLoading(false);
       return;
     }
 
     try {
-      await mdmAPI.uploadBootstrapPackage(file, currentTeamId);
+      await mdmAPI.uploadSetupEnrollmentProfile(file, currentTeamId);
       renderFlash("success", "Successfully uploaded!");
       onUpload();
     } catch (e) {
