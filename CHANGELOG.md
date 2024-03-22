@@ -2,7 +2,6 @@
 
 ### Bug fixes
 
-
 * Fixed false negative vulnerabilities on macOS Homebrew Python packages.
 * Fixed policies to check "disable guest user".
 * Resolved the issue where Microsoft Edge was not reporting vulnerabilities.
