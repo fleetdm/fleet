@@ -3875,19 +3875,19 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
 
 ### Get host's past activity
 
-`GET /api/v1/fleet/hosts/:id/activites/past`
+`GET /api/v1/fleet/hosts/:id/activities`
 
 #### Parameters
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activities/past`
+`GET /api/v1/fleet/hosts/12/activities`
 
 ##### Default response
 
