@@ -1625,7 +1625,7 @@ func getAppleProfiles(
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			for _, labelName := range prof.Labels {
 				if lbl, ok := labelMap[labelName]; ok {
-					declLabel := fleet.DeclarationLabel{
+					declLabel := fleet.MDMAppleDeclarationLabel{
 						LabelName: lbl.LabelName,
 						LabelID:   lbl.LabelID,
 					}

@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
+	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -438,7 +439,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	return decl, nil
 }
 
-func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.DeclarationLabel, error) {
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.MDMAppleDeclarationLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -462,9 +463,9 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 		}
 	}
 
-	profLabels := make(map[string]fleet.DeclarationLabel)
+	profLabels := make(map[string]fleet.MDMAppleDeclarationLabel)
 	for labelName, labelID := range labels {
-		profLabels[labelName] = fleet.DeclarationLabel{
+		profLabels[labelName] = fleet.MDMAppleDeclarationLabel{
 			LabelName: labelName,
 			LabelID:   labelID,
 		}
@@ -472,13 +473,13 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	return profLabels, nil
 }
 
-func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.DeclarationLabel, error) {
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.MDMAppleDeclarationLabel, error) {
 	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
 	}
 
-	var declLabels []fleet.DeclarationLabel
+	var declLabels []fleet.MDMAppleDeclarationLabel
 	for _, label := range labelMap {
 		declLabels = append(declLabels, label)
 	}
@@ -2597,6 +2598,107 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 
 	if err := ds.BulkUpsertMDMAppleConfigProfiles(ctx, profiles); err != nil {
 		return ctxerr.Wrap(ctx, err, "bulk-upserting configuration profiles")
+	}
+
+	return nil
+}
+
+func ReconcileAppleDeclarations(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+
+	// TODO(roberto): move to a package (similar to the mobileconfig package)
+	alwaysTrueActivation := `
+{
+  "Identifier": "%s",
+  "Payload": {
+    "StandardConfigurations": ["%s"]
+  },
+  "ServerToken": "%s",
+  "Type": "com.apple.activation.simple"
+}
+`
+
+	// Find all the configurations that don't have a matching activation.
+	decls, err := ds.MDMAppleGetDeclarationsWithoutActivations(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "get configurations without activations")
+	}
+
+	if len(decls) > 0 {
+		logger.Log("msg", "found declarations without matching activations")
+		// And create an activation for all of them, in this first implementation:
+		//
+		// - each configuration has only one matching activation.
+		//
+		// - the matching activation doesn't have any predicates, which makes
+		//   the configuration to be installed.
+		//
+		// - the activation must belong to the same team and have the same
+		//   labels as the configuration it references.
+		activations := make(map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration, len(decls))
+		for _, d := range decls {
+			identifier := fmt.Sprintf("com.fleetdm.activation.%s", uuid.NewString())
+			rawJSON := fmt.Sprintf(alwaysTrueActivation, identifier, d.Identifier, uuid.NewString())
+			activations[d] = &fleet.MDMAppleDeclaration{
+				Identifier: identifier,
+				Name:       identifier,
+				RawJSON:    json.RawMessage(rawJSON),
+			}
+		}
+
+		// once we have built the activations, insert them. This function takes care of
+		// inserting the relationships and the labels for the new activations.
+		if err := ds.MDMAppleInsertActivations(ctx, activations); err != nil {
+			return ctxerr.Wrap(ctx, err, "inserting activations for configurations")
+		}
+
+		// if we added activations, force-use the primary DB instance
+		// for all the following reads/writes
+		ctx = ctxdb.RequirePrimary(ctx, true)
+	}
+
+	// once all the declarations are in place, compute the desired state
+	// and find which hosts need a DDM sync.
+	changedDeclarations, err := ds.MDMAppleGetHostsWithChangedDeclarations(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
+	}
+
+	if len(changedDeclarations) == 0 {
+		logger.Log("msg", "no hosts with changed declarations")
+		return nil
+	}
+
+	// a host might have more than one declaration to sync, we do this to
+	// collect unique host UUIDs in order to send a single command to each
+	// host in the next step
+	uuidMap := map[string]struct{}{}
+	for _, d := range changedDeclarations {
+		uuidMap[d.HostUUID] = struct{}{}
+	}
+	uuids := make([]string, 0, len(uuidMap))
+	for uuid := range uuidMap {
+		uuids = append(uuids, uuid)
+	}
+
+	// mark the host declarations as pending, this serves two purposes:
+	//
+	// - support the APIs/methods that track host status (summaries, filters, etc)
+	//
+	// - support the DDM endpoints, which use data from the
+	//   `host_mdm_apple_declarations` table to compute which declarations to
+	//   serve
+	if err := ds.MDMAppleBatchInsertHostDeclarations(ctx, changedDeclarations); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
+	}
+
+	// send a DeclarativeManagement command to start a sync
+	if err := commander.DeclarativeManagement(ctx, uuids, uuid.NewString()); err != nil {
+		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
 
 	return nil

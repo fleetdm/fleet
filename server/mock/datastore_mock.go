@@ -762,6 +762,14 @@ type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) 
 
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
 
+type MDMAppleGetHostsWithChangedDeclarationsFunc func(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error)
+
+type MDMAppleBatchInsertHostDeclarationsFunc func(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleGetDeclarationsWithoutActivationsFunc func(ctx context.Context) ([]*fleet.MDMAppleDeclaration, error)
+
+type MDMAppleInsertActivationsFunc func(ctx context.Context, activations map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1982,6 +1990,18 @@ type DataStore struct {
 
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
+
+	MDMAppleGetHostsWithChangedDeclarationsFunc        MDMAppleGetHostsWithChangedDeclarationsFunc
+	MDMAppleGetHostsWithChangedDeclarationsFuncInvoked bool
+
+	MDMAppleBatchInsertHostDeclarationsFunc        MDMAppleBatchInsertHostDeclarationsFunc
+	MDMAppleBatchInsertHostDeclarationsFuncInvoked bool
+
+	MDMAppleGetDeclarationsWithoutActivationsFunc        MDMAppleGetDeclarationsWithoutActivationsFunc
+	MDMAppleGetDeclarationsWithoutActivationsFuncInvoked bool
+
+	MDMAppleInsertActivationsFunc        MDMAppleInsertActivationsFunc
+	MDMAppleInsertActivationsFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4744,6 +4764,34 @@ func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declara
 	s.MDMAppleDDMDeclarationsResponseFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, declarationType, identifier, hostUUID)
+}
+
+func (s *DataStore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {
+	s.mu.Lock()
+	s.MDMAppleGetHostsWithChangedDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleGetHostsWithChangedDeclarationsFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleBatchInsertHostDeclarationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleBatchInsertHostDeclarationsFunc(ctx, changedDeclarations)
+}
+
+func (s *DataStore) MDMAppleGetDeclarationsWithoutActivations(ctx context.Context) ([]*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.MDMAppleGetDeclarationsWithoutActivationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleGetDeclarationsWithoutActivationsFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleInsertActivations(ctx context.Context, activations map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleInsertActivationsFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleInsertActivationsFunc(ctx, activations)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {

@@ -69,6 +69,8 @@ func TestMDMApple(t *testing.T) {
 		{"TestMDMAppleDeleteHostDEPAssignments", testMDMAppleDeleteHostDEPAssignments},
 		{"LockUnlockWipeMacOS", testLockUnlockWipeMacOS},
 		{"ScreenDEPAssignProfileSerialsForCooldown", testScreenDEPAssignProfileSerialsForCooldown},
+		{"MDMAppleGetDeclarationsWithoutActivations", testMDMAppleGetDeclarationsWithoutActivations},
+		{"MDMAppleInsertActivations", testMDMAppleInsertActivations},
 	}
 
 	for _, c := range cases {
@@ -1264,7 +1266,7 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		decl.Labels = append(decl.Labels, fleet.DeclarationLabel{LabelName: l.Name, LabelID: l.ID})
+		decl.Labels = append(decl.Labels, fleet.MDMAppleDeclarationLabel{LabelName: l.Name, LabelID: l.ID})
 	}
 
 	return decl
@@ -4668,6 +4670,138 @@ func testScreenDEPAssignProfileSerialsForCooldown(t *testing.T, ds *Datastore) {
 	require.NoError(t, err)
 	require.Empty(t, skip)
 	require.Empty(t, assign)
+}
+
+func testMDMAppleGetDeclarationsWithoutActivations(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// no declarations
+	decls, err := ds.MDMAppleGetDeclarationsWithoutActivations(ctx)
+	require.NoError(t, err)
+	require.Empty(t, decls, "Should be empty when no declarations exist")
+
+	insertDeclaration := func(hasActivation bool) {
+		decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+			Identifier: uuid.NewString(),
+			Name:       uuid.NewString(),
+			RawJSON:    json.RawMessage("{}"),
+			Category:   fleet.MDMAppleDeclarativeConfiguration,
+		})
+		require.NoError(t, err)
+
+		if hasActivation {
+			err := ds.MDMAppleInsertActivations(ctx, map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration{
+				decl: {
+					Identifier: uuid.NewString(),
+					Name:       uuid.NewString(),
+					RawJSON:    json.RawMessage("{}"),
+				},
+			})
+			require.NoError(t, err)
+		}
+	}
+
+	// declarations with the specified category all have activations
+	insertDeclaration(true)
+	decls, err = ds.MDMAppleGetDeclarationsWithoutActivations(ctx)
+	require.NoError(t, err)
+	require.Empty(t, decls)
+
+	// some declarations with the specified category have no activations
+	insertDeclaration(false)
+	insertDeclaration(false)
+	insertDeclaration(true)
+	decls, err = ds.MDMAppleGetDeclarationsWithoutActivations(ctx)
+	require.NoError(t, err)
+	require.Len(t, decls, 2)
+}
+
+func testMDMAppleInsertActivations(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	// nil map
+	err := ds.MDMAppleInsertActivations(ctx, nil)
+	require.NoError(t, err)
+
+	// empty map
+	err = ds.MDMAppleInsertActivations(ctx, map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration{})
+	require.NoError(t, err)
+
+	// try to create an activation for a declaration that doesn't exist
+	err = ds.MDMAppleInsertActivations(ctx, map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration{
+		{}: {
+			Identifier: uuid.NewString(),
+			Name:       uuid.NewString(),
+			RawJSON:    json.RawMessage("{}"),
+		},
+	})
+	require.Error(t, err)
+
+	// create a team
+	team, err := ds.NewTeam(ctx, &fleet.Team{Name: "test team"})
+	require.NoError(t, err)
+
+	// create a label
+	label := &fleet.Label{
+		Name:        "my label",
+		Description: "a label",
+		Query:       "select 1 from processes;",
+		Platform:    "darwin",
+	}
+	label, err = ds.NewLabel(ctx, label)
+	require.NoError(t, err)
+
+	// create a declaration
+	decl, err := ds.NewMDMAppleDeclaration(ctx, &fleet.MDMAppleDeclaration{
+		Identifier: uuid.NewString(),
+		Name:       uuid.NewString(),
+		RawJSON:    json.RawMessage("{}"),
+		Category:   fleet.MDMAppleDeclarativeConfiguration,
+		TeamID:     &team.ID,
+		Labels: []fleet.MDMAppleDeclarationLabel{
+			{
+				LabelName: label.Name,
+				LabelID:   label.ID,
+			},
+		},
+	})
+	require.NoError(t, err)
+
+	// associate an activation
+	activationIdentifier := uuid.NewString()
+	err = ds.MDMAppleInsertActivations(ctx, map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration{
+		decl: {
+			Identifier: activationIdentifier,
+			Name:       uuid.NewString(),
+			RawJSON:    json.RawMessage("{}"),
+		},
+	})
+	require.NoError(t, err)
+
+	ExecAdhocSQL(t, ds, func(tx sqlx.ExtContext) error {
+		// an activation record was created
+		var activation fleet.MDMAppleDeclaration
+		err := sqlx.GetContext(ctx, tx, &activation, `SELECT * FROM mdm_apple_declarations WHERE identifier = ?`, activationIdentifier)
+		require.NoError(t, err)
+		require.Equal(t, fleet.MDMAppleDeclarativeActivation, activation.Category)
+		require.Equal(t, decl.TeamID, activation.TeamID)
+
+		// matching labels are created
+		var labels []fleet.MDMAppleDeclarationLabel
+		err = sqlx.SelectContext(ctx, tx, &labels, `SELECT label_id, label_name FROM mdm_declaration_labels WHERE apple_declaration_uuid = ?`, activation.DeclarationUUID)
+		require.NoError(t, err)
+		require.Len(t, labels, 1)
+		require.Equal(t, label.ID, labels[0].LabelID)
+		require.Equal(t, label.Name, labels[0].LabelName)
+
+		// association is created
+		var count int
+		err = sqlx.GetContext(ctx, tx, &count, `SELECT COUNT(*) FROM mdm_apple_declaration_activation_references WHERE declaration_uuid = ? AND reference = ?`, activation.DeclarationUUID, decl.DeclarationUUID)
+		require.NoError(t, err)
+		require.Equal(t, 1, count)
+
+		return nil
+	})
 }
 
 func TestMDMAppleProfileVerification(t *testing.T) {
