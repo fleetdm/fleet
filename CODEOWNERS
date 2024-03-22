@@ -132,30 +132,30 @@ go.mod @fleetdm/go
 /.github/workflows/trivy-scan.yml @lukeheath
 /.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath
 /.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath
-/.github/workflows/fleetd-tuf.yml @lucasmrod
-/.github/workflows/generate-desktop-targets.yml @lucasmrod
-/.github/workflows/test-yml-specs.yml @lucasmrod
-/.github/workflows/build-binaries.yaml @lucasmrod
-/.github/workflows/fleet-and-orbit.yml @lucasmrod
-/.github/workflows/build-orbit.yaml @lucasmrod
-/.github/workflows/generate-osqueryd-targets.yml @lucasmrod
-/.github/workflows/test-packaging.yml @lucasmrod
-/.github/workflows/release-helm.yaml @rfairburn
-/.github/workflows/pr-helm.yaml @rfairburn
-/.github/workflows/tfvalidate.yml @rfairburn
-/.github/workflows/dogfood-deploy.yml @rfairburn
-/.github/workflows/test-db-changes.yml @roperzh
-/.github/workflows/test-go.yaml @roperzh
-/.github/workflows/golangci-lint.yml @roperzh
-/.github/workflows/test-native-tooling-packaging.yml @roperzh
-/.github/workflows/check-tuf-timestamps.yml @roperzh
-/.github/workflows/test-puppet.yml @roperzh
-/.github/workflows/generate-nudge-targets.yml @roperzh
-/.github/workflows/test-js.yml @ghernandez345
-/.github/workflows/dogfood-gitops.yml @getvictor
-/.github/workflows/test-fleetd-chrome.yml @getvictor
-/.github/workflows/release-fleetd-chrome.yml @getvictor
-/.github/workflows/release-fleetd-chrome-beta.yml @getvictor
+/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath
+/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath
+/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath
+/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath
+/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath
+/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath
+/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath
+/.github/workflows/test-packaging.yml @lucasmrod @lukeheath
+/.github/workflows/release-helm.yaml @rfairburn @lukeheath
+/.github/workflows/pr-helm.yaml @rfairburn @lukeheath
+/.github/workflows/tfvalidate.yml @rfairburn @lukeheath
+/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath
+/.github/workflows/test-db-changes.yml @roperzh @lukeheath
+/.github/workflows/test-go.yaml @roperzh @lukeheath
+/.github/workflows/golangci-lint.yml @roperzh @lukeheath
+/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath
+/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath
+/.github/workflows/test-puppet.yml @roperzh @lukeheath
+/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath
+/.github/workflows/test-js.yml @ghernandez345 @lukeheath
+/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath
+/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath
+/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath
+/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
