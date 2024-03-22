@@ -10,6 +10,7 @@ import (
 	"regexp"
 	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	kitlog "github.com/go-kit/log"
@@ -72,7 +73,7 @@ func NewGoogleCalendar(config *GoogleCalendarConfig) *GoogleCalendar {
 	case config.IntegrationConfig.ApiKey[fleet.GoogleCalendarEmail] == mockEmail:
 		config.API = &GoogleCalendarMockAPI{config.Logger}
 	default:
-		config.API = &GoogleCalendarLowLevelAPI{}
+		config.API = &GoogleCalendarLowLevelAPI{logger: config.Logger}
 	}
 	return &GoogleCalendar{
 		config: config,
@@ -95,6 +96,7 @@ type eventDetails struct {
 
 type GoogleCalendarLowLevelAPI struct {
 	service *calendar.Service
+	logger  kitlog.Logger
 }
 
 // Configure creates a new Google Calendar service using the provided credentials.
@@ -126,31 +128,77 @@ func adjustEmail(email string) string {
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetSetting(name string) (*calendar.Setting, error) {
-	return lowLevelAPI.service.Settings.Get(name).Do()
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Settings.Get(name).Do()
+		},
+	)
+	return result.(*calendar.Setting), err
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) CreateEvent(event *calendar.Event) (*calendar.Event, error) {
-	return lowLevelAPI.service.Events.Insert(calendarID, event).Do()
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Events.Insert(calendarID, event).Do()
+		},
+	)
+	return result.(*calendar.Event), err
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) GetEvent(id, eTag string) (*calendar.Event, error) {
-	return lowLevelAPI.service.Events.Get(calendarID, id).IfNoneMatch(eTag).Do()
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return lowLevelAPI.service.Events.Get(calendarID, id).IfNoneMatch(eTag).Do()
+		},
+	)
+	return result.(*calendar.Event), err
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) ListEvents(timeMin, timeMax string) (*calendar.Events, error) {
-	// Default maximum number of events returned is 250, which should be sufficient for most calendars.
-	return lowLevelAPI.service.Events.List(calendarID).
-		EventTypes("default").
-		OrderBy("startTime").
-		SingleEvents(true).
-		TimeMin(timeMin).
-		TimeMax(timeMax).
-		ShowDeleted(false).
-		Do()
+	result, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			// Default maximum number of events returned is 250, which should be sufficient for most calendars.
+			return lowLevelAPI.service.Events.List(calendarID).
+				EventTypes("default").
+				OrderBy("startTime").
+				SingleEvents(true).
+				TimeMin(timeMin).
+				TimeMax(timeMax).
+				ShowDeleted(false).
+				Do()
+		},
+	)
+	return result.(*calendar.Events), err
 }
 
 func (lowLevelAPI *GoogleCalendarLowLevelAPI) DeleteEvent(id string) error {
-	return lowLevelAPI.service.Events.Delete(calendarID, id).Do()
+	_, err := lowLevelAPI.withRetry(
+		func() (any, error) {
+			return nil, lowLevelAPI.service.Events.Delete(calendarID, id).Do()
+		},
+	)
+	return err
+}
+
+func (lowLevelAPI *GoogleCalendarLowLevelAPI) withRetry(fn func() (any, error)) (any, error) {
+	retryStrategy := backoff.NewExponentialBackOff()
+	retryStrategy.MaxElapsedTime = 10 * time.Minute
+	var result any
+	err := backoff.Retry(
+		func() error {
+			var err error
+			result, err = fn()
+			if err != nil {
+				if isRateLimited(err) {
+					level.Debug(lowLevelAPI.logger).Log("msg", "rate limited by Google calendar API", "err", err)
+					return err
+				}
+				return backoff.Permanent(err)
+			}
+			return nil
+		}, retryStrategy,
+	)
+	return result, err
 }
 
 func (c *GoogleCalendar) Configure(userEmail string) error {
@@ -306,6 +354,17 @@ func isAlreadyDeleted(err error) bool {
 	var ae *googleapi.Error
 	ok := errors.As(err, &ae)
 	return ok && ae.Code == http.StatusGone
+}
+
+func isRateLimited(err error) bool {
+	if err == nil {
+		return false
+	}
+	var ae *googleapi.Error
+	ok := errors.As(err, &ae)
+	return ok && (ae.Code == http.StatusTooManyRequests ||
+		(ae.Code == http.StatusForbidden &&
+			(ae.Message == "Rate Limit Exceeded" || ae.Message == "User Rate Limit Exceeded" || ae.Message == "Calendar usage limits exceeded.")))
 }
 
 func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDetails, error) {
