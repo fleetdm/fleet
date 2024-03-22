@@ -1,13 +1,15 @@
 import React, { useState } from "react";
 import { useQuery } from "react-query";
+import { AxiosError } from "axios";
 
 import { IConfig } from "interfaces/config";
-import { API_NO_TEAM_ID, ITeam, ITeamConfig } from "interfaces/team";
+import { API_NO_TEAM_ID, ITeamConfig } from "interfaces/team";
 import configAPI from "services/entities/config";
 import teamsAPI, { ILoadTeamResponse } from "services/entities/teams";
 import mdmAPI, {
   IAppleSetupEnrollmentProfileResponse,
 } from "services/entities/mdm";
+import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
 
 import SectionHeader from "components/SectionHeader";
 import Spinner from "components/Spinner";
@@ -18,8 +20,6 @@ import SetupAssistantProfileUploader from "./components/SetupAssistantProfileUpl
 import SetuAssistantProfileCard from "./components/SetupAssistantProfileCard/SetupAssistantProfileCard";
 import DeleteAutoEnrollmentProfile from "./components/DeleteAutoEnrollmentProfile";
 import AdvancedOptionsForm from "./components/AdvancedOptionsForm";
-import { DEFAULT_USE_QUERY_OPTIONS } from "utilities/constants";
-import { Axios, AxiosError } from "axios";
 
 const baseClass = "setup-assistant";
 
@@ -54,10 +54,14 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     data: enrollmentProfileData,
     isLoading: isLoadingEnrollmentProfile,
     isError: isErrorEnrollmentProfile,
+    error: enrollmentProfileError,
   } = useQuery<IAppleSetupEnrollmentProfileResponse, AxiosError>(
     ["enrollment_profile", currentTeamId],
     () => mdmAPI.getSetupEnrollmentProfile(currentTeamId),
-    DEFAULT_USE_QUERY_OPTIONS
+    {
+      ...DEFAULT_USE_QUERY_OPTIONS,
+      retry: false,
+    }
   );
 
   const getReleaseDeviceSetting = () => {
@@ -75,10 +79,14 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
 
   const defaultReleaseDeviceSetting = getReleaseDeviceSetting();
 
+  const isLoading =
+    isLoadingGlobalConfig || isLoadingTeamConfig || isLoadingEnrollmentProfile;
+  const enrollmentProfileNotFound = enrollmentProfileError?.status === 404;
+
   return (
     <div className={baseClass}>
       <SectionHeader title="Setup assistant" />
-      {isLoadingEnrollmentProfile ? (
+      {isLoading ? (
         <Spinner />
       ) : (
         <div className={`${baseClass}__content`}>
@@ -92,7 +100,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 newTab
               />
             </p>
-            {!enrollmentProfileData ? (
+            {enrollmentProfileNotFound ? (
               <SetupAssistantProfileUploader
                 currentTeamId={currentTeamId}
                 onUpload={() => 1}
