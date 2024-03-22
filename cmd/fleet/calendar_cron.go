@@ -378,7 +378,7 @@ func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent
 }
 
 func eventHappeningNow(now time.Time, calendarEvent *fleet.CalendarEvent) bool {
-	return now.After(calendarEvent.StartTime) && now.Before(calendarEvent.EndTime)
+	return !now.Before(calendarEvent.StartTime) && now.Before(calendarEvent.EndTime)
 }
 
 func sameDate(t1 time.Time, t2 time.Time) bool {
