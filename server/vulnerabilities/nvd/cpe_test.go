@@ -1367,6 +1367,15 @@ func TestCPEFromSoftwareIntegration(t *testing.T) {
 			// DO NOT MATCH with Cisco Umbrella
 			cpe: "",
 		},
+		{
+			software: fleet.Software{
+				Name:    "python@3.9",
+				Source:  "homebrew_packages",
+				Version: "3.9.18_2",
+				Vendor:  "",
+			},
+			cpe: `cpe:2.3:a:python:python:3.9.18_2:*:*:*:*:*:*:*`,
+		},
 	}
 
 	tempDir := t.TempDir()
