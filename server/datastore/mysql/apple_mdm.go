@@ -240,7 +240,7 @@ SELECT
 FROM
 	mdm_apple_declarations
 WHERE
-	declaration_uuid = ? AND category = 'com.apple.configuration'`
+	declaration_uuid = ?`
 
 	var res fleet.MDMAppleDeclaration
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, declUUID)

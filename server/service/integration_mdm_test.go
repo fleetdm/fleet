@@ -13053,10 +13053,23 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 		})
 	}
 
-	defer func() {
-		// delete global declarations to not affect other tests
+	// create a team
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name: teamName,
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	t.Cleanup(func() {
+		// delete declarations to not affect other tests
 		deleteDeclaration("I2", 0)
-	}()
+		deleteDeclaration("I1", team.ID)
+		deleteDeclaration("I2", team.ID)
+		deleteDeclaration("I3", team.ID)
+	})
 
 	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
 		cmd, err := d.Idle()
@@ -13158,16 +13171,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	checkNoCommands(device)
 	checkDDMSync(deviceTwo)
 
-	// create a team
-	teamName := t.Name() + "team1"
-	team := &fleet.Team{
-		Name: teamName,
-	}
-	var createTeamResp teamResponse
-	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
-	require.NotZero(t, createTeamResp.Team.ID)
-	team = createTeamResp.Team
-
 	// add device to the team
 	s.Do("POST", "/api/v1/fleet/hosts/transfer",
 		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
@@ -13222,11 +13225,8 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	// TODO: use proper APIs for this
 	// add a new label + label declaration
 	addDeclaration("I3", team.ID)
-	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "test label 1", Query: "select 1;"})
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1;"})
 	require.NoError(t, err)
-	defer func() {
-		require.NoError(t, s.ds.DeleteLabel(ctx, label.Name))
-	}()
 	// update label with host membership
 	mysql.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
