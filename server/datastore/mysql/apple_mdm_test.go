@@ -1035,10 +1035,10 @@ func expectAppleDeclarations(
 			gotD.TeamID = nil
 		}
 
-		// DeclarationUUID is non-empty and starts with "x", but otherwise we don't
+		// DeclarationUUID is non-empty and starts with "d", but otherwise we don't
 		// care about it for test assertions.
 		require.NotEmpty(t, gotD.DeclarationUUID)
-		require.True(t, strings.HasPrefix(gotD.DeclarationUUID, "x"))
+		require.True(t, strings.HasPrefix(gotD.DeclarationUUID, fleet.MDMAppleDeclarationUUIDPrefix))
 		gotD.DeclarationUUID = ""
 		gotD.Checksum = "" // don't care about md5checksum here
 
@@ -1264,7 +1264,7 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		decl.Labels = append(decl.Labels, fleet.DeclarationLabel{LabelName: l.Name, LabelID: l.ID})
+		decl.Labels = append(decl.Labels, fleet.ConfigurationProfileLabel{LabelName: l.Name, LabelID: l.ID})
 	}
 
 	return decl

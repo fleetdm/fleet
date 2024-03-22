@@ -9297,7 +9297,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		require.Equal(t, "a", string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
-	assertAppleDeclaration := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
+	assertAppleDeclaration := func(filename, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := map[string][]string{
 			"labels": labelNames,
 		}
@@ -9326,7 +9326,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		err := json.NewDecoder(res.Body).Decode(&resp)
 		require.NoError(t, err)
 		require.NotEmpty(t, resp.ProfileUUID)
-		require.Equal(t, "x", string(resp.ProfileUUID[0]))
+		require.Equal(t, fleet.MDMAppleDeclarationUUIDPrefix, string(resp.ProfileUUID[0]))
 		return resp.ProfileUUID
 	}
 
@@ -9412,17 +9412,17 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	assertAppleProfile("win-team-profile.mobileconfig", "win-team-profile", "test-team-ident-2", 0, nil, http.StatusOK, "")
 
 	// add some macOS declarations
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusOK, "")
+	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident", 0, nil, http.StatusOK, "")
 	// identifier must be unique, it conflicts with existing declaration
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", 0, nil, http.StatusConflict, "Resource Already Exists: MDMAppleDeclaration.Identifier test-declaration-ident already exists")
+	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident", 0, nil, http.StatusConflict, "test-declaration-ident already exists")
 	// name is pulled from filename, it conflicts with existing declaration
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "Resource Already Exists: MDMAppleDeclaration.Name apple-declaration already exists")
+	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-declaration already exists")
 	// uniqueness is checked only within team, so it's fine to have the same name and identifier in different teams
-	assertAppleDeclaration("apple-declaration.json", "", "test-declaration-ident", testTeam.ID, nil, http.StatusOK, "")
+	assertAppleDeclaration("apple-declaration.json", "test-declaration-ident", testTeam.ID, nil, http.StatusOK, "")
 	// name is pulled from filename, it conflicts with existing macOS config profile
-	assertAppleDeclaration("apple-global-profile.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-global-profile already exists")
+	assertAppleDeclaration("apple-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "apple-global-profile already exists")
 	// name is pulled from filename, it conflicts with existing macOS config profile
-	assertAppleDeclaration("win-global-profile.json", "", "test-declaration-ident-2", 0, nil, http.StatusConflict, "win-global-profile already exists")
+	assertAppleDeclaration("win-global-profile.json", "test-declaration-ident-2", 0, nil, http.StatusConflict, "win-global-profile already exists")
 	// windows profile name conflicts with existing declaration
 	assertWindowsProfile("apple-declaration.xml", "./Test", 0, nil, http.StatusConflict, "Couldn't upload. A configuration profile with this name already exists.")
 	// macOS profile name conflicts with existing declaration
@@ -9431,6 +9431,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// not an xml nor mobileconfig file
 	assertWindowsProfile("foo.txt", "./Test", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 	assertAppleProfile("foo.txt", "foo", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
+	assertAppleDeclaration("foo.txt", "foo-ident", 0, nil, http.StatusBadRequest, "Couldn't add profile. The file should be a .mobileconfig, XML, or JSON file.")
 
 	// Windows-reserved LocURI
 	assertWindowsProfile("bitlocker.xml", syncml.FleetBitLockerTargetLocURI, 0, nil, http.StatusBadRequest, "Couldn't upload. Custom configuration profiles can't include BitLocker settings.")
@@ -9439,11 +9440,13 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// Fleet-reserved profiles
 	for name := range servermdm.FleetReservedProfileNames() {
 		assertAppleProfile(name+".mobileconfig", name, name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %s is not allowed`, name))
+		assertAppleDeclaration(name+".json", name+"-ident", 0, nil, http.StatusBadRequest, fmt.Sprintf(`name %q is not allowed`, name))
 		assertWindowsProfile(name+".xml", "./Test", 0, nil, http.StatusBadRequest, fmt.Sprintf(`Couldn't upload. Profile name %q is not allowed.`, name))
 	}
 
 	// profiles with non-existent labels
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
 	// create a couple of labels
@@ -9456,26 +9459,33 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// profiles mixing existent and non-existent labels
 	assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
+	assertAppleDeclaration("apple-declaration-with-labels.json", "ident-with-labels", 0, []string{"does-not-exist", "foo"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 	assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"does-not-exist", "bar"}, http.StatusBadRequest, "some or all the labels provided don't exist")
 
 	// profiles with valid labels
 	uuidAppleWithLabel := assertAppleProfile("apple-profile-with-labels.mobileconfig", "apple-profile-with-labels", "ident-with-labels", 0, []string{"foo"}, http.StatusOK, "")
+	uuidAppleDDMWithLabel := assertAppleDeclaration("apple-decl-with-labels.json", "ident-decl-with-labels", 0, []string{"foo"}, http.StatusOK, "")
 	uuidWindowsWithLabel := assertWindowsProfile("win-profile-with-labels.xml", "./Test", 0, []string{"foo", "bar"}, http.StatusOK, "")
 
 	// verify that the label associations have been created
 	// TODO: update when we have datastore methods to get this data
 	var profileLabels []fleet.ConfigurationProfileLabel
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-		stmt := `SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id FROM mdm_configuration_profile_labels`
+		stmt := `
+		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id 
+		FROM mdm_configuration_profile_labels 
+		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, label_id 
+		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
 	})
 
 	require.NotEmpty(t, profileLabels)
-	require.Len(t, profileLabels, 3)
+	require.Len(t, profileLabels, 4)
 	require.ElementsMatch(
 		t,
 		[]fleet.ConfigurationProfileLabel{
 			{ProfileUUID: uuidAppleWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
+			{ProfileUUID: uuidAppleDDMWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
 			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelFoo.Name, LabelID: labelFoo.ID},
 			{ProfileUUID: uuidWindowsWithLabel, LabelName: labelBar.Name, LabelID: labelBar.ID},
 		},
@@ -9488,12 +9498,19 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	errMsg := extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't upload. The file should include valid XML:")
 
-	// Apple invalid content
+	// Apple invalid mobileconfig content
 	body, headers = generateNewProfileMultipartRequest(t,
 		"apple.mobileconfig", []byte("\x00\x01\x02"), s.token, nil)
 	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "mobileconfig is not XML nor PKCS7 parseable")
+
+	// Apple invalid json declaration
+	body, headers = generateNewProfileMultipartRequest(t,
+		"apple.json", []byte("{"), s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/latest/fleet/configuration_profiles", body.Bytes(), http.StatusBadRequest, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't upload. The file should include valid JSON:")
 
 	// get the existing profiles work
 	expectedProfiles := []fleet.MDMConfigProfilePayload{
@@ -9501,6 +9518,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		{ProfileUUID: teamAppleProfUUID, Platform: "darwin", Name: "apple-team-profile", Identifier: "test-team-ident", TeamID: &testTeam.ID},
 		{ProfileUUID: noTeamWinProfUUID, Platform: "windows", Name: "win-global-profile", TeamID: nil},
 		{ProfileUUID: teamWinProfUUID, Platform: "windows", Name: "win-team-profile", TeamID: &testTeam.ID},
+		{ProfileUUID: uuidAppleDDMWithLabel, Platform: "darwin", Name: "apple-decl-with-labels", Identifier: "ident-decl-with-labels", TeamID: nil, Labels: []fleet.ConfigurationProfileLabel{{LabelID: labelFoo.ID, LabelName: labelFoo.Name}}},
 	}
 	for _, prof := range expectedProfiles {
 		var getResp getMDMConfigProfileResponse
@@ -9519,8 +9537,10 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 		resp := s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", prof.ProfileUUID), nil, http.StatusOK, "alt", "media")
 		require.NotZero(t, resp.ContentLength)
 		require.Contains(t, resp.Header.Get("Content-Disposition"), "attachment;")
-		if getResp.Platform == "darwin" {
+		if strings.HasPrefix(prof.ProfileUUID, "a") {
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/x-apple-aspen-config")
+		} else if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
+			require.Contains(t, resp.Header.Get("Content-Type"), "application/json")
 		} else {
 			require.Contains(t, resp.Header.Get("Content-Type"), "application/octet-stream")
 		}
@@ -9535,6 +9555,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	// get an unknown Apple profile
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, "alt", "media")
+	// get an unknown Apple declaration
+	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &getResp)
+	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, "alt", "media")
 	// get an unknown Windows profile
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, &getResp)
 	s.Do("GET", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "wno-such-profile"), nil, http.StatusNotFound, "alt", "media")
@@ -9545,6 +9568,11 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamAppleProfUUID), nil, http.StatusOK, &deleteResp)
 	// delete non-existing Apple profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", "ano-such-profile"), nil, http.StatusNotFound, &deleteResp)
+
+	// delete existing Apple declaration
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", uuidAppleDDMWithLabel), nil, http.StatusOK, &deleteResp)
+	// delete non-existing Apple declaration
+	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", fmt.Sprintf("%sno-such-profile", fleet.MDMAppleDeclarationUUIDPrefix)), nil, http.StatusNotFound, &deleteResp)
 	// delete existing Windows profiles
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", noTeamWinProfUUID), nil, http.StatusOK, &deleteResp)
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", teamWinProfUUID), nil, http.StatusOK, &deleteResp)
@@ -9575,6 +9603,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 			return err
 		})
 	}
+	// TODO: Add tests for create/delete forbidden declaration types?
 
 	// make fleet add a FileVault profile
 	acResp := appConfigResponse{}
@@ -9596,6 +9625,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 
 	// try to delete the profile
 	s.DoJSON("DELETE", fmt.Sprintf("/api/latest/fleet/configuration_profiles/%s", profUUID), nil, http.StatusBadRequest, &deleteResp)
+
+	// TODO: Add tests for OS updates declaration when implemented.
 }
 
 func (s *integrationMDMTestSuite) TestListMDMConfigProfiles() {
@@ -13000,6 +13031,16 @@ INSERT INTO host_mdm_apple_declarations (
 		want = noTeamDeclsByUUID["abc"]
 		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
+
+		// try getting a non-existent declaration, should fail 404
+		_, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent"))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "404 Not Found")
+
+		// typo should fail as bad request
+		_, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configurations", want.Identifier))
+		require.Error(t, err)
+		require.ErrorContains(t, err, "400 Bad Request")
 
 		assertDeclarationResponse(r, want)
 	})

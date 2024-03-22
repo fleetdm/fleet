@@ -910,6 +910,9 @@ type Datastore interface {
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
 
+	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
+	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)
+
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)

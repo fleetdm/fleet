@@ -1019,6 +1019,25 @@ func getMDMConfigProfileEndpoint(ctx context.Context, request interface{}, svc f
 		}, nil
 	}
 
+	if isAppleDeclarationUUID(req.ProfileUUID) {
+		// TODO: we could potentially combined with the other service methods
+		decl, err := svc.GetMDMAppleDeclaration(ctx, req.ProfileUUID)
+		if err != nil {
+			return &getMDMConfigProfileResponse{Err: err}, nil
+		}
+
+		if downloadRequested {
+			return downloadFileResponse{
+				content:     decl.RawJSON,
+				contentType: "application/json",
+				filename:    fmt.Sprintf("%s_%s.json", time.Now().Format("2006-01-02"), strings.ReplaceAll(decl.Name, " ", "_")),
+			}, nil
+		}
+		return &getMDMConfigProfileResponse{
+			MDMConfigProfilePayload: fleet.NewMDMConfigProfilePayloadFromAppleDDM(decl),
+		}, nil
+	}
+
 	// Windows config profile
 	cp, err := svc.GetMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	if err != nil {
@@ -1077,6 +1096,9 @@ func deleteMDMConfigProfileEndpoint(ctx context.Context, request interface{}, sv
 	var err error
 	if isAppleProfileUUID(req.ProfileUUID) {
 		err = svc.DeleteMDMAppleConfigProfile(ctx, req.ProfileUUID)
+	} else if isAppleDeclarationUUID(req.ProfileUUID) {
+		// TODO: we could potentially combined with the other service methods
+		err = svc.DeleteMDMAppleDeclaration(ctx, req.ProfileUUID)
 	} else {
 		err = svc.DeleteMDMWindowsConfigProfile(ctx, req.ProfileUUID)
 	}
@@ -1155,6 +1177,10 @@ func (svc *Service) DeleteMDMWindowsConfigProfile(ctx context.Context, profileUU
 // or 0 and false otherwise.
 func isAppleProfileUUID(profileUUID string) bool {
 	return strings.HasPrefix(profileUUID, "a")
+}
+
+func isAppleDeclarationUUID(profileUUID string) bool {
+	return strings.HasPrefix(profileUUID, fleet.MDMAppleDeclarationUUIDPrefix)
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -1625,7 +1651,7 @@ func getAppleProfiles(
 			mdmDecl := fleet.NewMDMAppleDeclaration(prof.Contents, tmID, prof.Name, rawDecl.Type, rawDecl.Identifier)
 			for _, labelName := range prof.Labels {
 				if lbl, ok := labelMap[labelName]; ok {
-					declLabel := fleet.DeclarationLabel{
+					declLabel := fleet.ConfigurationProfileLabel{
 						LabelName: lbl.LabelName,
 						LabelID:   lbl.LabelID,
 					}
