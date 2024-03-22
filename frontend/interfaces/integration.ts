@@ -75,15 +75,17 @@ interface ITeamCalendarSettings {
 // separated – it can be present without the other 2 without nullifying them.
 // TODO:  Update these types to reflect this.
 
-export interface IIntegrations {
+export interface IZendeskJiraIntegrations {
   zendesk: IZendeskIntegration[];
   jira: IJiraIntegration[];
 }
 
-export interface IGlobalIntegrations extends IIntegrations {
+// reality is that IZendeskJiraIntegrations are optional – should be something like `extends
+// Partial<IZendeskJiraIntegrations>`, but that leads to a mess of types to resolve.
+export interface IGlobalIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: IGlobalCalendarIntegration[] | null;
 }
 
-export interface ITeamIntegrations extends IIntegrations {
+export interface ITeamIntegrations extends IZendeskJiraIntegrations {
   google_calendar?: ITeamCalendarSettings | null;
 }
