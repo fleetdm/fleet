@@ -193,7 +193,7 @@ func processCalendarFailingHosts(
 ) error {
 	hosts = filterHostsWithSameEmail(hosts)
 
-	const consumers = 100
+	const consumers = 20
 	hostsCh := make(chan fleet.HostPolicyMembershipData)
 	g, ctx := errgroup.WithContext(ctx)
 
@@ -473,7 +473,7 @@ func removeCalendarEventsFromPassingHosts(
 		})
 	}
 
-	const consumers = 100
+	const consumers = 20
 	emailsCh := make(chan emailWithHosts)
 	g, ctx := errgroup.WithContext(ctx)
 
