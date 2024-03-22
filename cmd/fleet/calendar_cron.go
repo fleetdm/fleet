@@ -198,7 +198,6 @@ func processCalendarFailingHosts(
 		hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEventByEmail(ctx, host.Email)
 
 		expiredEvent := false
-		webhookAlreadyFiredThisMonth := false
 		if err == nil {
 			if hostCalendarEvent.HostID != host.HostID {
 				// This calendar event belongs to another host with this associated email,
@@ -217,7 +216,6 @@ func processCalendarFailingHosts(
 				// we give a grace period of one day for the host before we schedule a new event.
 				continue // continue with next host
 			}
-			webhookAlreadyFiredThisMonth = webhookAlreadyFired && sameMonth(now, calendarEvent.StartTime)
 			if calendarEvent.EndTime.Before(now) {
 				expiredEvent = true
 			}
@@ -237,7 +235,7 @@ func processCalendarFailingHosts(
 			}
 		case fleet.IsNotFound(err) || expiredEvent:
 			if err := processFailingHostCreateCalendarEvent(
-				ctx, ds, userCalendar, orgName, host, webhookAlreadyFiredThisMonth,
+				ctx, ds, userCalendar, orgName, host,
 			); err != nil {
 				level.Info(logger).Log("msg", "process failing host create calendar event", "err", err)
 				continue // continue with next host
@@ -357,21 +355,14 @@ func sameDate(t1 time.Time, t2 time.Time) bool {
 	return y1 == y2 && m1 == m2 && d1 == d2
 }
 
-func sameMonth(t1 time.Time, t2 time.Time) bool {
-	y1, m1, _ := t1.Date()
-	y2, m2, _ := t2.Date()
-	return y1 == y2 && m1 == m2
-}
-
 func processFailingHostCreateCalendarEvent(
 	ctx context.Context,
 	ds fleet.Datastore,
 	userCalendar fleet.UserCalendar,
 	orgName string,
 	host fleet.HostPolicyMembershipData,
-	webhookAlreadyFiredThisMonth bool,
 ) error {
-	calendarEvent, err := attemptCreatingEventOnUserCalendar(orgName, host, userCalendar, webhookAlreadyFiredThisMonth)
+	calendarEvent, err := attemptCreatingEventOnUserCalendar(orgName, host, userCalendar)
 	if err != nil {
 		return fmt.Errorf("create event on user calendar: %w", err)
 	}
@@ -385,10 +376,9 @@ func attemptCreatingEventOnUserCalendar(
 	orgName string,
 	host fleet.HostPolicyMembershipData,
 	userCalendar fleet.UserCalendar,
-	webhookAlreadyFiredThisMonth bool,
 ) (*fleet.CalendarEvent, error) {
 	year, month, today := time.Now().Date()
-	preferredDate := getPreferredCalendarEventDate(year, month, today, webhookAlreadyFiredThisMonth)
+	preferredDate := getPreferredCalendarEventDate(year, month, today)
 	for {
 		calendarEvent, err := userCalendar.CreateEvent(
 			preferredDate, func(conflict bool) string {
@@ -408,10 +398,7 @@ func attemptCreatingEventOnUserCalendar(
 	}
 }
 
-func getPreferredCalendarEventDate(
-	year int, month time.Month, today int,
-	webhookAlreadyFired bool,
-) time.Time {
+func getPreferredCalendarEventDate(year int, month time.Month, today int) time.Time {
 	const (
 		// 3rd Tuesday of Month
 		preferredWeekDay = time.Tuesday
@@ -425,12 +412,13 @@ func getPreferredCalendarEventDate(
 	}
 	preferredDate := firstDayOfMonth.AddDate(0, 0, offset+(7*(preferredOrdinal-1)))
 	if today > preferredDate.Day() {
-		today_ := time.Date(year, month, today, 0, 0, 0, 0, time.UTC)
-		if webhookAlreadyFired {
-			nextMonth := today_.AddDate(0, 1, 0) // move to next month
-			return getPreferredCalendarEventDate(nextMonth.Year(), nextMonth.Month(), 1, false)
+		// We are past the preferred date, so we move to next month and calculate again.
+		month := month + 1
+		if month == 13 {
+			month = 1
+			year += 1
 		}
-		preferredDate = addBusinessDay(today_)
+		return getPreferredCalendarEventDate(year, month, 1)
 	}
 	return preferredDate
 }
