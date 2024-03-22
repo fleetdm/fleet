@@ -788,6 +788,7 @@ const ManagePolicyPage = ({
             place="left"
             positionStrategy="fixed"
             offset={24}
+            disableStyleInjection
           >
             Available in Fleet Premium
           </ReactTooltip5>
@@ -805,6 +806,7 @@ const ManagePolicyPage = ({
             place="left"
             positionStrategy="fixed"
             offset={24}
+            disableStyleInjection
           >
             Select a team to manage
             <br />
