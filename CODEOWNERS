@@ -119,43 +119,43 @@ go.mod @fleetdm/go
 ##############################################################################################
 # 🚀 GitHub workflows
 ##############################################################################################
-/.github/workflows/README.md @lukeheath
-/.github/workflows/goreleaser-fleet.yaml @lukeheath
-/.github/workflows/update-certs.yml @lukeheath
-/.github/workflows/codeql-analysis.yml @lukeheath
-/.github/workflows/codeql.yml @lukeheath
-/.github/workflows/scorecards-analysis.yml @lukeheath
-/.github/workflows/integration.yml @lukeheath
-/.github/workflows/fleetctl-preview.yml @lukeheath
-/.github/workflows/fleetctl-preview-latest.yml @lukeheath
-/.github/workflows/goreleaser-orbit.yaml @lukeheath
-/.github/workflows/trivy-scan.yml @lukeheath
-/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath
-/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath
-/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath
-/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath
-/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath
-/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath
-/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath
-/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath
-/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath
-/.github/workflows/test-packaging.yml @lucasmrod @lukeheath
-/.github/workflows/release-helm.yaml @rfairburn @lukeheath
-/.github/workflows/pr-helm.yaml @rfairburn @lukeheath
-/.github/workflows/tfvalidate.yml @rfairburn @lukeheath
-/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath
-/.github/workflows/test-db-changes.yml @roperzh @lukeheath
-/.github/workflows/test-go.yaml @roperzh @lukeheath
-/.github/workflows/golangci-lint.yml @roperzh @lukeheath
-/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath
-/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath
-/.github/workflows/test-puppet.yml @roperzh @lukeheath
-/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath
-/.github/workflows/test-js.yml @ghernandez345 @lukeheath
-/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath
-/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath
-/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath
-/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath
+/.github/workflows/README.md @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/update-certs.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/codeql-analysis.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/codeql.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/scorecards-analysis.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/integration.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetctl-preview.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetctl-preview-latest.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-orbit.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/trivy-scan.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/goreleaser-snapshot-fleet.yaml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-and-push-fleetctl-docker.yml @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleetd-tuf.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-desktop-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-yml-specs.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-binaries.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/fleet-and-orbit.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/build-orbit.yaml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-osqueryd-targets.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-packaging.yml @lucasmrod @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/pr-helm.yaml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/tfvalidate.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/dogfood-deploy.yml @rfairburn @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-db-changes.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-go.yaml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/golangci-lint.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-native-tooling-packaging.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/check-tuf-timestamps.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-puppet.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/generate-nudge-targets.yml @roperzh @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-js.yml @ghernandez345 @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/dogfood-gitops.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/test-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-fleetd-chrome.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
+/.github/workflows/release-fleetd-chrome-beta.yml @getvictor @lukeheath @georgekarrv @sharon-fdm
 
 # ℹ️ But wait, there's more!
 # See the comments up top to learn where else DRIs and maintainers are configured.
