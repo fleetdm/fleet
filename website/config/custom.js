@@ -143,7 +143,7 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config': 'mikermcneil',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
     'ee/vulnerability-dashboard/scripts': 'mikermcneil',
-    'ee/vulnerability-dashboard/package.json': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'mikermcneil',
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
