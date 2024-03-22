@@ -1262,7 +1262,7 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 	}
 
 	for _, l := range labels {
-		decl.Labels = append(decl.Labels, fleet.MDMAppleDeclarationLabel{LabelName: l.Name, LabelID: l.ID})
+		decl.Labels = append(decl.Labels, fleet.DeclarationLabel{LabelName: l.Name, LabelID: l.ID})
 	}
 
 	return decl

@@ -3169,7 +3169,7 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	var incomingLabels []fleet.MDMAppleDeclarationLabel
+	var incomingLabels []fleet.DeclarationLabel
 
 	// build a list of identifiers for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
@@ -3335,7 +3335,7 @@ INSERT INTO mdm_apple_declarations (
 	return declaration, nil
 }
 
-func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.MDMAppleDeclarationLabel) error {
+func batchSetDeclarationLabelAssociationsDB(ctx context.Context, tx sqlx.ExtContext, declarationLabels []fleet.DeclarationLabel) error {
 	if len(declarationLabels) == 0 {
 		return nil
 	}

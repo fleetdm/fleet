@@ -560,7 +560,7 @@ type MDMAppleDeclaration struct {
 	Checksum string `db:"checksum" json:"-"`
 
 	// Labels are the labels associated with this Declaration
-	Labels []MDMAppleDeclarationLabel `db:"labels" json:"labels,omitempty"`
+	Labels []DeclarationLabel `db:"labels" json:"labels,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
@@ -653,9 +653,11 @@ type MDMAppleHostDeclaration struct {
 	Checksum string `db:"checksum" json:"-"`
 }
 
-// MDMAppleDeclarationLabel represents the many-to-many relationship between
+// DeclarationLabel represents the many-to-many relationship between
 // declarations and labels.
-type MDMAppleDeclarationLabel struct {
+// TODO(JVE): I think we can remove this type altogether, but double check first (mainly when
+// ingesting declarations).
+type DeclarationLabel struct {
 	DeclarationUUID string `db:"profile_uuid" json:"-"`
 	LabelName       string `db:"label_name" json:"name"`
 	LabelID         uint   `db:"label_id" json:"id,omitempty"`   // omitted if 0 (which is impossible if the label is not broken)

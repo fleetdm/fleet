@@ -438,7 +438,7 @@ func (svc *Service) NewMDMAppleDeclaration(ctx context.Context, teamID uint, r i
 	return decl, nil
 }
 
-func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.MDMAppleDeclarationLabel, error) {
+func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNames []string) (map[string]fleet.DeclarationLabel, error) {
 	if len(labelNames) == 0 {
 		return nil, nil
 	}
@@ -462,9 +462,9 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 		}
 	}
 
-	profLabels := make(map[string]fleet.MDMAppleDeclarationLabel)
+	profLabels := make(map[string]fleet.DeclarationLabel)
 	for labelName, labelID := range labels {
-		profLabels[labelName] = fleet.MDMAppleDeclarationLabel{
+		profLabels[labelName] = fleet.DeclarationLabel{
 			LabelName: labelName,
 			LabelID:   labelID,
 		}
@@ -472,13 +472,13 @@ func (svc *Service) batchValidateDeclarationLabels(ctx context.Context, labelNam
 	return profLabels, nil
 }
 
-func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.MDMAppleDeclarationLabel, error) {
+func (svc *Service) validateDeclarationLabels(ctx context.Context, labelNames []string) ([]fleet.DeclarationLabel, error) {
 	labelMap, err := svc.batchValidateDeclarationLabels(ctx, labelNames)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "validating declaration labels")
 	}
 
-	var declLabels []fleet.MDMAppleDeclarationLabel
+	var declLabels []fleet.DeclarationLabel
 	for _, label := range labelMap {
 		declLabels = append(declLabels, label)
 	}
