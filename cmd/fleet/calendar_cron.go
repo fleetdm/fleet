@@ -296,9 +296,7 @@ func processFailingHostExistingCalendarEvent(
 	updated := false
 	now := time.Now()
 
-	// Check the user calendar every 30 minutes (and not every time)
-	// to reduce load on both Fleet and the calendar service.
-	if time.Since(calendarEvent.UpdatedAt) > 30*time.Minute {
+	if shouldReloadCalendarEvent(now, calendarEvent, hostCalendarEvent) {
 		var err error
 		updatedEvent, _, err = calendar.GetAndUpdateEvent(calendarEvent, func(conflict bool) string {
 			return generateCalendarEventBody(orgName, host.HostDisplayName, conflict)
@@ -363,6 +361,24 @@ func processFailingHostExistingCalendarEvent(
 		return fmt.Errorf("refetch host: %w", err)
 	}
 	return nil
+}
+
+func shouldReloadCalendarEvent(now time.Time, calendarEvent *fleet.CalendarEvent, hostCalendarEvent *fleet.HostCalendarEvent) bool {
+	// Check the user calendar every 30 minutes (and not every cron run)
+	// to reduce load on both Fleet and the calendar service.
+	if time.Since(calendarEvent.UpdatedAt) > 30*time.Minute {
+		return true
+	}
+	// If the event is supposed to be happening now, we want to check if the user moved/deleted the
+	// event on the last minute.
+	if eventHappeningNow(now, calendarEvent) && hostCalendarEvent.WebhookStatus == fleet.CalendarWebhookStatusNone {
+		return true
+	}
+	return false
+}
+
+func eventHappeningNow(now time.Time, calendarEvent *fleet.CalendarEvent) bool {
+	return now.After(calendarEvent.StartTime) && now.Before(calendarEvent.EndTime)
 }
 
 func sameDate(t1 time.Time, t2 time.Time) bool {
