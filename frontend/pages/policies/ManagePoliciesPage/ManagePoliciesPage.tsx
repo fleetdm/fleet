@@ -548,22 +548,31 @@ const ManagePolicyPage = ({
     setUpdatingPolicyEnabledCalendarEvents(true);
 
     try {
-      // update enabled and URL in config
-      const configResponse = teamsAPI.update(
-        {
-          integrations: {
-            google_calendar: {
-              enable_calendar_events: formData.enabled,
-              webhook_url: formData.url,
+      // update team config if either field has been changed
+      const responses: Promise<any>[] = [];
+      if (
+        formData.enabled !==
+          teamConfig?.integrations.google_calendar?.enable_calendar_events ||
+        formData.url !== teamConfig?.integrations.google_calendar?.webhook_url
+      ) {
+        responses.push(
+          teamsAPI.update(
+            {
+              integrations: {
+                google_calendar: {
+                  enable_calendar_events: formData.enabled,
+                  webhook_url: formData.url,
+                },
+                // These fields will never actually be changed here. See comment above
+                // IGlobalIntegrations definition.
+                zendesk: teamConfig?.integrations.zendesk || [],
+                jira: teamConfig?.integrations.jira || [],
+              },
             },
-            // These fields will never actually be changed here. See comment above
-            // IGlobalIntegrations definition.
-            zendesk: teamConfig?.integrations.zendesk || [],
-            jira: teamConfig?.integrations.jira || [],
-          },
-        },
-        teamIdForApi
-      );
+            teamIdForApi
+          )
+        );
+      }
 
       // update changed policies calendar events enabled
       const changedPolicies = formData.policies.filter((formPolicy) => {
@@ -575,14 +584,16 @@ const ManagePolicyPage = ({
         );
       });
 
-      const changedPolicyResponses = changedPolicies.map((changedPolicy) => {
-        return teamPoliciesAPI.update(changedPolicy.id, {
-          calendar_events_enabled: changedPolicy.isChecked,
-          team_id: teamIdForApi,
-        });
-      });
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            calendar_events_enabled: changedPolicy.isChecked,
+            team_id: teamIdForApi,
+          });
+        })
+      );
 
-      await Promise.all([configResponse, ...changedPolicyResponses]);
+      await Promise.all(responses);
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
