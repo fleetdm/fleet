@@ -14,7 +14,7 @@ import { TableContext } from "context/table";
 import { NotificationContext } from "context/notification";
 import useTeamIdParam from "hooks/useTeamIdParam";
 import { IConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegrations } from "interfaces/integration";
+import { IZendeskJiraIntegrations } from "interfaces/integration";
 import {
   IPolicyStats,
   ILoadAllPoliciesResponse,
@@ -519,10 +519,9 @@ const ManagePolicyPage = ({
     router?.replace(locationPath);
   };
 
-  const handleUpdateAutomations = async (requestBody: {
+  const handleUpdateOtherWorkflows = async (requestBody: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    // TODO - update below type to specify team integration
-    integrations: IIntegrations;
+    integrations: IZendeskJiraIntegrations;
   }) => {
     setIsUpdatingAutomations(true);
     try {
@@ -549,32 +548,52 @@ const ManagePolicyPage = ({
     setUpdatingPolicyEnabledCalendarEvents(true);
 
     try {
-      // update enabled and URL in config
-      const configResponse = teamsAPI.update(
-        {
-          integrations: {
-            google_calendar: {
-              enable_calendar_events: formData.enabled,
-              webhook_url: formData.url,
+      // update team config if either field has been changed
+      const responses: Promise<any>[] = [];
+      if (
+        formData.enabled !==
+          teamConfig?.integrations.google_calendar?.enable_calendar_events ||
+        formData.url !== teamConfig?.integrations.google_calendar?.webhook_url
+      ) {
+        responses.push(
+          teamsAPI.update(
+            {
+              integrations: {
+                google_calendar: {
+                  enable_calendar_events: formData.enabled,
+                  webhook_url: formData.url,
+                },
+                // These fields will never actually be changed here. See comment above
+                // IGlobalIntegrations definition.
+                zendesk: teamConfig?.integrations.zendesk || [],
+                jira: teamConfig?.integrations.jira || [],
+              },
             },
-            // TODO - can omit these?
-            zendesk: teamConfig?.integrations.zendesk || [],
-            jira: teamConfig?.integrations.jira || [],
-          },
-        },
-        teamIdForApi
-      );
+            teamIdForApi
+          )
+        );
+      }
 
-      // update policies calendar events enabled
-      // TODO - only update changed policies
-      const policyResponses = formData.policies.map((formPolicy) =>
-        teamPoliciesAPI.update(formPolicy.id, {
-          calendar_events_enabled: formPolicy.isChecked,
-          team_id: teamIdForApi,
+      // update changed policies calendar events enabled
+      const changedPolicies = formData.policies.filter((formPolicy) => {
+        const prevPolicyState = teamPolicies?.find(
+          (policy) => policy.id === formPolicy.id
+        );
+        return (
+          formPolicy.isChecked !== prevPolicyState?.calendar_events_enabled
+        );
+      });
+
+      responses.concat(
+        changedPolicies.map((changedPolicy) => {
+          return teamPoliciesAPI.update(changedPolicy.id, {
+            calendar_events_enabled: changedPolicy.isChecked,
+            team_id: teamIdForApi,
+          });
         })
       );
 
-      await Promise.all([configResponse, ...policyResponses]);
+      await Promise.all(responses);
       renderFlash("success", "Successfully updated policy automations.");
     } catch {
       renderFlash(
@@ -761,8 +780,16 @@ const ManagePolicyPage = ({
       const tipId = uniqueId();
       calEventsLabel = (
         <span>
-          <div data-tooltip-id={tipId}>Calendar events</div>
-          <ReactTooltip5 id={tipId} place="left">
+          <div className="label-text" data-tooltip-id={tipId}>
+            Calendar events
+          </div>
+          <ReactTooltip5
+            id={tipId}
+            place="left"
+            positionStrategy="fixed"
+            offset={24}
+            disableStyleInjection
+          >
             Available in Fleet Premium
           </ReactTooltip5>
         </span>
@@ -771,13 +798,15 @@ const ManagePolicyPage = ({
       const tipId = uniqueId();
       calEventsLabel = (
         <span>
-          <div data-tooltip-id={tipId}>Calendar events</div>
+          <div className="label-text" data-tooltip-id={tipId}>
+            Calendar events
+          </div>
           <ReactTooltip5
             id={tipId}
             place="left"
             positionStrategy="fixed"
+            offset={24}
             disableStyleInjection
-            offset={5}
           >
             Select a team to manage
             <br />
@@ -920,7 +949,7 @@ const ManagePolicyPage = ({
             availablePolicies={availablePoliciesForAutomation}
             isUpdatingAutomations={isUpdatingAutomations}
             onExit={toggleOtherWorkflowsModal}
-            handleSubmit={handleUpdateAutomations}
+            handleSubmit={handleUpdateOtherWorkflows}
           />
         )}
         {showAddPolicyModal && (

@@ -6,7 +6,7 @@ import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
 import {
   IGlobalIntegrations,
   IIntegration,
-  IIntegrations,
+  IZendeskJiraIntegrations,
   ITeamIntegrations,
 } from "interfaces/integration";
 import { IPolicy } from "interfaces/policy";
@@ -47,7 +47,10 @@ interface ICheckedPolicy {
   isChecked: boolean;
 }
 
-const findEnabledIntegration = ({ jira, zendesk }: IIntegrations) => {
+const findEnabledIntegration = ({
+  jira,
+  zendesk,
+}: IZendeskJiraIntegrations) => {
   return (
     jira?.find((j) => j.enable_failing_policies) ||
     zendesk?.find((z) => z.enable_failing_policies)
