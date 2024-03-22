@@ -48,7 +48,7 @@ const TeamHostExpiryToggle = ({
       <Checkbox
         name="enableHostExpiry"
         onChange={setTeamExpiryEnabled}
-        value={teamExpiryEnabled || globalHostExpiryEnabled}
+        value={teamExpiryEnabled || globalHostExpiryEnabled} // Disabled but still shows checkmark if global expiry is enabled.
         disabled={globalHostExpiryEnabled}
         helpText={renderHelpText()}
         tooltipContent={
