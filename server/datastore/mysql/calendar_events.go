@@ -167,6 +167,30 @@ func (ds *Datastore) GetHostCalendarEvent(ctx context.Context, hostID uint) (*fl
 	return &hostCalendarEvent, &calendarEvent, nil
 }
 
+func (ds *Datastore) GetHostCalendarEventByEmail(ctx context.Context, email string) (*fleet.HostCalendarEvent, *fleet.CalendarEvent, error) {
+	const calendarEventsQuery = `
+		SELECT * FROM calendar_events WHERE email = ?
+	`
+	var calendarEvent fleet.CalendarEvent
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &calendarEvent, calendarEventsQuery, email); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, notFound("CalendarEvent").WithMessage(fmt.Sprintf("email: %s", email)))
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get calendar event")
+	}
+	const hostCalendarEventsQuery = `
+		SELECT * FROM host_calendar_events WHERE calendar_event_id = ?
+	`
+	var hostCalendarEvent fleet.HostCalendarEvent
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &hostCalendarEvent, hostCalendarEventsQuery, calendarEvent.ID); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil, ctxerr.Wrap(ctx, notFound("HostCalendarEvent").WithID(calendarEvent.ID))
+		}
+		return nil, nil, ctxerr.Wrap(ctx, err, "get host calendar event")
+	}
+	return &hostCalendarEvent, &calendarEvent, nil
+}
+
 func (ds *Datastore) UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status fleet.CalendarWebhookStatus) error {
 	const calendarEventsQuery = `
 		UPDATE host_calendar_events SET
