@@ -1,3 +1,9 @@
+# Helper methods for Google calendar
+
+To delete all downtime events from a Google Calendar, use `delete-events/delete-events.go`
+
+To move all downtime events from multiple Google Calendars to a specific time, use `move-events/move-events.go`
+
 # Calendar server for load testing
 
 Test calendar server that provides a REST API for managing events.
