@@ -594,7 +594,7 @@ type Datastore interface {
 
 	PolicyQueriesForHost(ctx context.Context, host *Host) (map[string]string, error)
 
-	GetHostsPolicyMemberships(ctx context.Context, domain string, policyIDs []uint) ([]HostPolicyMembershipData, error)
+	GetTeamHostsPolicyMemberships(ctx context.Context, domain string, teamID uint, policyIDs []uint) ([]HostPolicyMembershipData, error)
 	GetCalendarPolicies(ctx context.Context, teamID uint) ([]PolicyCalendarData, error)
 
 	// Methods used for async processing of host policy query results.
@@ -624,6 +624,7 @@ type Datastore interface {
 	DeleteCalendarEvent(ctx context.Context, calendarEventID uint) error
 	UpdateCalendarEvent(ctx context.Context, calendarEventID uint, startTime time.Time, endTime time.Time, data []byte) error
 	GetHostCalendarEvent(ctx context.Context, hostID uint) (*HostCalendarEvent, *CalendarEvent, error)
+	GetHostCalendarEventByEmail(ctx context.Context, email string) (*HostCalendarEvent, *CalendarEvent, error)
 	UpdateHostCalendarWebhookStatus(ctx context.Context, hostID uint, status CalendarWebhookStatus) error
 	ListCalendarEvents(ctx context.Context, teamID *uint) ([]*CalendarEvent, error)
 	ListOutOfDateCalendarEvents(ctx context.Context, t time.Time) ([]*CalendarEvent, error)

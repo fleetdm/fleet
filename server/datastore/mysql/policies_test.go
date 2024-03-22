@@ -60,6 +60,7 @@ func TestPolicies(t *testing.T) {
 		{"TestPoliciesNameEmoji", testPoliciesNameEmoji},
 		{"TestPoliciesNameSort", testPoliciesNameSort},
 		{"TestGetCalendarPolicies", testGetCalendarPolicies},
+		{"GetTeamHostsPolicyMemberships", testGetTeamHostsPolicyMemberships},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -2859,4 +2860,203 @@ func testGetCalendarPolicies(t *testing.T, ds *Datastore) {
 	require.Len(t, calendarPolicies, 2)
 	require.Equal(t, calendarPolicies[0].ID, teamPolicy2.ID)
 	require.Equal(t, calendarPolicies[1].ID, teamPolicy3.ID)
+}
+
+func testGetTeamHostsPolicyMemberships(t *testing.T, ds *Datastore) {
+	ctx := context.Background()
+
+	team1, err := ds.NewTeam(ctx, &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+	team2, err := ds.NewTeam(ctx, &fleet.Team{Name: "team2"})
+	require.NoError(t, err)
+
+	team1Policy1, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team 1 Policy 1",
+		Query:                 "SELECT * FROM osquery_info;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+	team1Policy2, err := ds.NewTeamPolicy(ctx, team1.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team 1 Policy 2",
+		Query:                 "SELECT * FROM system_info;",
+		CalendarEventsEnabled: false,
+	})
+	require.NoError(t, err)
+	team2Policy1, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team 2 Policy 1",
+		Query:                 "SELECT * FROM os_version;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+	team2Policy2, err := ds.NewTeamPolicy(ctx, team2.ID, nil, fleet.PolicyPayload{
+		Name:                  "Team 2 Policy 2",
+		Query:                 "SELECT * FROM processes;",
+		CalendarEventsEnabled: true,
+	})
+	require.NoError(t, err)
+
+	// Empty teams.
+	hostsTeam1, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam1, 0)
+
+	host1, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host1"),
+		NodeKey:        ptr.String("host1"),
+		HardwareSerial: "serial1",
+		ComputerName:   "display_name1",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+	host2, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host2"),
+		NodeKey:        ptr.String("host2"),
+		HardwareSerial: "serial2",
+		ComputerName:   "display_name2",
+		TeamID:         &team2.ID,
+	})
+	require.NoError(t, err)
+	host3, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host3"),
+		NodeKey:        ptr.String("host3"),
+		HardwareSerial: "serial3",
+		ComputerName:   "display_name3",
+		TeamID:         &team2.ID,
+	})
+	require.NoError(t, err)
+	host4, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host4"),
+		NodeKey:        ptr.String("host4"),
+		HardwareSerial: "serial4",
+		ComputerName:   "display_name4",
+	})
+	require.NoError(t, err)
+	host5, err := ds.NewHost(ctx, &fleet.Host{
+		OsqueryHostID:  ptr.String("host5"),
+		NodeKey:        ptr.String("host5"),
+		HardwareSerial: "serial5",
+		ComputerName:   "display_name5",
+		TeamID:         &team1.ID,
+	})
+	require.NoError(t, err)
+
+	// No policy results yet.
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policy1.ID, team1Policy2.ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam1, 0)
+
+	err = ds.ReplaceHostDeviceMapping(ctx, host1.ID, []*fleet.HostDeviceMapping{
+		{HostID: host1.ID, Email: "foo@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host1.ID, []*fleet.HostDeviceMapping{
+		{HostID: host1.ID, Email: "zoo@example.com", Source: "custom"},
+	}, "custom")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host2.ID, []*fleet.HostDeviceMapping{
+		{HostID: host2.ID, Email: "foo@example.com", Source: "custom"},
+	}, "custom")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host2.ID, []*fleet.HostDeviceMapping{
+		{HostID: host2.ID, Email: "foo@other.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host3.ID, []*fleet.HostDeviceMapping{
+		{HostID: host3.ID, Email: "zoo@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host4.ID, []*fleet.HostDeviceMapping{
+		{HostID: host4.ID, Email: "foo@example.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+	err = ds.ReplaceHostDeviceMapping(ctx, host5.ID, []*fleet.HostDeviceMapping{
+		{HostID: host5.ID, Email: "foo@other.com", Source: "google_chrome_profiles"},
+	}, "google_chrome_profiles")
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host1, map[uint]*bool{
+		team1Policy1.ID: ptr.Bool(true),
+		team1Policy2.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host2, map[uint]*bool{
+		team2Policy1.ID: ptr.Bool(false),
+		team2Policy2.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host3, map[uint]*bool{
+		team2Policy1.ID: ptr.Bool(true),
+		team2Policy2.ID: ptr.Bool(true),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	err = ds.RecordPolicyQueryExecutions(ctx, host5, map[uint]*bool{
+		team1Policy1.ID: ptr.Bool(false),
+		team1Policy2.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	team1Policies, err := ds.GetCalendarPolicies(ctx, team1.ID)
+	require.NoError(t, err)
+	require.Len(t, team1Policies, 1)
+	team2Policies, err := ds.GetCalendarPolicies(ctx, team2.ID)
+	require.NoError(t, err)
+	require.Len(t, team2Policies, 2)
+
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam1, 2)
+	require.Equal(t, host1.ID, hostsTeam1[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam1[0].Email)
+	require.True(t, hostsTeam1[0].Passing)
+	require.Equal(t, "serial1", hostsTeam1[0].HostHardwareSerial)
+	require.Equal(t, "display_name1", hostsTeam1[0].HostDisplayName)
+	require.Equal(t, host5.ID, hostsTeam1[1].HostID)
+	require.Empty(t, hostsTeam1[1].Email)
+	require.False(t, hostsTeam1[1].Passing)
+	require.Equal(t, "serial5", hostsTeam1[1].HostHardwareSerial)
+	require.Equal(t, "display_name5", hostsTeam1[1].HostDisplayName)
+
+	err = ds.AddHostsToTeam(ctx, &team1.ID, []uint{host4.ID})
+	require.NoError(t, err)
+	err = ds.RecordPolicyQueryExecutions(ctx, host4, map[uint]*bool{
+		team1Policy1.ID: ptr.Bool(false),
+		team1Policy2.ID: ptr.Bool(false),
+	}, time.Now(), false)
+	require.NoError(t, err)
+
+	hostsTeam1, err = ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team1.ID, []uint{team1Policies[0].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam1, 3)
+	require.Equal(t, host1.ID, hostsTeam1[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam1[0].Email)
+	require.True(t, hostsTeam1[0].Passing)
+	require.Equal(t, "serial1", hostsTeam1[0].HostHardwareSerial)
+	require.Equal(t, "display_name1", hostsTeam1[0].HostDisplayName)
+	require.Equal(t, host4.ID, hostsTeam1[1].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam1[1].Email)
+	require.False(t, hostsTeam1[1].Passing)
+	require.Equal(t, "serial4", hostsTeam1[1].HostHardwareSerial)
+	require.Equal(t, "display_name4", hostsTeam1[1].HostDisplayName)
+	require.Equal(t, host5.ID, hostsTeam1[2].HostID)
+	require.Empty(t, hostsTeam1[2].Email)
+	require.False(t, hostsTeam1[2].Passing)
+	require.Equal(t, "serial5", hostsTeam1[2].HostHardwareSerial)
+	require.Equal(t, "display_name5", hostsTeam1[2].HostDisplayName)
+
+	hostsTeam2, err := ds.GetTeamHostsPolicyMemberships(ctx, "example.com", team2.ID, []uint{team2Policies[0].ID, team2Policies[1].ID})
+	require.NoError(t, err)
+	require.Len(t, hostsTeam2, 2)
+	require.Equal(t, host2.ID, hostsTeam2[0].HostID)
+	require.Equal(t, "foo@example.com", hostsTeam2[0].Email)
+	require.False(t, hostsTeam2[0].Passing)
+	require.Equal(t, "serial2", hostsTeam2[0].HostHardwareSerial)
+	require.Equal(t, "display_name2", hostsTeam2[0].HostDisplayName)
+	require.Equal(t, host3.ID, hostsTeam2[1].HostID)
+	require.Equal(t, "zoo@example.com", hostsTeam2[1].Email)
+	require.True(t, hostsTeam2[1].Passing)
+	require.Equal(t, "serial3", hostsTeam2[1].HostHardwareSerial)
+	require.Equal(t, "display_name3", hostsTeam2[1].HostDisplayName)
 }
