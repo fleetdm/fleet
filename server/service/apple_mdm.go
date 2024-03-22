@@ -20,7 +20,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server"
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
-	"github.com/fleetdm/fleet/v4/server/contexts/ctxdb"
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/contexts/license"
 	"github.com/fleetdm/fleet/v4/server/contexts/logging"
@@ -2609,58 +2608,6 @@ func ReconcileAppleDeclarations(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-
-	// TODO(roberto): move to a package (similar to the mobileconfig package)
-	alwaysTrueActivation := `
-{
-  "Identifier": "%s",
-  "Payload": {
-    "StandardConfigurations": ["%s"]
-  },
-  "ServerToken": "%s",
-  "Type": "com.apple.activation.simple"
-}
-`
-
-	// Find all the configurations that don't have a matching activation.
-	decls, err := ds.MDMAppleGetDeclarationsWithoutActivations(ctx)
-	if err != nil {
-		return ctxerr.Wrap(ctx, err, "get configurations without activations")
-	}
-
-	if len(decls) > 0 {
-		logger.Log("msg", "found declarations without matching activations")
-		// And create an activation for all of them, in this first implementation:
-		//
-		// - each configuration has only one matching activation.
-		//
-		// - the matching activation doesn't have any predicates, which makes
-		//   the configuration to be installed.
-		//
-		// - the activation must belong to the same team and have the same
-		//   labels as the configuration it references.
-		activations := make(map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration, len(decls))
-		for _, d := range decls {
-			identifier := fmt.Sprintf("com.fleetdm.activation.%s", uuid.NewString())
-			rawJSON := fmt.Sprintf(alwaysTrueActivation, identifier, d.Identifier, uuid.NewString())
-			activations[d] = &fleet.MDMAppleDeclaration{
-				Identifier: identifier,
-				Name:       identifier,
-				RawJSON:    json.RawMessage(rawJSON),
-			}
-		}
-
-		// once we have built the activations, insert them. This function takes care of
-		// inserting the relationships and the labels for the new activations.
-		if err := ds.MDMAppleInsertActivations(ctx, activations); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting activations for configurations")
-		}
-
-		// if we added activations, force-use the primary DB instance
-		// for all the following reads/writes
-		ctx = ctxdb.RequirePrimary(ctx, true)
-	}
-
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := ds.MDMAppleGetHostsWithChangedDeclarations(ctx)
@@ -3227,16 +3174,11 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
 	for _, d := range di {
-		manifest := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: d.ServerToken}
-		switch d.Category {
-		case string(fleet.MDMAppleDeclarativeActivation):
-			activations = append(activations, manifest)
-		case string(fleet.MDMAppleDeclarativeConfiguration):
-			configurations = append(configurations, manifest)
-		default:
-			level.Debug(svc.logger).Log("msg", "unrecognized declaration category", "category", d.Category)
-			return nil, ctxerr.New(ctx, "unrecognized declaration category")
-		}
+		configurations = append(configurations, fleet.MDMAppleDDMManifest(d))
+		activations = append(activations, fleet.MDMAppleDDMManifest{
+			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
+			ServerToken: d.ServerToken,
+		})
 	}
 
 	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
@@ -3268,21 +3210,44 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 	}
 	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
 
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(
-		ctx, fleet.MDMAppleDeclarationCategory("com.apple."+parts[1]),
-		parts[2],
-		hostUUID,
-	)
+	switch parts[1] {
+	case "activation":
+		return svc.handleActivationDeclaration(ctx, parts, hostUUID)
+	case "configuration":
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
+	default:
+		return nil, newNotFoundError()
+	}
+}
+
+func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	references := strings.TrimSuffix(parts[2], ".activation")
+
+	// ensure the declaration for the requested activation stil exists
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
 	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "getting declaration")
+		return nil, ctxerr.Wrap(ctx, err, "getting activation declaration")
 	}
 
-	// unmarshall into a temporary map in order to add the token.
-	// we do this at this stage because tokens are purely managed by Fleet,
-	// and we don't want to store a modified version of what's provided by
-	// the IT admin.
-	//
-	// This mimics what we do for CommandUUID, but can be revisited.
+	response := fmt.Sprintf(`
+{
+  "Identifier": "%s",
+  "Payload": {
+    "StandardConfigurations": ["%s"]
+  },
+  "ServerToken": "%s",
+  "Type": "com.apple.activation.simple"
+}`, parts[2], references, d.Checksum)
+
+	return []byte(response), nil
+}
+
+func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "getting default declaration")
+	}
+
 	var tempd map[string]any
 	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")

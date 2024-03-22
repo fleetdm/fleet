@@ -3129,7 +3129,6 @@ INSERT INTO mdm_apple_declarations (
 	declaration_uuid,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	uploaded_at,
@@ -3246,7 +3245,6 @@ WHERE
 			declUUID,
 			d.Identifier,
 			d.Name,
-			d.Category,
 			d.RawJSON,
 			checksum,
 			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
@@ -3273,115 +3271,6 @@ WHERE
 	return declarations, nil
 }
 
-func (ds *Datastore) MDMAppleInsertActivations(ctx context.Context, activations map[*fleet.MDMAppleDeclaration]*fleet.MDMAppleDeclaration) error {
-	if len(activations) == 0 {
-		return nil
-	}
-
-	insertActivationsStmt := `
-INSERT INTO mdm_apple_declarations (
-  declaration_uuid,
-  team_id,
-  identifier,
-  name,
-  category,
-  raw_json,
-  checksum,
-  uploaded_at
-) VALUES
-  %s
-ON DUPLICATE KEY UPDATE
-  raw_json = VALUES(raw_json),
-  checksum = VALUES(checksum);
-`
-
-	insertRelationshipsStmt := `
-INSERT INTO mdm_apple_declaration_activation_references (
-  declaration_uuid,
-  reference
-) VALUES
-  %s
-`
-
-	insertLabelsStmt := `
-INSERT INTO mdm_declaration_labels (
-  apple_declaration_uuid,
-  label_name,
-  label_id
-)
-SELECT
-  madar.declaration_uuid,
-  mdl.label_name,
-  mdl.label_id
-FROM
-  mdm_apple_declaration_activation_references madar
-  JOIN mdm_apple_declarations mad ON madar.reference = mad.declaration_uuid
-  JOIN mdm_declaration_labels mdl ON madar.reference = mdl.apple_declaration_uuid
-WHERE
-  mad.declaration_uuid IN (?)
-`
-
-	// query and arguments to insert the new declarations
-	var declVals strings.Builder
-	var declArgs []any
-	// query and arguments to insert the new relationships
-	var relVals strings.Builder
-	var relArgs []any
-	// arguments to create matching label relationships
-	var refUUIDs []string
-	for ref, a := range activations {
-		// generate a new UUID and calculate the checksum
-		declUUID := "x" + uuid.NewString()
-		checksum := md5ChecksumScriptContent(string(a.RawJSON))
-
-		// as a safety, if no team is defined use the global team
-		var tmID uint
-		if ref.TeamID != nil {
-			tmID = *ref.TeamID
-		}
-
-		// for the new activation, get the team_id from the configuration and force the category
-		declVals.WriteString("(?, ?, ?, ?, ?, ?, UNHEX(?), CURRENT_TIMESTAMP()),")
-		declArgs = append(
-			declArgs, declUUID, tmID,
-			a.Identifier, a.Name, fleet.MDMAppleDeclarativeActivation,
-			a.RawJSON, checksum,
-		)
-
-		// for the relationship, grab both UUIDs
-		relArgs = append(relArgs, declUUID, ref.DeclarationUUID)
-		relVals.WriteString("(?, ?),")
-
-		// for the label relationships, grab the configuration UUID
-		refUUIDs = append(refUUIDs, ref.DeclarationUUID)
-	}
-
-	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		_, err := tx.ExecContext(ctx, fmt.Sprintf(insertActivationsStmt, strings.TrimSuffix(declVals.String(), ",")), declArgs...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting activations")
-		}
-
-		_, err = tx.ExecContext(ctx, fmt.Sprintf(insertRelationshipsStmt, strings.TrimSuffix(relVals.String(), ",")), relArgs...)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting activation relationships")
-		}
-
-		stmt, args, err := sqlx.In(insertLabelsStmt, refUUIDs)
-		if err != nil {
-			return ctxerr.Wrap(ctx, err, "building sqlx.In query for labels")
-		}
-
-		if _, err = tx.ExecContext(ctx, stmt, args...); err != nil {
-			return ctxerr.Wrap(ctx, err, "inserting activation labels")
-		}
-
-		return nil
-	})
-
-	return ctxerr.Wrap(ctx, err, "running transaction")
-}
-
 func (ds *Datastore) NewMDMAppleDeclaration(ctx context.Context, declaration *fleet.MDMAppleDeclaration) (*fleet.MDMAppleDeclaration, error) {
 	declUUID := "x" + uuid.NewString()
 	checksum := md5ChecksumScriptContent(string(declaration.RawJSON))
@@ -3392,7 +3281,6 @@ INSERT INTO mdm_apple_declarations (
 	team_id,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	uploaded_at)
@@ -3411,7 +3299,7 @@ INSERT INTO mdm_apple_declarations (
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
 		res, err := tx.ExecContext(ctx, stmt,
-			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.Category, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
+			declUUID, tmID, declaration.Identifier, declaration.Name, declaration.RawJSON, checksum, declaration.Name, tmID, declaration.Name, tmID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -3545,8 +3433,7 @@ func (ds *Datastore) MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID s
 	const stmt = `
 SELECT
 	HEX(mad.checksum) as checksum,
-	mad.identifier,
-	mad.category
+	mad.identifier
 FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON mad.declaration_uuid = hmad.declaration_uuid
@@ -3561,7 +3448,7 @@ WHERE
 	return res, nil
 }
 
-func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType fleet.MDMAppleDeclarationCategory, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
+func (ds *Datastore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error) {
 	// TODO: When hosts table is indexed by uuid, consider joining on hosts to ensure that the
 	// declaration for the host's current team is returned. In the case where the specified
 	// identifier is not unique to the team, the cron should ensure that any conflicting
@@ -3573,10 +3460,10 @@ FROM
 	host_mdm_apple_declarations hmad
 	JOIN mdm_apple_declarations mad ON hmad.declaration_uuid = mad.declaration_uuid
 WHERE
-	host_uuid = ? AND identifier = ? AND category = ? AND operation_type = ?`
+	host_uuid = ? AND identifier = ? AND operation_type = ?`
 
 	var res fleet.MDMAppleDeclaration
-	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, declarationType, fleet.MDMOperationTypeInstall); err != nil {
+	if err := sqlx.GetContext(ctx, ds.reader(ctx), &res, stmt, hostUUID, identifier, fleet.MDMOperationTypeInstall); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "get ddm declarations response")
 	}
 
@@ -3606,24 +3493,6 @@ func (ds *Datastore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, ch
 		args...,
 	)
 	return ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
-}
-
-func (ds *Datastore) MDMAppleGetDeclarationsWithoutActivations(ctx context.Context) ([]*fleet.MDMAppleDeclaration, error) {
-	stmt := `
-SELECT
-  mad.declaration_uuid,
-  mad.team_id,
-  mad.identifier
-FROM mdm_apple_declarations mad
-LEFT JOIN mdm_apple_declaration_activation_references madar
-ON mad.declaration_uuid = madar.reference
-WHERE madar.declaration_uuid IS NULL AND mad.category = ?;
-  `
-	var decls []*fleet.MDMAppleDeclaration
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &decls, stmt, fleet.MDMAppleDeclarativeConfiguration); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
-	}
-	return decls, nil
 }
 
 func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {

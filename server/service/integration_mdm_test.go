@@ -12739,7 +12739,6 @@ INSERT INTO mdm_apple_declarations (
 	team_id,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	created_at,
@@ -12752,7 +12751,6 @@ INSERT INTO mdm_apple_declarations (
 				decl.TeamID,
 				decl.Identifier,
 				decl.Name,
-				decl.Category,
 				decl.RawJSON,
 				calcChecksum(decl.RawJSON),
 				decl.CreatedAt,
@@ -12795,7 +12793,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example",
 			Name:            "Example",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"bar"},
@@ -12860,7 +12857,6 @@ INSERT INTO host_mdm_apple_declarations (
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 		require.EqualValues(t, wantParsed.Payload, gotParsed.Payload)
 		require.Equal(t, calcChecksum(expected.RawJSON), gotParsed.ServerToken)
-		require.Contains(t, gotParsed.Type, expected.Category)
 		require.Equal(t, expected.Identifier, gotParsed.Identifier)
 		// t.Logf("decoded: %+v", gotParsed)
 	}
@@ -12900,7 +12896,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example2",
 			Name:            "Example2",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"baz"},
@@ -12931,7 +12926,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example3",
 			Name:            "Example3",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"bang"},
@@ -12973,7 +12967,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example4",
 			Name:            "Example4",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.test",
 				"Payload": {"foo":"bar"},
@@ -13002,7 +12995,7 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	addDeclaration := func(identifier string, teamID uint) {
 		stmt := `
 		  INSERT INTO mdm_apple_declarations
-		    (declaration_uuid, team_id, identifier, name, category, raw_json, checksum)
+		    (declaration_uuid, team_id, identifier, name, raw_json, checksum)
 		  VALUES
 		    (UUID(), ?, ?, UUID(), 'com.apple.configuration', ?, HEX(MD5(raw_json)) )`
 		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
