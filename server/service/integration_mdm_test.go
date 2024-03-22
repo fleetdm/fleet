@@ -9459,9 +9459,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var profileLabels []fleet.ConfigurationProfileLabel
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
-		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id 
+		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_configuration_profile_labels 
-		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, label_id 
+		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
 	})
@@ -13224,6 +13224,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	addDeclaration("I3", team.ID)
 	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: "test label 1", Query: "select 1;"})
 	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, s.ds.DeleteLabel(ctx, label.Name))
+	}()
 	// update label with host membership
 	mysql.ExecAdhocSQL(
 		t, s.ds, func(db sqlx.ExtContext) error {
