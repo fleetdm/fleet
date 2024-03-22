@@ -44,9 +44,17 @@
     .Select-control {
       margin-top: 0;
       gap: 6px;
-    }
-    .Select-placeholder {
-      font-weight: $bold;
+      .Select-placeholder {
+        color: $core-vibrant-blue;
+        font-weight: $bold;
+      }
+      .dropdown__custom-arrow .dropdown__icon {
+        svg {
+          path {
+            stroke: $core-vibrant-blue-over;
+          }
+        }
+      }
     }
   }
 
