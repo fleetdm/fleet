@@ -55,10 +55,6 @@ const CalendarEventsModal = ({
   const [formData, setFormData] = useState<ICalendarEventsFormData>({
     enabled,
     url,
-    // TODO - stay udpdated on state of backend approach to syncing policies in the policies table
-    // and in the new calendar table
-    // id may change if policy was deleted
-    // name could change if policy was renamed
     policies: policies.map((policy) => ({
       name: policy.name,
       id: policy.id,
@@ -87,29 +83,26 @@ const CalendarEventsModal = ({
     return errors;
   };
 
-  // TODO - separate change handlers for checkboxes:
-  // const onPolicyUpdate = ...
-  // const onTextFieldUpdate = ...
-
-  const onInputChange = useCallback(
-    (newVal: { name: FormNames; value: string | number | boolean }) => {
+  // two onChange handlers to handle different levels of nesting in the form data
+  const onFeatureEnabledOrUrlChange = useCallback(
+    (newVal: { name: "enabled" | "url"; value: string | boolean }) => {
       const { name, value } = newVal;
-      let newFormData: ICalendarEventsFormData;
-      // for the first two fields, set the new value directly
-      if (["enabled", "url"].includes(name)) {
-        newFormData = { ...formData, [name]: value };
-      } else if (typeof value === "boolean") {
-        // otherwise, set the value for a nested policy
-        const newFormPolicies = formData.policies.map((formPolicy) => {
-          if (formPolicy.name === name) {
-            return { ...formPolicy, isChecked: value };
-          }
-          return formPolicy;
-        });
-        newFormData = { ...formData, policies: newFormPolicies };
-      } else {
-        throw TypeError("Unexpected value type for policy checkbox");
-      }
+      const newFormData = { ...formData, [name]: value };
+      setFormData(newFormData);
+      setFormErrors(validateCalendarEventsFormData(newFormData));
+    },
+    [formData]
+  );
+  const onPolicyEnabledChange = useCallback(
+    (newVal: { name: FormNames; value: boolean }) => {
+      const { name, value } = newVal;
+      const newFormPolicies = formData.policies.map((formPolicy) => {
+        if (formPolicy.name === name) {
+          return { ...formPolicy, isChecked: value };
+        }
+        return formPolicy;
+      });
+      const newFormData = { ...formData, policies: newFormPolicies };
       setFormData(newFormData);
       setFormErrors(validateCalendarEventsFormData(newFormData));
     },
@@ -157,7 +150,7 @@ const CalendarEventsModal = ({
                 name={name}
                 // can't use parseTarget as value needs to be set to !currentValue
                 onChange={() => {
-                  onInputChange({ name, value: !isChecked });
+                  onPolicyEnabledChange({ name, value: !isChecked });
                 }}
               >
                 {name}
@@ -232,7 +225,10 @@ const CalendarEventsModal = ({
         <Slider
           value={formData.enabled}
           onChange={() => {
-            onInputChange({ name: "enabled", value: !formData.enabled });
+            onFeatureEnabledOrUrlChange({
+              name: "enabled",
+              value: !formData.enabled,
+            });
           }}
           inactiveText="Disabled"
           activeText="Enabled"
@@ -251,7 +247,7 @@ const CalendarEventsModal = ({
         <InputField
           placeholder="https://server.com/example"
           label="Resolution webhook URL"
-          onChange={onInputChange}
+          onChange={onFeatureEnabledOrUrlChange}
           name="url"
           value={formData.url}
           parseTarget
