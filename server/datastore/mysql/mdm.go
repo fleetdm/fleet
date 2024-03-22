@@ -228,7 +228,7 @@ FROM (
 		if prof.Platform == "windows" {
 			winProfUUIDs = append(winProfUUIDs, prof.ProfileUUID)
 		} else {
-			if strings.HasPrefix(prof.ProfileUUID, "x") {
+			if strings.HasPrefix(prof.ProfileUUID, fleet.MDMAppleDeclarationUUIDPrefix) {
 				macDeclUUIDs = append(macDeclUUIDs, prof.ProfileUUID)
 				continue
 			}
@@ -236,17 +236,10 @@ FROM (
 			macProfUUIDs = append(macProfUUIDs, prof.ProfileUUID)
 		}
 	}
-	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs)
+	labels, err := ds.listProfileLabelsForProfiles(ctx, winProfUUIDs, macProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, nil, err
 	}
-
-	declLabels, err := ds.listDeclarationLabelsForDeclarations(ctx, macDeclUUIDs)
-	if err != nil {
-		return nil, nil, err
-	}
-
-	labels = append(labels, declLabels...)
 
 	// match the labels with their profiles
 	profMap := make(map[string]*fleet.MDMConfigProfilePayload, len(profs))
@@ -262,39 +255,7 @@ FROM (
 	return profs, metaData, nil
 }
 
-// Note: we're using the ConfigurationProfileLabel type here since from the product perspective, MDM
-// profiles and declarations are both "profiles".
-func (ds *Datastore) listDeclarationLabelsForDeclarations(ctx context.Context, declUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
-	if len(declUUIDs) == 0 {
-		return []fleet.ConfigurationProfileLabel{}, nil
-	}
-
-	stmt := `
-SELECT
-	apple_declaration_uuid AS profile_uuid,
-	label_name,
-	label_id
-FROM
-	mdm_declaration_labels
-WHERE
-	apple_declaration_uuid IN (?)
-ORDER BY
-	apple_declaration_uuid, label_name
-	`
-
-	stmt, args, err := sqlx.In(stmt, declUUIDs)
-	if err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for declarations")
-	}
-
-	var labels []fleet.ConfigurationProfileLabel
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &labels, stmt, args...); err != nil {
-		return nil, ctxerr.Wrap(ctx, err, "select declaration labels")
-	}
-	return labels, nil
-}
-
-func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
+func (ds *Datastore) listProfileLabelsForProfiles(ctx context.Context, winProfUUIDs, macProfUUIDs, macDeclUUIDs []string) ([]fleet.ConfigurationProfileLabel, error) {
 	// load the labels associated with those profiles
 	const labelsStmt = `
 SELECT
@@ -307,6 +268,16 @@ FROM
 WHERE
 	mcpl.apple_profile_uuid IN (?) OR
 	mcpl.windows_profile_uuid IN (?)
+UNION ALL 
+SELECT
+	apple_declaration_uuid as profile_uuid,
+	label_name,
+	COALESCE(label_id, 0) as label_id,
+	IF(label_id IS NULL, 1, 0) as broken
+FROM
+	mdm_declaration_labels mdl
+WHERE
+	mdl.apple_declaration_uuid IN (?)
 ORDER BY
 	profile_uuid, label_name
 `
@@ -319,8 +290,11 @@ ORDER BY
 	if len(macProfUUIDs) == 0 {
 		macProfUUIDs = []string{"-"}
 	}
+	if len(macDeclUUIDs) == 0 {
+		macDeclUUIDs = []string{"-"}
+	}
 
-	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs)
+	stmt, args, err := sqlx.In(labelsStmt, macProfUUIDs, winProfUUIDs, macDeclUUIDs)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "sqlx.In to list labels for profiles")
 	}

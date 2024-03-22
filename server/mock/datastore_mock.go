@@ -620,6 +620,8 @@ type GetMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profil
 
 type GetMDMAppleConfigProfileFunc func(ctx context.Context, profileUUID string) (*fleet.MDMAppleConfigProfile, error)
 
+type GetMDMAppleDeclarationFunc func(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error)
+
 type ListMDMAppleConfigProfilesFunc func(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error)
 
 type DeleteMDMAppleConfigProfileByDeprecatedIDFunc func(ctx context.Context, profileID uint) error
@@ -1773,6 +1775,9 @@ type DataStore struct {
 
 	GetMDMAppleConfigProfileFunc        GetMDMAppleConfigProfileFunc
 	GetMDMAppleConfigProfileFuncInvoked bool
+
+	GetMDMAppleDeclarationFunc        GetMDMAppleDeclarationFunc
+	GetMDMAppleDeclarationFuncInvoked bool
 
 	ListMDMAppleConfigProfilesFunc        ListMDMAppleConfigProfilesFunc
 	ListMDMAppleConfigProfilesFuncInvoked bool
@@ -4257,6 +4262,13 @@ func (s *DataStore) GetMDMAppleConfigProfile(ctx context.Context, profileUUID st
 	s.GetMDMAppleConfigProfileFuncInvoked = true
 	s.mu.Unlock()
 	return s.GetMDMAppleConfigProfileFunc(ctx, profileUUID)
+}
+
+func (s *DataStore) GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*fleet.MDMAppleDeclaration, error) {
+	s.mu.Lock()
+	s.GetMDMAppleDeclarationFuncInvoked = true
+	s.mu.Unlock()
+	return s.GetMDMAppleDeclarationFunc(ctx, declUUID)
 }
 
 func (s *DataStore) ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*fleet.MDMAppleConfigProfile, error) {
