@@ -33,7 +33,7 @@ const API_KEY_JSON_PLACEHOLDER = `{
   "type": "service_account",
   "project_id": "fleet-in-your-calendar",
   "private_key_id": "<private key id>",
-  "private_key": "-----BEGIN PRIVATE KEY-----\n<private key>\n-----END PRIVATE KEY-----\n",
+  "private_key": "-----BEGIN PRIVATE KEY----\\n<private key>\\n-----END PRIVATE KEY-----\\n",
   "client_email": "fleet-calendar-events@fleet-in-your-calendar.iam.gserviceaccount.com",
   "client_id": "<client id>",
   "auth_uri": "https://accounts.google.com/o/oauth2/auth",
@@ -57,6 +57,16 @@ interface ICalendarsFormData {
   domain?: string;
   apiKeyJson?: string;
 }
+
+// Used to surface error.message in UI of unknown error type
+type ErrorWithMessage = {
+  message: string;
+  [key: string]: unknown;
+};
+
+const isErrorWithMessage = (error: unknown): error is ErrorWithMessage => {
+  return (error as ErrorWithMessage).message !== undefined;
+};
 
 const baseClass = "calendars-integration";
 
@@ -103,7 +113,18 @@ const Calendars = (): JSX.Element => {
       errors.apiKeyJson = "API key JSON must be present";
     }
     if (!curFormData.domain && !!curFormData.apiKeyJson) {
-      errors.apiKeyJson = "Domain must be present";
+      errors.domain = "Domain must be present";
+    }
+    if (curFormData.apiKeyJson) {
+      try {
+        JSON.parse(curFormData.apiKeyJson);
+      } catch (e: unknown) {
+        if (isErrorWithMessage(e)) {
+          errors.apiKeyJson = e.message.toString();
+        } else {
+          throw e;
+        }
+      }
     }
     return errors;
   };
@@ -277,6 +298,7 @@ const Calendars = (): JSX.Element => {
                     placeholder={API_KEY_JSON_PLACEHOLDER}
                     ignore1password
                     inputClassName={`${baseClass}__api-key-json`}
+                    error={formErrors.apiKeyJson}
                   />
                   <InputField
                     label="Primary domain"
@@ -301,12 +323,13 @@ const Calendars = (): JSX.Element => {
                         />
                       </>
                     }
+                    error={formErrors.domain}
                   />
                   <Button
                     type="submit"
                     variant="brand"
                     disabled={Object.keys(formErrors).length > 0}
-                    className="save-loading button-wrap"
+                    className="save-loading"
                     isLoading={isUpdatingSettings}
                   >
                     Save
@@ -377,6 +400,10 @@ const Calendars = (): JSX.Element => {
                 Click <b>Enable</b>.
               </li>
             </ul>
+          </p>
+          <p>
+            You&apos;re ready to automatically schedule calendar events for end
+            users.
           </p>
         </div>
       </>
