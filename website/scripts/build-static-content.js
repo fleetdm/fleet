@@ -207,6 +207,10 @@ module.exports = {
             if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
               continue;
             }
+            // Skip pages in folders starting with an underscore character.
+            if(sectionRepoPath === 'docs/' &&  _.startsWith(pageRelSourcePath.split(/\//).slice(-2)[0], '_')){
+              continue;
+            }
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
             // Determine this page's default (fallback) display title.
