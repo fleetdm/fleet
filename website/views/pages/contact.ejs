@@ -89,7 +89,7 @@
           </div>
          <div class="form-group">
            <label for="number-of-hosts">How many devices do you have? *</label>
-           <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" v-model.trim="formData.numberOfHosts">
+           <input class="form-control" id="number-of-hosts" name="number-of-hosts" type="number" :class="[formErrors.numberOfHosts ? 'is-invalid' : '']" min="1" v-model.trim="formData.numberOfHosts">
            <p purpose="devices-note" class="mt-3 mb-0">Includes computers, servers, containers, and other hosts.</p>
            <div class="invalid-feedback" v-if="formErrors.numberOfHosts">Please enter a number of devices</div>
          </div>

@@ -143,7 +143,7 @@ module.exports.custom = {
     'ee/vulnerability-dashboard/config': 'mikermcneil',
     'ee/vulnerability-dashboard/config/routes.js': 'eashaw',//« Vulnerability dashboard redirects and URLs
     'ee/vulnerability-dashboard/scripts': 'mikermcneil',
-    'ee/vulnerability-dashboard/package.json': 'eashaw',
+    'ee/vulnerability-dashboard/package.json': 'mikermcneil',
 
     // 🫧 Pricing and features
     // 'website/views/pages/pricing.ejs': '',                // « Covered in CODEOWNERS (2023-07-22)
@@ -232,6 +232,8 @@ module.exports.custom = {
     // Github workflows
     '.github/workflows/deploy-fleet-website.yml': ['eashaw','mikermcneil'],// (website deploy script)
     '.github/workflows/test-website.yml': ['eashaw','mikermcneil'],//« website CI test script
+    '.github/workflows/deploy-vulnerability-dashboard.yml': ['eashaw','mikermcneil'],// (vulnerabiltiy dashboard deploy script)
+    '.github/workflows/test-vulnerability-dashboard-changes.yml': ['eashaw','mikermcneil'],//« vulnerabiltiy dashboard CI test script
     '.github/workflows': ['lukeheath', 'mikermcneil'],//« CI/CD workflows & misc GitHub Actions. Note that some are also addressed more specifically below in relevant sections)
 
     // Repo automation and change control settings
