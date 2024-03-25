@@ -3207,8 +3207,6 @@ WHERE
 		declTeamID = *tmID
 	}
 
-	var incomingLabels []fleet.ConfigurationProfileLabel
-
 	// build a list of identifiers for the incoming declarations, will keep the
 	// existing ones if there's a match and no change
 	incomingIdents := make([]string, len(declarations))
@@ -3273,30 +3271,31 @@ WHERE
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "delete obsolete profiles")
+		return nil, ctxerr.Wrap(ctx, err, "delete obsolete declarations")
 	}
 
-	for _, d := range declarations {
-		checksum := md5ChecksumScriptContent(string(d.RawJSON))
-		declUUID := fleet.MDMAppleDeclarationUUIDPrefix + uuid.NewString()
-		if _, err := tx.ExecContext(ctx, insertStmt,
-			declUUID,
-			d.Identifier,
-			d.Name,
-			d.Category,
-			d.RawJSON,
-			checksum,
-			declTeamID); err != nil || strings.HasPrefix(ds.testBatchSetMDMAppleProfilesErr, "insert") {
-			if err == nil {
-				err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
-			}
-			return nil, ctxerr.Wrapf(ctx, err, "insert new/edited declaration with identifier %q", d.Identifier)
+	incomingLabels := []fleet.ConfigurationProfileLabel{}
+	if len(incomingIdents) > 0 {
+		var newlyInsertedDecls []*fleet.MDMAppleDeclaration
+		// load current declarations (again) that match the incoming declarations by name to grab their uuids
+		stmt, args, err := sqlx.In(loadExistingDecls, declTeamID, incomingIdents)
+		if err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "build query to load newly inserted declarations")
+		}
+		if err := sqlx.SelectContext(ctx, tx, &newlyInsertedDecls, stmt, args...); err != nil {
+			return nil, ctxerr.Wrap(ctx, err, "load newly inserted declarations")
 		}
 
-		d.DeclarationUUID = declUUID
-		for _, l := range d.Labels {
-			l.ProfileUUID = declUUID
-			incomingLabels = append(incomingLabels, l)
+		for _, newlyInsertedDecl := range newlyInsertedDecls {
+			incomingDecl, ok := incomingDecls[newlyInsertedDecl.Identifier]
+			if !ok {
+				return nil, ctxerr.Wrapf(ctx, err, "declaration %q is in the database but was not incoming", newlyInsertedDecl.Identifier)
+			}
+
+			for _, label := range incomingDecl.Labels {
+				label.ProfileUUID = newlyInsertedDecl.DeclarationUUID
+				incomingLabels = append(incomingLabels, label)
+			}
 		}
 	}
 
@@ -3304,7 +3303,7 @@ WHERE
 		if err == nil {
 			err = errors.New(ds.testBatchSetMDMAppleProfilesErr)
 		}
-		return nil, ctxerr.Wrap(ctx, err, "inserting apple profile label associations")
+		return nil, ctxerr.Wrap(ctx, err, "inserting apple declaration label associations")
 	}
 
 	return declarations, nil
