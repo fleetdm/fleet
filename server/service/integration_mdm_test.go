@@ -12928,9 +12928,32 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 	}
 
+	checkRequestsDatabase := func(t *testing.T, messageType, enrollmentID string, expectedCount int) {
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			var output struct {
+				Num int `db:"count"`
+			}
+			if err := sqlx.GetContext(
+				context.Background(),
+				q,
+				&output,
+				"SELECT count(*) AS count FROM mdm_apple_declarative_requests WHERE enrollment_id = ? AND message_type = ?",
+				enrollmentID,
+				messageType,
+			); err != nil {
+				return err
+			}
+
+			require.Equal(t, expectedCount, output.Num, "unexpected db row count for declaration requests")
+
+			return nil
+		})
+	}
+
 	var currDeclToken string // we'll use this to track the expected token across tests
 
 	t.Run("Tokens", func(t *testing.T) {
+		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 0)
 		// get tokens, timestamp should be the same as the declaration and token should be non-empty
 		r, err := mdmDevice.DeclarativeManagement("tokens")
 		require.NoError(t, err)
@@ -12955,6 +12978,7 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["456"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["456"])
+		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -12962,9 +12986,11 @@ INSERT INTO host_mdm_apple_declarations (
 		parsed = parseTokensResp(r)
 		checkTokensResp(t, parsed, then.Add(1*time.Minute), currDeclToken)
 		currDeclToken = parsed.SyncTokens.DeclarationsToken
+		checkRequestsDatabase(t, "tokens", mdmDevice.UUID, 2)
 	})
 
 	t.Run("DeclarationItems", func(t *testing.T) {
+		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 0)
 		r, err := mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
@@ -12986,6 +13012,7 @@ INSERT INTO host_mdm_apple_declarations (
 		}
 		insertDeclaration(t, noTeamDeclsByUUID["789"])
 		insertHostDeclaration(t, mdmDevice.UUID, noTeamDeclsByUUID["789"])
+		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 1)
 
 		// get tokens again, timestamp and token should have changed
 		r, err = mdmDevice.DeclarativeManagement("tokens")
@@ -12997,16 +13024,21 @@ INSERT INTO host_mdm_apple_declarations (
 		r, err = mdmDevice.DeclarativeManagement("declaration-items")
 		require.NoError(t, err)
 		checkDeclarationItemsResp(t, parseDeclarationItemsResp(r), currDeclToken, mapDeclsByChecksum(noTeamDeclsByUUID))
+		checkRequestsDatabase(t, "declaration-items", mdmDevice.UUID, 2)
 	})
 
 	t.Run("Status", func(t *testing.T) {
+		checkRequestsDatabase(t, "status", mdmDevice.UUID, 0)
 		_, err := mdmDevice.DeclarativeManagement("status")
 		require.NoError(t, err)
+		checkRequestsDatabase(t, "status", mdmDevice.UUID, 1)
 	})
 
 	t.Run("Declaration", func(t *testing.T) {
 		want := noTeamDeclsByUUID["123"]
-		r, err := mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
+		declarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier)
+		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 0)
+		r, err := mdmDevice.DeclarativeManagement(declarationPath)
 		require.NoError(t, err)
 
 		assertDeclarationResponse(r, want)
@@ -13031,16 +13063,23 @@ INSERT INTO host_mdm_apple_declarations (
 		want = noTeamDeclsByUUID["abc"]
 		r, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", want.Identifier))
 		require.NoError(t, err)
+		checkRequestsDatabase(t, declarationPath, mdmDevice.UUID, 1)
 
 		// try getting a non-existent declaration, should fail 404
-		_, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent"))
+		nonExistantDeclarationPath := fmt.Sprintf("declaration/%s/%s", "configuration", "nonexistent")
+		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 0)
+		_, err = mdmDevice.DeclarativeManagement(nonExistantDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "404 Not Found")
+		checkRequestsDatabase(t, nonExistantDeclarationPath, mdmDevice.UUID, 1)
 
 		// typo should fail as bad request
-		_, err = mdmDevice.DeclarativeManagement(fmt.Sprintf("declarations/%s/%s", "configurations", want.Identifier))
+		typoDeclarationPath := fmt.Sprintf("declarations/%s/%s", "configurations", want.Identifier)
+		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 0)
+		_, err = mdmDevice.DeclarativeManagement(typoDeclarationPath)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "400 Bad Request")
+		checkRequestsDatabase(t, typoDeclarationPath, mdmDevice.UUID, 1)
 
 		assertDeclarationResponse(r, want)
 	})

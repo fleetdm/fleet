@@ -3513,3 +3513,21 @@ WHERE
 
 	return &res, nil
 }
+
+func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, message_type, raw_json string) error {
+	const stmt = `
+INSERT INTO
+    mdm_apple_declarative_requests (
+        enrollment_id,
+        message_type,
+        raw_json
+    )
+VALUES
+    (?, ?, ?)
+`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, message_type, raw_json); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing apple declarative request to db")
+	}
+
+	return nil
+}
