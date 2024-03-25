@@ -103,7 +103,9 @@ func (a *AppleMDM) runPostDEPEnrollment(ctx context.Context, args appleMDMArgs) 
 	if err != nil {
 		return ctxerr.Wrap(ctx, err, "installing post-enrollment packages")
 	}
-	awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+	if bootstrapCmdUUID != "" {
+		awaitCmdUUIDs = append(awaitCmdUUIDs, bootstrapCmdUUID)
+	}
 
 	if ref := args.EnrollReference; ref != "" {
 		a.Log.Log("info", "got an enroll_reference", "host_uuid", args.HostUUID, "ref", ref)
@@ -200,6 +202,10 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	}
 
 	for _, cmdUUID := range args.EnrollmentCommands {
+		if cmdUUID == "" {
+			continue
+		}
+
 		res, err := a.Datastore.GetMDMAppleCommandResults(ctx, cmdUUID)
 		if err != nil {
 			return ctxerr.Wrap(ctx, err, "failed to get MDM command results")
