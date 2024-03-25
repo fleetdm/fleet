@@ -1062,7 +1062,6 @@ func expectAppleDeclarations(
 		require.Equal(t, wantD.Name, gotD.Name)
 		require.Equal(t, wantD.Identifier, gotD.Identifier)
 		require.Equal(t, wantD.Labels, gotD.Labels)
-		require.Equal(t, wantD.Category, gotD.Category)
 	}
 	return m
 }
@@ -1258,7 +1257,6 @@ func declForTest(name, identifier, payloadContent string, labels ...*fleet.Label
 
 	decl := &fleet.MDMAppleDeclaration{
 		RawJSON:    declBytes,
-		Category:   fleet.MDMAppleDeclarativeConfiguration,
 		Identifier: fmt.Sprintf("com.fleet.config%s", identifier),
 		Name:       name,
 	}

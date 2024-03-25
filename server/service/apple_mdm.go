@@ -2710,6 +2710,55 @@ func ensureFleetdConfig(ctx context.Context, ds fleet.Datastore, logger kitlog.L
 	return nil
 }
 
+func ReconcileAppleDeclarations(
+	ctx context.Context,
+	ds fleet.Datastore,
+	commander *apple_mdm.MDMAppleCommander,
+	logger kitlog.Logger,
+) error {
+	// once all the declarations are in place, compute the desired state
+	// and find which hosts need a DDM sync.
+	changedDeclarations, err := ds.MDMAppleGetHostsWithChangedDeclarations(ctx)
+	if err != nil {
+		return ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
+	}
+
+	if len(changedDeclarations) == 0 {
+		logger.Log("msg", "no hosts with changed declarations")
+		return nil
+	}
+
+	// a host might have more than one declaration to sync, we do this to
+	// collect unique host UUIDs in order to send a single command to each
+	// host in the next step
+	uuidMap := map[string]struct{}{}
+	for _, d := range changedDeclarations {
+		uuidMap[d.HostUUID] = struct{}{}
+	}
+	uuids := make([]string, 0, len(uuidMap))
+	for uuid := range uuidMap {
+		uuids = append(uuids, uuid)
+	}
+
+	// mark the host declarations as pending, this serves two purposes:
+	//
+	// - support the APIs/methods that track host status (summaries, filters, etc)
+	//
+	// - support the DDM endpoints, which use data from the
+	//   `host_mdm_apple_declarations` table to compute which declarations to
+	//   serve
+	if err := ds.MDMAppleBatchInsertHostDeclarations(ctx, changedDeclarations); err != nil {
+		return ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
+	}
+
+	// send a DeclarativeManagement command to start a sync
+	if err := commander.DeclarativeManagement(ctx, uuids, uuid.NewString()); err != nil {
+		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
+	}
+
+	return nil
+}
+
 func ReconcileAppleProfiles(
 	ctx context.Context,
 	ds fleet.Datastore,
@@ -3233,16 +3282,11 @@ func (svc *MDMAppleDDMService) handleDeclarationItems(ctx context.Context, hostU
 	activations := []fleet.MDMAppleDDMManifest{}
 	configurations := []fleet.MDMAppleDDMManifest{}
 	for _, d := range di {
-		manifest := fleet.MDMAppleDDMManifest{Identifier: d.Identifier, ServerToken: d.ServerToken}
-		switch d.Category {
-		case string(fleet.MDMAppleDeclarativeActivation):
-			activations = append(activations, manifest)
-		case string(fleet.MDMAppleDeclarativeConfiguration):
-			configurations = append(configurations, manifest)
-		default:
-			level.Debug(svc.logger).Log("msg", "unrecognized declaration category", "category", d.Category)
-			return nil, ctxerr.New(ctx, "unrecognized declaration category")
-		}
+		configurations = append(configurations, fleet.MDMAppleDDMManifest(d))
+		activations = append(activations, fleet.MDMAppleDDMManifest{
+			Identifier:  fmt.Sprintf("%s.activation", d.Identifier),
+			ServerToken: d.ServerToken,
+		})
 	}
 
 	// TODO: Look for ways to optimize the declaration item query so that we don't have to get the declarations token separately.
@@ -3274,11 +3318,43 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 	}
 	level.Debug(svc.logger).Log("msg", "parsed declarations request", "type", parts[1], "identifier", parts[2])
 
-	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(
-		ctx, fleet.MDMAppleDeclarationCategory("com.apple."+parts[1]),
-		parts[2],
-		hostUUID,
-	)
+	switch parts[1] {
+	case "activation":
+		return svc.handleActivationDeclaration(ctx, parts, hostUUID)
+	case "configuration":
+		return svc.handleConfigurationDeclaration(ctx, parts, hostUUID)
+	default:
+		return nil, newNotFoundError()
+	}
+}
+
+func (svc *MDMAppleDDMService) handleActivationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	references := strings.TrimSuffix(parts[2], ".activation")
+
+	// ensure the declaration for the requested activation stil exists
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, references, hostUUID)
+	if err != nil {
+		if fleet.IsNotFound(err) {
+			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
+		}
+		return nil, ctxerr.Wrap(ctx, err, "getting linked configuration for activation declaration")
+	}
+
+	response := fmt.Sprintf(`
+{
+  "Identifier": "%s",
+  "Payload": {
+    "StandardConfigurations": ["%s"]
+  },
+  "ServerToken": "%s",
+  "Type": "com.apple.activation.simple"
+}`, parts[2], references, d.Checksum)
+
+	return []byte(response), nil
+}
+
+func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Context, parts []string, hostUUID string) ([]byte, error) {
+	d, err := svc.ds.MDMAppleDDMDeclarationsResponse(ctx, parts[2], hostUUID)
 	if err != nil {
 		if fleet.IsNotFound(err) {
 			return nil, nano_service.NewHTTPStatusError(http.StatusNotFound, err)
@@ -3286,12 +3362,6 @@ func (svc *MDMAppleDDMService) handleDeclarationsResponse(ctx context.Context, e
 		return nil, ctxerr.Wrap(ctx, err, "getting declaration response")
 	}
 
-	// unmarshall into a temporary map in order to add the token.
-	// we do this at this stage because tokens are purely managed by Fleet,
-	// and we don't want to store a modified version of what's provided by
-	// the IT admin.
-	//
-	// This mimics what we do for CommandUUID, but can be revisited.
 	var tempd map[string]any
 	if err := json.Unmarshal(d.RawJSON, &tempd); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "unmarshaling stored declaration")

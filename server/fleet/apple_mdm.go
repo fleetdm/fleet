@@ -450,6 +450,8 @@ const (
 	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
 )
 
+const MDMAppleDeclarationUUIDPrefix = "d"
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -533,25 +535,6 @@ type SCEPIdentityAssociation struct {
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
 
-// MDMAppleDeclarationCategory is the type for the supported declaration types.
-type MDMAppleDeclarationCategory string
-
-const (
-	// MDMAppleConfigurationDeclaration is the value for [configuration][1] declarations
-	//
-	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3813088
-	MDMAppleDeclarativeConfiguration MDMAppleDeclarationCategory = "com.apple.configuration"
-
-	// MDMAppleActivationConfiguration is the value for [activation][1] declarations
-	//
-	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
-	MDMAppleDeclarativeActivation MDMAppleDeclarationCategory = "com.apple.activation"
-
-	// MDMAppleDeclarationUUIDPrefix is the prefix used to differentiate declaration uuids
-	// from legacy Apple profile uuids and Windows profile uuids.
-	MDMAppleDeclarationUUIDPrefix = "d"
-)
-
 // MDMAppleDeclaration represents a DDM JSON declaration.
 type MDMAppleDeclaration struct {
 	// DeclarationUUID is the unique identifier of the declaration in
@@ -571,10 +554,6 @@ type MDMAppleDeclaration struct {
 	// Name corresponds to the file name of the associated JSON declaration payload.
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
-
-	// Category is the category of the declaration, at the moment we
-	// only support configurations and activations.
-	Category MDMAppleDeclarationCategory `db:"category"`
 
 	// RawJSON is the raw JSON content of the declaration
 	RawJSON json.RawMessage `db:"raw_json" json:"-"`
@@ -604,7 +583,6 @@ var ForbiddenDeclTypes = map[string]struct{}{
 	"com.apple.configuration.account.google":               {},
 	"com.apple.configuration.account.ldap":                 {},
 	"com.apple.configuration.account.mail":                 {},
-	"com.apple.configuration.management.test":              {},
 	"com.apple.configuration.screensharing.connection":     {},
 	"com.apple.configuration.security.certificate":         {},
 	"com.apple.configuration.security.identity":            {},
@@ -629,7 +607,7 @@ func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
 		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
 	}
 
-	if !strings.HasPrefix(r.Type, string(MDMAppleDeclarativeConfiguration)) {
+	if !strings.HasPrefix(r.Type, "com.apple.configuration") {
 		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
 	}
 
@@ -671,12 +649,15 @@ type MDMAppleHostDeclaration struct {
 	// Detail contains any messages that must be surfaced to the user,
 	// either by the MDM protocol or the Fleet server.
 	Detail string `db:"detail" json:"detail"`
+
+	// Checksum contains the MD5 checksum of the declaration JSON uploaded
+	// by the IT admin. Fleet uses this value as the ServerToken.
+	Checksum string `db:"checksum" json:"-"`
 }
 
 func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
 	var decl MDMAppleDeclaration
 
-	decl.Category = MDMAppleDeclarationCategory(strings.Join(strings.Split(declType, ".")[:3], "."))
 	decl.Identifier = ident
 	decl.Name = name
 	decl.RawJSON = raw
@@ -733,7 +714,6 @@ type MDMAppleDDMManifest struct {
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
 	Identifier  string `db:"identifier"`
-	Category    string `db:"category"`
 	ServerToken string `db:"checksum"`
 }
 

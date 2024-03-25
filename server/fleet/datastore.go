@@ -1161,7 +1161,16 @@ type Datastore interface {
 	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
-	MDMAppleDDMDeclarationsResponse(ctx context.Context, declarationType MDMAppleDeclarationCategory, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
+	// MDMAppleGetHostsWithChangedDeclarations returns a
+	// MDMAppleHostDeclaration item for each (host x declaration) pair that
+	// needs an status change, this includes declarations to install and
+	// declarations to be removed. Those can be differentiated by the
+	// OperationType field on each struct.
+	MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*MDMAppleHostDeclaration, error)
+	// MDMAppleBatchInsertHostDeclarations tracks the current status of all
+	// the host declarations provided.
+	MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*MDMAppleHostDeclaration) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
