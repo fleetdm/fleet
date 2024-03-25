@@ -47,7 +47,7 @@ const AddIntegrationModal = ({
   }, [backendValidators]);
 
   return (
-    <Modal title={"Add integration"} onExit={onCancel} className={baseClass}>
+    <Modal title="Add integration" onExit={onCancel} className={baseClass}>
       <div className="form">
         {!testingConnection && (
           <>

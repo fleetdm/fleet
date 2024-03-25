@@ -18,24 +18,10 @@ This handbook page details processes specific to working [with](#contact-us) and
   - Please **use issue comments and GitHub mentions** to communicate follow-ups or answer questions related to your request.
 
 <!---
-
 Rituals (out-dated 2023-10-19)
 
-The following table lists the Customer's group's rituals, frequency, and Directly Responsible Individual (DRI).
-
-| Ritual                       | Frequency                | Description                                         | DRI               |
-|:-----------------------------|:-----------------------------|:----------------------------------------------------|-------------------|
-| Customer Slack channel monitoring | Daily | Continuously monitor Slack for customer feedback, feature requests, reported bugs, etc., and respond in less than an hour.   | Kathy Satterlee        |
-| Customer follow-up | Daily | Follow-up and tag appropriate personnel for follow-up on customer items in progress and items that remain unresolved. | Kathy Satterlee |
-| Internal follow-up | Daily | Go through Fleet's internal Slack channels to check for any relevant new information or tasks from other teams. | Kathy Satterlee |
-| [Customer voice](https://docs.google.com/document/d/15Zn6qdm9NyNM7C9kLKtvgMKsuY4Hpgo7lABOBhw7olI/edit?usp=sharing) | Weekly | Prepare and review the health and latest updates from Fleet's key customers and active proof of concepts (POCs), plus other active support items related to community support, community engagement efforts, contact form or chat requests, self-service customers, outages, and more. | Kathy Satterlee  |
-| Stand-up | Weekly | Meet with the Engineering team three to four times a week to share information and prioritize issues. | Kathy Satterlee |
-| Customer request backlog | Weekly | Check-in before the 🗣️ Product Feature Requests meeting to make sure that all information necessary has been gathered before presenting customer requests and feedback to the Product team. | Kathy Satterlee |
-| 🗣️ Product Feature Requests | Weekly | Present and advocate for requests and ideas brought to Fleet's attention by customers that are interesting from a product perspective. | Kathy Satterlee |
-| Customer meetings | Weekly | Check-in on how product and company are performing, provide updates on new product features or progress on customer requests.  These are private meetings with one meeting for each individual commercial customer. | Kathy Satterlee |
-| Release announcements | Every three weeks | Update customers on new features and resolve issues in an upcoming release. | Kathy Satterlee        |
 | Opportunity pipeline review | Weekly | Agenda: Go through every [open opportunity](https://fleetdm.lightning.force.com/lightning/o/Opportunity/list?filterName=00B4x00000CTHZIEA5) and update the next steps, amounts, dates, and status (including choosing Closed Lost if no communications for >= 45 days). | Alex Mitchell
-[Salesforce contributor experience checkup](#salesforce-contributor-experience-checkups)| Monthly | Make sure all users see a detailed view of contacts, opportunities, accounts, and leads. | Taylor Hughes |
+
 | Lead pipeline review  | Weekly | Agenda: Review leads by status/stage; make sure SLAs are met. Clean up Open MQL list. Ask CRO if questions. | Alex Mitchell |
 --->
 
@@ -160,7 +146,7 @@ You can help a Premium license dispenser customers change their credit card by d
 
 ## Rituals
 
-<rituals :rituals="rituals['handbook/customers/sales.rituals.yml']"></rituals>
+<rituals :rituals="rituals['handbook/sales/sales.rituals.yml']"></rituals>
 
 
 #### Stubs

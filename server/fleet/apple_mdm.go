@@ -12,14 +12,14 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
-	"github.com/micromdm/nanodep/godep"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 )
 
 type MDMAppleCommandIssuer interface {
 	InstallProfile(ctx context.Context, hostUUIDs []string, profile mobileconfig.Mobileconfig, uuid string) error
 	RemoveProfile(ctx context.Context, hostUUIDs []string, identifier string, uuid string) error
 	DeviceLock(ctx context.Context, host *Host, uuid string) error
-	EraseDevice(ctx context.Context, hostUUIDs []string, uuid string) error
+	EraseDevice(ctx context.Context, host *Host, uuid string) error
 	InstallEnterpriseApplication(ctx context.Context, hostUUIDs []string, uuid string, manifestURL string) error
 }
 
@@ -277,17 +277,6 @@ func (p HostMDMAppleProfile) ToHostMDMProfile() HostMDMProfile {
 	}
 }
 
-func (p HostMDMAppleProfile) IgnoreMDMClientError() bool {
-	switch p.OperationType {
-	case MDMOperationTypeRemove:
-		switch {
-		case strings.Contains(p.Detail, "MDMClientError (89)"):
-			return true
-		}
-	}
-	return false
-}
-
 type HostMDMProfileDetail string
 
 const (
@@ -453,6 +442,14 @@ func (h *HostDEPAssignment) IsDEPAssignedToFleet() bool {
 	return h.HostID > 0 && !h.AddedAt.IsZero() && h.DeletedAt == nil
 }
 
+type DEPAssignProfileResponseStatus string
+
+const (
+	DEPAssignProfileResponseSuccess       DEPAssignProfileResponseStatus = "SUCCESS"
+	DEPAssignProfileResponseNotAccessible DEPAssignProfileResponseStatus = "NOT_ACCESSIBLE"
+	DEPAssignProfileResponseFailed        DEPAssignProfileResponseStatus = "FAILED"
+)
+
 // NanoEnrollment represents a row in the nano_enrollments table managed by
 // nanomdm. It is meant to be used internally by the server, not to be returned
 // as part of endpoints, and as a precaution its json-encoding is explicitly
@@ -517,4 +514,21 @@ func (a MDMAppleSetupAssistant) AuthzType() string {
 type ProfileMatcher interface {
 	PreassignProfile(ctx context.Context, payload MDMApplePreassignProfilePayload) error
 	RetrieveProfiles(ctx context.Context, externalHostIdentifier string) (MDMApplePreassignHostProfiles, error)
+}
+
+// SCEPIdentityCertificate represents a certificate issued during MDM
+// enrollment.
+type SCEPIdentityCertificate struct {
+	Serial         string    `db:"serial"`
+	NotValidAfter  time.Time `db:"not_valid_after"`
+	CertificatePEM []byte    `db:"certificate_pem"`
+}
+
+// SCEPIdentityAssociation represents an association between an identity
+// certificate an a specific host.
+type SCEPIdentityAssociation struct {
+	HostUUID         string `db:"host_uuid"`
+	SHA256           string `db:"sha256"`
+	EnrollReference  string `db:"enroll_reference"`
+	RenewCommandUUID string `db:"renew_command_uuid"`
 }

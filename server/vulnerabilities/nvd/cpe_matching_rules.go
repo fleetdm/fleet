@@ -2,6 +2,8 @@ package nvd
 
 import (
 	"fmt"
+
+	"github.com/facebookincubator/nvdtools/wfn"
 )
 
 type CPEMatchingRules []CPEMatchingRule
@@ -179,6 +181,20 @@ func GetKnownNVDBugRules() (CPEMatchingRules, error) {
 					TargetSW:         "linux",
 					SemVerConstraint: ">= 3.7.3, <= 3.7.15",
 				},
+			},
+		},
+		// These vulnerabilities in the MongoDB client incorrectly match
+		// the VS Code extension.
+		CPEMatchingRule{
+			CVEs: map[string]struct{}{
+				"CVE-2012-6619": {},
+				"CVE-2013-1892": {},
+				"CVE-2013-2132": {},
+				"CVE-2015-1609": {},
+				"CVE-2016-6494": {},
+			},
+			IgnoreIf: func(cpeMeta *wfn.Attributes) bool {
+				return cpeMeta.TargetSW == "visual_studio_code"
 			},
 		},
 	}

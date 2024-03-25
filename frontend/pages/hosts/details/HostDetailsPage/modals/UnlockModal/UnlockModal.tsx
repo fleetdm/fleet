@@ -3,6 +3,7 @@ import { AxiosError } from "axios";
 import { useQuery } from "react-query";
 
 import { NotificationContext } from "context/notification";
+import { getErrorReason } from "interfaces/errors";
 import hostAPI, { IUnlockHostResponse } from "services/entities/hosts";
 
 import Modal from "components/Modal";
@@ -16,7 +17,6 @@ interface IUnlockModalProps {
   id: number;
   platform: string;
   hostName: string;
-  pin?: number;
   onSuccess: () => void;
   onClose: () => void;
 }
@@ -25,7 +25,6 @@ const UnlockModal = ({
   id,
   platform,
   hostName,
-  pin,
   onSuccess,
   onClose,
 }: IUnlockModalProps) => {
@@ -41,6 +40,9 @@ const UnlockModal = ({
     () => hostAPI.unlockHost(id),
     {
       enabled: platform === "darwin",
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
     }
   );
 
@@ -50,9 +52,8 @@ const UnlockModal = ({
       await hostAPI.unlockHost(id);
       onSuccess();
       renderFlash("success", "Host is unlocking!");
-    } catch (error) {
-      const err = error as AxiosError;
-      renderFlash("error", err.message);
+    } catch (e) {
+      renderFlash("error", getErrorReason(e));
     }
     onClose();
     setIsUnlocking(false);

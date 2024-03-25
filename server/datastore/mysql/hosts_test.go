@@ -22,11 +22,11 @@ import (
 	"github.com/fleetdm/fleet/v4/server/config"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
-	"github.com/micromdm/nanodep/godep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
@@ -99,6 +99,7 @@ func TestHosts(t *testing.T) {
 		{"IDsByName", testHostsIDsByName},
 		{"Additional", testHostsAdditional},
 		{"ByIdentifier", testHostsByIdentifier},
+		{"HostLiteByIdentifierAndID", testHostLiteByIdentifierAndID},
 		{"AddToTeam", testHostsAddToTeam},
 		{"SaveUsers", testHostsSaveUsers},
 		{"SaveHostUsers", testHostsSaveHostUsers},
@@ -113,6 +114,7 @@ func TestHosts(t *testing.T) {
 		{"HostsListBySoftwareChangedAt", testHostsListBySoftwareChangedAt},
 		{"HostsListByOperatingSystemID", testHostsListByOperatingSystemID},
 		{"HostsListByOSNameAndVersion", testHostsListByOSNameAndVersion},
+		{"HostsListByVulnerability", testHostsListByVulnerability},
 		{"HostsListByDiskEncryptionStatus", testHostsListMacOSSettingsDiskEncryptionStatus},
 		{"HostsListFailingPolicies", printReadsInTest(testHostsListFailingPolicies)},
 		{"HostsExpiration", testHostsExpiration},
@@ -2483,8 +2485,76 @@ func testHostsByIdentifier(t *testing.T, ds *Datastore) {
 	assert.Equal(t, now.UTC(), h.SeenTime)
 
 	h, err = ds.HostByIdentifier(context.Background(), "foobar")
-	require.Error(t, err)
-	require.Nil(t, h)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+}
+
+func testHostLiteByIdentifierAndID(t *testing.T, ds *Datastore) {
+	now := time.Now().UTC().Truncate(time.Second)
+	for i := 1; i <= 10; i++ {
+		_, err := ds.NewHost(
+			context.Background(), &fleet.Host{
+				DetailUpdatedAt: now,
+				LabelUpdatedAt:  now,
+				PolicyUpdatedAt: now,
+				SeenTime:        now,
+				OsqueryHostID:   ptr.String(fmt.Sprintf("osquery_host_id_%d", i)),
+				NodeKey:         ptr.String(fmt.Sprintf("node_key_%d", i)),
+				UUID:            fmt.Sprintf("uuid_%d", i),
+				Hostname:        fmt.Sprintf("hostname_%d", i),
+				HardwareSerial:  fmt.Sprintf("serial_%d", i),
+			},
+		)
+		require.NoError(t, err)
+	}
+
+	var (
+		h   *fleet.HostLite
+		err error
+	)
+	identifier := "uuid_1"
+	h, err = ds.HostLiteByIdentifier(context.Background(), identifier)
+	require.NoError(t, err)
+	assert.Equal(t, uint(1), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	// Also test fetching host by ID
+	h, err = ds.HostLiteByID(context.Background(), h.ID)
+	require.NoError(t, err)
+	assert.Equal(t, identifier, h.UUID)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "osquery_host_id_2")
+	require.NoError(t, err)
+	assert.Equal(t, uint(2), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "node_key_4")
+	require.NoError(t, err)
+	assert.Equal(t, uint(4), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "hostname_7")
+	require.NoError(t, err)
+	assert.Equal(t, uint(7), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "serial_9")
+	require.NoError(t, err)
+	assert.Equal(t, uint(9), h.ID)
+	assert.Equal(t, now.UTC(), h.SeenTime)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "foobar")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByIdentifier(context.Background(), "")
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
+	h, err = ds.HostLiteByID(context.Background(), 0)
+	assert.ErrorIs(t, err, sql.ErrNoRows)
+	assert.Nil(t, h)
+
 }
 
 func testHostsAddToTeam(t *testing.T, ds *Datastore) {
@@ -2656,7 +2726,7 @@ func testHostsSaveUsersWithoutUid(t *testing.T, ds *Datastore) {
 	assert.Equal(t, host.Users[0].Uid, u2.Uid)
 }
 
-func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
+func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) *fleet.Host {
 	host, err := ds.NewHost(context.Background(), &fleet.Host{
 		DetailUpdatedAt: time.Now(),
 		LabelUpdatedAt:  time.Now(),
@@ -2671,41 +2741,61 @@ func addHostSeenLast(t *testing.T, ds fleet.Datastore, i, days int) {
 	})
 	require.NoError(t, err)
 	require.NotNil(t, host)
+	return host
 }
 
 func testHostsTotalAndUnseenSince(t *testing.T, ds *Datastore) {
-	addHostSeenLast(t, ds, 1, 0)
+	host1 := addHostSeenLast(t, ds, 1, 0)
 
-	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 1, total)
-	assert.Equal(t, 0, unseen)
+	assert.Len(t, unseen, 0)
 
-	addHostSeenLast(t, ds, 2, 2)
-	addHostSeenLast(t, ds, 3, 4)
+	host2 := addHostSeenLast(t, ds, 2, 2)
+	host3 := addHostSeenLast(t, ds, 3, 4)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 2, unseen)
+	assert.Len(t, unseen, 2)
 
 	// host not counted as unseen if less than a full 24 hours has passed
 	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86399*time.Second))
 	require.NoError(t, err)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 1, unseen)
+	assert.Len(t, unseen, 1)
 
 	// host counted as unseen if more than 24 hours has passed
 	_, err = ds.writer(context.Background()).ExecContext(context.Background(), `UPDATE host_seen_times SET seen_time = ? WHERE host_id = 2`, time.Now().Add(-1*time.Duration(1)*86401*time.Second))
 	require.NoError(t, err)
 
-	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	assert.Equal(t, 3, total)
-	assert.Equal(t, 2, unseen)
+	require.Len(t, unseen, 2)
+	assert.Equal(t, host2.ID, unseen[0])
+	assert.Equal(t, host3.ID, unseen[1])
+
+	// Test team hosts
+	team1, err := ds.NewTeam(context.Background(), &fleet.Team{Name: "team1"})
+	require.NoError(t, err)
+
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), &team1.ID, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 0, total)
+	assert.Len(t, unseen, 0)
+
+	require.NoError(t, ds.AddHostsToTeam(context.Background(), &team1.ID, []uint{host1.ID, host3.ID}))
+	total, unseen, err = ds.TotalAndUnseenHostsSince(context.Background(), &team1.ID, 1)
+	require.NoError(t, err)
+	assert.Equal(t, 2, total)
+	require.Len(t, unseen, 1)
+	assert.Equal(t, host3.ID, unseen[0])
+
 }
 
 func testHostsListByPolicy(t *testing.T, ds *Datastore) {
@@ -3071,6 +3161,84 @@ func testHostsListByOSNameAndVersion(t *testing.T, ds *Datastore) {
 	hosts = listHostsCheckCount(t, ds, fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{OSNameFilter: ptr.String("macOS"), OSVersionFilter: ptr.String("12.5.2")}, 3)
 	for _, h := range hosts {
 		require.Contains(t, hostIDs_12_5_2_X86, h.ID)
+	}
+}
+
+func testHostsListByVulnerability(t *testing.T, ds *Datastore) {
+	// seed hosts
+	var hosts []*fleet.Host
+	for i := 0; i < 9; i++ {
+		h, err := ds.NewHost(context.Background(), &fleet.Host{
+			DetailUpdatedAt: time.Now(),
+			LabelUpdatedAt:  time.Now(),
+			PolicyUpdatedAt: time.Now(),
+			SeenTime:        time.Now().Add(-time.Duration(i) * time.Minute),
+			OsqueryHostID:   ptr.String(strconv.Itoa(i)),
+			NodeKey:         ptr.String(fmt.Sprintf("%d", i)),
+			UUID:            fmt.Sprintf("%d", i),
+			Hostname:        fmt.Sprintf("foo.local%d", i),
+		})
+		require.NoError(t, err)
+		hosts = append(hosts, h)
+	}
+
+	// seed software
+	software := []fleet.Software{
+		{Name: "foo", Version: "0.0.2", Source: "chrome_extensions"},
+	}
+
+	// add software to 5 hosts
+	var swVulnHostIDs []uint
+	for i := 0; i < 5; i++ {
+		_, err := ds.UpdateHostSoftware(context.Background(), hosts[i].ID, software)
+		require.NoError(t, err)
+		swVulnHostIDs = append(swVulnHostIDs, hosts[i].ID)
+	}
+
+	// seed software vulnerabilities
+	vuln := fleet.SoftwareVulnerability{
+		CVE:        "CVE-2021-1234",
+		SoftwareID: 1,
+	}
+
+	_, err := ds.InsertSoftwareVulnerability(context.Background(), vuln, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err := ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1234")})
+	require.NoError(t, err)
+	require.Len(t, list, 5)
+	for _, h := range list {
+		require.Contains(t, swVulnHostIDs, h.ID)
+	}
+
+	// update 2 host operating system
+	os := fleet.OperatingSystem{
+		Name:          "Ubuntu",
+		Version:       "20.4.0 LTS",
+		Arch:          "x86_64",
+		Platform:      "ubuntu",
+		KernelVersion: "5.10.76-linuxkit",
+	}
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[0].ID, os)
+	require.NoError(t, err)
+	err = ds.UpdateHostOperatingSystem(context.Background(), hosts[1].ID, os)
+	require.NoError(t, err)
+
+	// seed os vulnerability
+	osVulns := []fleet.OSVulnerability{
+		{
+			OSID: 1,
+			CVE:  "CVE-2021-1235",
+		},
+	}
+	_, err = ds.InsertOSVulnerabilities(context.Background(), osVulns, fleet.NVDSource)
+	require.NoError(t, err)
+
+	list, err = ds.ListHosts(context.Background(), fleet.TeamFilter{User: test.UserAdmin}, fleet.HostListOptions{VulnerabilityFilter: ptr.String("CVE-2021-1235")})
+	require.NoError(t, err)
+	require.Len(t, list, 2)
+	for _, h := range list {
+		require.Contains(t, []uint{hosts[0].ID, hosts[1].ID}, h.ID)
 	}
 }
 
@@ -4772,10 +4940,10 @@ func testHostsNoSeenTime(t *testing.T, ds *Datastore) {
 	require.Equal(t, h1.ID, foundHosts[1].ID)
 	require.Equal(t, foundHosts[1].SeenTime, foundHosts[1].CreatedAt)
 
-	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), 1)
+	total, unseen, err := ds.TotalAndUnseenHostsSince(context.Background(), nil, 1)
 	require.NoError(t, err)
 	require.Equal(t, total, 2)
-	require.Equal(t, unseen, 0)
+	require.Len(t, unseen, 0)
 
 	h3, err := ds.NewHost(context.Background(), &fleet.Host{
 		ID:              3,
@@ -6107,7 +6275,8 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	require.Equal(t, &expected[0], osVersion)
 
 	// team 1
-	osVersions, err = ds.OSVersions(ctx, &team1.ID, nil, nil, nil)
+	userAdmin := &fleet.User{GlobalRole: ptr.String(fleet.RoleAdmin)}
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team1.ID, User: userAdmin}, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
@@ -6116,16 +6285,25 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 5, &team1.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 5, &fleet.TeamFilter{TeamID: &team1.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team1.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team1.ID, User: userAdmin})
+	require.NoError(t, err)
+	require.Equal(t, &expected[1], osVersion)
+
+	userTeam1 := &fleet.User{Teams: []fleet.UserTeam{{Team: *team1, Role: fleet.RoleAdmin}}}
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{User: userTeam1}, nil, nil, nil)
+	require.NoError(t, err)
+	require.Equal(t, expected, osVersions.OSVersions)
+
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{User: userTeam1})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
 
 	// team 2
-	osVersions, err = ds.OSVersions(ctx, &team2.ID, nil, nil, nil)
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team2.ID}, nil, nil, nil)
 	require.NoError(t, err)
 
 	expected = []fleet.OSVersion{
@@ -6134,26 +6312,30 @@ func testOSVersions(t *testing.T, ds *Datastore) {
 	}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[0], osVersion)
 
-	osVersion, _, err = ds.OSVersion(ctx, 3, &team2.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{TeamID: &team2.ID})
 	require.NoError(t, err)
 	require.Equal(t, &expected[1], osVersion)
 
+	// Wrong team
+	_, _, err = ds.OSVersion(ctx, 3, &fleet.TeamFilter{User: userTeam1})
+	require.True(t, fleet.IsNotFound(err))
+
 	// team 3 (no hosts assigned to team)
-	osVersions, err = ds.OSVersions(ctx, &team3.ID, nil, nil, nil)
+	osVersions, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: &team3.ID}, nil, nil, nil)
 	require.NoError(t, err)
 	expected = []fleet.OSVersion{}
 	require.Equal(t, expected, osVersions.OSVersions)
 
-	osVersion, _, err = ds.OSVersion(ctx, 2, &team3.ID)
+	osVersion, _, err = ds.OSVersion(ctx, 2, &fleet.TeamFilter{TeamID: &team3.ID})
 	require.Error(t, err)
 	require.Nil(t, osVersion)
 
 	// non-existent team
-	_, err = ds.OSVersions(ctx, ptr.Uint(404), nil, nil, nil)
+	_, err = ds.OSVersions(ctx, &fleet.TeamFilter{TeamID: ptr.Uint(404)}, nil, nil, nil)
 	require.Error(t, err)
 
 	// new host with arm64

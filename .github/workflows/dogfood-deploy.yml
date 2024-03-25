@@ -41,6 +41,11 @@ jobs:
     name: Deploy Fleet Dogfood Environment
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - uses: actions/checkout@2541b1294d2704b0964813337f33b291d3f8596b
       - id: fail-on-main
         run: "false"

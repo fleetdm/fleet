@@ -4,6 +4,7 @@ about: Checklist of required tests prior to release
 title: 'Release QA:'
 labels: '#g-mdm,#g-endpoint-ops,:release'
 assignees: 'xpkoala,sabrinabuckets'
+
 ---
 
 # Goal: easy-to-follow test steps for checking a release manually

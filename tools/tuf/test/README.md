@@ -35,6 +35,7 @@ GENERATE_MSI=1 \
 ENROLL_SECRET=6/EzU/+jPkxfTamWnRv1+IJsO4T9Etju \
 FLEET_DESKTOP=1 \
 USE_FLEET_SERVER_CERTIFICATE=1 \
+DEBUG=1 \
 ./tools/tuf/test/main.sh
 ```
 
@@ -54,6 +55,14 @@ LINUX_TEST_EXTENSIONS="./tools/test_extensions/hello_world/linux/hello_world_lin
 ./tools/tuf/test/main.sh
 ```
 
+To build for a specific architecture, you can pass the `GOARCH` environment variable:
+``` shell
+[...]
+GOARCH=arm64 # defaults to amd64
+[...]
+./tools/tuf/test/main.sh
+```
+
 # Add new updates
 
 To add new updates (osqueryd or orbit), use `push_target.sh`.
@@ -65,6 +74,19 @@ GOOS=windows GOARCH=amd64 go build -o orbit-windows.exe ./orbit/cmd/orbit
 
 # Push the compiled Orbit as a new version
 ./tools/tuf/test/push_target.sh windows orbit orbit-windows.exe 43
+```
+
+If the script was executed on a macOS host, the Orbit binary will be an universal binary. To push updates you can do:
+
+```sh
+# Compile a universal binary of Orbit:
+CGO_ENABLED=1 \
+ORBIT_VERSION=42 \
+ORBIT_BINARY_PATH="orbit-macos" \
+go run ./orbit/tools/build/build.go
+
+# Push the compiled Orbit as a new version
+./tools/tuf/test/push_target.sh macos orbit orbit-macos 43
 ```
 
 E.g. to add a new version of `osqueryd` for macOS:

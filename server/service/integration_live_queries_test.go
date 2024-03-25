@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -21,6 +22,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/live_query/live_query_mock"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/pubsub"
+	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/stretchr/testify/assert"
@@ -31,7 +33,7 @@ import (
 
 func TestIntegrationLiveQueriesTestSuite(t *testing.T) {
 	testingSuite := new(liveQueriesTestSuite)
-	testingSuite.s = &testingSuite.Suite
+	testingSuite.withServer.s = &testingSuite.Suite
 	suite.Run(t, testingSuite)
 }
 
@@ -58,7 +60,11 @@ func (s *liveQueriesTestSuite) SetupSuite() {
 	lq := live_query_mock.New(s.T())
 	s.lq = lq
 
-	users, server := RunServerForTestsWithDS(s.T(), s.ds, &TestServerOpts{Lq: lq, Rs: rs})
+	opts := &TestServerOpts{Lq: lq, Rs: rs}
+	if os.Getenv("FLEET_INTEGRATION_TESTS_DISABLE_LOG") != "" {
+		opts.Logger = kitlog.NewNopLogger()
+	}
+	users, server := RunServerForTestsWithDS(s.T(), s.ds, opts)
 	s.server = server
 	s.users = users
 	s.token = getTestAdminToken(s.T(), s.server)
@@ -91,7 +97,8 @@ type liveQueryEndpoint int
 const (
 	oldEndpoint liveQueryEndpoint = iota
 	oneQueryEndpoint
-	customQueryOneHostEndpoint
+	customQueryOneHostIdEndpoint
+	customQueryOneHostIdentifierEndpoint
 )
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
@@ -140,14 +147,18 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 				defer wg.Done()
 				s.DoJSON("GET", "/api/latest/fleet/queries/run", liveQueryRequest, http.StatusOK, &liveQueryResp)
 			}()
-		} else { // customQueryOneHostEndpoint
+		} else { // customQueryOneHostId(.*)Endpoint
 			liveQueryRequest := runLiveQueryOnHostRequest{
 				Query: query,
+			}
+			url := fmt.Sprintf("/api/latest/fleet/hosts/%d/query", host.ID)
+			if endpoint == customQueryOneHostIdentifierEndpoint {
+				url = fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID)
 			}
 			go func() {
 				defer wg.Done()
 				s.DoJSON(
-					"POST", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID), liveQueryRequest, http.StatusOK,
+					"POST", url, liveQueryRequest, http.StatusOK,
 					&liveQueryOnHostResp,
 				)
 			}()
@@ -160,7 +171,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			ticker := time.NewTicker(100 * time.Millisecond)
 			defer ticker.Stop()
 			for range ticker.C {
-				if endpoint == customQueryOneHostEndpoint {
+				if endpoint == customQueryOneHostIdentifierEndpoint || endpoint == customQueryOneHostIdEndpoint {
 					campaign := fleet.DistributedQueryCampaign{}
 					err := mysql.ExecAdhocSQLWithError(
 						s.ds, func(q sqlx.ExtContext) error {
@@ -239,7 +250,7 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 			assert.Equal(t, q1.ID, liveQueryResp.Results[0].QueryID)
 			require.Len(t, liveQueryResp.Results[0].Results, 1)
 			result = liveQueryResp.Results[0].Results[0]
-		} else { // customQueryOneHostEndpoint
+		} else { // customQueryOneHostId(.*)Endpoint
 			assert.Empty(t, liveQueryOnHostResp.Error)
 			assert.Equal(t, host.ID, liveQueryOnHostResp.HostID)
 			assert.Equal(t, fleet.StatusOnline, liveQueryOnHostResp.Status)
@@ -321,7 +332,8 @@ func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostOneQuery() {
 	s.Run("not saved query", func() { test(oneQueryEndpoint, false, true) })
 	s.Run("saved query without stats", func() { test(oneQueryEndpoint, true, false) })
 	s.Run("saved query with stats", func() { test(oneQueryEndpoint, true, true) })
-	s.Run("custom query", func() { test(customQueryOneHostEndpoint, false, false) })
+	s.Run("custom query by host id", func() { test(customQueryOneHostIdEndpoint, false, false) })
+	s.Run("custom query by host identifier", func() { test(customQueryOneHostIdentifierEndpoint, false, false) })
 }
 
 func (s *liveQueriesTestSuite) TestLiveQueriesRestOneHostMultipleQuery() {
@@ -695,6 +707,20 @@ func (s *liveQueriesTestSuite) TestLiveQueriesInvalidInputs() {
 		HostIDs: nil,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/queries/%d/run", q1.ID), oneLiveQueryRequest, http.StatusBadRequest, &oneLiveQueryResp)
+
+	// Invalid raw query
+	liveQueryOnHostRequest := runLiveQueryOnHostRequest{
+		Query: " ",
+	}
+	liveQueryOnHostResp := runLiveQueryOnHostResponse{}
+	s.DoJSON(
+		"POST", fmt.Sprintf("/api/latest/fleet/hosts/%d/query", host.ID), liveQueryOnHostRequest, http.StatusBadRequest,
+		&liveQueryOnHostResp,
+	)
+	s.DoJSON(
+		"POST", fmt.Sprintf("/api/latest/fleet/hosts/identifier/%s/query", host.UUID), liveQueryOnHostRequest, http.StatusBadRequest,
+		&liveQueryOnHostResp,
+	)
 }
 
 // TestLiveQueriesFailsToAuthorize when an observer tries to run a live query
@@ -941,8 +967,8 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	}
 	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusBadRequest, &createResp)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create with new query for specific hosts
 	req = createDistributedQueryCampaignRequest{
@@ -955,8 +981,23 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	camp1 := *createResp.Campaign
 	assert.Equal(t, uint(2), createResp.Campaign.Metrics.TotalHosts)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
+
+	// create with new query for 'No team'
+	req = createDistributedQueryCampaignRequest{
+		QuerySQL: "SELECT 2.5",
+		Selected: fleet.HostTargets{
+			TeamIDs: []uint{0},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/queries/run", req, http.StatusOK, &createResp)
+	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
+	camp1 = *createResp.Campaign
+	assert.Equal(t, uint(len(s.hosts)), createResp.Campaign.Metrics.TotalHosts)
+
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create by host name
 	req2 := createDistributedQueryCampaignByNamesRequest{
@@ -969,8 +1010,8 @@ func (s *liveQueriesTestSuite) TestCreateDistributedQueryCampaign() {
 	assert.NotEqual(t, camp1.ID, createResp.Campaign.ID)
 	assert.Equal(t, uint(1), createResp.Campaign.Metrics.TotalHosts)
 
-	// wait a second to prevent duplicate name for new query
-	time.Sleep(time.Second)
+	// wait to prevent duplicate name for new query
+	time.Sleep(200 * time.Millisecond)
 
 	// create by unknown host name - it ignores the unknown names. Must have at least 1 valid host
 	req2 = createDistributedQueryCampaignByNamesRequest{

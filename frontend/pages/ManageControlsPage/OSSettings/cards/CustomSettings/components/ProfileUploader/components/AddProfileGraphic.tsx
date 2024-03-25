@@ -16,7 +16,7 @@ const ProfileGraphic = ({
     <Graphic
       key={`file-configuration-profile-graphic`}
       className={`${baseClass}__graphic`}
-      name={"file-configuration-profile"}
+      name="file-configuration-profile"
     />
     {showMessage && (
       <span className={`${baseClass}__profile-graphic--message`}>

@@ -1,6 +1,6 @@
 {
   "name": "fleetdm-fleetdm",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "author": "Fleet Device Management Inc",
   "summary": "MDM management and profile assignment using FleetDM",
   "license": "proprietary",

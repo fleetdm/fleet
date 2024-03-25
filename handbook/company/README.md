@@ -113,7 +113,7 @@ Ever wonder why there are 6 circles in the Fleet logo, but only 5 values?  Behol
 ## History
 
 ### 2014: Origins of osquery
-In 2014, our CTO Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
+In 2014, our Cofounder Zach Wasserman, together with [Mike Arpaia](https://twitter.com/mikearpaia/status/1357455391588839424) and the rest of their team at Facebook, created an open source project called [osquery](https://osquery.io).
 
 ### 2016: Origins of Fleet v1.0
 A few years later, Zach, Mike Arpaia, and [Jason Meller](https://honest.security) founded [Kolide](https://kolide.com) and created Fleet: an open source platform that made it easier and more productive to use osquery in an enterprise setting.
@@ -141,7 +141,7 @@ To provide clarity about decision-making, [responsibility](https://fleetdm.com/h
 - 🫧 [Demand](https://fleetdm.com/handbook/demand): The Demand department is directly responsible for growing awareness of Fleet and nurturing the community through participation in events, conversations, and other programs.
 - 🚀 [Engineering](https://fleetdm.com/handbook/engineering): The Engineering department at Fleet is directly responsible for writing and maintaining the code for Fleet's core product.
 - 🦢 [Product Design](https://fleetdm.com/handbook/product-design): The Product Design department is directly responsible for defining and prioritizing the changes made to the core product.
-- 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience): The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture, including fleetdm.com, the handbook, issue templates, UI style guides, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
+- 🌐 [Digital Experience](https://fleetdm.com/handbook/digital-experience): The Digital Experience department is directly responsible for the framework, content design, and technology behind Fleet's remote work culture and overall brand experience, including fleetdm.com, the handbook, issue templates, UI style guides, consistent brandfronts, internal tooling, Zapier flows, Docusign templates, key spreadsheets, and project management processes. 
 
 ## Advisors
 While most improvements at Fleet are driven by informal conversations with customers and open-source contributors, the company also has a few dozen advisors and investors, including

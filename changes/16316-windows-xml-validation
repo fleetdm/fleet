@@ -1,5 +1,0 @@
-* Improved the validation of Windows profiles to prevent errors when the
-  profiles are delivered to the hosts. If you need to embed a nested XML
-  structure (for example for Wi-Fi profiles) you can either:
-      - Escape the XML
-      - Use a wrapping `<![CDATA[ ... ]]>` element

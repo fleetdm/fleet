@@ -3,17 +3,25 @@ package service
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
 	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/asn1"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
+	"math/big"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/fleetdm/fleet/v4/server/authz"
 	"github.com/fleetdm/fleet/v4/server/config"
@@ -23,6 +31,8 @@ import (
 	fleetmdm "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/apple/mobileconfig"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/log/stdlogfmt"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_pushsvc "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/push/service"
 	"github.com/fleetdm/fleet/v4/server/mock"
@@ -31,7 +41,6 @@ import (
 	"github.com/fleetdm/fleet/v4/server/test"
 	kitlog "github.com/go-kit/kit/log"
 	"github.com/google/uuid"
-	nanodep_client "github.com/micromdm/nanodep/client"
 	"github.com/stretchr/testify/require"
 )
 
@@ -751,7 +760,7 @@ func TestHostDetailsMDMProfiles(t *testing.T) {
 	ds.GetHostMDMMacOSSetupFunc = func(ctx context.Context, hostID uint) (*fleet.HostMDMMacOSSetup, error) {
 		return nil, nil
 	}
-	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, hostID uint, fleetPlatform string) (*fleet.HostLockWipeStatus, error) {
+	ds.GetHostLockWipeStatusFunc = func(ctx context.Context, host *fleet.Host) (*fleet.HostLockWipeStatus, error) {
 		return &fleet.HostLockWipeStatus{}, nil
 	}
 
@@ -991,7 +1000,7 @@ func TestMDMCommandAuthz(t *testing.T) {
 	}
 }
 
-func TestMDMAuthenticate(t *testing.T) {
+func TestMDMAuthenticateManualEnrollment(t *testing.T) {
 	ds := new(mock.Store)
 	svc := MDMAppleCheckinAndCommandService{ds: ds}
 	ctx := context.Background()
@@ -1006,7 +1015,11 @@ func TestMDMAuthenticate(t *testing.T) {
 
 	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
 		require.Equal(t, uuid, hostUUID)
-		return &fleet.HostMDMCheckinInfo{HardwareSerial: serial, DisplayName: fmt.Sprintf("%s (%s)", model, serial), InstalledFromDEP: false}, nil
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:   serial,
+			DisplayName:      fmt.Sprintf("%s (%s)", model, serial),
+			InstalledFromDEP: false,
+		}, nil
 	}
 
 	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
@@ -1041,6 +1054,104 @@ func TestMDMAuthenticate(t *testing.T) {
 	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
 	require.True(t, ds.NewActivityFuncInvoked)
 	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
+}
+
+func TestMDMAuthenticateADE(t *testing.T) {
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds}
+	ctx := context.Background()
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	ds.IngestMDMAppleDeviceFromCheckinFunc = func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+		require.Equal(t, uuid, mdmHost.UDID)
+		require.Equal(t, serial, mdmHost.SerialNumber)
+		require.Equal(t, model, mdmHost.Model)
+		return nil
+	}
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:     serial,
+			DisplayName:        fmt.Sprintf("%s (%s)", model, serial),
+			DEPAssignedToFleet: true,
+		}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		a, ok := activity.(*fleet.ActivityTypeMDMEnrolled)
+		require.True(t, ok)
+		require.Nil(t, user)
+		require.Equal(t, "mdm_enrolled", activity.ActivityName())
+		require.Equal(t, serial, a.HostSerial)
+		require.Equal(t, a.HostDisplayName, fmt.Sprintf("%s (%s)", model, serial))
+		require.True(t, a.InstalledFromDEP)
+		require.Equal(t, fleet.MDMPlatformApple, a.MDMPlatform)
+		return nil
+	}
+
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+		require.Equal(t, uuid, hostUUID)
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx},
+		&mdm.Authenticate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+			SerialNumber: serial,
+			Model:        model,
+		},
+	)
+	require.NoError(t, err)
+	require.True(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
+	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.True(t, ds.NewActivityFuncInvoked)
+	require.True(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
+}
+
+func TestMDMAuthenticateSCEPRenewal(t *testing.T) {
+	ds := new(mock.Store)
+	svc := MDMAppleCheckinAndCommandService{ds: ds, logger: kitlog.NewNopLogger()}
+	ctx := context.Background()
+	uuid, serial, model := "ABC-DEF-GHI", "XYZABC", "MacBookPro 16,1"
+
+	ds.GetHostMDMCheckinInfoFunc = func(ct context.Context, hostUUID string) (*fleet.HostMDMCheckinInfo, error) {
+		require.Equal(t, uuid, hostUUID)
+		return &fleet.HostMDMCheckinInfo{
+			HardwareSerial:        serial,
+			DisplayName:           fmt.Sprintf("%s (%s)", model, serial),
+			SCEPRenewalInProgress: true,
+		}, nil
+	}
+
+	ds.NewActivityFunc = func(ctx context.Context, user *fleet.User, activity fleet.ActivityDetails) error {
+		return nil
+	}
+	ds.ResetMDMAppleEnrollmentFunc = func(ctx context.Context, hostUUID string) error {
+		return nil
+	}
+	ds.IngestMDMAppleDeviceFromCheckinFunc = func(ctx context.Context, mdmHost fleet.MDMAppleHostDetails) error {
+		return nil
+	}
+
+	err := svc.Authenticate(
+		&mdm.Request{Context: ctx, EnrollID: &mdm.EnrollID{ID: uuid}},
+		&mdm.Authenticate{
+			Enrollment: mdm.Enrollment{
+				UDID: uuid,
+			},
+			SerialNumber: serial,
+			Model:        model,
+		},
+	)
+	require.NoError(t, err)
+	require.False(t, ds.IngestMDMAppleDeviceFromCheckinFuncInvoked)
+	require.True(t, ds.GetHostMDMCheckinInfoFuncInvoked)
+	require.False(t, ds.NewActivityFuncInvoked)
+	require.False(t, ds.ResetMDMAppleEnrollmentFuncInvoked)
 }
 
 func TestMDMTokenUpdate(t *testing.T) {
@@ -1792,7 +1903,7 @@ func TestUpdateMDMAppleSettings(t *testing.T) {
 			}
 			ctx = license.NewContext(ctx, &fleet.LicenseInfo{Tier: tier})
 
-			err := svc.UpdateMDMAppleSettings(ctx, fleet.MDMAppleSettingsPayload{TeamID: tt.teamID})
+			err := svc.UpdateMDMDiskEncryption(ctx, tt.teamID, nil)
 			if tt.wantErr == "" {
 				require.NoError(t, err)
 				return
@@ -2655,4 +2766,249 @@ func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier,
 </dict>
 </plist>
 `, innerName, innerIdentifier, innerType, outerName, outerIdentifier, uuid.New().String()))
+}
+
+func generateCertWithAPNsTopic() ([]byte, []byte, error) {
+	// generate a new private key
+	priv, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// set up the OID for UID
+	oidUID := asn1.ObjectIdentifier{0, 9, 2342, 19200300, 100, 1, 1}
+
+	// set up a certificate template with the required UID in the Subject
+	notBefore := time.Now()
+	notAfter := notBefore.Add(365 * 24 * time.Hour)
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	if err != nil {
+		return nil, nil, err
+	}
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			ExtraNames: []pkix.AttributeTypeAndValue{
+				{
+					Type:  oidUID,
+					Value: "com.apple.mgmt.Example",
+				},
+			},
+		},
+		NotBefore: notBefore,
+		NotAfter:  notAfter,
+
+		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
+		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		BasicConstraintsValid: true,
+	}
+
+	// create a self-signed certificate
+	derBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &priv.PublicKey, priv)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// encode to PEM
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: derBytes})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(priv)})
+
+	return certPEM, keyPEM, nil
+}
+
+func setupTest(t *testing.T) (context.Context, kitlog.Logger, *mock.Store, *config.FleetConfig, *mock.MDMAppleStore, *apple_mdm.MDMAppleCommander) {
+	ctx := context.Background()
+	logger := kitlog.NewNopLogger()
+	cfg := config.TestConfig()
+	testCertPEM, testKeyPEM, err := generateCertWithAPNsTopic()
+	require.NoError(t, err)
+	config.SetTestMDMConfig(t, &cfg, testCertPEM, testKeyPEM, testBMToken, "../../server/service/testdata")
+	ds := new(mock.Store)
+	mdmStorage := &mock.MDMAppleStore{}
+	pushFactory, _ := newMockAPNSPushProviderFactory()
+	pusher := nanomdm_pushsvc.New(
+		mdmStorage,
+		mdmStorage,
+		pushFactory,
+		stdlogfmt.New(),
+	)
+	commander := apple_mdm.NewMDMAppleCommander(mdmStorage, pusher)
+
+	return ctx, logger, ds, &cfg, mdmStorage, commander
+}
+
+func TestRenewSCEPCertificatesMDMConfigNotSet(t *testing.T) {
+	ctx, logger, ds, cfg, _, commander := setupTest(t)
+	cfg.MDM = config.MDMConfig{} // ensure MDM is not fully configured
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+	require.NoError(t, err)
+}
+
+func TestRenewSCEPCertificatesCommanderNil(t *testing.T) {
+	ctx, logger, ds, cfg, _, _ := setupTest(t)
+	err := RenewSCEPCertificates(ctx, logger, ds, cfg, nil)
+	require.NoError(t, err)
+}
+
+func TestRenewSCEPCertificatesBranches(t *testing.T) {
+	tests := []struct {
+		name               string
+		customExpectations func(*testing.T, *mock.Store, *config.FleetConfig, *mock.MDMAppleStore, *apple_mdm.MDMAppleCommander)
+		expectedError      bool
+	}{
+		{
+			name: "No Certs to Renew",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return nil, nil
+				}
+			},
+			expectedError: false,
+		},
+		{
+			name: "GetHostCertAssociationsToExpire Errors",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return nil, errors.New("database error")
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "AppConfig Errors",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+					return nil, errors.New("app config error")
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "InstallProfile for hostsWithoutRefs",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				var wantCommandUUID string
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID1", assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUID)
+					return nil
+				}
+
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for hostsWithoutRefs fails",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: ""}}, nil
+				}
+
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+					return map[string]error{}, errors.New("foo")
+				}
+			},
+			expectedError: true,
+		},
+		{
+			name: "InstallProfile for hostsWithRefs",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				var wantCommandUUID string
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID2", EnrollReference: "ref1"}}, nil
+				}
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+					require.Equal(t, "InstallProfile", cmd.Command.RequestType)
+					wantCommandUUID = cmd.CommandUUID
+					return map[string]error{}, nil
+				}
+				ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+					require.Len(t, assocs, 1)
+					require.Equal(t, "hostUUID2", assocs[0].HostUUID)
+					require.Equal(t, cmdUUID, wantCommandUUID)
+					return nil
+				}
+				t.Cleanup(func() {
+					require.True(t, appleStore.EnqueueCommandFuncInvoked)
+					require.True(t, ds.SetCommandForPendingSCEPRenewalFuncInvoked)
+				})
+			},
+			expectedError: false,
+		},
+		{
+			name: "InstallProfile for hostsWithRefs fails",
+			customExpectations: func(t *testing.T, ds *mock.Store, cfg *config.FleetConfig, appleStore *mock.MDMAppleStore, commander *apple_mdm.MDMAppleCommander) {
+				ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+					return []fleet.SCEPIdentityAssociation{{HostUUID: "hostUUID1", EnrollReference: "ref1"}}, nil
+				}
+
+				appleStore.EnqueueCommandFunc = func(ctx context.Context, id []string, cmd *mdm.Command) (map[string]error, error) {
+					return map[string]error{}, errors.New("foo")
+				}
+			},
+			expectedError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			ctx, logger, ds, cfg, appleStorage, commander := setupTest(t)
+
+			ds.AppConfigFunc = func(ctx context.Context) (*fleet.AppConfig, error) {
+				appCfg := &fleet.AppConfig{}
+				appCfg.OrgInfo.OrgName = "fl33t"
+				appCfg.ServerSettings.ServerURL = "https://foo.example.com"
+				return appCfg, nil
+			}
+
+			ds.GetHostCertAssociationsToExpireFunc = func(ctx context.Context, expiryDays int, limit int) ([]fleet.SCEPIdentityAssociation, error) {
+				return []fleet.SCEPIdentityAssociation{}, nil
+			}
+
+			ds.SetCommandForPendingSCEPRenewalFunc = func(ctx context.Context, assocs []fleet.SCEPIdentityAssociation, cmdUUID string) error {
+				return nil
+			}
+
+			appleStorage.RetrievePushInfoFunc = func(ctx context.Context, targets []string) (map[string]*mdm.Push, error) {
+				pushes := make(map[string]*mdm.Push, len(targets))
+				for _, uuid := range targets {
+					pushes[uuid] = &mdm.Push{
+						PushMagic: "magic" + uuid,
+						Token:     []byte("token" + uuid),
+						Topic:     "topic" + uuid,
+					}
+				}
+
+				return pushes, nil
+			}
+
+			appleStorage.RetrievePushCertFunc = func(ctx context.Context, topic string) (*tls.Certificate, string, error) {
+				cert, err := tls.LoadX509KeyPair("./testdata/server.pem", "./testdata/server.key")
+				return &cert, "", err
+			}
+
+			tc.customExpectations(t, ds, cfg, appleStorage, commander)
+
+			err := RenewSCEPCertificates(ctx, logger, ds, cfg, commander)
+			if tc.expectedError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
 }

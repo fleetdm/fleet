@@ -23,6 +23,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/contexts/host"
 	"github.com/fleetdm/fleet/v4/server/contexts/viewer"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	"github.com/getsentry/sentry-go"
 	"go.elastic.co/apm/v2"
 )
 
@@ -71,6 +72,16 @@ func (e *FleetError) Stack() []string {
 func (e *FleetError) StackTrace() *runtime.Frames {
 	st := e.stack.(stack) // outside of tests, e.stack is always a stack type
 	return runtime.CallersFrames(st)
+}
+
+// StackFrames implements the reflection-based method that Sentry's Go SDK
+// uses to look for a stack trace. It abuses the internals a bit, as it uses
+// the name that sentry looks for, but returns the []uintptr slice (which works
+// because of how they handle the returned value via reflection). A cleaner
+// approach would be if they used an interface detection like APM does.
+// https://github.com/getsentry/sentry-go/blob/master/stacktrace.go#L44-L49
+func (e *FleetError) StackFrames() []uintptr {
+	return e.stack.(stack) // outside of tests, e.stack is always a stack type
 }
 
 // LogFields implements fleet.ErrWithLogFields, so attached error data can be
@@ -295,7 +306,36 @@ func Handle(ctx context.Context, err error) {
 		// (the one from the initial New/Wrap call).
 		cause = ferr
 	}
+
+	// send to elastic APM
 	apm.CaptureError(ctx, cause).Send()
+
+	// if Sentry is configured, capture the error there
+	if sentryClient := sentry.CurrentHub().Client(); sentryClient != nil {
+		// sentry is configured, add contextual information if available
+		v, _ := viewer.FromContext(ctx)
+		h, _ := host.FromContext(ctx)
+
+		if v.User != nil || h != nil {
+			// we have a viewer (user) or a host in the context, use this to
+			// enrich the error with more context
+			ctxHub := sentry.CurrentHub().Clone()
+			if v.User != nil {
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					scope.SetTag("email", v.User.Email)
+					scope.SetTag("user_id", fmt.Sprint(v.User.ID))
+				})
+			} else if h != nil {
+				ctxHub.ConfigureScope(func(scope *sentry.Scope) {
+					scope.SetTag("hostname", h.Hostname)
+					scope.SetTag("host_id", fmt.Sprint(h.ID))
+				})
+			}
+			ctxHub.CaptureException(cause)
+		} else {
+			sentry.CaptureException(cause)
+		}
+	}
 
 	if eh := fromContext(ctx); eh != nil {
 		eh.Store(err)

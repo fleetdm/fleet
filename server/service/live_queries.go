@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -128,10 +129,6 @@ func runLiveQueryEndpoint(ctx context.Context, request interface{}, svc fleet.Se
 func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryOnHostRequest)
 
-	if req.Query == "" {
-		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
-	}
-
 	host, err := svc.HostLiteByIdentifier(ctx, req.Identifier)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %s: %s", req.Identifier, err.Error())))
@@ -143,10 +140,6 @@ func runLiveQueryOnHostEndpoint(ctx context.Context, request interface{}, svc fl
 func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, svc fleet.Service) (errorer, error) {
 	req := request.(*runLiveQueryOnHostByIDRequest)
 
-	if req.Query == "" {
-		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
-	}
-
 	host, err := svc.HostLiteByID(ctx, req.HostID)
 	if err != nil {
 		return nil, ctxerr.Wrap(ctx, badRequest(fmt.Sprintf("host not found: %d: %s", req.HostID, err.Error())))
@@ -156,6 +149,11 @@ func runLiveQueryOnHostByIDEndpoint(ctx context.Context, request interface{}, sv
 }
 
 func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.HostLite, query string) (errorer, error) {
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, ctxerr.Wrap(ctx, badRequest("query is required"))
+	}
+
 	res := runLiveQueryOnHostResponse{
 		HostID: host.ID,
 		Query:  query,
@@ -192,7 +190,7 @@ func runLiveQueryOnHost(svc fleet.Service, ctx context.Context, host *fleet.Host
 			}
 			res.Rows = queryResult.Rows
 			res.HostID = queryResult.HostID
-		} else { // timeout waiting for results
+		} else {
 			err = errors.New("timeout waiting for results")
 		}
 		if err != nil {
@@ -265,26 +263,47 @@ func (svc *Service) RunLiveQueryDeadline(
 				queryIDPtr = nil
 				queryString = query
 			}
+
 			campaign, err := svc.NewDistributedQueryCampaign(ctx, queryString, queryIDPtr, fleet.HostTargets{HostIDs: hostIDs})
 			if err != nil {
+				level.Error(svc.logger).Log(
+					"msg", "new distributed query campaign",
+					"queryString", queryString,
+					"queryID", queryID,
+					"err", err,
+				)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
 			queryID = campaign.QueryID
 
+			// We do not want to use the outer `ctx` directly because we want to cleanup the campaign
+			// even if the outer `ctx` is canceled (e.g. a client terminating the connection).
+			// Also, we make sure stats and activity DB operations don't get killed after we return results.
+			ctxWithoutCancel := context.WithoutCancel(ctx)
+			defer func() {
+				err := svc.CompleteCampaign(ctxWithoutCancel, campaign)
+				if err != nil {
+					level.Error(svc.logger).Log(
+						"msg", "completing campaign (sync)", "query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
+					)
+					resultsCh <- fleet.QueryCampaignResult{
+						QueryID: queryID,
+						Error:   ptr.String(err.Error()),
+						Err:     err,
+					}
+				}
+			}()
+
 			readChan, cancelFunc, err := svc.GetCampaignReader(ctx, campaign)
 			if err != nil {
+				level.Error(svc.logger).Log(
+					"msg", "get campaign reader", "query.id", campaign.QueryID, "campaign.id", campaign.ID, "err", err,
+				)
 				resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
 				return
 			}
 			defer cancelFunc()
-
-			defer func() {
-				err := svc.CompleteCampaign(ctx, campaign)
-				if err != nil {
-					resultsCh <- fleet.QueryCampaignResult{QueryID: queryID, Error: ptr.String(err.Error()), Err: err}
-				}
-			}()
 
 			var results []fleet.QueryResult
 			timeout := time.After(deadline)
@@ -299,8 +318,6 @@ func (svc *Service) RunLiveQueryDeadline(
 				level.Error(svc.logger).Log("msg", "error checking saved query", "query.id", campaign.QueryID, "err", err)
 				perfStatsTracker.saveStats = false
 			}
-			// to make sure stats and activity DB operations don't get killed after we return results.
-			ctxWithoutCancel := context.WithoutCancel(ctx)
 			totalHosts := campaign.Metrics.TotalHosts
 			// We update aggregated stats and activity at the end asynchronously.
 			defer func() {

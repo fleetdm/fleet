@@ -31,4 +31,15 @@ const (
 	ActionRun = "run"
 	// ActionRunNew is the action for running a new live query.
 	ActionRunNew = "run_new"
+
+	//
+	// Selective prefixes over actions mean that they can be allowed in
+	// specific cases for roles that usually aren't allowed to perform
+	// them.
+	//
+
+	// ActionSelectiveRead allows targeted read access of an entity.
+	ActionSelectiveRead = "selective_read"
+	// ActionSelectiveList allows targeted list access of an entity.
+	ActionSelectiveList = "selective_list"
 )

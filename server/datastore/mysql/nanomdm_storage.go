@@ -8,12 +8,12 @@ import (
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
 	"github.com/fleetdm/fleet/v4/server/fleet"
+	nanodep_client "github.com/fleetdm/fleet/v4/server/mdm/nanodep/client"
+	nanodep_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage/mysql"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	nanomdm_mysql "github.com/fleetdm/fleet/v4/server/mdm/nanomdm/storage/mysql"
 	"github.com/go-kit/log"
 	"github.com/jmoiron/sqlx"
-	nanodep_client "github.com/micromdm/nanodep/client"
-	nanodep_mysql "github.com/micromdm/nanodep/storage/mysql"
 )
 
 // NanoMDMStorage wraps a *nanomdm_mysql.MySQLStorage and overrides further functionality.
@@ -86,29 +86,52 @@ func (s *NanoMDMStorage) EnqueueDeviceLockCommand(
 	cmd *mdm.Command,
 	pin string,
 ) error {
-
 	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
 		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
 			return err
 		}
 
-		// TODO(roberto): call @mna's transactionable method to update
-		// these tables when it's ready.
 		stmt := `
-                          INSERT INTO host_mdm_actions (
-			    host_id,
-			    lock_ref,
-			    unlock_pin
-			  )
-                          VALUES (?, ?, ?)
-                          ON DUPLICATE KEY UPDATE
-			        wipe_ref   = NULL,
-                                unlock_ref = NULL,
+			INSERT INTO host_mdm_actions (
+				host_id,
+				lock_ref,
+				unlock_pin,
+				fleet_platform
+			)
+			VALUES (?, ?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+				wipe_ref   = NULL,
+				unlock_ref = NULL,
 				unlock_pin = VALUES(unlock_pin),
-                                lock_ref   = VALUES(lock_ref)`
+				lock_ref   = VALUES(lock_ref)`
 
-		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, pin); err != nil {
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, pin, host.FleetPlatform()); err != nil {
 			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceLock")
+		}
+
+		return nil
+	}, s.logger)
+}
+
+// EnqueueDeviceWipeCommand enqueues a EraseDevice command for the given host.
+func (s *NanoMDMStorage) EnqueueDeviceWipeCommand(ctx context.Context, host *fleet.Host, cmd *mdm.Command) error {
+	return withRetryTxx(ctx, s.db, func(tx sqlx.ExtContext) error {
+		if err := enqueueCommandDB(ctx, tx, []string{host.UUID}, cmd); err != nil {
+			return err
+		}
+
+		stmt := `
+			INSERT INTO host_mdm_actions (
+				host_id,
+				wipe_ref,
+				fleet_platform
+			)
+			VALUES (?, ?, ?)
+			ON DUPLICATE KEY UPDATE
+				wipe_ref   = VALUES(wipe_ref)`
+
+		if _, err := tx.ExecContext(ctx, stmt, host.ID, cmd.CommandUUID, host.FleetPlatform()); err != nil {
+			return ctxerr.Wrap(ctx, err, "modifying host_mdm_actions for DeviceWipe")
 		}
 
 		return nil
