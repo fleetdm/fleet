@@ -1171,6 +1171,16 @@ type Datastore interface {
 	// MDMAppleBatchInsertHostDeclarations tracks the current status of all
 	// the host declarations provided.
 	MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*MDMAppleHostDeclaration) error
+	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
+	// of declarations, and updates the tracked host declaration status for
+	// matching declarations.
+	//
+	// It also takes care of cleaning up all host declarations that are
+	// pending removal.
+	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+	// MDMAppleSetDeclarationsAsVerifying updates all
+	// ("pending", "install") declarations for a host to be ("verifying", "install")
+	MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
