@@ -505,13 +505,13 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 
 	// Check if the file to extract is just a directory
 	if archiveReader.FileInfo().IsDir() {
-		err = os.MkdirAll(finalPath, 0o755)
+		err = os.MkdirAll(finalPath, 0755)
 		if err != nil {
 			return fmt.Errorf("could not create directory %s: %w", finalPath, err)
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
+		if os.MkdirAll(filepath.Dir(finalPath), 0755) != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 
