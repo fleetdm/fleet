@@ -172,13 +172,21 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// Fleet requires the DisplayVersion as well as the UBR (4th part of the version number) to
+		// correctly map OS vulnerabilities to hosts. The UBR is not available in the os_version table.
+		// The full version number is available in the `kernel_info` table, but there is a Win10 bug
+		// which is reporting an incorrect build number (3rd part), so we query use the registry for the UBR
+		// here instead.  To note, osquery 5.12.0 will have the UBR in the os_version table.
 		Query: `
-		SELECT os.name, r.data as display_version, k.version
-		FROM
-			registry r,
-			os_version os,
-			kernel_info k
-		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		SELECT
+    		os.name,
+    		(SELECT data from registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') as display_version,
+    		CONCAT(
+  				(SELECT version from os_version),
+  				'.',
+  				(SELECT data from registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR')
+  			) AS version
+  			FROM os_version os
 		`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
@@ -531,20 +539,21 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		// See above for the `os_version_windows` detail query.
 		Query: `
-	SELECT
-		os.name,
-		os.platform,
-		os.arch,
-		k.version as kernel_version,
-		os.version,
-		r.data as display_version
-	FROM
-		os_version os,
-		kernel_info k,
-		registry r
-	WHERE
-		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'`,
+			SELECT
+				os.name,
+				os.platform,
+				os.arch,
+				CONCAT(
+					(SELECT version from os_version),
+					'.',
+					(SELECT data from registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\UBR')
+				) AS version,
+				(SELECT data from registry where path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion') as display_version
+			FROM
+				os_version os
+		`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1051,9 +1060,9 @@ func directIngestOSWindows(ctx context.Context, logger log.Logger, host *fleet.H
 	hostOS := fleet.OperatingSystem{
 		Name:          rows[0]["name"],
 		Arch:          rows[0]["arch"],
-		KernelVersion: rows[0]["kernel_version"],
+		KernelVersion: rows[0]["version"],
 		Platform:      rows[0]["platform"],
-		Version:       rows[0]["kernel_version"],
+		Version:       rows[0]["version"],
 	}
 
 	displayVersion := rows[0]["display_version"]
