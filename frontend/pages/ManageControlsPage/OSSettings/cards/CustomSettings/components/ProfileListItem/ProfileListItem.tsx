@@ -4,7 +4,7 @@ import FileSaver from "file-saver";
 import classnames from "classnames";
 
 import { IMdmProfile } from "interfaces/mdm";
-import mdmAPI from "services/entities/mdm";
+import mdmAPI, { isDDMProfile } from "services/entities/mdm";
 
 import Button from "components/buttons/Button";
 import Graphic from "components/Graphic";
@@ -29,11 +29,17 @@ const LabelCount = ({
 interface IProfileDetailsProps {
   platform: string;
   createdAt: string;
+  isDDM?: boolean;
 }
 
-const ProfileDetails = ({ platform, createdAt }: IProfileDetailsProps) => {
+const ProfileDetails = ({
+  platform,
+  createdAt,
+  isDDM,
+}: IProfileDetailsProps) => {
   const getPlatformName = () => {
-    return platform === "darwin" ? "macOS" : "Windows";
+    if (platform === "windows") return "Windows";
+    return isDDM ? "macOS (declaration)" : "macOS";
   };
 
   return (
@@ -81,7 +87,11 @@ const ProfileListItem = ({
         <div className={`${subClass}__info`}>
           <span className={`${subClass}__title`}>{name}</span>
           <div className={`${subClass}__details`}>
-            <ProfileDetails platform={platform} createdAt={created_at} />
+            <ProfileDetails
+              platform={platform}
+              createdAt={created_at}
+              isDDM={isDDMProfile(profile)}
+            />
           </div>
         </div>
       </div>

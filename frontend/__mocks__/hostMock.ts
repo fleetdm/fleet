@@ -10,7 +10,7 @@ const DEFAULT_HOST_PROFILE_MOCK: IHostMdmProfile = {
   detail: "This is verified",
 };
 
-export const createMockHostMacMdmProfile = (
+export const createMockHostMdmProfile = (
   overrides?: Partial<IHostMdmProfile>
 ): IHostMdmProfile => {
   return { ...DEFAULT_HOST_PROFILE_MOCK, ...overrides };
