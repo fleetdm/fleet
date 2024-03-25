@@ -417,7 +417,7 @@ html, body {
   }
 }
 [purpose='page-wrap'].reduced-footer-links {
-  padding-bottom: 67px;
+  padding-bottom: 70px;
 }
 
 // Landing page footer styles
@@ -425,7 +425,7 @@ html, body {
   position: absolute;
   bottom: 0px;
   width: 100%;
-  height: 67px;
+  height: 70px;
   padding: 24px 32px;
   color: @core-fleet-black-75;
   a {
@@ -451,9 +451,9 @@ body.detected-mobile {
   [purpose='page-footer'] {
     padding: 64px 40px;
     height: 460px;
-  }
-  [purpose='footer-socials'] {
-    margin-bottom: 32px;
+    [purpose='footer-socials'] {
+      margin-bottom: 32px;
+    }
   }
 }
 
@@ -479,14 +479,21 @@ body.detected-mobile {
     padding: 64px 32px;
     height: 701px;
   }
+  [purpose='page-wrap'].reduced-footer-links {
+    padding-bottom: 121px;
+  }
+  [purpose='reduced-nav-footer'] {
+    height: 121px;
+    [purpose='footer-socials'] {
+      margin-bottom: 32px;
+    }
+  }
+
 
 }
 @media (max-width: 575px) {
   [purpose='page-wrap'] {
     padding-bottom: 925px;
-  }
-  [purpose='page-wrap'].reduced-footer-links {
-    padding-bottom: 97px;
   }
   [purpose='page-header'] {
     padding: 19px 24px;
@@ -499,8 +506,12 @@ body.detected-mobile {
       }
     }
   }
+  [purpose='page-wrap'].reduced-footer-links {
+    padding-bottom: 173px;
+  }
   [purpose='reduced-nav-footer'] {
-    height: 97px;
+    height: 173px;
+    padding: 24px;
   }
   [purpose='page-footer'] {
     height: 925px;
