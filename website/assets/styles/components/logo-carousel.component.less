@@ -12,12 +12,13 @@
   padding-right: 0px;
   width: 100%;
   [purpose='logo-carousel'] {
+    justify-content: center;
     display: flex;
     align-items: center;
     position: relative;
     width: 100%;
     overflow: hidden;
-    div {
+    [purpose='logo-row'] {
       white-space: nowrap;
       animation: scroll-horizontal 80s linear infinite;
     }
@@ -56,10 +57,10 @@
   }
   @keyframes scroll-horizontal {
     0% {
-      transform: translateX(-25%);
+      transform: translateX(50%);
     }
     100% {
-      transform: translateX(-125%);
+      transform: translateX(-50%);
     }
   }
 }
