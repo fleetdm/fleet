@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"time"
+	_ "time/tzdata" // embed timezone information in the program
 
 	"github.com/fleetdm/fleet/v4/server"
 )
