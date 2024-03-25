@@ -13,7 +13,6 @@ import {
   isWindowsDiskEncryptionStatus,
 } from "interfaces/mdm";
 import { DEFAULT_EMPTY_CELL_VALUE } from "utilities/constants";
-import { isDDMProfile } from "services/entities/mdm";
 
 import TextCell from "components/TableContainer/DataTable/TextCell";
 import TooltipTruncatedTextCell from "components/TableContainer/DataTable/TooltipTruncatedTextCell";
@@ -100,11 +99,7 @@ const tableHeaders: ITableColumnConfig[] = [
     disableSortBy: true,
     accessor: "name",
     Cell: (cellProps: ITableStringCellProps) => {
-      let profileTitle = cellProps.cell.value;
-      if (isDDMProfile(cellProps.cell.value)) {
-        profileTitle = cellProps.cell.value.replace(".json", "");
-      }
-      return <TextCell value={profileTitle} />;
+      return <TextCell value={cellProps.cell.value} />;
     },
   },
   {

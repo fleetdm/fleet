@@ -90,7 +90,7 @@ const ProfileListItem = ({
             <ProfileDetails
               platform={platform}
               createdAt={created_at}
-              isDDM={isDDMProfile(name)}
+              isDDM={isDDMProfile(profile)}
             />
           </div>
         </div>

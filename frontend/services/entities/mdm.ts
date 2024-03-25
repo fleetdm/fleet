@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
   DiskEncryptionStatus,
+  IHostMdmProfile,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -46,8 +47,8 @@ export interface IUploadProfileApiParams {
   labels?: string[];
 }
 
-export const isDDMProfile = (name: string) => {
-  return name.includes(".json");
+export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+  return profile.profile_uuid.startsWith("d");
 };
 
 const mdmService = {

@@ -31,7 +31,7 @@ const MAC_PROFILE_VERIFIED_DISPLAY_CONFIG: ProfileDisplayOption = {
         "Fleet verified with osquery."
       : "The host applied the setting. Fleet verified with osquery. " +
         "Declaration profiles are verified with DDM.",
-};
+} as const;
 
 const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
   statusText: "Verifying",
@@ -43,7 +43,7 @@ const MAC_PROFILE_VERIFYING_DISPLAY_CONFIG: ProfileDisplayOption = {
         "This may take up to one hour."
       : "The host acknowledged the MDM command to apply the setting. Fleet is " +
         "verifying with osquery.",
-};
+} as const;
 
 export const PROFILE_DISPLAY_CONFIG: ProfileDisplayConfig = {
   install: {

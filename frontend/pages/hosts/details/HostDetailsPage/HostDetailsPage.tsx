@@ -753,6 +753,7 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
+  // TODO: Remove this when API is ready
   if (!host.mdm.profiles) {
     host.mdm.profiles = [];
   } else {
