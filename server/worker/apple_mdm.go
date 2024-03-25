@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/server/contexts/ctxerr"
@@ -184,11 +185,16 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 	// We opted "yes" to all those, and we want to release after a few minutes,
 	// not hours, so we'll allow only a couple retries.
 
+	level.Debug(a.Log).Log(
+		"task", "runPostDEPReleaseDevice",
+		"msg", fmt.Sprintf("awaiting commands %v and profiles to settle for host %s", args.EnrollmentCommands, args.HostUUID),
+	)
+
 	if retryNum, _ := ctx.Value(retryNumberCtxKey).(int); retryNum > 2 {
 		// give up and release the device
-		a.Log.Log("info", "releasing device after too many attempts", "host_uuid", args.HostUUID)
+		a.Log.Log("info", "releasing device after too many attempts", "host_uuid", args.HostUUID, "retries", retryNum)
 		if err := a.Commander.DeviceConfigured(ctx, args.HostUUID, uuid.NewString()); err != nil {
-			return ctxerr.Wrap(ctx, err, "failed to enqueue DeviceConfigured command")
+			return ctxerr.Wrapf(ctx, err, "failed to enqueue DeviceConfigured command after %d retries", retryNum)
 		}
 		return nil
 	}
@@ -212,8 +218,12 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		if !completed {
 			// DEP enrollment commands are not done being delivered to that device,
 			// cannot release it now.
-			return errors.New("device not ready for release, will retry")
+			return fmt.Errorf("device not ready for release, still awaiting result for command %s, will retry", cmdUUID)
 		}
+		level.Debug(a.Log).Log(
+			"task", "runPostDEPReleaseDevice",
+			"msg", fmt.Sprintf("command %s has completed", cmdUUID),
+		)
 	}
 
 	// all DEP-enrollment commands are done, check the host's profiles
@@ -225,8 +235,12 @@ func (a *AppleMDM) runPostDEPReleaseDevice(ctx context.Context, args appleMDMArg
 		// if it has any pending profiles, then its profiles are not done being
 		// delivered (installed or removed).
 		if prof.Status == nil || *prof.Status == fleet.MDMDeliveryPending {
-			return errors.New("device not ready for release, will retry")
+			return fmt.Errorf("device not ready for release, profile %s is still pending, will retry", prof.Identifier)
 		}
+		level.Debug(a.Log).Log(
+			"task", "runPostDEPReleaseDevice",
+			"msg", fmt.Sprintf("profile %s has been deployed", prof.Identifier),
+		)
 	}
 
 	// release the device
