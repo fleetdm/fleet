@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"sync"
 	"time"
 
 	"github.com/fleetdm/fleet/v4/ee/server/calendar"
@@ -14,7 +15,6 @@ import (
 	"github.com/go-kit/log"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
-	"golang.org/x/sync/errgroup"
 )
 
 func newCalendarSchedule(
@@ -195,10 +195,13 @@ func processCalendarFailingHosts(
 
 	const consumers = 20
 	hostsCh := make(chan fleet.HostPolicyMembershipData)
-	g, ctx := errgroup.WithContext(ctx)
+	var wg sync.WaitGroup
 
 	for i := 0; i < consumers; i++ {
-		g.Go(func() error {
+		wg.Add(+1)
+		go func() {
+			defer wg.Done()
+
 			for host := range hostsCh {
 				logger := log.With(logger, "host_id", host.HostID)
 
@@ -230,7 +233,8 @@ func processCalendarFailingHosts(
 
 				userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
 				if err := userCalendar.Configure(host.Email); err != nil {
-					return fmt.Errorf("configure user calendar: %w", err)
+					level.Error(logger).Log("msg", "configure user calendar", "err", err)
+					continue // continue with next host
 				}
 
 				switch {
@@ -249,11 +253,11 @@ func processCalendarFailingHosts(
 						continue // continue with next host
 					}
 				default:
-					return fmt.Errorf("get calendar event: %w", err)
+					level.Error(logger).Log("msg", "get calendar event from db", "err", err)
+					continue // continue with next host
 				}
 			}
-			return nil
-		})
+		}()
 	}
 
 	for _, host := range hosts {
@@ -261,7 +265,8 @@ func processCalendarFailingHosts(
 	}
 	close(hostsCh)
 
-	return g.Wait()
+	wg.Wait()
+	return nil
 }
 
 func filterHostsWithSameEmail(hosts []fleet.HostPolicyMembershipData) []fleet.HostPolicyMembershipData {
@@ -491,10 +496,13 @@ func removeCalendarEventsFromPassingHosts(
 
 	const consumers = 20
 	emailsCh := make(chan emailWithHosts)
-	g, ctx := errgroup.WithContext(ctx)
+	var wg sync.WaitGroup
 
 	for i := 0; i < consumers; i++ {
-		g.Go(func() error {
+		wg.Add(+1)
+		go func() {
+			defer wg.Done()
+
 			for email := range emailsCh {
 
 				hostCalendarEvent, calendarEvent, err := ds.GetHostCalendarEventByEmail(ctx, email.email)
@@ -507,15 +515,16 @@ func removeCalendarEventsFromPassingHosts(
 				case fleet.IsNotFound(err):
 					continue
 				default:
-					return fmt.Errorf("get calendar event from DB: %w", err)
+					level.Error(logger).Log("msg", "get calendar event from DB", "err", err)
+					continue
 				}
 				userCalendar := createUserCalendarFromConfig(ctx, calendarConfig, logger)
 				if err := deleteCalendarEvent(ctx, ds, userCalendar, calendarEvent); err != nil {
-					return fmt.Errorf("delete user calendar event: %w", err)
+					level.Error(logger).Log("msg", "delete user calendar event", "err", err)
+					continue
 				}
 			}
-			return nil
-		})
+		}()
 	}
 
 	for _, emailWithHostIDs := range emails {
@@ -523,7 +532,8 @@ func removeCalendarEventsFromPassingHosts(
 	}
 	close(emailsCh)
 
-	return g.Wait()
+	wg.Wait()
+	return nil
 }
 
 func logHostsWithoutAssociatedEmail(

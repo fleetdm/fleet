@@ -3,23 +3,26 @@ package calendar
 import (
 	"context"
 	"errors"
-	kitlog "github.com/go-kit/log"
-	"google.golang.org/api/calendar/v3"
-	"google.golang.org/api/googleapi"
 	"net/http"
 	"os"
 	"strconv"
 	"sync"
 	"time"
+
+	kitlog "github.com/go-kit/log"
+	"google.golang.org/api/calendar/v3"
+	"google.golang.org/api/googleapi"
 )
 
 type GoogleCalendarMockAPI struct {
 	logger kitlog.Logger
 }
 
-var mockEvents = make(map[string]*calendar.Event)
-var mu sync.Mutex
-var id uint64
+var (
+	mockEvents = make(map[string]*calendar.Event)
+	mu         sync.Mutex
+	id         uint64
+)
 
 const latency = 500 * time.Millisecond
 
@@ -44,6 +47,7 @@ func (lowLevelAPI *GoogleCalendarMockAPI) GetSetting(name string) (*calendar.Set
 }
 
 func (lowLevelAPI *GoogleCalendarMockAPI) CreateEvent(event *calendar.Event) (*calendar.Event, error) {
+	time.Sleep(latency)
 	mu.Lock()
 	defer mu.Unlock()
 	id += 1
@@ -78,4 +82,8 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 	lowLevelAPI.logger.Log("msg", "DeleteEvent", "id", id)
 	delete(mockEvents, id)
 	return nil
+}
+
+func ListGoogleMockEvents() map[string]*calendar.Event {
+	return mockEvents
 }
