@@ -478,7 +478,7 @@ func removeCalendarEventsFromPassingHosts(
 	calendarConfig *fleet.GoogleCalendarIntegration,
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
-) error {
+) {
 	hostIDsByEmail := make(map[string][]uint)
 	for _, host := range hosts {
 		hostIDsByEmail[host.Email] = append(hostIDsByEmail[host.Email], host.HostID)
@@ -534,7 +534,6 @@ func removeCalendarEventsFromPassingHosts(
 	close(emailsCh)
 
 	wg.Wait()
-	return nil
 }
 
 func logHostsWithoutAssociatedEmail(
