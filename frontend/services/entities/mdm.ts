@@ -49,6 +49,11 @@ export interface IUploadProfileApiParams {
   labels?: string[];
 }
 
+interface IUpdateSetupExperienceBody {
+  team_id?: number;
+  enable_release_device_manually: boolean;
+}
+
 export interface IAppleSetupEnrollmentProfileResponse {
   team_id: number | null;
   name: string;
@@ -239,15 +244,17 @@ const mdmService = {
   },
 
   updateReleaseDeviceSetting: (teamId: number, isEnabled: boolean) => {
-    const body = {
-      mdm: { macos_setup: { enable_release_device_manually: isEnabled } },
+    const { MDM_SETUP_EXPERIENCE } = endpoints;
+
+    const body: IUpdateSetupExperienceBody = {
+      enable_release_device_manually: isEnabled,
     };
 
-    if (teamId === API_NO_TEAM_ID) {
-      return configAPI.update(body);
+    if (teamId !== API_NO_TEAM_ID) {
+      body.team_id = teamId;
     }
 
-    return teamAPI.updateConfig(body, teamId);
+    return sendRequest("PATCH", MDM_SETUP_EXPERIENCE, body);
   },
   getSetupEnrollmentProfile: (teamId?: number) => {
     const { MDM_APPLE_SETUP_ENROLLMENT_PROFILE } = endpoints;
