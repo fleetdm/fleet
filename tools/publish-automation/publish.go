@@ -9,6 +9,7 @@ import (
 )
 
 func main() {
+	printIntro()
 	version := getVersion()
 	makeSureNPMVersionIsCoherent(version)
 	if !openReleasesPage(version) {
@@ -19,18 +20,27 @@ func main() {
 	fmt.Println("Script ended successfully.")
 }
 
+func printIntro() {
+	fmt.Println("\n===========================================================")
+	fmt.Println("This Script is not full automation.\nIt will guide you through the publishing process step by step.")
+	fmt.Println("Hit ENTER when ready.")
+	fmt.Scanln()
+}
+
 func getVersion() string {
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 1: Current version.")
 	for {
 		fmt.Println("Enter current version in the format similar to \"v4.47.2\": ")
 		var ver string
 		fmt.Scanln(&ver)
-		fmt.Println("The version you entered: " + ver + ".\n" + "Is that correct? (Y/N)")
+		fmt.Println("The version you entered: " + ver + ".\n" + "Is that correct? (Y/y)")
 		var answer string
 		fmt.Scanln(&answer)
 		if answer == "Y" || answer == "y" {
 			return ver
 		}
-		fmt.Println("Try again.")
+		fmt.Println("\n     ---> Try again.")
 	}
 }
 
@@ -40,6 +50,8 @@ func makeSureNPMVersionIsCoherent(version string) bool {
 	}
 	var pck NpmPackageJson
 
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 2: Checking ./tools/fleetctl-npm/package.json for correct version")
 	for {
 		myJson, err := os.ReadFile("./tools/fleetctl-npm/package.json")
 		if err != nil {
@@ -57,6 +69,8 @@ func makeSureNPMVersionIsCoherent(version string) bool {
 		}
 		if pck.Version == version {
 			fmt.Println("JSON at ./tools/fleetctl-npm/package.json: " + pck.Version + " is coherent with current version: " + version)
+			fmt.Println("Hit ENTER for next step")
+			fmt.Scanln()
 			// myJson.close
 			return true
 		}
@@ -69,22 +83,21 @@ func makeSureNPMVersionIsCoherent(version string) bool {
 }
 
 func openReleasesPage(version string) bool {
-	url := "https://github.com/fleetdm/fleet/releases/edit/fleet-" + version
-
-	fmt.Println("===============================================")
-	fmt.Println("Publishing the release on Fleet Releases page")
-	fmt.Println("Hit ENTER to edit current release")
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 3: Publish the release in Fleet Releases page.")
+	fmt.Println("Hitting ENTER will take you to the proper editing page (of current release)")
+	fmt.Println("Once published, go back here and hit ENTER again")
 	fmt.Scanln()
-	fmt.Println("Taking you to the edit page")
+	fmt.Println("Taking you to the edit page ... ")
 
+	url := "https://github.com/fleetdm/fleet/releases/edit/fleet-" + version
 	err := openURL(url)
 	if err != nil {
 		fmt.Println("Error opening URL:", err)
 		return false
 	}
 
-	fmt.Println("Once published, hit ENTER again")
-	fmt.Println("===============================================")
+	fmt.Println("Hit ENTER for next step")
 	fmt.Scanln()
 	return true
 }
