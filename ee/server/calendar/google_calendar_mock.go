@@ -87,3 +87,9 @@ func (lowLevelAPI *GoogleCalendarMockAPI) DeleteEvent(id string) error {
 func ListGoogleMockEvents() map[string]*calendar.Event {
 	return mockEvents
 }
+
+func ClearMockEvents() {
+	mu.Lock()
+	defer mu.Unlock()
+	mockEvents = make(map[string]*calendar.Event)
+}

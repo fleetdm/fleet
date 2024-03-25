@@ -203,6 +203,9 @@ func TestCalendarEventsMultipleHosts(t *testing.T) {
 	ds := new(mock.Store)
 	ctx := context.Background()
 	logger := kitlog.With(kitlog.NewLogfmtLogger(os.Stdout))
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+	})
 
 	// TODO(lucas): Test!
 	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -349,6 +352,9 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 	} else {
 		logger = kitlog.NewNopLogger()
 	}
+	t.Cleanup(func() {
+		calendar.ClearMockEvents()
+	})
 
 	// TODO(lucas): Use for the test.
 	webhookServer := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
