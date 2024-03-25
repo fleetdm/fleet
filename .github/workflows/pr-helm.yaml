@@ -28,6 +28,11 @@ jobs:
         kube-version: [1.16.0, 1.17.0, 1.18.0] # kubeval is currently lagging behind the active schema versions, so these are the ones we can test against. see https://github.com/instrumenta/kubernetes-json-schema/issues/26
     runs-on: ubuntu-20.04
     steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+      with:
+        egress-policy: audit
+
     - name: checkout
       uses: actions/checkout@c85c95e3d7251135ab7dc9ce3241c5835cc595a9 # v3.5.3
     - name: create temp dir
