@@ -273,16 +273,23 @@ const mdmService = {
     const reader = new FileReader();
     reader.readAsText(file);
 
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
       reader.addEventListener("load", () => {
-        const body: Record<string, any> = {
-          name: file.name,
-          enrollment_profile: JSON.parse(reader.result as string),
-        };
-        if (teamId !== API_NO_TEAM_ID) {
-          body.team_id = teamId;
+        try {
+          const body: Record<string, any> = {
+            name: file.name,
+            enrollment_profile: JSON.parse(reader.result as string),
+          };
+          if (teamId !== API_NO_TEAM_ID) {
+            body.team_id = teamId;
+          }
+          resolve(
+            sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body)
+          );
+        } catch {
+          // catches invalid JSON
+          reject("Couldn’t upload. The file should include valid JSON.");
         }
-        resolve(sendRequest("POST", MDM_APPLE_SETUP_ENROLLMENT_PROFILE, body));
       });
     });
   },

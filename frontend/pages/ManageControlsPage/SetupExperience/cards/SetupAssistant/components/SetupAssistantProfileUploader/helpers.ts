@@ -1,5 +1,5 @@
 import { AxiosResponse } from "axios";
-import { IApiError } from "interfaces/errors";
+import { IApiError, getErrorReason } from "interfaces/errors";
 
 const UPLOAD_ERROR_MESSAGES = {
   default: {
@@ -8,7 +8,7 @@ const UPLOAD_ERROR_MESSAGES = {
 };
 
 // eslint-disable-next-line import/prefer-default-export
-export const getErrorMessage = (err: AxiosResponse<IApiError>) => {
-  const apiReason = err.data.errors[0].reason;
-  return apiReason || UPLOAD_ERROR_MESSAGES.default.message;
+export const getErrorMessage = (err: unknown) => {
+  if (typeof err === "string") return err;
+  return getErrorReason(err) || UPLOAD_ERROR_MESSAGES.default.message;
 };
