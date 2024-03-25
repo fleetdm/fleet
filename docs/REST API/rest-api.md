@@ -3477,18 +3477,18 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 
 Resends a configuration profile for the specified host.
 
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/resend`
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/resend/:profile_uuid`
 
 #### Parameters
 
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The host's ID. |
-| profile_uuid   | string | query | **Required.** The UUID of the configuration profile to redeliver on the host. |
+| profile_uuid   | string | path | **Required.** The UUID of the configuration profile to resend to the host. |
 
 #### Example
 
-`POST /api/v1/fleet/hosts/233/configuration_profiles/resend?profile_uuid=cfc14a20-84a2-42d8-9257-a425f62bb54d`
+`POST /api/v1/fleet/hosts/233/configuration_profiles/resend/fc14a20-84a2-42d8-9257-a425f62bb54d`
 
 ##### Default response
 
