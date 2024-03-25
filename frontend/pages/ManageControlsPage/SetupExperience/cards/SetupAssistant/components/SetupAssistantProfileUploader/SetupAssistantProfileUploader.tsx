@@ -7,7 +7,7 @@ import mdmAPI from "services/entities/mdm";
 
 import FileUploader from "components/FileUploader";
 
-import { UPLOAD_ERROR_MESSAGES, getErrorMessage } from "./helpers";
+import { getErrorMessage } from "./helpers";
 
 const baseClass = "setup-assistant-profile-uploader";
 
@@ -32,13 +32,6 @@ const SetupAssistantProfileUploader = ({
     }
 
     const file = files[0];
-
-    // quick exit if the file type is incorrect
-    if (file.type !== "application/json") {
-      renderFlash("error", UPLOAD_ERROR_MESSAGES.wrongType.message);
-      setShowLoading(false);
-      return;
-    }
 
     try {
       await mdmAPI.uploadSetupEnrollmentProfile(file, currentTeamId);
