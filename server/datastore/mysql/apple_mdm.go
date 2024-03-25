@@ -352,7 +352,29 @@ COALESCE(detail, '') AS detail
 FROM
 host_mdm_apple_profiles
 WHERE
+host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))
+
+UNION ALL
+SELECT
+declaration_uuid AS profile_uuid,
+declaration_name AS name,
+declaration_identifier AS identifier,
+-- internally, a NULL status implies that the cron needs to pick up
+-- this profile, for the user that difference doesn't exist, the
+-- profile is effectively pending. This is consistent with all our
+-- aggregation functions.
+COALESCE(status, '%s') AS status,
+COALESCE(operation_type, '') AS operation_type,
+COALESCE(detail, '') AS detail
+FROM
+host_mdm_apple_declarations
+WHERE
 host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s', '%s'))`,
+		fleet.MDMDeliveryPending,
+		fleet.MDMOperationTypeRemove,
+		fleet.MDMDeliveryPending,
+		fleet.MDMDeliveryVerifying,
+		fleet.MDMDeliveryVerified,
 		fleet.MDMDeliveryPending,
 		fleet.MDMOperationTypeRemove,
 		fleet.MDMDeliveryPending,
@@ -361,7 +383,7 @@ host_uuid = ? AND NOT (operation_type = '%s' AND COALESCE(status, '%s') IN('%s',
 	)
 
 	var profiles []fleet.HostMDMAppleProfile
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID); err != nil {
+	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &profiles, stmt, hostUUID, hostUUID); err != nil {
 		return nil, err
 	}
 	return profiles, nil

@@ -3411,6 +3411,29 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 		checkListHostsFilterOSSettings(t, teamID, fleet.OSSettingsPending, ep[fleet.MDMDeliveryPending])
 	}
 
+	// checkWinHostProfiles := func(t *testing.T, hostUUID string, statusByProfUUID map[string]string) {
+	// 	profs, err := ds.GetHostMDMWindowsProfiles(ctx, hostUUID)
+	// 	require.NoError(t, err)
+	// 	require.Len(t, profs, len(statusByProfUUID))
+	// 	for _, prof := range profs {
+	// 		ep, ok := statusByProfUUID[prof.ProfileUUID]
+	// 		require.True(t, ok)
+	// 		require.Equal(t, ep, prof.Status)
+	// 	}
+	// }
+
+	checkMacHostProfiles := func(t *testing.T, hostUUID string, statusByProfUUID map[string]string) {
+		profs, err := ds.GetHostMDMAppleProfiles(ctx, hostUUID)
+		require.NoError(t, err)
+		require.Len(t, profs, len(statusByProfUUID))
+		for _, prof := range profs {
+			ep, ok := statusByProfUUID[prof.ProfileUUID]
+			require.True(t, ok)
+			require.NotNil(t, prof.Status)
+			require.Equal(t, fleet.MDMDeliveryStatus(ep), *prof.Status)
+		}
+	}
+
 	upsertHostProfileStatus := func(t *testing.T, hostUUID string, profUUID string, status *fleet.MDMDeliveryStatus) {
 		ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 			var table string
@@ -3528,104 +3551,153 @@ func testMDMProfilesSummaryAndHostFilters(t *testing.T, ds *Datastore) {
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID},
 		fleet.MDMDeliveryFailed:  []uint{hosts[9].ID},
 	})
+	expectedHostProfiles := map[string]string{
+		"a1": "failed",
+		"a2": "pending",
+		"a3": "verifying",
+		"a4": "verified",
+		"d1": "failed",
+		"d2": "pending",
+		"d3": "verifying",
+		"d4": "verified",
+	}
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set failed mac profile to pending, still failed because of failed declaration
 	upsertHostProfileStatus(t, hosts[9].UUID, "a1", &fleet.MDMDeliveryPending)
+	expectedHostProfiles["a1"] = "pending"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID},
 		fleet.MDMDeliveryFailed:  []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set failed mac declaration to pending, now host stsatus is pending
 	upsertHostProfileStatus(t, hosts[9].UUID, "d1", &fleet.MDMDeliveryPending)
+	expectedHostProfiles["d1"] = "pending"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set pending mac declaration to failed, host status is now failed
 	upsertHostProfileStatus(t, hosts[9].UUID, "d2", &fleet.MDMDeliveryFailed)
+	expectedHostProfiles["d2"] = "failed"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID},
 		fleet.MDMDeliveryFailed:  []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set failed mac declaration to verifying, host status is now pending
 	upsertHostProfileStatus(t, hosts[9].UUID, "d2", &fleet.MDMDeliveryVerifying)
+	expectedHostProfiles["d2"] = "verifying"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set pending mac profiles to verifying, host status is still pending because d1 is still pending
 	upsertHostProfileStatus(t, hosts[9].UUID, "a1", &fleet.MDMDeliveryVerifying)
+	expectedHostProfiles["a1"] = "verifying"
 	upsertHostProfileStatus(t, hosts[9].UUID, "a2", &fleet.MDMDeliveryVerifying)
+	expectedHostProfiles["a2"] = "verifying"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set pending mac declarations to verifying, host status is now verifying
 	upsertHostProfileStatus(t, hosts[9].UUID, "d1", &fleet.MDMDeliveryVerifying)
+	expectedHostProfiles["d1"] = "verifying"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending:   []uint{hosts[0].ID},
 		fleet.MDMDeliveryVerifying: []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set a mac profile to failed, host status is now failed
 	upsertHostProfileStatus(t, hosts[9].UUID, "a1", &fleet.MDMDeliveryFailed)
+	expectedHostProfiles["a1"] = "failed"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID},
 		fleet.MDMDeliveryFailed:  []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set mac profiles to verified, host status is now verifying because declarations are still
 	// verifying
 	upsertHostProfileStatus(t, hosts[9].UUID, "a1", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["a1"] = "verified"
 	upsertHostProfileStatus(t, hosts[9].UUID, "a2", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["a2"] = "verified"
 	upsertHostProfileStatus(t, hosts[9].UUID, "a3", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["a3"] = "verified"
 	upsertHostProfileStatus(t, hosts[9].UUID, "a4", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["a4"] = "verified"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending:   []uint{hosts[0].ID},
 		fleet.MDMDeliveryVerifying: []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set mac declarations to verified, host status is now verified
 	upsertHostProfileStatus(t, hosts[9].UUID, "d1", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["d1"] = "verified"
 	upsertHostProfileStatus(t, hosts[9].UUID, "d2", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["d2"] = "verified"
 	upsertHostProfileStatus(t, hosts[9].UUID, "d3", &fleet.MDMDeliveryVerified)
+	expectedHostProfiles["d3"] = "verified"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending:  []uint{hosts[0].ID},
 		fleet.MDMDeliveryVerified: []uint{hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// set a mac declaration to nil, host status is now pending
 	upsertHostProfileStatus(t, hosts[9].UUID, "d1", nil)
+	expectedHostProfiles["d1"] = "pending"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// works as expected if we remove mac declarations
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_declarations`)
 		return err
 	})
+	delete(expectedHostProfiles, "d1")
+	delete(expectedHostProfiles, "d2")
+	delete(expectedHostProfiles, "d3")
+	delete(expectedHostProfiles, "d4")
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending:  []uint{hosts[0].ID},
 		fleet.MDMDeliveryVerified: []uint{hosts[9].ID}, // all profiles were verified
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// works as expected if we remove mac profiles
 	ExecAdhocSQL(t, ds, func(q sqlx.ExtContext) error {
 		_, err := q.ExecContext(ctx, `DELETE FROM host_mdm_apple_profiles`)
 		return err
 	})
+	delete(expectedHostProfiles, "a1")
+	delete(expectedHostProfiles, "a2")
+	delete(expectedHostProfiles, "a3")
+	delete(expectedHostProfiles, "a4")
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	// works as expected if declarations but no profiles
 	upsertHostProfileStatus(t, hosts[9].UUID, "d1", &fleet.MDMDeliveryPending)
+	expectedHostProfiles["d1"] = "pending"
 	checkExpected(t, nil, hostIDsByProfileStatus{
 		fleet.MDMDeliveryPending: []uint{hosts[0].ID, hosts[9].ID},
 	})
+	checkMacHostProfiles(t, hosts[9].UUID, expectedHostProfiles)
 
 	cleanupTables(t)
 }
