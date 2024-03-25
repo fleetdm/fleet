@@ -222,7 +222,7 @@ func checkWine(wineChecked bool) error {
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://github.com/fleetdm/fleet/blob/main/scripts/macos-install-wine.sh %w",
+				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
 				wix.WineCmd, err,
 			)
 		}
@@ -465,7 +465,7 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 	defer zipReader.Close()
 
-	err = os.MkdirAll(filepath.Dir(destPath), 0755)
+	err = os.MkdirAll(filepath.Dir(destPath), 0o755)
 	if err != nil {
 		return fmt.Errorf("could not create directory %s: %w", filepath.Dir(destPath), err)
 	}
@@ -479,7 +479,6 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 
 	return nil
-
 }
 
 func extractZipFile(archiveReader *zip.File, destPath string) error {
@@ -506,13 +505,13 @@ func extractZipFile(archiveReader *zip.File, destPath string) error {
 
 	// Check if the file to extract is just a directory
 	if archiveReader.FileInfo().IsDir() {
-		err = os.MkdirAll(finalPath, 0755)
+		err = os.MkdirAll(finalPath, 0o755)
 		if err != nil {
 			return fmt.Errorf("could not create directory %s: %w", finalPath, err)
 		}
 	} else {
 		// Create all needed directories
-		if os.MkdirAll(filepath.Dir(finalPath), 0755) != nil {
+		if os.MkdirAll(filepath.Dir(finalPath), 0o755) != nil {
 			return fmt.Errorf("could not create directory %s: %w", filepath.Dir(finalPath), err)
 		}
 
