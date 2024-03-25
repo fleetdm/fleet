@@ -2756,8 +2756,6 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
 
-	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(uuids))
-
 	return nil
 }
 
@@ -3246,9 +3244,9 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	case dm.Endpoint == "status":
 		level.Debug(svc.logger).Log("msg", "received status request")
-		err := svc.handleDeclarationStatus(r.Context, dm)
-		fmt.Println("=============================== err", err)
-		return nil, err
+		// TODO(roberto): handle status
+
+		return nil, nil
 
 	case strings.HasPrefix(dm.Endpoint, "declaration/"):
 		level.Debug(svc.logger).Log("msg", "received declarations request")
@@ -3375,48 +3373,4 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
 	}
 	return b, nil
-}
-
-func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
-	var status fleet.MDMAppleDDMStatusReport
-	if err := json.Unmarshal(dm.Data, &status); err != nil {
-		return ctxerr.Wrap(ctx, err, "unmarshalling response")
-	}
-
-	fmt.Println("===========", string(dm.Data))
-
-	fmt.Printf("================ %+v", status)
-
-	configurationReports := status.StatusItems.Management.Declarations.Configurations
-	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
-	for i, r := range configurationReports {
-		var status fleet.MDMDeliveryStatus
-		var detail string
-		switch {
-		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
-			status = fleet.MDMDeliveryVerified
-		case r.Valid == fleet.MDMAppleDeclarationInvalid:
-			status = fleet.MDMDeliveryFailed
-			detail = "error"
-		default:
-			status = fleet.MDMDeliveryVerifying
-		}
-
-		updates[i] = &fleet.MDMAppleHostDeclaration{
-			Status:        &status,
-			OperationType: fleet.MDMOperationTypeInstall,
-			Detail:        detail,
-			Checksum:      r.ServerToken,
-		}
-	}
-
-	if len(updates) == 0 {
-		return nil
-	}
-
-	if err := svc.ds.MDMAppleUpdateHostDeclarationStatus(ctx, dm.UDID, updates); err != nil {
-		return ctxerr.Wrap(ctx, err, "updating host declaration status with reports")
-	}
-
-	return nil
 }

@@ -3564,8 +3564,8 @@ func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context
                 'install' as operation_type,
                 ds.checksum,
                 ds.declaration_uuid,
-                ds.declaration_identifier,
-                ds.declaration_name
+                ds.declaration_identifier as identifier,
+                ds.declaration_name as name
             FROM
                 %s
         )
@@ -3576,8 +3576,8 @@ func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context
                 'remove' as operation_type,
                 hmae.checksum,
                 hmae.declaration_uuid,
-                hmae.declaration_identifier,
-                hmae.declaration_name
+                hmae.declaration_identifier as identifier,
+                hmae.declaration_name as name
             FROM
                 %s
         )
@@ -3591,64 +3591,4 @@ func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
 	return decls, nil
-}
-
-func (ds *Datastore) MDMAppleUpdateHostDeclarationStatus(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
-	getHostDeclarationsStmt := `
-    SELECT host_uuid, status, operation_type, HEX(checksum) as checksum, declaration_uuid, declaration_identifier, declaration_name
-    FROM host_mdm_apple_declarations
-    WHERE host_uuid = ?
-  `
-
-	updateHostDeclarationsStmt := `
-INSERT INTO host_mdm_apple_declarations
-    (host_uuid, declaration_uuid, status, operation_type, detail, declaration_name, declaration_identifier, checksum)
-VALUES
-  %s
-ON DUPLICATE KEY UPDATE
-  status = VALUES(status),
-  operation_type = VALUES(operation_type),
-  detail = VALUES(detail)
-  `
-
-	deletePendingRemovesStmt := `
-  DELETE FROM host_mdm_apple_declarations
-  WHERE host_uuid = ? AND operation_type = 'remove' AND status = 'pending'
-  `
-
-	var current []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &current, getHostDeclarationsStmt, hostUUID); err != nil {
-		return ctxerr.Wrap(ctx, err, "getting current host declarations")
-	}
-
-	updatesByChecksum := make(map[string]*fleet.MDMAppleHostDeclaration, len(updates))
-	for _, u := range updates {
-		updatesByChecksum[u.Checksum] = u
-	}
-
-	var args []any
-	var insertVals strings.Builder
-	for _, c := range current {
-		if u, ok := updatesByChecksum[c.Checksum]; ok {
-			insertVals.WriteString("(?, ?, ?, ?, ?, ?, ?, UNHEX(?)),")
-			args = append(args, hostUUID, c.DeclarationUUID, u.Status, u.OperationType, u.Detail, c.Identifier, c.Name, c.Checksum)
-		}
-	}
-
-	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
-		if len(args) != 0 {
-			stmt := fmt.Sprintf(updateHostDeclarationsStmt, strings.TrimSuffix(insertVals.String(), ","))
-			if _, err := tx.ExecContext(ctx, stmt, args...); err != nil {
-				return ctxerr.Wrap(ctx, err, "updating existing declarations")
-			}
-		}
-
-		if _, err := tx.ExecContext(ctx, deletePendingRemovesStmt, hostUUID); err != nil {
-			return ctxerr.Wrap(ctx, err, "deleting pending removals")
-		}
-
-		return nil
-	})
-
-	return ctxerr.Wrap(ctx, err, "updating host declarations")
 }

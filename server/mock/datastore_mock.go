@@ -768,8 +768,6 @@ type MDMAppleGetHostsWithChangedDeclarationsFunc func(ctx context.Context) ([]*f
 
 type MDMAppleBatchInsertHostDeclarationsFunc func(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error
 
-type MDMAppleUpdateHostDeclarationStatusFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
-
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1999,9 +1997,6 @@ type DataStore struct {
 
 	MDMAppleBatchInsertHostDeclarationsFunc        MDMAppleBatchInsertHostDeclarationsFunc
 	MDMAppleBatchInsertHostDeclarationsFuncInvoked bool
-
-	MDMAppleUpdateHostDeclarationStatusFunc        MDMAppleUpdateHostDeclarationStatusFunc
-	MDMAppleUpdateHostDeclarationStatusFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4785,13 +4780,6 @@ func (s *DataStore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, cha
 	s.MDMAppleBatchInsertHostDeclarationsFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleBatchInsertHostDeclarationsFunc(ctx, changedDeclarations)
-}
-
-func (s *DataStore) MDMAppleUpdateHostDeclarationStatus(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
-	s.mu.Lock()
-	s.MDMAppleUpdateHostDeclarationStatusFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleUpdateHostDeclarationStatusFunc(ctx, hostUUID, updates)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
