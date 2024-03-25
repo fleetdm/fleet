@@ -1172,6 +1172,9 @@ type Datastore interface {
 	// the host declarations provided.
 	MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*MDMAppleHostDeclaration) error
 
+	// MDMAppleUpdateHostDeclarationStatus
+	MDMAppleUpdateHostDeclarationStatus(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
