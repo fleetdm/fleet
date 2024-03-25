@@ -724,7 +724,7 @@ const EditQueryForm = ({
                     placeholder="Select"
                     label="Platform"
                     onChange={onChangeSelectPlatformOptions}
-                    value={lastEditedQueryPlatforms}
+                    value={lastEditedQueryPlatforms.replace(/\s/g, "")} // NOTE: FE requires no whitespace to render UI
                     multi
                     wrapperClassName={`${baseClass}__form-field form-field--platform`}
                     helpText="By default, your query collects data on all compatible platforms."

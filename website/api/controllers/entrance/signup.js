@@ -68,10 +68,10 @@ the account verification message.)`,
       description: 'What the user will be using Fleet for.',
       required: true,
       isIn: [
-        'endpoint-ops-security',
-        'endpoint-ops-it',
-        'device-management',
-        'vulnerability-management'
+        'eo-security',
+        'eo-it',
+        'mdm',
+        'vm'
       ],
     }
 
@@ -153,6 +153,7 @@ the account verification message.)`,
       signupReason,
       password: await sails.helpers.passwords.hashPassword(password),
       stripeCustomerId,
+      primaryBuyingSituation,
       tosAcceptedByIp: this.req.ip
     }, sails.config.custom.verifyEmailAddresses? {
       emailProofToken: await sails.helpers.strings.random('url-friendly'),
