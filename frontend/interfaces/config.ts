@@ -122,7 +122,7 @@ export interface IConfig {
   };
   sandbox_enabled: boolean;
   server_settings: IConfigServerSettings;
-  smtp_settings: {
+  smtp_settings?: {
     enable_smtp: boolean;
     configured: boolean;
     sender_address: string;
