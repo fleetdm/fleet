@@ -534,13 +534,13 @@ func TestCalendarEvents1KHosts(t *testing.T) {
 		case teamID1:
 			start, end = 0, 200
 		case teamID2:
-			start, end = 201, 400
+			start, end = 200, 400
 		case teamID3:
-			start, end = 401, 600
+			start, end = 400, 600
 		case teamID4:
-			start, end = 601, 800
+			start, end = 600, 800
 		case teamID5:
-			start, end = 801, 1000
+			start, end = 800, 1000
 		}
 		return hosts[start:end], nil
 	}

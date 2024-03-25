@@ -162,16 +162,18 @@ func cronCalendarEventsForTeam(
 	// We execute this first to remove any calendar events for a user that is now passing
 	// policies on one of its hosts, and possibly create a new calendar event if they have
 	// another failing host on the same team.
-	if err := removeCalendarEventsFromPassingHosts(ctx, ds, calendarConfig, passingHosts, logger); err != nil {
-		level.Info(logger).Log("msg", "removing calendar events from passing hosts", "err", err)
-	}
+	start := time.Now()
+	removeCalendarEventsFromPassingHosts(ctx, ds, calendarConfig, passingHosts, logger)
+	level.Debug(logger).Log(
+		"msg", "passing_hosts", "took", time.Since(start),
+	)
 
 	// Process hosts that are failing calendar policies.
-	if err := processCalendarFailingHosts(
-		ctx, ds, calendarConfig, orgName, failingHosts, logger,
-	); err != nil {
-		level.Info(logger).Log("msg", "processing failing hosts", "err", err)
-	}
+	start = time.Now()
+	processCalendarFailingHosts(ctx, ds, calendarConfig, orgName, failingHosts, logger)
+	level.Debug(logger).Log(
+		"msg", "failing_hosts", "took", time.Since(start),
+	)
 
 	// At last we want to log the hosts that are failing and don't have an associated email.
 	logHostsWithoutAssociatedEmail(
@@ -190,7 +192,7 @@ func processCalendarFailingHosts(
 	orgName string,
 	hosts []fleet.HostPolicyMembershipData,
 	logger kitlog.Logger,
-) error {
+) {
 	hosts = filterHostsWithSameEmail(hosts)
 
 	const consumers = 20
@@ -266,7 +268,6 @@ func processCalendarFailingHosts(
 	close(hostsCh)
 
 	wg.Wait()
-	return nil
 }
 
 func filterHostsWithSameEmail(hosts []fleet.HostPolicyMembershipData) []fleet.HostPolicyMembershipData {
