@@ -479,6 +479,7 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 
 	return nil
+	
 }
 
 func extractZipFile(archiveReader *zip.File, destPath string) error {
