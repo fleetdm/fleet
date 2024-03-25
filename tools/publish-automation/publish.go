@@ -20,6 +20,10 @@ func main() {
 		fmt.Println("Script Failed.")
 		return
 	}
+	if !checkDocker(version) {
+		fmt.Println("Script Failed.")
+		return
+	}
 
 	fmt.Println("Script ended successfully.")
 }
@@ -162,4 +166,29 @@ func openTerminalAtPath(path string) error {
 	}
 
 	return nil
+}
+
+func checkDocker(version string) bool {
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 5: Check hub.docker for existing version")
+	fmt.Println("Hitting ENTER will take you to the proper hub.docker page.")
+	fmt.Println("Verify that the version exists")
+	fmt.Scanln()
+	url := "https://hub.docker.com/r/fleetdm/fleet/tags?page=1&name=patch-fleet-" + version
+	fmt.Println("Taking you to the docker hub page: " + url)
+
+	err := openURL(url)
+	if err != nil {
+		fmt.Println("Error opening URL:", err)
+		return false
+	}
+
+	fmt.Println("Does Docker version exist? (Y/y)")
+	var answer string
+	fmt.Scanln(&answer)
+	if answer == "Y" || answer == "y" {
+		return true
+	} else {
+		return false
+	}
 }
