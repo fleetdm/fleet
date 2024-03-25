@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -364,7 +365,7 @@ func isRateLimited(err error) bool {
 	ok := errors.As(err, &ae)
 	return ok && (ae.Code == http.StatusTooManyRequests ||
 		(ae.Code == http.StatusForbidden &&
-			(ae.Message == "Rate Limit Exceeded" || ae.Message == "User Rate Limit Exceeded" || ae.Message == "Calendar usage limits exceeded.")))
+			(ae.Message == "Rate Limit Exceeded" || ae.Message == "User Rate Limit Exceeded" || ae.Message == "Calendar usage limits exceeded." || strings.HasPrefix(ae.Message, "Quota exceeded"))))
 }
 
 func (c *GoogleCalendar) unmarshalDetails(event *fleet.CalendarEvent) (*eventDetails, error) {
