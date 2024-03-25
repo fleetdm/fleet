@@ -114,7 +114,6 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
             ) : (
               <SetuAssistantProfileCard
                 profile={enrollmentProfileData}
-                currentTeamId={currentTeamId}
                 onDelete={() => setShowDeleteProfileModal(true)}
               />
             )}
