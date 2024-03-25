@@ -1136,6 +1136,11 @@ func (svc *Service) editTeamFromSpec(
 		}
 	}
 
+	if didUpdateEnableReleaseManually {
+		if err := svc.updateMacOSSetupEnableReleaseDevice(ctx, spec.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, &team.ID, &team.Name); err != nil {
+			return err
+		}
+	}
 	if didUpdateMacOSEndUserAuth {
 		if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, spec.MDM.MacOSSetup.EnableEndUserAuthentication, &team.ID, &team.Name); err != nil {
 			return err
@@ -1241,7 +1246,7 @@ func (svc *Service) updateTeamMDMDiskEncryption(ctx context.Context, tm *fleet.T
 }
 
 func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team, payload fleet.MDMAppleSetupPayload) error {
-	var didUpdate, didUpdateMacOSEndUserAuth bool
+	var didUpdate, didUpdateMacOSEndUserAuth, didUpdateMacOSReleaseDevice bool
 	if payload.EnableEndUserAuthentication != nil {
 		if tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication != *payload.EnableEndUserAuthentication {
 			tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication = *payload.EnableEndUserAuthentication
@@ -1254,12 +1259,18 @@ func (svc *Service) updateTeamMDMAppleSetup(ctx context.Context, tm *fleet.Team,
 		if tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value != *payload.EnableReleaseDeviceManually {
 			tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(*payload.EnableReleaseDeviceManually)
 			didUpdate = true
+			didUpdateMacOSReleaseDevice = true
 		}
 	}
 
 	if didUpdate {
 		if _, err := svc.ds.SaveTeam(ctx, tm); err != nil {
 			return err
+		}
+		if didUpdateMacOSReleaseDevice {
+			if err := svc.updateMacOSSetupEnableReleaseDevice(ctx, tm.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, &tm.ID, &tm.Name); err != nil {
+				return err
+			}
 		}
 		if didUpdateMacOSEndUserAuth {
 			if err := svc.updateMacOSSetupEnableEndUserAuth(ctx, tm.Config.MDM.MacOSSetup.EnableEndUserAuthentication, &tm.ID, &tm.Name); err != nil {
