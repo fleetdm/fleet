@@ -185,6 +185,18 @@ Fleet's public relations firm is directly responsible for the accuracy of event 
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
 
 
+### Archive a document
+Follow these steps to archive any document:
+1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
+2. Be sure to "Share it with the same people", "Copy comments and suggestions", and "Include resolved comments and suggestions" as shown below.
+
+<img width="455" alt="Screenshot 2024-03-23 at 12 14 00 PM" src="https://github.com/fleetdm/fleet/assets/108141731/1c773069-11a7-4ef4-ab43-8f7c626e4b10">
+
+3. Save this backup copy to the same location in Google Drive where the original is found.
+4. Link to the backup copy at the top of the original document. Be sure to use the full URL, no abbreviated pill links (e.g. "Notes from last time: URL_OF_MOST_RECENT_BACKUP_DOCUMENT").
+5. Delete all non-structural content from the original document, including past meeting notes and current answers to "evergreen" questions.
+
+
 ### Schedule CEO interview
 From time to time, you will need to schedule an interview between a candidate and the CEO:
 1. [Make a copy of the "¶¶ CEO interview template"](https://docs.google.com/document/d/1yARlH6iZY-cP9cQbmL3z6TbMy-Ii7lO64RbuolpWQzI/copy) (private Google doc)
@@ -382,34 +394,16 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
-
-30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae)
-
-Then process the backup Sid agenda by:
-- Leaving google doc comments assigning all Fleet TODOs to correct Fleeties.
-- In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the 💻 Sid : Mike(Fleet) master doc by:
-- (Unless otherwise prefixed) Delete all agenda items, **being sure to leave 3 empty bullets in every section**.
+1. 30 minutes After each meeting [archive the "💻 Sid : Mike(Fleet)" agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document), moving it to the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all Fleet TODOs to the correct DRI.   
+3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
 ### Process and backup E-group agenda 
-Immediately after every e-group the Apprentice makes a copy of the E-group agenda doc and renames it "YYYY-MM-DD backup of E-group agenda". Then saves it to the [(¶¶) E-group archive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).
-
-Then process the backup E-group agenda by:  
-- Leaving google doc comments assigning all TODOs to correct individuals.  
-- In the E-group master doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the E-group master doc by:  
-- Clearing all bullets from the "Mike: Hear from each department" section.
-  - Delete the "Blockers" and "Last week" bullets from each department's section.
-  - Move contents from "This week" to "Last week".
-- (Unless otherwise prefixed) Delete all agenda items from the "Mike: This weeks focus" section. 
-- (Unless otherwise prefixed) Delete all agenda items from the "Today's other topics" section. 
-
-If it's the day of an All hands:
-  - Remove any spotlights that aren't a permanent staple (e.g. Mike: Every time: Pick a value, present on it.). 
-
+Follow these steps to process and backup the E-group agenda: 
+1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
+3. If the "All hands" meeting has happened today
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 

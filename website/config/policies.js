@@ -48,8 +48,6 @@ module.exports.policies = {
   'deliver-mdm-beta-signup': true,
   'deliver-apple-csr': true,
   'download-rss-feed': true,
-  'view-upgrade': true,
-  'deliver-premium-upgrade-form': true,
   'view-endpoint-ops': true,
   'view-vulnerability-management': true,
   'deliver-mdm-demo-email': true,

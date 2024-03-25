@@ -30,7 +30,6 @@ org_settings:
     transparency_url: https://fleetdm.com/transparency
   host_expiry_settings:
     host_expiry_enabled: false
-    host_expiry_window: 7
   integrations:
     jira: [ ]
     zendesk: [ ]

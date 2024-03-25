@@ -533,19 +533,23 @@ type SCEPIdentityAssociation struct {
 	RenewCommandUUID string `db:"renew_command_uuid"`
 }
 
-// MDMAppleDeclarationType is the type for the supported declaration types.
-type MDMAppleDeclarationType string
+// MDMAppleDeclarationCategory is the type for the supported declaration types.
+type MDMAppleDeclarationCategory string
 
 const (
 	// MDMAppleConfigurationDeclaration is the value for [configuration][1] declarations
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3813088
-	MDMAppleDeclarativeConfiguration MDMAppleDeclarationType = "com.apple.configuration"
+	MDMAppleDeclarativeConfiguration MDMAppleDeclarationCategory = "com.apple.configuration"
 
 	// MDMAppleActivationConfiguration is the value for [activation][1] declarations
 	//
 	// [1]: https://developer.apple.com/documentation/devicemanagement/declarations#3829708
-	MDMAppleDeclarativeActivation MDMAppleDeclarationType = "com.apple.activation"
+	MDMAppleDeclarativeActivation MDMAppleDeclarationCategory = "com.apple.activation"
+
+	// MDMAppleDeclarationUUIDPrefix is the prefix used to differentiate declaration uuids
+	// from legacy Apple profile uuids and Windows profile uuids.
+	MDMAppleDeclarationUUIDPrefix = "d"
 )
 
 // MDMAppleDeclaration represents a DDM JSON declaration.
@@ -568,18 +572,77 @@ type MDMAppleDeclaration struct {
 	// Fleet requires that Name must be unique in combination with the Identifier and TeamID.
 	Name string `db:"name" json:"name"`
 
-	// DeclarationType is the type of the declaration, at the moment we
+	// Category is the category of the declaration, at the moment we
 	// only support configurations and activations.
-	DeclarationType MDMAppleDeclarationType `db:"declaration_type"`
+	Category MDMAppleDeclarationCategory `db:"category"`
 
-	// Declaration is the raw JSON content of the declaration
-	Declaration json.RawMessage `db:"declaration" json:"-"`
+	// RawJSON is the raw JSON content of the declaration
+	RawJSON json.RawMessage `db:"raw_json" json:"-"`
 
-	// MD5Checksum is a checsum of the JSON contents
-	MD5Checksum string `db:"md5_checksum" json:"-"`
+	// Checksum is a checksum of the JSON contents
+	Checksum string `db:"checksum" json:"-"`
+
+	// Labels are the labels associated with this Declaration
+	Labels []ConfigurationProfileLabel `db:"labels" json:"labels,omitempty"`
 
 	CreatedAt  time.Time `db:"created_at" json:"created_at"`
 	UploadedAt time.Time `db:"uploaded_at" json:"uploaded_at"`
+}
+
+type MDMAppleRawDeclaration struct {
+	// Type is the "Type" field on the raw declaration JSON.
+	Type       string `json:"Type"`
+	Identifier string `json:"Identifier"`
+}
+
+// ForbiddenDeclTypes is a set of declaration types that are not allowed to be
+// added by users into Fleet.
+var ForbiddenDeclTypes = map[string]struct{}{
+	"com.apple.configuration.account.caldav":               {},
+	"com.apple.configuration.account.carddav":              {},
+	"com.apple.configuration.account.exchange":             {},
+	"com.apple.configuration.account.google":               {},
+	"com.apple.configuration.account.ldap":                 {},
+	"com.apple.configuration.account.mail":                 {},
+	"com.apple.configuration.management.test":              {},
+	"com.apple.configuration.screensharing.connection":     {},
+	"com.apple.configuration.security.certificate":         {},
+	"com.apple.configuration.security.identity":            {},
+	"com.apple.configuration.security.passkey.attestation": {},
+	"com.apple.configuration.services.configuration-files": {},
+	"com.apple.configuration.watch.enrollment":             {},
+}
+
+func (r *MDMAppleRawDeclaration) ValidateUserProvided() error {
+	var err error
+
+	// Check against types we don't allow
+	if r.Type == `com.apple.configuration.softwareupdate.enforcement.specific` {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include OS updates settings. To control these settings, go to OS updates.")
+	}
+
+	if _, forbidden := ForbiddenDeclTypes[r.Type]; forbidden {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations that don’t require an asset reference are supported.")
+	}
+
+	if r.Type == "com.apple.configuration.management.status-subscriptions" {
+		return NewInvalidArgumentError(r.Type, "Declaration profile can’t include status subscription type. To get host’s vitals, please use queries and policies.")
+	}
+
+	if !strings.HasPrefix(r.Type, string(MDMAppleDeclarativeConfiguration)) {
+		return NewInvalidArgumentError(r.Type, "Only configuration declarations (com.apple.configuration) are supported.")
+	}
+
+	return err
+}
+
+func GetRawDeclarationValues(raw []byte) (*MDMAppleRawDeclaration, error) {
+	var rawDecl MDMAppleRawDeclaration
+	if err := json.Unmarshal(raw, &rawDecl); err != nil {
+		return nil, NewInvalidArgumentError("declaration", fmt.Sprintf("Couldn't upload. The file should include valid JSON: %s", err)).WithStatus(http.StatusBadRequest)
+	}
+
+	return &rawDecl, nil
 }
 
 // MDMAppleHostDeclaration represents the state of a declaration on a host
@@ -610,6 +673,18 @@ type MDMAppleHostDeclaration struct {
 	Detail string `db:"detail" json:"detail"`
 }
 
+func NewMDMAppleDeclaration(raw []byte, teamID *uint, name string, declType, ident string) *MDMAppleDeclaration {
+	var decl MDMAppleDeclaration
+
+	decl.Category = MDMAppleDeclarationCategory(strings.Join(strings.Split(declType, ".")[:3], "."))
+	decl.Identifier = ident
+	decl.Name = name
+	decl.RawJSON = raw
+	decl.TeamID = teamID
+
+	return &decl
+}
+
 // MDMAppleDDMTokensResponse is the response from the DDM tokens endpoint.
 //
 // https://developer.apple.com/documentation/devicemanagement/tokensresponse
@@ -621,7 +696,7 @@ type MDMAppleDDMTokensResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/synchronizationtokens
 type MDMAppleDDMDeclarationsToken struct {
-	DeclarationsToken string    `db:"md5_checksum"`
+	DeclarationsToken string    `db:"checksum"`
 	Timestamp         time.Time `db:"latest_created_timestamp"`
 }
 
@@ -657,9 +732,9 @@ type MDMAppleDDMManifest struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/declarationitemsresponse
 type MDMAppleDDMDeclarationItem struct {
-	Identifier      string `db:"identifier"`
-	DeclarationType string `db:"declaration_type"`
-	ServerToken     string `db:"md5_checksum"`
+	Identifier  string `db:"identifier"`
+	Category    string `db:"category"`
+	ServerToken string `db:"checksum"`
 }
 
 // MDMAppleDDMDeclarationResponse represents a declaration in the datastore. It is used for the DDM
