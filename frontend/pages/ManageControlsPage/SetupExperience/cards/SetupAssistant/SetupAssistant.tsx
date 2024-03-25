@@ -106,14 +106,14 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
                 newTab
               />
             </p>
-            {enrollmentProfileNotFound ? (
+            {enrollmentProfileNotFound || !enrollmentProfileData ? (
               <SetupAssistantProfileUploader
                 currentTeamId={currentTeamId}
                 onUpload={onUpload}
               />
             ) : (
               <SetuAssistantProfileCard
-                profileMetaData={1}
+                profile={enrollmentProfileData}
                 currentTeamId={currentTeamId}
                 onDelete={() => setShowDeleteProfileModal(true)}
               />

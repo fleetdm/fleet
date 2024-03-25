@@ -27,17 +27,4 @@
   &__download-button, &__delete-button {
     padding: 11px; // TODO: use a padding value from existing variables. talk to design.
   }
-
-  // needed these styles for the download button for some weird icon buttons
-  // styles that are causing alignment issues
-  &__download-package {
-    button {
-      margin: 0;
-      height: auto;
-    }
-
-    &:hover {
-      cursor: pointer;
-    }
-  }
 }

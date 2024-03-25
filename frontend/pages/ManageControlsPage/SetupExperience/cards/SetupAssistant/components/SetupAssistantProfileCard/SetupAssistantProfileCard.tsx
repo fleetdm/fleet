@@ -1,92 +1,58 @@
 import React from "react";
+import FileSaver from "file-saver";
 
-import URL_PREFIX from "router/url_prefix";
 import { uploadedFromNow } from "utilities/date_format";
-import endpoints from "utilities/endpoints";
 
 import Icon from "components/Icon";
 import Card from "components/Card";
 import Graphic from "components/Graphic";
 import Button from "components/buttons/Button";
+import { IAppleSetupEnrollmentProfileResponse } from "services/entities/mdm";
 
 const baseClass = "setup-assistant-profile-card";
-
-interface ITestFormProps {
-  url: string;
-  token: string;
-  className?: string;
-}
-
-/**
- * This component abstracts away the downloading of the package. It implements this
- * with a browser form that calls the correct url to initiate the package download.
- * We do it this way as this allows us to take advantage of the browsers native
- * downloading UI instead of having to handle this in the Fleet UI.
- * TODO: make common component and use here and in DownloadInstallers.tsx.
- */
-const DownloadPackageButton = ({ url, token, className }: ITestFormProps) => {
-  return (
-    <form
-      key="form"
-      method="GET"
-      action={url}
-      target="_self"
-      className={className}
-    >
-      <input type="hidden" name="token" value={token || ""} />
-      <Button
-        variant="text-icon"
-        type="submit"
-        className={`${baseClass}__download-button`}
-      >
-        <Icon name="download" />
-      </Button>
-    </form>
-  );
-};
-
 interface ISetupAssistantProfileCardProps {
-  profileMetaData: any;
-  currentTeamId: number;
-  onDelete: (packageMetaData: any) => void;
+  profile: IAppleSetupEnrollmentProfileResponse;
+  onDelete: () => void;
 }
 
 const SetupAssistantProfileCard = ({
-  profileMetaData,
-  currentTeamId,
+  profile,
   onDelete,
 }: ISetupAssistantProfileCardProps) => {
-  profileMetaData = {
-    title: "test-profile.json",
-    created_at: "2021-08-25T20:00:00Z",
-    token: "123-abc",
-  };
+  const onDownload = () => {
+    const date = new Date();
+    const filename = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${
+      profile.name
+    }`;
+    const file = new global.window.File(
+      [JSON.stringify(profile.enrollment_profile)],
+      filename
+    );
 
-  const { origin } = global.window.location;
-  const path = `${endpoints.MDM_BOOTSTRAP_PACKAGE}`;
-  const url = `${origin}${URL_PREFIX}/api${path}`;
+    FileSaver.saveAs(file);
+  };
 
   return (
     <Card paddingSize="medium" className={baseClass}>
       <Graphic name="file-configuration-profile" />
       <div className={`${baseClass}__info`}>
-        <span className={`${baseClass}__profile-name`}>
-          {profileMetaData.title}
-        </span>
+        <span className={`${baseClass}__profile-name`}>{profile.name}</span>
         <span className={`${baseClass}__uploaded-at`}>
-          {uploadedFromNow(profileMetaData.created_at)}
+          {uploadedFromNow(profile.uploaded_at)}
         </span>
       </div>
       <div className={`${baseClass}__actions`}>
-        <DownloadPackageButton
-          className={`${baseClass}__download-package`}
-          url={url}
-          token={profileMetaData.token}
-        />
+        <Button
+          className={`${baseClass}__download-button`}
+          variant="text-icon"
+          onClick={onDownload}
+        >
+          <Icon name="download" />
+        </Button>
         <Button
           className={`${baseClass}__delete-button`}
           variant="text-icon"
-          onClick={() => onDelete(profileMetaData)}
+          onClick={onDelete}
         >
           <Icon name="trash" color="ui-fleet-black-75" />
         </Button>

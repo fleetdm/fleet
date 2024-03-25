@@ -4,7 +4,6 @@ import mdmAPI from "services/entities/mdm";
 
 import Modal from "components/Modal";
 import Button from "components/buttons/Button";
-import { render } from "@testing-library/react";
 import { NotificationContext } from "context/notification";
 
 interface DeleteAutoEnrollProfileProps {
