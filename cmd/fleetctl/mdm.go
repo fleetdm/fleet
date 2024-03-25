@@ -27,6 +27,7 @@ func mdmCommand() *cli.Command {
 			mdmRunCommand(),
 			mdmLockCommand(),
 			mdmUnlockCommand(),
+			mdmWipeCommand(),
 		},
 	}
 }
@@ -179,36 +180,9 @@ func mdmLockCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			hostIdent := c.String("host")
 
-			if len(hostIdent) == 0 {
-				return errors.New("No host targeted. Please provide --host.")
-			}
-
-			client, err := clientFromCLI(c)
+			client, host, err := hostMdmActionSetup(c, hostIdent, "lock")
 			if err != nil {
-				return fmt.Errorf("create client: %w", err)
-			}
-
-			host, err := client.HostByIdentifier(hostIdent)
-			if err != nil {
-				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
-					return errors.New("The host doesn't exist. Please provide a valid host identifier.")
-				}
-
-				var sce kithttp.StatusCoder
-				if errors.As(err, &sce) {
-					if sce.StatusCode() == http.StatusForbidden {
-						return errors.New("Permission denied. You don't have permission to lock this host.")
-					}
-				}
 				return err
-			}
-
-			if host.Platform == "windows" || host.Platform == "darwin" {
-				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-					host.MDM.Name != fleet.WellKnownMDMFleet {
-					return errors.New(`Can't lock the host because it doesn't have MDM turned on.`)
-				}
 			}
 
 			if err := client.MDMLockHost(host.ID); err != nil {
@@ -245,36 +219,9 @@ func mdmUnlockCommand() *cli.Command {
 		Action: func(c *cli.Context) error {
 			hostIdent := c.String("host")
 
-			if len(hostIdent) == 0 {
-				return errors.New("No host targeted. Please provide --host.")
-			}
-
-			client, err := clientFromCLI(c)
+			client, host, err := hostMdmActionSetup(c, hostIdent, "unlock")
 			if err != nil {
-				return fmt.Errorf("create client: %w", err)
-			}
-
-			host, err := client.HostByIdentifier(hostIdent)
-			if err != nil {
-				var nfe service.NotFoundErr
-				if errors.As(err, &nfe) {
-					return errors.New("The host doesn't exist. Please provide a valid host identifier.")
-				}
-
-				var sce kithttp.StatusCoder
-				if errors.As(err, &sce) {
-					if sce.StatusCode() == http.StatusForbidden {
-						return errors.New("Permission denied. You don't have permission to unlock this host.")
-					}
-				}
 				return err
-			}
-
-			if host.Platform == "windows" || host.Platform == "darwin" {
-				if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
-					host.MDM.Name != fleet.WellKnownMDMFleet {
-					return errors.New(`Can't unlock the host because it doesn't have MDM turned on.`)
-				}
 			}
 
 			pin, err := client.MDMUnlockHost(host.ID)
@@ -305,4 +252,89 @@ fleetctl get host %s
 			return nil
 		},
 	}
+}
+
+// create a mdm command to wipe the device
+func mdmWipeCommand() *cli.Command {
+	return &cli.Command{
+		Name:  "wipe",
+		Usage: "Wipe a host to erase all content on a workstation.",
+		Flags: []cli.Flag{contextFlag(), debugFlag(), &cli.StringFlag{
+			Name:     "host",
+			Usage:    "The host, specified by identifier, that you want to wipe.",
+			Required: true,
+		}},
+		Action: func(c *cli.Context) error {
+			hostIdent := c.String("host")
+
+			client, host, err := hostMdmActionSetup(c, hostIdent, "wipe")
+			if err != nil {
+				return err
+			}
+
+			config, err := client.GetAppConfig()
+			if err != nil {
+				return err
+			}
+
+			// linux hosts need scripts to be enabled in the org settings to wipe.
+			if host.Platform == "linux" && config.ServerSettings.ScriptsDisabled {
+				return errors.New("Can't wipe host because running scripts is disabled in organization settings.")
+			}
+
+			if err := client.MDMWipeHost(host.ID); err != nil {
+				return fmt.Errorf("Failed to wipe host: %w", err)
+			}
+
+			fmt.Fprintf(c.App.Writer, `
+The host will wipe when it comes online.
+
+Copy and run this command to see results:
+
+fleetctl get host %s`, hostIdent)
+
+			return nil
+		},
+	}
+}
+
+// Does some common setup for the host mdm actions such as validating the host,
+// creating the client, getting the desired host, checking permissions, and
+// ensuring MDM is turned on for the host.
+func hostMdmActionSetup(c *cli.Context, hostIdent string, actionType string) (client *service.Client, host *service.HostDetailResponse, err error) {
+	if len(hostIdent) == 0 {
+		return nil, nil, errors.New("No host targeted. Please provide --host.")
+	}
+
+	client, err = clientFromCLI(c)
+	if err != nil {
+		return nil, nil, fmt.Errorf("create client: %w", err)
+	}
+
+	host, err = client.HostByIdentifier(hostIdent)
+	if err != nil {
+		var nfe service.NotFoundErr
+		if errors.As(err, &nfe) {
+			fmt.Println(hostIdent)
+			return nil, nil, errors.New("The host doesn't exist. Please provide a valid host identifier.")
+		}
+
+		var sce kithttp.StatusCoder
+		if errors.As(err, &sce) {
+			if sce.StatusCode() == http.StatusForbidden {
+				return nil, nil, fmt.Errorf("Permission denied. You don't have permission to %s this host.", actionType)
+			}
+		}
+		return nil, nil, err
+	}
+
+	// check mdm is on for the host
+	if host.Platform == "windows" || host.Platform == "darwin" {
+		if host.MDM.EnrollmentStatus == nil || !strings.HasPrefix(*host.MDM.EnrollmentStatus, "On") ||
+			host.MDM.Name != fleet.WellKnownMDMFleet {
+			return nil, nil, fmt.Errorf("Can't %s the host because it doesn't have MDM turned on.", actionType)
+		}
+	}
+
+	return client, host, nil
 }

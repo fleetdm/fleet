@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/text/unicode/norm"
 	"sort"
 	"strings"
 	"time"
@@ -33,18 +34,20 @@ func (ds *Datastore) NewGlobalPolicy(ctx context.Context, authorID *uint, args f
 		args.Query = q.Query
 		args.Description = q.Description
 	}
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
-		args.Name, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
+		nameUnicode, args.Query, args.Description, args.Resolution, authorID, args.Platform, args.Critical,
 	)
 	switch {
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
@@ -69,30 +72,6 @@ func policiesChecksumComputedColumn() string {
 
 func (ds *Datastore) Policy(ctx context.Context, id uint) (*fleet.Policy, error) {
 	return policyDB(ctx, ds.reader(ctx), id, nil)
-}
-
-func (ds *Datastore) PolicyByName(ctx context.Context, name string) (*fleet.Policy, error) {
-	var policy fleet.Policy
-	err := sqlx.GetContext(ctx, ds.reader(ctx), &policy,
-		fmt.Sprint(`SELECT `+policyCols+`,
-		COALESCE(u.name, '<deleted>') AS author_name,
-		COALESCE(u.email, '') AS author_email,
-		ps.updated_at as host_count_updated_at,
-		COALESCE(ps.passing_host_count, 0) as passing_host_count,
-		COALESCE(ps.failing_host_count, 0) as failing_host_count
-		FROM policies p
-		LEFT JOIN users u ON p.author_id = u.id
-		LEFT JOIN policy_stats ps ON p.id = ps.policy_id
-			AND ((p.team_id IS NULL AND ps.inherited_team_id = 0)
-				OR (p.team_id IS NOT NULL AND ps.inherited_team_id = p.team_id))
-		WHERE p.name=?`), name)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, ctxerr.Wrap(ctx, notFound("Policy").WithName(name))
-		}
-		return nil, ctxerr.Wrap(ctx, err, "getting policy")
-	}
-	return &policy, nil
 }
 
 func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint) (*fleet.Policy, error) {
@@ -132,9 +111,11 @@ func policyDB(ctx context.Context, q sqlx.QueryerContext, id uint, teamID *uint)
 //
 // Currently SavePolicy does not allow updating the team of an existing policy.
 func (ds *Datastore) SavePolicy(ctx context.Context, p *fleet.Policy, shouldRemoveAllPolicyMemberships bool) error {
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	p.Name = norm.NFC.String(p.Name)
 	sql := `
 		UPDATE policies
-			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?
+			SET name = ?, query = ?, description = ?, resolution = ?, platforms = ?, critical = ?, checksum = ` + policiesChecksumComputedColumn() + `
 			WHERE id = ?
 	`
 	result, err := ds.writer(ctx).ExecContext(ctx, sql, p.Name, p.Query, p.Description, p.Resolution, p.Platform, p.Critical, p.ID)
@@ -344,7 +325,9 @@ func listPoliciesDB(ctx context.Context, q sqlx.QueryerContext, teamID *uint, op
 		query += " WHERE team_id IS NULL"
 	}
 
-	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(opts.MatchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
 	query, args = appendListOptionsWithCursorToSQL(query, args, &opts)
 
 	var policies []*fleet.Policy
@@ -377,7 +360,9 @@ func getInheritedPoliciesForTeam(ctx context.Context, q sqlx.QueryerContext, Tea
 
 	args = append(args, TeamID)
 
-	query, args = searchLike(query, args, opts.MatchQuery, policySearchColumns...)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(opts.MatchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
 	query, _ = appendListOptionsToSQL(query, &opts)
 
 	var policies []*fleet.Policy
@@ -405,7 +390,9 @@ func (ds *Datastore) CountPolicies(ctx context.Context, teamID *uint, matchQuery
 		args = append(args, *teamID)
 	}
 
-	query, args = searchLike(query, args, matchQuery, policySearchColumns...)
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	match := norm.NFC.String(matchQuery)
+	query, args = searchLike(query, args, match, policySearchColumns...)
 
 	err := sqlx.GetContext(ctx, ds.reader(ctx), &count, query, args...)
 	if err != nil {
@@ -534,17 +521,20 @@ func (ds *Datastore) NewTeamPolicy(ctx context.Context, teamID uint, authorID *u
 		args.Query = q.Query
 		args.Description = q.Description
 	}
+	// We must normalize the name for full Unicode support (Unicode equivalence).
+	nameUnicode := norm.NFC.String(args.Name)
 	res, err := ds.writer(ctx).ExecContext(ctx,
 		fmt.Sprintf(
 			`INSERT INTO policies (name, query, description, team_id, resolution, author_id, platforms, critical, checksum) VALUES (?, ?, ?, ?, ?, ?, ?, ?, %s)`,
 			policiesChecksumComputedColumn(),
 		),
-		args.Name, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical)
+		nameUnicode, args.Query, args.Description, teamID, args.Resolution, authorID, args.Platform, args.Critical,
+	)
 	switch {
 	case err == nil:
 		// OK
 	case isDuplicate(err):
-		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", args.Name))
+		return nil, ctxerr.Wrap(ctx, alreadyExists("Policy", nameUnicode))
 	default:
 		return nil, ctxerr.Wrap(ctx, err, "inserting new policy")
 	}
@@ -609,6 +599,8 @@ func (ds *Datastore) ApplyPolicySpecs(ctx context.Context, authorID uint, specs 
 		)
 		for _, spec := range specs {
 
+			// We must normalize the name for full Unicode support (Unicode equivalence).
+			spec.Name = norm.NFC.String(spec.Name)
 			res, err := tx.ExecContext(ctx,
 				query, spec.Name, spec.Query, spec.Description, authorID, spec.Resolution, spec.Team, spec.Platform, spec.Critical,
 			)

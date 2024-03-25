@@ -350,7 +350,6 @@ module.exports = {
     let averageNumberOfDaysBugsAreOpenFor = Math.round(_.sum(daysSinceBugsWereOpened) / daysSinceBugsWereOpened.length);
     let averageNumberOfDaysUnreleasedBugsAreOpenFor = Math.round(_.sum(daysSinceUnreleasedBugsWereOpened) / daysSinceUnreleasedBugsWereOpened.length);
     let averageNumberOfDaysReleasedBugsAreOpenFor = Math.round(_.sum(daysSinceReleasedBugsWereOpened)/daysSinceReleasedBugsWereOpened.length);
-    let averageNumberOfDaysFromCommitToMerge = Math.round(_.sum(commitToMergeTimesInDays)/commitToMergeTimesInDays.length);
     let averageDaysPullRequestsAreOpenFor = Math.round(_.sum(daysSincePullRequestsWereOpened)/daysSincePullRequestsWereOpened.length);
     let averageDaysContributorPullRequestsAreOpenFor = Math.round(_.sum(daysSinceContributorPullRequestsWereOpened)/daysSinceContributorPullRequestsWereOpened.length);
 
@@ -376,57 +375,87 @@ module.exports = {
     }, 0);
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    const kpiResults = [];
+
+    // NOTE: If order of the KPI sheets columns changes, the order values are pushed into this array needs to change, as well.
+    kpiResults.push(
+      averageDaysContributorPullRequestsAreOpenFor,
+      daysSinceContributorPullRequestsWereOpened.length,
+      averageDaysPullRequestsAreOpenFor,
+      daysSincePullRequestsWereOpened.length,
+      averageNumberOfDaysReleasedBugsAreOpenFor,
+      averageNumberOfDaysUnreleasedBugsAreOpenFor,
+      allBugsClosedInPastWeek.length,
+      averageNumberOfDaysBugsAreOpenFor,
+      allBugsCreatedInPastWeek.length,
+      allBugsCreatedInPastWeekEndpointOps.length,
+      allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length,
+      allBugsCreatedInPastWeekEndpointOpsReleased.length,
+      allBugsCreatedInPastWeekEndpointOpsUnreleased.length,
+      allBugsCreatedInPastWeekMobileDeviceManagement.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementReleased.length,
+      allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length,
+      daysSinceBugsWereOpened.length,
+      allBugsWithReleasedLabel.length,
+      allBugsWithUnreleasedLabel.length);
+
     // Log the results
     sails.log(`
-    Bugs:
+
+    CSV for copy-pasting into KPI spreadsheet:
     ---------------------------
-    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
-    Average open time: ${averageNumberOfDaysBugsAreOpenFor} days.
+    ${kpiResults.join(',')}
 
-    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
-    Average open time: ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
+    Note: Copy the values above, then in Google sheets paste them into a cell and select "Split text to columns" to paste the values into separate cells.
 
-    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
-    Average open time: ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+    Pull requests:
+    ---------------------------
+    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
+    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
 
-    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
+    Average open time (all PRs): ${averageDaysPullRequestsAreOpenFor} days.
+    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
+
+    Bugs (part 1):
+    ---------------------------
+    Average open time (released bugs): ${averageNumberOfDaysReleasedBugsAreOpenFor} days.
+
+    Average open time (unreleased bugs): ${averageNumberOfDaysUnreleasedBugsAreOpenFor} days.
 
     Number of issues with the "bug" label closed in the past week: ${allBugsClosedInPastWeek.length}
+
+    Average open time (all bugs): ${averageNumberOfDaysBugsAreOpenFor} days.
+
+    Number of issues with the "bug" label opened in the past week: ${allBugsCreatedInPastWeek.length}
 
     Endpoint Operations:
     ---------------------------
     Number of issues with the "#g-endpoint-ops" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOps.length}
 
-    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
+    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
 
     Number of issues with the "#g-endpoint-ops", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsReleased.length}
 
-    Number of issues with the "#g-endpoint-ops", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsCustomerImpacting.length}
+    Number of issues with the "#g-endpoint-ops", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekEndpointOpsUnreleased.length}
 
     MDM:
     ---------------------------
     Number of issues with the "#g-mdm" and "bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagement.length}
 
-    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
+    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
 
     Number of issues with the "#g-emdm", "bug", and "~released bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementReleased.length}
 
-    Number of issues with the "#g-mdm", "bug", and "customer-" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementCustomerImpacting.length}
+    Number of issues with the "#g-mdm", "bug", and "~unreleased bug" labels opened in the past week: ${allBugsCreatedInPastWeekMobileDeviceManagementUnreleased.length}
 
-    Closed pull requests:
+    Bugs (part 2):
     ---------------------------
-    Number of pull requests merged in the past three weeks in fleetdm/fleet: ${commitToMergeTimesInDays.length}
-    Average time from first commit to merge: ${averageNumberOfDaysFromCommitToMerge} days.
+    Number of open issues with the "bug" label in fleetdm/fleet: ${daysSinceBugsWereOpened.length}
 
+    Number of open issues with the "~released bug" label in fleetdm/fleet: ${allBugsWithReleasedLabel.length}
 
-    Open pull requests
-    ---------------------------
-    Number of open pull requests in the fleetdm/fleet Github repo: ${daysSincePullRequestsWereOpened.length}
-    Average open time: ${averageDaysPullRequestsAreOpenFor} days.
-
-    Number of open pull requests in the fleetdm/fleet Github repo (no bots, no handbook, no ceo): ${daysSinceContributorPullRequestsWereOpened.length}
-    Average open time (no bots, no handbook, no ceo): ${averageDaysContributorPullRequestsAreOpenFor} days.
-
+    Number of open issues with the "~unreleased bug" label in fleetdm/fleet: ${allBugsWithUnreleasedLabel.length}
 
     Pull requests requiring CEO review
     ---------------------------------------

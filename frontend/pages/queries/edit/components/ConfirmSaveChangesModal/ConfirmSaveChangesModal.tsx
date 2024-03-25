@@ -23,7 +23,7 @@ const ConfirmSaveChangesModal = ({
     : "The changes you are making to this query will delete its previous results.";
 
   return (
-    <Modal title={"Save changes?"} onExit={onClose}>
+    <Modal title="Save changes?" onExit={onClose}>
       <form className={`${baseClass}__form`}>
         <p>{warningText}</p>
         <p>You cannot undo this action.</p>

@@ -112,13 +112,13 @@ const Advanced = ({
             value={domain}
             parseTarget
             tooltip={
-              <p>
+              <>
                 If you need to specify a HELO domain, <br />
                 you can do it here{" "}
                 <em>
                   (Default: <strong>Blank</strong>)
                 </em>
-              </p>
+              </>
             }
           />
           <Checkbox
@@ -127,14 +127,14 @@ const Advanced = ({
             value={verifySSLCerts}
             parseTarget
             tooltipContent={
-              <p>
+              <>
                 Turn this off (not recommended) <br />
                 if you use a self-signed certificate{" "}
                 <em>
                   <br />
                   (Default: <strong>On</strong>)
                 </em>
-              </p>
+              </>
             }
           >
             Verify SSL certs
@@ -145,14 +145,14 @@ const Advanced = ({
             value={enableStartTLS}
             parseTarget
             tooltipContent={
-              <p>
+              <>
                 Detects if STARTTLS is enabled <br />
                 in your SMTP server and starts <br />
                 to use it.{" "}
                 <em>
                   (Default: <strong>On</strong>)
                 </em>
-              </p>
+              </>
             }
           >
             Enable STARTTLS
@@ -200,13 +200,13 @@ const Advanced = ({
             value={disableLiveQuery}
             parseTarget
             tooltipContent={
-              <p>
+              <>
                 When enabled, disables the ability to run live queries <br />
                 (ad hoc queries executed via the UI or fleetctl).{" "}
                 <em>
                   (Default: <strong>Off</strong>)
                 </em>
-              </p>
+              </>
             }
           >
             Disable live queries
@@ -217,13 +217,13 @@ const Advanced = ({
             value={disableScripts}
             parseTarget
             tooltipContent={
-              <p>
+              <>
                 Disabling scripts will block access to run scripts. Scripts{" "}
                 <br /> may still be added and removed in the UI and API. <br />
                 <em>
                   (Default: <strong>Off</strong>)
                 </em>
-              </p>
+              </>
             }
           >
             Disable scripts
@@ -235,7 +235,7 @@ const Advanced = ({
             parseTarget
             tooltipContent={
               <>
-                <p>
+                <>
                   Disabling query reports will decrease database usage, <br />
                   but will prevent you from accessing query results in
                   <br />
@@ -246,7 +246,7 @@ const Advanced = ({
                   <em>
                     (Default: <b>Off</b>)
                   </em>
-                </p>
+                </>
               </>
             }
             helpText="Enabling this setting will delete all existing query reports in Fleet."

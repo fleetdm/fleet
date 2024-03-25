@@ -157,6 +157,11 @@ func TestVariations(t *testing.T) {
 			vendorVariations:  []string{"apple", "python3"},
 			productVariations: []string{"python"},
 		},
+		{
+			software:          fleet.Software{Name: "ms-python.python", Version: "3.8.9", BundleIdentifier: "", Source: "vscode_extensions", Vendor: "Microsoft"},
+			vendorVariations:  []string{"microsoft", "ms-python"},
+			productVariations: []string{"python", "ms-python.python"},
+		},
 	}
 
 	for _, tc := range variationsTestCases {

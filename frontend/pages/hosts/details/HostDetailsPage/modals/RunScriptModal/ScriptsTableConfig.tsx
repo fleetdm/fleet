@@ -162,7 +162,7 @@ export const generateTableColumnConfigs = (
             onChange={(value: string) =>
               onSelectAction(value, cellProps.row.original)
             }
-            placeholder={"Actions"}
+            placeholder="Actions"
             disabled={scriptsDisabled}
           />
         );

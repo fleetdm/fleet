@@ -20,6 +20,7 @@ import (
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	"github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
+	"github.com/fleetdm/fleet/v4/server/mdm/nanodep/godep"
 	"github.com/fleetdm/fleet/v4/server/policies"
 	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
@@ -32,16 +33,13 @@ import (
 	"github.com/fleetdm/fleet/v4/server/vulnerabilities/utils"
 	"github.com/fleetdm/fleet/v4/server/webhooks"
 	"github.com/fleetdm/fleet/v4/server/worker"
-	"github.com/getsentry/sentry-go"
 	kitlog "github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/hashicorp/go-multierror"
-	"github.com/micromdm/nanodep/godep"
 )
 
 func errHandler(ctx context.Context, logger kitlog.Logger, msg string, err error) {
 	level.Error(logger).Log("msg", msg, "err", err)
-	sentry.CaptureException(err)
 	ctxerr.Handle(ctx, err)
 }
 
@@ -101,6 +99,11 @@ func cronVulnerabilities(
 		level.Info(logger).Log("msg", "scanning vulnerabilities")
 		if err := scanVulnerabilities(ctx, ds, logger, config, appConfig, vulnPath); err != nil {
 			return fmt.Errorf("scanning vulnerabilities: %w", err)
+		}
+
+		level.Info(logger).Log("msg", "updating vulnerability host counts")
+		if err := ds.UpdateVulnerabilityHostCounts(ctx); err != nil {
+			return fmt.Errorf("updating vulnerability host counts: %w", err)
 		}
 	}
 
@@ -640,6 +643,9 @@ func newWorkerIntegrationsSchedule(
 			}
 			return nil
 		}),
+		schedule.WithJob("dep_cooldowns", func(ctx context.Context) error {
+			return worker.ProcessDEPCooldowns(ctx, ds, logger)
+		}),
 	)
 
 	return s, nil
@@ -705,6 +711,7 @@ func newCleanupsAndAggregationSchedule(
 	logger kitlog.Logger,
 	enrollHostLimiter fleet.EnrollHostLimiter,
 	config *config.FleetConfig,
+	commander *apple_mdm.MDMAppleCommander,
 ) (*schedule.Schedule, error) {
 	const (
 		name            = string(fleet.CronCleanupsThenAggregation)
@@ -719,7 +726,7 @@ func newCleanupsAndAggregationSchedule(
 		schedule.WithJob(
 			"distributed_query_campaigns",
 			func(ctx context.Context) error {
-				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now())
+				_, err := ds.CleanupDistributedQueryCampaigns(ctx, time.Now().UTC())
 				return err
 			},
 		),
@@ -805,6 +812,12 @@ func newCleanupsAndAggregationSchedule(
 				return verifyDiskEncryptionKeys(ctx, logger, ds, config)
 			},
 		),
+		schedule.WithJob(
+			"renew_scep_certificates",
+			func(ctx context.Context) error {
+				return service.RenewSCEPCertificates(ctx, logger, ds, config, commander)
+			},
+		),
 		schedule.WithJob("query_results_cleanup", func(ctx context.Context) error {
 			config, err := ds.AppConfig(ctx)
 			if err != nil {
@@ -823,6 +836,51 @@ func newCleanupsAndAggregationSchedule(
 
 			return nil
 		}),
+		schedule.WithJob("cleanup_unused_script_contents", func(ctx context.Context) error {
+			return ds.CleanupUnusedScriptContents(ctx)
+		}),
+	)
+
+	return s, nil
+}
+
+func newFrequentCleanupsSchedule(
+	ctx context.Context,
+	instanceID string,
+	ds fleet.Datastore,
+	lq fleet.LiveQueryStore,
+	logger kitlog.Logger,
+) (*schedule.Schedule, error) {
+	const (
+		name            = string(fleet.CronFrequentCleanups)
+		defaultInterval = 15 * time.Minute
+	)
+	s := schedule.New(
+		ctx, name, instanceID, defaultInterval, ds, ds,
+		// Using leader for the lock to be backwards compatilibity with old deployments.
+		schedule.WithAltLockID("leader_frequent_cleanups"),
+		schedule.WithLogger(kitlog.With(logger, "cron", name)),
+		// Run cleanup jobs first.
+		schedule.WithJob(
+			"redis_live_queries",
+			func(ctx context.Context) error {
+				// It's necessary to avoid lingering live queries in case of:
+				// - (Unknown) bug in the implementation, or,
+				// - Redis is so overloaded already that the lq.StopQuery in svc.CompleteCampaign fails to execute, or,
+				// - MySQL is so overloaded that ds.SaveDistributedQueryCampaign in svc.CompleteCampaign fails to execute.
+				names, err := lq.LoadActiveQueryNames()
+				if err != nil {
+					return err
+				}
+				ids := stringSliceToUintSlice(names, logger)
+				completed, err := ds.GetCompletedCampaigns(ctx, ids)
+				if err != nil {
+					return err
+				}
+				err = lq.CleanupInactiveQueries(ctx, completed)
+				return err
+			},
+		),
 	)
 
 	return s, nil
@@ -1083,4 +1141,17 @@ func cronActivitiesStreaming(
 		}
 		page += 1
 	}
+}
+
+func stringSliceToUintSlice(s []string, logger kitlog.Logger) []uint {
+	result := make([]uint, 0, len(s))
+	for _, v := range s {
+		i, err := strconv.ParseUint(v, 10, 64)
+		if err != nil {
+			level.Warn(logger).Log("msg", "failed to parse string to uint", "string", v, "err", err)
+			continue
+		}
+		result = append(result, uint(i))
+	}
+	return result
 }

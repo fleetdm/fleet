@@ -486,7 +486,7 @@ const TAGGED_TEMPLATES = {
 
     const activityType = lowerCase(activity.type).replace(" saved", "");
 
-    return !entityName ? (
+    return !entityName || typeof entityName !== "string" ? (
       `${activityType}.`
     ) : (
       <>
@@ -624,7 +624,7 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         ran {formatScriptNameForActivityItem(script_name)} on{" "}
-        {host_display_name}.{" "}
+        <b>{host_display_name}</b>.{" "}
         <Button
           className={`${baseClass}__show-query-link`}
           variant="text-link"
@@ -752,6 +752,14 @@ const TAGGED_TEMPLATES = {
       <>
         {" "}
         unlocked <b>{activity.details?.host_display_name}</b>.
+      </>
+    );
+  },
+  wipedHost: (activity: IActivity) => {
+    return (
+      <>
+        {" "}
+        wiped <b>{activity.details?.host_display_name}</b>.
       </>
     );
   },
@@ -907,6 +915,9 @@ const getDetail = (
     case ActivityType.UnlockedHost: {
       return TAGGED_TEMPLATES.unlockedHost(activity);
     }
+    case ActivityType.WipedHost: {
+      return TAGGED_TEMPLATES.wipedHost(activity);
+    }
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
@@ -965,7 +976,7 @@ const ActivityItem = ({
         hasWhiteBackground
       />
       <div className={`${baseClass}__details-wrapper`}>
-        <div className={"activity-details"}>
+        <div className="activity-details">
           {indicatePremiumFeature && <PremiumFeatureIconWithTooltip />}
           <span className={`${baseClass}__details-topline`}>
             {renderActivityPrefix()}
