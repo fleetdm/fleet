@@ -25,7 +25,7 @@ All Fleet employees and long-term collaborators are expected to read and electro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2023-06-01     |
+| @Jostableford | 2024-03-14   |
 
 Fleet requires all team members to comply with the following acceptable use requirements and procedures:
 
@@ -60,7 +60,7 @@ When in doubt, **ASK!** (in [#g-security](https://fleetdm.slack.com/archives/C03
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14      |
 
 Fleet requires all workforce members to comply with the following acceptable use requirements and procedures, such that:
 
@@ -117,7 +117,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14       |
 
 You can't protect what you can't see. Therefore, Fleet must maintain an accurate and up-to-date inventory of its physical and digital assets.
 
@@ -134,7 +134,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14       |
 
 The Fleet business continuity and disaster recovery plan establishes procedures to recover Fleet following a disruption resulting from a disaster. 
 
@@ -341,7 +341,7 @@ This process is followed when offboarding a customer and deleting all of the pro
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14     |
 
 Fleet requires all workforce members to comply with the encryption policy, such that:
 
@@ -708,7 +708,7 @@ incident response plan annually.
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14     |
 
 Fleet Device Management is committed to conducting business in compliance with all applicable laws, regulations, and company policies. Fleet has adopted this policy to outline the security measures required to protect electronic information systems and related equipment from unauthorized use.
 
@@ -728,7 +728,7 @@ CTO                                             | Oversight over information sec
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14     |
 
 Fleet policy requires
 
@@ -749,7 +749,7 @@ Fleet policy requires
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14    |
 
 Fleet policy requires:
 
@@ -811,7 +811,7 @@ Fleet policy requires that:
 
 | Policy owner   | Effective date |
 | -------------- | -------------- |
-| @zwass | 2022-06-01     |
+| @Jostableford | 2024-03-14      |
 
 Fleet policy requires that:
 
