@@ -29,7 +29,7 @@
           
       &--disabled {
         &::after {
-          @include disabled;
+          @include disabled-checkbox;
         }
       }
 
