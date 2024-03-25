@@ -24,6 +24,10 @@ func main() {
 		fmt.Println("Script Failed.")
 		return
 	}
+	if !deployDogfood(version) {
+		fmt.Println("Script Failed.")
+		return
+	}
 
 	fmt.Println("Script ended successfully.")
 }
@@ -184,6 +188,38 @@ func checkDocker(version string) bool {
 	}
 
 	fmt.Println("Does Docker version exist? (Y/y)")
+	var answer string
+	fmt.Scanln(&answer)
+	if answer == "Y" || answer == "y" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func deployDogfood(version string) bool {
+	// fleetdm/fleet:patch-fleet-v4.47.2
+	// https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 6: Deploy " + version + " to Dogfood.")
+	fmt.Println("Hitting ENTER will take you to the proper git action page.")
+	fmt.Println("Once at the git action page do this:")
+	fmt.Println("    1 - press the \"Run workflow\" button on the right side of the screen")
+	fmt.Println("    2 - paste \"fleetdm/fleet:patch-fleet-" + version + "\" as input.")
+	fmt.Println("    3 - press the \"Run workflow\"")
+	fmt.Scanln()
+	url := "https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml"
+	fmt.Println("Taking you to the docker hub page: " + url)
+
+	err := openURL(url)
+	if err != nil {
+		fmt.Println("Error opening URL:", err)
+		return false
+	}
+
+	fmt.Println("Wait for the script to finish (~10 minutes)?")
+	fmt.Println("Go to dogfood and verify that it works")
+	fmt.Println("All good?(Y/y)")
 	var answer string
 	fmt.Scanln(&answer)
 	if answer == "Y" || answer == "y" {
