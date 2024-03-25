@@ -2299,6 +2299,9 @@ func subqueryOSSettingsStatusMac() (string, []any, error) {
 	)
 
 	declStmt, declArgs, err := subqueryAppleDeclarationStatus()
+	if err != nil {
+		return "", nil, err
+	}
 
 	stmt := fmt.Sprintf(`
 	CASE (%s)
