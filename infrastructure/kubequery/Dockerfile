@@ -5,7 +5,7 @@
 #
 # SPDX-License-Identifier: (Apache-2.0 OR GPL-2.0-only)
 
-FROM ubuntu:20.04 AS builder
+FROM ubuntu:20.04@sha256:80ef4a44043dec4490506e6cc4289eeda2d106a70148b74b5ae91ee670e9c35d AS builder
 
 ARG BASEQUERY_VERSION=5.0.2
 
@@ -15,7 +15,7 @@ RUN dpkg -i /tmp/basequery.deb
 
 # =====
 
-FROM uptycs/busybox:v1.33.0
+FROM uptycs/busybox:v1.33.0@sha256:6a312f5959d374420eedce83f42d2ad19a027bd4e448ed734372bc1a07ad8b10
 
 ARG BASEQUERY_VERSION
 ARG KUBEQUERY_VERSION

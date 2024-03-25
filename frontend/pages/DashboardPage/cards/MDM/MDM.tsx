@@ -166,6 +166,7 @@ const Mdm = ({
                   isAllPagesSelected={false}
                   disableCount
                   disablePagination
+                  disableMultiRowSelect
                   onClickRow={handleSolutionRowClick}
                 />
               )}

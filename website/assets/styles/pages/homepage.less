@@ -82,7 +82,8 @@
     position: relative;
     width: 100%;
     overflow: hidden;
-    div {
+
+    [purpose='logo-row'] {
       white-space: nowrap;
       animation: scroll-horizontal 80s linear infinite;
     }
@@ -110,7 +111,14 @@
       background: linear-gradient(90deg, rgba(255, 255, 255, 0.00) 0%, #FFF 100%);
     }
   }
-
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(-25%);
+    }
+    100% {
+      transform: translateX(-125%);
+    }
+  }
 
   [purpose='homepage-content'] {
     max-width: 1200px;
@@ -1428,13 +1436,6 @@
   }
 
 
-  @keyframes scroll-horizontal {
-    0% {
-      transform: translateX(50%);
-    }
-    100% {
-      transform: translateX(-50%);
-    }
-  }
+
 
 }
