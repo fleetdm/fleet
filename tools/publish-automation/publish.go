@@ -4,13 +4,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"os/exec"
+	"runtime"
 )
 
 func main() {
-	// var then variable name then variable type
-	// Taking input from user
 	version := getVersion()
 	makeSureNPMVersionIsCoherent(version)
+	if !openReleasesPage(version) {
+		fmt.Println("Script Failed.")
+		return
+	}
 
 	fmt.Println("Script ended successfully.")
 }
@@ -62,4 +66,45 @@ func makeSureNPMVersionIsCoherent(version string) bool {
 		fmt.Println("Please fix ./tools/fleetctl-npm/package.json and hit ENTER.")
 		fmt.Scanln()
 	}
+}
+
+func openReleasesPage(version string) bool {
+	url := "https://github.com/fleetdm/fleet/releases/edit/fleet-" + version
+
+	fmt.Println("===============================================")
+	fmt.Println("Publishing the release on Fleet Releases page")
+	fmt.Println("Hit ENTER to edit current release")
+	fmt.Scanln()
+	fmt.Println("Taking you to the edit page")
+
+	err := openURL(url)
+	if err != nil {
+		fmt.Println("Error opening URL:", err)
+		return false
+	}
+
+	fmt.Println("Once published, hit ENTER again")
+	fmt.Println("===============================================")
+	fmt.Scanln()
+	return true
+}
+
+func openURL(url string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "windows":
+		cmd = exec.Command("cmd", "/c", "start", url)
+	case "darwin":
+		cmd = exec.Command("open", url)
+	default:
+		cmd = exec.Command("xdg-open", url)
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
