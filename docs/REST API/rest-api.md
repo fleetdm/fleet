@@ -2030,9 +2030,10 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       },
       "mdm": {
         "encryption_key_available": false,
-        "enrollment_status": null,
-        "name": "",
-        "server_url": null
+        "enrollment_status": "Pending",
+        "dep_profile_error": true,
+        "name": "Fleet",
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
       },
       "software": [
         {
@@ -3717,12 +3718,9 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 ### Get host's disk encryption key
 
-For macOS, requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
-
 Retrieves the disk encryption key for a host.
+
+Requires that disk encryption is enforced and the host has MDM turned on.
 
 `GET /api/v1/fleet/mdm/hosts/:id/encryption_key`
 
@@ -3877,19 +3875,19 @@ To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Lin
 
 ### Get host's past activity
 
-`GET /api/v1/fleet/hosts/:id/activites/past`
+`GET /api/v1/fleet/hosts/:id/activities`
 
 #### Parameters
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activities/past`
+`GET /api/v1/fleet/hosts/12/activities`
 
 ##### Default response
 
@@ -7374,7 +7372,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run live script](#run-script)
+- [Run live script](#run-live-script)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
@@ -7461,8 +7459,11 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
 
 > Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
 

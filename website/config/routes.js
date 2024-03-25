@@ -243,14 +243,6 @@ module.exports.routes = {
     }
   },
 
-  'GET /upgrade': {
-    action: 'view-upgrade',
-    locals: {
-      pageTitleForMeta: 'Upgrade to Fleet Premium | Fleet',
-      pageDescriptionForMeta: 'Learn about the benefits of upgrading to Fleet Premium',
-    }
-  },
-
   'GET /endpoint-ops': {
     action: 'view-endpoint-ops',
     locals: {
@@ -468,7 +460,7 @@ module.exports.routes = {
   'GET /try-fleet/register': '/register',
   'GET /customers/new-license': '/new-license',
   'GET /try-fleet/fleetctl-preview': '/try-fleet',
-
+  'GET /upgrade': '/pricing',
   //  ╔╦╗╦╔═╗╔═╗  ╦═╗╔═╗╔╦╗╦╦═╗╔═╗╔═╗╔╦╗╔═╗   ┬   ╔╦╗╔═╗╦ ╦╔╗╔╦  ╔═╗╔═╗╔╦╗╔═╗
   //  ║║║║╚═╗║    ╠╦╝║╣  ║║║╠╦╝║╣ ║   ║ ╚═╗  ┌┼─   ║║║ ║║║║║║║║  ║ ║╠═╣ ║║╚═╗
   //  ╩ ╩╩╚═╝╚═╝  ╩╚═╚═╝═╩╝╩╩╚═╚═╝╚═╝ ╩ ╚═╝  └┘   ═╩╝╚═╝╚╩╝╝╚╝╩═╝╚═╝╩ ╩═╩╝╚═╝
@@ -580,7 +572,6 @@ module.exports.routes = {
   'POST /api/v1/create-vanta-authorization-request': { action: 'create-vanta-authorization-request' },
   'POST /api/v1/deliver-mdm-beta-signup':                   { action: 'deliver-mdm-beta-signup' },
   'POST /api/v1/deliver-apple-csr ': { action: 'deliver-apple-csr', csrf: false},
-  'POST /api/v1/deliver-premium-upgrade-form': { action: 'deliver-premium-upgrade-form' },
   'POST /api/v1/deliver-launch-party-signup':          { action: 'imagine/deliver-launch-party-signup' },
   'POST /api/v1/deliver-mdm-demo-email':               { action: 'deliver-mdm-demo-email' },
   'POST /api/v1/admin/provision-sandbox-instance-and-deliver-email': { action: 'admin/provision-sandbox-instance-and-deliver-email' },

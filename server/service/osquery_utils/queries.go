@@ -172,14 +172,24 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// display_version is not available in some versions of
+		// Windows (Server 2019). By including it using a JOIN it can
+		// return no rows and the query will still succeed
 		Query: `
-		SELECT os.name, r.data as display_version, k.version
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			k.version
 		FROM
-			registry r,
 			os_version os,
 			kernel_info k
-		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-		`,
+		LEFT JOIN
+			display_version_table d`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -473,10 +483,10 @@ var extraDetailQueries = map[string]DetailQuery{
                     enrollment_info AS (
                         SELECT
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
                             MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -487,7 +497,7 @@ var extraDetailQueries = map[string]DetailQuery{
                         LIMIT 1
                     )
                     SELECT
-                        e.is_federated,
+                        e.aad_resource_id,
                         e.discovery_service_url,
                         e.provider_id,
                         i.installation_type
@@ -531,20 +541,29 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		//
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
+		// To prevent the query from failing in those cases, we join
+		// the values in when they exist, alternatively the column is
+		// just empty.
 		Query: `
+	WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
 		os.version,
-		r.data as display_version
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k,
-		registry r
-	WHERE
-		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'`,
+		kernel_info k
+	LEFT JOIN
+		display_version_table d`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -1612,7 +1631,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	serverURL := data["discovery_service_url"]
 	if serverURL != "" {
 		enrolled = true
-		if isFederated := data["is_federated"]; isFederated == "1" {
+		if data["aad_resource_id"] != "" {
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
