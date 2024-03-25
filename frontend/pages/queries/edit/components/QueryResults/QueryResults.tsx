@@ -113,7 +113,6 @@ const QueryResults = ({
   }, [lastEditedQueryBody]);
 
   useEffect(() => {
-    console.log("queryResults", queryResults);
     if (queryResults && queryResults.length > 0) {
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
         queryResults,

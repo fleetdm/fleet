@@ -34,20 +34,18 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   return newHeaders;
 };
 
+// Sorts numerical columns correctly while perserving case insensitive sort for text columns
 const sortType = (
   colName: string | number | symbol,
-  osqueryTableColumns: IQueryTableColumn[] | []
+  osqueryTableColumns?: IQueryTableColumn[] | []
 ) => {
-  if (typeof colName === "string") {
+  if (typeof colName === "string" && !!osqueryTableColumns) {
+    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
+
     const type = find(osqueryTableColumns, { name: colName })?.type;
 
-    switch (type) {
-      case "integer" || "bigint" || "unsigned_bigint" || "double":
-        console.log("type bigint or integer:", colName, type);
-        return "alphanumeric";
-      default:
-        console.log("default because type", colName, type);
-        return "caseInsensitive";
+    if (type && numberTypes.includes(type)) {
+      return "alphanumeric";
     }
   }
   return "caseInsensitive";
@@ -57,7 +55,7 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
   // TODO - narrow typing down this entire chain of logic
   // typed as any[] to accomodate loose typing of websocket API
   results: T[], // {col:val, ...} for each row of query results
-  osqueryTableColumns: IQueryTableColumn[] | []
+  osqueryTableColumns?: IQueryTableColumn[] | []
 ): Column<T>[] => {
   const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
   const columnsConfigs = uniqueColumnNames.map<Column<T>>((colName) => {

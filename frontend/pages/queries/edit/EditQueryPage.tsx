@@ -289,7 +289,7 @@ const EditQueryPage = ({
   const onOsqueryTableSelect = (tableName: string) => {
     setSelectedOsqueryTable(tableName);
   };
-  console.log("selectedOsqueryTable", selectedOsqueryTable);
+
   const onCloseSchemaSidebar = () => {
     setIsSidebarOpen(false);
   };
