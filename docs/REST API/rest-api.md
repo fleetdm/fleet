@@ -3473,11 +3473,11 @@ A `team_id` of `0` returns the statistics for hosts that are not part of any tea
 }
 ```
 
-### Redeliver host's configuration profile
+### Resend host's configuration profile
 
-Redelivers a configuration profile for the specified host.
+Resends a configuration profile for the specified host.
 
-`POST /api/v1/fleet/hosts/:id/configuration_profiles/redeliver`
+`POST /api/v1/fleet/hosts/:id/configuration_profiles/resend`
 
 #### Parameters
 
@@ -3488,7 +3488,7 @@ Redelivers a configuration profile for the specified host.
 
 #### Example
 
-`POST /api/v1/fleet/hosts/233/redeliver_profile?profile_uuid=cfc14a20-84a2-42d8-9257-a425f62bb54d`
+`POST /api/v1/fleet/hosts/233/configuration_profiles/resend?profile_uuid=cfc14a20-84a2-42d8-9257-a425f62bb54d`
 
 ##### Default response
 
