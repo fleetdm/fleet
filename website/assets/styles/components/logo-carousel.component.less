@@ -10,11 +10,9 @@
   max-width: 1200px;
   padding-left: 0px;
   padding-right: 0px;
-  overflow-x: hidden;
   width: 100%;
   [purpose='logo-carousel'] {
     display: flex;
-    justify-content: space-around;
     align-items: center;
     position: relative;
     width: 100%;
@@ -56,4 +54,12 @@
       }
     }
   }
- }
+  @keyframes scroll-horizontal {
+    0% {
+      transform: translateX(-25%);
+    }
+    100% {
+      transform: translateX(-125%);
+    }
+  }
+}
