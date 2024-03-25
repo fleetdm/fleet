@@ -10,11 +10,9 @@ import {
   API_NO_TEAM_ID,
   INewTeamUsersBody,
   IRemoveTeamUserBody,
-  ITeam,
   ITeamConfig,
   ITeamWebhookSettings,
 } from "interfaces/team";
-import { NotifyManager } from "react-query/types/core/notifyManager";
 
 interface ILoadTeamsParams {
   page?: number;
