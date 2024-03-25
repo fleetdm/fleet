@@ -608,6 +608,15 @@ func (ds *Datastore) applyHostLabelFilters(ctx context.Context, filter fleet.Tea
 	query, params, _ = hostSearchLike(query, params, opt.MatchQuery, hostSearchColumns...)
 
 	query, params = appendListOptionsWithCursorToSQL(query, params, &opt.ListOptions)
+
+	if opt.MacOSSettingsFilter != "" {
+		out := query
+		for _, param := range params {
+			out = strings.Replace(out, "?", fmt.Sprintf("'%v'", param), 1)
+		}
+		fmt.Println(out)
+	}
+
 	return query, params, nil
 }
 

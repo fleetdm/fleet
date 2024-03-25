@@ -72,6 +72,12 @@ func TestLabels(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+
+			ac, err := ds.AppConfig(context.Background())
+			require.NoError(t, err)
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
+
 			c.fn(t, ds)
 		})
 	}
@@ -364,6 +370,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("1"),
 		UUID:            "1",
 		Hostname:        "foo.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 
@@ -377,6 +384,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("2"),
 		UUID:            "2",
 		Hostname:        "bar.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 	h3, err := db.NewHost(context.Background(), &fleet.Host{
@@ -388,6 +396,7 @@ func testLabelsListHostsInLabelAndStatus(t *testing.T, db *Datastore) {
 		NodeKey:         ptr.String("3"),
 		UUID:            "3",
 		Hostname:        "baz.local",
+		Platform:        "darwin",
 	})
 	require.NoError(t, err)
 

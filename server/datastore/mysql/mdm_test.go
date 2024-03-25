@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/fleet"
 	mdm_types "github.com/fleetdm/fleet/v4/server/mdm"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
@@ -50,6 +51,11 @@ func TestMDMShared(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
+
+			ac, err := ds.AppConfig(context.Background())
+			require.NoError(t, err)
+			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
+			require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
 
 			c.fn(t, ds)
 		})

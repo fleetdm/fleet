@@ -1211,9 +1211,9 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 	}
 
 	whereStatus := ""
+	// macOS settings filter is not compatible with the "all teams" option so append the "no
+	// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 	if opt.TeamFilter == nil {
-		// macOS settings filter is not compatible with the "all teams" option so append the "no
-		// team" filter here (note that filterHostsByTeam applies the "no team" filter if TeamFilter == 0)
 		whereStatus += ` AND h.team_id IS NULL`
 	}
 
@@ -1222,7 +1222,7 @@ func filterHostsByMacOSSettingsStatus(sql string, opt fleet.HostListOptions, par
 		return "", nil, err
 	}
 
-	whereStatus += fmt.Sprintf(` AND h.platform = 'darwin' AND %s = ?`, subqueryStatus)
+	whereStatus += fmt.Sprintf(` AND %s = ?`, subqueryStatus)
 	paramsStatus = append(paramsStatus, opt.MacOSSettingsFilter)
 
 	return sql + whereStatus, append(params, paramsStatus...), nil
