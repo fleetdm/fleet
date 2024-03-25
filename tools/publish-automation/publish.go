@@ -16,6 +16,10 @@ func main() {
 		fmt.Println("Script Failed.")
 		return
 	}
+	if !npmPublish() {
+		fmt.Println("Script Failed.")
+		return
+	}
 
 	fmt.Println("Script ended successfully.")
 }
@@ -112,6 +116,44 @@ func openURL(url string) error {
 		cmd = exec.Command("open", url)
 	default:
 		cmd = exec.Command("xdg-open", url)
+	}
+
+	err := cmd.Start()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func npmPublish() bool {
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 4: NPM PUBLISH")
+	fmt.Println("Hitting ENTER will take you to another terminal to fleet/tools/fleetctl-npm/")
+	fmt.Println("Once there type \"npm publish\". You will need an auth code for that.")
+	fmt.Scanln()
+	fmt.Println("Taking you to the other terminal ... ")
+
+	relativePath := "./tools/fleetctl-npm"
+	err := openTerminalAtPath(relativePath)
+	if err != nil {
+		fmt.Println("Error opening Terminal:", err)
+		return false
+	}
+
+	fmt.Println("Hit ENTER for next step")
+	fmt.Scanln()
+	return true
+}
+
+func openTerminalAtPath(path string) error {
+	var cmd *exec.Cmd
+
+	switch runtime.GOOS {
+	case "darwin":
+		cmd = exec.Command("open", "-a", "Terminal", path)
+	default:
+		return fmt.Errorf("unsupported operating system")
 	}
 
 	err := cmd.Start()
