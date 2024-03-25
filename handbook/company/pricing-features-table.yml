@@ -760,7 +760,7 @@
   productCategories: [Endpoint operations,Device management]
   pricingTableCategories: [Integrations]
   usualDepartment: IT
-  tier: Premium
+  tier: Free
 - industryName: Role-based access control
   documentationUrl: https://fleetdm.com/docs/using-fleet/manage-access#manage-access
   productCategories: [Endpoint operations,Device management,Vulnerability management]
