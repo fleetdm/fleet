@@ -74,12 +74,6 @@ func TestMDMApple(t *testing.T) {
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			defer TruncateTables(t, ds)
-
-			ac, err := ds.AppConfig(context.Background())
-			require.NoError(t, err)
-			ac.MDM.EnableDiskEncryption = optjson.SetBool(false)
-			require.NoError(t, ds.SaveAppConfig(context.Background(), ac))
-
 			c.fn(t, ds)
 		})
 	}
@@ -2564,7 +2558,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err := ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(0), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
