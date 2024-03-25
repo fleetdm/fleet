@@ -465,7 +465,7 @@ func downloadAndExtractZip(client *http.Client, urlPath string, destPath string)
 	}
 	defer zipReader.Close()
 
-	err = os.MkdirAll(filepath.Dir(destPath), 0o755)
+	err = os.MkdirAll(filepath.Dir(destPath), 0755)
 	if err != nil {
 		return fmt.Errorf("could not create directory %s: %w", filepath.Dir(destPath), err)
 	}
