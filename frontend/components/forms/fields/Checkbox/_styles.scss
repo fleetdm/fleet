@@ -26,10 +26,12 @@
         &::after {
           background-color: $core-vibrant-blue-over;
           border: solid 2px $core-vibrant-blue-over;
-          
-      &--disabled {
-        &::after {
-          @include disabled-checkbox;
+
+          &--disabled {
+            &::after {
+              @include disabled-checkbox;
+            }
+          }
         }
       }
 
