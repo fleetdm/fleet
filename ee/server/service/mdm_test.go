@@ -90,7 +90,7 @@ func TestMDMAppleDisableFileVaultAndEscrow(t *testing.T) {
 	require.True(t, ds.DeleteMDMAppleConfigProfileByTeamAndIdentifierFuncInvoked)
 }
 
-func TestGetOrCreatePreassignTeam(t *testing.T) {
+func xTestGetOrCreatePreassignTeam(t *testing.T) {
 	t.Skip("this test requires a mock or a way to import service.Service")
 	ds, svc := setup(t)
 	a, err := authz.NewAuthorizer()
