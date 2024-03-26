@@ -76,11 +76,11 @@ const FileUploader = ({
         variant="brand"
         isLoading={isLoading}
       >
-        <label htmlFor="upload-profile">{buttonMessage}</label>
+        <label htmlFor="upload-file">{buttonMessage}</label>
       </Button>
       <input
         accept={accept}
-        id="upload-profile"
+        id="upload-file"
         type="file"
         onChange={(e) => {
           onFileUpload(e.target.files);
