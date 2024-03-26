@@ -48,7 +48,7 @@ func getVersion() string {
 	fmt.Println("\n===========================================================")
 	fmt.Println("Step 1: Current version.")
 	for {
-		fmt.Println("Enter current version in the format similar to \"v4.47.2\": ")
+		fmt.Println("Enter the version being currently released in the format similar to \"v4.47.2\": ")
 		var ver string
 		fmt.Scanln(&ver)
 		fmt.Println("The version you entered: " + ver + ".\n" + "Is that correct? (Y/y)")
