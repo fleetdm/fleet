@@ -763,6 +763,70 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
+  createDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText = "";
+    if (!isPremiumTier) {
+      teamText = "all macOS hosts";
+    }
+
+    if (activity.details?.team_name) {
+      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else {
+      teamText = "macOS hosts with no team";
+    }
+
+    return (
+      <>
+        {" "}
+        added declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        to {teamText}.
+      </>
+    );
+  },
+  deleteDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText = "";
+    if (!isPremiumTier) {
+      teamText = "all macOS hosts";
+    }
+
+    if (activity.details?.team_name) {
+      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else {
+      teamText = "macOS hosts with no team";
+    }
+
+    return (
+      <>
+        {" "}
+        removed declaration (DDM) profile{" "}
+        <b>{activity.details?.profile_name}</b> from {teamText}.
+      </>
+    );
+  },
+  editDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText = "";
+    if (!isPremiumTier) {
+      teamText = "all macOS hosts";
+    }
+
+    if (activity.details?.team_name) {
+      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else {
+      teamText = "macOS hosts with no team";
+    }
+
+    return (
+      <>
+        {" "}
+        edited declaration (DDM) profile <b>
+          {activity.details?.profile_name}
+        </b>{" "}
+        for {teamText} via fleetctl.
+      </>
+    );
+  },
 };
 
 const getDetail = (
@@ -918,6 +982,13 @@ const getDetail = (
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
+    case ActivityType.CreateDeclarationProfile: {
+    }
+    case ActivityType.DeleteDeclarationProfile: {
+    }
+    case ActivityType.EditDeclarationProfile: {
+    }
+
     default: {
       return TAGGED_TEMPLATES.defaultActivityTemplate(activity);
     }
