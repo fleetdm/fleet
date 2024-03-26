@@ -1,10 +1,8 @@
-## Fleet 4.47.2 (Mar 22, 2024)
+## Fleet 4.47.3 (Mar 26, 2024)
 
 ### Bug fixes
 
-* Fixed false negative vulnerabilities on macOS Homebrew Python packages.
-* Fixed policies to check "disable guest user".
-* Resolved the issue where Microsoft Edge was not reporting vulnerabilities.
+* Fixed a bug where valid Windows MDM enrollments would show up as unmanaged (EnrollmentState 3).
 
 ## Fleet 4.47.1 (Mar 18, 2024)
 
