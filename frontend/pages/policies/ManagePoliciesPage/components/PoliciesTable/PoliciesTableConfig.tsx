@@ -284,16 +284,6 @@ const generateTableHeaders = (
   ];
 
   if (tableType !== "inheritedPolicies") {
-    tableHeaders.push({
-      title: "Automations",
-      Header: "Automations",
-      disableSortBy: true,
-      accessor: "webhook",
-      Cell: (cellProps: ICellProps): JSX.Element => (
-        <StatusIndicator value={cellProps.cell.value} />
-      ),
-    });
-
     if (!canAddOrDeletePolicy) {
       return tableHeaders;
     }

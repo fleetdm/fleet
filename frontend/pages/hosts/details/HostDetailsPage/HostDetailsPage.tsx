@@ -13,7 +13,6 @@ import { QueryContext } from "context/query";
 import { NotificationContext } from "context/notification";
 
 import activitiesAPI, {
-  IActivitiesResponse,
   IPastActivitiesResponse,
   IUpcomingActivitiesResponse,
 } from "services/entities/activities";

@@ -3,7 +3,12 @@ import { Link } from "react-router";
 import { isEmpty, noop, omit } from "lodash";
 
 import { IAutomationsConfig, IWebhookSettings } from "interfaces/config";
-import { IIntegration, IIntegrations } from "interfaces/integration";
+import {
+  IGlobalIntegrations,
+  IIntegration,
+  IZendeskJiraIntegrations,
+  ITeamIntegrations,
+} from "interfaces/integration";
 import { IPolicy } from "interfaces/policy";
 import { ITeamAutomationsConfig } from "interfaces/team";
 import PATHS from "router/paths";
@@ -19,22 +24,21 @@ import Dropdown from "components/forms/fields/Dropdown";
 import InputField from "components/forms/fields/InputField";
 import Radio from "components/forms/fields/Radio";
 import validUrl from "components/forms/validators/valid_url";
+import RevealButton from "components/buttons/RevealButton";
+import CustomLink from "components/CustomLink";
+import ExampleTicket from "../ExampleTicket";
+import ExamplePayload from "../ExamplePayload";
 
-import PreviewPayloadModal from "../PreviewPayloadModal";
-import PreviewTicketModal from "../PreviewTicketModal";
-
-interface IManagePolicyAutomationsModalProps {
+interface IOtherWorkflowsModalProps {
   automationsConfig: IAutomationsConfig | ITeamAutomationsConfig;
-  availableIntegrations: IIntegrations;
+  availableIntegrations: IGlobalIntegrations | ITeamIntegrations;
   availablePolicies: IPolicy[];
   isUpdatingAutomations: boolean;
-  showPreviewPayloadModal: boolean;
   onExit: () => void;
   handleSubmit: (formData: {
     webhook_settings: Pick<IWebhookSettings, "failing_policies_webhook">;
-    integrations: IIntegrations;
+    integrations: IGlobalIntegrations | ITeamIntegrations;
   }) => void;
-  togglePreviewPayloadModal: () => void;
 }
 
 interface ICheckedPolicy {
@@ -43,7 +47,10 @@ interface ICheckedPolicy {
   isChecked: boolean;
 }
 
-const findEnabledIntegration = ({ jira, zendesk }: IIntegrations) => {
+const findEnabledIntegration = ({
+  jira,
+  zendesk,
+}: IZendeskJiraIntegrations) => {
   return (
     jira?.find((j) => j.enable_failing_policies) ||
     zendesk?.find((z) => z.enable_failing_policies)
@@ -83,18 +90,16 @@ const useCheckboxListStateManagement = (
   return { policyItems, updatePolicyItems };
 };
 
-const baseClass = "manage-policy-automations-modal";
+const baseClass = "other-workflows-modal";
 
-const ManagePolicyAutomationsModal = ({
+const OtherWorkflowsModal = ({
   automationsConfig,
   availableIntegrations,
   availablePolicies,
   isUpdatingAutomations,
-  showPreviewPayloadModal,
   onExit,
   handleSubmit,
-  togglePreviewPayloadModal: togglePreviewModal,
-}: IManagePolicyAutomationsModalProps): JSX.Element => {
+}: IOtherWorkflowsModalProps): JSX.Element => {
   const {
     webhook_settings: { failing_policies_webhook: webhook },
   } = automationsConfig;
@@ -130,6 +135,9 @@ const ManagePolicyAutomationsModal = ({
   const [selectedIntegration, setSelectedIntegration] = useState<
     IIntegration | undefined
   >(serverEnabledIntegration);
+
+  const [showExamplePayload, setShowExamplePayload] = useState(false);
+  const [showExampleTicket, setShowExampleTicket] = useState(false);
 
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -218,13 +226,6 @@ const ManagePolicyAutomationsModal = ({
           z.group_id === selectedIntegration?.group_id,
       })) || null;
 
-    // if (
-    //   !isPolicyAutomationsEnabled ||
-    //   (!isWebhookEnabled && !selectedIntegration)
-    // ) {
-    //   newPolicyIds = [];
-    // }
-
     const updatedEnabledPoliciesAcrossPages = () => {
       if (webhook.policy_ids) {
         // Array of policy ids on the page
@@ -263,6 +264,7 @@ const ManagePolicyAutomationsModal = ({
       integrations: {
         jira: newJira,
         zendesk: newZendesk,
+        google_calendar: null, // When null, the backend does not update google_calendar
       },
     });
 
@@ -297,34 +299,52 @@ const ManagePolicyAutomationsModal = ({
           placeholder="https://server.com/example"
           tooltip="Provide a URL to deliver a webhook request to."
         />
-        <Button type="button" variant="text-link" onClick={togglePreviewModal}>
-          Preview payload
-        </Button>
+        <RevealButton
+          isShowing={showExamplePayload}
+          className={baseClass}
+          hideText="Hide example payload"
+          showText="Show example payload"
+          caretPosition="after"
+          onClick={() => setShowExamplePayload(!showExamplePayload)}
+        />
+        {showExamplePayload && <ExamplePayload />}
       </>
     );
   };
 
   const renderIntegrations = () => {
     return jira?.length || zendesk?.length ? (
-      <div className={`${baseClass}__integrations`}>
-        <Dropdown
-          options={dropdownOptions}
-          onChange={onSelectIntegration}
-          placeholder="Select integration"
-          value={
-            selectedIntegration?.group_id || selectedIntegration?.project_key
-          }
-          label="Integration"
-          error={errors.integration}
-          wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
-          hint={
-            "For each policy, Fleet will create a ticket with a list of the failing hosts."
-          }
+      <>
+        <div className={`${baseClass}__integrations`}>
+          <Dropdown
+            options={dropdownOptions}
+            onChange={onSelectIntegration}
+            placeholder="Select integration"
+            value={
+              selectedIntegration?.group_id || selectedIntegration?.project_key
+            }
+            label="Integration"
+            error={errors.integration}
+            wrapperClassName={`${baseClass}__form-field ${baseClass}__form-field--frequency`}
+            hint={
+              "For each policy, Fleet will create a ticket with a list of the failing hosts."
+            }
+          />
+        </div>
+        <RevealButton
+          isShowing={showExampleTicket}
+          className={baseClass}
+          hideText={"Hide example ticket"}
+          showText={"Show example ticket"}
+          caretPosition="after"
+          onClick={() => setShowExampleTicket(!showExampleTicket)}
         />
-        <Button type="button" variant="text-link" onClick={togglePreviewModal}>
-          Preview ticket
-        </Button>
-      </div>
+        {showExampleTicket && (
+          <ExampleTicket
+            integrationType={getIntegrationType(selectedIntegration)}
+          />
+        )}
+      </>
     ) : (
       <div className={`form-field ${baseClass}__no-integrations`}>
         <div className="form-field__label">You have no integrations.</div>
@@ -338,22 +358,10 @@ const ManagePolicyAutomationsModal = ({
     );
   };
 
-  const renderPreview = () =>
-    !isWebhookEnabled ? (
-      <PreviewTicketModal
-        integrationType={getIntegrationType(selectedIntegration)}
-        onCancel={togglePreviewModal}
-      />
-    ) : (
-      <PreviewPayloadModal onCancel={togglePreviewModal} />
-    );
-
-  return showPreviewPayloadModal ? (
-    renderPreview()
-  ) : (
+  return (
     <Modal
       onExit={onExit}
-      title="Manage automations"
+      title="Other workflows"
       className={baseClass}
       width="large"
     >
@@ -372,12 +380,32 @@ const ManagePolicyAutomationsModal = ({
             isPolicyAutomationsEnabled ? "enabled" : "disabled"
           }`}
         >
+          <div className={`form-field ${baseClass}__workflow`}>
+            <div className="form-field__label">Workflow</div>
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Ticket"
+              id="ticket-radio-btn"
+              checked={!isWebhookEnabled}
+              value="ticket"
+              name="ticket"
+              onChange={onChangeRadio}
+            />
+            <Radio
+              className={`${baseClass}__radio-input`}
+              label="Webhook"
+              id="webhook-radio-btn"
+              checked={isWebhookEnabled}
+              value="webhook"
+              name="webhook"
+              onChange={onChangeRadio}
+            />
+          </div>
+          {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
           <div className="form-field">
             {availablePolicies?.length ? (
               <>
-                <div className="form-field__label">
-                  Choose which policies you would like to listen to:
-                </div>
+                <div className="form-field__label">Policies:</div>
                 {policyItems &&
                   policyItems.map((policyItem) => {
                     const { isChecked, name, id } = policyItem;
@@ -405,28 +433,14 @@ const ManagePolicyAutomationsModal = ({
               </>
             )}
           </div>
-          <div className={`form-field ${baseClass}__workflow`}>
-            <div className="form-field__label">Workflow</div>
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Ticket"
-              id="ticket-radio-btn"
-              checked={!isWebhookEnabled}
-              value="ticket"
-              name="ticket"
-              onChange={onChangeRadio}
+          <p className={`${baseClass}__help-text`}>
+            The workflow will be triggered when hosts fail these policies.{" "}
+            <CustomLink
+              url="https://www.fleetdm.com/learn-more-about/policy-automations"
+              text="Learn more"
+              newTab
             />
-            <Radio
-              className={`${baseClass}__radio-input`}
-              label="Webhook"
-              id="webhook-radio-btn"
-              checked={isWebhookEnabled}
-              value="webhook"
-              name="webhook"
-              onChange={onChangeRadio}
-            />
-          </div>
-          {isWebhookEnabled ? renderWebhook() : renderIntegrations()}
+          </p>
         </div>
         <div className="modal-cta-wrap">
           <Button
@@ -447,4 +461,4 @@ const ManagePolicyAutomationsModal = ({
   );
 };
 
-export default ManagePolicyAutomationsModal;
+export default OtherWorkflowsModal;

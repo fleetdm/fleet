@@ -76,6 +76,7 @@ const DEFAULT_CONFIG_MOCK: IConfig = {
   integrations: {
     jira: [],
     zendesk: [],
+    google_calendar: [],
   },
   logging: {
     debug: false,

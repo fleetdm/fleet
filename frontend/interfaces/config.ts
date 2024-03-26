@@ -4,7 +4,7 @@ import {
   IWebhookFailingPolicies,
   IWebhookSoftwareVulnerabilities,
 } from "interfaces/webhook";
-import { IIntegrations } from "./integration";
+import { IGlobalIntegrations } from "./integration";
 
 export interface ILicense {
   tier: string;
@@ -175,7 +175,7 @@ export interface IConfig {
   //   databases_path: string;
   // };
   webhook_settings: IWebhookSettings;
-  integrations: IIntegrations;
+  integrations: IGlobalIntegrations;
   logging: {
     debug: boolean;
     json: boolean;
