@@ -764,72 +764,51 @@ const TAGGED_TEMPLATES = {
     );
   },
   createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText: React.ReactNode = "";
-    if (!isPremiumTier) {
-      teamText = "all macOS hosts";
-    } else if (activity.details?.team_name) {
-      teamText = (
-        <>
-          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
-        </>
-      );
-    } else {
-      teamText = "macOS hosts with no team";
-    }
-
     return (
       <>
         {" "}
         added declaration (DDM) profile <b>
           {activity.details?.profile_name}
         </b>{" "}
-        to {teamText}.
+        to{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
   deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText: React.ReactNode = "";
-    if (!isPremiumTier) {
-      teamText = "all macOS hosts";
-    } else if (activity.details?.team_name) {
-      teamText = (
-        <>
-          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
-        </>
-      );
-    } else {
-      teamText = "macOS hosts with no team";
-    }
-
     return (
       <>
         {" "}
         removed declaration (DDM) profile{" "}
-        <b>{activity.details?.profile_name}</b> from {teamText}.
+        <b>{activity.details?.profile_name}</b> from{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}
+        .
       </>
     );
   },
   editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText: React.ReactNode = "";
-    if (!isPremiumTier) {
-      teamText = "all macOS hosts";
-    } else if (activity.details?.team_name) {
-      teamText = (
-        <>
-          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
-        </>
-      );
-    } else {
-      teamText = "macOS hosts with no team";
-    }
-
     return (
       <>
         {" "}
         edited declaration (DDM) profile <b>
           {activity.details?.profile_name}
         </b>{" "}
-        for {teamText} via fleetctl.
+        for{" "}
+        {getProfileMessageSuffix(
+          isPremiumTier,
+          "darwin",
+          activity.details?.team_name
+        )}{" "}
+        via fleetctl.
       </>
     );
   },
