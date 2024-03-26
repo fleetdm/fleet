@@ -16,7 +16,7 @@ CREATE TABLE mdm_apple_declarative_requests (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   enrollment_id VARCHAR(255) NOT NULL,
   -- Should be one of "tokens", "declaration-items", "status", or "declaration/…/…" where the ellipses reference a declaration on the server
-  message_type VARCHAR(255),
+  message_type VARCHAR(255) NOT NULL,
   -- json payload
   raw_json TEXT,
   PRIMARY KEY (id),
