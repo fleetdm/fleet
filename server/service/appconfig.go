@@ -630,9 +630,7 @@ func (svc *Service) ModifyAppConfig(ctx context.Context, p []byte, applyOpts fle
 	mdmSSOSettingsChanged := oldAppConfig.MDM.EndUserAuthentication.SSOProviderSettings !=
 		appConfig.MDM.EndUserAuthentication.SSOProviderSettings
 	serverURLChanged := oldAppConfig.ServerSettings.ServerURL != appConfig.ServerSettings.ServerURL
-	mdmEnableReleaseDeviceChanged := oldAppConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value !=
-		appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value
-	if (mdmEnableEndUserAuthChanged || mdmEnableReleaseDeviceChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
+	if (mdmEnableEndUserAuthChanged || mdmSSOSettingsChanged || serverURLChanged) && license.IsPremium() {
 		if err := svc.EnterpriseOverrides.MDMAppleSyncDEPProfiles(ctx); err != nil {
 			return nil, ctxerr.Wrap(ctx, err, "sync DEP profiles")
 		}
