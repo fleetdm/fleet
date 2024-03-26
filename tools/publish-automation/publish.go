@@ -224,7 +224,13 @@ func deployDogfood(version string) bool {
 
 	fmt.Println("Wait for the script to finish (~10 minutes)?")
 	fmt.Println("Go to dogfood and verify that it works")
-	fmt.Println("Go to #help-engineering slack channel and paste this:\"We have just deployed " + version + " to dogfood\"  ")
+	fmt.Println("SLACK NOTIFICATIONS")
+	fmt.Println("Go to #help-engineering slack channel and paste this:")
+	fmt.Println("     We have just deployed " + version + " to dogfood")
+	fmt.Println("Go to #general slack channel and paste this:")
+	fmt.Println("     :cloud: :rocket: The latest version of Fleet is " + version[1:])
+	fmt.Println("     More info: https://github.com/fleetdm/fleet/releases/tag/fleet-" + version)
+	fmt.Println("     Upgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet")
 	fmt.Println("All good?(Y/y)")
 	var answer string
 	fmt.Scanln(&answer)
