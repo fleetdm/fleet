@@ -117,6 +117,13 @@ $max-width: 2560px;
   cursor: default;
 }
 
+@mixin disabled-checkbox {
+  background-color: $ui-fleet-black-25;
+  border-color: $ui-fleet-black-25;
+  pointer-events: none;
+  cursor: default;
+}
+
 @mixin grey-text {
   color: $ui-fleet-black-75;
 }
