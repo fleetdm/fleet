@@ -62,7 +62,7 @@ queries:
   - path: ../lib/collect-usb-devices.queries.yml
   - path: ../lib/collect-vs-code-extensions.queries.yml
   - name: Collect hosts with expired SCEP certs
-    description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's with expired SCEP certs. If a host has a valid (non-expired) SCEP cert, it won't return any results."
+    description: "For the following issue: https://github.com/fleetdm/confidential/issues/4518. Returns expiration date for macOS hosts's MDM SCEP certs."
     query: "SELECT common_name, datetime(not_valid_after,'unixepoch') AS expires FROM certificates WHERE 'common_name' LIKE '%FleetDM Identity%';"
     platform: darwin
     interval: 300
