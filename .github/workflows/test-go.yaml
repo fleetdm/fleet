@@ -99,6 +99,11 @@ jobs:
         done
         echo "mysql is ready"
 
+    - name: Setup upterm session
+      uses: lhotari/action-upterm@v1
+      with:
+        limit-access-to-actor: true
+        limit-access-to-users: roperzh,gillespi314
 
     - name: Run Go Tests
       run: |
