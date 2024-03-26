@@ -2615,7 +2615,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(2), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2641,7 +2641,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(2), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2669,7 +2669,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(2), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2691,7 +2691,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(2), allProfilesSummary.Pending)
 	require.Equal(t, uint(1), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2713,7 +2713,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, nil)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(3), allProfilesSummary.Pending)
 	require.Equal(t, uint(1), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2743,7 +2743,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(0), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(1), allProfilesSummary.Verifying)
@@ -2769,7 +2769,7 @@ func TestMDMAppleFileVaultSummary(t *testing.T) {
 
 	allProfilesSummary, err = ds.GetMDMAppleProfilesSummary(ctx, &tm.ID)
 	require.NoError(t, err)
-	require.NotNil(t, fvProfileSummary)
+	require.NotNil(t, allProfilesSummary)
 	require.Equal(t, uint(0), allProfilesSummary.Pending)
 	require.Equal(t, uint(0), allProfilesSummary.Failed)
 	require.Equal(t, uint(0), allProfilesSummary.Verifying)
