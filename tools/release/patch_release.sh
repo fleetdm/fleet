@@ -184,7 +184,6 @@ print_announce_info() {
     echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
     echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
     echo 
-    cd tools/fleetctl-npm && npm publish
 }
 
 update_release_notes() {
@@ -229,6 +228,7 @@ publish() {
     echo "In #help-infrastructure add a thread message with:"
     gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'
     echo "to let them see the status of the dogfood deployment"
+    cd tools/fleetctl-npm && npm publish
 }
 
 # Validate we have all commands required to perform this script
