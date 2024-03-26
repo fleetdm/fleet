@@ -2395,15 +2395,16 @@ Lists the software installed on the current device.
       "versions": ["121.0"]
       "source": "apps"
       "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
-      "status": "installed",
-      "detail": ""
+      "status": "failed",
+      "detail": "Configuration profile failed before installation. Resend profile to try again."
     },
     {
       "id": 127,
       "name": "Firefox.app"
       "versions": ["118.0, 119.0"]
       "source": "apps"
-      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+      "status": null
     }
   ]
 }
