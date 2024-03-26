@@ -2,11 +2,11 @@ import React, { useContext, useState } from "react";
 
 import mdmAPI from "services/entities/mdm";
 
-import Icon from "components/Icon";
 import TooltipWrapper from "components/TooltipWrapper";
 import Checkbox from "components/forms/fields/Checkbox";
 import Button from "components/buttons/Button";
 import { NotificationContext } from "context/notification";
+import RevealButton from "components/buttons/RevealButton";
 
 const baseClass = "advanced-options-form";
 
@@ -22,9 +22,6 @@ const AdvancedOptionsForm = ({
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);
   const [releaseDevice, setReleaseDevice] = useState(defaultReleaseDevice);
   const { renderFlash } = useContext(NotificationContext);
-
-  const accordionText = showAdvancedOptions ? "Hide" : "Show";
-  const icon = showAdvancedOptions ? "chevron-up" : "chevron-down";
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -46,13 +43,14 @@ const AdvancedOptionsForm = ({
 
   return (
     <div className={baseClass}>
-      <div
+      <RevealButton
         className={`${baseClass}__accordion-title`}
+        isShowing={showAdvancedOptions}
+        showText="Hide advanced options"
+        hideText="Show advanced options"
+        caretPosition="after"
         onClick={() => setShowAdvancedOptions(!showAdvancedOptions)}
-      >
-        <span>{accordionText} advanced options</span>
-        <Icon name={icon} color="core-fleet-blue" />
-      </div>
+      />
       {showAdvancedOptions && (
         <form onSubmit={handleSubmit}>
           <Checkbox
