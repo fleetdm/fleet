@@ -763,14 +763,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  createDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText = "";
+  createdDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText: React.ReactNode = "";
     if (!isPremiumTier) {
       teamText = "all macOS hosts";
-    }
-
-    if (activity.details?.team_name) {
-      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
+        </>
+      );
     } else {
       teamText = "macOS hosts with no team";
     }
@@ -785,14 +787,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  deleteDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText = "";
+  deletedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText: React.ReactNode = "";
     if (!isPremiumTier) {
       teamText = "all macOS hosts";
-    }
-
-    if (activity.details?.team_name) {
-      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
+        </>
+      );
     } else {
       teamText = "macOS hosts with no team";
     }
@@ -805,14 +809,16 @@ const TAGGED_TEMPLATES = {
       </>
     );
   },
-  editDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
-    let teamText = "";
+  editedDeclarationProfile: (activity: IActivity, isPremiumTier: boolean) => {
+    let teamText: React.ReactNode = "";
     if (!isPremiumTier) {
       teamText = "all macOS hosts";
-    }
-
-    if (activity.details?.team_name) {
-      teamText = `macOS hosts assigned to the ${activity.details.team_name} team`;
+    } else if (activity.details?.team_name) {
+      teamText = (
+        <>
+          macOS hosts assigned to the <b>{activity.details.team_name}</b> team
+        </>
+      );
     } else {
       teamText = "macOS hosts with no team";
     }
@@ -982,11 +988,20 @@ const getDetail = (
     case ActivityType.WipedHost: {
       return TAGGED_TEMPLATES.wipedHost(activity);
     }
-    case ActivityType.CreateDeclarationProfile: {
+    case ActivityType.CreatedDeclarationProfile: {
+      return TAGGED_TEMPLATES.createdDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
     }
-    case ActivityType.DeleteDeclarationProfile: {
+    case ActivityType.DeletedDeclarationProfile: {
+      return TAGGED_TEMPLATES.deletedDeclarationProfile(
+        activity,
+        isPremiumTier
+      );
     }
-    case ActivityType.EditDeclarationProfile: {
+    case ActivityType.EditedDeclarationProfile: {
+      return TAGGED_TEMPLATES.editedDeclarationProfile(activity, isPremiumTier);
     }
 
     default: {

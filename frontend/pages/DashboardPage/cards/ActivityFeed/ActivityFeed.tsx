@@ -17,6 +17,7 @@ import Spinner from "components/Spinner";
 import FleetIcon from "components/icons/FleetIcon";
 import ActivityItem from "./ActivityItem";
 import ScriptDetailsModal from "./components/ScriptDetailsModal/ScriptDetailsModal";
+import createMockActivity from "__mocks__/activityMock";
 
 const baseClass = "activity-feed";
 interface IActvityCardProps {

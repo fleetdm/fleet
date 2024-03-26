@@ -67,9 +67,9 @@ export enum ActivityType {
   LockedHost = "locked_host",
   UnlockedHost = "unlocked_host",
   WipedHost = "wiped_host",
-  CreateDeclarationProfile = "created_declaration_profile",
-  DeleteDeclarationProfile = "delete_declaration_profile",
-  EditDeclarationProfile = "edit_declaration_profile",
+  CreatedDeclarationProfile = "created_declaration_profile",
+  DeletedDeclarationProfile = "deleted_declaration_profile",
+  EditedDeclarationProfile = "edited_declaration_profile",
 }
 
 // This is a subset of ActivityType that are shown only for the host past activities
