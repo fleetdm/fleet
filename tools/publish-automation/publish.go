@@ -13,7 +13,7 @@ func main() {
 	version := getVersion()
 	makeSureNPMVersionIsCoherent(version)
 	if !openReleasesPage(version) {
-		fmt.Println("Error - could not publish the fleat release.")
+		fmt.Println("Error - could not publish the Fleet release.")
 		fmt.Println("Try manually at https://github.com/fleetdm/fleet/releases/edit/fleet-" + version)
 		return
 	}
