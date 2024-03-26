@@ -12930,13 +12930,11 @@ INSERT INTO host_mdm_apple_declarations (
 
 	checkRequestsDatabase := func(t *testing.T, messageType, enrollmentID string, expectedCount int) {
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
-			var output struct {
-				Num int `db:"count"`
-			}
+			var count int
 			if err := sqlx.GetContext(
 				context.Background(),
 				q,
-				&output,
+				&count,
 				"SELECT count(*) AS count FROM mdm_apple_declarative_requests WHERE enrollment_id = ? AND message_type = ?",
 				enrollmentID,
 				messageType,
@@ -12944,7 +12942,7 @@ INSERT INTO host_mdm_apple_declarations (
 				return err
 			}
 
-			require.Equal(t, expectedCount, output.Num, "unexpected db row count for declaration requests")
+			require.Equal(t, expectedCount, count, "unexpected db row count for declaration requests")
 
 			return nil
 		})
