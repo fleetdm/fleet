@@ -6,8 +6,6 @@ import {
 } from "interfaces/mdm";
 import { API_NO_TEAM_ID } from "interfaces/team";
 import sendRequest from "services";
-import configAPI from "services/entities/config";
-import teamAPI from "services/entities/teams";
 import endpoints from "utilities/endpoints";
 import { buildQueryStringFromParams } from "utilities/url";
 

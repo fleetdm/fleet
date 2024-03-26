@@ -1,5 +1,4 @@
-import { AxiosResponse } from "axios";
-import { IApiError, getErrorReason } from "interfaces/errors";
+import { getErrorReason } from "interfaces/errors";
 
 const UPLOAD_ERROR_MESSAGES = {
   default: {

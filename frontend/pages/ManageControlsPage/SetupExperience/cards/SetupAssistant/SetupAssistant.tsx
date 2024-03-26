@@ -27,16 +27,16 @@ interface ISetupAssistantProps {
   currentTeamId: number;
 }
 
-const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
+const SetupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const [showDeleteProfileModal, setShowDeleteProfileModal] = useState(false);
 
   const { data: globalConfig, isLoading: isLoadingGlobalConfig } = useQuery<
     IConfig,
     Error
   >(["config", currentTeamId], () => configAPI.loadAll(), {
-    enabled: currentTeamId === API_NO_TEAM_ID,
-    refetchOnWindowFocus: false,
+    ...DEFAULT_USE_QUERY_OPTIONS,
     retry: false,
+    enabled: currentTeamId === API_NO_TEAM_ID,
   });
 
   const { data: teamConfig, isLoading: isLoadingTeamConfig } = useQuery<
@@ -44,6 +44,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
     Error,
     ITeamConfig
   >(["team", currentTeamId], () => teamsAPI.load(currentTeamId), {
+    ...DEFAULT_USE_QUERY_OPTIONS,
     refetchOnWindowFocus: false,
     retry: false,
     enabled: currentTeamId !== API_NO_TEAM_ID,
@@ -53,7 +54,6 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   const {
     data: enrollmentProfileData,
     isLoading: isLoadingEnrollmentProfile,
-    isError: isErrorEnrollmentProfile,
     error: enrollmentProfileError,
     refetch: refetchEnrollmentProfile,
   } = useQuery<IAppleSetupEnrollmentProfileResponse, AxiosError>(
@@ -101,7 +101,7 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
               Add an automatic enrollment profile to customize the macOS Setup
               Assistant.
               <CustomLink
-                url=" https://fleetdm.com/learn-more-about/setup-assistant"
+                url="https://fleetdm.com/learn-more-about/setup-assistant"
                 text="Learn how"
                 newTab
               />
@@ -139,4 +139,4 @@ const StartupAssistant = ({ currentTeamId }: ISetupAssistantProps) => {
   );
 };
 
-export default StartupAssistant;
+export default SetupAssistant;
