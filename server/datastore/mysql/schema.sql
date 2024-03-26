@@ -688,10 +688,10 @@ CREATE TABLE `mdm_apple_declarations` (
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `mdm_apple_declarative_requests` (
-  `id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
   `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   `enrollment_id` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
-  `message_type` varchar(255) COLLATE utf8mb4_unicode_ci DEFAULT NULL,
+  `message_type` varchar(255) COLLATE utf8mb4_unicode_ci NOT NULL,
   `raw_json` text COLLATE utf8mb4_unicode_ci,
   PRIMARY KEY (`id`),
   KEY `mdm_apple_declarative_requests_enrollment_id` (`enrollment_id`),
