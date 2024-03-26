@@ -9472,9 +9472,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var profileLabels []fleet.ConfigurationProfileLabel
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
-		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id 
-		FROM mdm_configuration_profile_labels 
-		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, label_id 
+		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id
+		FROM mdm_configuration_profile_labels
+		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
 	})
