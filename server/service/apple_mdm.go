@@ -2716,43 +2716,20 @@ func ReconcileAppleDeclarations(
 	commander *apple_mdm.MDMAppleCommander,
 	logger kitlog.Logger,
 ) error {
-	// once all the declarations are in place, compute the desired state
-	// and find which hosts need a DDM sync.
-	changedDeclarations, err := ds.MDMAppleGetHostsWithChangedDeclarations(ctx)
+
+	// batch set declarations as pending
+	changedHosts, err := ds.MDMAppleBatchSetHostDeclarationState(ctx)
 	if err != nil {
-		return ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
+		return ctxerr.Wrap(ctx, err, "updating host declaration state")
 	}
 
-	if len(changedDeclarations) == 0 {
+	if len(changedHosts) == 0 {
 		logger.Log("msg", "no hosts with changed declarations")
 		return nil
 	}
 
-	// a host might have more than one declaration to sync, we do this to
-	// collect unique host UUIDs in order to send a single command to each
-	// host in the next step
-	uuidMap := map[string]struct{}{}
-	for _, d := range changedDeclarations {
-		uuidMap[d.HostUUID] = struct{}{}
-	}
-	uuids := make([]string, 0, len(uuidMap))
-	for uuid := range uuidMap {
-		uuids = append(uuids, uuid)
-	}
-
-	// mark the host declarations as pending, this serves two purposes:
-	//
-	// - support the APIs/methods that track host status (summaries, filters, etc)
-	//
-	// - support the DDM endpoints, which use data from the
-	//   `host_mdm_apple_declarations` table to compute which declarations to
-	//   serve
-	if err := ds.MDMAppleBatchInsertHostDeclarations(ctx, changedDeclarations); err != nil {
-		return ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
-	}
-
 	// send a DeclarativeManagement command to start a sync
-	if err := commander.DeclarativeManagement(ctx, uuids, uuid.NewString()); err != nil {
+	if err := commander.DeclarativeManagement(ctx, changedHosts, uuid.NewString()); err != nil {
 		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
 

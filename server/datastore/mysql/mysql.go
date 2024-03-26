@@ -1281,3 +1281,48 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	}
 	return id, nil
 }
+
+// batchProcessDB function abstracts the batch processing logic
+func batchProcessDB[T any](
+	payload []T,
+	batchSize int,
+	generateValueArgs func(T) (string, []any),
+	executeBatch func(string, []any) error,
+) error {
+	if len(payload) == 0 {
+		return nil
+	}
+
+	var (
+		args       []any
+		sb         strings.Builder
+		batchCount int
+	)
+
+	resetBatch := func() {
+		batchCount = 0
+		args = args[:0]
+		sb.Reset()
+	}
+
+	for _, item := range payload {
+		valuePart, itemArgs := generateValueArgs(item)
+		args = append(args, itemArgs...)
+		sb.WriteString(valuePart)
+		batchCount++
+
+		if batchCount >= batchSize {
+			if err := executeBatch(sb.String(), args); err != nil {
+				return err
+			}
+			resetBatch()
+		}
+	}
+
+	if batchCount > 0 {
+		if err := executeBatch(sb.String(), args); err != nil {
+			return err
+		}
+	}
+	return nil
+}

@@ -451,6 +451,20 @@ WHERE
 			return ctxerr.Wrap(ctx, err, "bulk set pending windows host profiles")
 		}
 
+		const defaultBatchSize = 1000
+		batchSize := defaultBatchSize
+		if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+			batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
+		}
+		// TODO(roberto): this method currently sets the state of all
+		// declarations for all hosts. I don't see an immediate concern
+		// (and my hunch is that we could even do the same for
+		// profiles) but this could be optimized to use only a provided
+		// set of host uuids.
+		if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize); err != nil {
+			return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
+		}
+
 		return nil
 	})
 }
