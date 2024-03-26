@@ -184,6 +184,7 @@ print_announce_info() {
     echo "Docker Deploy status " `gh run list --workflow goreleaser-snapshot-fleet.yaml --json event,url,headBranch --limit 100 | jq -r "[.[]|select(.headBranch==\"$target_patch_branch\")][0].url"`
     echo "List of tickets pulled into release https://github.com/fleetdm/fleet/milestone/$target_milestone_number"
     echo 
+    cd tools/fleetctl-npm && npm publish
 }
 
 update_release_notes() {
