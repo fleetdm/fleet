@@ -948,23 +948,21 @@ func (svc *Service) getOrCreatePreassignTeam(ctx context.Context, groups []strin
 			return nil, err
 		}
 
-		payload.MDM = &fleet.TeamPayloadMDM{
-			EnableDiskEncryption: optjson.SetBool(true),
-			MacOSSetup: &fleet.MacOSSetup{
-				MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
-				// NOTE: BootstrapPackage is currently ignored by svc.ModifyTeam and gets set
-				// instead by CopyDefaultMDMAppleBootstrapPackage below
-				// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
-				EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
-				// TODO(mna): should we copy the EnableReleaseDeviceManually setting from the global config?
+		spec := &fleet.TeamSpec{
+			Name: teamName,
+			MDM: fleet.TeamSpecMDM{
+				EnableDiskEncryption: optjson.SetBool(true),
+				MacOSSetup: fleet.MacOSSetup{
+					MacOSSetupAssistant: ac.MDM.MacOSSetup.MacOSSetupAssistant,
+					// NOTE: BootstrapPackage gets set by
+					// CopyDefaultMDMAppleBootstrapPackage below
+					// BootstrapPackage:            ac.MDM.MacOSSetup.BootstrapPackage,
+					EnableEndUserAuthentication: ac.MDM.MacOSSetup.EnableEndUserAuthentication,
+					EnableReleaseDeviceManually: ac.MDM.MacOSSetup.EnableReleaseDeviceManually,
+				},
 			},
 		}
-
-		// TODO: seems like we don't support enabling disk encryption
-		// on team creation?
-		// see https://github.com/fleetdm/fleet/issues/12220
-		team, err = svc.ModifyTeam(ctx, team.ID, payload)
-		if err != nil {
+		if _, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{}); err != nil {
 			return nil, err
 		}
 		if err := svc.ds.CopyDefaultMDMAppleBootstrapPackage(ctx, ac, team.ID); err != nil {
