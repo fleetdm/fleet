@@ -28,6 +28,10 @@ func main() {
 		fmt.Println("Script Failed.")
 		return
 	}
+	if !closeMilestoneTickets(version) {
+		fmt.Println("Script Failed.")
+		return
+	}
 
 	fmt.Println("Script ended successfully.")
 }
@@ -198,8 +202,6 @@ func checkDocker(version string) bool {
 }
 
 func deployDogfood(version string) bool {
-	// fleetdm/fleet:patch-fleet-v4.47.2
-	// https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml
 	fmt.Println("\n===========================================================")
 	fmt.Println("Step 6: Deploy " + version + " to Dogfood.")
 	fmt.Println("Hitting ENTER will take you to the proper git action page.")
@@ -220,6 +222,33 @@ func deployDogfood(version string) bool {
 	fmt.Println("Wait for the script to finish (~10 minutes)?")
 	fmt.Println("Go to dogfood and verify that it works")
 	fmt.Println("All good?(Y/y)")
+	var answer string
+	fmt.Scanln(&answer)
+	if answer == "Y" || answer == "y" {
+		return true
+	} else {
+		return false
+	}
+}
+
+func closeMilestoneTickets(version string) bool {
+	milestone := version[1:]
+	fmt.Println("\n===========================================================")
+	fmt.Println("Step 7: Close all tickets with milestone " + milestone)
+	fmt.Println("Hitting ENTER will take you to the ZenHub page with all relevant tickets.")
+	fmt.Println("Once at ZenHub:")
+	fmt.Println(" - for each ticket verify that it was indeed included in the patch release and close it.")
+	fmt.Scanln()
+	url := "https://github.com/fleetdm/fleet/issues?q=is%3Aissue+is%3Aopen+milestone%3A%22" + milestone + "%22+"
+	fmt.Println("Taking you to ZenHub search.")
+
+	err := openURL(url)
+	if err != nil {
+		fmt.Println("Error opening URL:", err)
+		return false
+	}
+
+	fmt.Println("Have you closed all tickets?(Y/y)")
 	var answer string
 	fmt.Scanln(&answer)
 	if answer == "Y" || answer == "y" {
