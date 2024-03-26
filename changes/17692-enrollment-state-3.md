@@ -1,1 +1,0 @@
-- Fix a bug where valid MDM enrollments would show up as unmanaged (EnrollmentState 3)

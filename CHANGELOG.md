@@ -1,3 +1,9 @@
+## Fleet 4.47.3 (Mar 26, 2024)
+
+### Bug fixes
+
+* Fixed a bug where valid Windows MDM enrollments would show up as unmanaged (EnrollmentState 3).
+
 ## Fleet 4.47.1 (Mar 18, 2024)
 
 ### Bug fixes
