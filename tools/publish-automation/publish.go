@@ -208,9 +208,10 @@ func deployDogfood(version string) bool {
 	fmt.Println("Step 6: Deploy " + version + " to Dogfood.")
 	fmt.Println("Hitting ENTER will take you to the proper git action page.")
 	fmt.Println("Once at the git action page do this:")
-	fmt.Println("    1 - press the \"Run workflow\" button on the right side of the screen")
-	fmt.Println("    2 - paste \"fleetdm/fleet:patch-fleet-" + version + "\" as input.")
-	fmt.Println("    3 - press the \"Run workflow\"")
+	fmt.Println("    1 - Go to #help-infrastructure slack channel and paste this:\"@infrastructure-oncall We have just released " + version + " and are now deploying it to dogfood\"  ")
+	fmt.Println("    2 - press the \"Run workflow\" button on the right side of the screen")
+	fmt.Println("    3 - paste \"fleetdm/fleet:patch-fleet-" + version + "\" as input.")
+	fmt.Println("    4 - press the \"Run workflow\"")
 	fmt.Scanln()
 	url := "https://github.com/fleetdm/fleet/actions/workflows/dogfood-deploy.yml"
 	fmt.Println("Taking you to the docker hub page: " + url)
@@ -223,6 +224,7 @@ func deployDogfood(version string) bool {
 
 	fmt.Println("Wait for the script to finish (~10 minutes)?")
 	fmt.Println("Go to dogfood and verify that it works")
+	fmt.Println("Go to #help-engineering slack channel and paste this:\"We have just deployed " + version + " to dogfood\"  ")
 	fmt.Println("All good?(Y/y)")
 	var answer string
 	fmt.Scanln(&answer)
