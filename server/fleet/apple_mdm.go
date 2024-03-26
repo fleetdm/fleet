@@ -635,10 +635,10 @@ type MDMAppleHostDeclaration struct {
 	DeclarationUUID string `db:"declaration_uuid" json:"profile_uuid"`
 
 	// Name corresponds to the file name of the associated JSON declaration payload.
-	Name string `db:"name" json:"name"`
+	Name string `db:"declaration_name" json:"name"`
 
 	// Identifier corresponds to the "Identifier" key of the associated declaration.
-	Identifier string `db:"identifier" json:"-"`
+	Identifier string `db:"declaration_identifier" json:"-"`
 
 	// Status represent the current state of the declaration, as known by the Fleet server.
 	Status *MDMDeliveryStatus `db:"status" json:"status"`
@@ -726,4 +726,95 @@ type MDMAppleDDMDeclarationResponse struct {
 	Type        string          `db:"type"`
 	Payload     json.RawMessage `db:"payload"`
 	ServerToken string          `db:"server_token"`
+}
+
+// MDMAppleDDMStatusReport represents a report of the device's current state.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport
+type MDMAppleDDMStatusReport struct {
+	StatusItems MDMAppleDDMStatusItems `json:"StatusItems"`
+	Errors      []MDMAppleDDMErrors    `json:"Errors"`
+}
+
+// MDMAppleDDMStatusItems are the status items for a report.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport/statusitems
+type MDMAppleDDMStatusItems struct {
+	Management MDMAppleDDMStatusManagement `json:"management"`
+}
+
+// MDMAppleDDMStatusManagement represents status report of the client's
+// processed declarations.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarations
+type MDMAppleDDMStatusManagement struct {
+	Declarations MDMAppleDDMStatusDeclarations `json:"declarations"`
+}
+
+// MDMAppleDDMStatusDeclarations represents a collection of the client's
+// processed declarations.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarationsdeclarationsobject
+type MDMAppleDDMStatusDeclarations struct {
+	// Activations is an array of declarations that represent the client's
+	// processed activation types.
+	Activations []MDMAppleDDMStatusDeclaration `json:"activations"`
+	// Configurations is an array of declarations that represent the
+	// client's processed configuration types.
+	Configurations []MDMAppleDDMStatusDeclaration `json:"configurations"`
+	// Assets is an array of declarations that represent the client's
+	// processed assets.
+	Assets []MDMAppleDDMStatusDeclaration `json:"assets"`
+	// Management is an array of declarations that represent the client's
+	// processed declaration types.
+	Management []MDMAppleDDMStatusDeclaration `json:"management"`
+}
+
+type MDMAppleDeclarationValidity string
+
+const (
+	MDMAppleDeclarationValid   MDMAppleDeclarationValidity = "valid"
+	MDMAppleDeclarationInvalid MDMAppleDeclarationValidity = "invalid"
+	MDMAppleDeclarationUnknown MDMAppleDeclarationValidity = "valid"
+)
+
+// MDMAppleDDMStatusDeclaration represents a processed declaration for the client.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusmanagementdeclarationsdeclarationobject
+type MDMAppleDDMStatusDeclaration struct {
+	// Active signals if the declaration is active on the device.
+	Active bool `json:"active"`
+	// Identifier is the identifier of the declaration this status report refers to.
+	Identifier string `json:"identifier"`
+	// Valid defines the validity of the declaration. If it's invalid, the
+	// reasons property contains more details.
+	Valid MDMAppleDeclarationValidity `json:"valid"`
+	// ServerToken of the declaration this status report refers to.
+	ServerToken string `json:"server-token"`
+	// Reasons are the details of any client errors.
+	Reasons []MDMAppleDDMStatusErrorReason `json:"reasons,omitempty"`
+}
+
+// A status report's error that contains the status item and the reasons for
+// the error.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreport/error
+type MDMAppleDDMErrors struct {
+	// StatusItem is the status item that this error pertains to.
+	StatusItem string `json:"StatusItem"`
+	// Reasons is an array of reasons for the error.
+	Reasons []MDMAppleDDMStatusErrorReason `json:"Reasons"`
+}
+
+// A status report that contains details about an error.
+//
+// https://developer.apple.com/documentation/devicemanagement/statusreason
+type MDMAppleDDMStatusErrorReason struct {
+	// Code is the error code for this error.
+	Code string `json:"Code"`
+	// Description is a short error description.
+	Description string `json:"Description"`
+	// Details is a dictionary that contains further details about this
+	// error.
+	Details map[string]any `json:"Details"`
 }

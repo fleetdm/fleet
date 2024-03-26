@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
@@ -390,13 +392,20 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 // The endpoint argument is used as the value for the `Endpoint` key in the request payload.
 //
 // For more details check https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest
-func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string) (*http.Response, error) {
+func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
 	payload := map[string]any{
 		"MessageType":  "DeclarativeManagement",
 		"UDID":         c.UUID,
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
 		"EnrollmentID": "testenrollmentid-" + c.UUID,
 		"Endpoint":     endpoint,
+	}
+	if len(data) != 0 {
+		rawData, err := json.Marshal(data[0])
+		if err != nil {
+			return nil, fmt.Errorf("marshaling status report: %w", err)
+		}
+		payload["Data"] = rawData
 	}
 	r, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
 	return r, err

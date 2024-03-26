@@ -1162,9 +1162,18 @@ type Datastore interface {
 	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
 	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
 	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
-
 	//MDMAppleBatchSetHostDeclarationState
 	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
+	// of declarations, and updates the tracked host declaration status for
+	// matching declarations.
+	//
+	// It also takes care of cleaning up all host declarations that are
+	// pending removal.
+	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+	// MDMAppleSetDeclarationsAsVerifying updates all
+	// ("pending", "install") declarations for a host to be ("verifying", "install")
+	MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM

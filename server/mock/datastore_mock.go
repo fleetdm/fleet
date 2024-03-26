@@ -766,6 +766,10 @@ type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier st
 
 type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
+type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
+
+type MDMAppleSetDeclarationsAsVerifyingFunc func(ctx context.Context, hostUUID string) error
+
 type WSTEPStoreCertificateFunc func(ctx context.Context, name string, crt *x509.Certificate) error
 
 type WSTEPNewSerialFunc func(ctx context.Context) (*big.Int, error)
@@ -1992,6 +1996,12 @@ type DataStore struct {
 
 	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
 	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
+
+	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
+	MDMAppleStoreDDMStatusReportFuncInvoked bool
+
+	MDMAppleSetDeclarationsAsVerifyingFunc        MDMAppleSetDeclarationsAsVerifyingFunc
+	MDMAppleSetDeclarationsAsVerifyingFuncInvoked bool
 
 	WSTEPStoreCertificateFunc        WSTEPStoreCertificateFunc
 	WSTEPStoreCertificateFuncInvoked bool
@@ -4768,6 +4778,20 @@ func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([
 	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
 	s.mu.Unlock()
 	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
+}
+
+func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {
+	s.mu.Lock()
+	s.MDMAppleStoreDDMStatusReportFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleStoreDDMStatusReportFunc(ctx, hostUUID, updates)
+}
+
+func (s *DataStore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error {
+	s.mu.Lock()
+	s.MDMAppleSetDeclarationsAsVerifyingFuncInvoked = true
+	s.mu.Unlock()
+	return s.MDMAppleSetDeclarationsAsVerifyingFunc(ctx, hostUUID)
 }
 
 func (s *DataStore) WSTEPStoreCertificate(ctx context.Context, name string, crt *x509.Certificate) error {
