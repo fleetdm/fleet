@@ -732,8 +732,8 @@ type MDMAppleDDMDeclarationResponse struct {
 //
 // https://developer.apple.com/documentation/devicemanagement/statusreport
 type MDMAppleDDMStatusReport struct {
-	StatusItems MDMAppleDDMStatusItems
-	Errors      []MDMAppleDDMErrors
+	StatusItems MDMAppleDDMStatusItems `json:"StatusItems"`
+	Errors      []MDMAppleDDMErrors    `json:"Errors"`
 }
 
 // MDMAppleDDMStatusItems are the status items for a report.
@@ -801,9 +801,9 @@ type MDMAppleDDMStatusDeclaration struct {
 // https://developer.apple.com/documentation/devicemanagement/statusreport/error
 type MDMAppleDDMErrors struct {
 	// StatusItem is the status item that this error pertains to.
-	StatusItem string
+	StatusItem string `json:"StatusItem"`
 	// Reasons is an array of reasons for the error.
-	Reasons []MDMAppleDDMStatusErrorReason
+	Reasons []MDMAppleDDMStatusErrorReason `json:"Reasons"`
 }
 
 // A status report that contains details about an error.
@@ -811,10 +811,10 @@ type MDMAppleDDMErrors struct {
 // https://developer.apple.com/documentation/devicemanagement/statusreason
 type MDMAppleDDMStatusErrorReason struct {
 	// Code is the error code for this error.
-	Code string
+	Code string `json:"Code"`
 	// Description is a short error description.
-	Description string
+	Description string `json:"Description"`
 	// Details is a dictionary that contains further details about this
 	// error.
-	Details map[string]any
+	Details map[string]any `json:"Details"`
 }

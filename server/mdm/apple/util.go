@@ -101,7 +101,7 @@ func GenerateRandomPin(length int) string {
 	return fmt.Sprintf(f, v)
 }
 
-// FmtDDMErrorChan formats Command error message for macOS MDM v1
+// FmtErrorChain formats Command error message for macOS MDM v1
 func FmtErrorChain(chain []mdm.ErrorChain) string {
 	var sb strings.Builder
 	for _, mdmErr := range chain {
