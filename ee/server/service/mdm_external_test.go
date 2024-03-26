@@ -19,6 +19,7 @@ import (
 	nanodep_storage "github.com/fleetdm/fleet/v4/server/mdm/nanodep/storage"
 	"github.com/fleetdm/fleet/v4/server/mock"
 	nanodep_mock "github.com/fleetdm/fleet/v4/server/mock/nanodep"
+	"github.com/fleetdm/fleet/v4/server/ptr"
 	"github.com/fleetdm/fleet/v4/server/service"
 	"github.com/fleetdm/fleet/v4/server/test"
 	"github.com/fleetdm/fleet/v4/server/worker"
@@ -87,7 +88,6 @@ func setupMockDatastorePremiumService() (*mock.Store, *eeservice.Service, contex
 }
 
 func TestGetOrCreatePreassignTeam(t *testing.T) {
-	t.Skip()
 	ds, svc, ctx := setupMockDatastorePremiumService()
 
 	ssoSettings := fleet.SSOProviderSettings{
@@ -334,193 +334,200 @@ func TestGetOrCreatePreassignTeam(t *testing.T) {
 		require.True(t, ds.NewJobFuncInvoked)
 		resetInvoked()
 
-		/*
-			// when called again, simply get the previously created team
-			team, err = svc.getOrCreatePreassignTeam(ctx, preassignGroups)
-			require.NoError(t, err)
-			require.Equal(t, uint(3), team.ID)
-			require.Equal(t, teamNameFromPreassignGroups(preassignGroups), team.Name)
-			require.True(t, ds.TeamByNameFuncInvoked)
-			require.False(t, ds.NewTeamFuncInvoked)
-			require.False(t, ds.SaveTeamFuncInvoked)
-			require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.False(t, ds.AppConfigFuncInvoked)
-			require.False(t, ds.NewJobFuncInvoked)
-			require.False(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
-			require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-			require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
-			require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-			require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-			resetInvoked()
+		jobTask = ""
 
-			// when a custom setup assistant is not set for "no team", we don't create a custom setup assistant
-			ds.GetMDMAppleSetupAssistantFunc = func(ctx context.Context, teamID *uint) (*fleet.MDMAppleSetupAssistant, error) {
-				require.Nil(t, teamID)
-				return nil, ctxerr.Wrap(ctx, &notFoundError{})
-			}
-			preassignGrousWithFoo := append(preassignGroups, "foo")
-			team, err = svc.getOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
-			require.NoError(t, err)
-			require.Equal(t, uint(4), team.ID)
-			require.Equal(t, teamNameFromPreassignGroups(preassignGrousWithFoo), team.Name)
-			require.True(t, ds.TeamByNameFuncInvoked)
-			require.True(t, ds.NewTeamFuncInvoked)
-			require.True(t, ds.SaveTeamFuncInvoked)
-			require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.True(t, ds.AppConfigFuncInvoked)
-			require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
-			require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
-			require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
-			require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-			require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
-			resetInvoked()
-		*/
+		// when called again, simply get the previously created team
+		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGroups)
+		require.NoError(t, err)
+		require.Equal(t, uint(3), team.ID)
+		require.Equal(t, eeservice.TeamNameFromPreassignGroups(preassignGroups), team.Name)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.False(t, ds.NewTeamFuncInvoked)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.False(t, ds.AppConfigFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		require.False(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.MacOSSetupAssistant.Value, team.Config.MDM.MacOSSetup.MacOSSetupAssistant.Value)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+		resetInvoked()
+
+		jobTask = ""
+
+		// when a custom setup assistant is not set for "no team", we don't create
+		// a custom setup assistant
+		setupAsstByTeam[0] = nil
+
+		preassignGrousWithFoo := append(preassignGroups, "foo")
+		team, err = svc.GetOrCreatePreassignTeam(ctx, preassignGrousWithFoo)
+		require.NoError(t, err)
+		require.Equal(t, uint(4), team.ID)
+		require.Equal(t, eeservice.TeamNameFromPreassignGroups(preassignGrousWithFoo), team.Name)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.True(t, ds.NewTeamFuncInvoked)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.True(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.True(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.GetMDMAppleSetupAssistantFuncInvoked)
+		require.False(t, ds.SetOrUpdateMDMAppleSetupAssistantFuncInvoked)
+		require.NotEmpty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.BootstrapPackage.Value, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.Equal(t, appConfig.MDM.MacOSSetup.EnableEndUserAuthentication, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)
+		require.True(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+		require.Equal(t, appConfig.MDM.MacOSSetup.EnableReleaseDeviceManually.Value, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value)
+		resetInvoked()
 	})
 
-	/*
-		t.Run("modify team", func(t *testing.T) {
-			// setup ds with assertions this test
-			setupDS(t)
-			ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-				tm, ok := teamStore[team.ID]
-				if !ok {
-					return nil, errors.New("invalid team id")
-				}
-				require.Equal(t, tm.ID, team.ID)                                         // sanity check
-				require.Equal(t, tm.Name, team.Name)                                     // sanity check
-				require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication) // not modified
-				require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)      // not modified
-				require.NotEmpty(t, team.Description)                                    // modified
-				teamStore[tm.ID].Description = team.Description
-				return teamStore[tm.ID], nil
-			}
+	t.Run("modify team via apply team spec", func(t *testing.T) {
+		setupDS(t)
 
-			// modify team does not apply defaults
-			_, err := svc.ModifyTeam(ctx, 2, fleet.TeamPayload{Description: ptr.String("new description")})
-			require.NoError(t, err)
-			require.True(t, ds.SaveTeamFuncInvoked)
-			require.True(t, ds.AppConfigFuncInvoked)
-			require.False(t, ds.TeamByNameFuncInvoked)
-			require.False(t, ds.NewTeamFuncInvoked)
-			require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.False(t, ds.NewJobFuncInvoked)
-			resetInvoked()
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			tm, ok := teamStore[team.ID]
+			if !ok {
+				return nil, errors.New("invalid team id")
+			}
+			require.Equal(t, tm.ID, team.ID)                                               // sanity check
+			require.Equal(t, tm.Name, team.Name)                                           // sanity check
+			require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not modified
+			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not modified
+			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not modified
+			return teamStore[tm.ID], nil
+		}
+
+		// apply team spec does not apply defaults
+		spec := &fleet.TeamSpec{
+			Name: team2.Name,
+		}
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.False(t, ds.NewTeamFuncInvoked)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		resetInvoked()
+	})
+
+	t.Run("new team", func(t *testing.T) {
+		setupDS(t)
+
+		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			for _, tm := range teamStore {
+				if tm.Name == team.Name {
+					return nil, errors.New("team name already exists")
+				}
+			}
+			id := uint(len(teamStore) + 1)
+			_, ok := teamStore[id]
+			require.False(t, ok) // sanity check
+			require.Equal(t, "new team", team.Name)
+			require.Equal(t, "new description", team.Description)
+			require.False(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
+			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
+			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
+			team.ID = id
+			teamStore[id] = team
+			return team, nil
+		}
+
+		// new team does not apply defaults
+		_, err := svc.NewTeam(ctx, fleet.TeamPayload{
+			Name:        ptr.String("new team"),
+			Description: ptr.String("new description"),
 		})
+		require.NoError(t, err)
+		require.True(t, ds.NewTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.False(t, ds.TeamByNameFuncInvoked)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		resetInvoked()
+	})
 
-		t.Run("new team", func(t *testing.T) {
-			// setup ds with assertions this test
-			setupDS(t)
-			ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-				for _, tm := range teamStore {
-					if tm.Name == team.Name {
-						return nil, errors.New("team name already exists")
-					}
+	t.Run("apply team spec", func(t *testing.T) {
+		setupDS(t)
+
+		ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			for _, tm := range teamStore {
+				if tm.Name == team.Name {
+					return nil, errors.New("team name already exists")
 				}
-				id := uint(len(teamStore) + 1)
-				_, ok := teamStore[id]
-				require.False(t, ok) // sanity check
-				require.Equal(t, "new team", team.Name)
-				require.Equal(t, "new description", team.Description)
-				require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication) // not set
-				require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)      // not set
-				team.ID = id
-				teamStore[id] = team
-				return team, nil
 			}
-
-			// new team does not apply defaults
-			_, err := svc.NewTeam(ctx, fleet.TeamPayload{
-				Name:        ptr.String("new team"),
-				Description: ptr.String("new description"),
-			})
-			require.NoError(t, err)
-			require.True(t, ds.NewTeamFuncInvoked)
-			require.True(t, ds.AppConfigFuncInvoked)
-			require.False(t, ds.TeamByNameFuncInvoked)
-			require.False(t, ds.SaveTeamFuncInvoked)
-			require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.False(t, ds.NewJobFuncInvoked)
-			resetInvoked()
-		})
-
-		t.Run("apply team spec", func(t *testing.T) {
-			// setup ds with assertions this test
-			setupDS(t)
-			ds.NewTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-				for _, tm := range teamStore {
-					if tm.Name == team.Name {
-						return nil, errors.New("team name already exists")
-					}
-				}
-				id := uint(len(teamStore) + 1)
-				_, ok := teamStore[id]
-				require.False(t, ok)                                                        // sanity check
-				require.Equal(t, "new team spec", team.Name)                                // set
-				require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value) // set
-				require.Equal(t, "2024-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value) // set                                    // not set
-				require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)    // not set
-				require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)         // not set
-				team.ID = id
-				teamStore[id] = team
-				return team, nil
+			id := uint(len(teamStore) + 1)
+			_, ok := teamStore[id]
+			require.False(t, ok)                                                           // sanity check
+			require.Equal(t, "new team spec", team.Name)                                   // set
+			require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value)    // set
+			require.Equal(t, "2024-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value)    // set
+			require.False(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
+			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
+			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
+			team.ID = id
+			teamStore[id] = team
+			return team, nil
+		}
+		ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
+			tm, ok := teamStore[team.ID]
+			if !ok {
+				return nil, errors.New("invalid team id")
 			}
-			ds.SaveTeamFunc = func(ctx context.Context, team *fleet.Team) (*fleet.Team, error) {
-				tm, ok := teamStore[team.ID]
-				if !ok {
-					return nil, errors.New("invalid team id")
-				}
-				require.Equal(t, tm.ID, team.ID)                                            // sanity check
-				require.Equal(t, tm.Name, team.Name)                                        // sanity check
-				require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value) // unchanged
-				require.Equal(t, "2025-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value) // modified                                    // not set
-				require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)    // not set
-				require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)         // not set
+			require.Equal(t, tm.ID, team.ID)                                               // sanity check
+			require.Equal(t, tm.Name, team.Name)                                           // sanity check
+			require.Equal(t, "12.0", team.Config.MDM.MacOSUpdates.MinimumVersion.Value)    // unchanged
+			require.Equal(t, "2025-01-01", team.Config.MDM.MacOSUpdates.Deadline.Value)    // modified
+			require.Empty(t, team.Config.MDM.MacOSSetup.EnableEndUserAuthentication)       // not set
+			require.Empty(t, team.Config.MDM.MacOSSetup.BootstrapPackage.Value)            // not set
+			require.False(t, team.Config.MDM.MacOSSetup.EnableReleaseDeviceManually.Value) // not set
 
-				teamStore[tm.ID].Description = team.Description
-				return teamStore[tm.ID], nil
-			}
+			return teamStore[tm.ID], nil
+		}
 
-			spec := &fleet.TeamSpec{
-				Name: "new team spec",
-				MDM: fleet.TeamSpecMDM{
-					MacOSUpdates: fleet.MacOSUpdates{
-						MinimumVersion: optjson.SetString("12.0"),
-						Deadline:       optjson.SetString("2024-01-01"),
-					},
+		spec := &fleet.TeamSpec{
+			Name: "new team spec",
+			MDM: fleet.TeamSpecMDM{
+				MacOSUpdates: fleet.MacOSUpdates{
+					MinimumVersion: optjson.SetString("12.0"),
+					Deadline:       optjson.SetString("2024-01-01"),
 				},
-			}
+			},
+		}
 
-			// apply team spec creates new team without defaults
-			_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
-			require.NoError(t, err)
-			require.True(t, ds.NewTeamFuncInvoked)
-			require.True(t, ds.AppConfigFuncInvoked)
-			require.True(t, ds.TeamByNameFuncInvoked)
-			require.False(t, ds.SaveTeamFuncInvoked)
-			require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.False(t, ds.NewJobFuncInvoked)
-			resetInvoked()
+		// apply team spec creates new team without defaults
+		_, err := svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.NewTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.False(t, ds.SaveTeamFuncInvoked)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		resetInvoked()
 
-			// apply team spec edits existing team without applying defaults
-			spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
-			_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
-			require.NoError(t, err)
-			require.True(t, ds.SaveTeamFuncInvoked)
-			require.True(t, ds.AppConfigFuncInvoked)
-			require.True(t, ds.TeamByNameFuncInvoked)
-			require.False(t, ds.NewTeamFuncInvoked)
-			require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
-			require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
-			require.False(t, ds.NewJobFuncInvoked)
-			resetInvoked()
-		})
-	*/
+		// apply team spec edits existing team without applying defaults
+		spec.MDM.MacOSUpdates.Deadline = optjson.SetString("2025-01-01")
+		_, err = svc.ApplyTeamSpecs(ctx, []*fleet.TeamSpec{spec}, fleet.ApplySpecOptions{})
+		require.NoError(t, err)
+		require.True(t, ds.SaveTeamFuncInvoked)
+		require.True(t, ds.AppConfigFuncInvoked)
+		require.True(t, ds.TeamByNameFuncInvoked)
+		require.False(t, ds.NewTeamFuncInvoked)
+		require.False(t, ds.NewMDMAppleConfigProfileFuncInvoked)
+		require.False(t, ds.CopyDefaultMDMAppleBootstrapPackageFuncInvoked)
+		require.False(t, ds.NewJobFuncInvoked)
+		resetInvoked()
+	})
 }

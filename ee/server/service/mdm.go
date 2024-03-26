@@ -257,14 +257,6 @@ func (svc *Service) updateAppConfigMDMAppleSetup(ctx context.Context, payload fl
 	return nil
 }
 
-func (svc *Service) updateMacOSSetupEnableReleaseDevice(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
-	//if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
-	//	return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
-	//}
-	//return nil
-	return nil
-}
-
 func (svc *Service) updateMacOSSetupEnableEndUserAuth(ctx context.Context, enable bool, teamID *uint, teamName *string) error {
 	if _, err := worker.QueueMacosSetupAssistantJob(ctx, svc.ds, svc.logger, worker.MacosSetupAssistantUpdateProfile, teamID); err != nil {
 		return ctxerr.Wrap(ctx, err, "queue macos setup assistant update profile job")
