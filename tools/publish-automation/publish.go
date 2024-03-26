@@ -39,6 +39,7 @@ func main() {
 func printIntro() {
 	fmt.Println("\n===========================================================")
 	fmt.Println("This Script is not full automation.\nIt will guide you through the publishing process step by step.")
+	fmt.Println("To start:\n- cd to your fleet root\n- go run ./tools/publish-automation/publish.go")
 	fmt.Println("Hit ENTER when ready.")
 	fmt.Scanln()
 }
