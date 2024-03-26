@@ -27,9 +27,9 @@ Each PR to the website is manually checked for quality and tested before before 
 
 1. Write clear step-by-step instructions to confirm that the change to the fleetdm.com functions as expected and doesn't break any possible automation. These steps should be simple and clear enough for anybody to follow.
 
-2. [View the website locally](#test-changes-to-the-website) and follow the QA steps in the request ticket to test changes.
+2. [View the website locally](https://fleetdm.com/handbook/digital-experience#test-fleetdm-com-locally) and follow the QA steps in the request ticket to test changes.
 
-3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
+3. Check the change in relation to all breakpoints and [browser compatibility](https://fleetdm.com/handbook/digital-experience#check-browser-compatibility-for-fleetdm-com), Tests are carried out on [supported browsers](https://fleetdm.com/docs/using-fleet/supported-browsers) before website changes go live.
 
 
 ### Test fleetdm.com locally 
@@ -65,15 +65,6 @@ Once you have the above follow these steps:
   > **Note:** Some features, such as self-service license dispenser and account creation, are not available when running the website locally. If you need help testing features on a local copy, reach out to `@eashaw` in the [#g-digital-experience](https://fleetdm.slack.com/archives/C058S8PFSK0) channel on Slack.
 
 
-### Edit a DNS record
-We use Cloudflare to manage the DNS records of fleetdm.com and our other domains. To make DNS changes in Cloudflare:
-1. Log into your Cloudflare account and select the "Fleet" account.
-2. Select the domain you want to change and go to the DNS panel on that domain's dashboard.
-3. To add a record, click the "Add record" button, select the record's type, fill in the required values, and click "Save". If you're making changes to an existing record, you only need to click on the record, update the record's values, and save your changes.
-
-> If you need access to Fleet's Cloudflare account, please ask the [DRI](https://fleetdm.com/handbook/company/why-this-way#why-direct-responsibility) Zach Wasserman in Slack for an invitation.
-
-
 ### Check production dependencies of fleetdm.com
 Every week, we run `npm audit --only=prod` to check for vulnerabilities on the production dependencies of fleetdm.com. Once we have a solution to configure GitHub's Dependabot to ignore devDependencies, this manual process can be replaced with Dependabot.
 
@@ -94,7 +85,7 @@ A browser compatibility check of [fleetdm.com](https://fleetdm.com/) should be c
 - We use [BrowserStack](https://www.browserstack.com/users/sign_in) (logins can be found in [1Password](https://start.1password.com/open/i?a=N3F7LHAKQ5G3JPFPX234EC4ZDQ&v=3ycqkai6naxhqsylmsos6vairu&i=nwnxrrbpcwkuzaazh3rywzoh6e&h=fleetdevicemanagement.1password.com)) for our cross-browser checks.
 - Check for issues against the latest version of Google Chrome (macOS). We use this as our baseline for quality assurance.
 - Document any issues in GitHub as a [bug](https://github.com/fleetdm/fleet/issues/new?assignees=&labels=bug%2C%3Areproduce&template=bug-report.md&title=), and assign them for fixing.
-- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/hanbook/digital-experience#team).
+- If in doubt about anything regarding design or layout, please reach out to the [Head of Design](https://fleetdm.com/handbook/digital-experience#team).
 
 
 ### Export an image for fleetdm.com
@@ -192,6 +183,18 @@ Here are the steps we take to grant appropriate Salesforce licenses to a new hir
 Fleet's public relations firm is directly responsible for the accuracy of event locations, attendance dates, and CFP deadlines in the event strategy workbook.  At the end of every quarter, the PR firm updates every event in the ["Event strategy workbook"](https://docs.google.com/spreadsheets/d/1YQXAX2Q_WnGkAwMYjMbQpV3nbCj7gOBbv7Y0u4twxzQ/edit) (private Google doc) by following these steps:
 1. Visit the latest website for each event.
 2. Update the workbook with the latest location, dates, and CFP deadlines from the website.
+
+
+### Archive a document
+Follow these steps to archive any document:
+1. Create a copy of the document prefixed with the date using the format "`YYYY-MM-DD` Backup of `DOCUMENT_NAME`" (e.g. "2024-03-22 Backup of 🪂🗞️ Customer voice").
+2. Be sure to "Share it with the same people", "Copy comments and suggestions", and "Include resolved comments and suggestions" as shown below.
+
+<img width="455" alt="Screenshot 2024-03-23 at 12 14 00 PM" src="https://github.com/fleetdm/fleet/assets/108141731/1c773069-11a7-4ef4-ab43-8f7c626e4b10">
+
+3. Save this backup copy to the same location in Google Drive where the original is found.
+4. Link to the backup copy at the top of the original document. Be sure to use the full URL, no abbreviated pill links (e.g. "Notes from last time: URL_OF_MOST_RECENT_BACKUP_DOCUMENT").
+5. Delete all non-structural content from the original document, including past meeting notes and current answers to "evergreen" questions.
 
 
 ### Schedule CEO interview
@@ -348,7 +351,7 @@ Once the Business Operations department approves inventory to be shipped from Fl
 
 ### Prepare for the All hands
 - **Every month** the Apprentice will do the prep work for the monthly "✌️ All hands 🖐👋🤲👏🙌🤘" call.
-  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands - yyyy month name".
+  -  In the ["👋 All hands" folder](https://drive.google.com/drive/folders/1cw_lL3_Xu9ZOXKGPghh8F4tc0ND9kQeY?usp=sharing), create a new folder using "yyyy-mm - All hands".
   - Update "End of the quarter" slides to reflect the current countdown.
   - Download a copy of the previous month's keynote file and rename the copy pattern matching existing files.
   - Update the slides to reflect the current "All hands" date (e.g. cover slides month and the "You are here" slide)'
@@ -391,34 +394,16 @@ You can also grab a copy of the [original slides](https://fleetdm.com/handbook/c
 
 ### Process and backup Sid agenda
 Every two weeks, our CEO Mike has a meeting with Sid Sijbrandij. The CEO uses dedicated (blocked, recurring) time to prepare for this meeting earlier in the week.
-
-30 minutes After each meeting (to allow all parties to collect action items), the Apprentice makes a copy of the "💻 Sid : Mike(Fleet)" doc and renames it "YYYY-MM-DD Backup of 💻 Sid : Mike(Fleet)". Then moves the backup version into the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae)
-
-Then process the backup Sid agenda by:
-- Leaving google doc comments assigning all Fleet TODOs to correct Fleeties.
-- In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the 💻 Sid : Mike(Fleet) master doc by:
-- (Unless otherwise prefixed) Delete all agenda items, **being sure to leave 3 empty bullets in every section**.
+1. 30 minutes After each meeting [archive the "💻 Sid : Mike(Fleet)" agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document), moving it to the [(¶¶) Sid archive](https://drive.google.com/drive/folders/1izVfIBt2nr4APlkm36E6DJg1k1PDjmae) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all Fleet TODOs to the correct DRI.   
+3. In the ¶¶¶¶🦿🌪️CEO Roundup doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
 
 
 ### Process and backup E-group agenda 
-Immediately after every e-group the Apprentice makes a copy of the E-group agenda doc and renames it "YYYY-MM-DD backup of E-group agenda". Then saves it to the [(¶¶) E-group archive](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6).
-
-Then process the backup E-group agenda by:  
-- Leaving google doc comments assigning all TODOs to correct individuals.  
-- In the E-group master doc, update the URL in `Sam: FYI: Agenda from last time:` [LINK](link).
-
-**Being sure to preserve agenda format**, process the E-group master doc by:  
-- Clearing all bullets from the "Mike: Hear from each department" section.
-  - Delete the "Blockers" and "Last week" bullets from each department's section.
-  - Move contents from "This week" to "Last week".
-- (Unless otherwise prefixed) Delete all agenda items from the "Mike: This weeks focus" section. 
-- (Unless otherwise prefixed) Delete all agenda items from the "Today's other topics" section. 
-
-If it's the day of an All hands:
-  - Remove any spotlights that aren't a permanent staple (e.g. Mike: Every time: Pick a value, present on it.). 
-
+Follow these steps to process and backup the E-group agenda: 
+1. [Archive the E-group agenda](https://fleetdm.com/handbook/digital-experience#archive-a-document) after each meeting, moving it to the ["¶¶ E-group archive"](https://drive.google.com/drive/u/0/folders/1IsSGMgbt4pDcP8gSnLj8Z8NGY7_6UTt6) folder in Google Drive.
+2. **In the backup copy**, leave Google Doc comments assigning all TODOs to the correct DRI.  
+3. If the "All hands" meeting has happened today
 
 ### Check LinkedIn for unread messages 
 Once a day the Apprentice will confirm check LinkedIn for unread messages. 

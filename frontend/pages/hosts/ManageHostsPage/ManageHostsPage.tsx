@@ -1295,10 +1295,12 @@ const ManageHostsPage = ({
         isOnlyObserver,
       });
 
-      const columnAccessors = tableColumns
-        .map((column) => (column.accessor ? column.accessor : ""))
-        .filter((element) => element);
-      visibleColumns = columnAccessors.join(",");
+      const columnIds = tableColumns
+        .map((column) => (column.id ? column.id : ""))
+        // "selection" colum does not include any relevent data for the CSV
+        // so we filter it out.
+        .filter((element) => element !== "" && element !== "selection");
+      visibleColumns = columnIds.join(",");
     }
 
     let options = {
@@ -1317,9 +1319,11 @@ const ManageHostsPage = ({
       mdmEnrollmentStatus,
       munkiIssueId,
       lowDiskSpaceHosts,
-      os_version_id: osVersionId,
-      os_name: osName,
-      os_version: osVersion,
+      osName,
+      osVersionId,
+      osVersion,
+      osSettings: osSettingsStatus,
+      bootstrapPackageStatus,
       vulnerability,
       visibleColumns,
     };

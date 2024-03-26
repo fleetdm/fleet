@@ -172,14 +172,24 @@ var hostDetailQueries = map[string]DetailQuery{
 		},
 	},
 	"os_version_windows": {
+		// display_version is not available in some versions of
+		// Windows (Server 2019). By including it using a JOIN it can
+		// return no rows and the query will still succeed
 		Query: `
-		SELECT os.name, r.data as display_version, k.version
-		FROM 
-			registry r,
+		WITH display_version_table AS (
+			SELECT data as display_version
+			FROM registry
+			WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+		)
+		SELECT
+			os.name,
+			COALESCE(d.display_version, '') AS display_version,
+			k.version
+		FROM
 			os_version os,
 			kernel_info k
-		WHERE r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
-		`,
+		LEFT JOIN
+			display_version_table d`,
 		Platforms: []string{"windows"},
 		IngestFunc: func(ctx context.Context, logger log.Logger, host *fleet.Host, rows []map[string]string) error {
 			if len(rows) != 1 {
@@ -473,10 +483,10 @@ var extraDetailQueries = map[string]DetailQuery{
                     enrollment_info AS (
                         SELECT
                             MAX(CASE WHEN name = 'UPN' THEN data END) AS upn,
-                            MAX(CASE WHEN name = 'IsFederated' THEN data END) AS is_federated,
                             MAX(CASE WHEN name = 'DiscoveryServiceFullURL' THEN data END) AS discovery_service_url,
                             MAX(CASE WHEN name = 'ProviderID' THEN data END) AS provider_id,
-                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state
+                            MAX(CASE WHEN name = 'EnrollmentState' THEN data END) AS state,
+                            MAX(CASE WHEN name = 'AADResourceID' THEN data END) AS aad_resource_id
                         FROM registry_keys
                         GROUP BY key
                     ),
@@ -487,7 +497,7 @@ var extraDetailQueries = map[string]DetailQuery{
                         LIMIT 1
                     )
                     SELECT
-                        e.is_federated,
+                        e.aad_resource_id,
                         e.discovery_service_url,
                         e.provider_id,
                         i.installation_type
@@ -531,20 +541,29 @@ var extraDetailQueries = map[string]DetailQuery{
 		// This query is used to populate the `operating_systems` and `host_operating_system`
 		// tables. Separately, the `hosts` table is populated via the `os_version` and
 		// `os_version_windows` detail queries above.
+		//
+		// DisplayVersion doesn't exist on all versions of Windows (Server 2019).
+		// To prevent the query from failing in those cases, we join
+		// the values in when they exist, alternatively the column is
+		// just empty.
 		Query: `
+	WITH display_version_table AS (
+		SELECT data as display_version
+		FROM registry
+		WHERE path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'
+	)
 	SELECT
 		os.name,
 		os.platform,
 		os.arch,
 		k.version as kernel_version,
 		os.version,
-		r.data as display_version
+		COALESCE(d.display_version, '') AS display_version
 	FROM
 		os_version os,
-		kernel_info k,
-		registry r
-	WHERE
-		r.path = 'HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\DisplayVersion'`,
+		kernel_info k
+	LEFT JOIN
+		display_version_table d`,
 		Platforms:        []string{"windows"},
 		DirectIngestFunc: directIngestOSWindows,
 	},
@@ -722,6 +741,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'apps' AS source,
+  '' AS vendor,
   last_opened_time AS last_opened_at,
   path AS installed_path
 FROM apps
@@ -734,6 +754,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'python_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM python_packages
@@ -746,6 +767,7 @@ SELECT
   identifier AS extension_id,
   browser_type AS browser,
   'chrome_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN chrome_extensions USING (uid)
@@ -758,6 +780,7 @@ SELECT
   identifier AS extension_id,
   'firefox' AS browser,
   'firefox_addons' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN firefox_addons USING (uid)
@@ -770,6 +793,7 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'safari_extensions' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM cached_users CROSS JOIN safari_extensions USING (uid)
@@ -782,12 +806,37 @@ SELECT
   '' AS extension_id,
   '' AS browser,
   'homebrew_packages' AS source,
+  '' AS vendor,
   0 AS last_opened_at,
   path AS installed_path
 FROM homebrew_packages;
 `),
 	Platforms:        []string{"darwin"},
 	DirectIngestFunc: directIngestSoftware,
+}
+
+// softwareVSCodeExtensions collects VSCode extensions on a separate query for two reasons:
+//   - vscode_extensions is not available in osquery < 5.11.0.
+//   - Avoid growing the main `software_{macos|windows|linux}` queries
+//     (having big queries can cause performance issues or be denylisted).
+var softwareVSCodeExtensions = DetailQuery{
+	Query: withCachedUsers(`WITH cached_users AS (%s)
+SELECT
+  name,
+  version,
+  'IDE extension (VS Code)' AS type,
+  '' AS bundle_identifier,
+  uuid AS extension_id,
+  '' AS browser,
+  'vscode_extensions' AS source,
+  publisher AS vendor,
+  '' AS last_opened_at,
+  path AS installed_path
+FROM cached_users CROSS JOIN vscode_extensions USING (uid)`),
+	Platforms: append(fleet.HostLinuxOSs, "darwin", "windows"),
+	Discovery: discoveryTable("vscode_extensions"),
+	// Has no IngestFunc, DirectIngestFunc or DirectTaskIngestFunc because
+	// the results of this query are appended to the results of the other software queries.
 }
 
 var scheduledQueryStats = DetailQuery{
@@ -1582,7 +1631,7 @@ func directIngestMDMWindows(ctx context.Context, logger log.Logger, host *fleet.
 	serverURL := data["discovery_service_url"]
 	if serverURL != "" {
 		enrolled = true
-		if isFederated := data["is_federated"]; isFederated == "1" {
+		if data["aad_resource_id"] != "" {
 			// NOTE: We intentionally nest this condition to eliminate `enrolled == false && automatic == true`
 			// as a possible status for Windows hosts (which would be otherwise be categorized as
 			// "Pending"). Currently, the "Pending" status is supported only for macOS hosts.
@@ -1829,6 +1878,7 @@ func GetDetailQueries(
 		generatedMap["software_linux"] = softwareLinux
 		generatedMap["software_windows"] = softwareWindows
 		generatedMap["software_chrome"] = softwareChrome
+		generatedMap["software_vscode_extensions"] = softwareVSCodeExtensions
 	}
 
 	if features != nil && features.EnableHostUsers {

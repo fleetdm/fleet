@@ -164,7 +164,7 @@ const HQRTable = ({
           customControl={renderTableButtons}
           setExportRows={setFilteredResults}
           emptyComponent={() => null}
-          defaultSortHeader={columnConfigs[0].title}
+          defaultSortHeader={columnConfigs[0].id}
           defaultSortDirection="asc"
         />
       )}

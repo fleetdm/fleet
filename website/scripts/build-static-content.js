@@ -202,6 +202,15 @@ module.exports = {
               .replace(/(^|\/)([^/]+)\.[^/]*$/, '$1$2')
               .split(/\//).map((fileOrFolderName) => fileOrFolderName.toLowerCase().replace(/\s+/g, '-')).join('/')
             );
+
+            // If this page is in the docs/contributing/ folder, skip it.
+            if(sectionRepoPath === 'docs/' && _.startsWith(pageUnextensionedUnwhitespacedLowercasedRelPath, 'contributing/')){
+              continue;
+            }
+            // Skip pages in folders starting with an underscore character.
+            if(sectionRepoPath === 'docs/' &&  _.startsWith(pageRelSourcePath.split(/\//).slice(-2)[0], '_')){
+              continue;
+            }
             let RX_README_FILENAME = /\/?readme\.?m?d?$/i;// « for matching `readme` or `readme.md` (case-insensitive) at the end of a file path
 
             // Determine this page's default (fallback) display title.
@@ -695,7 +704,7 @@ module.exports = {
             }
 
             // Iterate through the columns of the table, we'll add a row to the markdown table element for each column in this schema table
-            for(let column of table.columns) {
+            for(let column of _.sortBy(table.columns, 'name')) {
               if(!column.hidden) { // If the column is hidden, we won't add it to the final table.
                 // Create an object for this column to add to the osqueryTables config.
                 let columnInfoForQueryReports = {

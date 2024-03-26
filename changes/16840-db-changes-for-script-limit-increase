@@ -1,2 +1,0 @@
-* Updated the database schema to support the increase in size of scripts.
-* **NOTE**: database migration might take a few minutes to complete, depending on scripts usage. It is mostly affected by the number of script executions (anonymous scripts via `fleetctl run-script` or saved scripts), the number of hosts targeted to execute the scripts and the number of saved scripts.

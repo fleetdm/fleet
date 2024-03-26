@@ -360,7 +360,7 @@ I held on as long as I could.  But due to volume, in late 2022, I made the decis
 
 Keep in mind I am often in meetings all day, and may not be able to reply promptly.
   
-When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from Zach Wasserman.
+When in doubt, you can look at my calendar and join whatever meeting I'm in.  If none of that works, and there is an emergency where you need my immediate attention, get help from [Sam Pfluger](https://fleetdm.com/handbook/digital-experience#team).
 Thank you so much!" 🙇
 </blockquote> 
 

@@ -1835,6 +1835,7 @@ None.
 - [Get host's disk encryption key](#get-hosts-disk-encryption-key)
 - [Lock host](#lock-host)
 - [Unlock host](#unlock-host)
+- [Wipe host](#wipe-host)
 - [Get host's past activity](#get-hosts-past-activity)
 - [Get host's upcoming activity](#get-hosts-upcoming-activity)
 - [Live query one host (ad-hoc)](#live-query-one-host-ad-hoc)
@@ -1888,6 +1889,7 @@ the `software` table.
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | device_mapping          | boolean | query | Indicates whether `device_mapping` should be included for each host. See ["Get host's Google Chrome profiles](#get-hosts-google-chrome-profiles) for more information about this feature.                                                                                                                                                  |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -1901,6 +1903,7 @@ the `software` table.
 | os_settings          | string  | query | Filters the hosts by the status of the operating system settings applied to the hosts. Valid options are 'verified', 'verifying', 'pending', or 'failed'. **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | os_settings_disk_encryption | string | query | Filters the hosts by the status of the disk encryption setting applied to the hosts. Valid options are 'verified', 'verifying', 'action_required', 'enforcing', 'failed', or 'removing_enforcement'.  **Note: If this filter is used in Fleet Premium without a team ID filter, the results include only hosts that are not assigned to any team.** |
 | populate_software     | boolean | query | If `true`, the response will include a list of installed software for each host, including vulnerability data. |
+| populate_policies     | boolean | query | If `true`, the response will include policy data for each host. |
 
 > `software_id` is deprecated as of Fleet 4.42. It is maintained for backwards compatibility. Please use the `software_version_id` instead.
 
@@ -1920,7 +1923,7 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
 
 #### Example
 
-`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true`
+`GET /api/v1/fleet/hosts?page=0&per_page=100&order_key=hostname&query=2ce&populate_software=true&populate_policies=true`
 
 ##### Request query parameters
 
@@ -2027,9 +2030,10 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
       },
       "mdm": {
         "encryption_key_available": false,
-        "enrollment_status": null,
-        "name": "",
-        "server_url": null
+        "enrollment_status": "Pending",
+        "dep_profile_error": true,
+        "name": "Fleet",
+        "server_url": "https://example.fleetdm.com/mdm/apple/mdm"
       },
       "software": [
         {
@@ -2051,6 +2055,18 @@ If `after` is being used with `created_at` or `updated_at`, the table must be sp
             }
           ],
           "installed_paths": ["/usr/lib/some-path-1"]
+        }
+      ],
+      "policies": [
+        {
+          "id": 1,
+          "name": "Gatekeeper enabled",
+          "query": "SELECT 1 FROM gatekeeper WHERE assessments_enabled = 1;",
+          "description": "Checks if gatekeeper is enabled on macOS devices",
+          "resolution": "Fix with these steps...",
+          "platform": "darwin",
+          "response": "fail",
+          "critical": false
         }
       ]
     }
@@ -2107,6 +2123,7 @@ Response payload with the `munki_issue_id` filter provided:
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | label_id                | integer | query | A valid label ID. Can only be used in combination with `order_key`, `order_direction`, `after`, `status`, `query` and `team_id`.                                                                                                                                                                                                            |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
@@ -2501,7 +2518,7 @@ Returns the information of the specified host.
 Returns the information of the host specified using the `uuid`, `hardware_serial`, `osquery_host_id`, `hostname`, or
 `node_key` as an identifier.
 
-If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host.
+If `hostname` is specified when there is more than one host with the same hostname, the endpoint returns the first matching host. In Fleet, hostnames are fully qualified domain names (FQDNs).
 
 `GET /api/v1/fleet/hosts/identifier/:identifier`
 
@@ -3467,7 +3484,7 @@ Retrieves the aggregated host OS versions information.
 
 | Name                | Type     | In    | Description                                                                                                                          |
 | ---      | ---      | ---   | ---                                                                                                                                  |
-| team_id             | integer | query | _Available in Fleet Premium_. Filters to only include OS versions for hosts on the specified team. If not provided, OS versions for all hosts are included. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 | platform            | string   | query | Filters the hosts to the specified platform |
 | os_name     | string | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                 |
 | os_version    | string | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                 |
@@ -3671,6 +3688,7 @@ requested by a web browser.
 | os_version_id | integer | query | The ID of the operating system version to filter hosts by. |
 | os_name                 | string  | query | The name of the operating system to filter hosts by. `os_version` must also be specified with `os_name`                                                                                                                                                                                                                                     |
 | os_version              | string  | query | The version of the operating system to filter hosts by. `os_name` must also be specified with `os_version`                                                                                                                                                                                                                                  |
+| vulnerability           | string  | query | The cve to filter hosts by (including "cve-" prefix, case-insensitive).                                                                                                                                                                                                                                                                     |
 | mdm_id                  | integer | query | The ID of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider and URL).                                                                                                                                                                                                |
 | mdm_name                | string  | query | The name of the _mobile device management_ (MDM) solution to filter hosts by (that is, filter hosts that use a specific MDM provider).                                                                                                                                                                                                |
 | mdm_enrollment_status   | string  | query | The _mobile device management_ (MDM) enrollment status to filter hosts by. Valid options are 'manual', 'automatic', 'enrolled', 'pending', or 'unenrolled'.                                                                                                                                                                                                             |
@@ -3700,12 +3718,9 @@ created_at,updated_at,id,detail_updated_at,label_updated_at,policy_updated_at,la
 
 ### Get host's disk encryption key
 
-For macOS, requires the [macadmins osquery extension](https://github.com/macadmins/osquery-extension) which comes bundled
-in [Fleet's osquery installers](https://fleetdm.com/docs/using-fleet/adding-hosts#osquery-installer).
-
-Requires Fleet's MDM properly [enabled and configured](https://fleetdm.com/docs/using-fleet/mdm-macos-setup).
-
 Retrieves the disk encryption key for a host.
+
+Requires that disk encryption is enforced and the host has MDM turned on.
 
 `GET /api/v1/fleet/mdm/hosts/:id/encryption_key`
 
@@ -3835,21 +3850,44 @@ To unlock a Windows or Linux host, the host must have [scripts enabled](https://
 ```
 
 
+### Wipe host
+
+Sends a command to wipe the specified macOS, Windows, or Linux host. The host is wiped once it comes online.
+
+To wipe a macOS or Windows host, the host must have MDM turned on. To lock a Linux host, the host must have [scripts enabled](https://fleetdm.com/docs/using-fleet/scripts).
+
+`POST /api/v1/fleet/hosts/:id/wipe`
+
+#### Parameters
+
+| Name       | Type              | In   | Description                                                                   |
+| ---------- | ----------------- | ---- | ----------------------------------------------------------------------------- |
+| id | integer | path | **Required**. ID of the host to be wiped. |
+
+#### Example
+
+`POST /api/v1/fleet/hosts/123/wipe`
+
+##### Default response
+
+`Status: 204`
+
+
 ### Get host's past activity
 
-`GET /api/v1/fleet/hosts/:id/activites/past`
+`GET /api/v1/fleet/hosts/:id/activities`
 
 #### Parameters
 
 | Name | Type    | In   | Description                  |
 | ---- | ------- | ---- | ---------------------------- |
-| id   | integer | path | **Required**. The host's id. |
+| id   | integer | path | **Required**. The host's ID. |
 | page | integer | query | Page number of the results to fetch.|
 | per_page | integer | query | Results per page.|
 
 #### Example
 
-`GET /api/v1/fleet/hosts/12/activities/past`
+`GET /api/v1/fleet/hosts/12/activities`
 
 ##### Default response
 
@@ -7334,7 +7372,7 @@ This allows you to easily configure scheduled queries that will impact a whole t
 
 - [Run script](#run-script)
 - [Get script result](#get-script-result)
-- [Run live script](#run-script)
+- [Run live script](#run-live-script)
 - [Upload a script](#upload-a-script)
 - [Delete a script](#delete-a-script)
 - [List scripts](#list-scripts)
@@ -7421,8 +7459,11 @@ Run a live script and get results back (5 minute timeout). Live scripts only run
 | Name            | Type    | In   | Description                                      |
 | ----            | ------- | ---- | --------------------------------------------     |
 | host_id         | integer | body | **Required**. The host id to run the script on.  |
-| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents`.  |
-| script_contents | string  | body | The contents of the script to run. Only one of either `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_id`. |
+| script_id       | integer | body | The ID of the existing saved script to run. Only one of either `script_id`, `script_name` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_name`.  |
+| script_contents | string  | body | The contents of the script to run. Only one of either `script_contents`, `script_id` or `script_name` can be included in the request; omit this parameter if using `script_id` or `script_name`. |
+| script_name       | string | body | The name of the existing saved script to run. Only one of either `script_name`, `script_id` or `script_contents` can be included in the request; omit this parameter if using `script_contents` or `script_id`.  |
+| team_id       | integer | body | ID of the team the saved script referenced by `script_name` belongs to. Default: `0` (hosts assigned to "No team") |
+
 
 > Note that if both `script_id` and `script_contents` are included in the request, this endpoint will respond with an error.
 
@@ -7869,6 +7910,7 @@ Returns information about the specified software. By default, `versions` are sor
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software title's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7921,6 +7963,7 @@ Returns information about the specified software version.
 | Name | Type | In | Description |
 | ---- | ---- | -- | ----------- |
 | id   | integer | path | **Required.** The software version's ID. |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
 
 #### Example
 
@@ -7963,6 +8006,126 @@ Returns information about the specified software version.
   }
 }
 ```
+
+## Vulnerabilities
+
+
+- [List vulnerabilities](#list-vulnerabilities)
+- [Get vulnerability](#get-vulnerability)
+
+### List vulnerabilities
+
+Retrieves a list of all CVEs affecting software and/or OS versions.
+
+`GET /api/v1/fleet/vulnerabilities`
+
+#### Parameters
+
+| Name                | Type     | In    | Description                                                                                                                          |
+| ---      | ---      | ---   | ---                                                                                                                                  |
+| team_id             | integer | query | _Available in Fleet Premium_ Filters only include vulnerabilities affecting the specified team.  |
+| page                    | integer | query | Page number of the results to fetch.                                                                                                                                       |
+| per_page                | integer | query | Results per page.                                                                                                                                                          |
+| order_key               | string  | query | What to order results by. Allowed fields are: `cve`, `cvss_score`, `epss_probability`, `cve_published`, `created_at`, and `host_count`. Default is `created_at` (descending).      |
+| order_direction | string | query | **Requires `order_key`**. The direction of the order given the order key. Options include `asc` and `desc`. Default is `asc`. |
+| query | string | query | Search query keywords. Searchable fields include `cve`. |
+| exploit | boolean | query | _Available in Fleet Premium_. If `true`, filters to only include vulnerabilities that have been actively exploited in the wild (`cisa_known_exploit: true`). Otherwise, includes vulnerabilities with any `cisa_known_exploit` value.  |
+
+
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "vulnerabilities": [
+    {
+      "cve": "CVE-2022-30190",
+      "created_at": "2022-06-01T00:15:00Z",
+      "hosts_count": 1234,
+      "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+      "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+      "cvss_score": 7.8,// Available in Fleet Premium
+      "epss_probability": 0.9729,// Available in Fleet Premium
+      "cisa_known_exploit": false,// Available in Fleet Premium
+      "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+      "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+    }
+  ],
+  "count": 123,
+  "counts_updated_at": "2024-02-02T16:40:37Z",
+  "meta": {
+    "has_next_results": false,
+    "has_previous_results": false
+  }
+}
+```
+
+
+### Get vulnerability
+
+Retrieve details about a vulnerability and its affected software and OS versions.
+
+#### Parameters
+
+| Name     | Type     | In    | Description                                                                                     |
+| ---      | ---      | ---   | ---                                                                                             |
+| cve      | string  | path | The cve to get information about (including "cve-" prefix, case-insensitive).                       |
+| team_id             | integer | query | _Available in Fleet Premium_. Filters response data to the specified team.  |
+
+`GET /api/v1/fleet/vulnerabilities/:cve`
+
+#### Example
+
+`GET /api/v1/fleet/vulnerabilities/cve-2022-30190`
+
+##### Default response
+
+`Status: 200`
+
+```json
+"vulnerability": {
+  "cve": "CVE-2022-30190",
+  "created_at": "2022-06-01T00:15:00Z",
+  "hosts_count": 1234,
+  "hosts_count_updated_at": "2023-12-20T15:23:57Z",
+  "details_link": "https://nvd.nist.gov/vuln/detail/CVE-2022-30190",
+  "cvss_score": 7.8,// Available in Fleet Premium
+  "epss_probability": 0.9729,// Available in Fleet Premium
+  "cisa_known_exploit": false,// Available in Fleet Premium
+  "cve_published": "2022-06-01T00:15:00Z",// Available in Fleet Premium
+  "cve_description": "Microsoft Windows Support Diagnostic Tool (MSDT) Remote Code Execution Vulnerability.",// Available in Fleet Premium
+  "os_versions" : [
+    {
+      "os_version_id": 6,
+      "hosts_count": 200,
+      "name": "macOS 14.1.2",
+      "name_only": "macOS",
+      "version": "14.1.2",
+      "platform": "darwin",
+      "resolved_in_version": "14.2",
+      "generated_cpes": [
+        "cpe:2.3:o:apple:macos:*:*:*:*:*:14.2:*:*",
+        "cpe:2.3:o:apple:mac_os_x:*:*:*:*:*:14.2:*:*"
+      ]
+    }
+  ],
+  "software": [
+    {
+      "id": 2363,
+      "name": "Docker Desktop",
+      "version": "4.9.1",
+      "source": "programs",
+      "browser": "",
+      "generated_cpe": "cpe:2.3:a:docker:docker_desktop:4.9.1:*:*:*:*:windows:*:*",
+      "hosts_count": 50,
+      "resolved_in_version": "5.0.0"
+    }
+  ]
+}
+```
+
 
 ---
 

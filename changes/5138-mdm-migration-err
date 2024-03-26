@@ -1,2 +1,0 @@
-- Fixes issue where a bad request response from a 3rd party MDM solution would result in a 500 error
-  in Fleet during MDM migration.
