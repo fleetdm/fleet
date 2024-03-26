@@ -2755,9 +2755,14 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	mdmDeviceA := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err := mdmDeviceA.Enroll()
 	require.NoError(t, err)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), 0)
+
 	mdmDeviceB := mdmtest.NewTestMDMClientAppleDirect(mdmEnrollInfo)
 	err = mdmDeviceB.Enroll()
 	require.NoError(t, err)
+	s.lastActivityOfTypeMatches(fleet.ActivityTypeMDMEnrolled{}.ActivityName(),
+		fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), 0)
 
 	// Find the ID of Fleet's MDM solution
 	var mdmID uint
@@ -2785,23 +2790,6 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 			break
 		}
 	}
-
-	// Activities are generated for each device
-	activities := listActivitiesResponse{}
-	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities, "order_key", "created_at")
-	require.GreaterOrEqual(t, len(activities.Activities), 2)
-
-	details := []*json.RawMessage{}
-	for _, activity := range activities.Activities {
-		if activity.Type == "mdm_enrolled" {
-			require.Nil(t, activity.ActorID)
-			require.Nil(t, activity.ActorFullName)
-			details = append(details, activity.Details)
-		}
-	}
-	require.Len(t, details, 2)
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*details[len(details)-2]))
-	require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false, "mdm_platform": "apple"}`, mdmDeviceB.SerialNumber, mdmDeviceB.Model, mdmDeviceB.SerialNumber), string(*details[len(details)-1]))
 
 	// set an enroll secret
 	var applyResp applyEnrollSecretSpecResponse
@@ -2839,7 +2827,7 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 	require.NoError(t, err)
 
 	// An activity is created
-	activities = listActivitiesResponse{}
+	activities := listActivitiesResponse{}
 	s.DoJSON("GET", "/api/latest/fleet/activities", nil, http.StatusOK, &activities)
 
 	found := false
@@ -2848,7 +2836,6 @@ func (s *integrationMDMTestSuite) TestAppleMDMDeviceEnrollment() {
 			found = true
 			require.Nil(t, activity.ActorID)
 			require.Nil(t, activity.ActorFullName)
-			details = append(details, activity.Details)
 			require.JSONEq(t, fmt.Sprintf(`{"host_serial": "%s", "host_display_name": "%s (%s)", "installed_from_dep": false}`, mdmDeviceA.SerialNumber, mdmDeviceA.Model, mdmDeviceA.SerialNumber), string(*activity.Details))
 		}
 	}
@@ -9472,9 +9459,9 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	var profileLabels []fleet.ConfigurationProfileLabel
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
-		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, label_id 
+		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_configuration_profile_labels 
-		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, label_id 
+		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
 	})
@@ -12783,12 +12770,11 @@ INSERT INTO mdm_apple_declarations (
 	team_id,
 	identifier,
 	name,
-	category,
 	raw_json,
 	checksum,
 	created_at,
 	uploaded_at
-) VALUES (?,?,?,?,?,?,UNHEX(?),?,?)`
+) VALUES (?,?,?,?,?,UNHEX(?),?,?)`
 
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 			_, err := q.ExecContext(context.Background(), stmt,
@@ -12796,7 +12782,6 @@ INSERT INTO mdm_apple_declarations (
 				decl.TeamID,
 				decl.Identifier,
 				decl.Name,
-				decl.Category,
 				decl.RawJSON,
 				calcChecksum(decl.RawJSON),
 				decl.CreatedAt,
@@ -12839,7 +12824,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example",
 			Name:            "Example",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"bar"},
@@ -12904,7 +12888,6 @@ INSERT INTO host_mdm_apple_declarations (
 		require.NoError(t, json.NewDecoder(r.Body).Decode(&gotParsed))
 		require.EqualValues(t, wantParsed.Payload, gotParsed.Payload)
 		require.Equal(t, calcChecksum(expected.RawJSON), gotParsed.ServerToken)
-		require.Contains(t, gotParsed.Type, expected.Category)
 		require.Equal(t, expected.Identifier, gotParsed.Identifier)
 		// t.Logf("decoded: %+v", gotParsed)
 	}
@@ -12917,7 +12900,8 @@ INSERT INTO host_mdm_apple_declarations (
 
 	checkDeclarationItemsResp := func(t *testing.T, r fleet.MDMAppleDDMDeclarationItemsResponse, expectedDeclTok string, expectedDeclsByChecksum map[string]fleet.MDMAppleDeclaration) {
 		require.Equal(t, expectedDeclTok, r.DeclarationsToken)
-		require.Empty(t, r.Declarations.Activations)
+		// TODO(roberto): better assertions
+		require.NotEmpty(t, r.Declarations.Activations)
 		require.Empty(t, r.Declarations.Assets)
 		require.Empty(t, r.Declarations.Management)
 		require.Len(t, r.Declarations.Configurations, len(expectedDeclsByChecksum))
@@ -12944,7 +12928,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example2",
 			Name:            "Example2",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"baz"},
@@ -12975,7 +12958,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example3",
 			Name:            "Example3",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.declaration-items.test",
 				"Payload": {"foo":"bang"},
@@ -13000,7 +12982,7 @@ INSERT INTO host_mdm_apple_declarations (
 	})
 
 	t.Run("Status", func(t *testing.T) {
-		_, err := mdmDevice.DeclarativeManagement("status")
+		_, err := mdmDevice.DeclarativeManagement("status", fleet.MDMAppleDDMStatusReport{})
 		require.NoError(t, err)
 	})
 
@@ -13017,7 +12999,6 @@ INSERT INTO host_mdm_apple_declarations (
 			TeamID:          ptr.Uint(0),
 			Identifier:      "com.example4",
 			Name:            "Example4",
-			Category:        fleet.MDMAppleDeclarativeConfiguration,
 			RawJSON: json.RawMessage(`{
 				"Type": "com.apple.configuration.test",
 				"Payload": {"foo":"bar"},
@@ -13044,4 +13025,392 @@ INSERT INTO host_mdm_apple_declarations (
 
 		assertDeclarationResponse(r, want)
 	})
+}
+
+func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
+	t := s.T()
+	ctx := context.Background()
+	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	// TODO: use endpoints once those are available.
+	addDeclaration := func(identifier string, teamID uint) {
+		stmt := `
+		  INSERT INTO mdm_apple_declarations
+		    (declaration_uuid, team_id, identifier, name, raw_json, checksum)
+		  VALUES
+		    (UUID(), ?, ?, UUID(), ?, HEX(MD5(raw_json)) )`
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, stmt, teamID, identifier, declarationForTest(identifier))
+			return err
+		})
+	}
+
+	deleteDeclaration := func(identifier string, teamID uint) {
+		mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+			_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations WHERE team_id = ? AND identifier = ?", teamID, identifier)
+			return err
+		})
+	}
+
+	// create a team
+	teamName := t.Name() + "team1"
+	team := &fleet.Team{
+		Name: teamName,
+	}
+	var createTeamResp teamResponse
+	s.DoJSON("POST", "/api/latest/fleet/teams", team, http.StatusOK, &createTeamResp)
+	require.NotZero(t, createTeamResp.Team.ID)
+	team = createTeamResp.Team
+
+	t.Cleanup(func() {
+		// delete declarations to not affect other tests
+		deleteDeclaration("I2", 0)
+		deleteDeclaration("I1", team.ID)
+		deleteDeclaration("I2", team.ID)
+		deleteDeclaration("I3", team.ID)
+	})
+
+	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+	}
+
+	checkDDMSync := func(d *mdmtest.TestAppleMDMClient) {
+		cmd, err := d.Idle()
+		require.NoError(t, err)
+		require.NotNil(t, cmd)
+		require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+		cmd, err = d.Acknowledge(cmd.CommandUUID)
+		require.NoError(t, err)
+		require.Nil(t, cmd)
+		_, err = d.DeclarativeManagement("tokens")
+		require.NoError(t, err)
+	}
+
+	// create a windows host
+	_, err := s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            1,
+		OsqueryHostID: ptr.String("non-macos-host"),
+		NodeKey:       ptr.String("non-macos-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.non.macos", t.Name()),
+		Platform:      "windows",
+	})
+	require.NoError(t, err)
+
+	// create a windows host that's enrolled in MDM
+	_, _ = createWindowsHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// create a linux host
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            2,
+		OsqueryHostID: ptr.String("linux-host"),
+		NodeKey:       ptr.String("linux-host"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.linux", t.Name()),
+		Platform:      "linux",
+	})
+	require.NoError(t, err)
+
+	// create a host that's not enrolled into MDM
+	_, err = s.ds.NewHost(context.Background(), &fleet.Host{
+		ID:            2,
+		OsqueryHostID: ptr.String("not-mdm-enrolled"),
+		NodeKey:       ptr.String("not-mdm-enrolled"),
+		UUID:          uuid.New().String(),
+		Hostname:      fmt.Sprintf("%sfoo.local.not.enrolled", t.Name()),
+		Platform:      "darwin",
+	})
+	require.NoError(t, err)
+
+	// create a host and then enroll in MDM.
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	// trigger the reconciler, no error
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// declarativeManagement command is not sent.
+	checkNoCommands(device)
+
+	// add global declarations
+	addDeclaration("I1", 0)
+	addDeclaration("I2", 0)
+
+	// reconcile again, this time new declarations were added
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// TODO: check command is pending
+
+	// declarativeManagement command is sent
+	checkDDMSync(device)
+
+	// reconcile again, commands for the uploaded declarations are already sent
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// no new commands are sent
+	checkNoCommands(device)
+
+	// delete a declaration
+	deleteDeclaration("I1", 0)
+	// reconcile again
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// a DDM sync is triggered
+	checkDDMSync(device)
+
+	// add a new host
+	_, deviceTwo := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	// reconcile again
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the new host
+	checkNoCommands(device)
+	checkDDMSync(deviceTwo)
+
+	// add device to the team
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHost.ID}}, http.StatusOK)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// DDM sync is triggered only for the transferred host
+	// because the team doesn't have any declarations
+	checkDDMSync(device)
+	checkNoCommands(deviceTwo)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// nobody receives commands this time
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+
+	// add declarations to the team
+	addDeclaration("I1", team.ID)
+	addDeclaration("I2", team.ID)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered for the host in the team
+	checkDDMSync(device)
+	checkNoCommands(deviceTwo)
+
+	// add a new host, this one belongs to the team
+	mdmHostThree, deviceThree := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+	s.Do("POST", "/api/v1/fleet/hosts/transfer",
+		addHostsToTeamRequest{TeamID: &team.ID, HostIDs: []uint{mdmHostThree.ID}}, http.StatusOK)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the new host
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkDDMSync(deviceThree)
+
+	// no new commands after another reconciliation
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkNoCommands(deviceThree)
+
+	// TODO: use proper APIs for this
+	// add a new label + label declaration
+	addDeclaration("I3", team.ID)
+	label, err := s.ds.NewLabel(ctx, &fleet.Label{Name: t.Name(), Query: "select 1;"})
+	require.NoError(t, err)
+	// update label with host membership
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				"INSERT IGNORE INTO label_membership (host_id, label_id) VALUES (?, ?)",
+				mdmHostThree.ID,
+				label.ID,
+			)
+			return err
+		},
+	)
+
+	// update declaration <-> label mapping
+	mysql.ExecAdhocSQL(
+		t, s.ds, func(db sqlx.ExtContext) error {
+			_, err := db.ExecContext(
+				context.Background(),
+				`INSERT INTO
+				  mdm_declaration_labels (apple_declaration_uuid, label_name, label_id)
+				  VALUES ((SELECT declaration_uuid FROM mdm_apple_declarations WHERE team_id = ? and identifier = ?), ?, ?)`,
+				team.ID,
+				"I3",
+				label.Name,
+				label.ID,
+			)
+			return err
+		},
+	)
+
+	// reconcile
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	// DDM sync is triggered only for the host with the label
+	checkNoCommands(device)
+	checkNoCommands(deviceTwo)
+	checkDDMSync(deviceThree)
+}
+
+func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
+	t := s.T()
+	ctx := context.Background()
+	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
+	logger := kitlog.NewJSONLogger(os.Stdout)
+
+	assertHostDeclarations := func(hostUUID string, wantDecls []*fleet.MDMAppleHostDeclaration) {
+		var gotDecls []*fleet.MDMAppleHostDeclaration
+		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
+			return sqlx.SelectContext(context.Background(), q, &gotDecls, `SELECT declaration_identifier, status, operation_type FROM host_mdm_apple_declarations WHERE host_uuid = ?`, hostUUID)
+		})
+		require.ElementsMatch(t, wantDecls, gotDecls)
+	}
+
+	// create a host and then enroll in MDM.
+	mdmHost, device := createHostThenEnrollMDM(s.ds, s.server.URL, t)
+
+	declarations := []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("I1")},
+		{Name: "N2.json", Contents: declarationForTest("I2")},
+	}
+	// add global declarations
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// reconcile profiles
+	err := ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+
+	// declarations are ("install", "pending") after the cron run
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// host gets a DDM sync call
+	cmd, err := device.Idle()
+	require.NoError(t, err)
+	require.Equal(t, "DeclarativeManagement", cmd.Command.RequestType)
+	_, err = device.Acknowledge(cmd.CommandUUID)
+	require.NoError(t, err)
+
+	r, err := device.DeclarativeManagement("declaration-items")
+	require.NoError(t, err)
+	body, err := io.ReadAll(r.Body)
+	require.NoError(t, err)
+	var items fleet.MDMAppleDDMDeclarationItemsResponse
+	require.NoError(t, json.Unmarshal(body, &items))
+
+	var i1ServerToken, i2ServerToken string
+	for _, d := range items.Declarations.Configurations {
+		switch d.Identifier {
+		case "I1":
+			i1ServerToken = d.ServerToken
+		case "I2":
+			i2ServerToken = d.ServerToken
+		}
+	}
+
+	// declarations are ("install", "verifying") after the ack
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// host sends a partial DDM report
+	report := fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
+	}
+	_, err = device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// host sends a report with a wrong (could be old) server token for I2, nothing changes
+	report = fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I2", ServerToken: "foo"},
+	}
+	_, err = device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryVerifying, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// host sends a full report, declaration I2 is invalid
+	report = fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
+		{Active: false, Valid: fleet.MDMAppleDeclarationInvalid, Identifier: "I2", ServerToken: i2ServerToken},
+	}
+	_, err = device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// do a batch request, this time I2 is deleted
+	declarations = []fleet.MDMProfileBatchPayload{
+		{Name: "N1.json", Contents: declarationForTest("I1")},
+	}
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: declarations}, http.StatusNoContent)
+
+	// reconcile profiles
+	err = ReconcileAppleDeclarations(ctx, s.ds, s.mdmCommander, logger)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+		{Identifier: "I2", Status: &fleet.MDMDeliveryPending, OperationType: fleet.MDMOperationTypeRemove},
+	})
+
+	// host sends a report, declaration I2 is removed from the hosts_* table
+	report = fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: true, Valid: fleet.MDMAppleDeclarationValid, Identifier: "I1", ServerToken: i1ServerToken},
+	}
+	_, err = device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryVerified, OperationType: fleet.MDMOperationTypeInstall},
+	})
+
+	// host sends a report, declaration I1 is failing after a while
+	report = fleet.MDMAppleDDMStatusReport{}
+	report.StatusItems.Management.Declarations.Configurations = []fleet.MDMAppleDDMStatusDeclaration{
+		{Active: false, Valid: fleet.MDMAppleDeclarationInvalid, Identifier: "I1", ServerToken: i1ServerToken},
+	}
+	_, err = device.DeclarativeManagement("status", report)
+	require.NoError(t, err)
+	assertHostDeclarations(mdmHost.UUID, []*fleet.MDMAppleHostDeclaration{
+		{Identifier: "I1", Status: &fleet.MDMDeliveryFailed, OperationType: fleet.MDMOperationTypeInstall},
+	})
+}
+
+func declarationForTest(identifier string) []byte {
+	return []byte(fmt.Sprintf(`
+{
+    "Type": "com.apple.configuration.management.test",
+    "Payload": {
+        "Echo": "foo"
+    },
+    "Identifier": "%s"
+}`, identifier))
 }
