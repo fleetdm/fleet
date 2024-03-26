@@ -32,10 +32,5 @@ CREATE TABLE mdm_apple_declarative_requests (
 }
 
 func Down_20240322145615(tx *sql.Tx) error {
-	_, err := tx.Exec(`DROP TABLE mdm_apple_declarative_requests`)
-	if err != nil {
-		return fmt.Errorf("dropping mdm_apple_declarative_requests: %w", err)
-	}
-
 	return nil
 }
