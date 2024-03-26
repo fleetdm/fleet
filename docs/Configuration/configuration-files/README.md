@@ -1199,7 +1199,7 @@ List of saved scripts that can be run on all hosts.
 
 #### Software
 
-List of the software that will be installed on macOS and Windows hosts during enrollment.  
+List of the software that will be installed on macOS and Windows hosts.  
 
 `url` must be an absolute URL to the software installer.
 
