@@ -1285,6 +1285,7 @@ If the `name` is not already associated with an existing team, this API route cr
 | mdm.windows_settings                        | object | body  | The Windows-specific MDM settings.                                                                                                                                                                                                    |
 | mdm.windows_settings.custom_settings        | list   | body  | The list of objects consists of a `path` to XML files and `labels` list of label names.                                                                                                                                                         |
 | scripts                                   | list   | body  | A list of script files to add to this team so they can be executed at a later time.                                                                                                                                                 |
+| software                                   | list   | body  | A list of software installer URLs (APP, PKG, DMG, MSI, EXE and DEB) to add so they get installed on all macOS, Windows, and Linux (Ubuntu) hosts.   |
 | mdm.macos_settings.enable_disk_encryption | bool   | body  | Whether disk encryption should be enabled for hosts that belong to this team.                                                                                                                                                       |
 | force                                     | bool   | query | Force apply the spec even if there are (ignorable) validation errors. Those are unknown keys and agent options-related validations.                                                                                                 |
 | dry_run                                   | bool   | query | Validate the provided JSON for unknown keys and invalid value types and return any validation errors, but do not apply the changes.                                                                                                 |
@@ -1357,6 +1358,7 @@ If the `name` is not already associated with an existing team, this API route cr
         }
       },
       "scripts": ["path/to/script.sh"],
+      "software": ["https://cdn.zoom.us/prod/5.16.10.26186/x64/ZoomInstallerFull.msi", "https://github.com/organinzation/repository/FalconSensor-6.44.pkg"]
     }
   ]
 }
@@ -2392,6 +2394,52 @@ In regards to the `notifications` key:
 - `needs_mdm_migration` means that the device fits all the requirements to allow the user to initiate an MDM migration to Fleet.
 - `renew_enrollment_profile` means that the device is currently unmanaged from MDM but should be DEP enrolled into Fleet.
 - `enforce_bitlocker_encryption` applies only to Windows devices and means that it should encrypt the disk and report the encryption key back to Fleet.
+
+
+#### Get device's software
+
+Lists the software installed on the current device.
+
+`GET /api/v1/fleet/device/{token}/software/titles`
+
+##### Parameters
+
+| Name  | Type   | In   | Description                        |
+| ----- | ------ | ---- | ---------------------------------- |
+| token | string | path | The device's authentication token. |
+
+##### Example
+
+`GET /api/v1/fleet/device/bbb7cdcc-f1d9-4b39-af9e-daa0f35728e8/software/titles`
+
+##### Default response
+
+`Status: 200`
+
+```json
+{
+  "software_titles": [
+    {
+      "id": 123,
+      "name": "Google Chrome.app"
+      "versions": ["121.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"]
+      "status": "failed",
+      "detail": "Configuration profile failed before installation. Resend profile to try again."
+    },
+    {
+      "id": 127,
+      "name": "Firefox.app"
+      "versions": ["118.0, 119.0"]
+      "source": "apps"
+      "vulnerabilities": ["CVE-2023-1234","CVE-2023-4321","CVE-2023-7654"],
+      "status": null,
+      "detail": ""
+    }
+  ]
+}
+```
 
 
 #### Get device's policies
