@@ -1,4 +1,4 @@
-package main
+package cron
 
 import (
 	"context"
@@ -17,19 +17,19 @@ import (
 	"github.com/go-kit/log/level"
 )
 
-func newCalendarSchedule(
+func NewCalendarSchedule(
 	ctx context.Context,
 	instanceID string,
 	ds fleet.Datastore,
+	interval time.Duration,
 	logger kitlog.Logger,
 ) (*schedule.Schedule, error) {
 	const (
-		name            = string(fleet.CronCalendar)
-		defaultInterval = 5 * time.Minute
+		name = string(fleet.CronCalendar)
 	)
 	logger = kitlog.With(logger, "cron", name)
 	s := schedule.New(
-		ctx, name, instanceID, defaultInterval, ds, ds,
+		ctx, name, instanceID, interval, ds, ds,
 		schedule.WithAltLockID("calendar"),
 		schedule.WithLogger(logger),
 		schedule.WithJob(
@@ -317,9 +317,6 @@ func processFailingHostExistingCalendarEvent(
 		}
 		// Even if fields haven't changed we want to update the calendar_events.updated_at below.
 		updated = true
-		//
-		// TODO(lucas): Check changing updatedEvent to UTC before consuming.
-		//
 	}
 
 	if updated {
@@ -366,8 +363,6 @@ func processFailingHostExistingCalendarEvent(
 		return fmt.Errorf("update host calendar webhook status: %w", err)
 	}
 
-	// TODO(lucas): If this doesn't work at scale, then implement a special refetch
-	// for policies only.
 	if err := ds.UpdateHostRefetchRequested(ctx, host.HostID, true); err != nil {
 		return fmt.Errorf("refetch host: %w", err)
 	}
