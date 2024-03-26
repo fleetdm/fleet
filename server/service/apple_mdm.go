@@ -2615,7 +2615,13 @@ func (svc *MDMAppleCheckinAndCommandService) CommandAndReportResults(r *mdm.Requ
 			cmdResult.Status == fleet.MDMAppleStatusCommandFormatError {
 			return nil, svc.ds.UpdateHostLockWipeStatusFromAppleMDMResult(r.Context, cmdResult.UDID, cmdResult.CommandUUID, requestType, cmdResult.Status == fleet.MDMAppleStatusAcknowledged)
 		}
+	case "DeclarativeManagement":
+		// set "pending-install" profiles to "verifying"
+		err := svc.ds.MDMAppleSetDeclarationsAsVerifying(r.Context, cmdResult.UDID)
+		return nil, ctxerr.Wrap(r.Context, err, "update declaration status on DeclarativeManagement ack")
+
 	}
+
 	return nil, nil
 }
 
@@ -2755,6 +2761,8 @@ func ReconcileAppleDeclarations(
 	if err := commander.DeclarativeManagement(ctx, uuids, uuid.NewString()); err != nil {
 		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
+
+	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(uuids))
 
 	return nil
 }
@@ -3244,9 +3252,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 
 	case dm.Endpoint == "status":
 		level.Debug(svc.logger).Log("msg", "received status request")
-		// TODO(roberto): handle status
-
-		return nil, nil
+		return nil, svc.handleDeclarationStatus(r.Context, dm)
 
 	case strings.HasPrefix(dm.Endpoint, "declaration/"):
 		level.Debug(svc.logger).Log("msg", "received declarations request")
@@ -3373,4 +3379,57 @@ func (svc *MDMAppleDDMService) handleConfigurationDeclaration(ctx context.Contex
 		return nil, ctxerr.Wrap(ctx, err, "marshaling declaration")
 	}
 	return b, nil
+}
+
+func (svc *MDMAppleDDMService) handleDeclarationStatus(ctx context.Context, dm *mdm.DeclarativeManagement) error {
+	var status fleet.MDMAppleDDMStatusReport
+	if err := json.Unmarshal(dm.Data, &status); err != nil {
+		return ctxerr.Wrap(ctx, err, "unmarshalling response")
+	}
+
+	configurationReports := status.StatusItems.Management.Declarations.Configurations
+	updates := make([]*fleet.MDMAppleHostDeclaration, len(configurationReports))
+	for i, r := range configurationReports {
+		var status fleet.MDMDeliveryStatus
+		var detail string
+		switch {
+		case r.Active && r.Valid == fleet.MDMAppleDeclarationValid:
+			status = fleet.MDMDeliveryVerified
+		case r.Valid == fleet.MDMAppleDeclarationInvalid:
+			status = fleet.MDMDeliveryFailed
+			detail = apple_mdm.FmtDDMError(r.Reasons)
+		default:
+			status = fleet.MDMDeliveryVerifying
+		}
+
+		updates[i] = &fleet.MDMAppleHostDeclaration{
+			Status:        &status,
+			OperationType: fleet.MDMOperationTypeInstall,
+			Detail:        detail,
+			Checksum:      r.ServerToken,
+		}
+	}
+
+	if len(updates) == 0 {
+		return nil
+	}
+
+	// MDMAppleStoreDDMStatusReport takes care of cleaning ("pending", "remove")
+	// pairs for the host.
+	//
+	// TODO(roberto): in the DDM documentation, it's mentioned that status
+	// report will give you a "remove" status so the server can track
+	// removals. In my testing, I never saw this (after spending
+	// considerable time trying to make it work.)
+	//
+	// My current guess is that the documentation is implicitly referring
+	// to asset declarations (which deliver tangible "assets" to the host)
+	//
+	// The best indication I found so far, is that if the declaration is
+	// not in the report, then it's implicitly removed.
+	if err := svc.ds.MDMAppleStoreDDMStatusReport(ctx, dm.UDID, updates); err != nil {
+		return ctxerr.Wrap(ctx, err, "updating host declaration status with reports")
+	}
+
+	return nil
 }
