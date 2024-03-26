@@ -5,13 +5,16 @@ import classnames from "classnames";
 import FileSaver from "file-saver";
 import { QueryContext } from "context/query";
 import { useDebouncedCallback } from "use-debounce";
+import { find } from "lodash";
 
 import {
   generateCSVFilename,
   generateCSVQueryResults,
 } from "utilities/generate_csv";
+import { osqueryTables } from "utilities/osquery_tables";
 import { ICampaign, ICampaignError } from "interfaces/campaign";
 import { ITarget } from "interfaces/target";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 
 import Button from "components/buttons/Button";
 import Icon from "components/Icon/Icon";
@@ -22,6 +25,7 @@ import QueryResultsHeading from "components/queries/queryResults/QueryResultsHea
 import AwaitingResults from "components/queries/queryResults/AwaitingResults";
 import InfoBanner from "components/InfoBanner";
 import CustomLink from "components/CustomLink";
+import { checkTable } from "utilities/sql_tools";
 
 import generateColumnConfigsFromRows from "./QueryResultsTableConfig";
 
@@ -73,6 +77,9 @@ const QueryResults = ({
   const [queryResultsForTableRender, setQueryResultsForTableRender] = useState(
     queryResults
   );
+  const [osqueryTableColumns, setOsqueryTableColumns] = useState<
+    IQueryTableColumn[] | []
+  >([]);
 
   // immediately reset results
   const onRunAgain = useCallback(() => {
@@ -91,10 +98,25 @@ const QueryResults = ({
     debounceQueryResults(queryResults);
   }, [queryResults, debounceQueryResults]);
 
+  // Set table/s columns from SQL
+  useEffect(() => {
+    const tableNames =
+      (lastEditedQueryBody && checkTable(lastEditedQueryBody).tables) || [];
+
+    let columns: IQueryTableColumn[] | [] = [];
+    tableNames.forEach((tableName: string) => {
+      const tableColumns =
+        find(osqueryTables, { name: tableName })?.columns || [];
+      columns = [...columns, ...tableColumns];
+    });
+    setOsqueryTableColumns(columns);
+  }, [lastEditedQueryBody]);
+
   useEffect(() => {
     if (queryResults && queryResults.length > 0) {
       const newResultsColumnConfigs = generateColumnConfigsFromRows(
-        queryResults
+        queryResults,
+        osqueryTableColumns
       );
       // Update tableHeaders if new headers are found
       if (newResultsColumnConfigs !== resultsColumnConfigs) {
