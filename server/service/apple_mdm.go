@@ -3181,7 +3181,7 @@ func (svc *MDMAppleDDMService) DeclarativeManagement(r *mdm.Request, dm *mdm.Dec
 	level.Debug(svc.logger).Log("msg", "ddm request received", "endpoint", dm.Endpoint)
 
 	if err := svc.ds.InsertMDMAppleDDMRequest(r.Context, dm.UDID, dm.Endpoint, string(dm.Data)); err != nil {
-		return nil, err
+		return nil, ctxerr.Wrap(r.Context, err, "insert ddm request history")
 	}
 
 	if dm.UDID == "" {
