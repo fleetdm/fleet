@@ -3612,7 +3612,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	executeUpsertBatch := func(valuePart string, args []any) error {
 		_, err := tx.ExecContext(
 			ctx,
-			fmt.Sprintf(baseStmt, valuePart),
+			fmt.Sprintf(baseStmt, strings.TrimSuffix(valuePart, ",")),
 			args...,
 		)
 		return err

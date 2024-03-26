@@ -1282,7 +1282,16 @@ func (ds *Datastore) optimisticGetOrInsert(ctx context.Context, readStmt, insert
 	return id, nil
 }
 
-// batchProcessDB function abstracts the batch processing logic
+// batchProcessDB abstracts the batch processing logic, for a given payload:
+//
+// - generateValueArgs will get called for each item, the expected return values are:
+//   - a string containing the placeholders for each item in the batch
+//   - a slice of arguments containing one item for each placeholder
+//
+// - executeBatch will get called on each batch to perform the operation in the db
+//
+// TODO(roberto): use this function in all the functions where we do ad-hoc
+// batch processing.
 func batchProcessDB[T any](
 	payload []T,
 	batchSize int,

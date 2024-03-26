@@ -2739,7 +2739,7 @@ func ReconcileAppleDeclarations(
 		return ctxerr.Wrap(ctx, err, "issuing DeclarativeManagement command")
 	}
 
-	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(uuids))
+	logger.Log("msg", "sent DeclarativeManagement command", "host_number", len(changedHosts))
 
 	return nil
 }
