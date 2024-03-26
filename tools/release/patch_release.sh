@@ -78,6 +78,7 @@ usage() {
     echo "  -r, --release_notes    Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
     echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
+    echo "  -u, --publish_release  Set's release from draft to release, deploys to dogfood."
     echo "  -v, --target_version   Set the target version for the release"
     echo ""
     echo "Environment Variables:"
@@ -219,6 +220,16 @@ update_release_notes() {
     fi
 }
 
+publish() {
+    gh release edit --latest $next_tag
+    gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+    echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
+    echo "Then copy the topic and paste it in #general and #help-infrastructure"
+    echo "In #help-infrastructure add a thread message with:"
+    gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'
+    echo "to let them see the status of the dogfood deployment"
+}
+
 # Validate we have all commands required to perform this script
 check_required_binaries
 
@@ -232,6 +243,7 @@ start_version=""
 target_date=""
 target_version=""
 print_info=false
+publish_release=false
 release_notes=false
 
 # Parse long options manually
@@ -245,6 +257,7 @@ for arg in "$@"; do
     "--minor") set -- "$@" "-m" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
+    "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
     "--target_date") set -- "$@" "-t" ;;
@@ -254,7 +267,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "cdfhmo:prs:t:v:" opt; do
+while getopts "cdfhmo:prs:t:uv:" opt; do
     case "$opt" in
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
@@ -266,6 +279,7 @@ while getopts "cdfhmo:prs:t:v:" opt; do
         r) release_notes=true ;;
         s) start_version=$OPTARG ;;
         t) target_date=$OPTARG ;;
+        u) publish_release=true ;;
         v) target_version=$OPTARG ;;
         ?) usage; exit 1 ;;
     esac
@@ -377,6 +391,11 @@ if [[ "$target_milestone_number" == "" ]]; then
     exit 1
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
+
+if [ "$publish_release" = "true" ]; then
+    publish
+    exit 0
+fi
 
 failed=false
 
@@ -550,6 +569,20 @@ if [[ "$failed" == "false" ]]; then
         echo -e "${output}" >> temp_changelog
         echo "" >> temp_changelog
         cp CHANGELOG.md old_changelog
+        cat temp_changelog
+        echo
+        echo "About to write changelog"
+        if [ "$force" = "false" ]; then
+            read -r -p "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] " response
+            case "$response" in
+                [yY][eE][sS]|[yY])
+                    echo
+                    ;;
+                *)
+                    exit 1
+                    ;;
+            esac
+        fi
         cat temp_changelog > CHANGELOG.md
         cat old_changelog >> CHANGELOG.md
         rm -f old_changelog
@@ -561,6 +594,15 @@ if [[ "$failed" == "false" ]]; then
         fi
         git checkout -b $update_changelog_patch_branch
         git add CHANGELOG.md
+        escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
+        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+        unameOut="$(uname -s)"
+        case "${unameOut}" in
+            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
+            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
+            *)          echo "unknown distro to parse version"
+        esac
+        git add terraform charts infrastructure tools
         git commit -m "Adding changes for patch $target_milestone"
         git push origin $update_changelog_patch_branch -f
         gh pr create -f -B $target_patch_branch
@@ -632,6 +674,19 @@ if [[ "$failed" == "false" ]]; then
         done
         git pull origin $target_patch_branch
 
+
+        echo "About to tag to $next_tag"
+        if [ "$force" = "false" ]; then
+            read -r -p "Did all steps succeed and is the tag ready to push? [y/N] " response
+            case "$response" in
+                [yY][eE][sS]|[yY])
+                    echo
+                    ;;
+                *)
+                    exit 1
+                    ;;
+            esac
+        fi
         git tag $next_tag
         git push origin $next_tag
 
