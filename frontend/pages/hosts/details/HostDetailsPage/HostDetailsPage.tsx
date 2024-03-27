@@ -753,30 +753,6 @@ const HostDetailsPage = ({
     name: host?.mdm.macos_setup?.bootstrap_package_name,
   };
 
-  // TODO: Remove this when API is ready
-  if (!host.mdm.profiles) {
-    host.mdm.profiles = [];
-  } else {
-    host.mdm.profiles = [
-      createMockHostMdmProfile({
-        name: "test.json",
-        status: "success",
-      }),
-      createMockHostMdmProfile({
-        name: "test2.json",
-        status: "pending",
-      }),
-      createMockHostMdmProfile({
-        name: "test3.json",
-        status: "failed",
-      }),
-      createMockHostMdmProfile({
-        name: "test4.json",
-        status: "acknowledged",
-      }),
-    ];
-  }
-
   return (
     <MainContent className={baseClass}>
       <>

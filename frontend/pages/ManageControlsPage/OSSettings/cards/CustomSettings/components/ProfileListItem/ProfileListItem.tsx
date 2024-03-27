@@ -53,6 +53,21 @@ const ProfileDetails = ({
   );
 };
 
+const createProfileExtension = (profile: IMdmProfile) => {
+  if (isDDMProfile(profile)) {
+    return "json";
+  }
+  return profile.platform === "darwin" ? "mobileconfig" : "xml";
+};
+
+const createFileContent = async (profile: IMdmProfile) => {
+  const content = await mdmAPI.downloadProfile(profile.profile_uuid);
+  if (isDDMProfile(profile)) {
+    return JSON.stringify(content, null, 2);
+  }
+  return content;
+};
+
 interface IProfileListItemProps {
   isPremium: boolean;
   profile: IMdmProfile;
@@ -68,13 +83,13 @@ const ProfileListItem = ({
   onDelete,
   setProfileLabelsModalData,
 }: IProfileListItemProps) => {
-  const { created_at, labels, name, platform, profile_uuid } = profile;
+  const { created_at, labels, name, platform } = profile;
   const subClass = "list-item";
 
   const onClickDownload = async () => {
-    const fileContent = await mdmAPI.downloadProfile(profile_uuid);
+    const fileContent = await createFileContent(profile);
     const formatDate = format(new Date(), "yyyy-MM-dd");
-    const extension = platform === "darwin" ? "mobileconfig" : "xml";
+    const extension = createProfileExtension(profile);
     const filename = `${formatDate}_${name}.${extension}`;
     const file = new File([fileContent], filename);
     FileSaver.saveAs(file);
