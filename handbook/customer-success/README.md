@@ -109,4 +109,4 @@ The following stubs are included only to make links backward compatible.
 Please see [Handbook/customer-success#respond-to-messages-and-alerts](https://www.fleetdm.com/handbook/customer-success#respond-to-messages-and-alerts)
 
 <meta name="maintainedBy" value="zayhanlon">
-<meta name="title" value="🏹 Customer Success">
+<meta name="title" value="🌦️ Customer Success">
