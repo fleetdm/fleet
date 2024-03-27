@@ -1527,6 +1527,34 @@ func (svc *Service) BatchSetMDMProfiles(
 		return ctxerr.Wrap(ctx, err, "validating Windows profiles")
 	}
 
+	// map all profile names to check for duplicates, regardless of platform; key is name, value is one of
+	// "mobileconfig" or "json" or "xml"
+	allNames := make(map[string]string, len(appleProfiles)+len(windowsProfiles)+len(appleDecls))
+	for _, p := range appleProfiles {
+		if v, ok := allNames[p.Name]; ok {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
+				fmt.Sprintf("duplicate mobileconfig and %s by name", v))
+		}
+		allNames[p.Name] = "mobileconfig"
+	}
+	for _, p := range windowsProfiles {
+		if v, ok := allNames[p.Name]; ok {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
+				fmt.Sprintf("duplicate xml and %s by name", v))
+		}
+		allNames[p.Name] = "xml"
+	}
+	for _, p := range appleDecls {
+		if v, ok := allNames[p.Name]; ok {
+			return ctxerr.Wrap(ctx,
+				fleet.NewInvalidArgumentError(p.Name, "A configuration profile with this name already exists."),
+				fmt.Sprintf("duplicate json and %s by name", v))
+		}
+		allNames[p.Name] = "json"
+	}
+
 	if dryRun {
 		return nil
 	}
@@ -1659,26 +1687,7 @@ func getAppleProfiles(
 				}
 			}
 
-			v, ok := byName[mdmDecl.Name]
-			switch {
-			case !ok:
-				byName[mdmDecl.Name] = "declaration"
-			case v == "mobileconfig":
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A configuration profile with this name already exists."),
-					"duplicate mobileconfig profile by name")
-			case v == "declaration":
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A declaration profile with this name already exists."),
-					"duplicate declaration profile by name")
-			default:
-				// this should never happen but just in case
-				return nil, nil, ctxerr.Wrap(ctx,
-					fleet.NewInvalidArgumentError(mdmDecl.Name, "A profile with this name already exists."),
-					"duplicate profile by name")
-			}
-
-			v, ok = byIdent[mdmDecl.Identifier]
+			v, ok := byIdent[mdmDecl.Identifier]
 			switch {
 			case !ok:
 				byIdent[mdmDecl.Identifier] = "declaration"

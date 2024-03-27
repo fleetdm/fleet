@@ -10939,6 +10939,32 @@ func (s *integrationMDMTestSuite) TestBatchSetMDMProfiles() {
 		fmt.Sprintf(`{"team_id": %d, "team_name": %q}`, tm.ID, tm.Name),
 		0,
 	)
+
+	// names cannot be duplicated across platforms
+	declBytes := json.RawMessage(`{
+	"Type": "com.apple.configuration.decl.foo",
+	"Identifier": "com.fleet.config.foo",
+	"Payload": {
+		"ServiceType": "com.apple.bash",
+		"DataAssetReference": "com.fleet.asset.bash"
+	}}`)
+	mcBytes := mobileconfigForTest("N1", "I1")
+	winBytes := syncMLForTest("./Foo/Bar")
+
+	for _, p := range [][]fleet.MDMProfileBatchPayload{
+		{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: winBytes}},
+		{{Name: "N1", Contents: declBytes}, {Name: "N1", Contents: winBytes}},
+		{{Name: "N1", Contents: mcBytes}, {Name: "N1", Contents: declBytes}},
+	} {
+		// team profiles
+		res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: p}, http.StatusUnprocessableEntity, "team_id", strconv.Itoa(int(tm.ID)))
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "A configuration profile with this name already exists.")
+		// no team profiles
+		res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch", batchSetMDMProfilesRequest{Profiles: p}, http.StatusUnprocessableEntity)
+		errMsg = extractServerErrorText(res.Body)
+		require.Contains(t, errMsg, "A configuration profile with this name already exists.")
+	}
 }
 
 func (s *integrationMDMTestSuite) TestBatchSetMDMProfilesBackwardsCompat() {
