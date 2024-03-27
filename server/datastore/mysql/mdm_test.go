@@ -651,7 +651,6 @@ func testBulkSetPendingMDMHostProfiles(t *testing.T, ds *Datastore) {
 			wantProfs = sortProfs(wantProfs)
 			for i, wp := range wantProfs {
 				gp := gotProfs[i]
-				fmt.Println("got", gp, "want", wp)
 				require.Equal(
 					t,
 					wp.ProfileUUID,

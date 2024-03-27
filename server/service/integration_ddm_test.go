@@ -192,7 +192,6 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 	require.Equal(t, lbl1.Name, resp.Profiles[1].Labels[0].LabelName)
 }
 
-// TODO(sarah): Build out this test
 func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 	t := s.T()
 	_, mdmDevice := createHostThenEnrollMDM(s.ds, s.server.URL, t)
