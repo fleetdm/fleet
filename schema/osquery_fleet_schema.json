@@ -14,7 +14,7 @@
       {
         "name": "uid",
         "description": "[User ID](https://superuser.com/a/1108201)",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -3970,7 +3970,7 @@
       {
         "name": "path",
         "description": "Path to extension folder. Defaults to '' on ChromeOS",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4067,7 +4067,7 @@
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6805,7 +6805,7 @@
       {
         "name": "type",
         "description": "The interface type of the disk.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6814,7 +6814,7 @@
       {
         "name": "id",
         "description": "The unique identifier of the drive on the system.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6835,7 +6835,7 @@
       {
         "name": "disk_size",
         "description": "Size of the disk.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -6868,7 +6868,7 @@
       {
         "name": "name",
         "description": "The label of the disk object.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18844,7 +18844,7 @@
       {
         "name": "uid",
         "description": "User ID for the policy. Returns `-1` if the policy applies to all users.",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18853,7 +18853,7 @@
       {
         "name": "policy_identifier",
         "description": "Policy identifier, such as `ProfilePayload:1d33ef8c-da1c-4534-8458-95a4d43d849e:minLength`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18862,7 +18862,7 @@
       {
         "name": "policy_content",
         "description": "Policy content, such as `policyAttributePassword matches '.{10,}'`.",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -18871,7 +18871,7 @@
       {
         "name": "policy_description",
         "description": "Policy description, such as `Contain at least 10 characters.`",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20736,7 +20736,7 @@
       {
         "name": "operation",
         "description": "Operation type",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20745,7 +20745,7 @@
       {
         "name": "pid",
         "description": "Process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20754,7 +20754,7 @@
       {
         "name": "ppid",
         "description": "Parent process ID",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20763,7 +20763,7 @@
       {
         "name": "time",
         "description": "Time of execution in UNIX time",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20772,7 +20772,7 @@
       {
         "name": "executable",
         "description": "The executable path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20781,7 +20781,7 @@
       {
         "name": "partial",
         "description": "True if this is a partial event (i.e.: this process existed before we started osquery)",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20790,7 +20790,7 @@
       {
         "name": "cwd",
         "description": "The current working directory of the process",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20799,7 +20799,7 @@
       {
         "name": "path",
         "description": "The path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20808,7 +20808,7 @@
       {
         "name": "dest_path",
         "description": "The canonical path associated with the event",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20817,7 +20817,7 @@
       {
         "name": "uid",
         "description": "The uid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20826,7 +20826,7 @@
       {
         "name": "gid",
         "description": "The gid of the process performing the action",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20835,7 +20835,7 @@
       {
         "name": "auid",
         "description": "Audit user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20844,7 +20844,7 @@
       {
         "name": "euid",
         "description": "Effective user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20853,7 +20853,7 @@
       {
         "name": "egid",
         "description": "Effective group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20862,7 +20862,7 @@
       {
         "name": "fsuid",
         "description": "Filesystem user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20871,7 +20871,7 @@
       {
         "name": "fsgid",
         "description": "Filesystem group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20880,7 +20880,7 @@
       {
         "name": "suid",
         "description": "Saved user ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20889,7 +20889,7 @@
       {
         "name": "sgid",
         "description": "Saved group ID of the process using the file",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20898,7 +20898,7 @@
       {
         "name": "uptime",
         "description": "Time of execution in system uptime",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -20907,7 +20907,7 @@
       {
         "name": "eid",
         "description": "Event ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": true,
         "required": false,
@@ -25617,7 +25617,7 @@
       {
         "name": "hostname",
         "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25635,7 +25635,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25658,7 +25658,7 @@
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25718,7 +25718,7 @@
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25727,7 +25727,7 @@
       {
         "name": "hardware_vendor",
         "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25736,7 +25736,7 @@
       {
         "name": "hardware_model",
         "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25759,7 +25759,7 @@
       {
         "name": "hardware_serial",
         "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25824,7 +25824,7 @@
       {
         "name": "computer_name",
         "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27581,7 +27581,7 @@
       {
         "name": "name",
         "description": "Extension Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27590,7 +27590,7 @@
       {
         "name": "uuid",
         "description": "Extension UUID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27599,7 +27599,7 @@
       {
         "name": "version",
         "description": "Extension version",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27608,7 +27608,7 @@
       {
         "name": "path",
         "description": "Extension path",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27617,7 +27617,7 @@
       {
         "name": "publisher",
         "description": "Publisher Name",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27626,7 +27626,7 @@
       {
         "name": "publisher_id",
         "description": "Publisher ID",
-        "type": "TEXT",
+        "type": "text",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27635,7 +27635,7 @@
       {
         "name": "installed_at",
         "description": "Installed Timestamp",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27644,7 +27644,7 @@
       {
         "name": "prerelease",
         "description": "Pre release version",
-        "type": "INTEGER",
+        "type": "integer",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -27653,7 +27653,7 @@
       {
         "name": "uid",
         "description": "The local user that owns the plugin",
-        "type": "BIGINT",
+        "type": "bigint",
         "notes": "",
         "hidden": false,
         "required": false,
