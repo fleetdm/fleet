@@ -4,6 +4,7 @@
 import React from "react";
 
 import { CellProps, Column, HeaderProps } from "react-table";
+import { find } from "lodash";
 
 import DefaultColumnFilter from "components/TableContainer/DataTable/DefaultColumnFilter";
 import HeaderCell from "components/TableContainer/DataTable/HeaderCell/HeaderCell";
@@ -11,6 +12,7 @@ import {
   getUniqueColumnNamesFromRows,
   internallyTruncateText,
 } from "utilities/helpers";
+import { IQueryTableColumn } from "interfaces/osquery_table";
 
 const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   const newHeaders = [...columns];
@@ -32,10 +34,28 @@ const _unshiftHostname = <T extends object>(columns: Column<T>[]) => {
   return newHeaders;
 };
 
+// Sorts numerical columns correctly while perserving case insensitive sort for text columns
+const sortType = (
+  colName: string | number | symbol,
+  osqueryTableColumns?: IQueryTableColumn[] | []
+) => {
+  if (typeof colName === "string" && !!osqueryTableColumns) {
+    const numberTypes = ["integer", "bigint", "unsigned_bigint", "double"];
+
+    const type = find(osqueryTableColumns, { name: colName })?.type;
+
+    if (type && numberTypes.includes(type)) {
+      return "alphanumeric";
+    }
+  }
+  return "caseInsensitive";
+};
+
 const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
   // TODO - narrow typing down this entire chain of logic
   // typed as any[] to accomodate loose typing of websocket API
-  results: T[] // {col:val, ...} for each row of query results
+  results: T[], // {col:val, ...} for each row of query results
+  osqueryTableColumns?: IQueryTableColumn[] | []
 ): Column<T>[] => {
   const uniqueColumnNames = getUniqueColumnNamesFromRows(results);
   const columnsConfigs = uniqueColumnNames.map<Column<T>>((colName) => {
@@ -56,7 +76,7 @@ const generateColumnConfigsFromRows = <T extends Record<keyof T, unknown>>(
       },
       Filter: DefaultColumnFilter,
       disableSortBy: false,
-      sortType: "caseInsensitive",
+      sortType: sortType(colName, osqueryTableColumns),
     };
   });
   return _unshiftHostname(columnsConfigs);

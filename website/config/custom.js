@@ -258,7 +258,7 @@ module.exports.custom = {
     '.github/ISSUE_TEMPLATE': ['mikermcneil', 'lukeheath', 'sampfluger88'],
     '.github/ISSUE_TEMPLATE/bug-report.md': ['xpkoala','noahtalerman', 'lukeheath'],
     '.github/ISSUE_TEMPLATE/feature-request.md': ['xpkoala','noahtalerman', 'lukeheath'],
-    '.github/ISSUE_TEMPLATE/smoke-tests.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
+    '.github/ISSUE_TEMPLATE/release-qa.md': ['xpkoala','lukeheath','noahtalerman', 'lukeheath'],
   },
 
   confidentialGithubRepoMaintainersByPath: {// fleetdm/confidential

@@ -502,6 +502,7 @@ var hostRefs = []string{
 	"query_results",
 	"host_activities",
 	"host_mdm_actions",
+	"host_calendar_events",
 }
 
 // NOTE: The following tables are explicity excluded from hostRefs list and accordingly are not

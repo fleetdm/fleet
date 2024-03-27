@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fleetdm/fleet/v4/server/pubsub"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +18,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/fleetdm/fleet/v4/server/pubsub"
 
 	"github.com/fleetdm/fleet/v4/pkg/optjson"
 	"github.com/fleetdm/fleet/v4/server/datastore/mysql"
@@ -97,6 +98,25 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	s.Do("POST", "/api/latest/fleet/teams", team, http.StatusOK)
 
+	// Create global calendar integration
+	calendarEmail := "service@example.com"
+	calendarWebhookUrl := "https://example.com/webhook"
+	s.DoRaw(
+		"PATCH", "/api/v1/fleet/config", []byte(fmt.Sprintf(
+			`{
+		"integrations": {
+			"google_calendar": [{
+				"api_key_json": {
+					"client_email": %q,
+					"private_key": "testKey"
+				},
+				"domain": "example.com"
+			}]
+		}
+	}`, calendarEmail,
+		)), http.StatusOK,
+	)
+
 	// updates a team, no secret is provided so it will keep the one generated
 	// automatically when the team was created.
 	agentOpts := json.RawMessage(`{"config": {"views": {"foo": "bar"}}, "overrides": {"platforms": {"darwin": {"views": {"bar": "qux"}}}}}`)
@@ -149,8 +169,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			// because the MacOSSetup was marshalled to JSON to be saved in the DB,
 			// it did get marshalled, and then when unmarshalled it was set (but
 			// null).
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		// because the WindowsSettings was marshalled to JSON to be saved in the DB,
 		// it did get marshalled, and then when unmarshalled it was set (but
@@ -162,6 +183,38 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 
 	// an activity was created for team spec applied
 	s.lastActivityMatches(fleet.ActivityTypeAppliedSpecTeam{}.ActivityName(), fmt.Sprintf(`{"teams": [{"id": %d, "name": %q}]}`, team.ID, team.Name), 0)
+
+	// Create team policy
+	teamPolicy, err := s.ds.NewTeamPolicy(
+		context.Background(), team.ID, nil, fleet.PolicyPayload{Name: "TestSpecTeamPolicy", Query: "SELECT 1"},
+	)
+	require.NoError(t, err)
+	defer func() {
+		_, err = s.ds.DeleteTeamPolicies(context.Background(), team.ID, []uint{teamPolicy.ID})
+		require.NoError(t, err)
+	}()
+
+	// Apply calendar integration
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"integrations": map[string]any{
+					"google_calendar": map[string]any{
+						"enable_calendar_events": true,
+						"webhook_url":            calendarWebhookUrl,
+					},
+				},
+			},
+		},
+	}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp)
+	require.Len(t, applyResp.TeamIDsByName, 1)
+
+	team, err = s.ds.TeamByName(context.Background(), teamName)
+	require.NotNil(t, team.Config.Integrations.GoogleCalendar)
+	assert.Equal(t, calendarWebhookUrl, team.Config.Integrations.GoogleCalendar.WebhookURL)
+	assert.True(t, team.Config.Integrations.GoogleCalendar.Enable)
 
 	// dry-run with invalid windows updates
 	teamSpecs = map[string]any{
@@ -210,8 +263,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -231,8 +285,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -254,8 +309,9 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 			GracePeriodDays: optjson.SetInt(1),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -343,6 +399,40 @@ func (s *integrationEnterpriseTestSuite) TestTeamSpecs() {
 	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
 	errMsg = extractServerErrorText(res.Body)
 	require.Contains(t, errMsg, "Couldn't update macos_settings because MDM features aren't turned on in Fleet.")
+
+	// dry-run with macos enable release device set to false, no error
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_release_device_manually": false,
+					},
+				},
+			},
+		},
+	}
+	applyResp = applyTeamSpecsResponse{}
+	s.DoJSON("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusOK, &applyResp, "dry_run", "true")
+	assert.Equal(t, map[string]uint{teamName: team.ID}, applyResp.TeamIDsByName)
+
+	// dry-run with macos enable release device manually set to true
+	teamSpecs = map[string]any{
+		"specs": []any{
+			map[string]any{
+				"name": teamName,
+				"mdm": map[string]any{
+					"macos_setup": map[string]any{
+						"enable_release_device_manually": true,
+					},
+				},
+			},
+		},
+	}
+	res = s.Do("POST", "/api/latest/fleet/spec/teams", teamSpecs, http.StatusUnprocessableEntity, "dry_run", "true")
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, "Couldn't update macos_setup because MDM features aren't turned on in Fleet.")
 
 	// dry-run with invalid host_expiry_settings.host_expiry_window
 	teamSpecs = map[string]any{
@@ -970,6 +1060,21 @@ func (s *integrationEnterpriseTestSuite) TestTeamEndpoints() {
 	// invalid team host expiry (<= 0)
 	modifyExpiry.HostExpirySettings.HostExpiryWindow = 0
 	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyExpiry, http.StatusUnprocessableEntity, &tmResp)
+
+	// Modify team's calendar config
+	modifyCalendar := fleet.TeamPayload{
+		Integrations: &fleet.TeamIntegrations{
+			GoogleCalendar: &fleet.TeamGoogleCalendarIntegration{
+				WebhookURL: "https://example.com/modified",
+			},
+		},
+	}
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusOK, &tmResp)
+	assert.Equal(t, modifyCalendar.Integrations.GoogleCalendar, tmResp.Team.Config.Integrations.GoogleCalendar)
+
+	// Illegal team calendar config
+	modifyCalendar.Integrations.GoogleCalendar.Enable = true
+	s.DoJSON("PATCH", fmt.Sprintf("/api/latest/fleet/teams/%d", tm1ID), modifyCalendar, http.StatusUnprocessableEntity, &tmResp)
 
 	// list team users
 	var usersResp listUsersResponse
@@ -1920,8 +2025,9 @@ func (s *integrationEnterpriseTestSuite) TestWindowsUpdatesTeamConfig() {
 			GracePeriodDays: optjson.SetInt(2),
 		},
 		MacOSSetup: fleet.MacOSSetup{
-			MacOSSetupAssistant: optjson.String{Set: true},
-			BootstrapPackage:    optjson.String{Set: true},
+			MacOSSetupAssistant:         optjson.String{Set: true},
+			BootstrapPackage:            optjson.String{Set: true},
+			EnableReleaseDeviceManually: optjson.SetBool(false),
 		},
 		WindowsSettings: fleet.WindowsSettings{
 			CustomSettings: optjson.Slice[fleet.MDMProfileSpec]{Set: true, Value: []fleet.MDMProfileSpec{}},
@@ -3531,6 +3637,17 @@ func (s *integrationEnterpriseTestSuite) TestMDMNotConfiguredEndpoints() {
 	var reqCSRResp requestMDMAppleCSRResponse
 	s.DoJSON("POST", "/api/latest/fleet/mdm/apple/request_csr", requestMDMAppleCSRRequest{EmailAddress: "a@b.c", Organization: "test"}, http.StatusOK, &reqCSRResp)
 	s.Do("POST", "/api/latest/fleet/mdm/apple/dep/key_pair", nil, http.StatusOK)
+
+	// setting enable release device manually requires MDM
+	res := s.Do("PATCH", "/api/v1/fleet/setup_experience", fleet.MDMAppleSetupPayload{EnableReleaseDeviceManually: ptr.Bool(true)}, http.StatusBadRequest)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, fleet.ErrMDMNotConfigured.Error())
+
+	res = s.Do("PATCH", "/api/v1/fleet/config", json.RawMessage(`{
+		"mdm": { "macos_setup": { "enable_release_device_manually": true } }
+	}`), http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(t, errMsg, `Couldn't update macos_setup because MDM features aren't turned on in Fleet.`)
 }
 
 func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
@@ -3613,7 +3730,7 @@ func (s *integrationEnterpriseTestSuite) TestGlobalPolicyCreateReadPatch() {
 }
 
 func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
-	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical"}
+	fields := []string{"Query", "Name", "Description", "Resolution", "Platform", "Critical", "CalendarEventsEnabled"}
 
 	team1, err := s.ds.NewTeam(context.Background(), &fleet.Team{
 		ID:          42,
@@ -3624,24 +3741,26 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	createPol1 := &teamPolicyResponse{}
 	createPol1Req := &teamPolicyRequest{
-		Query:       "query",
-		Name:        "name1",
-		Description: "description",
-		Resolution:  "resolution",
-		Platform:    "linux",
-		Critical:    true,
+		Query:                 "query",
+		Name:                  "name1",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              true,
+		CalendarEventsEnabled: true,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol1Req, http.StatusOK, &createPol1)
 	allEqual(s.T(), createPol1Req, createPol1.Policy, fields...)
 
 	createPol2 := &teamPolicyResponse{}
 	createPol2Req := &teamPolicyRequest{
-		Query:       "query",
-		Name:        "name2",
-		Description: "description",
-		Resolution:  "resolution",
-		Platform:    "linux",
-		Critical:    false,
+		Query:                 "query",
+		Name:                  "name2",
+		Description:           "description",
+		Resolution:            "resolution",
+		Platform:              "linux",
+		Critical:              false,
+		CalendarEventsEnabled: false,
 	}
 	s.DoJSON("POST", fmt.Sprintf("/api/latest/fleet/teams/%d/policies", team1.ID), createPol2Req, http.StatusOK, &createPol2)
 	allEqual(s.T(), createPol2Req, createPol2.Policy, fields...)
@@ -3657,12 +3776,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol1Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName1"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(false),
+			Name:                  ptr.String("newName1"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(false),
+			CalendarEventsEnabled: ptr.Bool(false),
 		},
 	}
 	patchPol1 := &modifyTeamPolicyResponse{}
@@ -3671,12 +3791,13 @@ func (s *integrationEnterpriseTestSuite) TestTeamPolicyCreateReadPatch() {
 
 	patchPol2Req := &modifyTeamPolicyRequest{
 		ModifyPolicyPayload: fleet.ModifyPolicyPayload{
-			Name:        ptr.String("newName2"),
-			Query:       ptr.String("newQuery"),
-			Description: ptr.String("newDescription"),
-			Resolution:  ptr.String("newResolution"),
-			Platform:    ptr.String("windows"),
-			Critical:    ptr.Bool(true),
+			Name:                  ptr.String("newName2"),
+			Query:                 ptr.String("newQuery"),
+			Description:           ptr.String("newDescription"),
+			Resolution:            ptr.String("newResolution"),
+			Platform:              ptr.String("windows"),
+			Critical:              ptr.Bool(true),
+			CalendarEventsEnabled: ptr.Bool(true),
 		},
 	}
 	patchPol2 := &modifyTeamPolicyResponse{}

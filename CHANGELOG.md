@@ -1,3 +1,11 @@
+## Fleet 4.47.2 (Mar 22, 2024)
+
+### Bug fixes
+
+* Fixed false negative vulnerabilities on macOS Homebrew Python packages.
+* Fixed policies to check "disable guest user".
+* Resolved the issue where Microsoft Edge was not reporting vulnerabilities.
+
 ## Fleet 4.47.1 (Mar 18, 2024)
 
 ### Bug fixes

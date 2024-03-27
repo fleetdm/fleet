@@ -120,6 +120,9 @@ func (t *Team) UnmarshalJSON(b []byte) error {
 		return err
 	}
 
+	if !x.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		x.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	*t = Team{
 		ID:          x.ID,
 		CreatedAt:   x.CreatedAt,
@@ -241,6 +244,10 @@ func (t *TeamConfig) Scan(val interface{}) error {
 
 // Value implements the sql.Valuer interface
 func (t TeamConfig) Value() (driver.Value, error) {
+	// force-save as the default `false` value if not set
+	if !t.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		t.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
+	}
 	return json.Marshal(t)
 }
 
@@ -404,10 +411,18 @@ type TeamSpec struct {
 	MDM                TeamSpecMDM             `json:"mdm"`
 	Scripts            optjson.Slice[string]   `json:"scripts"`
 	WebhookSettings    TeamSpecWebhookSettings `json:"webhook_settings"`
+	Integrations       TeamSpecIntegrations    `json:"integrations"`
 }
 
 type TeamSpecWebhookSettings struct {
 	HostStatusWebhook *HostStatusWebhookSettings `json:"host_status_webhook"`
+}
+
+// TeamSpecIntegrations contains the configuration for external services'
+// integrations for a specific team.
+type TeamSpecIntegrations struct {
+	// If value is nil, we don't want to change the existing value.
+	GoogleCalendar *TeamGoogleCalendarIntegration `json:"google_calendar"`
 }
 
 // TeamSpecFromTeam returns a TeamSpec constructed from the given Team.
@@ -443,6 +458,11 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		webhookSettings.HostStatusWebhook = t.Config.WebhookSettings.HostStatusWebhook
 	}
 
+	var integrations TeamSpecIntegrations
+	if t.Config.Integrations.GoogleCalendar != nil {
+		integrations.GoogleCalendar = t.Config.Integrations.GoogleCalendar
+	}
+
 	return &TeamSpec{
 		Name:               t.Name,
 		AgentOptions:       agentOptions,
@@ -451,5 +471,6 @@ func TeamSpecFromTeam(t *Team) (*TeamSpec, error) {
 		MDM:                mdmSpec,
 		HostExpirySettings: &t.Config.HostExpirySettings,
 		WebhookSettings:    webhookSettings,
+		Integrations:       integrations,
 	}, nil
 }

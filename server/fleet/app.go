@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"reflect"
 	"regexp"
@@ -380,6 +381,7 @@ type MacOSSetup struct {
 	BootstrapPackage            optjson.String `json:"bootstrap_package"`
 	EnableEndUserAuthentication bool           `json:"enable_end_user_authentication"`
 	MacOSSetupAssistant         optjson.String `json:"macos_setup_assistant"`
+	EnableReleaseDeviceManually optjson.Bool   `json:"enable_release_device_manually"`
 }
 
 // MacOSMigration contains settings related to the MDM migration work flow.
@@ -566,6 +568,15 @@ func (c *AppConfig) Copy() *AppConfig {
 		for i, z := range c.Integrations.Zendesk {
 			zd := *z
 			clone.Integrations.Zendesk[i] = &zd
+		}
+	}
+	if len(c.Integrations.GoogleCalendar) > 0 {
+		clone.Integrations.GoogleCalendar = make([]*GoogleCalendarIntegration, len(c.Integrations.GoogleCalendar))
+		for i, g := range c.Integrations.GoogleCalendar {
+			gCal := *g
+			clone.Integrations.GoogleCalendar[i] = &gCal
+			clone.Integrations.GoogleCalendar[i].ApiKey = make(map[string]string, len(g.ApiKey))
+			maps.Copy(clone.Integrations.GoogleCalendar[i].ApiKey, g.ApiKey)
 		}
 	}
 
@@ -808,6 +819,9 @@ func (c AppConfig) MarshalJSON() ([]byte, error) {
 	// it's not valid.
 	if !c.MDM.EnableDiskEncryption.Valid {
 		c.MDM.EnableDiskEncryption = optjson.SetBool(false)
+	}
+	if !c.MDM.MacOSSetup.EnableReleaseDeviceManually.Valid {
+		c.MDM.MacOSSetup.EnableReleaseDeviceManually = optjson.SetBool(false)
 	}
 
 	type aliasConfig AppConfig

@@ -30,6 +30,8 @@ For the MDM protocol to function, we need to generate the four following files:
 
 The APNs certificates serve as authentication between Fleet and Apple, while the SCEP certificates serve as authentication between Fleet and hosts.
 
+> To prevent abuse, please use your work email. If your email isn't accepted, please make sure it's not on this [list of blocked emails].(https://github.com/fleetdm/fleet/blob/d5df23964b0b52f1d442b66ffe4451dc2a9ef969/website/api/controllers/deliver-apple-csr.js#L60)
+
 Use either of the following methods to generate the necessary files:
 
 #### Fleet UI

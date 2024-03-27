@@ -20,6 +20,10 @@ github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	MacOSSetup	fleet.MacOSSetup
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	BootstrapPackage	optjson.String
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableEndUserAuthentication	bool
 github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	MacOSSetupAssistant	optjson.String
+github.com/fleetdm/fleet/v4/server/fleet/MacOSSetup	EnableReleaseDeviceManually	optjson.Bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Set	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Valid	bool
+github.com/fleetdm/fleet/v4/pkg/optjson/Bool	Value	bool
 github.com/fleetdm/fleet/v4/server/fleet/TeamMDM	WindowsSettings	fleet.WindowsSettings
 github.com/fleetdm/fleet/v4/server/fleet/WindowsSettings	CustomSettings	optjson.Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]
 github.com/fleetdm/fleet/v4/pkg/optjson/Slice[github.com/fleetdm/fleet/v4/server/fleet.MDMProfileSpec]	Set	bool

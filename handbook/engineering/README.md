@@ -124,6 +124,7 @@ Next, create a new GitHub issue using the [Release QA template](https://github.c
 
 The issue's template will contain validation steps for Fleet and individual `fleetd` components. Remove any instructions that do not apply to this release.
 
+
 ### Indicate your product group is release-ready
 Once a product group completes its QA process during the freeze period, its QA lead moves the smoke testing ticket to the "Ready for release" column on their ZenHub board. They then notify the release ritual DRI by tagging them in a comment, indicating that their group is prepared for release. The release ritual DRI starts the [release process](https://github.com/fleetdm/fleet/blob/main/docs/Contributing/Releasing-Fleet.md) after all QA leads have made these updates and confirmed their readiness for release.
 

@@ -113,7 +113,7 @@ When the Actions Workflow has been completed, [publish the new version of Fleet]
 
 2. Check the [Docker Publish GitHub action](https://github.com/fleetdm/fleet/actions/workflows/goreleaser-snapshot-fleet.yaml) to confirm it completes successfully for this branch.
 
-3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/smoke-tests.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
+3. Create a [Release QA](https://github.com/fleetdm/fleet/blob/main/.github/ISSUE_TEMPLATE/release-qa.md) issue. Populate the version and browsers, and assign to the QA person leading the release. Add the appropriate [product group label](https://fleetdm.com/handbook/company/product-groups), and `:release` label, so that it appears on the product group's release board.
 
 4. Notify QA that the release candidate is ready for (release QA)[#complete-release-qa].
 

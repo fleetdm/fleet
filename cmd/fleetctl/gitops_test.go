@@ -361,6 +361,8 @@ func TestFullGlobalGitOps(t *testing.T) {
 	assert.Len(t, appliedScripts, 1)
 	assert.Len(t, appliedMacProfiles, 1)
 	assert.Len(t, appliedWinProfiles, 1)
+	require.Len(t, savedAppConfig.Integrations.GoogleCalendar, 1)
+	assert.Equal(t, "service@example.com", savedAppConfig.Integrations.GoogleCalendar[0].ApiKey["client_email"])
 }
 
 func TestFullTeamGitOps(t *testing.T) {
@@ -389,6 +391,9 @@ func TestFullTeamGitOps(t *testing.T) {
 			MDM: fleet.MDM{
 				EnabledAndConfigured:        true,
 				WindowsEnabledAndConfigured: true,
+			},
+			Integrations: fleet.Integrations{
+				GoogleCalendar: []*fleet.GoogleCalendarIntegration{{}},
 			},
 		}, nil
 	}
@@ -537,6 +542,8 @@ func TestFullTeamGitOps(t *testing.T) {
 	assert.Len(t, appliedWinProfiles, 1)
 	assert.True(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "https://example.com/host_status_webhook", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	require.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.True(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
 
 	// Now clear the settings
 	tmpFile, err := os.CreateTemp(t.TempDir(), "*.yml")
@@ -570,6 +577,9 @@ team_settings:
 	assert.Equal(t, secret, enrolledSecrets[0].Secret)
 	assert.False(t, savedTeam.Config.WebhookSettings.HostStatusWebhook.Enable)
 	assert.Equal(t, "", savedTeam.Config.WebhookSettings.HostStatusWebhook.DestinationURL)
+	assert.NotNil(t, savedTeam.Config.Integrations.GoogleCalendar)
+	assert.False(t, savedTeam.Config.Integrations.GoogleCalendar.Enable)
+	assert.Empty(t, savedTeam.Config.Integrations.GoogleCalendar)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSSettings.CustomSettings)
 	assert.Empty(t, savedTeam.Config.MDM.WindowsSettings.CustomSettings.Value)
 	assert.Empty(t, savedTeam.Config.MDM.MacOSUpdates.Deadline.Value)

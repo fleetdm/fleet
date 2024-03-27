@@ -416,6 +416,7 @@ func (p MDMAppleSettingsPayload) AuthzType() string {
 type MDMAppleSetupPayload struct {
 	TeamID                      *uint `json:"team_id"`
 	EnableEndUserAuthentication *bool `json:"enable_end_user_authentication"`
+	EnableReleaseDeviceManually *bool `json:"enable_release_device_manually"`
 }
 
 // AuthzType implements authz.AuthzTyper.
