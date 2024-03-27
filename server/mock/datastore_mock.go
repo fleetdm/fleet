@@ -766,9 +766,7 @@ type MDMAppleDDMDeclarationItemsFunc func(ctx context.Context, hostUUID string) 
 
 type MDMAppleDDMDeclarationsResponseFunc func(ctx context.Context, identifier string, hostUUID string) (*fleet.MDMAppleDeclaration, error)
 
-type MDMAppleGetHostsWithChangedDeclarationsFunc func(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error)
-
-type MDMAppleBatchInsertHostDeclarationsFunc func(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error
+type MDMAppleBatchSetHostDeclarationStateFunc func(ctx context.Context) ([]string, error)
 
 type MDMAppleStoreDDMStatusReportFunc func(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error
 
@@ -2001,11 +1999,8 @@ type DataStore struct {
 	MDMAppleDDMDeclarationsResponseFunc        MDMAppleDDMDeclarationsResponseFunc
 	MDMAppleDDMDeclarationsResponseFuncInvoked bool
 
-	MDMAppleGetHostsWithChangedDeclarationsFunc        MDMAppleGetHostsWithChangedDeclarationsFunc
-	MDMAppleGetHostsWithChangedDeclarationsFuncInvoked bool
-
-	MDMAppleBatchInsertHostDeclarationsFunc        MDMAppleBatchInsertHostDeclarationsFunc
-	MDMAppleBatchInsertHostDeclarationsFuncInvoked bool
+	MDMAppleBatchSetHostDeclarationStateFunc        MDMAppleBatchSetHostDeclarationStateFunc
+	MDMAppleBatchSetHostDeclarationStateFuncInvoked bool
 
 	MDMAppleStoreDDMStatusReportFunc        MDMAppleStoreDDMStatusReportFunc
 	MDMAppleStoreDDMStatusReportFuncInvoked bool
@@ -4790,18 +4785,11 @@ func (s *DataStore) MDMAppleDDMDeclarationsResponse(ctx context.Context, identif
 	return s.MDMAppleDDMDeclarationsResponseFunc(ctx, identifier, hostUUID)
 }
 
-func (s *DataStore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {
+func (s *DataStore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
 	s.mu.Lock()
-	s.MDMAppleGetHostsWithChangedDeclarationsFuncInvoked = true
+	s.MDMAppleBatchSetHostDeclarationStateFuncInvoked = true
 	s.mu.Unlock()
-	return s.MDMAppleGetHostsWithChangedDeclarationsFunc(ctx)
-}
-
-func (s *DataStore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error {
-	s.mu.Lock()
-	s.MDMAppleBatchInsertHostDeclarationsFuncInvoked = true
-	s.mu.Unlock()
-	return s.MDMAppleBatchInsertHostDeclarationsFunc(ctx, changedDeclarations)
+	return s.MDMAppleBatchSetHostDeclarationStateFunc(ctx)
 }
 
 func (s *DataStore) MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*fleet.MDMAppleHostDeclaration) error {

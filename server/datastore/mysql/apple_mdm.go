@@ -2012,11 +2012,11 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 		return err
 	}
 
-	var (
-		args       []any
-		sb         strings.Builder
-		batchCount int
-	)
+	generateValueArgs := func(p *fleet.MDMAppleBulkUpsertHostProfilePayload) (string, []any) {
+		valuePart := "(?, ?, ?, ?, ?, ?, ?, ?, ?),"
+		args := []any{p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum}
+		return valuePart, args
+	}
 
 	const defaultBatchSize = 1000 // results in this times 9 placeholders
 	batchSize := defaultBatchSize
@@ -2024,30 +2024,10 @@ func (ds *Datastore) BulkUpsertMDMAppleHostProfiles(ctx context.Context, payload
 		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
-	resetBatch := func() {
-		batchCount = 0
-		args = args[:0]
-		sb.Reset()
+	if err := batchProcessDB(payload, batchSize, generateValueArgs, executeUpsertBatch); err != nil {
+		return err
 	}
 
-	for _, p := range payload {
-		args = append(args, p.ProfileUUID, p.ProfileIdentifier, p.ProfileName, p.HostUUID, p.Status, p.OperationType, p.Detail, p.CommandUUID, p.Checksum)
-		sb.WriteString("(?, ?, ?, ?, ?, ?, ?, ?, ?),")
-		batchCount++
-
-		if batchCount >= batchSize {
-			if err := executeUpsertBatch(sb.String(), args); err != nil {
-				return err
-			}
-			resetBatch()
-		}
-	}
-
-	if batchCount > 0 {
-		if err := executeUpsertBatch(sb.String(), args); err != nil {
-			return err
-		}
-	}
 	return nil
 }
 
@@ -3770,25 +3750,71 @@ WHERE
 	return &res, nil
 }
 
-func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error {
-	const stmt = `
-INSERT INTO
-    mdm_apple_declarative_requests (
-        enrollment_id,
-        message_type,
-        raw_json
-    )
-VALUES
-    (?, ?, ?)
-`
-	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, messageType, rawJSON); err != nil {
-		return ctxerr.Wrap(ctx, err, "writing apple declarative request to db")
+func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error) {
+	var uuids []string
+
+	const defaultBatchSize = 1000
+	batchSize := defaultBatchSize
+	if ds.testUpsertMDMDesiredProfilesBatchSize > 0 {
+		batchSize = ds.testUpsertMDMDesiredProfilesBatchSize
 	}
 
-	return nil
+	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
+		var err error
+		uuids, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
+		return err
+	})
+
+	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
 }
 
-func (ds *Datastore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, changedDeclarations []*fleet.MDMAppleHostDeclaration) error {
+func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int, status *fleet.MDMDeliveryStatus) ([]string, error) {
+	// once all the declarations are in place, compute the desired state
+	// and find which hosts need a DDM sync.
+	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
+	if err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "find hosts with changed declarations")
+	}
+
+	if len(changedDeclarations) == 0 {
+		return []string{}, nil
+	}
+
+	// a host might have more than one declaration to sync, we do this to
+	// collect unique host UUIDs in order to send a single command to each
+	// host in the next step
+	uuidMap := map[string]struct{}{}
+	for _, d := range changedDeclarations {
+		uuidMap[d.HostUUID] = struct{}{}
+	}
+	uuids := make([]string, 0, len(uuidMap))
+	for uuid := range uuidMap {
+		uuids = append(uuids, uuid)
+	}
+
+	// mark the host declarations as pending, this serves two purposes:
+	//
+	// - support the APIs/methods that track host status (summaries, filters, etc)
+	//
+	// - support the DDM endpoints, which use data from the
+	//   `host_mdm_apple_declarations` table to compute which declarations to
+	//   serve
+	if err := mdmAppleBatchSetPendingHostDeclarationsDB(ctx, tx, batchSize, changedDeclarations, status); err != nil {
+		return nil, ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
+	}
+
+	return uuids, nil
+}
+
+// mdmAppleBatchSetPendingHostDeclarationsDB tracks the current status of all
+// the host declarations provided.
+func mdmAppleBatchSetPendingHostDeclarationsDB(
+	ctx context.Context,
+	tx sqlx.ExtContext,
+	batchSize int,
+	changedDeclarations []*fleet.MDMAppleHostDeclaration,
+	status *fleet.MDMDeliveryStatus,
+) error {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
 	    (host_uuid, status, operation_type, checksum, declaration_uuid, declaration_identifier, declaration_name)
@@ -3799,21 +3825,32 @@ func (ds *Datastore) MDMAppleBatchInsertHostDeclarations(ctx context.Context, ch
 	    operation_type = VALUES(operation_type),
 	    checksum = VALUES(checksum)
 	  `
-	var placeholders strings.Builder
-	var args []any
-	for _, d := range changedDeclarations {
-		placeholders.WriteString("(?, 'pending', ?, ?, ?, ?, ?),")
-		args = append(args, d.HostUUID, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name)
+
+	executeUpsertBatch := func(valuePart string, args []any) error {
+		_, err := tx.ExecContext(
+			ctx,
+			fmt.Sprintf(baseStmt, strings.TrimSuffix(valuePart, ",")),
+			args...,
+		)
+		return err
 	}
-	_, err := ds.writer(ctx).ExecContext(
-		ctx,
-		fmt.Sprintf(baseStmt, strings.TrimSuffix(placeholders.String(), ",")),
-		args...,
-	)
+
+	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
+		valuePart := "(?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name}
+		return valuePart, args
+	}
+
+	err := batchProcessDB(changedDeclarations, batchSize, generateValueArgs, executeUpsertBatch)
 	return ctxerr.Wrap(ctx, err, "inserting changed host declaration state")
 }
 
-func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context) ([]*fleet.MDMAppleHostDeclaration, error) {
+// mdmAppleGetHostsWithChangedDeclarationsDB returns a
+// MDMAppleHostDeclaration item for each (host x declaration) pair that
+// needs an status change, this includes declarations to install and
+// declarations to be removed. Those can be differentiated by the
+// OperationType field on each struct.
+func mdmAppleGetHostsWithChangedDeclarationsDB(ctx context.Context, tx sqlx.ExtContext) ([]*fleet.MDMAppleHostDeclaration, error) {
 	stmt := fmt.Sprintf(`
         (
             SELECT
@@ -3844,7 +3881,7 @@ func (ds *Datastore) MDMAppleGetHostsWithChangedDeclarations(ctx context.Context
 	)
 
 	var decls []*fleet.MDMAppleHostDeclaration
-	if err := sqlx.SelectContext(ctx, ds.reader(ctx), &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
+	if err := sqlx.SelectContext(ctx, tx, &decls, stmt, fleet.MDMOperationTypeRemove, fleet.MDMOperationTypeInstall, fleet.MDMOperationTypeRemove); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "running sql statement")
 	}
 	return decls, nil
@@ -3870,7 +3907,7 @@ ON DUPLICATE KEY UPDATE
 
 	deletePendingRemovesStmt := `
   DELETE FROM host_mdm_apple_declarations
-  WHERE host_uuid = ? AND operation_type = 'remove' AND status = 'pending'
+  WHERE host_uuid = ? AND operation_type = 'remove' AND (status = 'pending' OR status IS NULL)
   `
 
 	var current []*fleet.MDMAppleHostDeclaration
@@ -3925,4 +3962,22 @@ func (ds *Datastore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hos
 		fleet.MDMOperationTypeInstall, fleet.MDMDeliveryPending, hostUUID,
 	)
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
+}
+
+func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error {
+	const stmt = `
+INSERT INTO
+    mdm_apple_declarative_requests (
+        enrollment_id,
+        message_type,
+        raw_json
+    )
+VALUES
+    (?, ?, ?)
+`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, messageType, rawJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing apple declarative request to db")
+	}
+
+	return nil
 }
