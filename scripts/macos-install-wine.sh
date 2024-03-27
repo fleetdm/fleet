@@ -2,8 +2,9 @@
 
 set -eo pipefail
 
+# Run this script in user context (not root).
 # Reference: https://wiki.winehq.org/MacOS
-# NOTE: Wine can be installed without brew via a distribution such as https://github.com/Gcenx/macOS_Wine_builds/releases/tag/9.0, or by building from source.
+# Wine can be installed without brew via a distribution such as https://github.com/Gcenx/macOS_Wine_builds/releases/tag/9.0, or by building from source.
 
 # Check if brew is installed
 if ! command -v brew >/dev/null 2>&1 ; then

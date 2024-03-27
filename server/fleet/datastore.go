@@ -927,6 +927,9 @@ type Datastore interface {
 	// profile uuid.
 	GetMDMAppleConfigProfile(ctx context.Context, profileUUID string) (*MDMAppleConfigProfile, error)
 
+	// GetMDMAppleDeclaration returns the declaration corresponding to the specified uuid.
+	GetMDMAppleDeclaration(ctx context.Context, declUUID string) (*MDMAppleDeclaration, error)
+
 	// ListMDMAppleConfigProfiles lists mdm config profiles associated with the specified team id.
 	// For global config profiles, specify nil as the team id.
 	ListMDMAppleConfigProfiles(ctx context.Context, teamID *uint) ([]*MDMAppleConfigProfile, error)
@@ -1169,6 +1172,29 @@ type Datastore interface {
 	// serials.
 	UpdateDEPAssignProfileRetryPending(ctx context.Context, jobID uint, serials []string) error
 
+	// InsertMDMAppleDDMRequest inserts a DDM request.
+	InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error
+
+	// MDMAppleDDMDeclarationsToken returns the token used to synchronize declarations for the
+	// specified host UUID.
+	MDMAppleDDMDeclarationsToken(ctx context.Context, hostUUID string) (*MDMAppleDDMDeclarationsToken, error)
+	// MDMAppleDDMDeclarationItems returns the declaration items for the specified host UUID.
+	MDMAppleDDMDeclarationItems(ctx context.Context, hostUUID string) ([]MDMAppleDDMDeclarationItem, error)
+	// MDMAppleDDMDeclarationPayload returns the declaration payload for the specified identifier and team.
+	MDMAppleDDMDeclarationsResponse(ctx context.Context, identifier string, hostUUID string) (*MDMAppleDeclaration, error)
+	//MDMAppleBatchSetHostDeclarationState
+	MDMAppleBatchSetHostDeclarationState(ctx context.Context) ([]string, error)
+	// MDMAppleStoreDDMStatusReport receives a host.uuid and a slice
+	// of declarations, and updates the tracked host declaration status for
+	// matching declarations.
+	//
+	// It also takes care of cleaning up all host declarations that are
+	// pending removal.
+	MDMAppleStoreDDMStatusReport(ctx context.Context, hostUUID string, updates []*MDMAppleHostDeclaration) error
+	// MDMAppleSetDeclarationsAsVerifying updates all
+	// ("pending", "install") declarations for a host to be ("verifying", "install")
+	MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hostUUID string) error
+
 	///////////////////////////////////////////////////////////////////////////////
 	// Microsoft MDM
 
@@ -1287,7 +1313,10 @@ type Datastore interface {
 
 	// BatchSetMDMProfiles sets the MDM Apple or Windows profiles for the given team or
 	// no team in a single transaction.
-	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile) error
+	BatchSetMDMProfiles(ctx context.Context, tmID *uint, macProfiles []*MDMAppleConfigProfile, winProfiles []*MDMWindowsConfigProfile, macDeclarations []*MDMAppleDeclaration) error
+
+	// NewMDMAppleDeclaration creates and returns a new MDM Apple declaration.
+	NewMDMAppleDeclaration(ctx context.Context, declaration *MDMAppleDeclaration) (*MDMAppleDeclaration, error)
 
 	///////////////////////////////////////////////////////////////////////////////
 	// Host Script Results

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/explicit-module-boundary-types */
 import {
   DiskEncryptionStatus,
+  IHostMdmProfile,
   IMdmProfile,
   MdmProfileStatus,
 } from "interfaces/mdm";
@@ -46,6 +47,10 @@ export interface IUploadProfileApiParams {
   teamId?: number;
   labels?: string[];
 }
+
+export const isDDMProfile = (profile: IMdmProfile | IHostMdmProfile) => {
+  return profile.profile_uuid.startsWith("d");
+};
 
 interface IUpdateSetupExperienceBody {
   team_id?: number;

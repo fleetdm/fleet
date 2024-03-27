@@ -9,6 +9,7 @@ import (
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -21,6 +22,7 @@ import (
 	"time"
 
 	"github.com/fleetdm/fleet/v4/pkg/fleethttp"
+	"github.com/fleetdm/fleet/v4/server/fleet"
 	apple_mdm "github.com/fleetdm/fleet/v4/server/mdm/apple"
 	"github.com/fleetdm/fleet/v4/server/mdm/nanomdm/mdm"
 	"github.com/fleetdm/fleet/v4/server/mdm/scep/cryptoutil/x509util"
@@ -31,7 +33,6 @@ import (
 	httptransport "github.com/go-kit/kit/transport/http"
 	"github.com/google/uuid"
 	"github.com/groob/plist"
-	micromdm "github.com/micromdm/micromdm/mdm/mdm"
 	"go.mozilla.org/pkcs7"
 )
 
@@ -386,6 +387,30 @@ func (c *TestAppleMDMClient) TokenUpdate() error {
 	return err
 }
 
+// DeclarativeManagement sends a DeclarativeManagement checkin request to the server.
+//
+// The endpoint argument is used as the value for the `Endpoint` key in the request payload.
+//
+// For more details check https://developer.apple.com/documentation/devicemanagement/declarativemanagementrequest
+func (c *TestAppleMDMClient) DeclarativeManagement(endpoint string, data ...fleet.MDMAppleDDMStatusReport) (*http.Response, error) {
+	payload := map[string]any{
+		"MessageType":  "DeclarativeManagement",
+		"UDID":         c.UUID,
+		"Topic":        "com.apple.mgmt.External." + c.UUID,
+		"EnrollmentID": "testenrollmentid-" + c.UUID,
+		"Endpoint":     endpoint,
+	}
+	if len(data) != 0 {
+		rawData, err := json.Marshal(data[0])
+		if err != nil {
+			return nil, fmt.Errorf("marshaling status report: %w", err)
+		}
+		payload["Data"] = rawData
+	}
+	r, err := c.request("application/x-apple-aspen-mdm-checkin", payload)
+	return r, err
+}
+
 // Checkout sends the CheckOut message to the MDM server.
 func (c *TestAppleMDMClient) Checkout() error {
 	payload := map[string]any{
@@ -404,7 +429,7 @@ func (c *TestAppleMDMClient) Checkout() error {
 // receive commands. The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Idle() (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Idle() (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Idle",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -420,7 +445,7 @@ func (c *TestAppleMDMClient) Idle() (*micromdm.CommandPayload, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Acknowledge(cmdUUID string) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Acknowledged",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -473,7 +498,7 @@ func (c *TestAppleMDMClient) GetBootstrapToken() ([]byte, error) {
 // The server can signal back with either a command to run
 // or an empty (nil, nil) response body to end the communication
 // (i.e. no commands to run).
-func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mdm.Command, error) {
 	payload := map[string]any{
 		"Status":       "Error",
 		"Topic":        "com.apple.mgmt.External." + c.UUID,
@@ -485,7 +510,7 @@ func (c *TestAppleMDMClient) Err(cmdUUID string, errChain []mdm.ErrorChain) (*mi
 	return c.sendAndDecodeCommandResponse(payload)
 }
 
-func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*micromdm.CommandPayload, error) {
+func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any) (*mdm.Command, error) {
 	res, err := c.request("", payload)
 	if err != nil {
 		return nil, fmt.Errorf("request error: %w", err)
@@ -510,11 +535,12 @@ func (c *TestAppleMDMClient) sendAndDecodeCommandResponse(payload map[string]any
 	if err != nil {
 		return nil, fmt.Errorf("decode command: %w", err)
 	}
-	var p micromdm.CommandPayload
+	var p mdm.Command
 	err = plist.Unmarshal(cmd.Raw, &p)
 	if err != nil {
 		return nil, fmt.Errorf("unmarshal command payload: %w", err)
 	}
+	p.Raw = cmd.Raw
 	return &p, nil
 }
 

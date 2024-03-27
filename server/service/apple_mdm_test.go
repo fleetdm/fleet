@@ -2727,6 +2727,19 @@ func mobileconfigForTest(name, identifier string) []byte {
 `, name, identifier, uuid.New().String()))
 }
 
+func declBytesForTest(identifier string, payloadContent string) []byte {
+	tmpl := `{
+		"Type": "com.apple.configuration.decl%s",
+		"Identifier": "com.fleet.config%s",
+		"Payload": {
+			"ServiceType": "com.apple.service%s"
+		}
+	}`
+
+	declBytes := []byte(fmt.Sprintf(tmpl, identifier, identifier, payloadContent))
+	return declBytes
+}
+
 func mobileconfigForTestWithContent(outerName, outerIdentifier, innerIdentifier, innerType, innerName string) []byte {
 	if innerName == "" {
 		innerName = outerName + ".inner"

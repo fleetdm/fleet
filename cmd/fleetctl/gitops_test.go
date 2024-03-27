@@ -25,6 +25,7 @@ func TestBasicGlobalGitOps(t *testing.T) {
 
 	ds.BatchSetMDMProfilesFunc = func(
 		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		return nil
 	}
@@ -133,7 +134,7 @@ func TestBasicTeamGitOps(t *testing.T) {
 
 	ds.BatchSetScriptsFunc = func(ctx context.Context, tmID *uint, scripts []*fleet.Script) error { return nil }
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		return nil
 	}
@@ -246,7 +247,7 @@ func TestFullGlobalGitOps(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles
@@ -408,7 +409,7 @@ func TestFullTeamGitOps(t *testing.T) {
 	var appliedMacProfiles []*fleet.MDMAppleConfigProfile
 	var appliedWinProfiles []*fleet.MDMWindowsConfigProfile
 	ds.BatchSetMDMProfilesFunc = func(
-		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile,
+		ctx context.Context, tmID *uint, macProfiles []*fleet.MDMAppleConfigProfile, winProfiles []*fleet.MDMWindowsConfigProfile, macDecls []*fleet.MDMAppleDeclaration,
 	) error {
 		appliedMacProfiles = macProfiles
 		appliedWinProfiles = winProfiles

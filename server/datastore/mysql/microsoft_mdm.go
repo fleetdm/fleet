@@ -734,7 +734,7 @@ WHERE
 		return nil, ctxerr.Wrap(ctx, err, "get mdm windows config profile")
 	}
 
-	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil)
+	labels, err := ds.listProfileLabelsForProfiles(ctx, []string{res.ProfileUUID}, nil, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -1495,6 +1495,8 @@ INSERT INTO
 (SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
 	)
 )`
 
@@ -1504,7 +1506,7 @@ INSERT INTO
 	}
 
 	err := ds.withTx(ctx, func(tx sqlx.ExtContext) error {
-		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+		res, err := tx.ExecContext(ctx, insertProfileStmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID)
 		if err != nil {
 			switch {
 			case isDuplicate(err):
@@ -1556,6 +1558,8 @@ INSERT INTO
 (SELECT ?, ?, ?, ?, CURRENT_TIMESTAMP() FROM DUAL WHERE
 	NOT EXISTS (
 		SELECT 1 FROM mdm_apple_configuration_profiles WHERE name = ? AND team_id = ?
+	) AND NOT EXISTS (
+		SELECT 1 FROM mdm_apple_declarations WHERE name = ? AND team_id = ?
 	)
 )
 ON DUPLICATE KEY UPDATE
@@ -1568,7 +1572,7 @@ ON DUPLICATE KEY UPDATE
 		teamID = *cp.TeamID
 	}
 
-	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID)
+	res, err := ds.writer(ctx).ExecContext(ctx, stmt, profileUUID, teamID, cp.Name, cp.SyncML, cp.Name, teamID, cp.Name, teamID)
 	if err != nil {
 		switch {
 		case isDuplicate(err):
