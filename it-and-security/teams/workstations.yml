@@ -55,8 +55,8 @@ controls:
     - path: ../lib/windows-turn-off-mdm.ps1
 policies:
   - path: ../lib/macos-device-health.policies.yml
+  - path: ../lib/windows-device-health.policies.yml
   - path: ../lib/linux-device-health.policies.yml
-  - path: ../../ee/cis/win-11/cis-policy-queries.yml
 queries:
   - path: ../lib/collect-failed-login-attempts.queries.yml
   - path: ../lib/collect-usb-devices.queries.yml
