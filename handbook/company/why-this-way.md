@@ -247,7 +247,7 @@ For example, here is the [philosophy behind Fleet's bug report template](https:/
 
 
 ## Why don't we sell like everyone else?
-Many companies encourage salespeople to "spray and pray" email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
+Many companies encourage salespeople to ["spray and pray"](https://www.linkedin.com/posts/amstech_the-rampant-abuse-of-linkedin-connections-activity-7178412289413246978-Ci0I?utm_source=share&utm_medium=member_ios) email blasts, and to do whatever it takes to close deals.  This can sometimes be temporarily effective.  But Fleet takes a [🟠longer-term](https://fleetdm.com/handbook/company#ownership) approach:
 - **No spam.**  Fleet is deliberate and thoughtful in the way we do outreach, whether that's for community-building, education, or [🧊 conversation-starting](https://github.com/fleetdm/confidential/blob/main/cold-outbound-strategy.md).
 - **Be a helper.**  We focus on [🔴being helpers](https://fleetdm.com/handbook/company#empathy).  Always be depositing value.  This is how we create a virtuous cycle. (That doesn't mean sharing a random article; it means genuinely hearing, doing whatever it takes to fully understand, and offering only advice or links that we would actually want.)  We are genuinely curious and desperate to help, because creating real value for people is the way we win.
 - **Engineers first.** We always talk to engineers first, and learn how it's going.  Security and IT engineers are the people closest to the work, and the people best positioned to know what their organizations need.
