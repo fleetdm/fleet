@@ -224,11 +224,10 @@ publish() {
     gh release edit --draft=false --latest $next_tag
     gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
     show_spinner 200
+    echo "========================================================================="
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
-    echo "Then copy the topic and paste it in #general and #help-infrastructure"
-    echo "In #help-infrastructure add a thread message with:"
+    echo "========================================================================="
     dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
-    echo "to let them see the status of the dogfood deployment"
     cd tools/fleetctl-npm && npm publish
 
     issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
