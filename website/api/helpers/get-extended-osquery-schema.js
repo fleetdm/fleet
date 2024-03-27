@@ -208,7 +208,7 @@ module.exports = {
             if(!columnHasFleetOverrides) {// If this column has no Fleet overrides, we'll add it to the final schema unchanged
               let columnWithNoOverrides = _.clone(osquerySchemaColumn);
               if(osquerySchemaColumn.type !== undefined) {
-                columnWithNoOverrides.type = osquerySchemaColumn.type.toUpperCase();
+                columnWithNoOverrides.type = osquerySchemaColumn.type.toLowerCase();
               }
               mergedTableColumns.push(osquerySchemaColumn);
             } else { // If this table has Fleet overrides, we'll adjust the value in the merged schema
@@ -234,7 +234,7 @@ module.exports = {
                 }
               }
               if(columnHasFleetOverrides.type !== undefined) {
-                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toUpperCase());
+                fleetColumn.type = _.clone(columnHasFleetOverrides.type.toLowerCase());
               }
               if(columnHasFleetOverrides.required !== undefined) {
                 fleetColumn.required = _.clone(columnHasFleetOverrides.required);
