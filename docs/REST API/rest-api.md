@@ -3492,7 +3492,7 @@ Resends a configuration profile for the specified host.
 
 ##### Default response
 
-`Status: 200`
+`Status: 202`
 
 
 ### List host OS versions
