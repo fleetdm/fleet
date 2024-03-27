@@ -1488,12 +1488,22 @@ func batchSetMDMProfilesEndpoint(ctx context.Context, request interface{}, svc f
 }
 
 func (svc *Service) BatchSetMDMProfiles(
-	ctx context.Context, tmID *uint, tmName *string, profiles []fleet.MDMProfileBatchPayload, dryRun, skipBulkPending bool,
+	ctx context.Context,
+	tmID *uint,
+	tmName *string,
+	profiles []fleet.MDMProfileBatchPayload,
+	dryRun bool,
+	skipBulkPending bool,
 	assumeEnabled bool,
 ) error {
 	var err error
 	if tmID, tmName, err = svc.authorizeBatchProfiles(ctx, tmID, tmName); err != nil {
 		return err
+	}
+
+	fmt.Println(">>> received profiles in batch:")
+	for _, p := range profiles {
+		fmt.Println("    >>>>> ", p.Name)
 	}
 
 	appCfg, err := svc.ds.AppConfig(ctx)

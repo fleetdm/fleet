@@ -8923,7 +8923,7 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
 		stmt := `
 		SELECT COALESCE(apple_profile_uuid, windows_profile_uuid) as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
-		FROM mdm_configuration_profile_labels 
+		FROM mdm_configuration_profile_labels
 		UNION SELECT apple_declaration_uuid as profile_uuid, label_name, COALESCE(label_id, 0) as label_id
 		FROM mdm_declaration_labels ORDER BY profile_uuid, label_name;`
 		return sqlx.SelectContext(context.Background(), q, &profileLabels, stmt)
@@ -12053,4 +12053,132 @@ func (s *integrationMDMTestSuite) TestIsServerBitlockerStatus() {
 	s.DoJSON("GET", fmt.Sprintf("/api/latest/fleet/hosts/%d", host.ID), nil, http.StatusOK, &hr)
 
 	require.Equal(t, fleet.DiskEncryptionEnforcing, *hr.Host.MDM.OSSettings.DiskEncryption.Status)
+}
+
+func (s *integrationMDMTestSuite) TestMDMProfilesAndDeclarationsUniqueNames() {
+	// this test uses a combination of those endpoints to ensure that profile
+	// (and declarations) names are always unique across all platforms for a
+	// given team/no team:
+	//   POST /api/v1/fleet/mdm/apple/profiles/batch (deprecated but still supported)
+	//   POST /api/v1/fleet/mdm/profiles/batch
+	//   POST /api/v1/fleet/mdm/apple/profiles (deprecated but still supported)
+	//   POST /api/v1/fleet/configuration_profiles
+	t := s.T()
+
+	// Apple profiles are the only one to have the name inside the profile's
+	// contents. The other types can be named however we want when uploaded.
+	appleProf1 := mobileconfigForTest("A1", "I1")
+	appleProf1B := mobileconfigForTest("A1", "I0") // same name as appleProf1, different identifier
+	appleProf2 := mobileconfigForTest("A2", "I2")
+	winProf1 := syncml.ForTestWithData(map[string]string{"L1": "D1"})
+	winProf2 := syncml.ForTestWithData(map[string]string{"L2": "D2", "L3": "D3"})
+	appleDecl1 := declarationForTest("D1")
+
+	// /mdm/apple/profiles/batch only supports Apple Profiles, make sure it
+	// properly validates duplicate names in a given batch.
+	res := s.Do("POST", "/api/v1/fleet/mdm/apple/profiles/batch",
+		batchSetMDMAppleProfilesRequest{Profiles: [][]byte{appleProf1, appleProf1B}}, http.StatusUnprocessableEntity)
+	errMsg := extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	// /mdm/profiles/batch supports Windows and Apple Profiles and Apple
+	// Declarations, make sure it properly validates duplicate names within the
+	// Apple profiles.
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+			{Name: "A1", Contents: appleProf1},
+			{Name: "A1", Contents: appleProf1B},
+		}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	// TODO: this doesn't validate duplicate names
+	// make sure it properly validates duplicate names within the Windows
+	// profiles.
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+			{Name: "W1", Contents: winProf1},
+			{Name: "W1", Contents: winProf2},
+		}}, http.StatusNoContent)
+	//}}, http.StatusUnprocessableEntity)
+	//errMsg = extractServerErrorText(res.Body)
+	//require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	// make sure it properly validates duplicate names within the Apple
+	// declarations.
+	res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+			{Name: "D1", Contents: appleDecl1},
+			{Name: "D1", Contents: appleDecl1},
+		}}, http.StatusUnprocessableEntity)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "A declaration profile with this name already exists")
+
+	//// make sure it properly validates duplicate names across Apple/Windows
+	//// profiles.
+	//res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+	//	batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+	//		{Name: "A1", Contents: appleProf1},
+	//		{Name: "A1", Contents: winProf1},
+	//	}}, http.StatusUnprocessableEntity)
+	//errMsg = extractServerErrorText(res.Body)
+	//require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	//// make sure it properly validates duplicate names across Apple
+	//// profiles/declarations.
+	//res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+	//	batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+	//		{Name: "A1", Contents: appleProf1},
+	//		{Name: "A1", Contents: appleDecl1},
+	//	}}, http.StatusUnprocessableEntity)
+	//errMsg = extractServerErrorText(res.Body)
+	//require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	//// make sure it properly validates duplicate names across Apple
+	//// declarations/Windows profiles.
+	//res = s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+	//	batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+	//		{Name: "A1", Contents: appleDecl1},
+	//		{Name: "A1", Contents: winProf1},
+	//	}}, http.StatusUnprocessableEntity)
+	//errMsg = extractServerErrorText(res.Body)
+	//require.Contains(s.T(), errMsg, "More than one configuration profile have the same name")
+
+	// create A1, A2, W1 and D1 profiles (no name conflicts here)
+	s.Do("POST", "/api/v1/fleet/mdm/profiles/batch",
+		batchSetMDMProfilesRequest{Profiles: backwardsCompatProfilesParam{
+			{Name: "A1", Contents: appleProf1},
+			{Name: "A2", Contents: appleProf2},
+			{Name: "W1", Contents: winProf1},
+			{Name: "D1", Contents: appleDecl1},
+		}}, http.StatusNoContent)
+
+	// /mdm/apple/profiles only supports Apple profiles. try to upload a duplicate
+	// Apple profile name.
+	body, headers := generateNewProfileMultipartRequest(t, "unused_filename.mobileconfig", appleProf1, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/mdm/apple/profiles", body.Bytes(), http.StatusConflict, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "A configuration profile with this name already exists")
+
+	// /configuration_profiles supports all types, try to upload a duplicate
+	// Apple profile name.
+	body, headers = generateNewProfileMultipartRequest(t, "unused_filename.mobileconfig", appleProf1, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/configuration_profiles", body.Bytes(), http.StatusConflict, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "A configuration profile with this name already exists")
+
+	// try to upload a duplicate Apple declaration name.
+	body, headers = generateNewProfileMultipartRequest(t, "D1.json", appleDecl1, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/configuration_profiles", body.Bytes(), http.StatusConflict, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "MDMAppleDeclaration.Identifier D1 already exists")
+
+	// try to upload a duplicate Windows profile name.
+	body, headers = generateNewProfileMultipartRequest(t, "W1.xml", winProf1, s.token, nil)
+	res = s.DoRawWithHeaders("POST", "/api/v1/fleet/configuration_profiles", body.Bytes(), http.StatusConflict, headers)
+	errMsg = extractServerErrorText(res.Body)
+	require.Contains(s.T(), errMsg, "A configuration profile with this name already exists")
+
+	// TODO: upload apple prof that clashes with apple decl, windows prof, all combinations...
+	// TODO: batch set after an upload, that contains the uploaded name, should be ok (replace)
 }
