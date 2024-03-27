@@ -956,6 +956,7 @@ export default {
   generateRole,
   generateTeam,
   getUniqueColumnNamesFromRows,
+  getTableColumnsFromSql,
   getSortTypeFromColumnType,
   getCustomDropdownOptions,
   greyCell,
