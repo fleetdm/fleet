@@ -1317,6 +1317,56 @@ func (a ActivityTypeWipedHost) Documentation() (activity, details, detailsExampl
 }`
 }
 
+type ActivityTypeCreatedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) ActivityName() string {
+	return "created_declaration_profile"
+}
+
+func (a ActivityTypeCreatedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user adds a new macOS declaration to a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
+type ActivityTypeDeletedDeclarationProfile struct {
+	ProfileName string  `json:"profile_name"`
+	Identifier  string  `json:"identifier"`
+	TeamID      *uint   `json:"team_id"`
+	TeamName    *string `json:"team_name"`
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) ActivityName() string {
+	return "deleted_declaration_profile"
+}
+
+func (a ActivityTypeDeletedDeclarationProfile) Documentation() (activity string, details string, detailsExample string) {
+	return `Generated when a user removes a macOS declaration from a team (or no team).`,
+		`This activity contains the following fields:
+- "profile_name": Name of the declaration.
+- "identifier": Identifier of the declaration.
+- "team_id": The ID of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.
+- "team_name": The name of the team that the declaration applies to, ` + "`null`" + ` if it applies to devices that are not in a team.`, `{
+  "profile_name": "Passcode requirements",
+  "profile_identifier": "com.my.declaration",
+  "team_id": 123,
+  "team_name": "Workstations"
+}`
+}
+
 // LogRoleChangeActivities logs activities for each role change, globally and one for each change in teams.
 func LogRoleChangeActivities(ctx context.Context, ds Datastore, adminUser *User, oldGlobalRole *string, oldTeamRoles []UserTeam, user *User) error {
 	if user.GlobalRole != nil && (oldGlobalRole == nil || *oldGlobalRole != *user.GlobalRole) {
