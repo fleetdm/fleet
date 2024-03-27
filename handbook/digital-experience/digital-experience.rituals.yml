@@ -87,13 +87,6 @@
   moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#process-the-ceos-calendar"
   dri: "sampfluger88"
 -
-  task: "Fleet IT warehouse management"
-  startedOn: "2023-07-29"
-  frequency: "Weekly"
-  description: "Fleet IT warehouse management"
-  moreInfoUrl: "https://fleetdm.com/handbook/digital-experience#fleet-it-warehouse-management"
-  dri: "sampfluger88"
--
   task: "Send weekly update"
   startedOn: "2023-09-15"
   frequency: "Weekly"
