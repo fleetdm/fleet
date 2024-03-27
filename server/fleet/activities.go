@@ -84,6 +84,9 @@ var ActivityDetailsList = []ActivityDetails{
 	ActivityTypeLockedHost{},
 	ActivityTypeUnlockedHost{},
 	ActivityTypeWipedHost{},
+
+	ActivityTypeCreatedDeclarationProfile{},
+	ActivityTypeDeletedDeclarationProfile{},
 }
 
 type ActivityDetails interface {
