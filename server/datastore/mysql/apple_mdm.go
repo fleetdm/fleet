@@ -3962,3 +3962,21 @@ func (ds *Datastore) MDMAppleSetDeclarationsAsVerifying(ctx context.Context, hos
 	)
 	return ctxerr.Wrap(ctx, err, "updating host declaration status to verifying")
 }
+
+func (ds *Datastore) InsertMDMAppleDDMRequest(ctx context.Context, hostUUID, messageType, rawJSON string) error {
+	const stmt = `
+INSERT INTO
+    mdm_apple_declarative_requests (
+        enrollment_id,
+        message_type,
+        raw_json
+    )
+VALUES
+    (?, ?, ?)
+`
+	if _, err := ds.writer(ctx).ExecContext(ctx, stmt, hostUUID, messageType, rawJSON); err != nil {
+		return ctxerr.Wrap(ctx, err, "writing apple declarative request to db")
+	}
+
+	return nil
+}
