@@ -2386,7 +2386,17 @@ func subqueryOSSettingsStatusMac() (string, []any, error) {
 	args = append(args, declArgs...)
 	args = append(args, declArgs...)
 
-	return stmt, args, nil
+	// FIXME(roberto): we found issues in MySQL 5.7.17 (only that version,
+	// which we must support for now) with prepared statements on this
+	// query. The results returned by the DB were always different what
+	// expected unless the arguments are inlined in the query.
+	//
+	// We decided to do this given:
+	//
+	// - The time constraints we were given to develop DDM
+	// - The fact that all the variables in this query are really strings managed by us
+	// - The imminent deprecation of MySQL 5.7
+	return fmt.Sprintf(strings.Replace(stmt, "?", "'%s'", -1), args...), []any{}, nil
 }
 
 func (ds *Datastore) GetMDMAppleProfilesSummary(ctx context.Context, teamID *uint) (*fleet.MDMProfilesSummary, error) {
