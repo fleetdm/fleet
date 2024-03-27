@@ -78,6 +78,7 @@ usage() {
     echo "  -r, --release_notes    Update the release notes in the named release on github and exit (requires changelog output from running the script previously)."
     echo "  -s, --start_version    Set the target starting version (can also be the first positional arg) for the release, defaults to latest release on github"
     echo "  -t, --target_date      Set the target date for the release, defaults to today if not provided"
+    echo "  -u, --publish_release  Set's release from draft to release, deploys to dogfood."
     echo "  -v, --target_version   Set the target version for the release"
     echo ""
     echo "Environment Variables:"
@@ -219,6 +220,42 @@ update_release_notes() {
     fi
 }
 
+publish() {
+    gh release edit --draft=false --latest $next_tag
+    gh workflow run dogfood-deploy.yml -f DOCKER_IMAGE=fleetdm/fleet:$next_ver
+    show_spinner 200
+    echo "========================================================================="
+    echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
+    echo "========================================================================="
+    dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
+    cd tools/fleetctl-npm && npm publish
+
+    issues=`gh issue list -m $target_milestone --json number | jq -r '.[] | .number'`
+    for iss in $issues; do
+        echo "Closing #$iss"
+        gh issue close $iss
+    done
+
+    echo "Closing milestone"
+    gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
+
+    # Slack
+    slack_hook_url=https://hooks.slack.com/services
+    app_id=T019PP37ALW
+    general_channel_id=B06RZ60NUHX/tzaDZOvFCSvS2HC6rECi3Mvu
+    help_infra_channel_id=B06RLDFLC75/biuacbLxWRsDhv0hLA2qnLbX
+    help_eng_channel_id=B06RDTMUP1U/x2R36PXvW13KE6daxMiUK6W7
+    announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet"
+
+    curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"$announce_text\"}" \
+        $slack_hook_url/$app_id/$general_channel_id
+
+    curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
+        $slack_hook_url/$app_id/$help_infra_channel_id
+}
+
 # Validate we have all commands required to perform this script
 check_required_binaries
 
@@ -232,6 +269,7 @@ start_version=""
 target_date=""
 target_version=""
 print_info=false
+publish_release=false
 release_notes=false
 
 # Parse long options manually
@@ -245,6 +283,7 @@ for arg in "$@"; do
     "--minor") set -- "$@" "-m" ;;
     "--open_api_key") set -- "$@" "-o" ;;
     "--print") set -- "$@" "-p" ;;
+    "--publish_release") set -- "$@" "-u" ;;
     "--release_notes") set -- "$@" "-r" ;;
     "--start_version") set -- "$@" "-s" ;;
     "--target_date") set -- "$@" "-t" ;;
@@ -254,7 +293,7 @@ for arg in "$@"; do
 done
 
 # Extract options and their arguments using getopts
-while getopts "cdfhmo:prs:t:v:" opt; do
+while getopts "cdfhmo:prs:t:uv:" opt; do
     case "$opt" in
         c) cherry_pick_resolved=true ;;
         d) dry_run=true ;;
@@ -266,6 +305,7 @@ while getopts "cdfhmo:prs:t:v:" opt; do
         r) release_notes=true ;;
         s) start_version=$OPTARG ;;
         t) target_date=$OPTARG ;;
+        u) publish_release=true ;;
         v) target_version=$OPTARG ;;
         ?) usage; exit 1 ;;
     esac
@@ -356,10 +396,15 @@ if [ "$force" = "false" ]; then
             ;;
     esac
 fi
+# 4.47.2
 start_milestone="${start_version:1}"
+# 4.47.3
 target_milestone="${next_ver:1}"
+# 79
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
+# patch-fleet-v4.47.3
 target_patch_branch="patch-fleet-$next_ver"
+# fleet-v4.47.3
 next_tag="fleet-$next_ver"
 
 if [ "$print_info" = "true" ]; then
@@ -377,6 +422,11 @@ if [[ "$target_milestone_number" == "" ]]; then
     exit 1
 fi
 echo "Found milestone $target_milestone with number $target_milestone_number"
+
+if [ "$publish_release" = "true" ]; then
+    publish
+    exit 0
+fi
 
 failed=false
 
@@ -550,6 +600,20 @@ if [[ "$failed" == "false" ]]; then
         echo -e "${output}" >> temp_changelog
         echo "" >> temp_changelog
         cp CHANGELOG.md old_changelog
+        cat temp_changelog
+        echo
+        echo "About to write changelog"
+        if [ "$force" = "false" ]; then
+            read -r -p "Does the above changelog look good (edit temp_changelog now to make changes) (n exits)? [y/N] " response
+            case "$response" in
+                [yY][eE][sS]|[yY])
+                    echo
+                    ;;
+                *)
+                    exit 1
+                    ;;
+            esac
+        fi
         cat temp_changelog > CHANGELOG.md
         cat old_changelog >> CHANGELOG.md
         rm -f old_changelog
@@ -561,6 +625,15 @@ if [[ "$failed" == "false" ]]; then
         fi
         git checkout -b $update_changelog_patch_branch
         git add CHANGELOG.md
+        escaped_start_version=$(echo "$start_milestone" | sed 's/\./\\./g')
+        version_files=`ack -l --ignore-file=is:CHANGELOG.md "$escaped_start_version"`
+        unameOut="$(uname -s)"
+        case "${unameOut}" in
+            Linux*)     echo "$version_files" | xargs sed -i "s/$escaped_start_version/$target_milestone/g";;
+            Darwin*)    echo "$version_files" | xargs sed -i '' "s/$escaped_start_version/$target_milestone/g";;
+            *)          echo "unknown distro to parse version"
+        esac
+        git add terraform charts infrastructure tools
         git commit -m "Adding changes for patch $target_milestone"
         git push origin $update_changelog_patch_branch -f
         gh pr create -f -B $target_patch_branch
@@ -622,7 +695,7 @@ if [[ "$failed" == "false" ]]; then
         echo `gh pr view $update_changelog_patch_branch --json url | jq -r .url`
         echo
         waiting=true
-        while waiting; do
+        while $waiting; do
             pr_state=`gh pr view $update_changelog_patch_branch --json state | jq -r .state`
             if [[ "$pr_state" == "MERGED" ]]; then
                 waiting=false
@@ -632,6 +705,19 @@ if [[ "$failed" == "false" ]]; then
         done
         git pull origin $target_patch_branch
 
+
+        echo "About to tag to $next_tag"
+        if [ "$force" = "false" ]; then
+            read -r -p "Did all steps succeed and is the tag ready to push? [y/N] " response
+            case "$response" in
+                [yY][eE][sS]|[yY])
+                    echo
+                    ;;
+                *)
+                    exit 1
+                    ;;
+            esac
+        fi
         git tag $next_tag
         git push origin $next_tag
 
