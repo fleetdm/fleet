@@ -461,7 +461,7 @@ WHERE
 		// (and my hunch is that we could even do the same for
 		// profiles) but this could be optimized to use only a provided
 		// set of host uuids.
-		if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize); err != nil {
+		if _, err := mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, nil); err != nil {
 			return ctxerr.Wrap(ctx, err, "bulk set pending apple declarations")
 		}
 

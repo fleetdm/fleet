@@ -9259,6 +9259,8 @@ func (s *integrationMDMTestSuite) TestMDMConfigProfileCRUD() {
 	testTeam, err := s.ds.NewTeam(ctx, &fleet.Team{Name: "TestTeam"})
 	require.NoError(t, err)
 
+	t.Cleanup(func() { s.cleanupDeclarations(t) })
+
 	assertAppleProfile := func(filename, name, ident string, teamID uint, labelNames []string, wantStatus int, wantErrMsg string) string {
 		fields := map[string][]string{
 			"labels": labelNames,

@@ -3761,14 +3761,14 @@ func (ds *Datastore) MDMAppleBatchSetHostDeclarationState(ctx context.Context) (
 
 	err := ds.withRetryTxx(ctx, func(tx sqlx.ExtContext) error {
 		var err error
-		uuids, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize)
+		uuids, err = mdmAppleBatchSetHostDeclarationStateDB(ctx, tx, batchSize, &fleet.MDMDeliveryPending)
 		return err
 	})
 
 	return uuids, ctxerr.Wrap(ctx, err, "upserting host declaration state")
 }
 
-func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int) ([]string, error) {
+func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtContext, batchSize int, status *fleet.MDMDeliveryStatus) ([]string, error) {
 	// once all the declarations are in place, compute the desired state
 	// and find which hosts need a DDM sync.
 	changedDeclarations, err := mdmAppleGetHostsWithChangedDeclarationsDB(ctx, tx)
@@ -3799,7 +3799,7 @@ func mdmAppleBatchSetHostDeclarationStateDB(ctx context.Context, tx sqlx.ExtCont
 	// - support the DDM endpoints, which use data from the
 	//   `host_mdm_apple_declarations` table to compute which declarations to
 	//   serve
-	if err := mdmAppleBatchSetPendingHostDeclarationsDB(ctx, tx, batchSize, changedDeclarations); err != nil {
+	if err := mdmAppleBatchSetPendingHostDeclarationsDB(ctx, tx, batchSize, changedDeclarations, status); err != nil {
 		return nil, ctxerr.Wrap(ctx, err, "batch insert mdm apple host declarations")
 	}
 
@@ -3813,6 +3813,7 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	tx sqlx.ExtContext,
 	batchSize int,
 	changedDeclarations []*fleet.MDMAppleHostDeclaration,
+	status *fleet.MDMDeliveryStatus,
 ) error {
 	baseStmt := `
 	  INSERT INTO host_mdm_apple_declarations
@@ -3835,8 +3836,8 @@ func mdmAppleBatchSetPendingHostDeclarationsDB(
 	}
 
 	generateValueArgs := func(d *fleet.MDMAppleHostDeclaration) (string, []any) {
-		valuePart := "(?, 'pending', ?, ?, ?, ?, ?),"
-		args := []any{d.HostUUID, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name}
+		valuePart := "(?, ?, ?, ?, ?, ?, ?),"
+		args := []any{d.HostUUID, status, d.OperationType, d.Checksum, d.DeclarationUUID, d.Identifier, d.Name}
 		return valuePart, args
 	}
 

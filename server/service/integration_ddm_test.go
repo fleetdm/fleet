@@ -34,6 +34,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMBatchUpload() {
 		"DataAssetReference": "com.fleet.asset.bash" %s
 	}
 }`
+	// TODO: figure out the best way to do this. We might even consider
+	// starting a different test suite.
+	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	newDeclBytes := func(i int, payload ...string) []byte {
 		var p string
@@ -198,6 +201,8 @@ func (s *integrationMDMTestSuite) TestMDMAppleDeviceManagementRequests() {
 		csum := fmt.Sprintf("%x", md5.Sum(source)) //nolint:gosec
 		return strings.ToUpper(csum)
 	}
+
+	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	insertDeclaration := func(t *testing.T, decl fleet.MDMAppleDeclaration) {
 		stmt := `
@@ -536,13 +541,9 @@ func (s *integrationMDMTestSuite) TestAppleDDMReconciliation() {
 	require.NotZero(t, createTeamResp.Team.ID)
 	team = createTeamResp.Team
 
-	t.Cleanup(func() {
-		// delete declarations to not affect other tests
-		deleteDeclaration("I2", 0)
-		deleteDeclaration("I1", team.ID)
-		deleteDeclaration("I2", team.ID)
-		deleteDeclaration("I3", team.ID)
-	})
+	// TODO: figure out the best way to do this. We might even consider
+	// starting a different test suite.
+	t.Cleanup(func() { s.cleanupDeclarations(t) })
 
 	checkNoCommands := func(d *mdmtest.TestAppleMDMClient) {
 		cmd, err := d.Idle()
@@ -745,6 +746,10 @@ func (s *integrationMDMTestSuite) TestAppleDDMStatusReport() {
 	// TODO: use config logger or take into account FLEET_INTEGRATION_TESTS_DISABLE_LOG
 	logger := kitlog.NewJSONLogger(os.Stdout)
 
+	// TODO: figure out the best way to do this. We might even consider
+	// starting a different test suite.
+	t.Cleanup(func() { s.cleanupDeclarations(t) })
+
 	assertHostDeclarations := func(hostUUID string, wantDecls []*fleet.MDMAppleHostDeclaration) {
 		var gotDecls []*fleet.MDMAppleHostDeclaration
 		mysql.ExecAdhocSQL(t, s.ds, func(q sqlx.ExtContext) error {
@@ -886,4 +891,20 @@ func declarationForTest(identifier string) []byte {
     },
     "Identifier": "%s"
 }`, identifier))
+}
+
+func (s *integrationMDMTestSuite) cleanupDeclarations(t *testing.T) {
+	ctx := context.Background()
+	// TODO: figure out the best way to do this. We might even consider
+	// starting a different test suite.
+	// delete declarations to not affect other tests
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM mdm_apple_declarations")
+		return err
+	})
+	mysql.ExecAdhocSQL(t, s.ds, func(tx sqlx.ExtContext) error {
+		_, err := tx.ExecContext(ctx, "DELETE FROM host_mdm_apple_declarations")
+		return err
+	})
+
 }
