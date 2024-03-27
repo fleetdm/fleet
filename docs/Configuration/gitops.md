@@ -1,3 +1,5 @@
+# GitOps
+
 Fleet can be managed with configuration files (YAML) with GitOps workflow. To learn how to setup GitOps workflow see [Fleet GitOps repo](https://github.com/fleetdm/fleet-gitops).
 
 > Old workflow with YAML configuration files is documented [here](https://github.com/fleetdm/fleet/blob/main/docs/Configuration/configuration-files/README.md).  `fleetctl apply` can be still used for imports and backwards compatibility.
