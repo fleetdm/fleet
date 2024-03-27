@@ -3970,7 +3970,7 @@
       {
         "name": "path",
         "description": "Path to extension folder. Defaults to '' on ChromeOS",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -4067,7 +4067,7 @@
       {
         "name": "state",
         "description": "1 if this extension is enabled",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -15143,19 +15143,19 @@
         "name": "trace_id",
         "description": "The ID of a trace event",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "event_type",
         "description": "The type of event, this can be logEvent, signpostEvent or stateEvent.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "format_string",
         "description": "The format string used to convert variable content into a string for output.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "activity_identifier",
@@ -15185,19 +15185,19 @@
         "name": "sender_image_uuid",
         "description": "The UUID of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_image_path",
         "description": "The full path of the library, framework, kernel extension, or mach-o image, that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "boot_uuid",
         "description": "The boot UUID of the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "process_id",
@@ -15209,7 +15209,7 @@
         "name": "process_image_path",
         "description": "The full path of the process that originated the event.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "timestamp",
@@ -15221,7 +15221,7 @@
         "name": "event_message",
         "description": "The message of the log entry.",
         "required": false,
-        "type": "string"
+        "type": "text"
       },
       {
         "name": "sender_program_counter",
@@ -25617,7 +25617,7 @@
       {
         "name": "hostname",
         "description": "Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25635,7 +25635,7 @@
       {
         "name": "cpu_type",
         "description": "CPU type",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25658,7 +25658,7 @@
       {
         "name": "cpu_brand",
         "description": "CPU brand string, contains vendor and model",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25718,7 +25718,7 @@
       {
         "name": "physical_memory",
         "description": "Total physical memory in bytes",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25727,7 +25727,7 @@
       {
         "name": "hardware_vendor",
         "description": "Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25736,7 +25736,7 @@
       {
         "name": "hardware_model",
         "description": "Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25759,7 +25759,7 @@
       {
         "name": "hardware_serial",
         "description": "The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25824,7 +25824,7 @@
       {
         "name": "computer_name",
         "description": "Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only",
-        "type": "STRING",
+        "type": "TEXT",
         "notes": "",
         "hidden": false,
         "required": false,
@@ -25857,7 +25857,7 @@
     "columns": [
       {
         "name": "idle_state",
-        "type": "string",
+        "type": "text",
         "description": "Returns \"locked\", \"idle\", or \"active\".",
         "required": false
       }
@@ -27254,7 +27254,7 @@
       {
         "name": "email",
         "required": false,
-        "type": "string",
+        "type": "text",
         "description": "Email",
         "platforms": [
           "chrome"

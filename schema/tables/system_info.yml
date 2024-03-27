@@ -56,26 +56,26 @@ columns:
       - windows
       - linux
   - name: hostname
-    type: string
+    type: text
     description: Network hostname including domain. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
   - name: computer_name
-    type: string
+    type: text
     description: Friendly computer name (optional). For ChromeOS, if the extension wasn't force-installed by an enterprise policy this will default to 'ChromeOS' only
   - name: hardware_serial
-    type: string
+    type: text
     description: The device's serial number. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
   - name: hardware_vendor
-    type: string
+    type: text
     description: Hardware vendor. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
   - name: hardware_model
-    type: string
+    type: text
     description: Hardware model. For ChromeOS, this is only available if the extension was force-installed by an enterprise policy
   - name: cpu_brand
-    type: string
+    type: text
   - name: cpu_type
-    type: string
+    type: text
   - name: physical_memory
-    type: string
+    type: text
 
 examples: >-
   See the CPU architecture of a machine as well as who made it and what its
