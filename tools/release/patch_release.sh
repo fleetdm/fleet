@@ -227,7 +227,7 @@ publish() {
     echo "Update osquery Slack Fleet channel topic to say the correct version $next_ver"
     echo "Then copy the topic and paste it in #general and #help-infrastructure"
     echo "In #help-infrastructure add a thread message with:"
-    gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'
+    dogfood_deploy=`gh run list --workflow=dogfood-deploy.yml --status in_progress -L 1 --json url | jq -r '.[] | .url'`
     echo "to let them see the status of the dogfood deployment"
     cd tools/fleetctl-npm && npm publish
 
@@ -239,6 +239,22 @@ publish() {
 
     echo "Closing milestone"
     gh api repos/fleetdm/fleet/milestones/$target_milestone_number -f state=closed
+
+    # Slack
+    slack_hook_url=https://hooks.slack.com/services
+    app_id=T019PP37ALW
+    general_channel_id=B06RZ60NUHX/tzaDZOvFCSvS2HC6rECi3Mvu
+    help_infra_channel_id=B06RLDFLC75/biuacbLxWRsDhv0hLA2qnLbX
+    help_eng_channel_id=B06RDTMUP1U/x2R36PXvW13KE6daxMiUK6W7
+    announce_text=":cloud: :rocket: The latest version of Fleet is $target_milestone.\nMore info: https://github.com/fleetdm/fleet/releases/tag/$next_tag\nUpgrade now: https://fleetdm.com/docs/deploying/upgrading-fleet"
+
+    curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"$announce_text\"}" \
+        $slack_hook_url/$app_id/$general_channel_id
+
+    curl -X POST -H 'Content-type: application/json' \
+        --data "{\"text\":\"$announce_text\nDogfood Deployed $dogfood_deploy\"}" \
+        $slack_hook_url/$app_id/$help_infra_channel_id
 }
 
 # Validate we have all commands required to perform this script
@@ -383,9 +399,13 @@ if [ "$force" = "false" ]; then
 fi
 # 4.47.2
 start_milestone="${start_version:1}"
+# 4.47.3
 target_milestone="${next_ver:1}"
+# 79
 target_milestone_number=`gh api repos/:owner/:repo/milestones | jq -r ".[] | select(.title==\"$target_milestone\") | .number"`
+# patch-fleet-v4.47.3
 target_patch_branch="patch-fleet-$next_ver"
+# fleet-v4.47.3
 next_tag="fleet-$next_ver"
 
 if [ "$print_info" = "true" ]; then
