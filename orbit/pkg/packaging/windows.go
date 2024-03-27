@@ -222,7 +222,7 @@ func checkWine(wineChecked bool) error {
 		cmd := exec.Command(wix.WineCmd, "--version")
 		if err := cmd.Run(); err != nil {
 			return fmt.Errorf(
-				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://github.com/fleetdm/fleet/blob/fleet-v4.44.0/scripts/macos-install-wine.sh %w",
+				"%s failed. Is Wine installed? Creating a fleetd agent for Windows (.msi) requires Wine. To install Wine see the script here: https://fleetdm.com/install-wine %w",
 				wix.WineCmd, err,
 			)
 		}
